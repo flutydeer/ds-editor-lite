@@ -8,7 +8,7 @@
 #include <QFileDialog>
 #include <QPushButton>
 #include <QItemDelegate>
-#include <QLineEdit>
+#include <QPersistentModelIndex>
 
 #include <lite/GUI/Controls/PathListWidget.h>
 
@@ -169,19 +169,18 @@ void PathEditor::connectSignals() {
 
 void PathEditor::editRowWithEmptyCheck(int row) {
     auto model = m_listWidget->model();
-    const QModelIndex idx = model->index(row, 0);
+    const QPersistentModelIndex idx = model->index(row, 0);
     m_listWidget->edit(idx);
 
-    connect(m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
-            [row, model, this](QWidget *editor, QAbstractItemDelegate::EndEditHint) {
-                const auto lineEdit = qobject_cast<QLineEdit *>(editor);
-                if (lineEdit && lineEdit->text().isEmpty()) {
-                    if (row >= 0 && row < model->rowCount()) {
-                        model->removeRow(row);
-                    }
-                }
-                Q_EMIT pathsChanged();
-            }, Qt::SingleShotConnection);
+    connect(
+        m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
+        [idx, model, this](QWidget *, QAbstractItemDelegate::EndEditHint) {
+            // Escape discards the editor's draft, so inspect the value retained by the model.
+            if (idx.isValid() && idx.data(Qt::EditRole).toString().isEmpty())
+                model->removeRow(idx.row());
+            Q_EMIT pathsChanged();
+        },
+        Qt::SingleShotConnection);
 }
 
 void PathEditor::onAddClicked() {

@@ -14,6 +14,9 @@
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QLineEdit>
+#include <QPointer>
+#include <QKeySequence>
 #include <QtTest/QTest>
 
 namespace {
@@ -97,6 +100,74 @@ void GuiComponentTests::pathEditorMovesAndDeletesTheSelectedDirectories() {
     const auto afterDelete = changed.count();
     QTest::mouseClick(remove, Qt::LeftButton);
     QCOMPARE(changed.count(), afterDelete);
+}
+
+void GuiComponentTests::pathEditorInlineEditsCommitOrCancel_data() {
+    QTest::addColumn<bool>("createDraft");
+    QTest::addColumn<bool>("clearInput");
+    QTest::addColumn<bool>("commit");
+    QTest::newRow("commit-directory-edit") << false << false << true;
+    QTest::newRow("remove-cleared-directory") << false << true << true;
+    QTest::newRow("discard-cleared-edit") << false << true << false;
+    QTest::newRow("commit-new-directory") << true << false << true;
+    QTest::newRow("discard-empty-draft") << true << true << false;
+}
+
+void GuiComponentTests::pathEditorInlineEditsCommitOrCancel() {
+    QFETCH(bool, createDraft);
+    QFETCH(bool, clearInput);
+    QFETCH(bool, commit);
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    for (const auto &name :
+         {QStringLiteral("first"), QStringLiteral("second"), QStringLiteral("replacement")})
+        QVERIFY(QDir(root.path()).mkdir(name));
+    const QStringList initial{QDir::toNativeSeparators(root.filePath(QStringLiteral("first"))),
+                              QDir::toNativeSeparators(root.filePath(QStringLiteral("second")))};
+    const auto replacement = QDir::toNativeSeparators(root.filePath(QStringLiteral("replacement")));
+    PathEditor paths;
+    paths.setPaths(initial);
+    paths.resize(640, 320);
+    paths.show();
+    paths.activateWindow();
+    QTRY_VERIFY(paths.isActiveWindow());
+    auto *list = paths.listWidget();
+    QVERIFY(list);
+    QCOMPARE(paths.paths(), initial);
+    QPoint position = list->visualItemRect(list->item(0)).center();
+    if (createDraft) {
+        const auto lastRow = list->visualItemRect(list->item(list->count() - 1));
+        position = QPoint(lastRow.center().x(), lastRow.bottom() + lastRow.height());
+        QVERIFY(!list->indexAt(position).isValid());
+    }
+    QVERIFY(list->viewport()->rect().contains(position));
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    QTest::mouseRelease(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    QPointer<QLineEdit> editor;
+    QTRY_VERIFY((editor = qobject_cast<QLineEdit *>(QApplication::focusWidget())) &&
+                list->isAncestorOf(editor));
+    if (createDraft)
+        QCOMPARE(list->count(), initial.size() + 1);
+    QTest::keySequence(editor, QKeySequence::SelectAll);
+    if (clearInput)
+        QTest::keyClick(editor, Qt::Key_Backspace);
+    else
+        QTest::keyClicks(editor, replacement);
+    QCOMPARE(editor->text(), clearInput ? QString{} : replacement);
+    QTest::keyClick(editor, commit ? Qt::Key_Return : Qt::Key_Escape);
+    QTRY_VERIFY(!editor || !editor->isVisible());
+    auto expected = initial;
+    if (createDraft) {
+        if (commit)
+            expected.append(replacement);
+    } else if (commit) {
+        if (clearInput)
+            expected.removeFirst();
+        else
+            expected[0] = replacement;
+    }
+    QCOMPARE(paths.paths(), expected);
 }
 
 void GuiComponentTests::fileSelectorAcceptsTheFirstSuitableLocalDrop_data() {

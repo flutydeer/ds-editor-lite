@@ -37,6 +37,8 @@ private slots:
     void mixerSliderReleaseEndsPreview_data();
     void mixerSliderReleaseEndsPreview();
     void pathEditorMovesAndDeletesTheSelectedDirectories();
+    void pathEditorInlineEditsCommitOrCancel_data();
+    void pathEditorInlineEditsCommitOrCancel();
     void fileSelectorAcceptsTheFirstSuitableLocalDrop_data();
     void fileSelectorAcceptsTheFirstSuitableLocalDrop();
     void overlayScrollMenuNavigatesTheAttachedArea_data();
