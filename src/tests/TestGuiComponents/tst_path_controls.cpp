@@ -79,8 +79,10 @@ void GuiComponentTests::pathEditorMovesAndDeletesTheSelectedDirectories() {
     QCOMPARE(editor.paths(), paths);
     QCOMPARE(changed.count(), 1);
     const auto clickRow = [&](int row, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-        QTest::mouseClick(list->viewport(), Qt::LeftButton, modifiers,
-                          list->visualItemRect(list->item(row)).center());
+        const auto visibleRow =
+            list->visualItemRect(list->item(row)).intersected(list->viewport()->rect());
+        QVERIFY(!visibleRow.isEmpty());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, modifiers, visibleRow.center());
     };
     clickRow(1);
     clickRow(2, Qt::ShiftModifier);
@@ -134,10 +136,13 @@ void GuiComponentTests::pathEditorInlineEditsCommitOrCancel() {
     auto *list = paths.listWidget();
     QVERIFY(list);
     QCOMPARE(paths.paths(), initial);
-    QPoint position = list->visualItemRect(list->item(0)).center();
+    const auto visibleRow =
+        list->visualItemRect(list->item(0)).intersected(list->viewport()->rect());
+    QVERIFY(!visibleRow.isEmpty());
+    QPoint position = visibleRow.center();
     if (createDraft) {
         const auto lastRow = list->visualItemRect(list->item(list->count() - 1));
-        position = QPoint(lastRow.center().x(), lastRow.bottom() + lastRow.height());
+        position.setY(lastRow.bottom() + lastRow.height());
         QVERIFY(!list->indexAt(position).isValid());
     }
     QVERIFY(list->viewport()->rect().contains(position));
