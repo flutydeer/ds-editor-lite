@@ -793,7 +793,14 @@ void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
     QVERIFY(!historyManager->canRedo());
 }
 
+void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt_data() {
+    QTest::addColumn<bool>("removesNote");
+    QTest::newRow("moved-note") << false;
+    QTest::newRow("removed-note") << true;
+}
+
 void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
+    QFETCH(bool, removesNote);
     MainWindowFixture host;
     host.show();
     if (QTest::currentTestFailed())
@@ -806,12 +813,15 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     Automation::NoteDraftDto draft;
     draft.localStart = 480;
     draft.length = 240;
-    draft.keyIndex = 60;
+    draft.keyIndex = removesNote ? 127 : 60;
     draft.lyric = QStringLiteral("la");
     const auto clipId = Automation::ClipId(singingClip->id());
+    QVERIFY(runtime.project().moveClips(commandContext(), {
+                                                              {clipId, trackId, 4800}
+    }));
     QVERIFY(runtime.notes().insertNotes(commandContext(), clipId, {draft}));
     QCOMPARE(singingClip->notes().count(), 1);
-    auto *note = *singingClip->notes().begin();
+    const auto noteId = (*singingClip->notes().begin())->id();
     auto &window = *host.window;
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
@@ -825,8 +835,19 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
-    QVERIFY(runtime.notes().moveNotes(commandContext(), clipId, {Automation::NoteId(note->id())}, 0,
-                                      67));
+    const auto originalContent = TestSupport::projectSnapshot(*context->m_appModel);
+    if (removesNote) {
+        QVERIFY(
+            runtime.notes().removeNotes(commandContext(), clipId, {Automation::NoteId(noteId)}));
+    } else {
+        QVERIFY(runtime.notes().moveNotes(commandContext(), clipId, {Automation::NoteId(noteId)}, 0,
+                                          67));
+    }
+    const auto editedContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto hasEditedState = [&] {
+        const auto *current = singingClip->findNoteById(noteId);
+        return removesNote ? current == nullptr : current && current->keyIndex() == 127;
+    };
     const auto *entry = historyManager->nextUndoEntry();
     QVERIFY(entry && entry->focusTransition());
     const auto focus = *entry->focusTransition();
@@ -837,22 +858,26 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     auto *input = QApplication::focusWidget();
     QVERIFY(input);
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
-    QCOMPARE(note->keyIndex(), 127);
+    QVERIFY(hasEditedState());
     QTRY_COMPARE(navigation.size(), 1);
     QCOMPARE(runtime.documentVersion(), beforeUndo);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), editedContent);
     QCOMPARE(historyManager->nextUndoEntry(), entry);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
     input = QApplication::focusWidget();
     QVERIFY(input && editor->isAncestorOf(input));
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
-    QTRY_COMPARE(note->keyIndex(), 60);
+    QTRY_VERIFY(singingClip->findNoteById(noteId) &&
+                singingClip->findNoteById(noteId)->keyIndex() == draft.keyIndex);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalContent);
     QCOMPARE(navigation.size(), 1);
     QVERIFY(!historyManager->canUndo());
     QTRY_COMPARE(window.focusVisibility(focus.before), HistoryFocusVisibility::Visible);
     input = QApplication::focusWidget();
     QVERIFY(input);
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Y")));
-    QTRY_COMPARE(note->keyIndex(), 127);
+    QTRY_VERIFY(hasEditedState());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), editedContent);
     QCOMPARE(navigation.size(), 1);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
     QVERIFY(!historyManager->canRedo());
