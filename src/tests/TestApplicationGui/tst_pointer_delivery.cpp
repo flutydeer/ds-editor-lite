@@ -91,13 +91,29 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
         QCOMPARE(runtime.documentVersion(), before);
         sequence.release(0, right).commit();
         QTRY_VERIFY(qobject_cast<QMenu *>(QApplication::activePopupWidget()));
-        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        const QPointer<QMenu> menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
         QVERIFY(menu->isVisible());
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(input->text(), QStringLiteral("a draft line"));
-        QTest::keyClick(menu, Qt::Key_Escape);
+        QTest::keyClick(menu.data(), Qt::Key_Escape);
         QTRY_VERIFY(QApplication::activePopupWidget() == nullptr);
-        QTRY_VERIFY(input->hasFocus());
+        QTRY_VERIFY2(
+            input->hasFocus(),
+            qPrintable(QStringLiteral("editing=%1 menuAlive=%2 ownerActive=%3 revision=%4 "
+                                      "expected=%5 activeWindow=%6 focusWidget=%7")
+                           .arg(overlay->isEditing())
+                           .arg(!menu.isNull())
+                           .arg(input->window()->isActiveWindow())
+                           .arg(runtime.documentVersion().revision)
+                           .arg(before.revision)
+                           .arg(QApplication::activeWindow()
+                                    ? QString::fromLatin1(
+                                          QApplication::activeWindow()->metaObject()->className())
+                                    : QStringLiteral("none"))
+                           .arg(QApplication::focusWidget()
+                                    ? QString::fromLatin1(
+                                          QApplication::focusWidget()->metaObject()->className())
+                                    : QStringLiteral("none"))));
     } else if (finish != QStringLiteral("submit")) {
         sequence.move(0, left).commit();
         QVERIFY(input->hasSelectedText());
