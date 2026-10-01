@@ -551,8 +551,18 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
             const auto target = popup->actionGeometry(action).center();
             if (preview) {
                 const auto rendered = frames.size();
-                QTest::mouseMove(popup->windowHandle(), target);
-                QTRY_COMPARE(popup->activeAction(), action);
+                QCursor::setPos(popup->mapToGlobal(target));
+                QCoreApplication::processEvents();
+                QMouseEvent hover(QEvent::MouseMove, QPointF(target),
+                                  QPointF(popup->mapToGlobal(target)), Qt::NoButton, Qt::NoButton,
+                                  Qt::NoModifier);
+                QApplication::sendEvent(popup, &hover);
+                QTRY_VERIFY2(popup->activeAction() == action,
+                             qPrintable(QStringLiteral("Expected %1; active %2; visible %3")
+                                            .arg(action->text(), popup->activeAction()
+                                                                     ? popup->activeAction()->text()
+                                                                     : QStringLiteral("none"))
+                                            .arg(popup->isVisible())));
                 QTRY_VERIFY(frames.size() > rendered);
                 QCOMPARE(destination->clips().count(), 0);
                 QCOMPARE(fixture.runtime().documentVersion(), before);
