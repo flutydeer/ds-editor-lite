@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/PointerEvents.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -34,15 +35,6 @@ namespace {
         QApplication::sendEvent(&widget, &event);
     }
 
-    bool sendTablet(QWidget &viewport, const QPointingDevice &device, QEvent::Type type,
-                    const QPoint &position, qreal pressure, Qt::MouseButton button,
-                    Qt::MouseButtons buttons) {
-        QTabletEvent event(type, &device, position, viewport.mapToGlobal(position), pressure, 0, 0,
-                           0, 0, 0, Qt::NoModifier, button, buttons);
-        event.setAccepted(false);
-        QApplication::sendEvent(&viewport, &event);
-        return event.isAccepted();
-    }
 }
 
 void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers_data() {
@@ -174,12 +166,12 @@ void ApplicationGuiTests::pianoPenClickOwnsOnlyItsContextMenu() {
         deactivate(*view);
         disconnect(connection);
     });
-    QVERIFY(sendTablet(*view->viewport(), pen, QEvent::TabletPress, position, 0.7, Qt::RightButton,
-                       Qt::RightButton));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletPress, position, 0.7,
+                                         Qt::RightButton, Qt::RightButton));
     QVERIFY(menus.isEmpty());
     QVERIFY(!editSessionManager->hasActiveTransaction());
-    QVERIFY(sendTablet(*view->viewport(), pen, QEvent::TabletRelease, position, 0, Qt::RightButton,
-                       Qt::NoButton));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletRelease, position, 0,
+                                         Qt::RightButton, Qt::NoButton));
     QTRY_COMPARE(menus.size(), 1);
     QCOMPARE(menus.first().target, PianoRollMenuContext::Target::Note);
     QCOMPARE(menus.first().noteId, id);
@@ -467,19 +459,20 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
         QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
     const auto button = barrel ? Qt::RightButton : Qt::LeftButton;
     const auto cleanup = qScopeGuard([&] { deactivate(*view); });
-    QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletPress, first, 0.7, button, button));
-    QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletMove, first + QPoint(20, 0), 0.7,
-                       Qt::NoButton, button));
-    QVERIFY(
-        sendTablet(*view->viewport(), device, QEvent::TabletMove, last, 0.7, Qt::NoButton, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletPress, first, 0.7,
+                                         button, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove,
+                                         first + QPoint(20, 0), 0.7, Qt::NoButton, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove, last, 0.7,
+                                         Qt::NoButton, button));
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
     if (unsupported) {
         QCOMPARE(sceneNoteCount(firstId), 1);
         QCOMPARE(sceneNoteCount(secondId), 1);
         QVERIFY(!editSessionManager->hasActiveTransaction());
-        QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletRelease, last, 0, button,
-                           Qt::NoButton));
+        QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletRelease, last,
+                                             0, button, Qt::NoButton));
         QVERIFY(!historyManager->canUndo());
         view->setEditMode(ClipEditorGlobal::Select);
     } else {
@@ -496,8 +489,8 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
             QCOMPARE(sceneNoteCount(secondId), 1);
             QVERIFY(!historyManager->canUndo());
         } else {
-            QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletRelease, last, 0, button,
-                               Qt::NoButton));
+            QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletRelease,
+                                                 last, 0, button, Qt::NoButton));
             QCOMPARE(singingClip->notes().count(), 0);
             QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
             QVERIFY(runtime.history().undo(commandContext()));
@@ -509,13 +502,14 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
     QVERIFY(!EditorPointer::isPenEraseIntentActive());
     QVERIFY(!editSessionManager->hasActiveTransaction());
     const auto retryBefore = runtime.documentVersion();
-    QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletPress, first, 0.7, button, button));
-    QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletMove, first + QPoint(20, 0), 0.7,
-                       Qt::NoButton, button));
-    QVERIFY(
-        sendTablet(*view->viewport(), device, QEvent::TabletMove, last, 0.7, Qt::NoButton, button));
-    QVERIFY(sendTablet(*view->viewport(), device, QEvent::TabletRelease, last, 0, button,
-                       Qt::NoButton));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletPress, first, 0.7,
+                                         button, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove,
+                                         first + QPoint(20, 0), 0.7, Qt::NoButton, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove, last, 0.7,
+                                         Qt::NoButton, button));
+    QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletRelease, last, 0,
+                                         button, Qt::NoButton));
     QCOMPARE(singingClip->notes().count(), 0);
     QCOMPARE(runtime.documentVersion().revision, retryBefore.revision + 1);
     QVERIFY(!EditorPointer::isPenStreamActive());

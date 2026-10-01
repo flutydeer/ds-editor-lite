@@ -44,6 +44,7 @@ private slots:
     void rhiNoteResizeUndoRestoresTheHitRegion_data();
     void rhiNoteResizeUndoRestoresTheHitRegion();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();
+    void rhiInlineTextEditingNavigatesCancelsAndUndoes_data();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();
     void rhiPitchStrokePreviewsCancelAndCommit_data();
     void rhiPitchStrokePreviewsCancelAndCommit();

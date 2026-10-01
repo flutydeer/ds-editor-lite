@@ -1,6 +1,7 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/PointerEvents.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -1131,7 +1132,14 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.secondNoteId});
 }
 
+void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes_data() {
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("touch") << true;
+}
+
 void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
+    QFETCH(bool, touch);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
@@ -1149,14 +1157,39 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
         fixture.command(), Automation::ClipId(fixture.clip->id()), Automation::NoteId(first->id()),
         true, QStringLiteral("la")));
     historyManager->reset();
+    auto *touchDevice = QTest::createTouchDevice();
+    auto touchSequence = QTest::touchEvent(&canvas, touchDevice, false);
+    const auto cancelPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    });
     const auto beginEditing = [&](const QPoint &position, const QString &role) {
         QVERIFY(canvas.rect().contains(position));
-        QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
-        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+        if (touch) {
+            for (int tap = 0; tap < 2; ++tap) {
+                touchSequence.press(0, position).commit();
+                touchSequence.release(0, position).commit();
+            }
+        } else {
+            QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+        }
         auto *edit = canvas.findChild<QLineEdit *>();
         QVERIFY(edit);
         QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
         QCOMPARE(edit->property("editRole").toString(), role);
+        if (touch) {
+            const auto version = fixture.runtime().documentVersion();
+            const auto left = edit->mapTo(&canvas, QPoint(3, edit->height() / 2));
+            const auto right = edit->mapTo(&canvas, QPoint(edit->width() - 4, edit->height() / 2));
+            touchSequence.press(0, right).commit();
+            touchSequence.move(0, left).commit();
+            QVERIFY(edit->hasSelectedText());
+            touchSequence.release(0, left).commit();
+            QVERIFY(edit->isVisible());
+            QCOMPARE(fixture.runtime().documentVersion(), version);
+            QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        }
     };
     beginEditing(fixture.pointFor(720, 60), QStringLiteral("Lyric"));
     if (QTest::currentTestFailed())
@@ -1246,15 +1279,18 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
 
 void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit_data() {
     QTest::addColumn<EditorViewGlobal::PianoRollEditMode>("mode");
-    QTest::newRow("draw") << EditorViewGlobal::DrawPitch;
-    QTest::newRow("trace-original") << EditorViewGlobal::TracePitch;
-    QTest::newRow("erase") << EditorViewGlobal::ErasePitch;
+    QTest::addColumn<bool>("penEraser");
+    QTest::newRow("draw") << EditorViewGlobal::DrawPitch << false;
+    QTest::newRow("trace-original") << EditorViewGlobal::TracePitch << false;
+    QTest::newRow("erase") << EditorViewGlobal::ErasePitch << false;
+    QTest::newRow("pen-eraser-under-draw-tool") << EditorViewGlobal::DrawPitch << true;
 }
 
 void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     QFETCH(EditorViewGlobal::PianoRollEditMode, mode);
+    QFETCH(bool, penEraser);
     ExistingRhiNoteFixture fixture;
     fixture.initialize();
     if (QTest::currentTestFailed())
@@ -1289,8 +1325,37 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         QVERIFY(curve);
         QCOMPARE(*curve, editedBefore);
     };
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
-    fixture.moveTo(finish);
+    const QPointingDevice pen(
+        QStringLiteral("Fixture pitch eraser"), 1003, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Eraser,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    const auto cancelPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    });
+    const auto press = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletPress, start, 0.7,
+                                                 Qt::LeftButton, Qt::LeftButton));
+        else
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+    };
+    const auto move = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletMove, finish, 0.7,
+                                                 Qt::NoButton, Qt::LeftButton));
+        else
+            fixture.moveTo(finish);
+    };
+    const auto release = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletRelease, finish, 0,
+                                                 Qt::LeftButton, Qt::NoButton));
+        else
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+    };
+    press();
+    move();
     QVERIFY(editSessionManager->hasActiveTransaction());
     unchanged();
     QCOMPARE(fixture.runtime().documentVersion(), before);
@@ -1298,15 +1363,15 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
     if (QTest::currentTestFailed())
         return;
     QTest::keyClick(&canvas, Qt::Key_Escape);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+    release();
     QVERIFY(!editSessionManager->hasActiveTransaction());
     unchanged();
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
-    fixture.moveTo(finish);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+    press();
+    move();
+    release();
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
     const auto sampleAt = [&](int tick) -> std::optional<int> {
@@ -1317,17 +1382,20 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         }
         return std::nullopt;
     };
-    QCOMPARE(sampleAt(200), std::optional<int>(6100));
-    QCOMPARE(sampleAt(1500), std::optional<int>(6100));
-    if (mode == EditorViewGlobal::ErasePitch) {
-        QVERIFY(!sampleAt(720));
-    } else if (mode == EditorViewGlobal::TracePitch) {
-        QCOMPARE(sampleAt(720), std::optional<int>(6000));
-    } else {
+    const auto checkDrawnSample = [&] {
         QVERIFY(sampleAt(720));
         // Integer mouse positions limit precision to one pixel of the pitch scale.
         const auto centsPerPixel = 100.0 / (ClipEditorGlobal::noteHeight * canvas.scaleY());
         QVERIFY(qAbs(*sampleAt(720) - 6200) <= centsPerPixel);
+    };
+    QCOMPARE(sampleAt(200), std::optional<int>(6100));
+    QCOMPARE(sampleAt(1500), std::optional<int>(6100));
+    if (mode == EditorViewGlobal::ErasePitch || penEraser) {
+        QVERIFY(!sampleAt(720));
+    } else if (mode == EditorViewGlobal::TracePitch) {
+        QCOMPARE(sampleAt(720), std::optional<int>(6000));
+    } else {
+        checkDrawnSample();
     }
     const auto *currentOriginal =
         dynamic_cast<const DrawCurve *>(pitch->curves(Param::Original).first());
@@ -1339,6 +1407,15 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
     historyManager->undo();
     unchanged();
     QVERIFY(!historyManager->canUndo());
+    if (penEraser) {
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+        fixture.moveTo(finish);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+        checkDrawnSample();
+        historyManager->undo();
+        unchanged();
+        QVERIFY(!historyManager->canUndo());
+    }
     fixture.waitForFrame();
 }
 
