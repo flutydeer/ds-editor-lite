@@ -1,5 +1,7 @@
 #include "PianoRollRhiWidget.h"
 
+#include "GhostNoteLayer.h"
+#include "GhostNoteSource.h"
 #include "NoteHandleGeometry.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
@@ -239,6 +241,18 @@ public:
             [this] { scheduleSnapshot(); },
         });
         anchorController.setAlwaysVisible(true);
+        QObject::connect(&ghostNotes, &GhostNoteSource::changed, q, [this] {
+            ghostLayer.markDirty();
+            scheduleSnapshot();
+        });
+        // A theme switch re-reads every color during the next frame rebuild. Without
+        // this the widget keeps blitting the last frame texture with the old palette
+        // until the next interaction. The retained ghost layer bakes bar colors, so it
+        // must be marked dirty explicitly.
+        QObject::connect(ThemeManager::instance(), &ThemeManager::themeChanged, q, [this] {
+            ghostLayer.markDirty();
+            scheduleSnapshot();
+        });
     }
 
     ~Private() {
@@ -366,6 +380,7 @@ public:
                 scheduleSnapshot();
             });
         }
+        ghostNotes.setHostClip(clip);
         loadAnchorCurvesFromModel();
         anchorController.setEditActive(editMode == EditPitchAnchor);
         reloadPitchTransformSource();
@@ -2090,6 +2105,10 @@ public:
 
             appendBackground(localStart, localEnd, sceneTop, sceneBottom);
             appendTimeline(localStart, localEnd, sceneTop, sceneBottom);
+            vertices.append(ghostLayer.ensureUpToDate(
+                &ghostNotes, clip->start(), viewport.tickToSceneX(0.0), pixelsPerTick(),
+                noteHeight * verticalScale(), dpr, localStart, localEnd, sceneTop,
+                sceneBottom));
             appendNotes(localStart, localEnd);
             appendPastePreview(localStart, localEnd);
             appendPitch(localStart, localEnd);
@@ -3088,6 +3107,8 @@ public:
     quint64 noteEraseSessionId = 0;
     AnchorEditor::AnchorEditController anchorController;
     quint64 anchorEditSessionId = 0;
+    GhostNoteSource ghostNotes;
+    GhostNoteLayer ghostLayer;
     EditorViewportController viewport;
     EditorWheelController wheel;
     EditorTouchController *touchController = nullptr;
