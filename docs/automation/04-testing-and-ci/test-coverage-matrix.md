@@ -19,6 +19,7 @@
 | 歌词、音节、本地化、关联音素属性 | unit/domain/gui | 已有排序及属性级联回归；首次采样中 TextSplitter 未执行 | 规则、音节与文字级联归入 Lyrics；增加混合文字保真、规则启用/优先级及空匹配回归，修复空匹配重复文字；本地化数据和语言设置分别归入基础/配置职责 | Lyrics、Foundation、Preferences | 通用/offscreen |
 | 配置、CLI、自有 ADT、缓存 | unit | Expected 仅展示结果；缓存/配置已有回归 | Expected 改真实断言；补控制端口类型/范围与权限持久化；缓存使用受控时间 | Foundation、Bootstrap、InferenceProviderDefault、InferenceProviderCuda、Preferences、VoiceAndInference；IcuWrapperTests | 通用/平台 |
 | 轨道、片段、音符、参数与历史 | domain | 巨型编辑测试共用入口，难定位和隔离 | 拆 fixture 和独立行为，检查功能缺口 | AutomationRuntime、ProjectEditing | 通用 |
+| 含完整内容的轨道及片段插入重试 | domain | 简单插入不能证明含音符、参数、声线及音频缓存的请求内容得到正确区分 | 复用复制流程的复杂内容 fixture；同一请求重试保持创建对象及历史，改变曲线或声线后拒绝复用幂等键，撤销和重做恢复完整内容 | ProjectEditing::insertingPreparedContentCanRetryWithoutDuplicatingEdits；duplicateClipsPreserveContentAndCreateIndependentObjects | 通用；生产模型与快照；无需模型或设备 |
 | 保存点与撤销分支 | domain/workflow | 原测试只检查 redo 清空，未验证丢弃已保存分支后的 dirty | 补分支生命周期及地址复用用例；修复保存点引用已销毁条目 | DocumentIO | 通用 |
 | 钢琴窗剪贴板入口 | gui/domain | 仅有 payload 和 Facade 粘贴，未执行 ClipboardController | 补真实 copy/cut/paste：MIME、活动片段及播放位置、单步撤销、无效内容不修改工程；恢复原剪贴板 | ApplicationGui、ProjectEditing | offscreen |
 | 参数曲线与轨道片段的真实编辑接线 | gui | 数值和 Facade 用例未进入 CommonParamEditorView 与 TracksGraphicsView 的实际鼠标提交路径 | 补普通绘制、原始曲线描摹、右键局部擦除、Shape/Scale 和 Legacy 音高调制，后者以真实推理基音验证选区结果；检查预览、范围外保留、一次提交、取消及撤销；点击选区外后可重新框选，不沿用旧变换。轨道视图检查片段选择与拖动 | ApplicationGui 的 tst_parameter_editing.cpp、tst_pitch_modulation.cpp、tst_track_editing.cpp | offscreen；音高调制默认内置声库；无需设备 |

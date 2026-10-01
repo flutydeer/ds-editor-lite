@@ -9,6 +9,7 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/ProjectModel/Voice/LanguageInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -183,7 +184,7 @@ namespace {
                (fieldPath.isEmpty() || result.getError().fieldPath == fieldPath);
     }
 
-    struct NoteFixture final {
+    struct NoteFixture {
         TestRuntime testRuntime;
         TrackId trackId;
         ClipId clipId;
@@ -248,6 +249,92 @@ namespace {
         };
         return data;
     }
+
+    struct CopyableContentFixture final : NoteFixture {
+        TrackId audioTrack;
+        ClipId audioId;
+        SingerInfo voice;
+
+        void initialize() {
+            auto &runtime = testRuntime.runtime();
+            QVERIFY(trackId.isValid() && clipId.isValid() && firstNoteId.isValid());
+            audioTrack = insertedTrack(runtime, QStringLiteral("Backing"));
+            QVERIFY(audioTrack.isValid());
+            QVERIFY(
+                runtime.project().moveClips(commandContext(runtime), {
+                                                                         {clipId, trackId, 480}
+            }));
+            auto first = speaker(QStringLiteral("first"));
+            first.setToneRange(std::pair{48, 84});
+            first.setMixable(true);
+            first.setLocalizedNames({
+                {QStringLiteral("zh"), QStringLiteral("声线一")}
+            });
+            auto second = speaker(QStringLiteral("second"));
+            second.setMixable(true);
+            LanguageInfo language(QStringLiteral("en"), QStringLiteral("English"),
+                                  QStringLiteral("english-g2p"), QStringLiteral("dict.txt"));
+            language.setLocalizedNames({
+                {QStringLiteral("zh"), QStringLiteral("英语")}
+            });
+            language.setG2pPackageVersion(QStringLiteral("1.0"));
+            language.setG2pPackagePaths({QStringLiteral("voicebank/g2p")});
+            voice = SingerInfo(
+                {QStringLiteral("blended"), QStringLiteral("package"), QVersionNumber(1, 0)},
+                QStringLiteral("Blended voice"), {first, second}, {language}, QStringLiteral("en"),
+                QStringLiteral("dict.txt"));
+            voice.setLocalizedNames({
+                {QStringLiteral("zh"), QStringLiteral("混合声线")}
+            });
+            SingerCapabilitySummary capabilities;
+            capabilities.mixableSpeakers = {first.id(), second.id()};
+            capabilities.acousticParameters = QStringList{QStringLiteral("breathiness")};
+            capabilities.pitchUsesExpressiveness = true;
+            capabilities.vocoderPitchControllable = false;
+            capabilities.effectivePhonemes = {QStringLiteral("l"), QStringLiteral("a")};
+            capabilities.effectiveLanguages = {QStringLiteral("en")};
+            voice.setCapability(capabilities);
+            QVERIFY(runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime), trackId,
+                                                                  voice, first));
+            QVERIFY(runtime.parameters().enableClipDynamicSpeakerMix(
+                commandContext(runtime), clipId, voice, first, dynamicMix(first, second)));
+            QVERIFY(runtime.parameters().createAnchorCurve(
+                commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+                QStringLiteral("pitch"),
+                {
+                    {0,   6000, AnchorNode::Linear },
+                    {240, 6200, AnchorNode::Hermite}
+            }));
+            const auto drawn = runtime.parameters().drawParameter(
+                commandContext(runtime), clipId, ParamInfo::Breathiness, Param::Edited, 120, 5,
+                {-12000, -6000, 0}, false);
+            QVERIFY2(drawn, qPrintable(drawn ? QString() : drawn.getError().message));
+            auto audio = audioClipDraft(QStringLiteral("Backing sample"));
+            audio.properties.start = 960;
+            audio.properties.trimStartMs = 50;
+            audio.properties.playLengthMs = 750;
+            audio.properties.materialLengthMs = 1000;
+            audio.hasRealTimeAnchor = true;
+            audio.audioInfo.chunkSize = 24000;
+            audio.audioInfo.mipmapScale = 2;
+            audio.audioInfo.sampleRate = 48000;
+            audio.audioInfo.channels = 1;
+            audio.audioInfo.frames = 48000;
+            audio.audioInfo.peakCache = {
+                {-2000, 2000},
+                {-3000, 3000}
+            };
+            audio.audioInfo.peakCacheMipmap = {
+                {-3000, 3000}
+            };
+            const auto inserted =
+                runtime.project().insertClips(commandContext(runtime), {
+                                                                           {audioTrack, audio}
+            });
+            QVERIFY(inserted);
+            audioId = ClipId(inserted.get().affectedObjects.first().value);
+        }
+    };
 
     bool hasTempo(const Automation::TimelineSnapshotDto &timeline, const int tick,
                   const double value) {
@@ -334,39 +421,16 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
 
 void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjects() {
     QFETCH(bool, useTargetTrack);
-    NoteFixture fixture;
+    CopyableContentFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
     auto &runtime = fixture.testRuntime.runtime();
-    const auto audioTrack = insertedTrack(runtime, QStringLiteral("Backing"));
+    const auto audioTrack = fixture.audioTrack;
     const auto target = insertedTrack(runtime, QStringLiteral("Copies"));
     QVERIFY(audioTrack.isValid() && target.isValid());
-    QVERIFY(runtime.project().moveClips(commandContext(runtime),
-                                        {
-                                            {fixture.clipId, fixture.trackId, 480}
-    }));
-    const auto first = speaker(QStringLiteral("first"));
-    const auto second = speaker(QStringLiteral("second"));
-    const auto voice = singer(QStringLiteral("blended"), {first, second});
-    QVERIFY(runtime.parameters().enableClipDynamicSpeakerMix(
-        commandContext(runtime), fixture.clipId, voice, first, dynamicMix(first, second)));
-    QVERIFY(runtime.parameters().createAnchorCurve(
-        commandContext(runtime), fixture.clipId, ParamInfo::Pitch, Param::Edited,
-        QStringLiteral("pitch"),
-        {
-            {0,   6000, AnchorNode::Linear },
-            {240, 6200, AnchorNode::Hermite}
-    }));
-    auto audio = audioClipDraft(QStringLiteral("Backing sample"));
-    audio.properties.start = 960;
-    audio.properties.trimStartMs = 50;
-    audio.properties.playLengthMs = 750;
-    audio.properties.materialLengthMs = 1000;
-    audio.hasRealTimeAnchor = true;
-    const auto inserted =
-        runtime.project().insertClips(commandContext(runtime), {
-                                                                   {audioTrack, audio}
-    });
-    QVERIFY(inserted);
-    const ClipId audioId(inserted.get().affectedObjects.first().value);
+    const auto &voice = fixture.voice;
+    const auto audioId = fixture.audioId;
     const auto sourceVoice = clipSnapshot(runtime, fixture.clipId);
     const auto sourceAudio = clipSnapshot(runtime, audioId);
     QVERIFY(sourceVoice && sourceAudio);
@@ -463,6 +527,127 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
     QVERIFY(retried);
     QCOMPARE(retried.get().createdObjects, duplicated.get().createdObjects);
     QCOMPARE(runtime.documentVersion(), after);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
+    QVERIFY(!fixture.testRuntime.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
+}
+
+void ProjectEditingTests::insertingPreparedContentCanRetryWithoutDuplicatingEdits_data() {
+    QTest::addColumn<bool>("insertTracks");
+    QTest::newRow("complete-tracks") << true;
+    QTest::newRow("clips-in-existing-tracks") << false;
+}
+
+void ProjectEditingTests::insertingPreparedContentCanRetryWithoutDuplicatingEdits() {
+    QFETCH(bool, insertTracks);
+    CopyableContentFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = fixture.testRuntime.runtime();
+    const auto source = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(source);
+    QList<Automation::TrackDraftDto> prepared;
+    QList<TrackId> targets;
+    for (const auto &track : source.get().tracks) {
+        auto content = track.data;
+        content.clientRef = QStringLiteral("import-track-%1").arg(prepared.size());
+        for (const auto &clip : track.clips) {
+            auto child = clip.data;
+            child.clientRef =
+                QStringLiteral("import-clip-%1-%2").arg(prepared.size()).arg(content.clips.size());
+            content.clips.append(std::move(child));
+        }
+        prepared.append(std::move(content));
+        if (!insertTracks) {
+            auto destination = track.data;
+            destination.name += QStringLiteral(" imported");
+            destination.clips.clear();
+            const auto result = runtime.project().insertTrack(
+                commandContext(runtime), fixture.testRuntime.model().tracks().size(), destination);
+            QVERIFY(result);
+            targets.append(TrackId(result.get().affectedObjects.first().value));
+        }
+    }
+    QVERIFY(!prepared.isEmpty() && !prepared.first().clips.isEmpty());
+    prepared.first().clips.first().workspace.insert(
+        QStringLiteral("test"), QJsonObject{
+                                    {QStringLiteral("label"), QStringLiteral("phrase")}
+    });
+    prepared.first().clips.first().notes.first().workspace.insert(
+        QStringLiteral("test"), QJsonObject{
+                                    {QStringLiteral("label"), QStringLiteral("word")}
+    });
+    const auto insertionIndex = fixture.testRuntime.model().tracks().size();
+    fixture.testRuntime.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.testRuntime.model());
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("import-prepared-content");
+    const auto insert = [&](const QList<Automation::TrackDraftDto> &content) {
+        if (insertTracks)
+            return runtime.project().insertTracks(request, insertionIndex, content);
+        QList<Automation::ClipInsertDto> clips;
+        for (qsizetype index = 0; index < content.size(); ++index)
+            for (const auto &clip : content.at(index).clips)
+                clips.append({targets.at(index), clip});
+        return runtime.project().insertClips(request, clips);
+    };
+    const auto inserted = insert(prepared);
+    QVERIFY2(inserted, qPrintable(inserted ? QString() : inserted.getError().message));
+    QVERIFY(inserted.get().changed);
+    const auto after = runtime.documentVersion();
+    QCOMPARE(after.revision, before.revision + 1);
+    const auto afterModel = TestSupport::projectSnapshot(fixture.testRuntime.model());
+    QVERIFY(afterModel != beforeModel);
+    std::optional<Automation::ClipSnapshotDto> copiedVoice;
+    std::optional<Automation::ClipSnapshotDto> copiedAudio;
+    for (const auto &created : inserted.get().createdObjects) {
+        if (created.object.kind != Automation::ObjectKind::Clip)
+            continue;
+        const auto clip = clipSnapshot(runtime, ClipId(created.object.value));
+        QVERIFY(clip);
+        if (clip->data.type == Automation::ClipDraftDto::Type::Singing)
+            copiedVoice = clip;
+        else
+            copiedAudio = clip;
+    }
+    QVERIFY(copiedVoice && copiedAudio);
+    QCOMPARE(copiedVoice->data.ownSingerInfo, fixture.voice);
+    QCOMPARE(copiedVoice->data.workspace, prepared.first().clips.first().workspace);
+    QCOMPARE(copiedVoice->data.notes.first().workspace,
+             prepared.first().clips.first().notes.first().workspace);
+    QCOMPARE(copiedAudio->data.audioInfo.peakCache,
+             prepared.last().clips.first().audioInfo.peakCache);
+    QCOMPARE(copiedAudio->data.audioInfo.peakCacheMipmap,
+             prepared.last().clips.first().audioInfo.peakCacheMipmap);
+    const auto *undo = fixture.testRuntime.history()->nextUndoEntry();
+    QVERIFY(undo);
+    const auto retried = insert(prepared);
+    QVERIFY(retried);
+    QCOMPARE(retried.get().createdObjects, inserted.get().createdObjects);
+    QCOMPARE(runtime.documentVersion(), after);
+    QCOMPARE(fixture.testRuntime.history()->nextUndoEntry(), undo);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
+
+    auto changedCurve = prepared;
+    auto &parameters = changedCurve.first().clips.first().params;
+    const auto pitch = std::find_if(parameters.begin(), parameters.end(), [](const auto &param) {
+        return param.name == ParamInfo::Pitch && param.type == Param::Edited;
+    });
+    QVERIFY(pitch != parameters.end());
+    pitch->curves.first().nodes.first().value += 25;
+    QVERIFY(isError(insert(changedCurve), AutomationErrorCode::IdempotencyConflict));
+    auto changedVoice = prepared;
+    auto &weights =
+        changedVoice.first().clips.first().ownSpeakerMixData.dynamicKeyframes.first().weights;
+    weights = {0.25, 0.75};
+    QVERIFY(isError(insert(changedVoice), AutomationErrorCode::IdempotencyConflict));
+    QCOMPARE(runtime.documentVersion(), after);
+    QCOMPARE(fixture.testRuntime.history()->nextUndoEntry(), undo);
     QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
