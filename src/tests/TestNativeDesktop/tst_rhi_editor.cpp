@@ -1279,6 +1279,8 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
         return;
     auto *tooltip = canvas.findChild<ToolTip *>();
     QVERIFY(tooltip);
+    QSignalSpy hoverCleared(&canvas, &PianoRollRhiWidget::keyHoverCleared);
+    QSignalSpy keyHovered(&canvas, &PianoRollRhiWidget::keyHovered);
     const auto hoverAt = [&](const QPoint &position) {
         QCursor::setPos(canvas.mapToGlobal(position));
         QCoreApplication::processEvents();
@@ -1291,6 +1293,17 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     QTextDocument tooltipText;
     tooltipText.setHtml(tooltip->title());
     QCOMPARE(tooltipText.toPlainText(), first->lyric());
+    const auto clears = hoverCleared.size();
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(&canvas, &leave);
+    QCOMPARE(hoverCleared.size(), clears + 1);
+    QCOMPARE(canvas.cursor().shape(), Qt::ArrowCursor);
+    QTRY_VERIFY(!tooltip->isVisible());
+    const auto hovers = keyHovered.size();
+    hoverAt(fixture.pointFor(720, 60));
+    QTRY_VERIFY(tooltip->isVisible());
+    QVERIFY(keyHovered.size() > hovers);
+    QCOMPARE(keyHovered.last().first().toInt(), 60);
     hoverAt(QPoint(-20, canvas.height() / 2));
     QTRY_VERIFY(!tooltip->isVisible());
     QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
