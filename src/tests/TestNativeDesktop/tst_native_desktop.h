@@ -8,6 +8,7 @@
 #include <memory>
 
 class GuiAppFixture;
+
 namespace TestSupport {
     class ClipboardSnapshot;
 }
@@ -58,6 +59,7 @@ private slots:
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiAnchorSelectionMovesTheGroupAtomically_data();
     void rhiAnchorSelectionMovesTheGroupAtomically();
+    void rhiClipDragCommitsAcrossTracksAndUndoRestoresView_data();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
     void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel();
     void rhiClipResizeCommitsOrCancels_data();

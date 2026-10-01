@@ -39,6 +39,7 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QTouchEvent>
 #include <QWindow>
 #include <QWheelEvent>
 #include <QtTest/QTest>
@@ -288,9 +289,16 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView_data() {
+    QTest::addColumn<bool>("useTouch");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("touch") << true;
+}
+
 void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, useTouch);
     QString backendError;
     TrackFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
@@ -309,10 +317,79 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     const auto release = fixture.point(1440, 1);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::AltModifier, press);
+    auto *device = QTest::createTouchDevice();
+    auto touch = QTest::touchEvent(&canvas, device, false);
+    bool touchPressed = false;
+    QPoint lastTouchPoint = press;
+    const auto cancelTouch = [&] {
+        QTouchEvent cancel(QEvent::TouchCancel, device);
+        cancel.setAccepted(false);
+        QApplication::sendEvent(&canvas, &cancel);
+        touch.release(0, lastTouchPoint).commit();
+        touchPressed = false;
+        return cancel.isAccepted();
+    };
+    const auto releaseTouch = qScopeGuard([&] {
+        if (touchPressed)
+            cancelTouch();
+    });
+    const auto pressPointer = [&] {
+        if (useTouch) {
+            lastTouchPoint = press;
+            touch.press(0, press).commit();
+            touchPressed = true;
+        } else {
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::AltModifier, press);
+        }
+    };
+    const auto movePointer = [&] {
+        if (useTouch) {
+            lastTouchPoint = release;
+            touch.move(0, release).commit();
+        } else {
+            moveWithButton(canvas, release, Qt::AltModifier);
+        }
+    };
+    const auto releasePointer = [&] {
+        if (useTouch) {
+            touch.release(0, release).commit();
+            touchPressed = false;
+        } else {
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::AltModifier, release);
+        }
+    };
+    if (useTouch) {
+        const auto original =
+            TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+        const auto startTick = canvas.startTick();
+        const auto panEnd = press - QPoint(40, 0);
+        QVERIFY(canvas.rect().contains(panEnd));
+        pressPointer();
+        lastTouchPoint = panEnd;
+        touch.move(0, panEnd).commit();
+        QTRY_VERIFY(canvas.startTick() > startTick);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+        QVERIFY(cancelTouch());
+        QVERIFY(canvas.centerAt(1920, 0.5));
+        touch.press(0, press).commit();
+        touch.release(0, press).commit();
+        QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        pressPointer();
+        movePointer();
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QVERIFY(cancelTouch());
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+        QVERIFY(!historyManager->canUndo());
+    }
+    pressPointer();
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     const auto previewFrame = frames.size();
-    moveWithButton(canvas, release, Qt::AltModifier);
+    movePointer();
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.trackOfClip(), 0);
     QCOMPARE(fixture.clip()->start(), 480);
@@ -327,7 +404,7 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     QTRY_VERIFY(frames.size() > previewFrame || !backendError.isEmpty());
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
 
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::AltModifier, release);
+    releasePointer();
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.trackOfClip(), 1);
     QCOMPARE(fixture.clip()->start(), 960);
