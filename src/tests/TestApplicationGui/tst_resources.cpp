@@ -2,6 +2,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
@@ -278,6 +279,28 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QTRY_COMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
     QVERIFY(historyManager->isOnSavePoint());
     const auto before = runtime.documentVersion();
+    const auto services = Automation::createPublicAutomationHostServices(
+        runtime, context->m_appModel, context->m_synthrtEngine);
+    const auto verifySourceCapabilities = [&](bool missingSource) {
+        const auto version = runtime.documentVersion();
+        const auto *undo = historyManager->nextUndoEntry();
+        const auto queried =
+            services.extractionCapabilities(version.documentId, Automation::ClipId(audio->id()));
+        QVERIFY(queried);
+        const auto capabilities = queried.get().toObject();
+        for (const auto &kind : {QStringLiteral("pitch"), QStringLiteral("midi")}) {
+            const auto capability = capabilities.value(kind).toObject();
+            const auto reason = capability.value(QStringLiteral("unavailable_reason")).toString();
+            QVERIFY(!reason.isEmpty());
+            QCOMPARE(reason.contains(QStringLiteral("source")), missingSource);
+            QVERIFY(!capability.value(QStringLiteral("available")).toBool());
+        }
+        QCOMPARE(runtime.documentVersion(), version);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+    };
+    verifySourceCapabilities(true);
+    if (QTest::currentTestFailed())
+        return;
 
     const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
@@ -380,6 +403,9 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QVERIFY(!audio->audioInfo().peakCache.isEmpty());
     QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
     QCOMPARE(QDir::cleanPath(row->text(2)), QDir::cleanPath(replacementPath));
+    verifySourceCapabilities(false);
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(row->text(3), AudioResourcePage::tr("Resolved"));
     QVERIFY(!page->hasPendingIssues());
     QVERIFY(!relink->isEnabled());

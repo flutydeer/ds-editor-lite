@@ -1319,6 +1319,50 @@ namespace {
                     .arg(importedAudio ? compactJson(*importedAudio) : toolError));
         }
 
+        const auto historyBeforeCapabilities =
+            connectorToolContent(connector, 1250, QStringLiteral("history.get_state"),
+                                 documentArguments, 5000, toolError);
+        if (!historyBeforeCapabilities)
+            return failWithProcessDiagnostics(toolError);
+        const QJsonObject capabilityArguments{
+            {QStringLiteral("document_id"),          documentId        },
+            {QStringLiteral("source_audio_clip_id"), createdAudioClipId},
+        };
+        const auto checkCapabilities = [&](qint64 requestId) {
+            const auto queried = connectorToolContent(connector, requestId,
+                                                      QStringLiteral("extract.get_capabilities"),
+                                                      capabilityArguments, 5000, toolError);
+            if (!queried)
+                return failWithProcessDiagnostics(toolError);
+            const auto capabilities = queried->value(QStringLiteral("capabilities")).toObject();
+            if (capabilities.value(QStringLiteral("source_audio_clip_id")).toInteger(-1) !=
+                    createdAudioClipId ||
+                queried->value(QStringLiteral("document"))
+                        .toObject()
+                        .value(QStringLiteral("revision"))
+                        .toInteger(-1) != audioCurrentRevision)
+                return failWithProcessDiagnostics(compactJson(*queried));
+            for (const auto &kind : {QStringLiteral("pitch"), QStringLiteral("midi")}) {
+                const auto capability = capabilities.value(kind).toObject();
+                const auto reason =
+                    capability.value(QStringLiteral("unavailable_reason")).toString();
+                if (!capability.value(QStringLiteral("source_supported")).toBool() ||
+                    capability.value(QStringLiteral("available")).toBool() || reason.isEmpty())
+                    return failWithProcessDiagnostics(compactJson(capabilities));
+            }
+            return true;
+        };
+        if (!checkCapabilities(1251))
+            return false;
+        const auto historyAfterCapabilities =
+            connectorToolContent(connector, 1254, QStringLiteral("history.get_state"),
+                                 documentArguments, 5000, toolError);
+        if (!historyAfterCapabilities ||
+            historyAfterCapabilities->value(QStringLiteral("snapshot")) !=
+                historyBeforeCapabilities->value(QStringLiteral("snapshot")))
+            return failWithProcessDiagnostics(
+                QStringLiteral("Capability queries changed history: %1").arg(toolError));
+
         const auto connectorDocument = connectorToolContent(
             connector, 1001, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
         if (!connectorDocument) {
