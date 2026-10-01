@@ -28,6 +28,7 @@
 #include <QtTest/QTest>
 #include <QApplication>
 #include <QClipboard>
+#include <QCursor>
 #include <QMouseEvent>
 #include <QLineEdit>
 #include <QMimeData>
@@ -704,12 +705,20 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QTRY_VERIFY(sceneNote(first->id())->isLyricElided(view->visibleRect()));
     auto *tooltip = view->viewport()->findChild<ToolTip *>();
     QVERIFY(tooltip);
-    QTest::mouseMove(view->viewport(), pointFor(720, 62));
+    const auto previousCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(previousCursor); });
+    const auto hoverAt = [&](const QPoint &position) {
+        const auto global = view->viewport()->mapToGlobal(position);
+        QCursor::setPos(global);
+        QCoreApplication::processEvents();
+        QTest::mouseMove(view->windowHandle(), view->mapFromGlobal(global));
+    };
+    hoverAt(pointFor(720, 62));
     QTRY_VERIFY(tooltip->isVisible());
     QTextDocument tooltipText;
     tooltipText.setHtml(tooltip->title());
     QCOMPARE(tooltipText.toPlainText(), first->lyric());
-    QTest::mouseMove(view->viewport(), pointFor(1800, 64));
+    hoverAt(pointFor(1800, 64));
     QTRY_VERIFY(!tooltip->isVisible());
     QCOMPARE(runtime.documentVersion(), beforeHover);
     QCOMPARE(historyManager->nextUndoEntry(), beforeHoverUndo);

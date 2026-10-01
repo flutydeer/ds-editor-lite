@@ -17,6 +17,7 @@
 
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QImage>
 #include <QMenu>
 #include <QMouseEvent>
@@ -33,6 +34,7 @@ namespace {
                 QTest::mouseRelease(canvas->viewport(), Qt::LeftButton);
             }
             piano.setDataContext(nullptr);
+            QCursor::setPos(originalCursor);
         }
 
         void initialize(SingingClip *clip) {
@@ -60,8 +62,11 @@ namespace {
         }
 
         void moveTo(const QPoint &position, Qt::MouseButtons buttons = Qt::NoButton) {
-            QMouseEvent event(QEvent::MouseMove, QPointF(position),
-                              QPointF(canvas->viewport()->mapToGlobal(position)), Qt::NoButton,
+            const auto global = canvas->viewport()->mapToGlobal(position);
+            // Keep native hover and the synthetic drag at the same position.
+            QCursor::setPos(global);
+            QCoreApplication::processEvents();
+            QMouseEvent event(QEvent::MouseMove, QPointF(position), QPointF(global), Qt::NoButton,
                               buttons, Qt::NoModifier);
             QApplication::sendEvent(canvas->viewport(), &event);
         }
@@ -106,6 +111,7 @@ namespace {
 
         PianoRollView piano;
         PianoRollGraphicsView *canvas = nullptr;
+        const QPoint originalCursor = QCursor::pos();
     };
 
     const AnchorCurve *anchorCurve(const SingingClip &clip, qsizetype index = 0) {
@@ -142,8 +148,8 @@ void ApplicationGuiTests::pitchAnchorCreationPreviewsBeforeCommitting() {
     QVERIFY(!anchorCurve(*singingClip));
     const auto singleAnchor = fixture.image();
     fixture.moveTo(last);
+    QTRY_VERIFY(!fixture.image().isNull() && fixture.image() != singleAnchor);
     const auto preview = fixture.image();
-    QVERIFY(!preview.isNull() && preview != singleAnchor);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QTest::keyClick(fixture.canvas, Qt::Key_Escape);

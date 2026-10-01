@@ -595,11 +595,19 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
                     action = candidate;
             }
             QVERIFY(action && action->isEnabled());
-            const auto target = popup->actionGeometry(action).center();
+            const auto actionRect = popup->actionGeometry(action);
+            const auto target = actionRect.center();
+            QCOMPARE(popup->actionAt(target), action);
             if (preview) {
                 const auto rendered = frames.size();
+                // QMenu ignores movement near its initial popup position.
+                const auto approach = QPoint(actionRect.left() + 1, target.y());
+                QCursor::setPos(popup->mapToGlobal(approach));
+                QCoreApplication::processEvents();
+                QTest::mouseMove(popup->windowHandle(), approach);
                 QCursor::setPos(popup->mapToGlobal(target));
                 QCoreApplication::processEvents();
+                QTest::mouseMove(popup->windowHandle(), target);
                 QMouseEvent hover(QEvent::MouseMove, QPointF(target),
                                   QPointF(popup->mapToGlobal(target)), Qt::NoButton, Qt::NoButton,
                                   Qt::NoModifier);
