@@ -11,13 +11,18 @@
 #include "UI/Views/Common/EditorTouchGesture.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QApplication>
+#include <QContextMenuEvent>
+#include <QLineEdit>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPointingDevice>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QTabletEvent>
 #include <QTouchEvent>
@@ -38,6 +43,162 @@ namespace {
         QApplication::sendEvent(&viewport, &event);
         return event.isAccepted();
     }
+}
+
+void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers_data() {
+    QTest::addColumn<QString>("finish");
+    QTest::newRow("text-drag-release") << QStringLiteral("release");
+    QTest::newRow("text-drag-platform-cancel") << QStringLiteral("cancel");
+    QTest::newRow("submit-before-lift") << QStringLiteral("submit");
+    QTest::newRow("text-menu-on-lift") << QStringLiteral("menu");
+}
+
+void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
+    QFETCH(QString, finish);
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto id = insertSelectedNote();
+    QVERIFY(id >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    auto *overlay = view->findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay);
+    auto *device = QTest::createTouchDevice();
+    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    const auto cleanup = qScopeGuard([&] {
+        if (auto *popup = QApplication::activePopupWidget())
+            popup->close();
+        if (overlay->isEditing())
+            QTest::keyClick(overlay->findChild<QLineEdit *>(), Qt::Key_Escape);
+        deactivate(*view);
+    });
+    const auto notePoint = pointFor(600, 62);
+    for (int tap = 0; tap < 2; ++tap) {
+        sequence.press(0, notePoint).commit();
+        sequence.release(0, notePoint).commit();
+    }
+    QTRY_VERIFY(overlay->isEditing());
+    auto *input = overlay->findChild<QLineEdit *>();
+    QVERIFY(input);
+    QTRY_VERIFY(input->hasFocus());
+    QCOMPARE(runtime.documentVersion(), before);
+    QTest::keySequence(input, QKeySequence::SelectAll);
+    QTest::keyClicks(input, QStringLiteral("a draft line"));
+    const auto left = input->mapTo(view->viewport(), QPoint(3, input->height() / 2));
+    const auto right =
+        input->mapTo(view->viewport(), QPoint(input->width() - 4, input->height() / 2));
+    const auto viewport = view->visibleRect();
+    sequence.press(0, right).commit();
+    if (finish == QStringLiteral("menu")) {
+        QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
+        QVERIFY(QApplication::activePopupWidget() == nullptr);
+        QCOMPARE(runtime.documentVersion(), before);
+        sequence.release(0, right).commit();
+        QTRY_VERIFY(qobject_cast<QMenu *>(QApplication::activePopupWidget()));
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(menu->isVisible());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(input->text(), QStringLiteral("a draft line"));
+        QTest::keyClick(menu, Qt::Key_Escape);
+        QTRY_VERIFY(QApplication::activePopupWidget() == nullptr);
+        QTRY_VERIFY(input->hasFocus());
+    } else if (finish != QStringLiteral("submit")) {
+        sequence.move(0, left).commit();
+        QVERIFY(input->hasSelectedText());
+        QVERIFY(overlay->isEditing());
+        QCOMPARE(view->visibleRect(), viewport);
+        QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        if (finish == QStringLiteral("cancel")) {
+            QTouchEvent cancel(QEvent::TouchCancel, device);
+            cancel.setAccepted(false);
+            QApplication::sendEvent(view->viewport(), &cancel);
+            QVERIFY(cancel.isAccepted());
+        }
+        sequence.release(0, left).commit();
+    }
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    QTest::keySequence(input, QKeySequence::SelectAll);
+    QTest::keyClicks(input, QStringLiteral("finger lyric"));
+    QTest::keyClick(input, Qt::Key_Return);
+    QVERIFY(!overlay->isEditing());
+    QCOMPARE(singingClip->findNoteById(id)->lyric(), QStringLiteral("finger lyric"));
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    if (finish == QStringLiteral("submit"))
+        sequence.release(0, right).commit();
+    QVERIFY(!EditorPointer::isTouchStreamActive());
+    const auto committed = TestSupport::projectSnapshot(*context->m_appModel);
+    view->setEditMode(ClipEditorGlobal::DrawNote);
+    const auto nextPress = pointFor(1530, 66);
+    const auto nextEnd = pointFor(1890, 66);
+    QVERIFY(view->viewport()->rect().contains(nextPress));
+    QVERIFY(view->viewport()->rect().contains(nextEnd));
+    sequence.press(0, nextPress).commit();
+    sequence.move(0, nextEnd).commit();
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+    sequence.release(0, nextEnd).commit();
+    QCOMPARE(singingClip->notes().count(), 2);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 2);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), committed);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::pianoPenClickOwnsOnlyItsContextMenu() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto id = insertSelectedNote();
+    QVERIFY(id >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto position = pointFor(600, 62);
+    const QPointingDevice pen(
+        QStringLiteral("Fixture barrel pen"), 1002, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Pen,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    QList<PianoRollMenuContext> menus;
+    const auto connection =
+        connect(view.get(), &PianoRollGraphicsView::contextMenuRequested, view.get(),
+                [&](const PianoRollMenuContext &menu) { menus.append(menu); });
+    const auto cleanup = qScopeGuard([&] {
+        deactivate(*view);
+        disconnect(connection);
+    });
+    QVERIFY(sendTablet(*view->viewport(), pen, QEvent::TabletPress, position, 0.7, Qt::RightButton,
+                       Qt::RightButton));
+    QVERIFY(menus.isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(sendTablet(*view->viewport(), pen, QEvent::TabletRelease, position, 0, Qt::RightButton,
+                       Qt::NoButton));
+    QTRY_COMPARE(menus.size(), 1);
+    QCOMPARE(menus.first().target, PianoRollMenuContext::Target::Note);
+    QCOMPARE(menus.first().noteId, id);
+    QCOMPARE(menus.first().globalPos, view->viewport()->mapToGlobal(position));
+    QContextMenuEvent platformCopy(QContextMenuEvent::Mouse, position,
+                                   view->viewport()->mapToGlobal(position));
+    platformCopy.setAccepted(false);
+    QApplication::sendEvent(view->viewport(), &platformCopy);
+    QVERIFY(platformCopy.isAccepted());
+    QCOMPARE(menus.size(), 1);
+    QContextMenuEvent keyboardMenu(QContextMenuEvent::Keyboard, position,
+                                   view->viewport()->mapToGlobal(position));
+    QApplication::sendEvent(view->viewport(), &keyboardMenu);
+    QCOMPARE(menus.size(), 2);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(!EditorPointer::isPenStreamActive());
+    QVERIFY(!EditorPointer::isPenEraseIntentActive());
 }
 
 void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels_data() {

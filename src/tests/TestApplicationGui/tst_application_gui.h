@@ -43,6 +43,9 @@ private slots:
     void pianoTouchLongPressDefersMenus();
     void pianoPenErasingCommitsOrInterrupts_data();
     void pianoPenErasingCommitsOrInterrupts();
+    void pianoTouchInlineLyricsKeepsEditingAndRecovers_data();
+    void pianoTouchInlineLyricsKeepsEditingAndRecovers();
+    void pianoPenClickOwnsOnlyItsContextMenu();
     void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data();
     void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange();
     void pianoErasingRestoresSceneItemsOnCancelAndUndo();
