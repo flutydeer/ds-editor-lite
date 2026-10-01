@@ -41,6 +41,7 @@
 #include <QMCore/qmsystem.h>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
     /// Resolves a synthrt DisplayText for the UI using frontend-side ICU
@@ -70,9 +71,19 @@ enum CustomRole {
     IsDefaultGpuRole = Qt::UserRole + 1,
 };
 
-InferencePage::InferencePage(QWidget *parent)
+InferencePage::InferencePage(QWidget *parent, GpuDetector gpuDetector)
     : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)),
+      m_gpuDetector(std::move(gpuDetector)),
       m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
+    if (!m_gpuDetector) {
+        m_gpuDetector = [](const QString &provider) {
+            if (provider == QStringLiteral("DirectML"))
+                return DmlGpuUtils::getGpuList();
+            if (provider == QStringLiteral("CUDA"))
+                return CudaGpuUtils::getGpuList();
+            return QList<GpuInfo>{};
+        };
+    }
     connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
         const auto detectedProvider = m_activeGpuProvider;
         m_activeGpuProvider.clear();
@@ -113,15 +124,7 @@ void InferencePage::requestGpuDetection() {
 
 void InferencePage::startGpuDetection(const QString &provider) {
     m_activeGpuProvider = provider;
-    m_gpuDetectionWatcher->setFuture(QtConcurrent::run([provider] {
-        if (provider == QStringLiteral("DirectML")) {
-            return DmlGpuUtils::getGpuList();
-        }
-        if (provider == QStringLiteral("CUDA")) {
-            return CudaGpuUtils::getGpuList();
-        }
-        return QList<GpuInfo>{};
-    }));
+    m_gpuDetectionWatcher->setFuture(QtConcurrent::run(m_gpuDetector, provider));
 }
 
 void InferencePage::showGpuDetectionPending() {

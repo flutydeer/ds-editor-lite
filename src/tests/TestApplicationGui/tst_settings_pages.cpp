@@ -53,6 +53,8 @@
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSemaphore>
+#include <QThreadPool>
 #include <QTimer>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
@@ -65,6 +67,7 @@
 #include <QtTest/QTest>
 
 #include <algorithm>
+#include <memory>
 
 using TestSupport::openOptionsPage;
 
@@ -1035,6 +1038,138 @@ void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersResta
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime.documentVersion(), version);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::gpuDetectionFiltersDevicesAndDiscardsStaleReplies_data() {
+    QTest::addColumn<bool>("noUsableDevices");
+    QTest::addColumn<bool>("switchToCpu");
+    QTest::newRow("filter-and-restore-selected-id") << false << false;
+    QTest::newRow("no-usable-device-falls-back-to-cpu") << true << false;
+    QTest::newRow("ignore-gpu-result-after-selecting-cpu") << false << true;
+}
+
+void ApplicationGuiTests::gpuDetectionFiltersDevicesAndDiscardsStaleReplies() {
+    QFETCH(bool, noUsableDevices);
+    QFETCH(bool, switchToCpu);
+    QString gpuProvider;
+    for (const auto provider : {ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        if (ExecutionProviderUtils::availableInBuild(provider)) {
+            gpuProvider = ExecutionProviderUtils::toString(provider);
+            break;
+        }
+    }
+    if (gpuProvider.isEmpty())
+        QSKIP("This build has no GPU execution provider for the device selection page");
+
+    auto &runtime = *context->m_coreRuntime;
+    const auto original = runtime.settings().getSettings();
+    QVERIFY(original);
+    const auto version = runtime.documentVersion();
+    const auto document = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto effective = ExecutionProviderUtils::effective();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto low = GpuInfo{3, QStringLiteral("Low-memory test device"),
+                             QStringLiteral("55556666"), 512ULL * 1024 * 1024};
+    const auto selected = GpuInfo{27, QStringLiteral("Selected test device"),
+                                  QStringLiteral("11112222"), 16ULL * 1024 * 1024 * 1024};
+    const auto alternate = GpuInfo{12, QStringLiteral("Alternate test device"),
+                                   QStringLiteral("33334444"), 8ULL * 1024 * 1024 * 1024};
+    const QList<GpuInfo> listed =
+        noUsableDevices ? QList<GpuInfo>{low} : QList<GpuInfo>{low, alternate, selected};
+    QSemaphore entered;
+    QSemaphore release;
+    QString requestedProvider;
+    std::unique_ptr<InferencePage> page;
+    const auto cleanup = qScopeGuard([&] {
+        release.release();
+        QThreadPool::globalInstance()->waitForDone();
+        if (page)
+            page->close();
+        page.reset();
+        QVERIFY(runtime.settings().updateInference({}, original.get().inference));
+    });
+    auto configured = original.get().inference;
+    configured.executionProvider = QStringLiteral("CPU");
+    configured.selectedGpuId = selected.deviceId;
+    configured.selectedGpuIndex = 99;
+    QVERIFY(runtime.settings().updateInference({}, configured));
+    page = std::make_unique<InferencePage>(nullptr, [&](const QString &provider) {
+        requestedProvider = provider;
+        entered.release();
+        release.acquire();
+        return listed;
+    });
+    page->resize(850, 650);
+    page->show();
+    auto *provider = page->findChild<ComboBox *>("inferenceExecutionProvider");
+    auto *devices = page->findChild<ComboBox *>("inferenceDevice");
+    QVERIFY(provider && devices);
+    QFutureWatcher<QList<GpuInfo>> *watcher = nullptr;
+    for (auto *candidate : page->findChildren<QFutureWatcherBase *>()) {
+        if (auto *gpuWatcher = dynamic_cast<QFutureWatcher<QList<GpuInfo>> *>(candidate))
+            watcher = gpuWatcher;
+    }
+    QVERIFY(watcher);
+    QSignalSpy delivered(watcher, &QFutureWatcherBase::finished);
+    QCOMPARE(provider->currentText(), QStringLiteral("CPU"));
+    page->ensureWidgetVisible(provider);
+    selectComboIndex(provider, provider->findText(gpuProvider));
+    deferRestart(page.get());
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 10000);
+    entered.acquire();
+    QCOMPARE(requestedProvider, gpuProvider);
+    QCOMPARE(provider->currentText(), gpuProvider);
+    QVERIFY(!devices->isEnabled());
+    if (switchToCpu) {
+        page->ensureWidgetVisible(provider);
+        selectComboIndex(provider, provider->findText(QStringLiteral("CPU")));
+        deferRestart(page.get());
+        if (QTest::currentTestFailed())
+            return;
+    }
+    release.release();
+    QTRY_COMPARE_WITH_TIMEOUT(delivered.size(), 1, 10000);
+    if (switchToCpu || noUsableDevices) {
+        QCOMPARE(provider->currentText(), QStringLiteral("CPU"));
+        QCOMPARE(appOptions->inference()->executionProvider, QStringLiteral("CPU"));
+        QVERIFY(!devices->isEnabled());
+        if (switchToCpu)
+            QVERIFY(!devices->isVisible());
+    } else {
+        QVERIFY(devices->isEnabled());
+        QCOMPARE(devices->currentData(Qt::UserRole).value<GpuInfo>().deviceId, selected.deviceId);
+        QVERIFY(devices->currentText().contains(selected.description));
+        int alternateIndex = -1;
+        for (int index = 0; index < devices->count(); ++index) {
+            const auto info = devices->itemData(index, Qt::UserRole).value<GpuInfo>();
+            QVERIFY(info.deviceId != low.deviceId);
+            if (info.deviceId == alternate.deviceId)
+                alternateIndex = index;
+        }
+        QVERIFY(alternateIndex >= 0);
+        page->ensureWidgetVisible(devices);
+        selectComboIndex(devices, alternateIndex);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(appOptions->inference()->selectedGpuId, alternate.deviceId);
+        QCOMPARE(appOptions->inference()->selectedGpuIndex, alternate.index);
+        AppOptions persisted;
+        QCOMPARE(persisted.inference()->selectedGpuId, alternate.deviceId);
+        QCOMPARE(persisted.inference()->selectedGpuIndex, alternate.index);
+        selectComboIndex(devices, 0);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(appOptions->inference()->selectedGpuId.isEmpty());
+        QCOMPARE(appOptions->inference()->selectedGpuIndex, -1);
+    }
+    AppOptions persisted;
+    QCOMPARE(persisted.inference()->executionProvider, provider->currentText());
+    QCOMPARE(ExecutionProviderUtils::effective(), effective);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), document);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
 
 void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {

@@ -78,6 +78,8 @@ private slots:
     void automationCustomToolsetInputsPersistAndExportPermissions();
     void automationServerReconfigurationUpdatesAccessAndConnectionDetails();
     void inferenceProviderSelectionDetectsDevicesAndDefersRestart();
+    void gpuDetectionFiltersDevicesAndDiscardsStaleReplies_data();
+    void gpuDetectionFiltersDevicesAndDiscardsStaleReplies();
     void inferenceInputsPersistAcrossReopening();
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();

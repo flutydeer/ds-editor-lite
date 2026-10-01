@@ -6,6 +6,7 @@
 #include "Modules/Inference/Models/GpuInfo.h"
 
 #include <QFutureWatcher>
+#include <functional>
 
 class LineEdit;
 class ComboBox;
@@ -22,7 +23,9 @@ class InferencePage : public IOptionPage {
     Q_OBJECT
 
 public:
-    explicit InferencePage(QWidget *parent = nullptr);
+    using GpuDetector = std::function<QList<GpuInfo>(const QString &)>;
+
+    explicit InferencePage(QWidget *parent = nullptr, GpuDetector gpuDetector = {});
     // ~InferencePage() override;
 
 protected:
@@ -43,6 +46,7 @@ private:
     OptionListCard *m_deviceCard;
     OptionsCardItem *m_gpuItem;
     QFutureWatcher<QList<GpuInfo>> *m_gpuDetectionWatcher;
+    GpuDetector m_gpuDetector;
     QString m_requestedGpuProvider;
     QString m_activeGpuProvider;
     ComboBox *m_cbSamplingSteps;
