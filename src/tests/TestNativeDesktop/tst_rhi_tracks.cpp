@@ -1,6 +1,7 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/WaveFixture.h"
+#include "../TestSupport/PointerInput.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
@@ -602,12 +603,8 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
                 const auto rendered = frames.size();
                 // QMenu ignores movement near its initial popup position.
                 const auto approach = QPoint(actionRect.left() + 1, target.y());
-                QCursor::setPos(popup->mapToGlobal(approach));
-                QCoreApplication::processEvents();
-                QTest::mouseMove(popup->windowHandle(), approach);
-                QCursor::setPos(popup->mapToGlobal(target));
-                QCoreApplication::processEvents();
-                QTest::mouseMove(popup->windowHandle(), target);
+                TestSupport::hoverWidget(*popup, approach);
+                TestSupport::hoverWidget(*popup, target);
                 QMouseEvent hover(QEvent::MouseMove, QPointF(target),
                                   QPointF(popup->mapToGlobal(target)), Qt::NoButton, Qt::NoButton,
                                   Qt::NoModifier);

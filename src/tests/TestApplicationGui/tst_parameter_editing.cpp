@@ -11,6 +11,7 @@
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsScene.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
+#include "../TestSupport/PointerInput.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/ComboBox.h>
@@ -79,6 +80,7 @@ namespace {
 
         ~ParameterEditorFixture() {
             view.setDataContext(nullptr);
+            QCursor::setPos(originalCursor);
         }
 
         QPoint pointFor(int tick, double value) const {
@@ -100,6 +102,7 @@ namespace {
         ParamEditorGraphicsScene scene;
         ParamEditorGraphicsView view;
         CommonParamEditorView *foreground = nullptr;
+        const QPoint originalCursor = QCursor::pos();
     };
 }
 
@@ -199,7 +202,7 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     const auto last = editor.pointFor(960, 800);
     QVERIFY(viewport->rect().contains(first) && viewport->rect().contains(last));
     const auto begin = [&] {
-        QTest::mouseMove(viewport, first);
+        TestSupport::hoverWidget(*viewport, first);
         QTest::mouseDClick(viewport, Qt::LeftButton, Qt::NoModifier, first);
         QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, first);
     };
@@ -207,7 +210,8 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(editSessionManager->hasActiveTransaction());
     QVERIFY(!curve());
     const auto firstPreview = viewport->grab().toImage();
-    QTest::mouseMove(viewport, last);
+    TestSupport::hoverWidget(*viewport, last);
+    QTRY_VERIFY(!viewport->grab().toImage().isNull() && viewport->grab().toImage() != firstPreview);
     const auto segmentPreview = viewport->grab().toImage();
     QVERIFY(!segmentPreview.isNull() && segmentPreview != firstPreview);
     QCOMPARE(runtime.documentVersion(), before);
@@ -216,7 +220,7 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(!curve());
     QVERIFY(!historyManager->canUndo());
     begin();
-    QTest::mouseMove(viewport, last);
+    TestSupport::hoverWidget(*viewport, last);
     QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, last);
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QVERIFY(curve());
@@ -258,7 +262,7 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
         QTRY_COMPARE(activated.size(), 1);
         menuUsed = true;
     });
-    QTest::mouseMove(viewport, first);
+    TestSupport::hoverWidget(*viewport, first);
     QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, first, viewport->mapToGlobal(first));
     choose.start();
     QApplication::sendEvent(viewport, &contextMenu);

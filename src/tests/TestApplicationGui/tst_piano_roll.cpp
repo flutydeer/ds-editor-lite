@@ -16,6 +16,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/SplitLineIndicator.h"
 #include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
 #include "UI/Window/MainWindow.h"
+#include "../TestSupport/PointerInput.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/GUI/Controls/ToolTip.h>
@@ -707,18 +708,12 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QVERIFY(tooltip);
     const auto previousCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(previousCursor); });
-    const auto hoverAt = [&](const QPoint &position) {
-        const auto global = view->viewport()->mapToGlobal(position);
-        QCursor::setPos(global);
-        QCoreApplication::processEvents();
-        QTest::mouseMove(view->windowHandle(), view->mapFromGlobal(global));
-    };
-    hoverAt(pointFor(720, 62));
+    TestSupport::hoverWidget(*view->viewport(), pointFor(720, 62));
     QTRY_VERIFY(tooltip->isVisible());
     QTextDocument tooltipText;
     tooltipText.setHtml(tooltip->title());
     QCOMPARE(tooltipText.toPlainText(), first->lyric());
-    hoverAt(pointFor(1800, 64));
+    TestSupport::hoverWidget(*view->viewport(), pointFor(1800, 64));
     QTRY_VERIFY(!tooltip->isVisible());
     QCOMPARE(runtime.documentVersion(), beforeHover);
     QCOMPARE(historyManager->nextUndoEntry(), beforeHoverUndo);

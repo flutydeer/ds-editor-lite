@@ -9,6 +9,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
+#include "../TestSupport/PointerInput.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
@@ -62,6 +63,10 @@ namespace {
         }
 
         void moveTo(const QPoint &position, Qt::MouseButtons buttons = Qt::NoButton) {
+            if (buttons == Qt::NoButton) {
+                TestSupport::hoverWidget(*canvas->viewport(), position);
+                return;
+            }
             const auto global = canvas->viewport()->mapToGlobal(position);
             // Keep native hover and the synthetic drag at the same position.
             QCursor::setPos(global);
@@ -72,8 +77,6 @@ namespace {
         }
 
         void enterAt(const QPoint &position) {
-            const auto global = canvas->viewport()->mapToGlobal(position);
-            QTest::mouseMove(piano.windowHandle(), piano.mapFromGlobal(global));
             moveTo(position);
         }
 
