@@ -16,6 +16,7 @@
 #include "Controller/PlaybackController.h"
 #include "Utils/ConditionalTransition.h"
 #include "Utils/InferenceApplyGate.h"
+#include "Automation/InferenceAutomationFacade.h"
 
 #include <QDebug>
 #include <QFinalState>
@@ -42,14 +43,44 @@ int InferPipeline::clipId() const {
 }
 
 void InferPipeline::run() {
+    run(Automation::InferenceStage::Duration);
+}
+
+void InferPipeline::run(const Automation::InferenceStage firstStage) {
+    QState *initialState = inferDurationState;
+    QString pendingState = QStringLiteral("Duration.Pending");
+    switch (firstStage) {
+        case Automation::InferenceStage::Duration:
+            break;
+        case Automation::InferenceStage::Pitch:
+            initialState = inferPitchState;
+            pendingState = QStringLiteral("Pitch.Pending");
+            break;
+        case Automation::InferenceStage::Variance:
+            initialState = inferVarianceState;
+            pendingState = QStringLiteral("Variance.Pending");
+            break;
+        case Automation::InferenceStage::Acoustic:
+            initialState = probeAcousticCacheState;
+            pendingState = QStringLiteral("Acoustic.Pending");
+            break;
+    }
+    m_stopped = false;
+    stateMachine.setInitialState(initialState);
     // Observers must not mistake a previous result for completion while startup is queued.
     m_piece.acousticInferStatus = Pending;
-    m_piece.state = QStringLiteral("Duration.Pending");
+    m_piece.state = pendingState;
     stateMachine.start();
 }
 
 void InferPipeline::stop() {
+    // Qt enters the initial state before processing a stop requested during startup.
+    m_stopped = true;
     stateMachine.stop();
+}
+
+bool InferPipeline::stopped() const {
+    return m_stopped;
 }
 
 bool InferPipeline::shouldStartAcousticInference() const {

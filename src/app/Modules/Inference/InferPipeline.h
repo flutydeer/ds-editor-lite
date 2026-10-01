@@ -28,6 +28,10 @@ class UpdateAcousticState;
 class PlaybackReadyState;
 class QFinalState;
 
+namespace Automation {
+    enum class InferenceStage;
+}
+
 class InferPipeline : public QObject {
     Q_OBJECT
 
@@ -37,7 +41,9 @@ public:
     [[nodiscard]] int pieceId() const;
     [[nodiscard]] int clipId() const;
     void run();
+    void run(Automation::InferenceStage firstStage);
     void stop();
+    [[nodiscard]] bool stopped() const;
     [[nodiscard]] bool shouldStartAcousticInference() const;
     void clearAcousticInferenceRequest();
     [[nodiscard]] InferPiece &piece() const;
@@ -118,6 +124,7 @@ private:
 
     InferPiece &m_piece;
     bool m_acousticInferenceRequested = false;
+    bool m_stopped = false;
 
     QStateMachine stateMachine;
     QFinalState *finalState{};

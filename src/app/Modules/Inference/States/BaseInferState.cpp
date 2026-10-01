@@ -46,6 +46,8 @@ void BaseInferState::onExit(QEvent *event) {
 }
 
 void BaseInferState::onRunningInferenceStateEntered() {
+    if (m_pipeline.stopped())
+        return;
     qDebug() << "BaseInferState::onRunningInferenceStateEntered";
     if (currentTask) {
         currentTask->disconnect(this);

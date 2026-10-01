@@ -33,6 +33,7 @@
 #include <synthrt/G2P/LanguageService.h>
 
 #include <QPointer>
+#include <QJsonArray>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
@@ -602,10 +603,14 @@ void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_data() {
     QTest::addColumn<ParamInfo::Name>("name");
     QTest::addColumn<int>("value");
+    QTest::addColumn<bool>("cancelBeforeEdit");
     QTest::newRow("expressiveness-recomputes-pitch-and-variance")
-        << ParamInfo::Expressiveness << 500;
-    QTest::newRow("pitch-recomputes-variance") << ParamInfo::Pitch << 6300;
-    QTest::newRow("gender-preserves-pitch-and-variance") << ParamInfo::Gender << 500;
+        << ParamInfo::Expressiveness << 500 << false;
+    QTest::newRow("pitch-recomputes-variance") << ParamInfo::Pitch << 6300 << false;
+    QTest::newRow("gender-preserves-pitch-and-variance") << ParamInfo::Gender << 500 << false;
+    QTest::newRow("cancel-then-expressiveness") << ParamInfo::Expressiveness << 500 << true;
+    QTest::newRow("cancel-then-pitch") << ParamInfo::Pitch << 6300 << true;
+    QTest::newRow("cancel-then-gender") << ParamInfo::Gender << 500 << true;
 }
 
 void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport_data() {
@@ -718,6 +723,7 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference() {
     QFETCH(ParamInfo::Name, name);
     QFETCH(int, value);
+    QFETCH(bool, cancelBeforeEdit);
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())
         return;
@@ -738,6 +744,24 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference()
         value += 100;
     const auto offsetsBefore = note->phonemes().offsetSeq.original;
     const auto otherBefore = otherClip->params.getParamByName(name)->curves(Param::Edited);
+    if (cancelBeforeEdit) {
+        const auto services = Automation::createPublicAutomationHostServices(
+            runtime(), context->m_appModel, &SynthrtEngine::instance());
+        const auto accepted = services.startInference({
+            .command = commandContext(),
+            .scope = {{"kind", "clip"}, {"clip_ids", QJsonArray{clip->id()}}},
+            .stages = {QStringLiteral("acoustic")},
+        });
+        QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
+        QVERIFY(!accepted.get().taskId.isNull());
+        QVERIFY(runtime().tasks().cancelTask(commandContext(), accepted.get().taskId));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        const auto canceled =
+            runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+        QVERIFY(canceled);
+        QCOMPARE(canceled.get().state, Automation::AutomationTaskState::Canceled);
+        QVERIFY(target);
+    }
     HistoryManager::instance()->reset();
     QSet<QString> stages;
     QObject observations;

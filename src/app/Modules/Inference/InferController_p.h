@@ -26,6 +26,10 @@ class GetPhonemeNameTask;
 class InferController;
 class InferPipeline;
 
+namespace Automation {
+    enum class InferenceStage;
+}
+
 class InferControllerPrivate final : public ModelChangeHandler {
     Q_OBJECT
     Q_DECLARE_PUBLIC(InferController)
@@ -74,6 +78,8 @@ public:
     void createAndRunGetPhoneTask(const SingingClip &clip);
 
     void createPipeline(InferPiece &piece, bool acousticInferenceRequested = false);
+    void createPipeline(InferPiece &piece, bool acousticInferenceRequested,
+                        Automation::InferenceStage firstStage);
     void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);
 
     void reset();

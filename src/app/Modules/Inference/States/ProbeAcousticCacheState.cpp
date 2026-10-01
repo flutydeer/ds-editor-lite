@@ -15,6 +15,8 @@ ProbeAcousticCacheState::ProbeAcousticCacheState(InferPipeline &pipeline, QState
 }
 
 void ProbeAcousticCacheState::onEntry(QEvent *event) {
+    if (m_pipeline.stopped())
+        return;
     qDebug() << "ProbeAcousticCacheState::onEntry";
     QState::onEntry(event);
 

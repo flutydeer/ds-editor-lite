@@ -674,6 +674,19 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
         if (auto *piece = clip->findPieceById(pieceId.value()))
             dirtyPieces.append(piece);
     }
+    const auto notifyPipeline = [this](InferPiece &piece, void (InferPipeline::*notify)(),
+                                       const Automation::InferenceStage firstStage) {
+        const auto pipelines =
+            Linq::where(m_inferPipelines, [&piece](const InferPipeline *pipeline) {
+                return pipeline->pieceId() == piece.id();
+            });
+        if (pipelines.isEmpty()) {
+            createPipeline(piece, false, firstStage);
+            return;
+        }
+        Q_ASSERT(pipelines.size() == 1);
+        (pipelines.first()->*notify)();
+    };
     switch (name) {
         case ParamInfo::Expressiveness:
             for (const auto &piece : dirtyPieces) {
@@ -683,11 +696,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onExpressivenessChanged();
+                notifyPipeline(*piece, &InferPipeline::onExpressivenessChanged,
+                               Automation::InferenceStage::Pitch);
             }
             break;
         case ParamInfo::Pitch:
@@ -698,11 +708,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onPitchChanged();
+                notifyPipeline(*piece, &InferPipeline::onPitchChanged,
+                               Automation::InferenceStage::Variance);
             }
             break;
         case ParamInfo::Energy:
@@ -717,11 +724,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onVarianceChanged();
+                notifyPipeline(*piece, &InferPipeline::onVarianceChanged,
+                               Automation::InferenceStage::Acoustic);
             }
             break;
         case ParamInfo::SpeakerMix:
@@ -1190,6 +1194,11 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 }
 
 void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested) {
+    createPipeline(piece, acousticInferenceRequested, Automation::InferenceStage::Duration);
+}
+
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested,
+                                            const Automation::InferenceStage firstStage) {
     Q_Q(InferController);
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
@@ -1207,7 +1216,7 @@ void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInfe
             [this, pipeline](const QString &reason, int, const QString &) {
                 handlePipelineDropped(pipeline, reason);
             });
-    pipeline->run();
+    pipeline->run(firstStage);
 }
 
 void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, const QString &reason) {
