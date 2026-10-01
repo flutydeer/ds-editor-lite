@@ -178,6 +178,13 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsViewPrivate::hideLyricToolTip);
     connect(this, &TimeGraphicsView::sizeChanged, d,
             &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+    // The frame holds the framed note's scene rect, and note views relayout on
+    // every scale change. A touch pinch keeps the affordance up and delivers no
+    // mouse events, so without this the ring stays at the pre-zoom geometry.
+    // Registered after the base ctor's scene-scale relay, so the notes already
+    // carry the new scale when this runs.
+    connect(this, &TimeGraphicsView::scaleChanged, d,
+            &PianoRollGraphicsViewPrivate::syncNoteHandleFrame);
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
     connect(appModel, &AppModel::timelineChanged, this, [d] {
