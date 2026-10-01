@@ -23,9 +23,12 @@
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Window/MainWindow.h"
+#include "UI/Views/BottomPanelView.h"
+#include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Dialogs/Base/Dialog.h"
 
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTip.h>
 
 #include <lite/GUI/Theme/ThemeIds.h>
@@ -204,7 +207,7 @@ namespace {
     };
 }
 
-void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
+void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     GuiDocumentFixture fixture;
@@ -213,14 +216,17 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     const auto previousTheme = themes->currentThemeId();
     const auto backend = appOptions->developer()->editorRenderBackend;
     const auto nativeFrame = appOptions->appearance()->useNativeFrame;
+    const auto detachEnabled = appOptions->developer()->enablePanelDetach;
     const auto restore = qScopeGuard([&] {
         appOptions->developer()->editorRenderBackend = backend;
         appOptions->appearance()->useNativeFrame = nativeFrame;
+        appOptions->developer()->enablePanelDetach = detachEnabled;
         themes->applyTheme(previousTheme);
     });
     appOptions->developer()->editorRenderBackend =
         DeveloperOption::EditorRenderBackend::RhiExperimental;
     appOptions->appearance()->useNativeFrame = true;
+    appOptions->developer()->enablePanelDetach = true;
     QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
     MainWindow window;
     const auto detach = qScopeGuard([&] {
@@ -347,14 +353,60 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
 
     QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
     QVERIFY(editor->setRegionVisibility(true, false));
-    QVERIFY(window.centerPianoRollAt(1440, 60));
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
-    QTRY_VERIFY(piano->height() > 0 && piano->width() > 0);
-    QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, piano->rect().center());
-    QCOMPARE(clip->notes().count(), 2);
-    QVERIFY(runtime.history().undo(command()));
+    const auto drawAndUndo = [&] {
+        QVERIFY(window.centerPianoRollAt(1440, 60));
+        QTRY_VERIFY(piano->height() > 0 && piano->width() > 0);
+        QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, piano->rect().center());
+        QCOMPARE(clip->notes().count(), 2);
+        QVERIFY(runtime.history().undo(command()));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+        QVERIFY(!historyManager->canUndo());
+    };
+    drawAndUndo();
+    if (QTest::currentTestFailed())
+        return;
+
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    const auto reattach = qScopeGuard([&] {
+        if (bottom->isWindow())
+            bottom->close();
+    });
+    auto *detachButton = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detachButton && detachButton->isVisible());
+    const auto beforeDetach = runtime.documentVersion();
+    const auto beforeDetachFrame = pianoFrames.size();
+    QTest::mouseClick(detachButton, Qt::LeftButton);
+    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
+    TestSupport::placeWindowOnScreen(*bottom, {1000, 650});
+    bottom->activateWindow();
+    QTRY_VERIFY(bottom->isActiveWindow());
+    QTRY_VERIFY(pianoFrames.size() > beforeDetachFrame);
+    QCOMPARE(piano->window(), bottom);
+    QCOMPARE(bottom->currentPageId(), QStringLiteral("ClipEditor"));
+    QCOMPARE(runtime.documentVersion(), beforeDetach);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
-    QVERIFY(!historyManager->canUndo());
+    QCOMPARE(appStatus->activeClipId.get(), clip->id());
+    drawAndUndo();
+    if (QTest::currentTestFailed())
+        return;
+
+    const auto beforeDock = runtime.documentVersion();
+    const auto beforeDockFrame = pianoFrames.size();
+    bottom->close();
+    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QTRY_VERIFY(pianoFrames.size() > beforeDockFrame);
+    QCOMPARE(piano->window(), &window);
+    QCOMPARE(bottom->currentPageId(), QStringLiteral("ClipEditor"));
+    QCOMPARE(runtime.documentVersion(), beforeDock);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+    QCOMPARE(appStatus->activeClipId.get(), clip->id());
+    drawAndUndo();
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
 }
 

@@ -36,7 +36,7 @@ private slots:
     void progressAndTapTempoLevels();
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
-    void rhiThemeSwitchPreservesBothEditorsAndTheirDocument();
+    void rhiThemeAndDockingPreserveBothEditorsAndTheirDocument();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
