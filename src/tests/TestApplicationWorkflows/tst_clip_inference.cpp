@@ -860,6 +860,97 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }
 
+void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference() {
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    const auto previousSteps = appOptions->inference()->samplingSteps;
+    const auto changedSteps = previousSteps == 20 ? 21 : 20;
+    appOptions->inference()->cacheDirectory = cache.path();
+    QSemaphore entered;
+    QSemaphore release;
+    QSemaphore completed;
+    std::atomic_bool paused = false;
+    std::atomic_bool originalCanceled = false;
+    QObject observations;
+    const auto cleanup = qScopeGuard([&] {
+        disconnect(taskManager, nullptr, &observations, nullptr);
+        release.release();
+        if (QTest::currentTestFailed())
+            cache.setAutoRemove(false);
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QThreadPool::globalInstance()->waitForDone();
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+        appOptions->inference()->cacheDirectory = previousCache;
+        const auto restored = runtime().settings().updateRender(
+            {.source = Automation::InvocationSource::Test}, {.samplingSteps = previousSteps});
+        QVERIFY(restored);
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> target(piece);
+    QPointer<InferPitchTask> originalTask;
+    bool captured = false;
+    QList<int> submittedSteps;
+    QStringList submittedSignatures;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = qobject_cast<InferPitchTask *>(task);
+                if (change != TaskManager::Added || !candidate || !target ||
+                    candidate->pieceId() != target->id())
+                    return;
+                submittedSteps.append(candidate->input().steps);
+                submittedSignatures.append(candidate->inferenceContext().inputSignature);
+                if (captured)
+                    return;
+                captured = true;
+                originalTask = candidate;
+                connect(
+                    candidate, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+                connect(
+                    candidate, &Task::finished, &observations,
+                    [&, candidate] {
+                        originalCanceled.store(candidate->terminated());
+                        completed.release();
+                    },
+                    Qt::DirectConnection);
+            });
+    inferController->restartPieceInference(*target);
+    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 10000);
+    QVERIFY(originalTask && target);
+    const auto originalSignature = originalTask->inferenceContext().inputSignature;
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    const auto lyric = note->lyric();
+    const auto key = note->keyIndex();
+    const auto length = note->length();
+    const auto changed = runtime().settings().updateRender(
+        {.source = Automation::InvocationSource::Test}, {.samplingSteps = changedSteps});
+    QVERIFY2(changed, qPrintable(changed ? QString() : changed.getError().message));
+    QCOMPARE(appOptions->inference()->samplingSteps, changedSteps);
+    release.release();
+    QVERIFY(completed.tryAcquire(1, 10000));
+    QTRY_VERIFY_WITH_TIMEOUT(submittedSteps.contains(changedSteps) && inferenceSettled(clip),
+                             15000);
+    QVERIFY(originalCanceled.load());
+    QVERIFY(submittedSignatures.size() > 1);
+    QVERIFY(submittedSignatures.last() != originalSignature);
+    QVERIFY(target && !target->originalPitch.isEmpty());
+    QCOMPARE(note->id(), target->notes.first()->id());
+    QCOMPARE(note->lyric(), lyric);
+    QCOMPARE(note->keyIndex(), key);
+    QCOMPARE(note->length(), length);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
+}
+
 void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInference() {
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
