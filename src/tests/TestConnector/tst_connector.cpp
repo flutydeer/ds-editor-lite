@@ -27,6 +27,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QUuid>
+#include <QScopeGuard>
 
 #include <functional>
 #include <algorithm>
@@ -323,6 +324,7 @@ namespace {
         bool applicationTransportExtraField = false;
         int extraToolCount = 0;
         int pageSize = 0;
+        std::function<void(QJsonObject &, int)> adjustToolsPage;
         AutomationWire::ControlLevel editorControlLevel = AutomationWire::ControlLevel::L1;
         int editorToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationMinimumToolsetVersion = 1;
@@ -721,6 +723,8 @@ namespace {
                 const auto tools = page(allTools(), cursorValid ? offset : 0, nextCursor);
                 result = AutomationWire::Mcp::makeToolsListResult(
                     tools, nextCursor, 0, QStringLiteral("private"), info, request.protocolVersion);
+                if (adjustToolsPage)
+                    adjustToolsPage(result, offset);
             } else if (request.name == QStringLiteral("application.get_status")) {
                 ++statusCallCount;
                 result = AutomationWire::Mcp::makeToolCallResult(
@@ -1074,6 +1078,7 @@ namespace {
         void headlessHostAvailability();
         void parameterHeaders();
         void commandTransportOutcome();
+        void paginatedHandshake_data();
         void paginatedHandshake();
         void concurrentConnectors();
         void stdioFraming();
@@ -3292,7 +3297,17 @@ namespace {
         runtime.stop();
     }
 
+    void TestConnector::paginatedHandshake_data() {
+        QTest::addColumn<QString>("pageFailure");
+        QTest::newRow("normal-pagination") << QString{};
+        QTest::newRow("malformed-page") << QStringLiteral("invalid_upstream_tools_page");
+        QTest::newRow("duplicate-across-pages")
+            << QStringLiteral("invalid_upstream_tool_descriptor");
+        QTest::newRow("cursor-cycle") << QStringLiteral("upstream_tools_cursor_cycle");
+    }
+
     void TestConnector::paginatedHandshake() {
+        QFETCH(QString, pageFailure);
         FakeHttpEditor http;
         QVERIFY2(http.listen(), "pagination fake editor must listen");
         http.extraToolCount = 3;
@@ -3476,6 +3491,107 @@ namespace {
         QCOMPARE(runtime.status(), refreshedStatus);
         QCOMPARE(http.toolsListCount, refreshedPages);
         QCOMPARE(http.statusCallCount, refreshedStatusRequests);
+
+        if (!pageFailure.isEmpty()) {
+            QJsonObject firstDescriptor;
+            const auto clearPageOverride = qScopeGuard([&] { http.adjustToolsPage = {}; });
+            http.adjustToolsPage = [pageFailure, &firstDescriptor](QJsonObject &result,
+                                                                   const int offset) {
+                auto tools = result.value(QStringLiteral("tools")).toArray();
+                if (offset == 0 && !tools.isEmpty())
+                    firstDescriptor = tools.first().toObject();
+                if (pageFailure == QStringLiteral("invalid_upstream_tools_page")) {
+                    result.insert(QStringLiteral("tools"), QJsonObject{});
+                } else if (offset > 0) {
+                    if (pageFailure == QStringLiteral("invalid_upstream_tool_descriptor")) {
+                        tools.append(firstDescriptor);
+                        result.insert(QStringLiteral("tools"), tools);
+                    } else {
+                        result.insert(QStringLiteral("nextCursor"), QString::number(offset));
+                    }
+                }
+            };
+            ready.buildId = QStringLiteral("faulted-build");
+            bootstrap.publish(ready);
+            QVERIFY2(waitUntil(
+                         [&] {
+                             const auto mcp =
+                                 runtime.status().value(QStringLiteral("mcp")).toObject();
+                             return mcp.value(QStringLiteral("error")).toString() == pageFailure &&
+                                    mcp.value(QStringLiteral("pending_request_count")).toInt() == 0;
+                         },
+                         15000),
+                     qPrintable(QString::fromUtf8(
+                         QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact))));
+            const auto failedStatus = runtime.status();
+            QVERIFY(failedStatus.value(QStringLiteral("mcp"))
+                        .toObject()
+                        .value(QStringLiteral("connected"))
+                        .toBool());
+            QCOMPARE(failedStatus.value(QStringLiteral("toolset"))
+                         .toObject()
+                         .value(QStringLiteral("compatibility"))
+                         .toString(),
+                     QStringLiteral("not_loaded"));
+            QCOMPARE(http.statusCallCount, refreshedStatusRequests);
+            listPage();
+            QVERIFY(!listed.isEmpty() && !listed.value(QStringLiteral("isError")).toBool());
+            QVERIFY(listed.value(QStringLiteral("structuredContent"))
+                        .toObject()
+                        .value(QStringLiteral("tools"))
+                        .toArray()
+                        .isEmpty());
+            const auto callsBefore = http.calledTools;
+            QJsonObject blocked;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&blocked](const DsConnector::ToolCallOutcome &outcome) {
+                                 blocked = outcome.result;
+                             });
+            QVERIFY(blocked.value(QStringLiteral("isError")).toBool());
+            QCOMPARE(http.calledTools, callsBefore);
+
+            http.adjustToolsPage = {};
+            QJsonObject reconnecting;
+            runtime.callTool(QStringLiteral("connector.reconnect"), {},
+                             [&reconnecting](const DsConnector::ToolCallOutcome &outcome) {
+                                 reconnecting = outcome.result;
+                             });
+            QVERIFY(!reconnecting.isEmpty() &&
+                    !reconnecting.value(QStringLiteral("isError")).toBool());
+            QVERIFY(!reconnecting.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("mcp"))
+                         .toObject()
+                         .value(QStringLiteral("connected"))
+                         .toBool());
+            QVERIFY2(waitUntil(
+                         [&] {
+                             return http.statusCallCount == refreshedStatusRequests + 1 &&
+                                    handshakeComplete();
+                         },
+                         15000),
+                     "reconnecting after a bad page must reload a complete usable catalog");
+            QVERIFY(runtime.status()
+                        .value(QStringLiteral("mcp"))
+                        .toObject()
+                        .value(QStringLiteral("error"))
+                        .toString()
+                        .isEmpty());
+            QSet<QString> recoveredNames;
+            QString recoveredCursor;
+            collectPages(recoveredNames, recoveredCursor);
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(recoveredNames, refreshedNames);
+            QJsonObject succeeded;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&succeeded](const DsConnector::ToolCallOutcome &outcome) {
+                                 succeeded = outcome.result;
+                             });
+            QVERIFY(waitUntil([&] { return !succeeded.isEmpty(); }, 5000));
+            QVERIFY(!succeeded.value(QStringLiteral("isError")).toBool());
+            QVERIFY(http.calledTools.contains(QStringLiteral("application.get_info")));
+        }
         runtime.stop();
     }
 
