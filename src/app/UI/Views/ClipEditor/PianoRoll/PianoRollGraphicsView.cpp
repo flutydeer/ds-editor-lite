@@ -258,7 +258,7 @@ bool PianoRollGraphicsView::event(QEvent *event) {
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
         d->hideLyricToolTip();
-        discardAction();
+        cancelPointerInteraction();
     } else if (event->type() == QEvent::HoverEnter)
         d->onHoverEnter(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverLeave)
@@ -309,12 +309,13 @@ bool PianoRollGraphicsView::touchFingerEdits() const {
 }
 
 void PianoRollGraphicsView::cancelTouchPointerInteraction() {
+    cancelPointerInteraction();
+}
+
+void PianoRollGraphicsView::cancelPointerInteraction() {
     Q_D(PianoRollGraphicsView);
     discardAction();
-    // The touch stream was taken away mid-press (a second finger promoted it
-    // to navigation, or the platform cancelled it), so the release that would
-    // reset the interaction controller never comes; a latched mouse-down makes
-    // mousePressEvent refuse every later press.
+    // An interrupted stream has no release to clear the pressed button.
     d->m_interactionController->setMouseDown(false);
     TimeGraphicsView::cancelTouchPointerInteraction();
 }
@@ -1380,12 +1381,8 @@ void PianoRollGraphicsView::endPenEraserStroke() {
 }
 
 void PianoRollGraphicsView::abortPenEraseStroke() {
-    // The system took the stroke away: drop the erase it staged so far and
-    // hand the handler and the pitch editor back to the armed tool. Both halves
-    // are idempotent, so an earlier discardAction() on the same interruption
-    // costs nothing.
     Q_D(PianoRollGraphicsView);
-    discardAction();
+    cancelPointerInteraction();
     d->endPenEraseStroke();
 }
 

@@ -436,12 +436,15 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data() {
     QTest::addColumn<bool>("doubleClick");
-    QTest::newRow("draw-tool") << false;
-    QTest::newRow("select-tool-double-click") << true;
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("draw-tool") << false << false;
+    QTest::newRow("select-tool-double-click") << true << false;
+    QTest::newRow("touch-draw-tool") << false << true;
 }
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QFETCH(bool, doubleClick);
+    QFETCH(bool, touch);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     GuiDocumentFixture fixture;
@@ -505,15 +508,26 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     const auto release = pointForTick(1020);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
+    auto *touchDevice = QTest::createTouchDevice();
+    auto touchSequence = QTest::touchEvent(&canvas, touchDevice, false);
+    const auto stopPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    });
     const auto before = runtime.documentVersion();
     const auto beforePreviewFrame = submitted.size();
-    if (doubleClick)
-        QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-    else
-        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-    QMouseEvent move(QEvent::MouseMove, QPointF(release), QPointF(canvas.mapToGlobal(release)),
-                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(&canvas, &move);
+    if (touch) {
+        touchSequence.press(0, press).commit();
+        touchSequence.move(0, release).commit();
+    } else {
+        if (doubleClick)
+            QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        else
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        QMouseEvent move(QEvent::MouseMove, QPointF(release), QPointF(canvas.mapToGlobal(release)),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&canvas, &move);
+    }
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
     const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
     QCOMPARE(preview.rStart, 480);
@@ -527,7 +541,10 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
 
     const auto beforeCommitFrame = submitted.size();
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    if (touch)
+        touchSequence.release(0, release).commit();
+    else
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
     QCOMPARE(clip->notes().count(), 1);
     const auto *note = *clip->notes().begin();
     const auto noteId = note->id();

@@ -36,6 +36,13 @@ private slots:
     void invalidClipboardDoesNotEdit_data();
     void invalidClipboardDoesNotEdit();
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
+    void pianoTouchDrawingCommitsOrCancels_data();
+    void pianoTouchDrawingCommitsOrCancels();
+    void pianoTouchSelectionAndNavigationStayIndependent();
+    void pianoTouchLongPressDefersMenus_data();
+    void pianoTouchLongPressDefersMenus();
+    void pianoPenErasingCommitsOrInterrupts_data();
+    void pianoPenErasingCommitsOrInterrupts();
     void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data();
     void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange();
     void pianoErasingRestoresSceneItemsOnCancelAndUndo();
