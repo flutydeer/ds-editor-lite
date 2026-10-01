@@ -1228,12 +1228,14 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     auto *tooltip = canvas.findChild<ToolTip *>();
     QVERIFY(tooltip);
     const auto hoverAt = [&](const QPoint &position) {
-        fixture.moveTo(position);
-        // QWidget's no-button move may omit input when the native cursor is already here.
-        QTest::mouseMove(canvas.windowHandle(), position);
+        QCursor::setPos(canvas.mapToGlobal(position));
+        QCoreApplication::processEvents();
+        QMouseEvent move(QEvent::MouseMove, position, canvas.mapToGlobal(position), Qt::NoButton,
+                         Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&canvas, &move);
     };
     hoverAt(fixture.pointFor(720, 60));
-    QTRY_VERIFY(tooltip->isVisible());
+    QTRY_VERIFY2(tooltip->isVisible(), qPrintable(recentInput.join('\n')));
     QTextDocument tooltipText;
     tooltipText.setHtml(tooltip->title());
     QCOMPARE(tooltipText.toPlainText(), first->lyric());
