@@ -1,0 +1,732 @@
+#include "EditorTouchController.h"
+
+#include "EditorPointerUtils.h"
+#include "EditorSystemGestureSuppressor.h"
+#include "EditorTouchProbe.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Model/AppOptions/Options/DeveloperOption.h"
+
+#include <QApplication>
+#include <QContextMenuEvent>
+#include <QCoreApplication>
+#include <QHoverEvent>
+#include <QInputDevice>
+#include <QList>
+#include <QMouseEvent>
+#include <QTimer>
+#include <QTouchEvent>
+#include <QWidget>
+
+#include <cmath>
+
+namespace {
+    // Inertia glide after a flick. Exponential decay is frame-rate independent,
+    // which matters because the timer interval is only a hint.
+    constexpr int inertiaIntervalMs = 16;
+    constexpr double inertiaDecayPerSecond = 3.6;
+    constexpr double inertiaStopSpeed = 20.0;
+    // Weight kept on the previous estimate when tracking a single-finger pan.
+    constexpr double panVelocitySmoothing = 0.55;
+    // How long after the last touch event a context menu still counts as
+    // coming from that gesture, and is therefore swallowed unless it is one we
+    // raised ourselves. Nothing is expected to arrive in that window any more
+    // (the system's press-and-hold is answered off by
+    // EditorSystemGestureSuppressor), so this is a safety net against a
+    // platform that promotes a contact anyway.
+    constexpr int contextMenuOwnershipMs = 600;
+
+    // --- Touch event probe ---------------------------------------------------
+    // Off unless the developer option is on. Every line lands under the
+    // EditorTouchController tag, which is what the log window filters by.
+    const char *pointStateName(const QEventPoint::State state) {
+        switch (state) {
+            case QEventPoint::State::Pressed:
+                return "down";
+            case QEventPoint::State::Updated:
+                return "move";
+            case QEventPoint::State::Stationary:
+                return "hold";
+            case QEventPoint::State::Released:
+                return "up";
+            default:
+                return "?";
+        }
+    }
+
+    const char *touchEventName(const QEvent::Type type) {
+        switch (type) {
+            case QEvent::TouchBegin:
+                return "begin";
+            case QEvent::TouchUpdate:
+                return "update";
+            case QEvent::TouchEnd:
+                return "end";
+            case QEvent::TouchCancel:
+                return "cancel";
+            default:
+                return "?";
+        }
+    }
+
+    const char *phaseName(const EditorTouchGesture::Phase phase) {
+        switch (phase) {
+            case EditorTouchGesture::Phase::Idle:
+                return "idle";
+            case EditorTouchGesture::Phase::Pending:
+                return "pending";
+            case EditorTouchGesture::Phase::LongPressPending:
+                return "longpress?";
+            case EditorTouchGesture::Phase::Single:
+                return "single";
+            case EditorTouchGesture::Phase::Navigation:
+                return "nav";
+            case EditorTouchGesture::Phase::Settling:
+                return "settling";
+        }
+        return "?";
+    }
+
+    const char *gestureEventName(const EditorTouchGesture::Event::Type type) {
+        switch (type) {
+            case EditorTouchGesture::Event::Type::SingleBegin:
+                return "SingleBegin";
+            case EditorTouchGesture::Event::Type::SingleMove:
+                return "SingleMove";
+            case EditorTouchGesture::Event::Type::SingleEnd:
+                return "SingleEnd";
+            case EditorTouchGesture::Event::Type::SingleCancel:
+                return "SingleCancel";
+            case EditorTouchGesture::Event::Type::LongPress:
+                return "LongPress";
+            case EditorTouchGesture::Event::Type::NavigationBegin:
+                return "NavBegin";
+            case EditorTouchGesture::Event::Type::NavigationUpdate:
+                return "NavUpdate";
+            case EditorTouchGesture::Event::Type::NavigationEnd:
+                return "NavEnd";
+        }
+        return "?";
+    }
+
+    // A pointer that is not a finger is a precise pointer: the editing
+    // affordances the finger needed (drawn resize handles) give way to the
+    // cursor shape again. Hover events only ever come from such a pointer, so
+    // there is nothing to tell a real hover from a promoted contact here.
+    void dropTouchAffordanceFor(const QPointerEvent *event) {
+        const auto *device = event ? event->pointingDevice() : nullptr;
+        if (device && device->type() == QInputDevice::DeviceType::TouchScreen)
+            return;
+        EditorPointer::clearTouchAffordance();
+    }
+}
+
+EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
+                                             QWidget *eventTarget, QObject *parent)
+    : QObject(parent ? parent : widget), m_target(target), m_widget(widget),
+      m_eventTarget(eventTarget ? eventTarget : widget),
+      m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)) {
+    m_clock.start();
+    // The interesting failure is one where touch stops reaching this widget, so
+    // the probe has to watch from above it. Installed once, inert while off.
+    EditorTouchProbe::install();
+    // Where this controller owns the long press, the platform's own
+    // press-and-hold has to stand down: it turns the same contact into a right
+    // click on release and draws a translucent square the whole time. Answering
+    // that costs nothing here, because the long press already has an owner.
+    EditorSystemGestureSuppressor::addWindow(m_widget);
+
+    m_longPressTimer->setSingleShot(true);
+    connect(m_longPressTimer, &QTimer::timeout, this,
+            [this] { dispatch(m_gesture.longPressTimeout(now())); });
+
+    m_inertiaTimer->setInterval(inertiaIntervalMs);
+    connect(m_inertiaTimer, &QTimer::timeout, this, &EditorTouchController::onInertiaFrame);
+}
+
+EditorTouchController::~EditorTouchController() {
+    // Never leave the global touch-stream counter unbalanced.
+    if (m_syntheticStreamActive)
+        EditorPointer::endTouchStream();
+}
+
+bool EditorTouchController::isProbeEnabled() {
+    return appOptions->developer()->logTouchEvents;
+}
+
+bool EditorTouchController::isGestureActive() const {
+    return m_gesture.phase() != EditorTouchGesture::Phase::Idle;
+}
+
+qint64 EditorTouchController::now() const {
+    return m_clock.elapsed();
+}
+
+bool EditorTouchController::handleEvent(QEvent *event) {
+    switch (event->type()) {
+        case QEvent::TouchBegin:
+        case QEvent::TouchUpdate:
+        case QEvent::TouchEnd:
+            return handleTouchEvent(static_cast<QTouchEvent *>(event));
+        case QEvent::TouchCancel:
+            // Worth a line of its own: the platform taking the touch grab away
+            // mid-gesture is the classic way for fingers to end up on the glass
+            // with nothing tracking them.
+            if (isProbeEnabled())
+                qDebug().noquote() << QStringLiteral("touch cancel (phase was %1, tracked=%2)")
+                                          .arg(QLatin1String(phaseName(m_gesture.phase())))
+                                          .arg(m_gesture.activePointCount());
+            // A stream an inline text editor took over never reaches the
+            // gesture machine, so an active relay has to count as active here
+            // too: without it the cancel would leave the line edit holding a
+            // synthetic press and the relay id latched forever.
+            if (!isGestureActive() && !m_textRelayActive)
+                return false;
+            cancel();
+            event->accept();
+            return true;
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove:
+            return swallowForeignMouseEvent(static_cast<QMouseEvent *>(event));
+        case QEvent::HoverEnter:
+        case QEvent::HoverMove:
+        case QEvent::HoverLeave:
+            // Hover only ever comes from a device that can hover, so it is one
+            // more place where a precise pointer takes the editor back. Never
+            // consumed: QGraphicsView item hover and the pen layer both need it.
+            dropTouchAffordanceFor(static_cast<QHoverEvent *>(event));
+            return false;
+        case QEvent::ContextMenu:
+            return filterContextMenuEvent(static_cast<QContextMenuEvent *>(event));
+        default:
+            return false;
+    }
+}
+
+bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
+    if (!m_target)
+        return false;
+    // Our own synthetic events also carry the touch device, but they are sent
+    // synchronously from this controller; the flag is what tells them apart
+    // from the platform's duplicates.
+    if (m_sendingSyntheticMouse)
+        return false;
+    const auto *device = event->pointingDevice();
+    const auto type = device ? device->type() : QInputDevice::DeviceType::Unknown;
+    // Only the mouse events the platform promotes out of the touch contact we
+    // are already handling are duplicates. A real mouse belongs to the mouse
+    // path, a touchpad to the wheel and native gesture path, a stylus to the
+    // pen layer.
+    if (type != QInputDevice::DeviceType::TouchScreen) {
+        dropTouchAffordanceFor(event);
+        return false;
+    }
+    if (isProbeEnabled() && event->type() != QEvent::MouseMove) {
+        qDebug().noquote() << QStringLiteral("swallowed synthesized mouse %1 buttons=%2")
+                                  .arg(event->type() == QEvent::MouseButtonRelease
+                                           ? QStringLiteral("release")
+                                           : QStringLiteral("press"))
+                                  .arg(static_cast<int>(event->buttons()));
+    }
+    event->accept();
+    return true;
+}
+
+bool EditorTouchController::touchOwnsContextMenu() const {
+    if (isGestureActive() || m_syntheticStreamActive || m_panStreamActive)
+        return true;
+    if (m_lastTouchActivityMs < 0)
+        return false;
+    return now() - m_lastTouchActivityMs < contextMenuOwnershipMs;
+}
+
+bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
+    if (!m_target)
+        return false;
+    if (m_contextMenuExpected) {
+        // The menu we owed ourselves, coming back from the queue. It is the only
+        // one allowed through while touch owns the interaction: the system's
+        // press-and-hold was answered off, so a platform menu here would mean
+        // the suppression failed.
+        if (isProbeEnabled())
+            qDebug().noquote() << QStringLiteral("context menu passed through (expected)");
+        dropPendingContextMenu();
+        // A menu runs a nested event loop and grabs the pointer, so anything
+        // still in flight would never see its release.
+        if (m_syntheticStreamActive || m_panStreamActive)
+            onSingleCancel();
+        return false;
+    }
+    if (!touchOwnsContextMenu()) {
+        if (isProbeEnabled())
+            qDebug().noquote() << QStringLiteral("context menu passed through (not from touch)");
+        return false;
+    }
+    if (isProbeEnabled())
+        qDebug().noquote() << QStringLiteral("context menu swallowed (phase %1, %2 ms since touch)")
+                                  .arg(QLatin1String(phaseName(m_gesture.phase())))
+                                  .arg(m_lastTouchActivityMs < 0 ? -1
+                                                                 : now() - m_lastTouchActivityMs);
+    // Nothing should reach here any more now that the system's press and hold is
+    // answered off, but if a platform promotes a contact anyway this is where it
+    // dies: on blank canvas a held press is a rubber band here, not a menu, and
+    // letting the menu through would pop it on top of the selection the finger
+    // just made.
+    event->accept();
+    return true;
+}
+
+void EditorTouchController::raiseContextMenu(const QPointF &position) {
+    m_menuPending = false;
+    m_contextMenuExpected = true;
+    postContextMenu(position);
+}
+
+void EditorTouchController::dropPendingContextMenu() {
+    m_menuPending = false;
+    m_contextMenuExpected = false;
+}
+
+bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
+    if (!m_target || !m_widget)
+        return false;
+
+    m_device = event->pointingDevice();
+    const auto timestamp = now();
+    m_lastTouchActivityMs = timestamp;
+
+    m_probeActive = isProbeEnabled();
+    QStringList probePoints;
+    QStringList probeAdopted;
+    const auto probePhaseBefore = m_gesture.phase();
+    if (m_probeActive) {
+        m_probeEmitted.clear();
+        for (const auto &point : event->points()) {
+            probePoints.append(QStringLiteral("%1:%2(%3,%4)")
+                                   .arg(point.id())
+                                   .arg(QLatin1String(pointStateName(point.state())))
+                                   .arg(qRound(point.position().x()))
+                                   .arg(qRound(point.position().y())));
+        }
+    }
+    // A brand new gesture inherits nothing: a menu owed by a long press that
+    // never got its release would otherwise be raised on top of this one.
+    if (m_gesture.phase() == EditorTouchGesture::Phase::Idle)
+        dropPendingContextMenu();
+    for (const auto &point : event->points()) {
+        const auto position = point.position();
+        const auto state = point.state();
+
+        // A stream an inline text editor took over belongs to the editor: it
+        // is forwarded untouched and stays invisible to the gesture machine,
+        // because only the canvas delivery reaches every event of a stream.
+        if (m_textRelayActive && point.id() == m_textRelayPointId) {
+            switch (state) {
+                case QEventPoint::State::Pressed:
+                    break;
+                case QEventPoint::State::Released:
+                    m_target->touchRelayTextEnd(position);
+                    m_textRelayActive = false;
+                    m_textRelayPointId = -1;
+                    break;
+                default:
+                    m_target->touchRelayTextMove(position);
+                    break;
+            }
+            continue;
+        }
+
+        // A finger that is on the glass but unknown to the machine has to be
+        // picked up, not ignored. moved() only answers to ids it has seen, so
+        // anything that desynchronized the two, a touch cancel, a pointer
+        // capture change, a press that went to another widget, would otherwise
+        // leave that finger dead until the whole hand is lifted.
+        if (state != QEventPoint::State::Pressed && state != QEventPoint::State::Unknown &&
+            state != QEventPoint::State::Released && !m_gesture.tracksPoint(point.id())) {
+            if (m_probeActive)
+                probeAdopted.append(QString::number(point.id()));
+            dispatch(m_gesture.pressed(point.id(), position, timestamp, true));
+        }
+
+        switch (state) {
+            case QEventPoint::State::Pressed:
+                if (m_target->touchRelayTextBegin(position)) {
+                    m_textRelayActive = true;
+                    m_textRelayPointId = point.id();
+                    break;
+                }
+                dispatch(m_gesture.pressed(point.id(), position, timestamp));
+                break;
+            case QEventPoint::State::Updated:
+                dispatch(m_gesture.moved(point.id(), position, timestamp));
+                break;
+            case QEventPoint::State::Released:
+                dispatch(m_gesture.released(point.id(), position, timestamp));
+                break;
+            case QEventPoint::State::Stationary:
+            case QEventPoint::State::Unknown:
+                break;
+        }
+    }
+    dispatch(m_gesture.flushNavigation(timestamp));
+
+    QList<int> activeIds;
+    for (const auto &point : event->points()) {
+        if (point.state() != QEventPoint::State::Released &&
+            !(m_textRelayActive && point.id() == m_textRelayPointId))
+            activeIds.append(point.id());
+    }
+    dispatch(m_gesture.syncActivePoints(activeIds));
+
+    if (m_gesture.longPressDeadline() != 0)
+        armLongPressTimer();
+    else
+        disarmLongPressTimer();
+
+    // A long press menu belongs to the release, which is the timing Windows
+    // itself used and the only one that works: raising it while the finger is
+    // still down would hand the release to the menu and activate whatever sits
+    // under the finger. The wait is over the moment the last one leaves the
+    // glass, so the menu is up as fast as the platform's own used to be.
+    if (m_menuPending && activeIds.isEmpty())
+        raiseContextMenu(m_pendingContextMenuPosition);
+
+    if (m_probeActive) {
+        qDebug().noquote()
+            << QStringLiteral("touch %1 [%2] %3->%4 tracked=%5 out=[%6]%7")
+                   .arg(QLatin1String(touchEventName(event->type())), probePoints.join(u' '),
+                        QLatin1String(phaseName(probePhaseBefore)),
+                        QLatin1String(phaseName(m_gesture.phase())))
+                   .arg(m_gesture.activePointCount())
+                   .arg(m_probeEmitted.join(u','),
+                        probeAdopted.isEmpty()
+                            ? QString()
+                            : QStringLiteral(" adopted=[%1]").arg(probeAdopted.join(u',')));
+        m_probeActive = false;
+    }
+
+    event->accept();
+    return true;
+}
+
+void EditorTouchController::armLongPressTimer() {
+    const auto remaining = m_gesture.longPressDeadline() - now();
+    if (remaining <= 0) {
+        dispatch(m_gesture.longPressTimeout(now()));
+        return;
+    }
+    m_longPressTimer->start(static_cast<int>(remaining));
+}
+
+void EditorTouchController::disarmLongPressTimer() {
+    m_longPressTimer->stop();
+}
+
+void EditorTouchController::dispatch(const EditorTouchGesture::Events &events) {
+    if (m_probeActive) {
+        for (const auto &event : events)
+            m_probeEmitted.append(QLatin1String(gestureEventName(event.type)));
+    }
+    for (const auto &event : events) {
+        switch (event.type) {
+            case EditorTouchGesture::Event::Type::SingleBegin:
+                onSingleBegin(event);
+                break;
+            case EditorTouchGesture::Event::Type::SingleMove:
+                onSingleMove(event);
+                break;
+            case EditorTouchGesture::Event::Type::SingleEnd:
+                onSingleEnd(event);
+                break;
+            case EditorTouchGesture::Event::Type::SingleCancel:
+                onSingleCancel();
+                break;
+            case EditorTouchGesture::Event::Type::LongPress:
+                onLongPress(event);
+                break;
+            case EditorTouchGesture::Event::Type::NavigationBegin:
+                stopInertia();
+                m_target->stopTouchViewportAnimation();
+                // Navigation supersedes the long press: a menu owed by the
+                // first finger must not pop over the viewport once the pan or
+                // pinch ends and the last contact leaves the glass.
+                dropPendingContextMenu();
+                break;
+            case EditorTouchGesture::Event::Type::NavigationUpdate:
+                if (!event.panDelta.isNull())
+                    m_target->panTouchViewportBy(event.panDelta);
+                if (event.horizontalFactor != 1.0 || event.verticalFactor != 1.0) {
+                    m_target->zoomTouchViewportBy(event.horizontalFactor, event.verticalFactor,
+                                                  event.anchor);
+                }
+                break;
+            case EditorTouchGesture::Event::Type::NavigationEnd:
+                startInertia(event.velocity);
+                break;
+        }
+    }
+}
+
+void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event) {
+    stopInertia();
+    m_target->stopTouchViewportAnimation();
+    m_lastStreamPosition = event.position;
+    m_panVelocity = {};
+    m_panTimestamp = now();
+
+    // Which side this stream is on is the target's call, and the whole decision
+    // is a pure table (EditorTouchTarget::fingerStreamFor) so it stays testable.
+    // Both queries are const and side effect free, so asking unconditionally
+    // costs nothing and keeps the table complete.
+    switch (EditorTouchTarget::fingerStreamFor({
+        .fingerEdits = m_target->touchFingerEdits(),
+        .tap = event.tap,
+        .fromLongPress = event.fromLongPress,
+        .content = m_target->touchContentAt(event.position),
+        .blankDrag = m_target->touchBlankDragAction(),
+    })) {
+        case EditorTouchTarget::FingerStream::Consumed:
+            // Where a finger may not edit, a tap has nothing to select either:
+            // the stream is swallowed, and the SingleEnd that follows is a
+            // no-op because no stream was ever started.
+            return;
+        case EditorTouchTarget::FingerStream::Pan:
+            m_panStreamActive = true;
+            return;
+        case EditorTouchTarget::FingerStream::DeferredPan:
+            // A held press only ever reaches here over blank canvas, because a
+            // long press on an object is consumed without a stream. Staying put
+            // owes the platform's press and hold menu, so the pan is held back
+            // until the finger actually travels.
+            m_panStreamActive = true;
+            m_pressDeferred = true;
+            m_deferredPressPosition = event.position;
+            return;
+        case EditorTouchTarget::FingerStream::DeferredSynthetic:
+            m_syntheticStreamActive = true;
+            EditorPointer::beginTouchStream();
+            // A held press only ever reaches here over blank canvas, because a
+            // long press on an object is consumed without a stream. Where that
+            // blank canvas is navigation territory the same hold has to serve
+            // two gestures: move and it is a rubber band, stay put and it is the
+            // platform's press and hold menu. Holding the press back until the
+            // finger travels keeps both, and stops a motionless hold from
+            // clearing the selection on the way.
+            m_pressDeferred = true;
+            m_deferredPressPosition = event.position;
+            return;
+        case EditorTouchTarget::FingerStream::Synthetic:
+            break;
+    }
+
+    m_syntheticStreamActive = true;
+    EditorPointer::beginTouchStream();
+    sendSyntheticMouse(QEvent::MouseButtonPress, event.position, Qt::LeftButton, Qt::LeftButton);
+    if (event.doubleTap) {
+        sendSyntheticMouse(QEvent::MouseButtonDblClick, event.position, Qt::LeftButton,
+                           Qt::LeftButton);
+    }
+}
+
+void EditorTouchController::onSingleMove(const EditorTouchGesture::Event &event) {
+    if (m_pressDeferred) {
+        const auto travel = event.position - m_deferredPressPosition;
+        if (std::hypot(travel.x(), travel.y()) <= m_gesture.config().longPressSlopPx) {
+            m_lastStreamPosition = event.position;
+            return;
+        }
+        // The hold turned into a drag after all. Press where the finger was
+        // held, so the rubber band is anchored there and not where it crossed
+        // the threshold.
+        m_pressDeferred = false;
+        // A held press that pans owes no press: it never reached the interaction
+        // layer, so there is nothing to anchor. The hold simply stops being owed
+        // a menu and starts being a pan.
+        if (m_syntheticStreamActive)
+            sendSyntheticMouse(QEvent::MouseButtonPress, m_deferredPressPosition, Qt::LeftButton,
+                               Qt::LeftButton);
+    }
+    const auto delta = event.position - m_lastStreamPosition;
+    if (m_panStreamActive) {
+        const auto timestamp = now();
+        const auto dt = static_cast<double>(timestamp - m_panTimestamp) / 1000.0;
+        if (dt > 0.0) {
+            const QPointF instant(delta.x() / dt, delta.y() / dt);
+            m_panVelocity = m_panVelocity * panVelocitySmoothing +
+                            instant * (1.0 - panVelocitySmoothing);
+            m_panTimestamp = timestamp;
+        }
+        m_lastStreamPosition = event.position;
+        m_target->panTouchViewportBy(delta);
+        return;
+    }
+    m_lastStreamPosition = event.position;
+    if (m_syntheticStreamActive)
+        sendSyntheticMouse(QEvent::MouseMove, event.position, Qt::NoButton, Qt::LeftButton);
+}
+
+void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) {
+    if (m_pressDeferred) {
+        // Held over blank canvas and never travelled, so nothing was ever
+        // pressed. That is a menu, raised right here because the finger has
+        // already left the glass, and the selection stays untouched.
+        m_pressDeferred = false;
+        // A held press that pans keeps the pan flag set for as long as the hold
+        // is unresolved. Leaving it behind here would make touchOwnsContextMenu()
+        // swallow every real right click until the next gesture ends.
+        m_panStreamActive = false;
+        finishStream();
+        raiseContextMenu(m_deferredPressPosition);
+        return;
+    }
+    if (m_panStreamActive) {
+        m_panStreamActive = false;
+        startInertia(m_panVelocity);
+        return;
+    }
+    if (m_syntheticStreamActive)
+        sendSyntheticMouse(QEvent::MouseButtonRelease, event.position, Qt::LeftButton,
+                           Qt::NoButton);
+    finishStream();
+}
+
+void EditorTouchController::onSingleCancel() {
+    if (m_panStreamActive) {
+        m_panStreamActive = false;
+        // A cancelled pan owes no menu: the finger was taken over by navigation,
+        // not lifted over blank canvas. A hold that was still deferred would
+        // otherwise fire a context menu the moment it ended.
+        m_pressDeferred = false;
+        return;
+    }
+    if (m_pressDeferred) {
+        m_pressDeferred = false;
+        finishStream();
+        return;
+    }
+    if (m_syntheticStreamActive)
+        m_target->cancelTouchPointerInteraction();
+    finishStream();
+}
+
+void EditorTouchController::finishStream() {
+    if (m_syntheticStreamActive) {
+        m_syntheticStreamActive = false;
+        EditorPointer::endTouchStream();
+    }
+}
+
+void EditorTouchController::onLongPress(const EditorTouchGesture::Event &event) {
+    if (m_target->touchHitsContent(event.position)) {
+        // The finger is spent: it must not drag the object it is resting on.
+        // The menu is owed from here and raised when that finger leaves the
+        // glass — the same timing Windows used when it owned this gesture, and
+        // the only one that cannot feed the release to the menu itself.
+        m_menuPending = true;
+        m_pendingContextMenuPosition = event.position;
+        dispatch(m_gesture.confirmLongPress(false, now()));
+        return;
+    }
+    // Blank area: a held press starts the selection drag straight away, so the
+    // rubber band shows up under the finger instead of waiting for a release.
+    dispatch(m_gesture.confirmLongPress(true, now()));
+}
+
+void EditorTouchController::sendSyntheticMouse(const QEvent::Type type, const QPointF &position,
+                                               const Qt::MouseButton button,
+                                               const Qt::MouseButtons buttons) {
+    auto *target = m_eventTarget ? m_eventTarget.data() : m_widget.data();
+    if (!target)
+        return;
+    const auto global = target->mapToGlobal(position);
+    // The touch device travels with the event: that is how the rest of the
+    // codebase recognizes a finger-driven mouse stream (EditorPointer). The
+    // flag wraps the synchronous delivery, so swallowForeignMouseEvent lets
+    // our own press, move and release through.
+    QMouseEvent event(type, position, position, global, button, buttons,
+                      QApplication::keyboardModifiers(),
+                      m_device ? m_device : QPointingDevice::primaryPointingDevice());
+    const auto wasSending = m_sendingSyntheticMouse;
+    m_sendingSyntheticMouse = true;
+    // A finger is pressing: from here on the editor keeps its touch affordances
+    // up (drawn handles, not hover cursors) until a precise pointer comes back.
+    // Latched before delivery, so the press that changes the selection already
+    // renders the affordance for the new state.
+    if (type == QEvent::MouseButtonPress)
+        EditorPointer::latchTouchAffordance();
+    QCoreApplication::sendEvent(target, &event);
+    m_sendingSyntheticMouse = wasSending;
+}
+
+void EditorTouchController::postContextMenu(const QPointF &position) {
+    auto *target = m_eventTarget ? m_eventTarget.data() : m_widget.data();
+    if (!target)
+        return;
+    const auto global = target->mapToGlobal(position).toPoint();
+    // Posted, never sent: context menus run a nested event loop through exec(),
+    // and doing that from inside touch delivery wedges the gesture stream.
+    QCoreApplication::postEvent(
+        target, new QContextMenuEvent(QContextMenuEvent::Other, position.toPoint(), global,
+                                      QApplication::keyboardModifiers()));
+}
+
+void EditorTouchController::startInertia(const QPointF &velocity) {
+    const auto speed = std::hypot(velocity.x(), velocity.y());
+    if (speed < m_gesture.config().inertiaMinVelocityPxPerSec) {
+        stopInertia();
+        return;
+    }
+    m_inertiaVelocity = velocity;
+    m_inertiaTimestamp = now();
+    m_inertiaTimer->start();
+}
+
+void EditorTouchController::stopInertia() {
+    m_inertiaTimer->stop();
+    m_inertiaVelocity = {};
+}
+
+void EditorTouchController::onInertiaFrame() {
+    if (!m_target || !m_widget || !m_widget->isVisible()) {
+        stopInertia();
+        return;
+    }
+    const auto timestamp = now();
+    const auto dt = static_cast<double>(timestamp - m_inertiaTimestamp) / 1000.0;
+    m_inertiaTimestamp = timestamp;
+    if (dt <= 0.0)
+        return;
+
+    m_target->panTouchViewportBy(m_inertiaVelocity * dt);
+    m_inertiaVelocity *= std::exp(-inertiaDecayPerSecond * dt);
+    if (std::hypot(m_inertiaVelocity.x(), m_inertiaVelocity.y()) < inertiaStopSpeed)
+        stopInertia();
+}
+
+void EditorTouchController::cancel() {
+    if (isProbeEnabled() && isGestureActive())
+        qDebug().noquote() << QStringLiteral("gesture cancelled by the widget (phase %1)")
+                                  .arg(QLatin1String(phaseName(m_gesture.phase())));
+    disarmLongPressTimer();
+    stopInertia();
+    dropPendingContextMenu();
+    if (m_textRelayActive) {
+        m_textRelayActive = false;
+        m_textRelayPointId = -1;
+        if (m_target)
+            m_target->touchRelayTextCancel();
+    }
+    const auto events = m_gesture.cancelled();
+    for (const auto &event : events) {
+        if (event.type == EditorTouchGesture::Event::Type::SingleCancel)
+            onSingleCancel();
+    }
+    m_panStreamActive = false;
+    if (m_syntheticStreamActive) {
+        if (!m_pressDeferred)
+            m_target->cancelTouchPointerInteraction();
+        m_pressDeferred = false;
+        finishStream();
+    }
+}

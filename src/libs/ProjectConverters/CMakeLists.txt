@@ -32,8 +32,10 @@ target_link_libraries(ProjectConverters PUBLIC
 if(WIN32)
     target_link_libraries(ProjectConverters PRIVATE icu)
 elseif(NOT APPLE)
-    find_package(ICU COMPONENTS uc REQUIRED)
-    target_link_libraries(ProjectConverters PRIVATE ICU::uc)
+    # MidiTextCodecConverter_icu.cpp 用到 ucsdet_*（字符集探测），这组符号在
+    # libicui18n 而非 libicuuc。Windows 侧链的是整包 icu 所以不暴露此问题。
+    find_package(ICU COMPONENTS uc i18n REQUIRED)
+    target_link_libraries(ProjectConverters PRIVATE ICU::uc ICU::i18n)
 endif()
 
 target_include_directories(ProjectConverters PUBLIC

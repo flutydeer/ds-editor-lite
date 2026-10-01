@@ -94,6 +94,12 @@ namespace AnchorEditor {
         void hoverEnter();
         void hoverMoveAt(const QPointF &scenePos);
         void hoverLeave();
+        // Drop the hover-only affordances (the hovered node ring, the dashed
+        // insert preview) without leaving the view: the pointer is still here,
+        // it just may not be told what it would do. Unlike hoverLeave() this
+        // keeps cursorInView set, so the preview comes back on the next move
+        // once the reason for the silence is gone.
+        void suspendHoverFeedback();
         void cancel();
         void exitEditing();
         [[nodiscard]] static bool handlesKey(int key);

@@ -9,7 +9,6 @@
 #include "Utils/UiLanguageManager.h"
 
 #include <QApplication>
-#include <QCursor>
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneHoverEvent>
@@ -181,6 +180,8 @@ void SpeakerMixEditorView::updateRectAndPos() {
 }
 
 void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    m_lastPointerScreenPos = event->screenPos();
+
     if (!m_editable) {
         event->ignore();
         return;
@@ -213,6 +214,8 @@ void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    m_lastPointerScreenPos = event->screenPos();
+
     if (!m_editable) {
         event->ignore();
         return;
@@ -232,6 +235,8 @@ void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SpeakerMixEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    m_lastPointerScreenPos = event->screenPos();
+
     if (!m_editable) {
         event->ignore();
         return;
@@ -270,6 +275,7 @@ void SpeakerMixEditorView::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event
 }
 
 void SpeakerMixEditorView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    m_lastPointerScreenPos = event->screenPos();
     updateHover(event->pos());
     update();
     event->accept();
@@ -610,8 +616,7 @@ void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
         }
     } else if (hit.keyframeIndex >= 0 && hit.splitIndex >= 0 && m_state.dragSplitIndex < 0 &&
                m_tooltip) {
-        const auto cursorPos = QCursor::pos();
-        m_tooltip->move(cursorPos.x(), cursorPos.y());
+        m_tooltip->moveAbovePointer(m_lastPointerScreenPos);
     }
 }
 
@@ -621,11 +626,7 @@ void SpeakerMixEditorView::showSplitHoverToolTip() {
         return;
 
     updateSplitToolTipContent(m_state.hoveredKeyframeIndex);
-    auto *tooltip = ensureToolTip();
-    tooltip->setWindowOpacity(1);
-    const auto cursorPos = QCursor::pos();
-    tooltip->move(cursorPos.x(), cursorPos.y());
-    tooltip->show();
+    ensureToolTip()->showAbovePointer(m_lastPointerScreenPos);
 }
 
 void SpeakerMixEditorView::hideSplitHoverToolTip() {
@@ -761,11 +762,7 @@ void SpeakerMixEditorView::endDrag() {
 
 void SpeakerMixEditorView::showSplitDragToolTip() {
     updateSplitDragToolTip();
-    auto *tooltip = ensureToolTip();
-    tooltip->setWindowOpacity(1);
-    const auto cursorPos = QCursor::pos();
-    tooltip->move(cursorPos.x(), cursorPos.y());
-    tooltip->show();
+    ensureToolTip()->showAbovePointer(m_lastPointerScreenPos);
 }
 
 void SpeakerMixEditorView::updateSplitDragToolTip() {
@@ -774,8 +771,7 @@ void SpeakerMixEditorView::updateSplitDragToolTip() {
         return;
 
     updateSplitToolTipContent(m_state.selectedKeyframeIndex);
-    const auto cursorPos = QCursor::pos();
-    m_tooltip->move(cursorPos.x(), cursorPos.y());
+    ensureToolTip()->moveAbovePointer(m_lastPointerScreenPos);
 }
 
 void SpeakerMixEditorView::hideSplitDragToolTip() {
@@ -796,6 +792,9 @@ ToolTip *SpeakerMixEditorView::ensureToolTip() {
         if (!parent)
             parent = QApplication::activeWindow();
         m_tooltip = new ToolTip(QString(), parent);
+        // A hover or drag readout must not fade in: the value under the
+        // pointer changes on every move, so the fade would never settle.
+        m_tooltip->setAnimationEnabled(false);
     }
     return m_tooltip;
 }

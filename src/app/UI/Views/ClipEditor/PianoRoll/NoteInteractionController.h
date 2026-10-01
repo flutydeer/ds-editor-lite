@@ -44,6 +44,17 @@ public:
         return m_currentEditingNote;
     }
 
+    // Id of the note currently drawn with the resize handle frame (-1 for none).
+    // When the press lands on it, the grab zone also includes the handle width
+    // beyond the note's edges.
+    [[nodiscard]] int handleFramedNoteId() const {
+        return m_handleFramedNoteId;
+    }
+
+    void setHandleFramedNoteId(int id) {
+        m_handleFramedNoteId = id;
+    }
+
     // State setters
     void setMouseDown(bool down, Qt::MouseButton button = Qt::NoButton);
 
@@ -166,6 +177,7 @@ private:
 
     NoteView *m_currentEditingNote = nullptr;
     MouseMoveBehavior m_mouseMoveBehavior = None;
+    int m_handleFramedNoteId = -1;
 
     PianoRollSelectionModel *m_selectionModel = nullptr;
     PianoRollGraphicsView *m_view = nullptr;

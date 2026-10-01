@@ -3,8 +3,6 @@
 void AppearanceOption::load(const QJsonObject &object) {
     if (object.contains(useNativeFrameKey))
         useNativeFrame = object.value(useNativeFrameKey).toBool();
-    if (object.contains(enableDirectManipulationKey))
-        enableDirectManipulation = object.value(enableDirectManipulationKey).toBool();
     // Animation defaults to enabled; accept only a real bool so that legacy
     // string values ("full"/"decreased"/"none") never disable animations.
     if (object.value(animationEnabledKey).isBool())
@@ -28,7 +26,6 @@ void AppearanceOption::load(const QJsonObject &object) {
 
 void AppearanceOption::save(QJsonObject &object) {
     object.insert(useNativeFrameKey, useNativeFrame);
-    object.insert(enableDirectManipulationKey, enableDirectManipulation);
     object.insert(animationEnabledKey, animationEnabled);
     object.insert(animationTimeScaleKey, animationTimeScale);
     object.insert(themeIdKey, themeId);

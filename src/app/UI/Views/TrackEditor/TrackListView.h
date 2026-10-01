@@ -1,6 +1,8 @@
 #ifndef TRACKLISTWIDGET_H
 #define TRACKLISTWIDGET_H
 
+#include "UI/Views/Common/EdgeAutoScroller.h"
+
 #include <QListWidget>
 
 class QWheelEvent;
@@ -29,6 +31,7 @@ signals:
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
@@ -43,11 +46,24 @@ private:
     bool moveDraggedTrack(int insertionIndex);
     void updateDropIndicator(int insertionIndex);
     void clearDropIndicator();
+    void onEdgeAutoScrollFrame(double dtMs);
 
     int m_scrollPosBeforeDrag = 0;
     QPoint m_dragStartPosition;
     int m_dragRow = -1;
     bool m_canStartDrag = false;
+    // A reorder started from a touch on the grip drives the insertion
+    // indicator and the commit directly (see mousePressEvent) instead of
+    // running the modal QDrag the mouse path uses.
+    bool m_touchReorder = false;
+    // Set by the claim filter when the system takes the touch away mid-reorder:
+    // the replayed release that follows still runs, but must not commit the
+    // reorder it would otherwise complete.
+    bool m_touchReorderCancelled = false;
+    // Edge auto scroll for the touch reorder, which skips the base class move
+    // handler that drives QAbstractItemView's own autoScroll.
+    EdgeAutoScroller m_edgeAutoScroller;
+    QPoint m_lastTouchPosition;
     QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.

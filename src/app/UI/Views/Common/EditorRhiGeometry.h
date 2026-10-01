@@ -38,6 +38,15 @@ namespace EditorRhiGeometry {
     void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
                                  const QRectF &physicalRect, double radius, double width,
                                  const QColor &color, double feather = 1.0);
+    // A rounded rectangle punched out of a rounded rectangle: the outer edge is
+    // the inner rectangle expanded by horizontalBand on the left/right and by
+    // verticalBand on the top/bottom, with the outer radius grown by verticalBand
+    // so the thin top/bottom bands keep their thickness around the corners. For
+    // frames whose sides are not equally thick (the note resize handle ring).
+    void appendRoundedRectRing(QVector<EditorRhiSolidVertex> &vertices,
+                               const QRectF &physicalInnerRect, double innerRadius,
+                               double horizontalBand, double verticalBand, const QColor &color,
+                               double feather = 1.0);
     void appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
                                         double top, double bottom, const QColor &color);
     void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalY,

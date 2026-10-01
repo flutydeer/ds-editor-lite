@@ -1,5 +1,6 @@
 #include "PianoRollRhiWidget.h"
 
+#include "NoteHandleGeometry.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
 #include "NoteLyricPresentation.h"
@@ -31,7 +32,10 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorPenController.h"
+#include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -69,6 +73,7 @@
 #include <functional>
 #include <climits>
 #include <numbers>
+#include <optional>
 #include <utility>
 
 using namespace ClipEditorGlobal;
@@ -207,7 +212,7 @@ public:
         bool overlapped = false;
     };
 
-    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(nullptr), wheel(&viewport, q) {
+    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(nullptr), wheel(&viewport, q, q) {
         viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
         viewport.setScaleBounds(0.01, 5.0, 0.5, 8.0);
         viewport.setEnsureContentFillsViewport(true, true);
@@ -672,13 +677,13 @@ public:
     }
 
     void onEdgeAutoScrollFrame(const double dtMs) {
-        if (!edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
+        if (!edgeAutoScroller.isDragArmed() || !EditorPointer::isPointerPressed() ||
             !q->isVisible()) {
             disarmEdgeAutoScroll();
             return;
         }
 
-        const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
+        const auto pointerPosition = lastPointerPosition;
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
         if (step.x() > 0 &&
@@ -711,6 +716,19 @@ public:
     Note *noteAt(const QPointF &viewportPosition) const {
         if (!clip)
             return nullptr;
+        // A finger has no hover cursor; the grab target can only be explained by
+        // the drawn ring. The left/right bands hang outside the note's edge where
+        // the body scan cannot find them, so under the affordance the band comes
+        // first in the hit order: once a neighbouring note covers the band, the
+        // body scan always hits the unselected neighbour first and a trailing
+        // fallback never gets its turn, degrading the handle into canvas panning.
+        // The band participates in hit testing only while the affordance is active
+        // (framedNote()'s visibility contract), so mouse and pen hits stay
+        // point-for-point identical to before; a neighbour under the band is picked
+        // via its own body outside the band instead.
+        if (auto *framed = framedNote(); framed &&
+            NoteHandleGeometry::sideBandContains(noteViewportRect(framed), viewportPosition))
+            return framed;
         const auto tick = localTickAt(viewportPosition);
         const auto key = keyAt(viewportPosition);
         for (auto iterator = clip->notes().rbegin(); iterator != clip->notes().rend(); ++iterator) {
@@ -722,6 +740,30 @@ public:
                 return note;
         }
         return nullptr;
+    }
+
+    // The frame's visibility contract shares one policy with Legacy
+    // (NoteHandleGeometry::frameVisible)
+    bool noteHandleFrameVisible() const {
+        if (!clip)
+            return false;
+        const auto selected = appStatus->selectedNotes.get();
+        const auto inlineEditing = inlineEditField != InlineEditField::None &&
+                                   selected.size() == 1 && selected.first() == inlineEditingNoteId;
+        return NoteHandleGeometry::frameVisible(EditorPointer::touchAffordanceActive(),
+                                                selected.size(), editMode, inlineEditing);
+    }
+
+    Note *framedNote() const {
+        const auto id = framedNoteId();
+        return id >= 0 ? clip->findNoteById(id) : nullptr;
+    }
+
+    // Nothing else asks for a repaint when the precise pointer clears the touch
+    // affordance, so schedule the snapshot here on demand
+    void syncNoteHandleFrame() {
+        if (noteHandleFrameShown != noteHandleFrameVisible())
+            scheduleSnapshot();
     }
 
     QList<int> orderedNoteIds() const {
@@ -748,9 +790,12 @@ public:
         if (!note)
             return Interaction::None;
         const auto rect = noteViewportRect(note);
-        const auto relativeX = viewportPosition.x() - rect.left();
-        const auto edge = EditorResizeUtils::horizontalEdgeAt(relativeX, rect.width(),
-                                                              AppGlobal::resizeTolerance);
+        // For the note wearing the handles, the grab zone also includes the handle
+        // width beyond the left/right edges
+        const auto framesActive = note->id() == framedNoteId();
+        const auto edge = NoteHandleGeometry::resizeEdgeAt(viewportPosition, rect,
+                                                          EditorPointer::resizeTolerance(),
+                                                          framesActive);
         if (edge == EditorResizeUtils::HorizontalEdge::Left)
             return Interaction::ResizeLeft;
         if (edge == EditorResizeUtils::HorizontalEdge::Right)
@@ -758,7 +803,41 @@ public:
         return Interaction::Move;
     }
 
+    // The frame's target note id, -1 for none. One read-only policy serves both
+    // drawing and hit testing
+    int framedNoteId() const {
+        if (!noteHandleFrameVisible())
+            return -1;
+        const auto selected = appStatus->selectedNotes.get();
+        return selected.size() == 1 ? selected.first() : -1;
+    }
+
+    // The erase action of the pen stroke in flight, or Unsupported when no pen
+    // erase stroke is running. The intent is process wide, so the armed tool
+    // has to answer for itself: only a tool that can erase sees anything.
+    [[nodiscard]] EditorPenEraser penEraseIntent() const {
+        if (!EditorPointer::isPenEraseIntentActive())
+            return EditorPenEraser::Unsupported;
+        return q->penEraserAction();
+    }
+
     void updateNoteCursor(const QPointF &viewportPosition) {
+        // The pen eraser outranks the tool's own cursor while it is in range and
+        // this tool has something it could erase. This is the view's half of the
+        // hover hint: EditorPenController re-applies the same cursor when the
+        // pen changes state without moving (a barrel press mid-hover), but a
+        // hover move arrives here and would otherwise put the tool cursor back.
+        if (EditorPenController::eraseHintFor(q->penEraserAction())) {
+            q->setCursor(EditorPenController::eraseCursor());
+            return;
+        }
+        // The pen is offering an eraser this tool has no use for, so the stroke
+        // will be swallowed whole (see EditorPenPolicy). A cursor that promises
+        // the tool's own action would be a lie: there is nothing it can do.
+        if (EditorPenController::eraseHintRefused(q->penEraserAction())) {
+            q->setCursor(Qt::ForbiddenCursor);
+            return;
+        }
         if (pitchTransformEnabled()) {
             updatePitchTransformCursor(viewportPosition);
             return;
@@ -1435,7 +1514,9 @@ public:
         pitchMouseDownPos = pitchPointAt(viewportPosition);
         pitchPreviousPos = pitchMouseDownPos;
         pitchMouseMoved = false;
-        if (editMode == ErasePitch) {
+        // A pen erase stroke erases the curve whatever pitch tool is armed:
+        // the tool is not switched, so the intent decides instead.
+        if (editMode == ErasePitch || penEraseIntent() == EditorPenEraser::EraseParam) {
             pitchEditType = PitchEditType::Erase;
         } else {
             pitchDrawStroke =
@@ -1654,6 +1735,23 @@ public:
         scheduleSnapshot();
     }
 
+    // Everything that must be undone when a pointer interaction is torn down
+    // without a release: window deactivation, or a second finger promoting the
+    // gesture to navigation.
+    void abortPointerInteractions() {
+        hideLyricToolTip();
+        disarmEdgeAutoScroll();
+        discardNoteInteraction();
+        finishNoteErase(EditSessionEndReason::Discard);
+        cancelPitchEdit();
+        cancelPitchTransform();
+        if (editMode == EditPitchAnchor)
+            anchorController.cancel();
+        interaction = Interaction::None;
+        interactionNoteId = -1;
+        scheduleSnapshot();
+    }
+
     void beginDrawNote(const QPointF &viewportPosition) {
         discardNoteInteraction();
         syncNoteSelection({});
@@ -1696,6 +1794,9 @@ public:
         hideLyricToolTip();
         wheel.stop();
         viewport.stopAnimation();
+        // On a precise-pointer press the touch affordance was just cleared
+        // (EditorTouchController sees the event first)
+        syncNoteHandleFrame();
         if (event->button() != Qt::LeftButton) {
             if (pitchTransformEnabled() && event->button() == Qt::RightButton)
                 cancelPitchTransform();
@@ -1706,6 +1807,14 @@ public:
         if (noteErasing)
             finishNoteErase(EditSessionEndReason::Discard);
         discardNoteInteraction();
+        // A pen erase stroke is routed by intent rather than by the toolbar:
+        // the armed tool is not switched, so a plain left-button stroke that
+        // carries the erase intent becomes the note erase path.
+        if (penEraseIntent() == EditorPenEraser::EraseNote) {
+            noteErasing = true;
+            eraseNoteAt(event->position());
+            return;
+        }
         if (editMode == EditPitchAnchor) {
             mousePressAnchor(event);
             return;
@@ -1783,12 +1892,25 @@ public:
             hoveredKey = key;
             emit q->keyHovered(key);
         }
+        // Hover and move are both precise pointers; once the affordance is cleared
+        // the frame has to disappear with it
+        syncNoteHandleFrame();
         if (event->buttons() == Qt::NoButton)
             updateNoteCursor(event->position());
         if (event->buttons() == Qt::NoButton)
             updateLyricToolTip(event->position());
         else
             hideLyricToolTip();
+        // A pen offering an eraser this tool cannot honour: the stroke is
+        // swallowed before it can reach the interaction layer, so no hover move
+        // may feed the tool either — the split preview and the anchor hover
+        // both promise something the stroke can never do.
+        if (event->buttons() == Qt::NoButton &&
+            EditorPenController::eraseHintRefused(q->penEraserAction())) {
+            clearSplitPreview();
+            anchorController.suspendHoverFeedback();
+            return;
+        }
         if (editMode == EditPitchAnchor) {
             mouseMoveAnchor(event);
             return;
@@ -1973,10 +2095,12 @@ public:
             appendPitch(localStart, localEnd);
             appendAnchors(localStart, localEnd);
             appendClipMask(localStart, localEnd, sceneTop, sceneBottom);
+            appendNoteHandles();
             appendLastPlaybackIndicator(sceneTop, sceneBottom);
             appendRubberBand();
             appendSplitPreview();
         }
+        noteHandleFrameShown = noteHandleFrameVisible();
         frame.clearColor = q->whiteKeyColor();
         frame.physicalCameraOffset = physicalCameraOffset();
         drawList.finish(vertices.size());
@@ -2167,6 +2291,53 @@ private:
                           fill);
     }
 
+    // The resize handle frame on the selected note. Shares NoteHandleGeometry's
+    // shape contract with the Legacy backend: the frame is a ring — a rounded
+    // rectangle with a note-sized hole whose four edges land on the note's visible
+    // edges; the left/right vertical bands are far thicker than the top/bottom
+    // horizontal ones, and only the outer edge gets a thin outline.
+    void appendNoteHandles() {
+        const auto *note = framedNote();
+        if (!note)
+            return;
+        const auto modelRect = noteDrawSceneRect(note);
+        // Same convention as the geometry helpers: the rectangle is already in the
+        // target unit and scale only multiplies the constants proportionally (the
+        // same usage as EditorItemGeometry::notePaintRect)
+        const auto physicalRect = QRectF(modelRect.topLeft() * dpr, modelRect.size() * dpr);
+        const auto inner = NoteHandleGeometry::innerRect(physicalRect, dpr);
+        if (inner.isEmpty())
+            return;
+
+        const auto fill = q->noteHandleFillColor();
+        const auto border = q->noteHandleBorderColor();
+        const auto logicalToPhysical = [this](const double logical) { return logical * dpr; };
+
+        EditorRhiGeometry::appendRoundedRectRing(
+            vertices, inner, NoteHandleGeometry::innerRadius(physicalRect, dpr),
+            logicalToPhysical(NoteHandleGeometry::sideBandWidth),
+            logicalToPhysical(NoteHandleGeometry::capBandWidth), fill, 0.5);
+
+        // Stroke only the outer edge
+        const auto outlineInset = logicalToPhysical(NoteHandleGeometry::outlineWidth) * 0.5;
+        const auto outer = NoteHandleGeometry::outerRect(physicalRect, dpr);
+        EditorRhiGeometry::appendRoundedRectStroke(
+            vertices, outer.adjusted(outlineInset, outlineInset, -outlineInset, -outlineInset),
+            NoteHandleGeometry::outerRadius(physicalRect, dpr) - outlineInset,
+            logicalToPhysical(NoteHandleGeometry::outlineWidth), border, 0.5);
+
+        // The grip indicator line centered in each vertical band
+        const auto gripColor = q->noteHandleGripColor();
+        for (const auto right : {false, true}) {
+            const auto grip = NoteHandleGeometry::gripRect(physicalRect, right, dpr);
+            if (grip.isEmpty())
+                continue;
+            EditorRhiGeometry::appendAntialiasedVerticalLine(
+                vertices, grip.center().x(), grip.top(), grip.bottom(), grip.width(), gripColor,
+                horizontalOffset() * dpr);
+        }
+    }
+
     void appendNoteText(const QRectF &rect, const QString &lyric, const QString &pronunciation,
                         const QColor &foreground, const QColor &pronunciationColor,
                         const bool editingLyric, const bool editingPronunciation) {
@@ -2203,6 +2374,34 @@ private:
         drawList.appendTexture(pronunciationSpan, vertices.size());
     }
 
+    // Geometry of the note being dragged (**scene** logical pixels, without the
+    // camera offset: the projection matrix subtracts the offset from the vertices).
+    // The handle frame must follow the same geometry, or it would stay at the
+    // note's old position while resizing. Culling needs local ticks within the
+    // clip, so the dragged local start/end are output here as well.
+    QRectF noteDrawSceneRect(const Note *note, double *localNoteStart = nullptr,
+                             double *localNoteEnd = nullptr) const {
+        auto noteStart = note->localStart();
+        auto noteLength = note->length();
+        auto noteKey = note->keyIndex();
+        const auto selected = appStatus->selectedNotes.get().contains(note->id());
+        if (selected && interaction == Interaction::Move) {
+            noteStart += interactionDeltaTick;
+            noteKey += interactionDeltaKey;
+        } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeLeft) {
+            noteStart += interactionDeltaTick;
+            noteLength -= interactionDeltaTick;
+        } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeRight) {
+            noteLength += interactionDeltaTick;
+        }
+        if (localNoteStart)
+            *localNoteStart = noteStart;
+        if (localNoteEnd)
+            *localNoteEnd = noteStart + noteLength;
+        return {viewport.tickToSceneX(noteStart), viewport.unitToSceneY(127 - noteKey),
+                noteLength * pixelsPerTick(), noteHeight * verticalScale()};
+    }
+
     void appendNotes(const double localStart, const double localEnd) {
         const auto *palette = AppColorPalette::instance();
         const auto normalFill = palette->noteBackground(trackColorIndex);
@@ -2221,27 +2420,14 @@ private:
         for (const auto *note : clip->notes()) {
             if (erasedNoteIds.contains(note->id()))
                 continue;
-            auto noteStart = note->localStart();
-            auto noteLength = note->length();
-            auto noteKey = note->keyIndex();
             const auto selected = selectedNotes.contains(note->id());
-            if (selected && interaction == Interaction::Move) {
-                noteStart += interactionDeltaTick;
-                noteKey += interactionDeltaKey;
-            } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeLeft) {
-                noteStart += interactionDeltaTick;
-                noteLength -= interactionDeltaTick;
-            } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeRight) {
-                noteLength += interactionDeltaTick;
-            }
-            const auto noteEnd = noteStart + noteLength;
-            if (noteEnd < localStart)
+            double draggedStart = 0.0;
+            double draggedEnd = 0.0;
+            const auto rect = noteDrawSceneRect(note, &draggedStart, &draggedEnd);
+            if (draggedEnd < localStart)
                 continue;
-            if (noteStart > localEnd)
+            if (draggedStart > localEnd)
                 continue;
-            const auto rect =
-                QRectF(viewport.tickToSceneX(noteStart), viewport.unitToSceneY(127 - noteKey),
-                       noteLength * pixelsPerTick(), noteHeight * verticalScale());
             const auto overlapped = note->overlapped();
             const auto fill = selected       ? selectedFill
                               : overlapped   ? overlappedFill
@@ -2866,6 +3052,9 @@ public:
     int drawKey = 60;
     int sceneLengthExtension = 0;
     int hoveredKey = -1;
+    // Whether the last snapshot drew the handle frame, used to schedule one more
+    // repaint when the precise pointer clears the touch affordance
+    bool noteHandleFrameShown = false;
     int splitPreviewNoteId = -1;
     int splitPreviewTick = 0;
     QPointF rubberBandStart;
@@ -2901,6 +3090,12 @@ public:
     quint64 anchorEditSessionId = 0;
     EditorViewportController viewport;
     EditorWheelController wheel;
+    EditorTouchController *touchController = nullptr;
+    EditorPenController *penController = nullptr;
+    // Last known pointer position in widget coordinates. Timer-driven auto
+    // scroll must read this instead of QCursor::pos(), which does not follow a
+    // finger across the glass.
+    QPointF lastPointerPosition;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
     bool autoPageTurn = true;
@@ -2917,6 +3112,9 @@ public:
     QColor blackKeyColor{31, 33, 37};
     QColor octaveDividerColor{56, 59, 65};
     QColor noteSelectedBorderColor{255, 255, 255};
+    QColor noteHandleFillColor{255, 255, 255};
+    QColor noteHandleBorderColor{31, 0, 0, 0};
+    QColor noteHandleGripColor{64, 0, 0, 0};
     QColor pronunciationTextColor{200, 200, 200};
     QColor clipRangeOverlayColor{0, 0, 0, 90};
     QColor paramOriginalCurveColor{120, 170, 210, 180};
@@ -2944,6 +3142,9 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     : EditorRhiWidget(QStringLiteral("PianoRollRhi"), parent), d(std::make_unique<Private>(this)) {
     setObjectName(QStringLiteral("PianoRollRhiWidget"));
     setMouseTracking(true);
+    setAttribute(Qt::WA_AcceptTouchEvents);
+    d->touchController = new EditorTouchController(this, this);
+    d->penController = new EditorPenController(this, this);
     d->initializeScrollBars();
     d->initializeInlineEditor();
     d->initializeLyricToolTip();
@@ -3035,6 +3236,107 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, const bool anima
     return d->revealFocus(focus, animated);
 }
 
+void PianoRollRhiWidget::stopTouchViewportAnimation() {
+    d->wheel.stop();
+    d->viewport.stopAnimation();
+}
+
+void PianoRollRhiWidget::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The content follows the finger, so the scroll offset moves the other way.
+    d->viewport.scrollBy(-deltaPixels);
+}
+
+void PianoRollRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
+                                             const double verticalFactor, const QPointF &anchor) {
+    const auto horizontal =
+        d->viewport.boundedScale(Qt::Horizontal, d->viewport.horizontalScale() * horizontalFactor);
+    const auto vertical =
+        d->viewport.boundedScale(Qt::Vertical, d->viewport.verticalScale() * verticalFactor);
+    d->viewport.setScale(horizontal, vertical, anchor);
+}
+
+EditorTouchTarget::ContentHit
+    PianoRollRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
+    if (!d->clip)
+        return ContentHit::None;
+    // Under the affordance, the left/right bands of the note wearing the ring are
+    // its exclusive grab targets: if the content test lands on a neighbour
+    // covering the band (its body or pronunciation label) first, the one-finger
+    // drag is judged Unselected and degrades into a pan. A band hit is always the
+    // exactly-selected note, so report it as draggable straight away.
+    if (const auto *framed = d->framedNote();
+        framed &&
+        NoteHandleGeometry::sideBandContains(d->noteViewportRect(framed), viewportPosition))
+        return ContentHit::Selected;
+    const auto *note = d->pronunciationAt(viewportPosition);
+    if (!note)
+        note = d->noteAt(viewportPosition);
+    if (!note)
+        return ContentHit::None;
+    // An explicitly picked tool owns every note it can reach, the same way it
+    // owns the blank canvas. Only plain Select makes a finger select a note
+    // before it may move or resize it, which is what keeps a scrolling finger
+    // from dragging whatever note it happened to land on.
+    if (d->editMode != Select)
+        return ContentHit::Selected;
+    return appStatus->selectedNotes.get().contains(note->id()) ? ContentHit::Selected
+                                                               : ContentHit::Unselected;
+}
+
+EditorTouchTarget::BlankDragAction PianoRollRhiWidget::touchBlankDragAction() const {
+    // An explicitly picked tool always wins: draw, erase, split, interval
+    // select and every pitch tool keep meaning exactly what they mean with a
+    // mouse. Plain Select owns no blank canvas, so a finger scrolls there, and
+    // creating a note needs the draw tool just like it does with a mouse.
+    if (!d->clip || d->editMode == Select)
+        return BlankDragAction::Pan;
+    return BlankDragAction::SyntheticMouse;
+}
+
+bool PianoRollRhiWidget::touchFingerEdits() const {
+    // Mirrors the legacy backend. Only the pitch tools hand the finger over to
+    // navigation when the setting is off: Select already scrolls the blank
+    // canvas and selects with a tap, and the note tools exist to be dragged.
+    // Read per gesture, so the setting takes effect on the next one.
+    if (!d->clip || !EditorViewGlobal::isPitchEditMode(d->editMode))
+        return true;
+    return appOptions->general()->drawParamWithFinger;
+}
+
+void PianoRollRhiWidget::cancelTouchPointerInteraction() {
+    d->abortPointerInteractions();
+}
+
+bool PianoRollRhiWidget::touchRelayTextBegin(const QPointF &viewportPosition) {
+    if (!d->inlineEditor || !d->inlineEditor->isEditing())
+        return false;
+    if (!d->inlineEditor->geometry().contains(viewportPosition.toPoint()))
+        return false;
+    return d->inlineEditor->relayTouchBegin(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextMove(const QPointF &viewportPosition) {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchMove(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextEnd(const QPointF &viewportPosition) {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchEnd(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextCancel() {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchCancel();
+}
+
+EditorPenEraser PianoRollRhiWidget::penEraserAction() const {
+    // Mirrors the legacy piano roll: nothing to erase without a clip.
+    if (!d->clip)
+        return EditorPenEraser::Unsupported;
+    return EditorPenPolicy::pianoRoll(d->editMode);
+}
+
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     d->hideLyricToolTip();
     if (d->editMode != mode) {
@@ -3100,6 +3402,12 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    // The pen layer first: it only claims tablet events, and it has to see them
+    // before anything else decides what they mean.
+    if (d->penController->handleEvent(event))
+        return true;
+    if (d->touchController->handleEvent(event))
+        return true;
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
         if (AnchorEditor::AnchorEditController::handlesKey(key)) {
@@ -3108,14 +3416,9 @@ bool PianoRollRhiWidget::event(QEvent *event) {
         }
     }
     if (event->type() == QEvent::WindowDeactivate) {
-        d->hideLyricToolTip();
-        d->disarmEdgeAutoScroll();
-        d->discardNoteInteraction();
-        d->finishNoteErase(EditSessionEndReason::Discard);
-        d->cancelPitchEdit();
-        d->cancelPitchTransform();
-        if (d->editMode == EditPitchAnchor)
-            d->anchorController.cancel();
+        d->touchController->cancel();
+        d->penController->interrupt();
+        d->abortPointerInteractions();
     }
     if (event->type() == QEvent::UngrabMouse &&
         d->pitchTransform.phase() == CurveTransform::Phase::Transforming) {
@@ -3129,6 +3432,8 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 }
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
+    d->touchController->cancel();
+    d->penController->interrupt();
     d->hideLyricToolTip();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();
@@ -3150,6 +3455,7 @@ void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
 }
 
 void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->wheel.stop();
     setFocus(Qt::MouseFocusReason);
     if (event->button() == Qt::LeftButton)
@@ -3159,18 +3465,21 @@ void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void PianoRollRhiWidget::mouseMoveEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->mouseMove(event);
     d->updateEdgeAutoScrollState(event->position());
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->mouseRelease(event);
     d->disarmEdgeAutoScroll();
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->hideLyricToolTip();
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
@@ -3394,6 +3703,33 @@ QColor PianoRollRhiWidget::noteSelectedBorderColor() const {
 
 void PianoRollRhiWidget::setNoteSelectedBorderColor(const QColor &color) {
     d->noteSelectedBorderColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::noteHandleFillColor() const {
+    return d->noteHandleFillColor;
+}
+
+void PianoRollRhiWidget::setNoteHandleFillColor(const QColor &color) {
+    d->noteHandleFillColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::noteHandleBorderColor() const {
+    return d->noteHandleBorderColor;
+}
+
+void PianoRollRhiWidget::setNoteHandleBorderColor(const QColor &color) {
+    d->noteHandleBorderColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::noteHandleGripColor() const {
+    return d->noteHandleGripColor;
+}
+
+void PianoRollRhiWidget::setNoteHandleGripColor(const QColor &color) {
+    d->noteHandleGripColor = color;
     d->scheduleSnapshot();
 }
 

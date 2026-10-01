@@ -3,6 +3,8 @@
 
 #include <QListWidget>
 
+class ItemViewReorderController;
+
 namespace FillLyric {
     class RuleListWidget final : public QListWidget {
         Q_OBJECT
@@ -15,6 +17,10 @@ namespace FillLyric {
 
     protected:
         void dropEvent(QDropEvent *event) override;
+        void startDrag(Qt::DropActions supportedActions) override;
+
+    private:
+        ItemViewReorderController *m_reorder = nullptr;
     };
 } // namespace FillLyric
 

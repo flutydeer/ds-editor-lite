@@ -10,6 +10,7 @@
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
 #include <lite/GUI/Controls/PanSlider.h>
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include "UI/Views/MixConsole/ChannelView.h"
 
 #include <QHBoxLayout>
@@ -66,6 +67,21 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
         m_hScrollBar->setSingleStep(sourceBar->singleStep());
     });
     m_hScrollBar->setEnabled(sourceBar->maximum() > 0);
+
+    // Single-finger kinetic scrolling for the channel strips: the touch grabs
+    // the list viewport (horizontal only - the vertical range is empty), and
+    // taps still reach the strips through Qt's touch-to-mouse synthesis. No
+    // claim filter here: the fader and pan slider are drag owners that pin
+    // this scroller from their own touch press (TouchClaimFilter::
+    // stopAncestorScrollers), so the synthesized mouse drag adjusts the
+    // control while touches anywhere else scroll the list.
+    auto *smoothScroller = new SmoothScroller(m_channelListView);
+    smoothScroller->attachTo(m_channelListView);
+    // The synced bar sits outside the viewport, so its press never passes the
+    // scroller's filter; stop the glide here or the two would fight over the
+    // scrollbar value.
+    connect(m_hScrollBar, &QScrollBar::sliderPressed, smoothScroller,
+            &SmoothScroller::stopGlide);
 
     m_masterChannel = new ChannelView;
     m_masterChannel->setName(tr("Master"));

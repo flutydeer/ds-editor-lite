@@ -7,10 +7,12 @@
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/Common/TimeGridView.h"
 #include <lite/Support/MathUtils.h>
@@ -174,6 +176,83 @@ QColor ParamEditorGraphicsView::anchorPreviewColor() const {
 
 void ParamEditorGraphicsView::setAnchorPreviewColor(const QColor &color) {
     m_anchorOverlay->setAnchorPreviewColor(color);
+}
+
+EditorTouchTarget::ContentHit
+    ParamEditorGraphicsView::touchContentAt(const QPointF &viewportPosition) const {
+    Q_UNUSED(viewportPosition)
+    // Curves are painted, not selectable items, so there is nothing a long
+    // press could grab and nothing a finger could select. Everything routes
+    // through the armed tool instead.
+    return ContentHit::None;
+}
+
+bool ParamEditorGraphicsView::fingerEditingEnabled() const {
+    // Read once per gesture, straight from the options singleton: the settings
+    // page takes effect on the next gesture, and a stream already in flight
+    // keeps the mode it started with. The speaker mix editor is its own editing
+    // surface and keeps the finger tool driven (the setting names parameter
+    // curves, and those are not what it draws).
+    if (m_speakerMixMode)
+        return true;
+    return appOptions->general()->drawParamWithFinger;
+}
+
+EditorTouchTarget::BlankDragAction ParamEditorGraphicsView::touchBlankDragAction() const {
+    // With finger editing off the panel is navigation only, so blank canvas
+    // means Pan — the same answer the piano roll gives in Select mode. The
+    // stronger answer (touchFingerEdits()) is what actually routes taps and
+    // held presses too; this one keeps the drag policy self-consistent.
+    return fingerEditingEnabled() ? BlankDragAction::SyntheticMouse : BlankDragAction::Pan;
+}
+
+bool ParamEditorGraphicsView::touchFingerEdits() const {
+    return fingerEditingEnabled();
+}
+
+void ParamEditorGraphicsView::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The horizontal position of this panel belongs to the piano roll, which
+    // forwards it here (Shift + wheel goes the same way). Panning this view on
+    // its own would scroll it out of step with the notes above, so the
+    // horizontal component is handed over instead of applied here.
+    if (deltaPixels.x() != 0.0)
+        emit horizontalPanRequested(deltaPixels.x());
+    TimeGraphicsView::panTouchViewportBy(QPointF(0.0, deltaPixels.y()));
+}
+
+void ParamEditorGraphicsView::cancelTouchPointerInteraction() {
+    discardAction();
+    TimeGraphicsView::cancelTouchPointerInteraction();
+}
+
+EditorPenEraser ParamEditorGraphicsView::penEraserAction() const {
+    if (m_speakerMixMode || !m_clip)
+        return EditorPenEraser::Unsupported;
+    return EditorPenPolicy::parameterEditor(m_editMode);
+}
+
+void ParamEditorGraphicsView::beginPenEraserStroke() {
+    // Borrow the erase variant of the armed tool for this stroke: the toolbar
+    // is left alone, so the highlight never jumps.
+    if (m_foreground)
+        m_foreground->setEraseMode(true);
+}
+
+void ParamEditorGraphicsView::endPenEraserStroke() {
+    if (!m_foreground)
+        return;
+    m_foreground->setEraseMode(m_editMode == ParamEditorEditMode::Erase);
+    m_foreground->setTraceMode(m_editMode == ParamEditorEditMode::Trace);
+}
+
+void ParamEditorGraphicsView::abortPenEraseStroke() {
+    // The system took the stroke away: whatever the foreground staged so far
+    // is dropped (a later synthetic release would be harmless but there will
+    // not be one), and the borrowed erase mode is handed back to the tool.
+    // Both halves are idempotent, so an earlier discardAction() on the same
+    // interruption costs nothing.
+    discardAction();
+    endPenEraserStroke();
 }
 
 void ParamEditorGraphicsView::discardAction() {

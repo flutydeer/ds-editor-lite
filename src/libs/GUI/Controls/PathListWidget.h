@@ -7,6 +7,7 @@ class QPoint;
 class QMouseEvent;
 class QDragEnterEvent;
 class QDropEvent;
+class ItemViewReorderController;
 
 class PathListWidget : public QListWidget {
     Q_OBJECT
@@ -21,6 +22,13 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void startDrag(Qt::DropActions supportedActions) override;
+
+private:
+    /// True when \p viewportPos sits in a row's reorder grip; reports the row.
+    [[nodiscard]] bool handleHitTest(const QPoint &viewportPos, int *row) const;
+
+    ItemViewReorderController *m_reorder = nullptr;
 };
 
 #endif // PATHLISTWIDGET_H

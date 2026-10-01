@@ -210,6 +210,9 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `piano.roll.blackRow` | 钢琴卷帘黑键行背景 |
 | `piano.roll.octaveDivider` | 钢琴卷帘八度分隔线 |
 | `piano.roll.noteSelectedBorder` | 选中音符边框 |
+| `piano.roll.noteHandle.fill` | 触摸缩放的音符把手环的环带填充（白，深色主题略暗一档） |
+| `piano.roll.noteHandle.border` | 把手环只描在外沿的那道细线（浅色背景上把白环从浅色音符与浅色画布上分离） |
+| `piano.roll.noteHandle.grip` | 把手环左右两条竖带正中的握把指示线 |
 | `piano.roll.pronunciation` | 音符内发音文本 |
 | `piano.roll.overlay` | 音符范围覆盖层 |
 | `piano.roll.background` | 钢琴卷帘编辑器容器背景（默认透明以透出面板） |

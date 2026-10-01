@@ -32,6 +32,16 @@ public:
     [[nodiscard]] bool animationEnabled() const;
     void showAt(const QPoint &screenPos);
     void showAbove(const QRect &screenRect);
+    // Anchors the visible card directly above `screenPos`, horizontally centred
+    // on it, with enough clearance to keep a fingertip or a pen nib from
+    // covering it. Used by drag interactions: a tooltip placed next to the
+    // pointer is always hidden under the finger holding the pointer there.
+    void showAbovePointer(const QPoint &screenPos, const QScreen *screen = nullptr);
+    void moveAbovePointer(const QPoint &screenPos, const QScreen *screen = nullptr);
+    // How far above the pointer the card is kept, in logical pixels, for the
+    // given screen (the primary screen when null). Derived from the screen's
+    // physical dots per inch, so it stays a real-world distance on every DPI.
+    [[nodiscard]] static int pointerClearance(const QScreen *screen = nullptr);
     void moveTo(const QPoint &screenPos);
     void hideWithAnimation();
 
@@ -57,6 +67,13 @@ protected:
 
     void updateMessage();
     void showAt(const QPoint &screenPos, const QScreen *screen);
+    // Top-left corner of the widget that puts its visible card `gapPx` above
+    // `anchorPos` and centred on it. Shared by the rect anchor (hover tooltips)
+    // and the pointer anchor (drag tooltips); only the gap differs.
+    [[nodiscard]] QPoint positionAbove(const QPoint &anchorPos, const QScreen *screen,
+                                       int gapPx) const;
+    [[nodiscard]] static const QScreen *resolveScreen(const QPoint &screenPos,
+                                                      const QScreen *screen);
     [[nodiscard]] QPoint clampToScreen(const QPoint &screenPos,
                                        const QScreen *screen = nullptr) const;
     [[nodiscard]] QColor shadowColor() const;

@@ -27,9 +27,6 @@ private:
     ComboBox *m_cbxInterfaceFont;
     SwitchButton *m_swAnimationEnabled;
     LineEdit *m_leAnimationTimeScale;
-#if defined(WITH_DIRECT_MANIPULATION)
-    SwitchButton *m_swEnableDirectManipulation;
-#endif
     QStringList m_fontFamilies;
 };
 

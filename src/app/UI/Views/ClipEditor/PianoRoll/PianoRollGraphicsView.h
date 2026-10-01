@@ -6,6 +6,7 @@
 #include <lite/History/HistoryFocus.h>
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class SingingClip;
@@ -31,6 +32,10 @@ class PianoRollGraphicsView final : public TimeGraphicsView,
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
     Q_PROPERTY(QColor noteSelectedBorderColor READ noteSelectedBorderColor WRITE
                    setNoteSelectedBorderColor)
+    Q_PROPERTY(QColor noteHandleFillColor READ noteHandleFillColor WRITE setNoteHandleFillColor)
+    Q_PROPERTY(
+        QColor noteHandleBorderColor READ noteHandleBorderColor WRITE setNoteHandleBorderColor)
+    Q_PROPERTY(QColor noteHandleGripColor READ noteHandleGripColor WRITE setNoteHandleGripColor)
     Q_PROPERTY(
         QColor pronunciationTextColor READ pronunciationTextColor WRITE setPronunciationTextColor)
     Q_PROPERTY(QColor anchorColor READ anchorColor WRITE setAnchorColor)
@@ -107,6 +112,22 @@ protected:
     void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
                                Qt::KeyboardModifiers modifiers) override;
 
+    // --- EditorTouchTarget ---
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    [[nodiscard]] bool touchFingerEdits() const override;
+    void cancelTouchPointerInteraction() override;
+    [[nodiscard]] bool touchRelayTextBegin(const QPointF &viewportPosition) override;
+    void touchRelayTextMove(const QPointF &viewportPosition) override;
+    void touchRelayTextEnd(const QPointF &viewportPosition) override;
+    void touchRelayTextCancel() override;
+
+    // --- EditorPenTarget ---
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+    void beginPenEraserStroke() override;
+    void endPenEraserStroke() override;
+    void abortPenEraseStroke() override;
+
 private:
     int m_noteFontPixelSize = 13;
 
@@ -124,6 +145,12 @@ private:
     void setOctaveDividerColor(const QColor &color);
     QColor noteSelectedBorderColor() const;
     void setNoteSelectedBorderColor(const QColor &color);
+    QColor noteHandleFillColor() const;
+    void setNoteHandleFillColor(const QColor &color);
+    QColor noteHandleBorderColor() const;
+    void setNoteHandleBorderColor(const QColor &color);
+    QColor noteHandleGripColor() const;
+    void setNoteHandleGripColor(const QColor &color);
     QColor pronunciationTextColor() const;
     void setPronunciationTextColor(const QColor &color);
     QColor anchorColor() const;

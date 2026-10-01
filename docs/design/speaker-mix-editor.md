@@ -66,7 +66,7 @@ struct SpeakerMixKeyframe {
 2. 从底部开始依次堆叠各 speaker 的面积区域；
 3. 每个区域用对应 speaker 颜色半透明填充；
 4. 关键帧位置绘制锚点圆点；
-5. Hover 时 tooltip 列出各 speaker 名称和权重百分比。
+5. Hover 时 tooltip 列出各 speaker 名称和权重百分比。tooltip 锚在指针**正上方、水平居中**（悬停与拖拽共用），让开手指与笔尖，见 `docs/design/touch-and-pen-input-design.md` 第十六节。
 
 ## 交互逻辑（SpeakerMixEditorView）
 

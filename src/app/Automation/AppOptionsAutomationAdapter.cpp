@@ -49,6 +49,7 @@ namespace Automation {
                 .gameDirectory = value->gameDir,
                 .pitchModelPath = value->rmvpePath,
                 .libreSvipPath = value->libreSVIPPath,
+                .drawParamWithFinger = value->drawParamWithFinger,
             };
         }
 
@@ -62,13 +63,13 @@ namespace Automation {
             target->gameDir = value.gameDirectory;
             target->rmvpePath = value.pitchModelPath;
             target->libreSVIPPath = value.libreSvipPath;
+            target->drawParamWithFinger = value.drawParamWithFinger;
         }
 
         AppearanceSettingsDto captureAppearance(AppOptions *options) {
             const auto *value = options->appearance();
             return {
                 .useNativeFrame = value->useNativeFrame,
-                .enableDirectManipulation = value->enableDirectManipulation,
                 .animationEnabled = value->animationEnabled,
                 .animationTimeScale = value->animationTimeScale,
                 .themeId = value->themeId,
@@ -79,7 +80,6 @@ namespace Automation {
         void restoreAppearance(AppOptions *options, const AppearanceSettingsDto &value) {
             auto *target = options->appearance();
             target->useNativeFrame = value.useNativeFrame;
-            target->enableDirectManipulation = value.enableDirectManipulation;
             target->animationEnabled = value.animationEnabled;
             target->animationTimeScale = value.animationTimeScale;
             target->themeId = value.themeId;
@@ -127,6 +127,7 @@ namespace Automation {
                 .showLogWindow = value->showLogWindow,
                 .showTimelineDebugInfo = value->showTimelineDebugInfo,
                 .showClipDebugInfo = value->showClipDebugInfo,
+                .logTouchEvents = value->logTouchEvents,
                 .enablePanelDetach = value->enablePanelDetach,
                 .enableEmbeddedOptionsDialog = value->enableEmbeddedOptionsDialog,
                 .editorRenderBackend = value->editorRenderBackend ==
@@ -142,6 +143,7 @@ namespace Automation {
             target->showLogWindow = value.showLogWindow;
             target->showTimelineDebugInfo = value.showTimelineDebugInfo;
             target->showClipDebugInfo = value.showClipDebugInfo;
+            target->logTouchEvents = value.logTouchEvents;
             target->enablePanelDetach = value.enablePanelDetach;
             target->enableEmbeddedOptionsDialog = value.enableEmbeddedOptionsDialog;
             target->editorRenderBackend =

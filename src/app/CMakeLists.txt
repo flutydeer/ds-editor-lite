@@ -163,20 +163,6 @@ if(LITE_ENABLE_CUDA)
     )
 endif()
 
-if(WIN32)
-    find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
-    find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
-    if(QtWin32DirectManipulateHelper_FOUND)
-        message(STATUS "Building with Direct Manipulation support on Windows")
-        qm_configure_target(${PROJECT_NAME}
-            LINKS_PRIVATE QtWin32DirectManipulateHelper::Core
-            DEFINES_PRIVATE WITH_DIRECT_MANIPULATION
-        )
-    else()
-        message(STATUS "Building without Direct Manipulation support on Windows")
-    endif()
-endif()
-
 qt_add_translations(
     TARGETS ${PROJECT_NAME}
     SOURCE_TARGETS

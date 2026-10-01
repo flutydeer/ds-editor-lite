@@ -76,6 +76,8 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(speakerMixPresetsKey))
         speakerMixPresets = object[speakerMixPresetsKey];
 
+    load_drawParamWithFinger(object);
+
     if (object.contains(gameDirKey))
         gameDir = object[gameDirKey].toString();
     if (object.contains(rmvpePathKey))
@@ -96,6 +98,7 @@ void GeneralOption::save(QJsonObject &object) {
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
+        serialize_drawParamWithFinger(),
         serialize_gameDir(),
         serialize_rmvpePath(),
         serialize_libreSVIPPath()

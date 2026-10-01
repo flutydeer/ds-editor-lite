@@ -25,6 +25,7 @@
 Q_LOGGING_CATEGORY(logPhonemeView, "phoneme.view")
 
 #include <QElapsedTimer>
+#include <QHoverEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
@@ -336,12 +337,16 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
 
         if (!m_tooltip) {
             m_tooltip = new ToolTip(QString("%1 ms").arg(m_currentLengthInMs), this);
+            // The length readout must appear the instant the drag starts; a
+            // 150 ms fade-in on a moving tooltip just reads as lag.
+            m_tooltip->setAnimationEnabled(false);
         }
 
-        m_tooltip->setWindowOpacity(1);
-        const auto cursorPos = QCursor::pos();
-        m_tooltip->move(cursorPos.x(), cursorPos.y());
-        m_tooltip->show();
+        // Above the pointer, never next to it: during a touch or pen drag the
+        // pointer is the contact point itself, so a card placed at the pointer
+        // sits under the finger. QCursor::pos() cannot be used here either, it
+        // does not follow a finger (see docs/design/touch-and-pen-input-design.md).
+        m_tooltip->showAbovePointer(event->globalPosition().toPoint());
     } else {
         QWidget::mousePressEvent(event);
         event->ignore();
@@ -402,8 +407,7 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
 
         if (m_tooltip) {
             m_tooltip->setTitle(QString("%1 ms").arg(m_currentLengthInMs));
-            const auto cursorPos = QCursor::pos();
-            m_tooltip->move(cursorPos.x(), cursorPos.y());
+            m_tooltip->moveAbovePointer(event->globalPosition().toPoint());
         }
     }
 
@@ -426,16 +430,15 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     m_mouseMoved = false;
     m_mouseMoveBehavior = None;
     m_freezeHoverEffects = false;
-    updateHoverEffects();
+    updateHoverEffects(event->position().toPoint());
     editSessionManager->endActiveTransaction(committed ? EditSessionEndReason::Commit
                                                        : EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     QWidget::mouseReleaseEvent(event);
 }
 
-void PhonemeView::updateHoverEffects() {
-    const auto pos = mapFromGlobal(QCursor::pos());
-    const auto tick = xToTick(pos.x());
+void PhonemeView::updateHoverEffects(const QPoint &localPos) {
+    const auto tick = xToTick(localPos.x());
     if (const auto phoneme = phonemeAtTick(tick)) {
         setCursor(Qt::SizeHorCursor);
         phoneme->hoverOnControlBar = true;
@@ -455,7 +458,7 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
     if (canEdit()) {
         if (event->type() == QEvent::HoverEnter) {
         } else if (event->type() == QEvent::HoverMove) {
-            updateHoverEffects();
+            updateHoverEffects(static_cast<QHoverEvent *>(event)->position().toPoint());
         } else if (event->type() == QEvent::HoverLeave) {
             setCursor(Qt::ArrowCursor);
             clearHoverEffects();

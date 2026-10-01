@@ -69,4 +69,18 @@ description: 为 DS Editor Lite 构建、检查或排查 Windows x64 DirectML/CU
   **不含版本号**。
 - 用 **pwsh**（PowerShell 7）运行；git-bash 调 Windows PowerShell 5.1 会报
   `Get-FileHash is not recognized`。
+- **重建后校验不要看 exe 大小**：RelWithDebInfo 的段对齐会让小的代码改动产出**完全相同**
+  的文件大小（实测 23023616 字节连续三版不变）。要比对上一次 zip 内 `DsEditorLite.exe` 的
+  CRC32 才能确认确实重建了：
+  `python -c "import zipfile;print(hex(zipfile.ZipFile('dist/portable/某版.zip').getinfo('DsEditorLite.exe').CRC))"`
+- `build-portable.ps1` **不跑 vcpkg**，依赖树可直接复用；新增源文件若落在
+  `src/libs/GUI` 下无需改 CMakeLists（该目录用 `file(GLOB_RECURSE ... CONFIGURE_DEPENDS)`）。
+- **逐文件比对两次构建时，`curve-util.dll` 总会显示 CRC 不同**：它的 `.res` 每次构建都重生成，
+  迫使该 DLL 重新链接，于是 PE 时间戳与 `.rdata` 里的 PDB 引用（RSDS 的 GUID）变了。
+  实测 `.text` 与其余各节逐字节相同，**功能无差异、不需要重新分发**。
+  判断"某次改动到底改了哪些文件"时，要按节级别比哈希，不能只看整文件 CRC。
+- 多数改动只落在 `DsEditorLite.exe` 里（`GUI` 等内部库是 `STATIC`，链接进主程序），
+  所以给测试机**只换主程序**通常就够；zip 内的 Qt/vcpkg DLL 与插件不变。
+  从 zip 里单独抽主程序：
+  `python -c "import zipfile;open('DsEditorLite.exe','wb').write(zipfile.ZipFile('某版.zip').read('DsEditorLite.exe'))"`
 - 细节见 `packaging/windows/README.md`「便携版（zip）」一节。

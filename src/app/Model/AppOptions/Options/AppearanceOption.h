@@ -15,7 +15,6 @@ public:
 #else
     bool useNativeFrame = false;
 #endif
-    bool enableDirectManipulation = true;
     // themeId is stored as an opaque persisted string; the theme system owns
     // the vocabulary and converts at the boundary. Animation is a plain on/off
     // toggle; a missing or unparseable value defaults to enabled.
@@ -31,7 +30,6 @@ protected:
 
 private:
     const QString useNativeFrameKey = "useNativeFrame";
-    const QString enableDirectManipulationKey = "enableDirectManipulation";
     const QString animationEnabledKey = "animationEnabled";
     const QString animationTimeScaleKey = "animationTimeScale";
     const QString themeIdKey = "themeId";

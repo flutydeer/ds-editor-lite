@@ -1,4 +1,5 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteHandleGeometry.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
@@ -237,6 +238,122 @@ int main(int argc, char *argv[]) {
            "context-pressing an unselected note must replace the previous selection");
     expect(EditorSelectionUtils::selectionForPress({1, 2}, -1, false).isEmpty(),
            "context-pressing the piano-roll background must clear note selection");
+
+    // --- Touch resize handle ring ---------------------------------------------
+    {
+        using EditorResizeUtils::HorizontalEdge;
+        constexpr auto sideBand = NoteHandleGeometry::sideBandWidth;
+        constexpr auto capBand = NoteHandleGeometry::capBandWidth;
+        const QRectF modelRect(40.0, 10.0, 96.0, 24.0);
+        const auto inner = NoteHandleGeometry::innerRect(modelRect);
+        const auto outer = NoteHandleGeometry::outerRect(modelRect);
+        const auto visual = NoteHandleGeometry::visualRect(modelRect);
+        expect(inner == visual && !outer.isEmpty(),
+               "the ring's hole must be exactly the note's visible rect");
+        expect(qFuzzyCompare(outer.width(), inner.width() + sideBand * 2.0) &&
+                   qFuzzyCompare(outer.height(), inner.height() + capBand * 2.0),
+               "the ring's side bands must be wider than its cap bands");
+        expect(qFuzzyCompare(outer.center().x(), inner.center().x()) &&
+                   qFuzzyCompare(outer.center().y(), inner.center().y()),
+               "the ring must stay centered on the note");
+        expect(qFuzzyCompare(NoteHandleGeometry::innerRadius(modelRect),
+                             EditorItemGeometry::adaptiveCornerRadius(
+                                 inner, EditorItemGeometry::noteCornerRadius)) &&
+                   qFuzzyCompare(NoteHandleGeometry::outerRadius(modelRect),
+                                 NoteHandleGeometry::innerRadius(modelRect) + capBand),
+               "the hole's corners must follow the note's own radius and the outer corners must "
+               "grow by the thin cap band");
+
+        // Hit testing only recognizes the left/right vertical bands
+        const auto leftBandX = (outer.left() + inner.left()) * 0.5;
+        const auto rightBandX = (outer.right() + inner.right()) * 0.5;
+        const auto centerY = inner.center().y();
+        expect(NoteHandleGeometry::sideBandContains(modelRect, QPointF(leftBandX, centerY)) &&
+                   NoteHandleGeometry::sideBandContains(modelRect, QPointF(rightBandX, centerY)),
+               "both side bands of the ring must be grab targets");
+        expect(!NoteHandleGeometry::sideBandContains(modelRect, QPointF(inner.center().x(),
+                                                                       outer.top() + 0.5)),
+               "the ring's cap bands must stay decoration (a press there would resolve to the "
+               "row above and jump the note)");
+        expect(!NoteHandleGeometry::sideBandContains(
+                   modelRect, QPointF(outer.left() - 1.0, centerY)),
+               "the grab zone must stop at the ring's outer edge");
+
+        // The grab zone must line up with the drawn vertical bands
+        const auto expansion = NoteHandleGeometry::grabExpansion;
+        expect(NoteHandleGeometry::resizeEdgeAt(QPointF(leftBandX, centerY), modelRect, 8.0,
+                                                true) == HorizontalEdge::Left &&
+                   NoteHandleGeometry::resizeEdgeAt(QPointF(rightBandX, centerY), modelRect, 8.0,
+                                                    true) == HorizontalEdge::Right,
+               "the drawn bands must be the grab targets");
+        expect(NoteHandleGeometry::resizeEdgeAt(
+                   QPointF(modelRect.left() - expansion - 0.5, centerY), modelRect, 8.0,
+                   true) == HorizontalEdge::None &&
+                   NoteHandleGeometry::resizeEdgeAt(modelRect.center(), modelRect, 8.0, true) ==
+                       HorizontalEdge::None,
+               "the grab zone must stop at the outer edge of the ring");
+        expect(NoteHandleGeometry::resizeEdgeAt(QPointF(modelRect.left() + 4.0, 0.0), modelRect, 8.0,
+                                                true) == HorizontalEdge::Left &&
+                   NoteHandleGeometry::resizeEdgeAt(QPointF(modelRect.right() - 4.0, 0.0),
+                                                    modelRect, 8.0, true) == HorizontalEdge::Right,
+               "the tolerance zone inside the note must keep resizing the matching edge");
+        expect(NoteHandleGeometry::outerRect(QRectF(0.0, 0.0, 0.0, 0.0)).isEmpty(),
+               "a degenerate note must not draw a ring");
+
+        // The grip indicator line centered in each vertical band
+        const auto leftGrip = NoteHandleGeometry::gripRect(modelRect, false);
+        const auto rightGrip = NoteHandleGeometry::gripRect(modelRect, true);
+        const auto leftBandCenter = (outer.left() + inner.left()) * 0.5;
+        const auto rightBandCenter = (inner.right() + outer.right()) * 0.5;
+        expect(qFuzzyCompare(leftGrip.center().x(), leftBandCenter) &&
+                   qFuzzyCompare(rightGrip.center().x(), rightBandCenter),
+               "each grip line must be centered in its own side band");
+        expect(qFuzzyCompare(leftGrip.height(), outer.height() / 3.0) &&
+                   qFuzzyCompare(rightGrip.height(), outer.height() / 3.0) &&
+                   qFuzzyCompare(leftGrip.center().y(), outer.center().y()) &&
+                   qFuzzyCompare(rightGrip.center().y(), outer.center().y()),
+               "each grip line must be one third of the ring's height and vertically centered");
+        expect(qFuzzyCompare(leftGrip.width(), NoteHandleGeometry::gripWidth) &&
+                   leftGrip.left() > outer.left() && leftGrip.right() < inner.left() &&
+                   rightGrip.left() > inner.right() && rightGrip.right() < outer.right(),
+               "each grip line must be a hairline that stays inside its side band");
+        expect(NoteHandleGeometry::gripRect(QRectF(0.0, 0.0, 0.0, 0.0), false).isEmpty(),
+               "a degenerate note must not draw a grip line");
+
+        // Mouse and pen (framesActive false) must stay point-for-point identical to before
+        for (const auto x : {-9.0, -1.0, 0.0, 4.0, 8.0, 47.0, 88.0, 92.0, 96.0, 100.0}) {
+            const auto legacy =
+                EditorResizeUtils::horizontalEdgeAt(x, modelRect.width(), 8.0);
+            expect(NoteHandleGeometry::resizeEdgeAt(QPointF(modelRect.left() + x, 0.0), modelRect,
+                                                    8.0, false) == legacy,
+                   "without handle frames the resize hit test must stay unchanged");
+        }
+
+        // Visibility contract
+        using ClipEditorGlobal::DrawNote;
+        using ClipEditorGlobal::EraseNote;
+        using ClipEditorGlobal::Select;
+        expect(NoteHandleGeometry::toolAllowsHandles(Select) &&
+                   NoteHandleGeometry::toolAllowsHandles(ClipEditorGlobal::IntervalSelect) &&
+                   NoteHandleGeometry::toolAllowsHandles(DrawNote) &&
+                   !NoteHandleGeometry::toolAllowsHandles(EraseNote) &&
+                   !NoteHandleGeometry::toolAllowsHandles(ClipEditorGlobal::SplitNote) &&
+                   !NoteHandleGeometry::toolAllowsHandles(ClipEditorGlobal::DrawPitch) &&
+                   !NoteHandleGeometry::toolAllowsHandles(ClipEditorGlobal::EditPitchAnchor),
+               "only the note tools may show the resize handles");
+        expect(NoteHandleGeometry::frameVisible(true, 1, Select, false),
+               "a single selected note under a note tool must show the frame");
+        expect(!NoteHandleGeometry::frameVisible(false, 1, Select, false),
+               "a precise pointer must not see the frame (it has a hover cursor)");
+        expect(!NoteHandleGeometry::frameVisible(true, 2, Select, false),
+               "a multi-selection must not show a frame");
+        expect(!NoteHandleGeometry::frameVisible(true, 0, Select, false),
+               "an empty selection must not show a frame");
+        expect(!NoteHandleGeometry::frameVisible(true, 1, EraseNote, false),
+               "a non-note tool must not show the frame");
+        expect(!NoteHandleGeometry::frameVisible(true, 1, Select, true),
+               "the inline lyric editor must hide the frame it would sit on");
+    }
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All PianoRollInteractions tests passed" << Qt::endl;

@@ -2,6 +2,9 @@
 #define TIMEGRAPHICSVIEW_H
 
 #include "EdgeAutoScroller.h"
+#include "EditorPenTarget.h"
+#include "EditorTouchTarget.h"
+#include "EditorWheelController.h"
 #include "RubberBandView.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/GUI/Base/IScalable.h>
@@ -13,6 +16,8 @@
 
 #include <optional>
 
+class EditorPenController;
+class EditorTouchController;
 class TimeGraphicsScene;
 class TimeGridView;
 class TimeIndicatorView;
@@ -21,7 +26,11 @@ class QHideEvent;
 class QPainter;
 class QShowEvent;
 
-class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
+class TimeGraphicsView : public QGraphicsView,
+                         public IScalable,
+                         public IAnimatable,
+                         public EditorTouchTarget,
+                         public EditorPenTarget {
     Q_OBJECT
     Q_PROPERTY(double scaleX READ scaleX WRITE setScaleX)
     Q_PROPERTY(double scaleY READ scaleY WRITE setScaleY)
@@ -100,6 +109,7 @@ public slots:
     void pageAdd();
 
 protected:
+    bool viewportEvent(QEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
@@ -116,6 +126,29 @@ protected:
     void afterSetScale() override;
     void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
+
+    // --- EditorTouchTarget ---
+    // Subclasses override the two policy hooks to describe their own content;
+    // the navigation half is generic enough to live here for every view.
+    void stopTouchViewportAnimation() override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
+    void zoomTouchViewportBy(double horizontalFactor, double verticalFactor,
+                             const QPointF &anchor) override;
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    // The generic time view is the arrangement canvas (and every other view
+    // without a tool of its own): there is nothing an eraser could do there,
+    // so the pen layer swallows the stroke. The piano roll and the parameter
+    // editor override this with their own strategy tables.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+
+    // Last known pointer position in viewport coordinates. Timer-driven auto
+    // scroll must read this instead of QCursor::pos(), which does not follow a
+    // finger across the glass.
+    [[nodiscard]] QPoint lastPointerPosition() const;
 
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
@@ -183,6 +216,13 @@ private:
     std::optional<int> m_logicalHorizontalBarValue;
     std::optional<int> m_logicalVerticalBarValue;
     WheelInputController m_wheelInput;
+    EditorWheelController m_wheelController;
+    EditorTouchController *m_touchController = nullptr;
+    EditorPenController *m_penController = nullptr;
+    QPoint m_lastPointerPosition;
+    // Scroll bars are integral, so sub-pixel touch panning would be lost
+    // without carrying the remainder over to the next frame.
+    QPointF m_touchPanRemainder;
 
     RubberBandView m_rubberBand;
 

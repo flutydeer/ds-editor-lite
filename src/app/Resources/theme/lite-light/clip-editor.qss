@@ -165,6 +165,9 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-blackKeyColor: ${piano.roll.blackRow};
     qproperty-octaveDividerColor: ${piano.roll.octaveDivider};
     qproperty-noteSelectedBorderColor: ${piano.roll.noteSelectedBorder};
+    qproperty-noteHandleFillColor: ${piano.roll.noteHandle.fill};
+    qproperty-noteHandleBorderColor: ${piano.roll.noteHandle.border};
+    qproperty-noteHandleGripColor: ${piano.roll.noteHandle.grip};
     qproperty-pronunciationTextColor: ${piano.roll.pronunciation};
     qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
     qproperty-paramOriginalCurveColor: ${curve.original};
