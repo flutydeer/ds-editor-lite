@@ -43,4 +43,9 @@ if(APPLE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
 endif()
-lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 180)
+if(APPLE)
+    # Exercise menu and touch focus restoration through the macOS window system.
+    lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 180)
+else()
+    lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 180)
+endif()

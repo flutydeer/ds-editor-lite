@@ -66,7 +66,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 不以 CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
 
-原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents`、`TestEditorInteraction`、`TestEditorRendering` 和 `TestApplicationGui` 使用 offscreen；普通组件无需播放设备，完整填词流程使用内置声库。
+原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents` 和 `TestEditorRendering` 使用 offscreen；`TestEditorInteraction` 使用 `minimal:enable_fonts` 验证 Qt 拖放。`TestApplicationGui` 在 Windows/Linux 使用 offscreen，在 macOS 使用原生窗口验证菜单和触控焦点行为，并与其他原生套件共用 `desktop` 资源锁。各平台执行同一程序内的全部样例，`ci` 入口包含上述两种运行条件。普通组件无需播放设备，完整填词流程使用内置声库。
 
 本地原生桌面测试需要可交互且空闲的桌面，执行期间避免手工移动鼠标、切换窗口或操作剪贴板。CTest 资源锁不能隔离其他桌面程序；轨道拖动 fixture 同步系统光标和合成事件位置，并在结束后恢复原光标位置。
 
