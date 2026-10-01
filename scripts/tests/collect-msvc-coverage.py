@@ -93,8 +93,13 @@ def main():
                args.ctest, "--test-dir", str(build), "--parallel", "2", "--output-on-failure",
                "--no-tests=error",
                "--output-junit", str(output / "junit.xml"), *extra]
+    # Keep instrumentation backups and child-process temporary files owned by this run.
+    temporary = output / "collector-temp"
+    temporary.mkdir()
+    environment = os.environ.copy()
+    environment["TEMP"] = environment["TMP"] = str(temporary)
     started_ns = time.time_ns()
-    exit_code = run_logged(command, repo, output / "tests.log")
+    exit_code = run_logged(command, repo, output / "tests.log", environment=environment)
     last_test = build / "Testing/Temporary/LastTest.log"
     if ((output / "junit.xml").is_file() and last_test.is_file()
             and last_test.stat().st_mtime_ns >= started_ns):

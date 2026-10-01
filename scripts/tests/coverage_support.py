@@ -75,6 +75,6 @@ def write_line_summary(files, output, exit_code, branch_note):
                "Duplicate file/line entries are combined across modules.\n"
                f"{branch_note}\n")
     if exit_code:
-        summary += "The test run failed; this coverage is diagnostic only.\n"
+        summary += "Coverage collection or the test run failed; this coverage is diagnostic only.\n"
     (output / "summary.txt").write_text(summary, encoding="utf-8")
     print(summary, end="")
