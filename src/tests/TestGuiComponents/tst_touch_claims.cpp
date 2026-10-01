@@ -4,6 +4,8 @@
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/TouchClaimFilter.h>
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/ComboPopupTouchFilter.h>
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -17,6 +19,12 @@
 #include <QTouchEvent>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QAbstractItemView>
+#include <QMouseEvent>
+#include <QScopeGuard>
+#include <QSignalSpy>
+
+#include <memory>
 
 namespace {
 
@@ -92,6 +100,152 @@ namespace {
     }
 
 } // namespace
+
+void GuiComponentTests::comboPopupTouchKeepsScrollingAndSelectionSeparate_data() {
+    QTest::addColumn<bool>("customCombo");
+    QTest::newRow("application-combo") << true;
+    QTest::newRow("plain-log-combo") << false;
+}
+
+void GuiComponentTests::comboPopupTouchKeepsScrollingAndSelectionSeparate() {
+    QFETCH(bool, customCombo);
+    std::unique_ptr<QComboBox> owner;
+    if (customCombo)
+        owner = std::make_unique<ComboBox>();
+    else
+        owner = std::make_unique<QComboBox>();
+    auto &combo = *owner;
+    if (!customCombo)
+        ComboPopupTouchFilter::install(&combo);
+    auto font = combo.font();
+    font.setPointSize(10);
+    combo.setFont(font);
+    for (int row = 0; row < 200; ++row)
+        combo.addItem(QStringLiteral("Choice %1").arg(row));
+    combo.setMaxVisibleItems(8);
+    combo.resize(240, 32);
+    combo.show();
+    auto *view = combo.view();
+    auto *viewport = view->viewport();
+    auto *scroll = view->verticalScrollBar();
+    QSignalSpy activated(&combo, &QComboBox::activated);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QStringList trace;
+    const auto close = qScopeGuard([&] {
+        combo.hidePopup();
+        QScroller::scroller(viewport)->stop();
+    });
+    const auto open = [&] {
+        QTest::mouseClick(&combo, Qt::LeftButton);
+        QTRY_VERIFY(view->isVisible() && viewport->height() > 80);
+        QTRY_VERIFY(scroll->maximum() > 0);
+        // Let Qt's opening-click guard expire before starting another touch.
+        QTest::qWait(QApplication::doubleClickInterval());
+    };
+    const auto send = [&](QEvent::Type type, const QPoint &position, Qt::MouseEventSource source) {
+        const auto button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
+        const auto buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
+        QMouseEvent event(type, QPointF(position), QPointF(position),
+                          QPointF(viewport->mapToGlobal(position)), button, buttons, Qt::NoModifier,
+                          source);
+        event.setTimestamp(1000 + elapsed.elapsed());
+        QApplication::sendEvent(viewport, &event);
+        QApplication::processEvents();
+        const auto *scroller = QScroller::scroller(viewport);
+        trace.append(QStringLiteral("event=%1 source=%2 y=%3 state=%4 scroll=%5/%6 ppm=%7,%8")
+                         .arg(type)
+                         .arg(source)
+                         .arg(position.y())
+                         .arg(scroller->state())
+                         .arg(scroll->value())
+                         .arg(scroll->maximum())
+                         .arg(scroller->pixelPerMeter().x())
+                         .arg(scroller->pixelPerMeter().y()));
+    };
+    int tappedRow = -1;
+    const auto tap = [&](int row) {
+        const auto item = view->model()->index(row, 0);
+        const auto visible = view->visualRect(item).intersected(viewport->rect());
+        QVERIFY(!visible.isEmpty());
+        trace.append(QStringLiteral("tap row=%1 y=%2 before=%3 scroll=%4")
+                         .arg(row)
+                         .arg(visible.center().y())
+                         .arg(view->indexAt(visible.center()).row())
+                         .arg(scroll->value()));
+        send(QEvent::MouseButtonPress, visible.center(), Qt::MouseEventSynthesizedByQt);
+        // Read the hit after the press has settled the list's scroll position.
+        const auto touched = view->indexAt(visible.center());
+        QVERIFY(touched.isValid());
+        tappedRow = touched.row();
+        trace.append(QStringLiteral("tap pressed under=%1 current=%2 scroll=%3")
+                         .arg(view->indexAt(visible.center()).row())
+                         .arg(view->currentIndex().row())
+                         .arg(scroll->value()));
+        send(QEvent::MouseButtonRelease, visible.center(), Qt::MouseEventSynthesizedByQt);
+        QTRY_VERIFY2(combo.currentIndex() == tappedRow, qPrintable(trace.join('\n')));
+        QTRY_VERIFY(!view->isVisible());
+    };
+    open();
+    if (QTest::currentTestFailed())
+        return;
+    tap(3);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(activated.size(), 1);
+    QCOMPARE(activated.first().first().toInt(), 3);
+    activated.clear();
+
+    open();
+    if (QTest::currentTestFailed())
+        return;
+    const auto beforeScroll = scroll->value();
+    const auto from = QPoint(viewport->width() / 2, viewport->height() - 12);
+    const auto to = QPoint(from.x(), 12);
+    send(QEvent::MouseButtonPress, from, Qt::MouseEventSynthesizedBySystem);
+    for (int step = 1; step <= 8; ++step) {
+        const auto position = from + (to - from) * step / 8;
+        send(QEvent::MouseMove, position, Qt::MouseEventSynthesizedBySystem);
+        if (step == 4)
+            send(QEvent::MouseButtonPress, position, Qt::MouseEventSynthesizedByQt);
+        QTest::qWait(15);
+    }
+    send(QEvent::MouseButtonRelease, to, Qt::MouseEventSynthesizedBySystem);
+    QTRY_VERIFY2(scroll->value() > beforeScroll, qPrintable(trace.join('\n')));
+    QVERIFY(view->isVisible());
+    QCOMPARE(combo.currentIndex(), 3);
+    QVERIFY(activated.isEmpty());
+    QTRY_COMPARE(QScroller::scroller(viewport)->state(), QScroller::Inactive);
+    const auto visibleItem = view->indexAt(viewport->rect().center());
+    QVERIFY(visibleItem.isValid() && visibleItem.row() != combo.currentIndex());
+    tap(visibleItem.row());
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(activated.size(), 1);
+    QCOMPARE(activated.first().first().toInt(), tappedRow);
+    activated.clear();
+
+    open();
+    if (QTest::currentTestFailed())
+        return;
+    const auto selected = combo.currentIndex();
+    send(QEvent::MouseButtonPress, from, Qt::MouseEventSynthesizedBySystem);
+    send(QEvent::MouseMove, to, Qt::MouseEventSynthesizedBySystem);
+    QTest::keyClick(view, Qt::Key_Escape);
+    QTRY_VERIFY(!view->isVisible());
+    QCOMPARE(combo.currentIndex(), selected);
+    QVERIFY(activated.isEmpty());
+    open();
+    if (QTest::currentTestFailed())
+        return;
+    const auto nextItem = view->indexAt(viewport->rect().center());
+    QVERIFY(nextItem.isValid());
+    tap(nextItem.row());
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(activated.size(), 1);
+    QCOMPARE(activated.first().first().toInt(), tappedRow);
+}
 
 void GuiComponentTests::touchClaimsKeepControlsIndependentOfPageScrolling() {
     auto *touchDevice = QTest::createTouchDevice();

@@ -41,6 +41,8 @@ private slots:
     void reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags();
     void touchClaimsKeepControlsIndependentOfPageScrolling();
     void touchFlickContinuesAfterRelease();
+    void comboPopupTouchKeepsScrollingAndSelectionSeparate_data();
+    void comboPopupTouchKeepsScrollingAndSelectionSeparate();
     void pathEditorMovesAndDeletesTheSelectedDirectories();
     void pathEditorInlineEditsCommitOrCancel_data();
     void pathEditorInlineEditsCommitOrCancel();
