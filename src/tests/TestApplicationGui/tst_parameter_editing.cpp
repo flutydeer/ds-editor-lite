@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -28,6 +29,7 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QTimer>
+#include <QTouchEvent>
 #include <QAbstractButton>
 #include <QAbstractItemView>
 #include <QtTest/QTest>
@@ -283,12 +285,15 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
 
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView_data() {
     QTest::addColumn<bool>("traceOriginal");
-    QTest::newRow("draw-from-mouse-input") << false;
-    QTest::newRow("trace-the-original-parameter") << true;
+    QTest::addColumn<bool>("useTouch");
+    QTest::newRow("draw-from-mouse-input") << false << false;
+    QTest::newRow("trace-the-original-parameter") << true << false;
+    QTest::newRow("draw-from-touch-input") << false << true;
 }
 
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QFETCH(bool, traceOriginal);
+    QFETCH(bool, useTouch);
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
     auto &runtime = *context->m_coreRuntime;
@@ -325,8 +330,27 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QSignalSpy started(editor.foreground, &CommonParamEditorView::editStarted);
     QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
 
-    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithButton(release);
+    const auto previousFingerDrawing = appOptions->general()->drawParamWithFinger;
+    auto *device = QTest::createTouchDevice();
+    auto touch = QTest::touchEvent(editor.view.viewport(), device, false);
+    bool touchPressed = false;
+    const auto restoreInput = qScopeGuard([&] {
+        if (touchPressed) {
+            QTouchEvent cancel(QEvent::TouchCancel, device);
+            QApplication::sendEvent(editor.view.viewport(), &cancel);
+            touch.release(0, release).commit();
+        }
+        appOptions->general()->drawParamWithFinger = previousFingerDrawing;
+    });
+    if (useTouch) {
+        appOptions->general()->drawParamWithFinger = true;
+        touch.press(0, press).commit();
+        touchPressed = true;
+        touch.move(0, release).commit();
+    } else {
+        QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
+        editor.moveWithButton(release);
+    }
     QTRY_VERIFY(!editor.foreground->editedCurves().isEmpty());
     QCOMPARE(started.count(), 1);
     QCOMPARE(committed.count(), 0);
@@ -336,7 +360,14 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 
-    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    if (useTouch) {
+        // A preference change applies to the next gesture, not the in-flight edit.
+        appOptions->general()->drawParamWithFinger = false;
+        touch.release(0, release).commit();
+        touchPressed = false;
+    } else {
+        QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    }
     QTRY_COMPARE(parameter->curves(Param::Edited).size(), 1);
     QCOMPARE(committed.count(), 1);
     QVERIFY(!editSessionManager->hasActiveTransaction());
