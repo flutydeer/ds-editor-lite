@@ -11,6 +11,7 @@
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/PathEditor.h>
+#include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Utils/AppLogDirectory.h"
@@ -43,6 +44,7 @@ void GeneralPage::modifyOption() {
     settings.gameDirectory = m_fsGameDir->path();
     settings.pitchModelPath = m_fsRmvpePath->path();
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
+    settings.drawParamWithFinger = m_swFingerDrawParam->value();
     runtime->settings().updateGeneral({}, settings);
 }
 
@@ -81,6 +83,16 @@ QWidget *GeneralPage::createContentWidget() {
     const auto appDataCard = new OptionListCard(tr("App Data"));
     appDataCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
     appDataCard->addItem(tr("Log Folder"), m_btnOpenLogFolder);
+
+    m_swFingerDrawParam = new SwitchButton(option->drawParamWithFinger);
+    connect(m_swFingerDrawParam, &SwitchButton::toggled, this, &GeneralPage::modifyOption);
+
+    const auto penTouchCard = new OptionListCard(tr("Pen and Touch"));
+    penTouchCard->addItem(
+        tr("Draw parameters with finger"),
+        tr("When off, a finger on the parameter panel or the piano roll's pitch tools only "
+           "scrolls the timeline. Pen and mouse are unaffected."),
+        m_swFingerDrawParam);
 
     const auto langKey = option->defaultSingingLanguage;
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
@@ -146,6 +158,7 @@ QWidget *GeneralPage::createContentWidget() {
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(applicationCard);
     mainLayout->addWidget(appDataCard);
+    mainLayout->addWidget(penTouchCard);
     mainLayout->addWidget(singingCard);
     mainLayout->addWidget(packagePathsCard);
     mainLayout->addWidget(modelCard);

@@ -4,7 +4,9 @@
 #include "Interface/EditorViewState.h"
 #include "PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
+#include "UI/Views/Common/EditorTouchTarget.h"
 
 #include <lite/History/HistoryFocus.h>
 
@@ -22,7 +24,9 @@ class SingingClip;
 
 class PianoRollRhiWidget final : public EditorRhiWidget,
                                  public IPianoRollPastePreviewHost,
-                                 public IAnchorCommandHost {
+                                 public IAnchorCommandHost,
+                                 public EditorTouchTarget,
+                                 public EditorPenTarget {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -30,6 +34,10 @@ class PianoRollRhiWidget final : public EditorRhiWidget,
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
     Q_PROPERTY(QColor noteSelectedBorderColor READ noteSelectedBorderColor WRITE
                    setNoteSelectedBorderColor)
+    Q_PROPERTY(QColor noteHandleFillColor READ noteHandleFillColor WRITE setNoteHandleFillColor)
+    Q_PROPERTY(
+        QColor noteHandleBorderColor READ noteHandleBorderColor WRITE setNoteHandleBorderColor)
+    Q_PROPERTY(QColor noteHandleGripColor READ noteHandleGripColor WRITE setNoteHandleGripColor)
     Q_PROPERTY(
         QColor pronunciationTextColor READ pronunciationTextColor WRITE setPronunciationTextColor)
     Q_PROPERTY(
@@ -117,6 +125,27 @@ protected:
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
 
+    // --- EditorTouchTarget ---
+    void stopTouchViewportAnimation() override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
+    void zoomTouchViewportBy(double horizontalFactor, double verticalFactor,
+                             const QPointF &anchor) override;
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    [[nodiscard]] bool touchFingerEdits() const override;
+    void cancelTouchPointerInteraction() override;
+    [[nodiscard]] bool touchRelayTextBegin(const QPointF &viewportPosition) override;
+    void touchRelayTextMove(const QPointF &viewportPosition) override;
+    void touchRelayTextEnd(const QPointF &viewportPosition) override;
+    void touchRelayTextCancel() override;
+
+    // --- EditorPenTarget ---
+    // Mirrors the legacy piano roll's strategy table: the note tools erase
+    // notes, the pitch tools erase a parameter curve, everything else has the
+    // stroke swallowed. No arming hook is needed here, because this backend
+    // routes the erase intent itself when it starts an interaction.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+
 private:
     class Private;
     std::unique_ptr<Private> d;
@@ -134,6 +163,12 @@ private:
     void setOctaveDividerColor(const QColor &color);
     QColor noteSelectedBorderColor() const;
     void setNoteSelectedBorderColor(const QColor &color);
+    QColor noteHandleFillColor() const;
+    void setNoteHandleFillColor(const QColor &color);
+    QColor noteHandleBorderColor() const;
+    void setNoteHandleBorderColor(const QColor &color);
+    QColor noteHandleGripColor() const;
+    void setNoteHandleGripColor(const QColor &color);
     QColor pronunciationTextColor() const;
     void setPronunciationTextColor(const QColor &color);
     QColor clipRangeOverlayColor() const;

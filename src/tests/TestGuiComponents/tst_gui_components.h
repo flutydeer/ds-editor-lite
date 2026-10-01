@@ -31,11 +31,16 @@ private slots:
     void toastContextLifetime_data();
     void toastContextLifetime();
     void tooltipHoverRestoresUpdatedContent();
+    void tooltipPointerAnchorsFollowContentAndVisibility_data();
+    void tooltipPointerAnchorsFollowContentAndVisibility();
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();
     void seekBarTrackingControlsWhenDraggedValuesCommit();
     void seekBarKeyboardStepsClampAndDoubleClickResets();
     void mixerSliderReleaseEndsPreview_data();
     void mixerSliderReleaseEndsPreview();
+    void reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags();
+    void touchClaimsKeepControlsIndependentOfPageScrolling();
+    void touchFlickContinuesAfterRelease();
     void pathEditorMovesAndDeletesTheSelectedDirectories();
     void pathEditorInlineEditsCommitOrCancel_data();
     void pathEditorInlineEditsCommitOrCancel();

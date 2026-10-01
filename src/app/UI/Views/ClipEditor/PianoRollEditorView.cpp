@@ -45,6 +45,23 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
             &PianoRollView::onWheelHorScale);
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, m_pianoRollView,
             &PianoRollView::onWheelHorScroll);
+    // A finger pan over the parameter panel scrolls the shared timeline, so it
+    // goes to the piano roll exactly like Shift + wheel does. Only the delta is
+    // forwarded: the panel's own scroll range is narrower than the piano roll's,
+    // and copying a value would clamp the timeline short of its end. The panel
+    // then follows through the connection above, so the two never drift apart.
+    connect(paramGraphicsView, &ParamEditorGraphicsView::horizontalPanRequested, this,
+            [=, remainder = 0.0](const double delta) mutable {
+                // The content follows the finger, so the scroll bar moves the
+                // other way; the remainder carries the sub-pixel part over.
+                remainder -= delta;
+                const auto step = qRound(remainder);
+                if (step == 0)
+                    return;
+                remainder -= step;
+                m_pianoRollView->setHorizontalBarValue(m_pianoRollView->horizontalBarValue() +
+                                                       step);
+            });
 }
 
 PianoRollView *PianoRollEditorView::pianoRollView() const {

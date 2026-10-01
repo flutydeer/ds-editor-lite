@@ -62,6 +62,7 @@ CMakeSettings.json
 .hermes
 .workbuddy
 .zcode
+.zcodeignore
 
 *.sublime-*
 setup-vcpkg.json

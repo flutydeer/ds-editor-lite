@@ -18,7 +18,6 @@ namespace TestSupport {
     struct MainWindowFixture {
         MainWindowFixture() {
             appOptions->appearance()->useNativeFrame = true;
-            appOptions->appearance()->enableDirectManipulation = false;
             appOptions->developer()->enablePanelDetach = true;
             appOptions->developer()->enableEmbeddedOptionsDialog = true;
             window = std::make_unique<MainWindow>();
@@ -36,7 +35,6 @@ namespace TestSupport {
             Toast::setGlobalContext(nullptr);
             window.reset();
             appOptions->appearance()->useNativeFrame = nativeFrame;
-            appOptions->appearance()->enableDirectManipulation = directManipulation;
             appOptions->developer()->enablePanelDetach = detachEnabled;
             appOptions->developer()->enableEmbeddedOptionsDialog = embeddedEnabled;
         }
@@ -51,7 +49,6 @@ namespace TestSupport {
         }
 
         const bool nativeFrame = appOptions->appearance()->useNativeFrame;
-        const bool directManipulation = appOptions->appearance()->enableDirectManipulation;
         const bool detachEnabled = appOptions->developer()->enablePanelDetach;
         const bool embeddedEnabled = appOptions->developer()->enableEmbeddedOptionsDialog;
         const bool trackVisible = !appStatus->trackPanelCollapsed;

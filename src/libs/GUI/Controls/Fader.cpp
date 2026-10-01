@@ -1,5 +1,8 @@
 #include <lite/GUI/Controls/Fader.h>
 
+#include <lite/GUI/Controls/TouchClaimFilter.h>
+
+#include <QInputDevice>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTimer>
@@ -45,6 +48,14 @@ public:
 
     QTimer timer;
     bool doubleClickWindow = false;
+    QPoint mouseDownPos;
+    // Touch drags have no cursor to teleport onto the thumb center, so a
+    // thumb-initiated touch press stores the offset between the finger and
+    // the thumb center and every move applies it: the value follows the
+    // finger's delta instead of jumping to the finger's absolute position.
+    // The mouse path realizes the same offset physically via QCursor::setPos
+    // and keeps this at zero.
+    double grabOffsetY = 0;
 
     QColor trackInactiveColor = {22, 22, 22};
     QColor trackActiveColor = {155, 186, 255};
@@ -277,7 +288,7 @@ void Fader::mouseMoveEvent(QMouseEvent *event) {
     }
 
     const auto pos = event->pos();
-    const auto posValue = (d->actualLength + d->paddingVertical - pos.y()) *
+    const auto posValue = (d->actualLength + d->paddingVertical - (pos.y() + d->grabOffsetY)) *
                               (d->linearMaximum - d->linearMinimum) / d->actualLength +
                           d->linearMinimum;
     d->setSliderPosition(d->gainFromSliderValue(posValue));
@@ -286,6 +297,17 @@ void Fader::mouseMoveEvent(QMouseEvent *event) {
 
 void Fader::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(Fader);
+    // Qt replaces the second press of a double tap with this event, so the
+    // press-to-press reset window never sees a clean double tap. Two
+    // deliberate taps anywhere on the control reset to the default - a safe
+    // value - while the mouse keeps its existing paths.
+    if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen) {
+        resetValue();
+        d->canMoveThumb = false;
+        d->doubleClickWindow = false;
+        event->accept();
+        return;
+    }
     QWidget::mouseDoubleClickEvent(event);
 }
 
@@ -296,7 +318,43 @@ void Fader::mousePressEvent(QMouseEvent *event) {
 
     const auto pos = event->pos();
 
+    const auto touch =
+        event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen;
+    if (!touch)
+        TouchClaimFilter::stopAncestorScrollers(this);
+
+    // Touch obeys the mouse rule: only a drag started on the thumb moves the
+    // fader - an accidental track touch must never jump the volume. A track
+    // touch stays unpinned, so the ancestor scroller keeps it as a scroll
+    // surface. A thumb touch owns the gesture: pin the ancestor scrollers (a
+    // running glide included) and skip the cursor teleport - there is no
+    // cursor following a finger, and the barrier that swallows the
+    // QCursor::setPos-generated move would eat the first real drag move of
+    // the synthesized touch stream.
+    if (touch) {
+        if (d->mouseOnThumb(pos)) {
+            TouchClaimFilter::stopAncestorScrollers(this);
+            // Virtual drag origin: moves apply relative to the current value
+            // (the thumb center), never jumping to the finger.
+            d->grabOffsetY = QRectF(d->thumbPos, d->thumbSize).center().y() - pos.y();
+            d->isSliderDown = true;
+            d->canMoveThumb = true;
+            if (d->doubleClickWindow) {
+                resetValue();
+                d->canMoveThumb = false;
+                d->doubleClickWindow = false;
+            } else {
+                d->doubleClickWindow = true;
+                d->timer.start();
+            }
+        } else {
+            d->canMoveThumb = false;
+        }
+        return;
+    }
+
     // Move cursor to the center of thumb
+    d->grabOffsetY = 0;
     if (d->mouseOnThumb(pos)) {
         const auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
         d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动

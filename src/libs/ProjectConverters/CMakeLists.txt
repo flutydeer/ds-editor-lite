@@ -32,6 +32,7 @@ target_link_libraries(ProjectConverters PUBLIC
 if(WIN32)
     target_link_libraries(ProjectConverters PRIVATE icu)
 elseif(NOT APPLE)
+    # Charset detection requires icui18n as well as icuuc on Linux.
     find_package(ICU COMPONENTS uc i18n REQUIRED)
     target_link_libraries(ProjectConverters PRIVATE ICU::uc ICU::i18n)
 endif()

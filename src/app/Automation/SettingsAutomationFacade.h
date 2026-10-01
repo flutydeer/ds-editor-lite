@@ -22,13 +22,13 @@ namespace Automation {
         QString gameDirectory;
         QString pitchModelPath;
         QString libreSvipPath;
+        bool drawParamWithFinger = false;
 
         friend bool operator==(const GeneralSettingsDto &, const GeneralSettingsDto &) = default;
     };
 
     struct AppearanceSettingsDto {
         bool useNativeFrame = false;
-        bool enableDirectManipulation = true;
         bool animationEnabled = true;
         double animationTimeScale = 1.0;
         QString themeId;
@@ -66,6 +66,7 @@ namespace Automation {
         bool showLogWindow = false;
         bool showTimelineDebugInfo = false;
         bool showClipDebugInfo = false;
+        bool logTouchEvents = false;
         bool enablePanelDetach = false;
         bool enableEmbeddedOptionsDialog = false;
         EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;

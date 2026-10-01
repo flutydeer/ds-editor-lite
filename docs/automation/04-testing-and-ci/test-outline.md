@@ -130,9 +130,9 @@
 | TestBootstrap | 启动参数、Host 模式、单实例身份与传输 | protocol/process；当前平台 |
 | TestProcessIntegration | 真实 Editor/Connector 启动、跨 Host、编辑/文件闭环、退出/重启和信号 | process；通用/offscreen/平台 |
 | TestModelResources | 内置或显式声库的 CPU 推理、语言和声线接线、缓存/失效与 WAV 导出 | workflow；默认内置资源 |
-| TestGuiComponents | 主题颜色/图标、二级菜单、组件动画、SeekBar/Fader/Pan 的输入与提交 | gui；offscreen |
+| TestGuiComponents | 主题颜色/图标、二级菜单、组件动画、SeekBar/Fader/Pan 的输入与提交；触控占用与滚动、重建行的重排手柄、目录内联编辑及指针提示框位置 | gui；offscreen |
 | TestNativeDesktop | 原生分隔布局、窗口动画设置、Null RHI 钢琴窗/轨道输入与帧提交、条件音频及 MIDI 回环 | gui/workflow；原生桌面；设备条件按例报告 |
-| TestEditorInteraction | 控制器、视口、边缘滚动、钢琴窗/轨道输入、滚动条、快捷键及轨道/歌词规则拖放 | gui/domain；通用/minimal |
+| TestEditorInteraction | 控制器、视口、边缘滚动、钢琴窗/轨道输入、滚动条、快捷键及轨道/歌词规则拖放；触控和笔的意图状态机、工具路由及触控音符手柄命中 | gui/domain；通用/minimal |
 | TestEditorRendering | 字形图集、RHI 几何、波形绘制计算 | gui/unit；offscreen；不代表完整 RHI 后端 |
 | TestApplicationGui | 真实应用编辑、剪贴板、填词及规则、导入导出、主窗口面板/嵌入设置、日志、声线、音素、搜索及资源；文档保存决策状态机另按工作流分类 | gui/workflow；offscreen；共用隔离应用环境 |
 

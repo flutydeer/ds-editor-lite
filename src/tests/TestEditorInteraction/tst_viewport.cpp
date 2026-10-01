@@ -120,13 +120,16 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
         const auto global = view.viewport()->mapToGlobal(position);
         const auto local = view.mapFromGlobal(global);
         const auto anchor = view.mapToScene(position).x() / view.scaleX();
+        const auto verticalAnchor = view.mapToScene(position).y() / view.scaleY();
         QNativeGestureEvent gesture(Qt::ZoomNativeGesture, &touchpad, 2, local, local, global, 0.25,
                                     {});
         QVERIFY(QApplication::sendEvent(&view, &gesture));
         QVERIFY(view.scaleX() > scale);
+        QVERIFY(view.scaleY() > scale);
         QVERIFY(std::abs(view.mapToScene(position).x() / view.scaleX() - anchor) <=
                 1.0 / view.scaleX());
-        QCOMPARE(view.visibleRect().top(), destination.top());
+        QVERIFY(std::abs(view.mapToScene(position).y() / view.scaleY() - verticalAnchor) <=
+                1.0 / view.scaleY());
     } else {
         sendTimeViewWheel(view, view.viewport()->rect().center(), -120, Qt::NoModifier);
         QVERIFY(view.visibleRect().top() > destination.top());

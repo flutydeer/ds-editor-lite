@@ -7,6 +7,7 @@
 #include <QStyleOptionComboBox>
 
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/ComboPopupTouchFilter.h>
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
@@ -98,4 +99,9 @@ void ComboBox::initUi() {
     // SmoothScroller attaches to view()'s viewport, reusing the same view as OverlayScrollBar.
     auto *smoothScroller = new SmoothScroller(this);
     smoothScroller->attachTo(view());
+
+    // Mobile touch semantics for the popup: tap selects, drag scrolls with
+    // inertia, and a drag release no longer commits the item it ended on (the
+    // OS keeps synthesizing mouse events from touch that QScroller cannot stop).
+    ComboPopupTouchFilter::install(this);
 }

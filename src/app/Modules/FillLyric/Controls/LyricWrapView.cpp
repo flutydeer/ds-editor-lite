@@ -39,8 +39,9 @@ namespace FillLyric {
 
         // Animate mouse-wheel scrolling with OutCubic; touchpad passes through.
         // Ctrl+wheel (custom font-size zoom) is deliberately left untouched.
+        // Touch kinetic scrolling stays off: single-finger drag is sweep selection.
         auto *smoothScroller = new SmoothScroller(this);
-        smoothScroller->attachTo(this);
+        smoothScroller->attachTo(this, SmoothScroller::TouchKinetic::Disabled);
 
         auto *noteCountTimer = new QTimer(this);
         noteCountTimer->setSingleShot(true);

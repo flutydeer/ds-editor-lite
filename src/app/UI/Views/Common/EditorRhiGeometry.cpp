@@ -479,6 +479,43 @@ void EditorRhiGeometry::appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &v
     appendContourBand(vertices, inner, innerFade, vertexColor, 1.0f, 0.0f);
 }
 
+void EditorRhiGeometry::appendRoundedRectRing(QVector<EditorRhiSolidVertex> &vertices,
+                                              const QRectF &physicalInnerRect,
+                                              const double innerRadius,
+                                              const double horizontalBand,
+                                              const double verticalBand, const QColor &color,
+                                              const double feather) {
+    if (physicalInnerRect.isEmpty() || horizontalBand <= 0.0 || verticalBand <= 0.0 ||
+        color.alpha() == 0)
+        return;
+    const auto outerRect = physicalInnerRect.adjusted(-horizontalBand, -verticalBand,
+                                                      horizontalBand, verticalBand);
+    if (outerRect.isEmpty())
+        return;
+
+    const auto vertexColor = premultipliedColor(color);
+    const auto fade = std::max(0.5, feather);
+    // The outer radius grows by the thinner band: the thin top/bottom bands keep
+    // their thickness around the corners
+    const auto outerRadius = std::max(0.0, innerRadius + verticalBand);
+    const auto innerFadeRect = physicalInnerRect.adjusted(fade, fade, -fade, -fade);
+    if (innerFadeRect.isEmpty()) {
+        // The hole is too small to fit even the feathering — fill the outer edge outright
+        appendRoundedRect(vertices, outerRect, outerRadius, color);
+        return;
+    }
+
+    const auto outerFade = roundedRectContour(
+        outerRect.adjusted(-fade, -fade, fade, fade), outerRadius + fade);
+    const auto outer = roundedRectContour(outerRect, outerRadius);
+    const auto inner = roundedRectContour(physicalInnerRect, innerRadius);
+    const auto innerFade =
+        roundedRectContour(innerFadeRect, std::max(0.0, innerRadius - fade));
+    appendContourBand(vertices, outerFade, outer, vertexColor, 0.0f, 1.0f);
+    appendContourBand(vertices, outer, inner, vertexColor, 1.0f, 1.0f);
+    appendContourBand(vertices, inner, innerFade, vertexColor, 1.0f, 0.0f);
+}
+
 void EditorRhiGeometry::appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices,
                                                        const double physicalX, const double top,
                                                        const double bottom, const QColor &color) {

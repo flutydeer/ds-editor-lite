@@ -56,10 +56,6 @@
 #include <QThread>
 #include <QTimer>
 
-#if defined(WITH_DIRECT_MANIPULATION)
-#  include <QWDMHCore/DirectManipulationSystem.h>
-#endif
-
 // AudioSystemContext — moved verbatim from old main.cpp
 struct AudioSystemContext {
     AudioSystemContext() {
@@ -73,12 +69,6 @@ struct AudioSystemContext {
     AudioSystem audioSystem;
 };
 
-#if defined(WITH_DIRECT_MANIPULATION)
-struct DirectManipulationHolder {
-    QWDMH::DirectManipulationSystem system;
-};
-#endif
-
 struct AppContext::GuiContext {
     LevelMeterManager *levelMeterInstance = nullptr;
     ClipboardController *clipboardInstance = nullptr;
@@ -91,9 +81,6 @@ struct AppContext::GuiContext {
     ProjectStatusController *projectStatusInstance = nullptr;
     AppController *appInstance = nullptr;
     DocumentWorkflowController *documentWorkflowInstance = nullptr;
-#if defined(WITH_DIRECT_MANIPULATION)
-    std::unique_ptr<DirectManipulationHolder> directManip;
-#endif
 };
 
 AppContext *AppContext::s_self = nullptr;
@@ -440,9 +427,6 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
         m_guiContext->pitchExtractInstance = SingletonRegistry::create<PitchExtractController>();
         m_guiContext->midiExtractInstance = SingletonRegistry::create<MidiExtractController>();
         m_guiContext->projectStatusInstance = SingletonRegistry::create<ProjectStatusController>();
-#if defined(WITH_DIRECT_MANIPULATION)
-        m_guiContext->directManip = std::make_unique<DirectManipulationHolder>();
-#endif
         m_guiContext->appInstance = SingletonRegistry::create<AppController>();
         m_guiContext->documentWorkflowInstance =
             SingletonRegistry::create<DocumentWorkflowController>();
@@ -546,11 +530,6 @@ AppContext::~AppContext() {
 
     // Audio system
     m_audio.reset();
-
-#if defined(WITH_DIRECT_MANIPULATION)
-    if (m_guiContext)
-        m_guiContext->directManip.reset();
-#endif
 
     // L6
     SingletonRegistry::destroy(m_inferController);

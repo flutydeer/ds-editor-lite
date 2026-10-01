@@ -81,7 +81,6 @@ fixture 资格本身不是产品通过项。若某 fixture 不能稳定产生上
 | `CAP-AUDIO` | `AUDIO_TEST_ENDPOINT` 可播放测试音且音量已置于安全水平 | 真实听音与设备切换子场景未装备，视觉推理仍执行 |
 | `CAP-HOTPLUG` | `HOTPLUG_TEST_ENDPOINT` 可安全地添加/移除并恢复 | 仅 hot-plug 子场景未装备 |
 | `CAP-GPU` | 页面检测到符合门槛的 GPU，所选 provider 能完成一次隔离真实推理 | GPU 子场景未装备；CPU 子场景继续 |
-| `CAP-DIRECT-MANIPULATION` | 构建显示该开关，且有可受控触摸/精密触控板输入 | 仅 Direct Manipulation 手势子场景未装备 |
 | `CAP-RHI` | RHI backend 可启动且窗口可由 Computer Use 重新绑定 | 仅 RHI 重复交互子场景未装备或按可归因错误判失败 |
 | `CAP-LIBRESVIP` | `LIBRESVIP_CLI` 可启动、版本已记录，`libresvip-project` 可转换 | LibreSVIP Open/Import 子场景未装备 |
 | `CAP-EXTRACT` | Rmvpe/Game 所需模型与 `audio-short.wav` 可分别完成 Extract Pitch/MIDI | 仅对应提取完成子场景未装备 |
@@ -431,18 +430,16 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 - **未能自动观察的限制**：设置写盘次数、no-op 不写盘、路径规范化的内部形式和 G2P language
   order 不在此页可见；后者当前没有已注册的用户设置页，不能记为 GUI 通过。
 
-### GUI-G17：Appearance、Developer、native frame、Direct Manipulation 与 backend
+### GUI-G17：Appearance、Developer、native frame 与 backend
 
 - **追踪**：`settings.update_appearance/update_developer/update_window`。
-- **前置**：记录主题、字体、动画、Use native frame、Direct Manipulation、全部 Developer
-  开关、Editor rendering backend 和窗口几何基线；工程已保存。分别记录
-  `CAP-DIRECT-MANIPULATION`、`CAP-RHI`，不要因任一未装备跳过其他设置。
+- **前置**：记录主题、字体、动画、Use native frame、全部 Developer 开关、Editor rendering
+  backend 和窗口几何基线；工程已保存。记录 `CAP-RHI`，不要因未装备跳过其他设置。
 - **动作 A（即时项）**：切换 Light/Dark/System 中一个非基线主题并恢复；切换 Interface
   font、Enable animations 和 Duration scale。Developer 中开启 `Enable diagnostic output`，
   执行一组滚动/缩放后检查脱敏 debug output；逐项验证 Show log window、timeline/clip debug
   overlay、Enable panel detach，再重新附着 panel。拖动/缩放主窗口到明显不同且完全可见的
-  位置。若 Windows Direct Manipulation 开关存在，切换后用受控触摸或精密触控板在 Track Editor 和
-  Piano Roll 各做一次平移/缩放，再恢复。
+  位置。
 - **动作 B（restart-required）**：对 `Use native frame` 先切换并在提示中选择 Restart Later，
   确认进程和边框未变；再执行 Restart Now，重新绑定窗口并观察原生/自绘标题栏差异，然后
   成对恢复并重启。以独立子运行对 `Embedded options dialog` 做同样流程，重启后从 Options
@@ -450,15 +447,14 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   `Experimental (QRhiWidget)`，Restart Later 后再 Restart Now；在 RHI 下重复轨道/片段选择、
   拖动、缩放、钢琴卷帘画音符和参数曲线观察，随后恢复 `Legacy (QGraphicsView)` 并重启。
 - **可观察断言**：主题、字体和动画即时反映；diagnostic 开关不仅持久，还在操作后产生预期
-  性能诊断输出；Log window、debug overlay 和 detach 按钮随开关出现/消失。Direct
-  Manipulation 开关存在时手势有效且关闭后回到基线。Restart Later 不替换进程，也不提前
-  改变 native frame、Embedded Options 或 backend；Restart Now 后三者分别真实生效。
-  RHI 与 Legacy 的核心编辑结果一致，无空白帧、输入偏移或持续闪烁；窗口几何跨正常重启恢复。
+  性能诊断输出；Log window、debug overlay 和 detach 按钮随开关出现/消失。Restart Later 不
+  替换进程，也不提前改变 native frame、Embedded Options 或 backend；Restart Now 后三者分别
+  真实生效。RHI 与 Legacy 的核心编辑结果一致，无空白帧、输入偏移或持续闪烁；窗口几何跨正常
+  重启恢复。
 - **恢复/清理**：关闭 Log window 和 diagnostic output，重新附着 panel；恢复主题、字体、
-  动画、Direct Manipulation、native frame、Embedded Options、Legacy backend 和窗口几何，
-  对所有 restart-required 项完成成对重启。把一次已保存的几何变化留给 `GUI-G24` 复核。
-- **未能自动观察的限制**：Direct Manipulation 控件由构建条件决定，且效果需要对应硬件；
-  缺任一只标该子场景未装备。RHI 的内部渲染 API、diagnostic 统计精度和
+  动画、native frame、Embedded Options、Legacy backend 和窗口几何，对所有 restart-required
+  项完成成对重启。把一次已保存的几何变化留给 `GUI-G24` 复核。
+- **未能自动观察的限制**：RHI 的内部渲染 API、diagnostic 统计精度和
   `settings.update_window` 回调次数仍需日志/契约测试；GUI 负责证明实际窗口形态、输入与画面。
 
 ### GUI-G18：Audio/Inference 设置的安全资格与持久化

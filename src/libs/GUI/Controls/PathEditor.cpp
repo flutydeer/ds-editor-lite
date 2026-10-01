@@ -4,10 +4,10 @@
 
 #include <algorithm>
 
+#include <QAbstractItemDelegate>
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QPushButton>
-#include <QItemDelegate>
 #include <QPersistentModelIndex>
 
 #include <lite/GUI/Controls/PathListWidget.h>
@@ -173,7 +173,7 @@ void PathEditor::editRowWithEmptyCheck(int row) {
     m_listWidget->edit(idx);
 
     connect(
-        m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
+        m_listWidget->itemDelegate(), &QAbstractItemDelegate::closeEditor, this,
         [idx, model, this](QWidget *, QAbstractItemDelegate::EndEditHint) {
             // Escape discards the editor's draft, so inspect the value retained by the model.
             if (idx.isValid() && idx.data(Qt::EditRole).toString().isEmpty())

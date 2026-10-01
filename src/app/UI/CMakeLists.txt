@@ -12,6 +12,10 @@ add_library(EditorGuiCore STATIC
     Views/Common/EdgeAutoScroller.cpp
     Views/Common/EditorGlyphAtlas.cpp
     Views/Common/EditorRhiGeometry.cpp
+    Views/Common/EditorTouchGesture.cpp
+    Views/Common/EditorTouchTarget.cpp
+    Views/Common/EditorPenStroke.cpp
+    Views/Common/EditorPenTarget.cpp
     Views/Common/EditorRhiScrollBarController.cpp
     Views/Common/EditorViewportAnimation.cpp
     Views/Common/EditorViewportController.cpp

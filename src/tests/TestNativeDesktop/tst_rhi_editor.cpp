@@ -212,17 +212,14 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     const auto previousTheme = themes->currentThemeId();
     const auto backend = appOptions->developer()->editorRenderBackend;
     const auto nativeFrame = appOptions->appearance()->useNativeFrame;
-    const auto directManipulation = appOptions->appearance()->enableDirectManipulation;
     const auto restore = qScopeGuard([&] {
         appOptions->developer()->editorRenderBackend = backend;
         appOptions->appearance()->useNativeFrame = nativeFrame;
-        appOptions->appearance()->enableDirectManipulation = directManipulation;
         themes->applyTheme(previousTheme);
     });
     appOptions->developer()->editorRenderBackend =
         DeveloperOption::EditorRenderBackend::RhiExperimental;
     appOptions->appearance()->useNativeFrame = true;
-    appOptions->appearance()->enableDirectManipulation = false;
     QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
     MainWindow window;
     const auto detach = qScopeGuard([&] {
@@ -409,7 +406,7 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
                                 gesturePosition, gestureGlobal, 0.25, {});
     QApplication::sendEvent(canvas, &gesture);
     QCOMPARE(canvas->scaleX(), 1.25);
-    QCOMPARE(canvas->scaleY(), 1.0);
+    QCOMPARE(canvas->scaleY(), 1.25);
     QVERIFY(std::abs(tickAtPosition() - anchorTick) <= ticksPerPixel);
     const auto wheel = [](QWidget &target) {
         const auto position = target.rect().center();

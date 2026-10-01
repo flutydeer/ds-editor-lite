@@ -6,6 +6,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/GUI/Controls/Menu.h>
 #include "UI/Utils/AppColorPalette.h"
@@ -305,7 +306,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
     const auto edge =
-        EditorResizeUtils::horizontalEdgeAt(rx, rect().width(), AppGlobal::resizeTolerance);
+        EditorResizeUtils::horizontalEdgeAt(rx, rect().width(), EditorPointer::resizeTolerance());
     setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
                                                               : Qt::SizeHorCursor);
 

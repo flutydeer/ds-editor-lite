@@ -5,6 +5,7 @@
 #include "ParamEditorEditMode.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include <lite/ProjectModel/AppModel/Params.h>
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 #include <utility>
@@ -60,6 +61,11 @@ public slots:
 signals:
     void wheelHorScale(QWheelEvent *event);
     void wheelHorScroll(QWheelEvent *event);
+    // The parameter panel shares its timeline with the piano roll, which owns the
+    // horizontal position (Shift + wheel is forwarded the same way). A finger pan
+    // applied here alone would leave the curves misaligned with the notes above,
+    // so its horizontal component is forwarded instead of being used locally.
+    void horizontalPanRequested(double deltaPixels);
 
 private slots:
     void onClipPropertyChanged();
@@ -72,6 +78,26 @@ private slots:
     void showAnchorContextMenu(QPointF scenePos, QPoint screenPos);
 
 private:
+    // --- EditorTouchTarget ---
+    // The parameter editor is tool driven by default: whatever the toolbar has
+    // armed (draw, erase, trace, shape...) is what a finger drag does. With the
+    // "draw parameters with finger" setting off, the finger is navigation only
+    // instead (see fingerEditingEnabled()).
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    [[nodiscard]] bool touchFingerEdits() const override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
+    void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    // Draw, erase and trace can all be interrupted by an eraser; the curve
+    // transforms (shape, scale) and anchor editing cannot, and get their
+    // strokes swallowed whole.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+    void beginPenEraserStroke() override;
+    void endPenEraserStroke() override;
+    void abortPenEraseStroke() override;
+
     bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
@@ -106,6 +132,9 @@ private:
     void finishAnchorEditSession(AnchorEditor::EditFinishReason reason);
     void onAnchorStateChanged();
     void refreshCurveTransformMode();
+    // Sole source of truth for the finger-editing setting: touchFingerEdits() and
+    // touchBlankDragAction() both read it, so the two can never disagree.
+    [[nodiscard]] bool fingerEditingEnabled() const;
 
     bool m_debugMode = false;
     bool m_speakerMixMode = false;

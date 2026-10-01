@@ -211,9 +211,6 @@ int main(int argc, char *argv[]) {
                 requestQueue.enqueue(request);
             });
             w.show();
-#if defined(WITH_DIRECT_MANIPULATION)
-            w.registerDirectManipulation();
-#endif
 
             const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
             qInfo() << "App launched in" << time << "ms";

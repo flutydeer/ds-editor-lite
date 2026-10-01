@@ -1,5 +1,8 @@
 #include <lite/GUI/Controls/PanSlider.h>
 
+#include <lite/GUI/Controls/TouchClaimFilter.h>
+
+#include <QInputDevice>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTimer>
@@ -34,6 +37,13 @@ public:
 
     QTimer timer;
     bool doubleClickWindow = false;
+    QPoint mouseDownPos;
+    // Touch drags have no cursor to teleport onto the current value, so the
+    // press stores the offset between the finger and that position and every
+    // move applies it: the value follows the finger's delta instead of
+    // jumping to the finger's absolute position. The mouse path realizes the
+    // same offset physically via QCursor::setPos and keeps this at zero.
+    double grabOffsetX = 0;
 
     QColor centerGraduateColor = {22, 22, 22};
     QColor trackActiveColor = {155, 186, 255, 64};
@@ -202,12 +212,23 @@ void PanSlider::mouseMoveEvent(QMouseEvent *event) {
     }
 
     const auto pos = event->pos();
-    d->setSliderPosition(d->xToPan(pos.x()));
+    d->setSliderPosition(d->xToPan(pos.x() + d->grabOffsetX));
     QWidget::mouseMoveEvent(event);
 }
 
 void PanSlider::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(PanSlider);
+    // Qt replaces the second press of a double tap with this event, so the
+    // press-to-press reset window never sees a clean double tap. Two
+    // deliberate taps anywhere on the slider reset to the center, while the
+    // mouse keeps its existing paths.
+    if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen) {
+        resetValue();
+        d->canMoveThumb = false;
+        d->doubleClickWindow = false;
+        event->accept();
+        return;
+    }
     QWidget::mouseDoubleClickEvent(event);
 }
 
@@ -216,7 +237,38 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
+    const auto pos = event->pos();
+    d->mouseDownPos = pos;
+
+    // A touch-initiated press on this slider owns the gesture: pin the
+    // ancestor scrollers (a running glide included) so the Qt-synthesized
+    // mouse drag that follows adjusts the slider instead of scrolling.
+    TouchClaimFilter::stopAncestorScrollers(this);
+
+    // Touch drags from anywhere already (no thumb hit test); skip the cursor
+    // teleport - there is no system cursor following a finger, and the
+    // mouseMoveBarrier that swallows the QCursor::setPos-generated move would
+    // only eat the first real drag move of the synthesized touch drag. The
+    // virtual drag origin takes over the teleport's job: moves are applied
+    // relative to the current value, never jumping to the finger.
+    if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen) {
+        d->grabOffsetX = d->panToX(d->panValue) - pos.x();
+        d->isSliderDown = true;
+        d->canMoveThumb = true;
+
+        if (d->doubleClickWindow) {
+            resetValue();
+            d->canMoveThumb = false;
+            d->doubleClickWindow = false;
+        } else {
+            d->doubleClickWindow = true;
+            d->timer.start();
+        }
+        return;
+    }
+
     // Move cursor to the center of thumb
+    d->grabOffsetX = 0;
     d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
     const auto x = d->panToX(d->panValue);
     const auto y = rect().height() / 2.0;

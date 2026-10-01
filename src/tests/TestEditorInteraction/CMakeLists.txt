@@ -4,6 +4,8 @@ lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp tst_editor_interaction.h
     tst_controllers.cpp tst_viewport.cpp tst_edge_scroll.cpp tst_piano_roll.cpp tst_tracks.cpp tst_scroll_bars.cpp tst_shortcuts.cpp
     tst_list_reordering.cpp ../TestSupport/GuiAppFixture.h
+    tst_touch_gestures.cpp tst_pen_stroke.cpp
+    tst_note_handles.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
 add_dependencies(${PROJECT_NAME} DsEditorLite)

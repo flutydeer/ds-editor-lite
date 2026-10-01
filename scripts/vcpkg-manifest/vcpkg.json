@@ -46,11 +46,7 @@
         "widgets"
       ]
     },
-    "wolf-midi",
-    {
-      "name": "qt-win32-direct-manipulate-helper",
-      "platform": "windows"
-    }
+    "wolf-midi"
   ],
   "features": {
     "cuda12": {

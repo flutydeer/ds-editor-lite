@@ -5,10 +5,25 @@
 #include <QVBoxLayout>
 #include <QLabel>
 
+#include <algorithm>
+
 #include <lite/GUI/Controls/ToolTip.h>
 
 namespace {
     constexpr int anchorGap = 4;
+
+    // Clearance kept above the pointer by showAbovePointer(). An adult index
+    // finger has an 8-10 mm contact patch and the pointer reports its centre,
+    // so 10 mm clears the whole fingertip with a little to spare. Expressed in
+    // millimetres so it stays a real-world distance on every DPI and on scaled
+    // touch screens, where a fixed pixel gap is either useless or absurd.
+    constexpr double pointerClearanceMm = 10.0;
+    constexpr double mmPerInch = 25.4;
+
+    // Screens that report no usable physical size (offscreen platforms report
+    // negative values) would otherwise turn the clearance into garbage.
+    constexpr double fallbackDotsPerInch = 96.0;
+    constexpr int minimumPointerClearancePx = 24;
 }
 
 ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
@@ -131,9 +146,53 @@ bool ToolTip::animationEnabled() const {
     return m_animationEnabled;
 }
 
+const QScreen *ToolTip::resolveScreen(const QPoint &screenPos, const QScreen *screen) {
+    if (screen)
+        return screen;
+    if (const auto *atPos = QApplication::screenAt(screenPos))
+        return atPos;
+    // A point in the seams of a multi-screen desktop resolves to nothing.
+    return QApplication::primaryScreen();
+}
+
+int ToolTip::pointerClearance(const QScreen *screen) {
+    // physicalDotsPerInch() is already reported in device-independent dots
+    // (QScreen::size() is the logical size) and must not be divided by
+    // devicePixelRatio() again. ComboPopupTouchFilter::pixelPerMeter() and
+    // QScrollerPrivate::setDpiFromWidget() use the same convention.
+    auto dpi = fallbackDotsPerInch;
+    if (const auto *s = screen ? screen : QApplication::primaryScreen()) {
+        const auto physical = s->physicalDotsPerInch();
+        if (qIsFinite(physical) && physical > 0.0)
+            dpi = physical;
+    }
+    return std::max(minimumPointerClearancePx, qRound(dpi / mmPerInch * pointerClearanceMm));
+}
+
+QPoint ToolTip::positionAbove(const QPoint &anchorPos, const QScreen *screen,
+                              const int gapPx) const {
+    const auto margins = layout()->contentsMargins();
+    const auto contentWidth = width() - margins.left() - margins.right();
+    const auto x = anchorPos.x() - contentWidth / 2 - margins.left();
+    const auto aboveY = anchorPos.y() - gapPx - height() + margins.bottom();
+
+    auto y = aboveY;
+    if (screen) {
+        const auto available = screen->availableGeometry();
+        const auto belowY = anchorPos.y() + gapPx - margins.top();
+        // Clamping to the top of the screen would push the card back under the
+        // pointer, which is the very thing the gap exists to prevent; flip to
+        // the other side instead, and only fall back to clamping when neither
+        // side has room.
+        if (aboveY < available.top() && belowY + height() <= available.bottom())
+            y = belowY;
+    }
+    return {x, y};
+}
+
 QPoint ToolTip::clampToScreen(const QPoint &screenPos, const QScreen *screen) const {
     if (!screen)
-        screen = QApplication::screenAt(screenPos);
+        screen = resolveScreen(screenPos, nullptr);
     if (!screen)
         return screenPos;
 
@@ -182,11 +241,20 @@ void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
 
 void ToolTip::showAbove(const QRect &screenRect) {
     adjustSize();
-    const auto margins = layout()->contentsMargins();
-    const auto contentWidth = width() - margins.left() - margins.right();
-    const auto x = screenRect.center().x() - contentWidth / 2 - margins.left();
-    const auto y = screenRect.top() - anchorGap - height() + margins.bottom();
-    showAt({x, y}, QApplication::screenAt(screenRect.center()));
+    const auto *screen = resolveScreen(screenRect.center(), nullptr);
+    showAt(positionAbove({screenRect.center().x(), screenRect.top()}, screen, anchorGap), screen);
+}
+
+void ToolTip::showAbovePointer(const QPoint &screenPos, const QScreen *screen) {
+    adjustSize();
+    const auto *resolved = resolveScreen(screenPos, screen);
+    showAt(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved);
+}
+
+void ToolTip::moveAbovePointer(const QPoint &screenPos, const QScreen *screen) {
+    adjustSize();
+    const auto *resolved = resolveScreen(screenPos, screen);
+    move(clampToScreen(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved));
 }
 
 void ToolTip::moveTo(const QPoint &screenPos) {

@@ -14,6 +14,9 @@
 
 | 功能域 / 关键行为 | 类别 | 现有覆盖与确认问题 | 本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|---|
+| 触控与笔的编辑意图 | gui/domain | 主线附带独立的状态机测试程序，与领域套件分离 | 迁入同一编辑交互 Qt Test 类，保留轻触、长按、拖动、两指导航、丢失释放、取消及笔尖/橡皮/侧键语义和工具路由，生产源码共用 EditorGuiCore | EditorInteraction 的 tst_touch_gestures.cpp、tst_pen_stroke.cpp | 通用；受控输入样本；无需物理触控设备或笔 |
+| 触控占用、重排手柄及指针提示框 | gui | 手写 main 与独立程序，部分条件以文本输出跳过 | 迁入组件 Qt Test 类，检查控件占用/取消、祖先滚动隔离、重建行手柄接线及提示框随内容变化保持位置；惯性条件独立报告 | GuiComponents 的 tst_touch_claims.cpp、tst_reorder_handles.cpp、tst_pointer_tooltips.cpp | offscreen；惯性须平台报告有效物理尺寸；屏幕空间不足时单项跳过 |
+| 触控音符手柄与两轴捏合 | gui/domain | 手柄回归附在旧钢琴窗入口，既有捏合断言仍要求纵轴不变 | 保留侧带命中、显示上下文及精确指针行为；按实际两轴缩放检查模型锚点、动画中断及稳定终态，不镜像边框绘制常量 | EditorInteraction 的 tst_note_handles.cpp、legacyViewportAnimationCanBeFinishedOrInterrupted；NativeDesktop::rhiPianoWheelInputsReachTheActiveViewport | 通用/原生；Qt 输入；无需物理笔 |
 | 时间线、量化、曲线、锚点 | unit/domain | 已有数值与编辑回归，入口分散且保留旧布尔包装；领域曲线局部修改仍需验证保留范围 | 迁为直接 Qt Test slot，保持原严格相等和容差；补 overlay/replace 绘制、擦除及 no-op，检查局部样本、保留锚点、预览和撤销重做；跨越中间曲线的锚点合并拒绝且无副作用 | MusicTime、Parameters、ProjectEditing::drawAndErasePreserveOtherParameterCurves、nonAdjacentAnchorMergePreservesDocument | 通用 |
 | Speaker Mix、声音继承和推理输入 | unit/domain | 已有校验及转换，部分生产源重复编译并依赖空 stub；继承缺少实际轨道/片段行为 | 统一归入 VoiceAndInference，共用 EditorInferenceCore 并删除空 stub；声线组件使用真实 ProjectModel 验证继承、独立声线、切换及通知，动态比例按模型帧间隔重采样 | VoiceAndInference | 通用 |
 | 歌词、音节、本地化、关联音素属性 | unit/domain/gui | 已有排序及属性级联回归；首次采样中 TextSplitter 未执行 | 规则、音节与文字级联归入 Lyrics；增加混合文字保真、规则启用/优先级及空匹配回归，修复空匹配重复文字；本地化数据和语言设置分别归入基础/配置职责 | Lyrics、Foundation、Preferences | 通用/offscreen |

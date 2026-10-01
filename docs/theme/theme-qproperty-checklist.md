@@ -236,6 +236,9 @@
 | blackKeyColor | `${piano.roll.blackRow}` |
 | octaveDividerColor | `${piano.roll.octaveDivider}` |
 | noteSelectedBorderColor ※ | `${piano.roll.noteSelectedBorder}` |
+| noteHandleFillColor | `${piano.roll.noteHandle.fill}` |
+| noteHandleBorderColor | `${piano.roll.noteHandle.border}` |
+| noteHandleGripColor | `${piano.roll.noteHandle.grip}` |
 | pronunciationTextColor | `${piano.roll.pronunciation}` |
 | anchorColor | `${curve.anchor}` |
 | anchorSelectedColor | `${curve.anchorSelected}` |

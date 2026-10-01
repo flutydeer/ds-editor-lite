@@ -21,6 +21,7 @@ public:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void hoverEnterEvent(QHoverEvent *event) override;
     void hoverLeaveEvent(QHoverEvent *event) override;
+    void suppressHoverFeedback() override;
     bool keyPressEvent(QKeyEvent *event) override;
     void commit() override;
     void discard() override;

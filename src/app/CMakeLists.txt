@@ -180,18 +180,6 @@ if(LITE_ENABLE_CUDA)
     target_compile_definitions(EditorRuntime PUBLIC ONNXRUNTIME_ENABLE_CUDA)
 endif()
 
-if(WIN32)
-    find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
-    find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
-    if(QtWin32DirectManipulateHelper_FOUND)
-        message(STATUS "Building with Direct Manipulation support on Windows")
-        target_link_libraries(EditorRuntime PUBLIC QtWin32DirectManipulateHelper::Core)
-        target_compile_definitions(EditorRuntime PUBLIC WITH_DIRECT_MANIPULATION)
-    else()
-        message(STATUS "Building without Direct Manipulation support on Windows")
-    endif()
-endif()
-
 qt_add_translations(
     TARGETS EditorRuntime
     SOURCE_TARGETS
