@@ -19,6 +19,7 @@
 #include "../TestSupport/RuntimeResourcesFixture.h"
 #include "../TestSupport/WaveFixture.h"
 #include "../TestSupport/ThreadPoolBarrier.h"
+#include "../TestSupport/AudioBackendFixture.h"
 
 #include <lite/Tasking/TaskManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -40,7 +41,6 @@
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsFormat/AudioFormatIO.h>
 
 #include <algorithm>
 #include <atomic>
@@ -54,13 +54,6 @@ namespace {
 
 namespace {
     using namespace Automation;
-
-    class UnavailableAudioBackend final : public talcs::AudioFormatIO {
-    public:
-        bool open(OpenMode) override {
-            return false;
-        }
-    };
 
     bool expect(const bool condition, const char *message) {
         return QTest::qVerify(condition, "task completion", message, __FILE__, __LINE__);
@@ -754,7 +747,7 @@ void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen()
                 taskId = candidate->automationTaskId;
                 decoding = candidate;
                 delete candidate->io;
-                candidate->io = new UnavailableAudioBackend;
+                candidate->io = new TestSupport::UnavailableAudioBackend;
                 if (removeSource)
                     removed = QFile::remove(path);
             });
