@@ -209,8 +209,10 @@ void ApplicationGuiTests::audioResourceConfirmationKeepsTheDecodedSource() {
     QCOMPARE(tree->topLevelItemCount(), 1);
     auto *row = tree->topLevelItem(0);
     QVERIFY(page->hasPendingIssues());
-    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier,
-                      tree->visualItemRect(row).center());
+    const auto visibleRow = tree->visualItemRect(row).intersected(tree->viewport()->rect());
+    QVERIFY(!visibleRow.isEmpty());
+    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier, visibleRow.center());
+    QCOMPARE(tree->currentItem(), row);
     QVERIFY(confirm->isEnabled());
     QVERIFY(relink->isEnabled());
     QTest::mouseClick(confirm, Qt::LeftButton);
@@ -298,8 +300,10 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QCOMPARE(row->text(3), AudioResourcePage::tr("Missing"));
     QVERIFY(page->hasPendingIssues());
     QTRY_VERIFY(tree->isVisible());
-    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier,
-                      tree->visualItemRect(row).center());
+    const auto visibleRow = tree->visualItemRect(row).intersected(tree->viewport()->rect());
+    QVERIFY(!visibleRow.isEmpty());
+    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier, visibleRow.center());
+    QCOMPARE(tree->currentItem(), row);
     QVERIFY(relink->isEnabled());
     QVERIFY(!confirm->isEnabled());
 
