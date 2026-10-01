@@ -50,6 +50,7 @@
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMap>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QScopeGuard>
@@ -764,6 +765,142 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_
     QTest::addColumn<bool>("crossCurve");
     QTest::newRow("within-curve") << false;
     QTest::newRow("across-curves") << true;
+}
+
+void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically_data() {
+    QTest::addColumn<bool>("acrossCurves");
+    QTest::newRow("within-curve") << false;
+    QTest::newRow("across-curves") << true;
+}
+
+void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
+    QFETCH(bool, acrossCurves);
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    Automation::CurveDraftDto first;
+    first.type = Automation::CurveDraftDto::Type::Anchor;
+    first.nodes = {
+        {480,  6000,                       AnchorNode::Hermite},
+        {960,  6300,                       AnchorNode::Hermite},
+        {1440, acrossCurves ? 6400 : 6000, AnchorNode::None   }
+    };
+    QList<Automation::CurveDraftDto> curves{first};
+    if (acrossCurves) {
+        auto second = first;
+        second.nodes = {
+            {1920, 6000, AnchorNode::Hermite},
+            {2400, 6300, AnchorNode::Hermite},
+            {2880, 6400, AnchorNode::None   }
+        };
+        curves.append(second);
+    }
+    QVERIFY(fixture.runtime().parameters().replaceParameter(
+        fixture.command(), Automation::ClipId(fixture.clip->id()), ParamInfo::Pitch, Param::Edited,
+        curves));
+    auto *pitch = fixture.clip->params.getParamByName(ParamInfo::Pitch);
+    QVERIFY(pitch);
+    const auto anchors = [&] {
+        QMap<int, QPair<int, int>> result;
+        for (const auto *curve : pitch->curves(Param::Edited)) {
+            const auto *anchorCurve = dynamic_cast<const AnchorCurve *>(curve);
+            if (!anchorCurve)
+                continue;
+            for (const auto *node : anchorCurve->nodes())
+                result.insert(node->id(), {node->pos(), node->value()});
+        }
+        return result;
+    };
+    const auto initial = anchors();
+    QList<int> selected;
+    for (auto it = initial.cbegin(); it != initial.cend(); ++it)
+        if (it.value().first == 480 || it.value().first == (acrossCurves ? 1920 : 960))
+            selected.append(it.key());
+    QCOMPARE(selected.size(), 2);
+    canvas.setEditMode(ClipEditorGlobal::EditPitchAnchor);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    historyManager->reset();
+    const auto before = fixture.runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto selectGroup = [&] {
+        const auto start = fixture.pointFor(360, acrossCurves ? 60.5 : 64);
+        const auto end = fixture.pointFor(acrossCurves ? 2040 : 1200, acrossCurves ? 59.5 : 59);
+        QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
+        fixture.moveTo(start);
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+        QTest::mouseMove(&canvas, end);
+        fixture.waitForFrame(QEventLoop::ExcludeUserInputEvents);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QCoreApplication::processEvents();
+        fixture.waitForFrame();
+    };
+    const auto press = fixture.pointFor(480, 60);
+    const auto release = fixture.pointFor(720, 61);
+    const auto dragGroup = [&] {
+        fixture.moveTo(press);
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        QTest::mouseMove(&canvas, release);
+        fixture.waitForFrame(QEventLoop::ExcludeUserInputEvents);
+    };
+    selectGroup();
+    if (QTest::currentTestFailed())
+        return;
+    dragGroup();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(anchors(), initial);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+    selectGroup();
+    if (QTest::currentTestFailed())
+        return;
+    dragGroup();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QCoreApplication::processEvents();
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    const auto moved = anchors();
+    QCOMPARE(moved.keys(), initial.keys());
+    const auto tickPerPixel = (canvas.endTick() - canvas.startTick()) / canvas.width();
+    const auto delta = moved.value(selected.first()).first - initial.value(selected.first()).first;
+    QVERIFY(qAbs(delta - 240) <= tickPerPixel);
+    for (auto it = initial.cbegin(); it != initial.cend(); ++it) {
+        const auto actual = moved.value(it.key());
+        if (selected.contains(it.key())) {
+            QCOMPARE(actual.first - it.value().first, delta);
+            QCOMPARE(actual.second - it.value().second, 100);
+        } else {
+            QCOMPARE(actual, it.value());
+        }
+    }
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(anchors(), initial);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(fixture.runtime().history().redo(fixture.command()));
+    QCOMPARE(anchors(), moved);
+    fixture.waitForFrame();
 }
 
 void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor() {
