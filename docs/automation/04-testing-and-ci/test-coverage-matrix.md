@@ -12,6 +12,8 @@
 
 ## 2. 产品行为
 
+ApplicationGui 的平台条件统一为 Windows/Linux offscreen、macOS 原生窗口；表中该程序的 offscreen 条件适用于 Windows/Linux。macOS 使用相同样例与断言，并与其他原生窗口测试共用桌面资源锁。具体运行入口见[test-plan.md](test-plan.md)。
+
 | 功能域 / 关键行为 | 类别 | 现有覆盖与确认问题 | 本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|---|
 | 触控与笔的编辑意图 | gui/domain | 主线附带独立的状态机测试程序，与领域套件分离 | 迁入同一编辑交互 Qt Test 类，保留轻触、长按、拖动、两指导航、丢失释放、取消及笔尖/橡皮/侧键语义和工具路由，生产源码共用 EditorGuiCore | EditorInteraction 的 tst_touch_gestures.cpp、tst_pen_stroke.cpp | 通用；受控输入样本；无需物理触控设备或笔 |
@@ -174,7 +176,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 主窗口面板及嵌入设置 | gui | 实际按钮、片段双击、分离窗口关闭和菜单输入验证面板恢复、分离/重新嵌入后的编辑上下文、视图状态复原，以及嵌入设置对后台快捷键的阻断与焦点恢复 | ApplicationGui 的 tst_main_window.cpp | offscreen；不代表各窗口管理器或多屏行为 |
 | 自定义标题栏与分离面板按钮 | gui | 原生边框下的分离流程不能验证自定义系统按钮接线；主窗口和分离面板复用真实点击检查最大化、还原和最小化；关闭后恢复嵌入、当前页和分隔条尺寸，再次分离保留原窗口位置与大小，文档及历史不变 | NativeDesktop::customWindowButtonsKeepTheDetachedPanelAndDocument | 原生桌面；Linux Xvfb；不检查像素或多屏组合 |
 | 主窗口分隔条拖动与面板恢复 | gui | 在控件最小尺寸约束下选择可移动方向，经真实手柄拖动调整比例，分别折叠轨道和底部面板；检查拖动状态同步、重新显示后的比例和当前页保留，文档及历史不变 | NativeDesktop::mainWindowSplitterDragRestoresPanelSizes | 原生桌面；Linux Xvfb；同一窗口内比较还原尺寸，无截图基线 |
-| RHI 视口缩放与轨道列表同步 | gui | 钢琴窗的捏合、时间尺和键盘滚轮到达当前视口；轨道窗的时间尺缩放、画布横向滚动、列表缩放和双向纵向滚动保持行高及偏移同步，逐轨键盘定位后仍对齐，文档和历史不变 | NativeDesktop::rhiPianoWheelInputsReachTheActiveViewport、rhiTrackWheelInputsKeepTheCanvasAndTrackListAligned | 原生窗口；Null RHI；不依赖 GPU 或截图基线 |
+| RHI 视口缩放与轨道列表同步 | gui | 钢琴窗的捏合、时间尺和键盘滚轮到达当前视口；轨道窗复用导航场景验证滚轮、双指两轴缩放的可见锚点和列表同步，逐轨键盘定位后仍对齐。触控接管滚轮动画后检查物理像素精度，工程和历史不变 | NativeDesktop::rhiPianoWheelInputsReachTheActiveViewport、rhiTrackNavigationKeepsTheCanvasAndTrackListAligned | 原生窗口；Null RHI；不依赖 GPU 或截图基线 |
 | 主窗口关闭、保存取消与退出等待 | gui/workflow | 关闭未保存工程，在保存提示或文件选择中取消后保留文档、历史及编辑能力；退出和立即重启经过实际窗口与按钮，确认后收回分离面板、取消后台任务并等待工作线程，重复关闭不提前退出，完成后关闭进度并保留重启意图 | ApplicationGui::cancelingMainWindowClosePreservesTheEditableDocument；NativeDesktop::closingMainWindowWaitsForBackgroundTasks | 取消流程使用 offscreen；完整退出复用原生测试程序的独立子进程和受控后台任务；无需设备 |
 | 主窗口文件拖入 | gui/workflow | 未保存工程经真实保存提示取消或放弃后打开；工程与音频混合拖入整批拒绝，再次单独拖入音频正常提交；检查工程身份、路径、轨道控件、播放位置锚定及一次撤销，释放临时音频 | ApplicationGui::projectDropCanCancelThenOpenTheDocument、mixedFileDropRejectsAtomicallyAndAllowsTheNextImport | offscreen；临时 DSPX/WAV；无需音频设备 |
 | 日志接收、筛选和复制 | gui | 由实际主窗口和设置服务创建、开关日志窗，重开保留同一窗口、记录及筛选；真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本；新增标签按顺序加入且保留当前筛选，快捷键复制完整行、右键菜单只复制消息，两者均保持显示顺序；清空不改变文档和历史 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |

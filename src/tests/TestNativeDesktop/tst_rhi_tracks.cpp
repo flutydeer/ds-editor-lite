@@ -173,7 +173,7 @@ namespace {
     }
 }
 
-void NativeDesktopTests::rhiTrackWheelInputsKeepTheCanvasAndTrackListAligned() {
+void NativeDesktopTests::rhiTrackNavigationKeepsTheCanvasAndTrackListAligned() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     const auto backend = appOptions->developer()->editorRenderBackend;
@@ -229,6 +229,53 @@ void NativeDesktopTests::rhiTrackWheelInputsKeepTheCanvasAndTrackListAligned() {
     QVERIFY(wheel(*canvas, 120));
     QTRY_VERIFY(canvas->logicalVisibleRect().top() < scrolled);
     QTRY_COMPARE(tracks->verticalScrollBar()->value(), qRound(canvas->logicalVisibleRect().top()));
+
+    const auto center = canvas->rect().center();
+    auto *device = QTest::createTouchDevice();
+    auto touch = QTest::touchEvent(canvas, device, false);
+    bool fingersDown = false;
+    const auto releaseFingers = qScopeGuard([&] {
+        if (fingersDown) {
+            QTouchEvent cancel(QEvent::TouchCancel, device);
+            QApplication::sendEvent(canvas, &cancel);
+            touch.release(0, center - QPoint(75, 45)).release(1, center + QPoint(75, 45)).commit();
+        }
+    });
+    touch.press(0, center - QPoint(50, 30)).press(1, center + QPoint(50, 30)).commit();
+    fingersDown = true;
+    // Touch takes ownership from the preceding wheel animation before anchoring the pinch.
+    const auto oldScaleX = canvas->scaleX();
+    const auto oldScaleY = canvas->scaleY();
+    const auto tickAtCenter = canvas->startTick() + center.x() *
+                                                        (canvas->endTick() - canvas->startTick()) /
+                                                        canvas->width();
+    const auto sceneYAtCenter = (canvas->logicalVisibleRect().top() + center.y()) / oldScaleY;
+    touch.move(0, center - QPoint(75, 45)).move(1, center + QPoint(75, 45)).commit();
+    QTRY_VERIFY(canvas->scaleX() > oldScaleX && canvas->scaleY() > oldScaleY);
+    const auto zoomedTick = canvas->startTick() + center.x() *
+                                                      (canvas->endTick() - canvas->startTick()) /
+                                                      canvas->width();
+    const auto zoomedY = (canvas->logicalVisibleRect().top() + center.y()) / canvas->scaleY();
+    const auto horizontalPixelError = qAbs(zoomedTick - tickAtCenter) * canvas->width() /
+                                      (canvas->endTick() - canvas->startTick());
+    const auto verticalPixelError = qAbs(zoomedY - sceneYAtCenter) * canvas->scaleY();
+    const auto pixelTolerance = 1.0 / canvas->devicePixelRatioF();
+    // Compare the visible anchor at physical-pixel precision, independent of timeline zoom.
+    QVERIFY2(horizontalPixelError <= pixelTolerance,
+             qPrintable(QStringLiteral("Tick anchor %1 -> %2; horizontal scale %3 -> %4")
+                            .arg(tickAtCenter)
+                            .arg(zoomedTick)
+                            .arg(oldScaleX)
+                            .arg(canvas->scaleX())));
+    QVERIFY2(verticalPixelError <= pixelTolerance,
+             qPrintable(QStringLiteral("Vertical anchor %1 -> %2; vertical scale %3 -> %4")
+                            .arg(sceneYAtCenter)
+                            .arg(zoomedY)
+                            .arg(oldScaleY)
+                            .arg(canvas->scaleY())));
+    QTRY_COMPARE(tracks->verticalScrollBar()->value(), qRound(canvas->logicalVisibleRect().top()));
+    touch.release(0, center - QPoint(75, 45)).release(1, center + QPoint(75, 45)).commit();
+    fingersDown = false;
 
     tracks->setFocus();
     QTest::keyClick(tracks, Qt::Key_Home);
