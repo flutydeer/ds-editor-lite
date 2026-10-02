@@ -5,6 +5,7 @@
 #include "Automation/FileAutomationAdapter.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Controller/DocumentWorkflow/IProjectLoadSession.h"
+#include "Controller/Tasks/OpenDspxProjectTask.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/ProjectFormats/LibreSVIPFormatHandler.h"
 
@@ -24,12 +25,62 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QPointer>
 #include <QScopeGuard>
+#include <QSemaphore>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest/QTest>
 
+#include <atomic>
 #include <memory>
+
+namespace {
+    class ProjectParsePause final {
+    public:
+        explicit ProjectParsePause(const bool enabled) {
+            if (!enabled)
+                return;
+            QObject::connect(taskManager, &TaskManager::taskChanged, &observations,
+                             [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                                 auto *candidate = dynamic_cast<OpenDspxProjectTask *>(task);
+                                 if (change != TaskManager::Added || !candidate)
+                                     return;
+                                 worker = candidate;
+                                 QObject::connect(
+                                     candidate, &Task::statusUpdated, &observations,
+                                     [&](const TaskStatus &) {
+                                         if (!paused.exchange(true)) {
+                                             entered.release();
+                                             release.acquire();
+                                         }
+                                     },
+                                     Qt::DirectConnection);
+                             });
+        }
+
+        ~ProjectParsePause() {
+            resume();
+            if (worker)
+                taskManager->terminateTask(worker);
+            const bool finished = QTest::qWaitFor([&] { return !worker; }, 10000);
+            QTest::qVerify(finished, "load released", "finish the project worker", __FILE__,
+                           __LINE__);
+        }
+
+        void resume() {
+            release.release();
+        }
+
+        QSemaphore entered;
+        QPointer<OpenDspxProjectTask> worker;
+
+    private:
+        QObject observations;
+        QSemaphore release;
+        std::atomic_bool paused = false;
+    };
+}
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::addColumn<int>("invalidItems");
@@ -52,6 +103,8 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
         << 0 << true << QStringLiteral("source") << QString{};
     QTest::newRow("document-edited-before-commit")
         << 0 << false << QStringLiteral("document") << QString{};
+    QTest::newRow("cancel-after-first-item-loaded")
+        << 0 << false << QStringLiteral("cancel-running") << QString{};
 }
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
@@ -59,6 +112,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QFETCH(bool, bestEffort);
     QFETCH(QString, changeAfterAdmission);
     QFETCH(QString, invalidSource);
+    const bool cancelRunning = changeAfterAdmission == QStringLiteral("cancel-running");
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto dspx = files.filePath(QStringLiteral("source.dspx"));
@@ -96,7 +150,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
     QJsonArray items;
-    const QStringList paths{dspx, midi};
+    const QStringList paths = cancelRunning ? QStringList{midi, dspx} : QStringList{dspx, midi};
     for (int index = 0; index < paths.size(); ++index) {
         QJsonObject item{
             {QStringLiteral("path"), paths[index]}
@@ -147,13 +201,14 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     }
     const auto tasksBeforeAdmission = runtime().automationTasks().list(before.documentId);
     const auto *undoBeforeAdmission = historyManager->nextUndoEntry();
+    ProjectParsePause parsePause(cancelRunning);
     const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
     if (!bestEffort && (invalidSource == QStringLiteral("extension") ||
                         invalidSource == QStringLiteral("missing"))) {
         QVERIFY(!accepted);
         QCOMPARE(accepted.getError().code, invalidSource == QStringLiteral("extension")
                                                ? Automation::AutomationErrorCode::FormatUnsupported
-                     : Automation::AutomationErrorCode::FileNotFound);
+                                               : Automation::AutomationErrorCode::FileNotFound);
         QCOMPARE(runtime().automationTasks().list(before.documentId), tasksBeforeAdmission);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
@@ -161,9 +216,34 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         return;
     }
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    const auto id = idFromResult(accepted.get());
+    auto id = idFromResult(accepted.get());
     QVERIFY(!id.isNull());
-    if (changeAfterAdmission == QStringLiteral("source")) {
+    if (cancelRunning) {
+        QTRY_COMPARE(parsePause.entered.available(), 1);
+        QVERIFY(parsePause.worker);
+        const auto canceled =
+            registry.invoke(QStringLiteral("tasks.cancel"),
+                            {
+                                {QStringLiteral("scope"),       QStringLiteral("document")  },
+                                {QStringLiteral("document_id"), before.documentId.toString()},
+                                {QStringLiteral("task_id"),     id.toString()               }
+        });
+        QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
+        QTRY_COMPARE(runtime().tasks().getTask(before.documentId, id).get().state,
+                     Automation::AutomationTaskState::Canceled);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(historyManager->nextUndoEntry(), undoBeforeAdmission);
+        parsePause.resume();
+        QTRY_VERIFY(!parsePause.worker);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        const auto retried = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
+        QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
+        const auto canceledId = id;
+        id = idFromResult(retried.get());
+        QVERIFY(!id.isNull() && id != canceledId);
+    } else if (changeAfterAdmission == QStringLiteral("source")) {
         QFile changed(midi);
         QVERIFY(changed.open(QIODevice::Append));
         QCOMPARE(changed.write("changed after inspection"), qint64(24));
@@ -181,7 +261,8 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
                    task().get().state == Automation::AutomationTaskState::Failed),
         10000);
     if (invalidItems == 2 ||
-        ((invalidItems > 0 || !changeAfterAdmission.isEmpty()) && !bestEffort)) {
+        ((invalidItems > 0 || (!changeAfterAdmission.isEmpty() && !cancelRunning)) &&
+         !bestEffort)) {
         QCOMPARE(task().get().state, Automation::AutomationTaskState::Failed);
         if (changeAfterAdmission == QStringLiteral("source")) {
             QVERIFY(task().get().error);
@@ -202,7 +283,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
         QVERIFY(terminal.mutation);
         QCOMPARE(terminal.mutation->warnings.isEmpty(),
-                 invalidItems == 0 && changeAfterAdmission.isEmpty());
+                 invalidItems == 0 && (changeAfterAdmission.isEmpty() || cancelRunning));
         if (changeAfterAdmission == QStringLiteral("source"))
             QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount * 2);
         QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
@@ -378,6 +459,10 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
     QTest::newRow("import-midi") << QStringLiteral("midi") << false << QByteArray();
     QTest::newRow("open-midi") << QStringLiteral("midi") << true << QByteArray();
     QTest::newRow("cancel-queued-open") << QStringLiteral("dspx") << true << QByteArray("cancel");
+    QTest::newRow("cancel-running-open")
+        << QStringLiteral("dspx") << true << QByteArray("cancel-running");
+    QTest::newRow("cancel-running-import")
+        << QStringLiteral("dspx") << false << QByteArray("cancel-running");
     QTest::newRow("revoke-import-access")
         << QStringLiteral("dspx") << false << QByteArray("revoke");
     QTest::newRow("replace-import-source")
@@ -475,6 +560,8 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     };
     if (opening)
         arguments.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
+    const bool cancelRunning = changeAfterAdmission == "cancel-running";
+    ProjectParsePause parsePause(cancelRunning);
     const auto load = [&] {
         return registry.invoke(opening ? QStringLiteral("documents.open")
                                        : QStringLiteral("documents.import"),
@@ -487,7 +574,20 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     auto id =
         Automation::TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!id.isNull());
-    if (changeAfterAdmission == "cancel") {
+    if (cancelRunning) {
+        QTRY_COMPARE(parsePause.entered.available(), 1);
+        QVERIFY(parsePause.worker);
+        const auto canceled =
+            registry.invoke(QStringLiteral("tasks.cancel"),
+                            {
+                                {QStringLiteral("scope"),       QStringLiteral("document")  },
+                                {QStringLiteral("document_id"), before.documentId.toString()},
+                                {QStringLiteral("task_id"),     id.toString()               }
+        },
+                            {.clientId = QStringLiteral("project-import-client"),
+                             .source = Automation::InvocationSource::PublicJsonRpc});
+        QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
+    } else if (changeAfterAdmission == "cancel") {
         QVERIFY(runtime().tasks().cancelTask(commandContext(), id));
     } else if (changeAfterAdmission == "revoke") {
         QVERIFY(fileGuard.setConfiguredRoots({}));
@@ -513,7 +613,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         10000);
     auto terminal = task().get();
     if (!changeAfterAdmission.isEmpty()) {
-        QCOMPARE(terminal.state, changeAfterAdmission == "cancel"
+        QCOMPARE(terminal.state, changeAfterAdmission.startsWith("cancel")
                                      ? Automation::AutomationTaskState::Canceled
                                      : Automation::AutomationTaskState::Failed);
         if (terminal.state == Automation::AutomationTaskState::Failed)
@@ -521,11 +621,20 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         QCOMPARE(runtime().documentVersion(), expectedRetainedVersion);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
         QCOMPARE(historyManager->canUndo(), changeAfterAdmission == "edit-document");
+        if (cancelRunning) {
+            parsePause.resume();
+            QTRY_VERIFY(!parsePause.worker);
+            QCOMPARE(runtime().documentVersion(), expectedRetainedVersion);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
+        }
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
-        if (changeAfterAdmission != "converter-error")
+        if (changeAfterAdmission != "converter-error" && !cancelRunning)
             return;
-        QVERIFY(terminal.error->message.contains(QStringLiteral("Fixture conversion rejected")));
-        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+        if (!cancelRunning) {
+            QVERIFY(
+                terminal.error->message.contains(QStringLiteral("Fixture conversion rejected")));
+            qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+        }
         const auto retried = load();
         QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
         const auto failedId = id;
