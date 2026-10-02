@@ -1221,6 +1221,8 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession_data() {
     QTest::addColumn<QString>("completion");
     QTest::newRow("pronunciation-defer-then-apply") << false << QStringLiteral("apply");
     QTest::newRow("phoneme-defer-then-apply") << true << QStringLiteral("apply");
+    QTest::newRow("pronunciation-replaced-by-lyric-edit") << false << QStringLiteral("edit-lyric");
+    QTest::newRow("phoneme-replaced-by-lyric-edit") << true << QStringLiteral("edit-lyric");
     QTest::newRow("pronunciation-document-replaced") << false << QStringLiteral("replace-document");
     QTest::newRow("phoneme-clip-removed") << true << QStringLiteral("remove-clip");
 }
@@ -1358,6 +1360,48 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
                 taskManager->tasks().isEmpty(),
             15000);
         QVERIFY(runtime().documentVersion().revision > stageBase.revision);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
+        return;
+    }
+
+    if (completion == QStringLiteral("edit-lyric")) {
+        const auto originalPronunciation =
+            phonemeStage ? targetNote->pronunciation().original : expectedPronunciation;
+        const auto originalStart = targetNote->localStart();
+        const auto originalLength = targetNote->length();
+        auto edit = commandContext();
+        edit.source = Automation::InvocationSource::TrustedGui;
+        const auto changed =
+            runtime().notes().setLyric(edit, Automation::ClipId(targetClipId),
+                                       Automation::NoteId(targetNoteId), QStringLiteral("SP"));
+        QVERIFY2(changed, qPrintable(changed ? QString{} : changed.getError().message));
+        QCOMPARE(runtime().documentVersion().revision, stageBase.revision + 1);
+        const auto *editedUndo = HistoryManager::instance()->nextUndoEntry();
+        QVERIFY(editedUndo != stageUndo);
+        editSessionManager->endTransaction(editSessionId, EditSessionEndReason::Commit);
+        QTRY_VERIFY_WITH_TIMEOUT(targetNote->pronunciation().original == QStringLiteral("SP") &&
+                                     targetNote->phonemes().nameSeq.original.size() == 1 &&
+                                     targetNote->phonemes().nameSeq.original.first().name ==
+                                         QStringLiteral("SP") &&
+                                     taskManager->tasks().isEmpty(),
+                                 15000);
+        QCOMPARE(targetNote->lyric(), QStringLiteral("SP"));
+        QCOMPARE(targetNote->localStart(), originalStart);
+        QCOMPARE(targetNote->length(), originalLength);
+        QCOMPARE(targetClip->findNoteById(targetNoteId), targetNote.data());
+        QCOMPARE(runtime().documentVersion().documentId, stageBase.documentId);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), editedUndo);
+        auto undo = commandContext();
+        undo.source = Automation::InvocationSource::TrustedGui;
+        QVERIFY(runtime().history().undo(undo));
+        QTRY_VERIFY_WITH_TIMEOUT(targetNote->pronunciation().original == originalPronunciation &&
+                                    inferenceSettled(targetClip),
+                                15000);
+        QCOMPARE(targetNote->lyric(), draftNote.lyric);
+        QCOMPARE(targetNote->pronunciation().original, originalPronunciation);
+        QVERIFY(!targetNote->phonemes().nameSeq.original.isEmpty());
+        if (phonemeStage)
+            QCOMPARE(targetNote->phonemes().nameSeq.original, expectedPhonemes);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
         return;
     }
