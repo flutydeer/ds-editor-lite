@@ -18,6 +18,7 @@
 
 #include <sndfile.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -245,23 +246,31 @@ private slots:
         QTest::addColumn<QString>("lyric");
         QTest::addColumn<QString>("speakerId");
         QTest::addColumn<QString>("damagedStage");
+        QTest::addColumn<QString>("providerId");
         if (TestSupport::usingBundledVoicebank()) {
-            QTest::newRow("mandarin-clear") << QStringLiteral("cmn") << QStringLiteral("啦")
-                                            << QStringLiteral("clear") << QString();
+            QTest::newRow("mandarin-clear")
+                << QStringLiteral("cmn") << QStringLiteral("啦") << QStringLiteral("clear")
+                << QString() << QStringLiteral("CPU");
             QTest::newRow("english-soft")
                 << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft")
-                << QString();
+                << QString() << QStringLiteral("CPU");
         } else {
             QTest::newRow("configured-voicebank")
                 << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString()
-                << QString();
+                << QString() << QStringLiteral("CPU");
         }
         QTest::newRow("repaired-acoustic-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("acoustic");
+            << QStringLiteral("acoustic") << QStringLiteral("CPU");
         QTest::newRow("repaired-vocoder-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("vocoder");
+            << QStringLiteral("vocoder") << QStringLiteral("CPU");
+        QTest::newRow("directml-device")
+            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
+            << QStringLiteral("DirectML");
+        QTest::newRow("cuda-device")
+            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
+            << QStringLiteral("CUDA");
     }
 
     void voicebankInferenceAndWaveExport() {
@@ -269,9 +278,13 @@ private slots:
         QFETCH(QString, lyric);
         QFETCH(QString, speakerId);
         QFETCH(QString, damagedStage);
+        QFETCH(QString, providerId);
         const bool repairModel = !damagedStage.isEmpty();
-        const auto configuredRoot = repairModel ? QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)
-                                                : TestSupport::voicebankRoot();
+        const bool gpuProvider = providerId != QStringLiteral("CPU");
+        const bool bundledVoicebank =
+            repairModel || gpuProvider || TestSupport::usingBundledVoicebank();
+        const auto configuredRoot = bundledVoicebank ? QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)
+                                                     : TestSupport::voicebankRoot();
         QVERIFY2(!language.isEmpty(),
                  "DSEL_TEST_LANGUAGE is required when a voicebank is configured");
         QVERIFY2(!lyric.isEmpty(), "DSEL_TEST_LYRIC is required when a voicebank is configured");
@@ -294,8 +307,8 @@ private slots:
                                   std::filesystem::copy_options::recursive, error);
             QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
             voicebankRoot = copy;
-            damagedModelPath = QDir(copy).filePath(
-                QStringLiteral("inferences/%1/%1.onnx").arg(damagedStage));
+            damagedModelPath =
+                QDir(copy).filePath(QStringLiteral("inferences/%1/%1.onnx").arg(damagedStage));
             QFile model(damagedModelPath);
             QVERIFY(model.open(QIODevice::ReadOnly));
             originalModel = model.readAll();
@@ -310,9 +323,9 @@ private slots:
              QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{voicebankRoot}}} },
             {QStringLiteral("inference"),
              QJsonObject{
-                 {QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                 {QStringLiteral("executionProvider"), providerId},
                  {QStringLiteral("autoStartInfer"), false},
-                 {QStringLiteral("runVocoderOnCpu"), true},
+                 {QStringLiteral("runVocoderOnCpu"), !gpuProvider},
                  {QStringLiteral("samplingSteps"), 20},
                  {QStringLiteral("cacheDirectory"), fixture.filePath(QStringLiteral("cache"))},
              }                                                                              },
@@ -338,8 +351,50 @@ private slots:
                  qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, true, 60000), qPrintable(client.error));
 
+        QVERIFY2(client.call(
+                     QStringLiteral("settings.query"),
+                     {
+                         {QStringLiteral("domains"), QJsonArray{QStringLiteral("compute_device")}}
+        },
+                     result),
+                 qPrintable(client.error));
+        const auto computeSettings = result.value(QStringLiteral("domains"))
+                                         .toObject()
+                                         .value(QStringLiteral("compute_device"))
+                                         .toObject();
+        const auto availableProviders = computeSettings.value(QStringLiteral("candidates"))
+                                            .toObject()
+                                            .value(QStringLiteral("execution_providers"))
+                                            .toArray();
+        const bool providerInBuild = availableProviders.contains(QJsonValue(providerId));
+        const auto activeProvider = computeSettings.value(QStringLiteral("configured"))
+                                        .toObject()
+                                        .value(QStringLiteral("execution_provider"))
+                                        .toString();
+        QVERIFY(!activeProvider.isEmpty());
+        if (gpuProvider && (!providerInBuild || activeProvider != providerId)) {
+            if (providerInBuild)
+                QCOMPARE(activeProvider, QStringLiteral("CPU"));
+            else
+                QVERIFY(availableProviders.contains(QJsonValue(activeProvider)));
+            QVERIFY2(client.call(QStringLiteral("application.request_exit"),
+                                 {
+                                     {QStringLiteral("discard_changes"), true}
+            },
+                                 result),
+                     qPrintable(client.error));
+            QVERIFY(editor.waitForFinished(15000));
+            QCOMPARE(editor.exitStatus(), QProcess::NormalExit);
+            QCOMPARE(editor.exitCode(), 0);
+            const auto reason = providerInBuild
+                                    ? QStringLiteral("%1 has no usable device; the editor used CPU")
+                                    : QStringLiteral("%1 is not available in this build");
+            QSKIP(qPrintable(reason.arg(providerId)));
+        }
+        QCOMPARE(activeProvider, providerId);
+
         const auto requestedSinger =
-            repairModel ? QStringLiteral("fixture") : TestSupport::fixtureSingerId();
+            bundledVoicebank ? QStringLiteral("fixture") : TestSupport::fixtureSingerId();
         QVERIFY2(!requestedSinger.isEmpty(),
                  "DSEL_TEST_SINGER_ID is required when a voicebank is configured");
         QList<QJsonObject> candidates;
@@ -464,7 +519,7 @@ private slots:
             {QStringLiteral("clip_ids"), QJsonArray{clipId}    }
         };
         QVERIFY2(client.waitForInferenceModel(scope), qPrintable(client.error));
-        if (TestSupport::usingBundledVoicebank() || repairModel) {
+        if (bundledVoicebank) {
             QVERIFY2(client.call(QStringLiteral("notes.list"),
                                  {
                                      {QStringLiteral("document_id"), client.documentId},
@@ -489,15 +544,30 @@ private slots:
                      language == QStringLiteral("cmn") ? QStringLiteral("a")
                                                        : QStringLiteral("aa"));
         }
-        QVERIFY2(
-            client.mutate(QStringLiteral("inference.start"),
-                          {
-                              {QStringLiteral("scope"),   scope                                   },
-                              {QStringLiteral("options"),
-                               QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}},
+        QVERIFY2(client.call(QStringLiteral("inference.get_capabilities"),
+                             {
+                                 {QStringLiteral("document_id"), client.documentId},
+                                 {QStringLiteral("scope"),       scope            }
         },
-                          result),
-            qPrintable(client.error));
+                             result),
+                 qPrintable(client.error));
+        const auto providers = result.value(QStringLiteral("capabilities"))
+                                   .toObject()
+                                   .value(QStringLiteral("providers"))
+                                   .toArray();
+        QVERIFY(std::any_of(providers.cbegin(), providers.cend(), [&](const QJsonValue &value) {
+            const auto provider = value.toObject();
+            return provider.value(QStringLiteral("id")).toString() == providerId &&
+                   provider.value(QStringLiteral("available")).toBool();
+        }));
+        QVERIFY2(client.mutate(QStringLiteral("inference.start"),
+                               {
+                                   {QStringLiteral("scope"),   scope                        },
+                                   {QStringLiteral("options"),
+                                    QJsonObject{{QStringLiteral("provider_id"), providerId}}},
+        },
+                               result),
+                 qPrintable(client.error));
         if (repairModel) {
             QVERIFY2(client.waitForTask(result, false, 30000, QStringLiteral("failed")),
                      qPrintable(client.error));
@@ -507,14 +577,13 @@ private slots:
             QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
             QCOMPARE(model.write(originalModel), originalModel.size());
             model.close();
-            QVERIFY2(client.mutate(
-                         QStringLiteral("inference.start"),
-                         {
-                             {QStringLiteral("scope"),   scope                                   },
-                             {QStringLiteral("options"),
-                              QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}}
+            QVERIFY2(client.mutate(QStringLiteral("inference.start"),
+                                   {
+                                       {QStringLiteral("scope"),   scope                        },
+                                       {QStringLiteral("options"),
+                                        QJsonObject{{QStringLiteral("provider_id"), providerId}}}
             },
-                         result),
+                                   result),
                      qPrintable(client.error));
         }
         QVERIFY2(client.waitForTask(result, false, 300000), qPrintable(client.error));
@@ -568,7 +637,7 @@ private slots:
                         {
                             {QStringLiteral("scope"),   scope                                   },
                             {QStringLiteral("options"),
-                             QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}}
+                             QJsonObject{{QStringLiteral("provider_id"), providerId}}}
                 },
                         result) ||
                     !client.waitForTask(result, false, 300000))
