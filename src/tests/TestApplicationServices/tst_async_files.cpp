@@ -997,6 +997,14 @@ void ApplicationServicesTests::audioExportAndTaskList() {
              harness.audioScheduler.pendingCount() == 1),
             qPrintable(QStringLiteral("validation must not allocate; start must queue one task")));
         const auto base = runtime.documentVersion();
+        const auto activeCleanup = runtime.audioExports().cleanup(harness.context(), acceptedTask);
+        const auto queuedTask = runtime.tasks().getTask(base.documentId, acceptedTask);
+        QVERIFY2((isError(activeCleanup, Automation::AutomationErrorCode::Busy,
+                          Automation::OperationIds::exports::audio::cleanup) &&
+                  queuedTask && queuedTask.get().state == Automation::AutomationTaskState::Queued &&
+                  harness.audioScheduler.pendingCount() == 1 &&
+                  harness.audioExportState()->cleanupCount == 0),
+                 "An active export cannot be cleaned up before its worker finishes");
         const auto ran = harness.audioScheduler.runNext();
         const auto terminal = runtime.tasks().getTask(base.documentId, acceptedTask);
         QVERIFY2(
