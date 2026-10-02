@@ -298,6 +298,8 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QCOMPARE(stored->name, QStringLiteral("Updated wire blend"));
     QCOMPARE(stored->fixedWeights, QVector<double>{0.7});
     QCOMPARE(runtime().documentVersion(), beforeCatalog);
+    const auto storedPresets = runtime().presets().getSpeakerMixPresets();
+    QVERIFY(storedPresets);
     {
         QTemporaryDir emptyCatalog;
         QVERIFY(emptyCatalog.isValid());
@@ -323,9 +325,9 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
         });
         QVERIFY(!rejected);
         QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
-        const auto retainedPreset = SpeakerMixPresetStore::findPreset(id);
-        QVERIFY(retainedPreset);
-        QCOMPARE(retainedPreset->toJson(), stored->toJson());
+        const auto retainedPresets = runtime().presets().getSpeakerMixPresets();
+        QVERIFY(retainedPresets);
+        QCOMPARE(retainedPresets.get(), storedPresets.get());
         QCOMPARE(runtime().documentVersion(), unavailableVersion);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), unavailableProject);
         QCOMPARE(historyManager->nextUndoEntry(), unavailableUndo);
