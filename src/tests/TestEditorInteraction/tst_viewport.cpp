@@ -85,13 +85,19 @@ void EditorInteractionTests::legacyWheelZoomPreservesTheInputAnchor() {
 void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted_data() {
     QTest::addColumn<double>("scale");
     QTest::addColumn<bool>("pinch");
-    QTest::newRow("normal-scale-wheel") << 1.0 << false;
-    QTest::newRow("zoomed-pinch") << 2.0 << true;
+    QTest::addColumn<bool>("touchpadScroll");
+    QTest::addColumn<bool>("systemMomentum");
+    QTest::newRow("normal-scale-wheel") << 1.0 << false << false << false;
+    QTest::newRow("zoomed-pinch") << 2.0 << true << false << false;
+    QTest::newRow("touchpad-flick") << 1.0 << false << true << false;
+    QTest::newRow("touchpad-system-momentum") << 1.0 << false << true << true;
 }
 
 void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted() {
     QFETCH(double, scale);
     QFETCH(bool, pinch);
+    QFETCH(bool, touchpadScroll);
+    QFETCH(bool, systemMomentum);
     TimeGraphicsScene scene;
     TimeGraphicsView view(&scene);
     prepareTimeView(scene, view, scale);
@@ -121,6 +127,12 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
         const auto local = view.mapFromGlobal(global);
         const auto anchor = view.mapToScene(position).x() / view.scaleX();
         const auto verticalAnchor = view.mapToScene(position).y() / view.scaleY();
+        const auto sendGesture = [&](Qt::NativeGestureType type) {
+            QNativeGestureEvent event(type, &touchpad, 2, local, local, global, 0.0, {});
+            return QApplication::sendEvent(&view, &event);
+        };
+        QVERIFY(sendGesture(Qt::BeginNativeGesture));
+        QTest::qWait(20);
         QNativeGestureEvent gesture(Qt::ZoomNativeGesture, &touchpad, 2, local, local, global, 0.25,
                                     {});
         QVERIFY(QApplication::sendEvent(&view, &gesture));
@@ -130,6 +142,45 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
                 1.0 / view.scaleX());
         QVERIFY(std::abs(view.mapToScene(position).y() / view.scaleY() - verticalAnchor) <=
                 1.0 / view.scaleY());
+        const auto releasedScale = view.scaleX();
+        QVERIFY(sendGesture(Qt::EndNativeGesture));
+        QTRY_VERIFY(view.scaleX() > releasedScale);
+        QVERIFY(sendGesture(Qt::BeginNativeGesture));
+        const auto caught = view.visibleRect();
+        QTest::qWait(60);
+        QCOMPARE(view.visibleRect(), caught);
+    } else if (touchpadScroll) {
+        const QPointingDevice touchpad(
+            QStringLiteral("Test touchpad"), 1, QInputDevice::DeviceType::TouchPad,
+            QPointingDevice::PointerType::Finger, QInputDevice::Capability::Position, 2, 0);
+        const auto position = view.viewport()->rect().center();
+        const auto sendScroll = [&](Qt::ScrollPhase phase, const QPoint &delta = {}) {
+            QWheelEvent event(position, view.viewport()->mapToGlobal(position), delta, {},
+                              Qt::NoButton, Qt::NoModifier, phase, false,
+                              Qt::MouseEventNotSynthesized, &touchpad);
+            QApplication::sendEvent(view.viewport(), &event);
+        };
+        sendScroll(Qt::ScrollBegin);
+        for (int sample = 0; sample < 2; ++sample) {
+            QTest::qWait(20);
+            sendScroll(Qt::ScrollUpdate, QPoint(0, -25));
+        }
+        QVERIFY(view.visibleRect().top() > destination.top());
+        if (systemMomentum)
+            sendScroll(Qt::ScrollMomentum, QPoint(0, -10));
+        sendScroll(Qt::ScrollEnd);
+        const auto released = view.visibleRect();
+        if (systemMomentum) {
+            // The system already owns momentum; ScrollEnd must not start another glide.
+            QTest::qWait(60);
+            QCOMPARE(view.visibleRect(), released);
+        } else {
+            QTRY_VERIFY(view.visibleRect().top() > released.top());
+            sendScroll(Qt::ScrollBegin);
+            const auto caught = view.visibleRect();
+            QTest::qWait(60);
+            QCOMPARE(view.visibleRect(), caught);
+        }
     } else {
         sendTimeViewWheel(view, view.viewport()->rect().center(), -120, Qt::NoModifier);
         QVERIFY(view.visibleRect().top() > destination.top());
