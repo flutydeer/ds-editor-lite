@@ -130,34 +130,40 @@ namespace {
 void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords_data() {
     QTest::addColumn<QString>("selection");
     QTest::addColumn<Rows>("expected");
+    QTest::addColumn<bool>("menu");
     QTest::newRow("single-word") << QStringLiteral("single")
                                  << Rows{
                                         {"one", "three"},
                                         {"four", "five"},
                                         {"six"}
-    };
+    } << false;
     QTest::newRow("shift-across-lines")
-        << QStringLiteral("shift") << Rows{{"one"}, {"five"}, {"six"}};
-    QTest::newRow("reverse-drag") << QStringLiteral("drag") << Rows{{"one"}, {"five"}, {"six"}};
+        << QStringLiteral("shift") << Rows{{"one"}, {"five"}, {"six"}} << false;
+    QTest::newRow("reverse-drag") << QStringLiteral("drag") << Rows{{"one"}, {"five"}, {"six"}}
+                                  << false;
     QTest::newRow("whole-line") << QStringLiteral("line")
                                 << Rows{
                                        {"four", "five"},
                                        {"six"}
-    };
+    } << false;
     QTest::newRow("last-word-in-line") << QStringLiteral("last")
                                        << Rows{
                                               {"one", "two", "three"},
                                               {"four", "five"}
-    };
+    } << false;
+    QTest::newRow("nonadjacent-lines-context-menu")
+        << QStringLiteral("lines") << Rows{{"four", "five"}} << true;
 }
 
 void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     QFETCH(QString, selection);
     QFETCH(Rows, expected);
+    QFETCH(bool, menu);
     createLyricSelection();
     if (QTest::currentTestFailed())
         return;
     const auto before = context->m_coreRuntime->documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
@@ -171,6 +177,10 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     QSignalSpy countChanged(&grid, &FillLyric::LyricWrapView::noteCountChanged);
     if (selection == QStringLiteral("line")) {
         clickAt(grid, handlePosition(grid, 0));
+    } else if (selection == QStringLiteral("lines")) {
+        clickAt(grid, handlePosition(grid, 0));
+        clickAt(grid, handlePosition(grid, 2), Qt::ControlModifier);
+        QCOMPARE(selectedLines(grid), (QList<int>{0, 2}));
     } else if (selection == QStringLiteral("last")) {
         clickAt(grid, cellPosition(grid, 2, 0));
     } else if (selection == QStringLiteral("drag")) {
@@ -187,14 +197,27 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     }
     if (QTest::currentTestFailed())
         return;
-    QTest::keyClick(&grid, Qt::Key_Delete);
+    if (menu)
+        chooseMenu(grid, handlePosition(grid, 0), FillLyric::LyricWrapView::tr("delete lines"));
+    else
+        QTest::keyClick(&grid, Qt::Key_Delete);
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(words(grid), expected);
+    if (menu) {
+        QVERIFY(selectedLines(grid).isEmpty());
+        clickAt(grid, cellPosition(grid, 0, 1));
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(grid.cellLists().first()->m_cells.at(1)->isSelected());
+    }
     int count = 0;
     for (const auto &row : expected)
         count += row.size();
     QTRY_VERIFY(!countChanged.isEmpty());
     QTRY_COMPARE(countChanged.last().first().toInt(), count);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
     QVERIFY(!historyManager->canUndo());
 }
 
