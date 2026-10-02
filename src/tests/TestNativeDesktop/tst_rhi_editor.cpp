@@ -152,6 +152,8 @@ namespace {
             canvas->show();
             QTRY_VERIFY2(canvas->windowHandle() && canvas->windowHandle()->isExposed(),
                          qPrintable(windowInputState(*canvas, *canvas)));
+            // Cocoa activation alone does not bring an inactive application forward.
+            canvas->raise();
             canvas->activateWindow();
             QTRY_VERIFY2(canvas->isActiveWindow(), qPrintable(windowInputState(*canvas, *canvas)));
             waitForFrame();
@@ -230,6 +232,84 @@ namespace {
     };
 }
 
+void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = fixture.runtime();
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto originalAppearance = settings.get().appearance;
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateAppearance({}, originalAppearance)); });
+    auto appearance = originalAppearance;
+    appearance.showGhostNotes = true;
+    QVERIFY(runtime.settings().updateAppearance({}, appearance));
+    Automation::NoteDraftDto note;
+    note.localStart = 1920;
+    note.length = 240;
+    note.keyIndex = 60;
+    note.lyric = QStringLiteral("la");
+    note.language = QStringLiteral("eng");
+    Automation::ClipDraftDto draft;
+    draft.properties.length = 3840;
+    draft.properties.clipLen = 3840;
+    draft.defaultLanguage = note.language;
+    draft.notes = {note};
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("RHI reference");
+    track.clips = {draft};
+    const auto beforeInsertFrame = fixture.submitted->size();
+    const auto inserted = runtime.project().insertTrack(fixture.command(), 1, track);
+    QVERIFY(inserted);
+    auto *reference = qobject_cast<SingingClip *>(
+        *fixture.app.context->m_appModel->tracks().at(1)->clips().begin());
+    QVERIFY(reference);
+    QCOMPARE(reference->notes().count(), 1);
+    const auto referenceId = (*reference->notes().begin())->id();
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QTRY_VERIFY(fixture.submitted->size() > beforeInsertFrame);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto model = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    for (const bool enabled : {false, true}) {
+        const auto frames = fixture.submitted->size();
+        appearance.showGhostNotes = enabled;
+        QVERIFY(runtime.settings().updateAppearance({}, appearance));
+        QTRY_VERIFY(fixture.submitted->size() > frames);
+    }
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
+    QVERIFY(!historyManager->canUndo());
+    fixture.canvas->setEditMode(ClipEditorGlobal::DrawNote);
+    const auto position = fixture.pointFor(2040, 60);
+    QVERIFY(fixture.canvas->rect().contains(position));
+    fixture.moveTo(position);
+    QTest::mousePress(fixture.canvas.get(), Qt::LeftButton, Qt::NoModifier, position);
+    QTest::mouseRelease(fixture.canvas.get(), Qt::LeftButton, Qt::NoModifier, position);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    QCOMPARE(reference->notes().count(), 1);
+    QCOMPARE((*reference->notes().begin())->id(), referenceId);
+    QCOMPARE((*reference->notes().begin())->localStart(), 1920);
+    const auto drawn =
+        std::find_if(fixture.clip->notes().begin(), fixture.clip->notes().end(),
+                     [&](const Note *value) { return value->id() != fixture.noteId; });
+    QVERIFY(drawn != fixture.clip->notes().end());
+    QCOMPARE((*drawn)->keyIndex(), 60);
+    QVERIFY((*drawn)->localStart() >= 1920 && (*drawn)->localStart() < 2160);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(fixture.command()));
+    fixture.waitForFrame();
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
@@ -294,6 +374,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     appStatus->activeClipId = clip->id();
     TestSupport::placeWindowOnScreen(window, {1200, 900});
     window.show();
+    window.raise();
     window.activateWindow();
     QVERIFY(window.setEditorPanelVisibility(true, true));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
@@ -376,6 +457,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
 
     QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
     QVERIFY(editor->setRegionVisibility(true, false));
+    window.raise();
     window.activateWindow();
     QTRY_VERIFY2(window.isActiveWindow(), qPrintable(windowInputState(window, *piano)));
     QTRY_VERIFY2(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll),
@@ -406,6 +488,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     QTest::mouseClick(detachButton, Qt::LeftButton);
     QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
     TestSupport::placeWindowOnScreen(*bottom, {1000, 650});
+    bottom->raise();
     bottom->activateWindow();
     QTRY_VERIFY(bottom->isActiveWindow());
     QTRY_VERIFY(pianoFrames.size() > beforeDetachFrame);
@@ -422,6 +505,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     const auto beforeDockFrame = pianoFrames.size();
     bottom->close();
     QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    window.raise();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
     QTRY_VERIFY(pianoFrames.size() > beforeDockFrame);

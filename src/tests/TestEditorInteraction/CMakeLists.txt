@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_list_reordering.cpp ../TestSupport/GuiAppFixture.h
     tst_touch_gestures.cpp tst_pen_stroke.cpp
     tst_note_handles.cpp
+    tst_ghost_notes.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
 add_dependencies(${PROJECT_NAME} DsEditorLite)

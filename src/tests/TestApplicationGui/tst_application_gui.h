@@ -82,6 +82,7 @@ private slots:
     void audioExportProgressFollowsTheTaskOutcome_data();
     void audioExportProgressFollowsTheTaskOutcome();
     void appearanceInputsPersistAcrossReopening();
+    void ghostReferenceSwitchUpdatesTheCanvasAndKeepsInputOnTheHost();
     void publicUiSettingsPersistAndRollback_data();
     void publicUiSettingsPersistAndRollback();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();

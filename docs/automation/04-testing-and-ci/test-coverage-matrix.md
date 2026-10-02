@@ -101,6 +101,7 @@ ApplicationGui 的平台条件统一为 Windows/Linux offscreen、macOS 原生�
 | Tap Tempo 测量与闲置重置 | gui | 实时等待较慢，未进入采样窗口淘汰分支 | 可注入单调时钟配合真实按钮事件，验证 BPM、零间隔、有限采样窗口和闲置重置，不改变编辑值 | ApplicationGui::tapTempoMeasuresASequenceAndResetsAfterInactivity | offscreen；受控时间 |
 | 控件菜单及损坏主题恢复 | gui | 数值输入与颜色解析未充分验证菜单接线、主题原子应用 | 实际数值框菜单执行整数/小数步进；主题素材缺失、内容无效或引用失败时保留原样式，修复后可应用 | GuiComponents::expressionSpinBoxMenuEditsTheDisplayedValue、externalThemeRoot | offscreen；临时主题文件 |
 | 上游异常响应与会话更新 | protocol | 基本连接不能证明异常响应后的可用性和不确定结果处理 | 拒绝损坏 JSON、重复 SSE 和 HTML；随后正常调用可用；命令不自动重发；会话失效后重新握手并使用新会话 | Connector::upstreamResponses、commandTransportOutcome、handshakeCoordination | 通用；受控 HTTP 上游 |
+| 其他轨道音符参考的数据、显示及输入归属 | domain/gui | 新增功能的初始化不能证明实际外轨收集、非空绘制及事件装配 | 共用数据源验证宿主及同轨排除、绝对时间和排序、无内容变化时不通知、移动和颜色变化、开关及删除撤销、换代清理。几何检查长音符与视口交集和缓存，Legacy 经真实外观开关检查画面变化及输入穿透，RHI 检查更新触发帧和宿主编辑，避免跨层重复矩阵 | EditorInteraction::ghostNotesFollowDocumentChangesAndOptions、ghostNoteGeometryFollowsTheVisibleReferenceRange，ApplicationGui::ghostReferenceSwitchUpdatesTheCanvasAndKeepsInputOnTheHost，NativeDesktop::rhiGhostReferencesUpdateFramesWithoutOwningEdits | 领域通用，Legacy offscreen 或原生，RHI 原生窗口及 Linux Xvfb，Null 后端，无需模型或设备 |
 
 ## 3. 目标收敛与历史入口去向
 

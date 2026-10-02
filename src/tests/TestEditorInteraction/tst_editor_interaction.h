@@ -101,6 +101,8 @@ private slots:
     void speakerMixDragKeepsWeightsWithTheirSources_data();
     void speakerMixDragKeepsWeightsWithTheirSources();
     void speakerMixSourceChoicePreservesWeightsAndUpdatesTags();
+    void ghostNotesFollowDocumentChangesAndOptions();
+    void ghostNoteGeometryFollowsTheVisibleReferenceRange();
     void lyricRuleDragPreservesEditsAndChangesPriority_data();
     void lyricRuleDragPreservesEditsAndChangesPriority();
 
