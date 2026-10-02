@@ -2230,7 +2230,7 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     auto &canvas = *fixture.canvas;
     canvas.setEditMode(ClipEditorGlobal::ModulatePitch);
     historyManager->reset();
-    const auto before = runtime.documentVersion();
+    auto before = runtime.documentVersion();
     const auto snapshot = [&] {
         QList<DrawCurve> result;
         for (const auto *curve : pitch->curves(Param::Edited))
@@ -2276,6 +2276,46 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(snapshot(), initial);
     QCOMPARE(runtime.documentVersion(), before);
+    const auto originalName = fixture.clip->name();
+    const auto *targetNote = fixture.clip->findNoteById(fixture.noteId);
+    QVERIFY(targetNote);
+    const auto originalStart = targetNote->localStart();
+    for (const bool moveNote : {false, true}) {
+        selectRange();
+        if (QTest::currentTestFailed())
+            return;
+        if (moveNote) {
+            QVERIFY(runtime.notes().moveNotes(fixture.command(), clipId,
+                                              {Automation::NoteId(fixture.noteId)}, 120, 0));
+            QCOMPARE(targetNote->localStart(), originalStart + 120);
+        } else {
+            QVERIFY(runtime.project().renameClip(fixture.command(), clipId,
+                                                 QStringLiteral("Renamed while selecting pitch")));
+            QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
+        const auto changed = runtime.documentVersion();
+        QVERIFY(changed.revision > before.revision);
+        QCOMPARE(snapshot(), initial);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        QCOMPARE(runtime.documentVersion(), changed);
+        QCOMPARE(snapshot(), initial);
+        QVERIFY(runtime.history().undo(fixture.command()));
+        QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
+        QCOMPARE(fixture.clip->name(), originalName);
+        QCOMPARE(targetNote->localStart(), originalStart);
+        QCOMPARE(snapshot(), initial);
+        before = runtime.documentVersion();
+        QVERIFY(!historyManager->canUndo());
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+    }
     for (const bool rightButton : {false, true}) {
         selectRange();
         if (QTest::currentTestFailed())
