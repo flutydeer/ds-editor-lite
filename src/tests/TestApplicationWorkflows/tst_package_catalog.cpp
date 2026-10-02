@@ -15,10 +15,14 @@
 #include <QJsonObject>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSemaphore>
 #include <QtTest/QTest>
 
 #include <algorithm>
 #include <filesystem>
+#include <atomic>
+#include <future>
+#include <chrono>
 
 void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRoots() {
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
@@ -96,6 +100,71 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
              original.failedPackages.size());
     QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
+
+    for (const bool commitLeading : {true, false}) {
+        refreshed.clear();
+        const auto before = runtime().documentVersion();
+        const auto contentBefore = TestSupport::projectSnapshot(*context->m_appModel);
+        const auto *undoBefore = historyManager->nextUndoEntry();
+        const auto sessionBefore = SynthrtEngine::instance().session().snapshot();
+        QVERIFY(sessionBefore);
+        QSemaphore leadingAdmitted;
+        QSemaphore releaseLeading;
+        QSemaphore followerStarted;
+        std::atomic_int followerCommits = 0;
+        using RefreshResult = decltype(packageManager->refreshInstalledPackages(originalPaths));
+        std::future<RefreshResult> leading;
+        std::future<RefreshResult> following;
+        const auto releaseWorkers = qScopeGuard([&] {
+            releaseLeading.release();
+            if (leading.valid())
+                leading.wait();
+            if (following.valid())
+                following.wait();
+        });
+        leading = std::async(std::launch::async, [&] {
+            return packageManager->refreshInstalledPackages(originalPaths, [&] {
+                leadingAdmitted.release();
+                releaseLeading.acquire();
+                return commitLeading;
+            });
+        });
+        QVERIFY(leadingAdmitted.tryAcquire(1, 5000));
+        following = std::async(std::launch::async, [&] {
+            followerStarted.release();
+            return packageManager->refreshInstalledPackages(originalPaths, [&] {
+                ++followerCommits;
+                return true;
+            });
+        });
+        QVERIFY(followerStarted.tryAcquire(1, 5000));
+        QVERIFY(following.wait_for(std::chrono::milliseconds(50)) == std::future_status::timeout);
+        QCOMPARE(followerCommits.load(), 0);
+        releaseLeading.release();
+        QVERIFY(leading.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+        QVERIFY(following.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+        const auto first = leading.get();
+        const auto second = following.get();
+        QVERIFY2(first, qPrintable(first ? QString{} : first.getError().message));
+        QVERIFY2(second, qPrintable(second ? QString{} : second.getError().message));
+        if (commitLeading)
+            QCOMPARE(first.get().successfulPackages, original.successfulPackages);
+        else
+            QVERIFY(first.get().successfulPackages.isEmpty());
+        QCOMPARE(second.get().successfulPackages, original.successfulPackages);
+        QCOMPARE(followerCommits.load(), 1);
+        QTRY_COMPARE(refreshed.size(), 1);
+        QCOMPARE(packageManager->installedPackages().successfulPackages,
+                 original.successfulPackages);
+        QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
+        const auto sessionAfter = SynthrtEngine::instance().session().snapshot();
+        QVERIFY(sessionAfter);
+        QCOMPARE(sessionAfter->catalogFingerprint, sessionBefore->catalogFingerprint);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBefore);
+        QCOMPARE(historyManager->nextUndoEntry(), undoBefore);
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+    }
 }
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion() {
