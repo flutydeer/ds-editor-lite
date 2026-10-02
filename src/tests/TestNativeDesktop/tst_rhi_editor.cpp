@@ -1812,6 +1812,15 @@ void NativeDesktopTests::rhiContextMenuTargetsRespectPronunciationAndSelection()
     QVERIFY(appStatus->selectedNotes.get().isEmpty());
     const auto pronunciation =
         first + QPoint(0, qRound(ClipEditorGlobal::noteHeight * canvas.scaleY() / 2.0) + 8);
+    canvas.setEditMode(ClipEditorGlobal::DrawNote);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, pronunciation);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
     requestAt(pronunciation);
     if (QTest::currentTestFailed())
         return;
@@ -2267,20 +2276,28 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(snapshot(), initial);
     QCOMPARE(runtime.documentVersion(), before);
-    selectRange();
-    if (QTest::currentTestFailed())
-        return;
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-    fixture.moveTo(release);
-    QVERIFY(editSessionManager->hasActiveTransaction());
-    QCOMPARE(snapshot(), initial);
-    QCOMPARE(runtime.documentVersion(), before);
-    QTest::keyClick(&canvas, Qt::Key_Escape);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
-    QVERIFY(!editSessionManager->hasActiveTransaction());
-    QCOMPARE(snapshot(), initial);
-    QCOMPARE(runtime.documentVersion(), before);
-    QVERIFY(!historyManager->canUndo());
+    for (const bool rightButton : {false, true}) {
+        selectRange();
+        if (QTest::currentTestFailed())
+            return;
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        fixture.moveTo(release);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QCOMPARE(snapshot(), initial);
+        QCOMPARE(runtime.documentVersion(), before);
+        if (rightButton)
+            QTest::mouseClick(&canvas, Qt::RightButton, Qt::NoModifier, release);
+        else
+            QTest::keyClick(&canvas, Qt::Key_Escape);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(snapshot(), initial);
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+    }
 
     selectRange();
     if (QTest::currentTestFailed())
