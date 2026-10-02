@@ -43,6 +43,7 @@ private slots:
     void pianoTouchSelectionAndNavigationStayIndependent();
     void pianoTouchLongPressDefersMenus_data();
     void pianoTouchLongPressDefersMenus();
+    void pianoPenHoverHintsFollowTheDeliveredState();
     void pianoPenErasingCommitsOrInterrupts_data();
     void pianoPenErasingCommitsOrInterrupts();
     void pianoTouchInlineLyricsKeepsEditingAndRecovers_data();

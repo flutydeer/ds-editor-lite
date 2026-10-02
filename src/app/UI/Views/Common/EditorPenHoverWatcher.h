@@ -9,7 +9,7 @@ class QTabletEvent;
 // glass. This is the one piece of the pen layer that cannot stay platform
 // neutral.
 //
-// Windows throws the two flags away before Qt ever builds a tablet event —
+// The Windows QPA backend throws the two flags away before Qt builds a tablet event —
 // qwindowspointerhandler.cpp only reads the barrel flag while the tip is in
 // contact:
 //
@@ -54,10 +54,10 @@ public:
     // install platform machinery as a side effect use this one.
     [[nodiscard]] static EditorPenHoverWatcher *existing();
 
-    // Feed a hover tablet event. Platforms other than Windows carry the barrel
+    // Feed a hover tablet event. Backends other than Windows QPA carry the barrel
     // button and the inverted flag on the hover event itself (see the note in
     // observeHoverEvent), so the generic implementation reads them from here;
-    // the Windows implementation ignores this and uses the raw messages.
+    // the Windows native implementation ignores this and uses the raw messages.
     virtual void observeHoverEvent(const QTabletEvent *event);
 
     // Tablet proximity events are delivered to the application object, not to

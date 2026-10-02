@@ -18,6 +18,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QApplication>
+#include <QCursor>
 #include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QMenu>
@@ -448,6 +449,50 @@ void ApplicationGuiTests::pianoTouchLongPressDefersMenus() {
     QVERIFY(!historyManager->canUndo());
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QVERIFY(!EditorPointer::isTouchStreamActive());
+}
+
+void ApplicationGuiTests::pianoPenHoverHintsFollowTheDeliveredState() {
+    if (QGuiApplication::platformName() == QStringLiteral("windows"))
+        QSKIP("The Windows native backend delivers hover flags through pointer messages");
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    auto *viewport = view->viewport();
+    const auto originalCursor = viewport->cursor().shape();
+    const auto position = viewport->rect().center();
+    const QPointingDevice pen(
+        QStringLiteral("Fixture hover pen"), 1004, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Pen,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    const QPointingDevice eraser(
+        QStringLiteral("Fixture inverted pen"), 1005, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Eraser,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 1);
+    const auto leaveRange = [&] {
+        QTabletEvent event(QEvent::TabletLeaveProximity, &pen, position,
+                           viewport->mapToGlobal(position), 0.0, 0, 0, 0, 0, 0, Qt::NoModifier,
+                           Qt::NoButton, Qt::NoButton);
+        QApplication::sendEvent(qApp, &event);
+    };
+    const auto cleanup = qScopeGuard(leaveRange);
+    TestSupport::sendTabletEvent(*viewport, pen, QEvent::TabletMove, position, 0.0, Qt::NoButton,
+                                 Qt::RightButton);
+    QTRY_COMPARE(viewport->cursor().shape(), Qt::BitmapCursor);
+    TestSupport::sendTabletEvent(*viewport, pen, QEvent::TabletMove, position, 0.0, Qt::NoButton,
+                                 Qt::NoButton);
+    QTRY_COMPARE(viewport->cursor().shape(), originalCursor);
+    TestSupport::sendTabletEvent(*viewport, eraser, QEvent::TabletMove, position, 0.0, Qt::NoButton,
+                                 Qt::NoButton);
+    QTRY_COMPARE(viewport->cursor().shape(), Qt::BitmapCursor);
+    leaveRange();
+    QTRY_COMPARE(viewport->cursor().shape(), originalCursor);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
 }
 
 void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts_data() {
