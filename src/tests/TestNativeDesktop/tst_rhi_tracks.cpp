@@ -688,6 +688,20 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QVERIFY(!fixture.application.context->m_appModel->findClipById(pastedId));
     QVERIFY(!historyManager->canUndo());
     QTRY_VERIFY(frames.size() > beforeUndoFrame);
+    const auto beforeReveal = fixture.runtime().documentVersion();
+    const auto modelBeforeReveal =
+        TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+    const auto beforeRevealFrame = frames.size();
+    QVERIFY(canvas.centerAt(40000, 0));
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::ScrollRequired);
+    QVERIFY(canvas.revealFocus(focus, false));
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
+    QTRY_VERIFY(frames.size() > beforeRevealFrame);
+    QCOMPARE(fixture.runtime().documentVersion(), beforeReveal);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel),
+             modelBeforeReveal);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(canvas.centerAt(1920, 0.5));
     const auto newPosition = fixture.point(2400, 1);
     QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);
