@@ -329,6 +329,8 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
     const auto left = view->horizontalBarValue();
     const auto top = view->verticalBarValue();
     sequence.press(0, unselected).commit();
+    sequence.move(0, unselected + QPoint(-25, -20)).commit();
+    QTest::qWait(20);
     sequence.move(0, panTo).commit();
     QVERIFY(view->horizontalBarValue() > left);
     QVERIFY(view->verticalBarValue() > top);
@@ -337,7 +339,23 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
     QVERIFY(view->selectedNotesId().isEmpty());
     QVERIFY(!editSessionManager->hasActiveTransaction());
     sequence.release(0, panTo).commit();
+    const auto releasedLeft = view->horizontalBarValue();
+    QTRY_VERIFY(view->horizontalBarValue() > releasedLeft);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(view->selectedNotesId().isEmpty());
+    QVERIFY(!historyManager->canUndo());
+    const auto hold = view->viewport()->rect().center();
+    sequence.press(0, hold).commit();
+    const auto caughtLeft = view->horizontalBarValue();
+    const auto caughtTop = view->verticalBarValue();
+    QTest::qWait(60);
+    QCOMPARE(view->horizontalBarValue(), caughtLeft);
+    QCOMPARE(view->verticalBarValue(), caughtTop);
     deactivate(*view);
+    sequence.release(0, hold).commit();
+    view->setViewportStartTick(0);
+    view->setViewportCenterAtKeyIndex(64, false);
 
     const auto selected = pointFor(600, 62);
     QVERIFY(view->viewport()->rect().contains(selected));

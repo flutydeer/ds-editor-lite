@@ -351,6 +351,8 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
         switch (state) {
             case QEventPoint::State::Pressed:
+                // A new contact catches the glide before the pending gesture resolves.
+                stopInertia();
                 if (m_target->touchRelayTextBegin(position)) {
                     m_textRelayActive = true;
                     m_textRelayPointId = point.id();
