@@ -713,8 +713,36 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
     const auto initialValue = minimum + (maximum - minimum) / 2;
     CurveDraftDto curve;
     curve.values = QList<int>(385, initialValue);
-    QVERIFY(runtime().parameters().replaceParameter(
-        commandContext(), clipId, ParamInfo::Breathiness, Param::Edited, {curve}));
+    QJsonArray values;
+    for (const auto value : curve.values)
+        values.append(value);
+    const auto beforeDraw = runtime().documentVersion();
+    const auto contentBeforeDraw = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto drawn =
+        registry.invoke(QStringLiteral("parameters.draw"),
+                        {
+                            {"document_id",       document.toString()                     },
+                            {"expected_revision", static_cast<qint64>(beforeDraw.revision)},
+                            {"clip_id",           clipId.value()                          },
+                            {"name",              available.value(QStringLiteral("name")) },
+                            {"local_start",       curve.localStart                        },
+                            {"step",              curve.step                              },
+                            {"values",            values                                  }
+    });
+    QVERIFY2(drawn, qPrintable(drawn ? QString{} : drawn.getError().message));
+    QCOMPARE(runtime().documentVersion().revision, beforeDraw.revision + 1);
+    const auto prepared = runtime().parameters().getParameter(
+        document, clipId, ParamInfo::Breathiness, Param::Edited);
+    QVERIFY(prepared);
+    QCOMPARE(prepared.get().curves.size(), 1);
+    QCOMPARE(prepared.get().curves.first().localStart, curve.localStart);
+    QCOMPARE(prepared.get().curves.first().step, curve.step);
+    QCOMPARE(prepared.get().curves.first().values, curve.values);
+    const auto contentAfterDraw = TestSupport::projectSnapshot(*context->m_appModel);
+    QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDraw);
+    QVERIFY(runtime().history().redo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentAfterDraw);
     historyManager->reset();
     const auto before = runtime().documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);

@@ -1847,6 +1847,26 @@ namespace {
         QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforeQuery);
         QCOMPARE(testRuntime.history()->nextUndoEntry(), undoBeforeQuery);
         const auto keyframeId = keyframes.last().toObject().value(QStringLiteral("keyframe_id"));
+        QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.set_weights"),
+                        {
+                            {QStringLiteral("clip_id"),     voiceClipId.value() },
+                            {QStringLiteral("keyframe_id"), keyframeId          },
+                            {QStringLiteral("weights"),     QJsonArray{0.2, 0.8}},
+        }));
+        const auto reweighted =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value())
+                .value(QStringLiteral("keyframes"))
+                .toArray();
+        QCOMPARE(reweighted.size(), keyframes.size());
+        QCOMPARE(reweighted.first(), keyframes.first());
+        auto expectedKeyframe = keyframes.last().toObject();
+        expectedKeyframe.insert(QStringLiteral("weights"), QJsonArray{0.2, 0.8});
+        QCOMPARE(reweighted.last().toObject(), expectedKeyframe);
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value())
+                     .value(QStringLiteral("keyframes"))
+                     .toArray(),
+                 keyframes);
         QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.move"),
                         {
                             {QStringLiteral("clip_id"), voiceClipId.value()            },
