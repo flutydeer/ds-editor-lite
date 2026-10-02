@@ -72,6 +72,26 @@
 #include <cmath>
 
 namespace {
+    QString windowInputState(const QWidget &owner, const QWidget &target) {
+        const auto describe = [](const QWidget *widget) {
+            return widget
+                       ? QStringLiteral("%1(%2)").arg(
+                             QLatin1String(widget->metaObject()->className()), widget->objectName())
+                       : QStringLiteral("none");
+        };
+        const auto *handle = owner.windowHandle();
+        return QStringLiteral("ownerActive=%1 exposed=%2 appState=%3 targetVisible=%4 "
+                              "targetFocus=%5 modal=%6 popup=%7 focus=%8 active=%9")
+            .arg(owner.isActiveWindow())
+            .arg(handle && handle->isExposed())
+            .arg(static_cast<int>(QGuiApplication::applicationState()))
+            .arg(target.isVisibleTo(&owner))
+            .arg(target.hasFocus())
+            .arg(describe(QApplication::activeModalWidget()),
+                 describe(QApplication::activePopupWidget()), describe(QApplication::focusWidget()),
+                 describe(QApplication::activeWindow()));
+    }
+
     struct ExistingRhiNoteFixture {
         ~ExistingRhiNoteFixture() {
             if (canvas) {
@@ -130,12 +150,15 @@ namespace {
             submitted = std::make_unique<QSignalSpy>(canvas.get(), &QRhiWidget::frameSubmitted);
             TestSupport::placeWindowOnScreen(*canvas, {900, 500});
             canvas->show();
+            QTRY_VERIFY2(canvas->windowHandle() && canvas->windowHandle()->isExposed(),
+                         qPrintable(windowInputState(*canvas, *canvas)));
             canvas->activateWindow();
-            canvas->setFocus();
-            QTRY_VERIFY(canvas->isActiveWindow() && canvas->hasFocus());
+            QTRY_VERIFY2(canvas->isActiveWindow(), qPrintable(windowInputState(*canvas, *canvas)));
             waitForFrame();
             if (QTest::currentTestFailed())
                 return;
+            canvas->setFocus();
+            QTRY_VERIFY2(canvas->hasFocus(), qPrintable(windowInputState(*canvas, *canvas)));
             QVERIFY(canvas->setViewScale(1, 1));
             QVERIFY(canvas->centerAt(1920, 60));
             QTRY_VERIFY(canvas->startTick() < 480 && canvas->endTick() > 1440);
@@ -353,7 +376,10 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
 
     QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
     QVERIFY(editor->setRegionVisibility(true, false));
-    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    window.activateWindow();
+    QTRY_VERIFY2(window.isActiveWindow(), qPrintable(windowInputState(window, *piano)));
+    QTRY_VERIFY2(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll),
+                 qPrintable(windowInputState(window, *piano)));
     const auto drawAndUndo = [&] {
         QVERIFY(window.centerPianoRollAt(1440, 60));
         QTRY_VERIFY(piano->height() > 0 && piano->width() > 0);
