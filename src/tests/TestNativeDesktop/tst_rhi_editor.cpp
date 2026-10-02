@@ -1455,14 +1455,28 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
         QCOMPARE(edit->property("editRole").toString(), role);
         if (touch) {
             const auto version = fixture.runtime().documentVersion();
+            const auto *undoBeforeTouch = historyManager->nextUndoEntry();
             const auto left = edit->mapTo(&canvas, QPoint(3, edit->height() / 2));
             const auto right = edit->mapTo(&canvas, QPoint(edit->width() - 4, edit->height() / 2));
+            touchSequence.press(0, right).commit();
+            touchSequence.move(0, left).commit();
+            QVERIFY(edit->hasSelectedText());
+            QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+            cancel.setAccepted(false);
+            QApplication::sendEvent(&canvas, &cancel);
+            QVERIFY(cancel.isAccepted());
+            touchSequence.release(0, left).commit();
+            QVERIFY(edit->isVisible() && edit->hasFocus());
+            QCOMPARE(fixture.runtime().documentVersion(), version);
+            QCOMPARE(historyManager->nextUndoEntry(), undoBeforeTouch);
+            QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
             touchSequence.press(0, right).commit();
             touchSequence.move(0, left).commit();
             QVERIFY(edit->hasSelectedText());
             touchSequence.release(0, left).commit();
             QVERIFY(edit->isVisible());
             QCOMPARE(fixture.runtime().documentVersion(), version);
+            QCOMPARE(historyManager->nextUndoEntry(), undoBeforeTouch);
             QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
         }
     };
