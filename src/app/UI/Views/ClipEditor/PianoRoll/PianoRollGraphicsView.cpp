@@ -1,6 +1,8 @@
 #include "PianoRollGraphicsView.h"
 
 #include "ClipRangeOverlay.h"
+#include "GhostNoteOverlay.h"
+#include "GhostNoteSource.h"
 #include "NoteHandleGeometry.h"
 #include "NoteHandleOverlay.h"
 #include "NoteEditUtils.h"
@@ -126,6 +128,19 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     d->m_clipRangeOverlay = new ClipRangeOverlay;
     d->m_clipRangeOverlay->setZValue(3);
     scene->addCommonItem(d->m_clipRangeOverlay);
+
+    d->m_ghostSource = new GhostNoteSource(d);
+    d->m_ghostOverlay = new GhostNoteOverlay;
+    // Above the time grid (-1) and below the notes (0)
+    d->m_ghostOverlay->setZValue(-0.5);
+    d->m_ghostOverlay->setSource(d->m_ghostSource);
+    d->m_ghostOverlay->setVisible(false);
+    scene->addCommonItem(d->m_ghostOverlay);
+    d->m_ghostOverlay->setTransparentMouseEvents(true);
+    connect(d->m_ghostSource, &GhostNoteSource::changed, d->m_ghostOverlay, [d] {
+        d->m_ghostOverlay->setVisible(d->m_ghostSource->enabled());
+        d->m_ghostOverlay->update();
+    });
 
     // Touch resize handle frame: drawn last, on top of notes and masks
     d->m_noteHandleOverlay = new NoteHandleOverlay;
@@ -1633,6 +1648,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     }
     m_clip = nullptr;
     m_selectionModel->setDataContext(nullptr);
+    m_ghostSource->setHostClip(nullptr);
     m_initialViewportPositionPending = false;
     syncNoteHandleFrame();
 }
@@ -1658,6 +1674,8 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     q->setEnabled(true);
     q->setSceneLength(m_clip->length());
     m_clipRangeOverlay->setClipRange(clip->clipStart(), clip->clipLen());
+    m_ghostOverlay->setOffset(m_offset);
+    m_ghostSource->setHostClip(clip);
 
     for (const auto note : clip->notes())
         handleNoteInserted(note);
@@ -1977,6 +1995,7 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     q->setOffset(m_offset);
     q->setSceneLength(m_clip->length());
     m_clipRangeOverlay->setClipRange(m_clip->clipStart(), m_clip->clipLen());
+    m_ghostOverlay->setOffset(m_offset);
 
     for (const auto note : m_notes) {
         updateNoteTimeAndKey(note);

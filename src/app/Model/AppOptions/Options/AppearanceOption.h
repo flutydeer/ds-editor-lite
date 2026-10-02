@@ -24,6 +24,8 @@ public:
     // Empty string means the platform-default UI font (see FontManager).
     // The font setting is hot-swappable; no restart required.
     QString uiFontFamily;
+    // Draw notes from other tracks in the piano roll as thin reference bars.
+    bool showGhostNotes = true;
 
 protected:
     void save(QJsonObject &object) override;
@@ -34,6 +36,7 @@ private:
     const QString animationTimeScaleKey = "animationTimeScale";
     const QString themeIdKey = "themeId";
     const QString uiFontFamilyKey = "uiFontFamily";
+    const QString showGhostNotesKey = "showGhostNotes";
 };
 
 #endif // APPEARANCEOPTION_H

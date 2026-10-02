@@ -53,3 +53,7 @@ double TimeOverlayView::tickToItemX(double tick) const {
 double TimeOverlayView::sceneYToItemY(double y) const {
     return mapFromScene(QPointF(0, y)).y();
 }
+
+double TimeOverlayView::itemXPerTick() const {
+    return scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+}
