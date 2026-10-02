@@ -45,6 +45,7 @@ private slots:
     void rhiMultiNoteSelectionAndMoveCommitAtomically();
     void rhiNoteResizeUndoRestoresTheHitRegion_data();
     void rhiNoteResizeUndoRestoresTheHitRegion();
+    void rhiNoteEraseStrokeCancelsAndCommitsAtomically_data();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes_data();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();

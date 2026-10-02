@@ -1311,9 +1311,16 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     fixture.waitForFrame();
 }
 
+void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically_data() {
+    QTest::addColumn<bool>("penEraser");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("pen-eraser-under-draw-tool") << true;
+}
+
 void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, penEraser);
     ExistingRhiNoteFixture fixture;
     fixture.initialize();
     if (QTest::currentTestFailed())
@@ -1322,29 +1329,62 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
-    canvas.setEditMode(ClipEditorGlobal::EraseNote);
+    canvas.setEditMode(penEraser ? ClipEditorGlobal::DrawNote : ClipEditorGlobal::EraseNote);
     const auto first = fixture.pointFor(720, 60);
     const auto second = fixture.pointFor(1440, 62);
     QVERIFY(canvas.rect().contains(first) && canvas.rect().contains(second));
     const QList<int> erased{fixture.noteId, fixture.secondNoteId};
     const auto before = fixture.runtime().documentVersion();
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
-    fixture.moveTo(second);
+    const QPointingDevice pen(
+        QStringLiteral("Fixture note eraser"), 1004, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Eraser,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    const auto cancelPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    });
+    const auto press = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletPress, first, 0.7,
+                                                 Qt::LeftButton, Qt::LeftButton));
+        else
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
+    };
+    const auto move = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletMove, second, 0.7,
+                                                 Qt::NoButton, Qt::LeftButton));
+        else
+            fixture.moveTo(second);
+    };
+    const auto release = [&] {
+        if (penEraser)
+            QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletRelease, second, 0,
+                                                 Qt::LeftButton, Qt::NoButton));
+        else
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    };
+    press();
+    move();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(appStatus->pianoRollNoteErasePreview.get(), erased);
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.clip->notes().count(), 2);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QTest::keyClick(&canvas, Qt::Key_Escape);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    release();
     QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.clip->notes().count(), 2);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
-    fixture.moveTo(second);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    press();
+    move();
+    release();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(fixture.clip->notes().count(), 0);
     QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
     QVERIFY(!editSessionManager->hasActiveTransaction());
