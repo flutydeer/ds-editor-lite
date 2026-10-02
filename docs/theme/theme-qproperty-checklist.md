@@ -55,10 +55,14 @@
 ### SwitchButton
 | 属性 | lite-dark 值 |
 |---|---|
-| trackOffColor | rgba(255, 255, 255, 16) |
-| trackOnColor | #9BBAFF |
-| thumbOffColor | #FFFFFF |
-| thumbOnColor | #000000 |
+| trackOffColor | ${switch.trackOff} |
+| trackOnColor | ${switch.trackOn} |
+| thumbOffColor | ${switch.thumbOff} |
+| thumbOnColor | ${switch.thumbOn} |
+| trackOffDisabledColor | ${switch.trackOff.disabled} |
+| trackOnDisabledColor | ${switch.trackOn.disabled} |
+| thumbOffDisabledColor | ${switch.thumbOff.disabled} |
+| thumbOnDisabledColor | ${switch.thumbOn.disabled} |
 
 ### ProgressIndicator
 | 属性 | lite-dark 值 |

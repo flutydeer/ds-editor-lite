@@ -13,6 +13,10 @@ class SwitchButton : public QAbstractButton, public IAnimatable {
     Q_PROPERTY(QColor trackOnColor READ trackOnColor WRITE setTrackOnColor)
     Q_PROPERTY(QColor thumbOffColor READ thumbOffColor WRITE setThumbOffColor)
     Q_PROPERTY(QColor thumbOnColor READ thumbOnColor WRITE setThumbOnColor)
+    Q_PROPERTY(QColor trackOffDisabledColor READ trackOffDisabledColor WRITE setTrackOffDisabledColor)
+    Q_PROPERTY(QColor trackOnDisabledColor READ trackOnDisabledColor WRITE setTrackOnDisabledColor)
+    Q_PROPERTY(QColor thumbOffDisabledColor READ thumbOffDisabledColor WRITE setThumbOffDisabledColor)
+    Q_PROPERTY(QColor thumbOnDisabledColor READ thumbOnDisabledColor WRITE setThumbOnDisabledColor)
 
     // TODO: use QVariantAnimation
     Q_PROPERTY(double apparentValue READ apparentValue WRITE setApparentValue)
@@ -46,7 +50,9 @@ private:
 
     void initUi();
 
-    // Theme colors (QSS-overridable via qproperty-*)
+    // Theme colors (QSS-overridable via qproperty-*). QSS qproperty cannot
+    // express :disabled, so paintEvent picks the disabled variants when
+    // !isEnabled().
     QColor m_trackOffColor = QColor(255, 255, 255, 16);
     [[nodiscard]] QColor trackOffColor() const;
     void setTrackOffColor(const QColor &color);
@@ -59,6 +65,18 @@ private:
     QColor m_thumbOnColor = QColor(0, 0, 0);
     [[nodiscard]] QColor thumbOnColor() const;
     void setThumbOnColor(const QColor &color);
+    QColor m_trackOffDisabledColor = QColor(255, 255, 255, 16);
+    [[nodiscard]] QColor trackOffDisabledColor() const;
+    void setTrackOffDisabledColor(const QColor &color);
+    QColor m_trackOnDisabledColor = QColor(255, 255, 255, 32);
+    [[nodiscard]] QColor trackOnDisabledColor() const;
+    void setTrackOnDisabledColor(const QColor &color);
+    QColor m_thumbOffDisabledColor = QColor(255, 255, 255, 96);
+    [[nodiscard]] QColor thumbOffDisabledColor() const;
+    void setThumbOffDisabledColor(const QColor &color);
+    QColor m_thumbOnDisabledColor = QColor(255, 255, 255, 96);
+    [[nodiscard]] QColor thumbOnDisabledColor() const;
+    void setThumbOnDisabledColor(const QColor &color);
 
     // Animation
     int m_apparentValue = 0;
