@@ -298,6 +298,55 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QCOMPARE(stored->name, QStringLiteral("Updated wire blend"));
     QCOMPARE(stored->fixedWeights, QVector<double>{0.7});
     QCOMPARE(runtime().documentVersion(), beforeCatalog);
+    {
+        QTemporaryDir emptyCatalog;
+        QVERIFY(emptyCatalog.isValid());
+        const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+        const auto restoreCatalog = qScopeGuard([&] {
+            const auto restored = packageManager->refreshInstalledPackages(originalPaths);
+            QVERIFY2(restored, qPrintable(restored ? QString{} : restored.getError().message));
+            QTRY_COMPARE(clip->singerInfo().resolutionState(), ResolutionState::Resolved);
+            QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        });
+        const auto unavailable = packageManager->refreshInstalledPackages({emptyCatalog.path()});
+        QVERIFY2(unavailable, qPrintable(unavailable ? QString{} : unavailable.getError().message));
+        QVERIFY(unavailable.get().successfulPackages.isEmpty());
+        QTRY_COMPARE(clip->singerInfo().resolutionState(), ResolutionState::Missing);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QVERIFY(packageManager->findSingerByIdentifier(singer.identifier()).isEmpty());
+        const auto unavailableVersion = runtime().documentVersion();
+        const auto unavailableProject = TestSupport::projectSnapshot(*context->m_appModel);
+        const auto *unavailableUndo = historyManager->nextUndoEntry();
+        const auto rejected =
+            invoke(QStringLiteral("speaker_mix.presets.save"), {
+                                                                   {"preset", preset}
+        });
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        const auto retainedPreset = SpeakerMixPresetStore::findPreset(id);
+        QVERIFY(retainedPreset);
+        QCOMPARE(retainedPreset->toJson(), stored->toJson());
+        QCOMPARE(runtime().documentVersion(), unavailableVersion);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), unavailableProject);
+        QCOMPARE(historyManager->nextUndoEntry(), unavailableUndo);
+    }
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
+    const auto restoredVersion = runtime().documentVersion();
+    const auto *restoredUndo = historyManager->nextUndoEntry();
+    const auto recovered =
+        invoke(QStringLiteral("speaker_mix.presets.save"), {
+                                                               {"preset", preset}
+    });
+    QVERIFY2(recovered, qPrintable(recovered ? QString{} : recovered.getError().message));
+    QCOMPARE(recovered.get().value("preset").toObject().value("preset_id").toString(), id);
+    const auto recoveredPreset = SpeakerMixPresetStore::findPreset(id);
+    QVERIFY(recoveredPreset);
+    QCOMPARE(recoveredPreset->name, stored->name);
+    QCOMPARE(recoveredPreset->fixedWeights, stored->fixedWeights);
+    QCOMPARE(runtime().documentVersion(), restoredVersion);
+    QCOMPARE(historyManager->nextUndoEntry(), restoredUndo);
     historyManager->reset();
     const Automation::SpeakerMixTargetDto target{Automation::SpeakerMixTargetKind::Clip,
                                                  clip->id()};
@@ -454,7 +503,6 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
-
 
 void ApplicationWorkflowTests::unavailableInferenceProviderFallsBackAndExits() {
     TestSupport::ProcessFixture fixture(QStringLiteral("unavailable-inference-provider"));
