@@ -478,15 +478,20 @@ void ApplicationGuiTests::pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit() 
 
 void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene_data() {
     QTest::addColumn<bool>("usePen");
-    QTest::newRow("mouse") << false;
-    QTest::newRow("pen-tip-with-side-button-noise") << true;
+    QTest::addColumn<bool>("doubleClickWithSelectTool");
+    QTest::newRow("mouse") << false << false;
+    QTest::newRow("pen-tip-with-side-button-noise") << true << false;
+    QTest::newRow("select-tool-double-click") << false << true;
 }
 
 void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
     QFETCH(bool, usePen);
+    QFETCH(bool, doubleClickWithSelectTool);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
+    if (doubleClickWithSelectTool)
+        view->setEditMode(ClipEditorGlobal::Select);
     auto &runtime = *context->m_coreRuntime;
     constexpr int startTick = 480;
     constexpr int endTick = 960;
@@ -520,6 +525,9 @@ void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
         QVERIFY(!TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletPress, press,
                                               0.7, Qt::LeftButton, Qt::LeftButton));
         promotedMouse(QEvent::MouseButtonPress, press);
+    } else if (doubleClickWithSelectTool) {
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
     } else {
         QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
     }
