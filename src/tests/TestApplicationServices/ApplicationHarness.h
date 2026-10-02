@@ -82,7 +82,8 @@ namespace ApplicationTest {
     class ApplicationHarness final {
     public:
         explicit ApplicationHarness(
-            std::optional<Automation::WindowId> windowId = Automation::WindowId::create())
+            std::optional<Automation::WindowId> windowId = Automation::WindowId::create(),
+            std::function<Automation::PublicSettingsSnapshotDto()> publicSettings = {})
             : history(HistoryManager::instance()), settings(validSettings()) {
             history->reset();
             packages.append({
@@ -101,9 +102,11 @@ namespace ApplicationTest {
                     .name = QStringLiteral("Singer"),
                 }},
             });
+            auto settingsRuntime = settingsServices();
+            settingsRuntime.publicSnapshot = std::move(publicSettings);
             runtime = std::make_unique<Automation::CoreRuntime>(
                 &model, history, Automation::DocumentRuntimeServices{}, playbackServices(),
-                editorServices(), settingsServices(), presetServices(), packageServices(),
+                editorServices(), std::move(settingsRuntime), presetServices(), packageServices(),
                 Automation::InferenceRuntimeServices{}, Automation::FileRuntimeServices{},
                 Automation::AudioExportRuntimeServices{}, Automation::ExtractionRuntimeServices{},
                 applicationServices(), std::move(windowId));

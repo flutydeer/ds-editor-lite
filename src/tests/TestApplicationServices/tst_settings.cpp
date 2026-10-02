@@ -6,6 +6,47 @@
 
 using namespace ApplicationTest;
 
+Q_DECLARE_METATYPE(Automation::AudioDeviceSettingsPatchDto)
+Q_DECLARE_METATYPE(Automation::ComputeDeviceSettingsPatchDto)
+
+namespace {
+    template <typename Update>
+    void exerciseDeviceSelection(ApplicationHarness &harness, Update update,
+                                 const Automation::SettingsSnapshotDto &expected,
+                                 const QString &rejectedField,
+                                 const QStringList &restartFields = {}) {
+        const auto before = harness.settings;
+        const auto version = harness.core().documentVersion();
+        const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
+        const auto preview = update(applicationContext(true));
+        QCOMPARE(harness.settings, before);
+        QCOMPARE(harness.settingsWriteAttempts, 0);
+        const auto committed = update(applicationContext());
+        if (!rejectedField.isEmpty()) {
+            for (const auto *result : {&preview, &committed}) {
+                QVERIFY(!*result);
+                QCOMPARE(result->getError().code, Automation::AutomationErrorCode::InvalidArgument);
+                QCOMPARE(result->getError().fieldPath, rejectedField);
+            }
+            QCOMPARE(harness.settingsWriteAttempts, 0);
+            QCOMPARE(harness.settings, before);
+        } else {
+            QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
+            QVERIFY(committed && committed.get().changed && !committed.get().validatedOnly);
+            QCOMPARE(preview.get().restartRequiredFields, restartFields);
+            QCOMPARE(committed.get().restartRequiredFields, restartFields);
+            QCOMPARE(committed.get().restartRequired, !restartFields.isEmpty());
+            QCOMPARE(harness.settings, expected);
+            const auto repeated = update(applicationContext());
+            QVERIFY(repeated && !repeated.get().changed && !repeated.get().restartRequired);
+            QCOMPARE(harness.settingsWriteAttempts, 1);
+            QCOMPARE(harness.settingsWrites, 1);
+        }
+        QCOMPARE(harness.core().documentVersion(), version);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBefore);
+    }
+}
+
 void ApplicationServicesTests::settingsPathProjection() {
     ApplicationHarness harness;
     harness.settings.general.packageSearchPaths = {QStringLiteral("allowed/voices"),
@@ -109,6 +150,136 @@ void ApplicationServicesTests::sparseSettingsPreviewAndFailure() {
     QVERIFY2((!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
               harness.settings == beforeFailure),
              qPrintable(QStringLiteral("settings persistence failure must roll back atomically")));
+}
+
+void ApplicationServicesTests::audioDeviceSettingsFollowAvailableCandidates_data() {
+    QTest::addColumn<Automation::AudioDeviceSettingsPatchDto>("patch");
+    QTest::addColumn<QString>("rejectedField");
+    const Automation::AudioDeviceSettingsPatchDto available{
+        .driverName = QStringLiteral(" test-driver "),
+        .deviceName = QStringLiteral(" test-device "),
+        .bufferSize = 256,
+        .sampleRate = 48000.0,
+    };
+    QTest::newRow("supported-device-format") << available << QString{};
+    auto unavailableDriver = available;
+    unavailableDriver.driverName = QStringLiteral("offline-driver");
+    QTest::newRow("unavailable-driver") << unavailableDriver << QStringLiteral("driver_name");
+    auto unavailableDevice = available;
+    unavailableDevice.deviceName = QStringLiteral("offline-device");
+    QTest::newRow("unavailable-device") << unavailableDevice << QStringLiteral("device_name");
+    auto unsupportedBuffer = available;
+    unsupportedBuffer.bufferSize = 1024;
+    QTest::newRow("unsupported-device-buffer")
+        << unsupportedBuffer << QStringLiteral("buffer_size");
+    auto unsupportedRate = available;
+    unsupportedRate.sampleRate = 96000.0;
+    QTest::newRow("unsupported-device-sample-rate")
+        << unsupportedRate << QStringLiteral("sample_rate");
+}
+
+void ApplicationServicesTests::audioDeviceSettingsFollowAvailableCandidates() {
+    QFETCH(Automation::AudioDeviceSettingsPatchDto, patch);
+    QFETCH(QString, rejectedField);
+    Automation::PublicSettingsSnapshotDto candidates;
+    candidates.audioDevice = Automation::AudioDevicePublicSettingsDto{
+        .drivers =
+            {
+                      {.id = QStringLiteral("test-driver"),
+                 .devices =
+                     {
+                         {.id = QStringLiteral("test-device"),
+                          .bufferSizes = {256, 512},
+                          .sampleRates = {44100.0, 48000.0}},
+                         {.id = QStringLiteral("offline-device"), .available = false},
+                     }},
+                      {.id = QStringLiteral("offline-driver"), .available = false},
+                      },
+    };
+    ApplicationHarness harness(Automation::WindowId::create(), [&] { return candidates; });
+    auto expected = harness.settings;
+    expected.audio.driverName = QStringLiteral("test-driver");
+    expected.audio.deviceName = QStringLiteral("test-device");
+    expected.audio.adoptedBufferSize = 256;
+    expected.audio.adoptedSampleRate = 48000.0;
+    exerciseDeviceSelection(
+        harness,
+        [&](const auto &command) {
+            return harness.core().settings().updateAudioDevice(command, patch);
+        },
+        expected, rejectedField);
+}
+
+void ApplicationServicesTests::computeDeviceSettingsMatchAvailableGpuIdentity_data() {
+    QTest::addColumn<Automation::ComputeDeviceSettingsPatchDto>("patch");
+    QTest::addColumn<QString>("rejectedField");
+    const Automation::ComputeDeviceSettingsPatchDto available{
+        .executionProvider = QStringLiteral("DirectML"),
+        .gpuIndex = 1,
+        .gpuId = QStringLiteral(" gpu-b "),
+    };
+    QTest::newRow("matching-gpu-identity") << available << QString{};
+    auto mismatchedIndex = available;
+    mismatchedIndex.gpuIndex = 0;
+    QTest::newRow("gpu-index-does-not-match-id") << mismatchedIndex << QStringLiteral("gpu_id");
+    auto unavailableGpu = available;
+    unavailableGpu.gpuId = QStringLiteral("offline-gpu");
+    QTest::newRow("unavailable-gpu") << unavailableGpu << QStringLiteral("gpu_id");
+    auto unavailableProvider = available;
+    unavailableProvider.executionProvider = QStringLiteral("CUDA");
+    QTest::newRow("unavailable-provider")
+        << unavailableProvider << QStringLiteral("execution_provider");
+}
+
+void ApplicationServicesTests::computeDeviceSettingsMatchAvailableGpuIdentity() {
+    QFETCH(Automation::ComputeDeviceSettingsPatchDto, patch);
+    QFETCH(QString, rejectedField);
+    Automation::PublicSettingsSnapshotDto candidates;
+    candidates.computeDevice = Automation::ComputeDevicePublicSettingsDto{
+        .providerCandidates =
+            {
+                                 {QStringLiteral("CPU"), QStringLiteral("CPU"), true, {}},
+                                 {QStringLiteral("DirectML"), QStringLiteral("DirectML"), true, {}},
+                                 {QStringLiteral("CUDA"), QStringLiteral("CUDA"), false,
+                 QStringLiteral("Unavailable")},
+                                 },
+        .gpuCandidates =
+            {
+                                 {0, QStringLiteral("gpu-a"), QStringLiteral("GPU A"), true, {}},
+                                 {1, QStringLiteral("gpu-b"), QStringLiteral("GPU B"), true, {}},
+                                 {1, QStringLiteral("offline-gpu"), QStringLiteral("Offline GPU"), false, {}},
+                                 },
+    };
+    ApplicationHarness harness(Automation::WindowId::create(), [&] { return candidates; });
+    auto &runtime = harness.core();
+    const auto before = harness.settings;
+    const auto version = runtime.documentVersion();
+    const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
+    auto expected = before;
+    expected.inference.executionProvider = QStringLiteral("DirectML");
+    expected.inference.selectedGpuIndex = 1;
+    expected.inference.selectedGpuId = QStringLiteral("gpu-b");
+    const QStringList restartFields{QStringLiteral("execution_provider"),
+                                    QStringLiteral("gpu_index"), QStringLiteral("gpu_id")};
+    exerciseDeviceSelection(
+        harness,
+        [&](const auto &command) { return runtime.settings().updateComputeDevice(command, patch); },
+        expected, rejectedField, restartFields);
+    if (QTest::currentTestFailed())
+        return;
+    if (rejectedField.isEmpty()) {
+        candidates.computeDevice->gpuCandidates[1].available = false;
+        const auto cpu = runtime.settings().updateComputeDevice(
+            applicationContext(), {.executionProvider = QStringLiteral("CPU")});
+        QVERIFY(cpu && cpu.get().changed && cpu.get().restartRequired);
+        QCOMPARE(cpu.get().restartRequiredFields,
+                 QStringList{QStringLiteral("execution_provider")});
+        expected.inference.executionProvider = QStringLiteral("CPU");
+        QCOMPARE(harness.settings, expected);
+        QCOMPARE(harness.settingsWrites, 2);
+    }
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBefore);
 }
 
 namespace {

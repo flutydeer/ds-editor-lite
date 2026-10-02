@@ -42,6 +42,10 @@ private slots:
     void settingsPathProjection();
     void sparseSettingsUpdatesPreserveOtherValues();
     void sparseSettingsPreviewAndFailure();
+    void audioDeviceSettingsFollowAvailableCandidates_data();
+    void audioDeviceSettingsFollowAvailableCandidates();
+    void computeDeviceSettingsMatchAvailableGpuIdentity_data();
+    void computeDeviceSettingsMatchAvailableGpuIdentity();
     void packageVersionAndPathProjection();
     void packageRefreshPreviewAndResultProjection();
     void editorViewCommands_data();
