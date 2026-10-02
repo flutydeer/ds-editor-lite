@@ -46,6 +46,7 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers_data() {
     QTest::newRow("text-drag-platform-cancel") << QStringLiteral("cancel");
     QTest::newRow("submit-before-lift") << QStringLiteral("submit");
     QTest::newRow("text-menu-on-lift") << QStringLiteral("menu");
+    QTest::newRow("text-menu-after-delayed-timer") << QStringLiteral("late-menu");
 }
 
 void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
@@ -92,12 +93,16 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
     const auto right =
         input->mapTo(view->viewport(), QPoint(input->width() - 4, input->height() / 2));
     const auto viewport = view->visibleRect();
-    sequence.press(0, right).commit();
-    if (finish == QStringLiteral("menu")) {
-        QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
+    const auto delayedTimer = finish == QStringLiteral("late-menu");
+    sequence.press(0, right).commit(!delayedTimer);
+    if (finish == QStringLiteral("menu") || delayedTimer) {
+        if (delayedTimer)
+            QTest::qSleep(EditorTouchGesture::Config{}.longPressMs + 50);
+        else
+            QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
         QVERIFY(QApplication::activePopupWidget() == nullptr);
         QCOMPARE(runtime.documentVersion(), before);
-        sequence.release(0, right).commit();
+        sequence.release(0, right).commit(!delayedTimer);
         QTRY_VERIFY2(qobject_cast<QMenu *>(QApplication::activePopupWidget()),
                      qPrintable(QStringLiteral("editing=%1 inputFocus=%2 ownerActive=%3 draft=%4")
                                     .arg(overlay->isEditing())
