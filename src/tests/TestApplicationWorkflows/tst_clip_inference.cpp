@@ -16,6 +16,7 @@
 #include "Modules/Inference/Tasks/InferPitchTask.h"
 #include "Modules/Inference/Tasks/InferVarianceTask.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -46,6 +47,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <utility>
 
 namespace {
     bool inferenceSettled(const SingingClip *clip) {
@@ -889,7 +891,9 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
     QVERIFY(cache.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
     const auto previousSteps = appOptions->inference()->samplingSteps;
+    const auto previousKernel = appOptions->inference()->pitch_smooth_kernel_size;
     const auto changedSteps = previousSteps == 20 ? 21 : 20;
+    const auto changedKernel = previousKernel == 3 ? 5 : 3;
     appOptions->inference()->cacheDirectory = cache.path();
     QSemaphore entered;
     QSemaphore release;
@@ -908,7 +912,8 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
         appOptions->inference()->cacheDirectory = previousCache;
         const auto restored = runtime().settings().updateRender(
-            {.source = Automation::InvocationSource::Test}, {.samplingSteps = previousSteps});
+            {.source = Automation::InvocationSource::Test},
+            {.samplingSteps = previousSteps, .pitchSmoothKernelSize = previousKernel});
         QVERIFY(restored);
     });
     prepareVoicebankTarget();
@@ -917,7 +922,7 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
     const QPointer<InferPiece> target(piece);
     QPointer<InferPitchTask> originalTask;
     bool captured = false;
-    QList<int> submittedSteps;
+    QList<std::pair<int, int>> submittedSettings;
     QStringList submittedSignatures;
     connect(taskManager, &TaskManager::taskChanged, &observations,
             [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
@@ -925,7 +930,8 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
                 if (change != TaskManager::Added || !candidate || !target ||
                     candidate->pieceId() != target->id())
                     return;
-                submittedSteps.append(candidate->input().steps);
+                const auto input = candidate->input();
+                submittedSettings.emplaceBack(input.steps, input.pitchSmoothKernelSize);
                 submittedSignatures.append(candidate->inferenceContext().inputSignature);
                 if (captured)
                     return;
@@ -956,14 +962,38 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
     const auto lyric = note->lyric();
     const auto key = note->keyIndex();
     const auto length = note->length();
-    const auto changed = runtime().settings().updateRender(
-        {.source = Automation::InvocationSource::Test}, {.samplingSteps = changedSteps});
+    const auto beforeSettings = runtime().settings().getSettings();
+    QVERIFY(beforeSettings);
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(runtime(), access, fileGuard, admission);
+    const auto changed =
+        registry.invoke(QStringLiteral("settings.render.update"),
+                        {
+                            {QStringLiteral("sampling_steps"),           changedSteps },
+                            {QStringLiteral("pitch_smooth_kernel_size"), changedKernel}
+    },
+                        {.clientId = QStringLiteral("render-settings-client"),
+                         .source = Automation::InvocationSource::PublicJsonRpc});
     QVERIFY2(changed, qPrintable(changed ? QString() : changed.getError().message));
     QCOMPARE(appOptions->inference()->samplingSteps, changedSteps);
+    QCOMPARE(appOptions->inference()->pitch_smooth_kernel_size, changedKernel);
+    auto expectedSettings = beforeSettings.get();
+    expectedSettings.inference.samplingSteps = changedSteps;
+    expectedSettings.inference.pitchSmoothKernelSize = changedKernel;
+    const auto afterSettings = runtime().settings().getSettings();
+    QVERIFY(afterSettings);
+    QCOMPARE(afterSettings.get(), expectedSettings);
+    AppOptions reopened;
+    QCOMPARE(reopened.inference()->samplingSteps, changedSteps);
+    QCOMPARE(reopened.inference()->pitch_smooth_kernel_size, changedKernel);
     release.release();
     QVERIFY(completed.tryAcquire(1, 10000));
-    QTRY_VERIFY_WITH_TIMEOUT(submittedSteps.contains(changedSteps) && inferenceSettled(clip),
-                             15000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        submittedSettings.contains(std::make_pair(changedSteps, changedKernel)) &&
+            inferenceSettled(clip),
+        15000);
     QVERIFY(originalCanceled.load());
     QVERIFY(submittedSignatures.size() > 1);
     QVERIFY(submittedSignatures.last() != originalSignature);
