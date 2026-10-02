@@ -11,6 +11,7 @@
 #include <memory>
 
 class AppContext;
+
 namespace TestSupport {
     class ClipboardSnapshot;
 }
@@ -59,8 +60,8 @@ private slots:
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
     void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument();
-    void escapeCancelsParameterStrokeWithoutChangingDocument_data();
-    void escapeCancelsParameterStrokeWithoutChangingDocument();
+    void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry_data();
+    void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry();
     void pitchAnchorCreationPreviewsBeforeCommitting();
     void pitchAnchorRangeEditsUseTheViewAndMenu();
     void pitchAnchorMergePreviewCommitsAndUndoes();

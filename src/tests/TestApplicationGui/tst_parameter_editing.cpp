@@ -12,6 +12,7 @@
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "../TestSupport/PointerInput.h"
+#include "../TestSupport/PointerEvents.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/ComboBox.h>
@@ -424,14 +425,17 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QCOMPARE(runtime.documentVersion().revision, before.revision + 3);
 }
 
-void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument_data() {
+void ApplicationGuiTests::parameterStrokeInterruptionPreservesDocumentAndAllowsRetry_data() {
     QTest::addColumn<bool>("eraseStroke");
-    QTest::newRow("draw-over-existing-curve") << false;
-    QTest::newRow("right-button-erases-a-local-range") << true;
+    QTest::addColumn<bool>("penEraser");
+    QTest::newRow("draw-over-existing-curve") << false << false;
+    QTest::newRow("right-button-erases-a-local-range") << true << false;
+    QTest::newRow("pen-eraser-loses-window-activation") << true << true;
 }
 
-void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() {
+void ApplicationGuiTests::parameterStrokeInterruptionPreservesDocumentAndAllowsRetry() {
     QFETCH(bool, eraseStroke);
+    QFETCH(bool, penEraser);
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
     clipController->setClip(clip);
@@ -475,8 +479,51 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
         return eraseStroke ? value == -1 : qAbs(value - 750) <= valuePerPixel;
     };
     const auto button = eraseStroke ? Qt::RightButton : Qt::LeftButton;
-    QTest::mousePress(editor.view.viewport(), button, Qt::NoModifier, overwriteStart);
-    editor.moveWithButton(overwriteEnd, button);
+    const QPointingDevice device(
+        QStringLiteral("Fixture parameter pen"), 1002, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Eraser,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 1);
+    const auto deactivate = [&] {
+        QEvent event(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&editor.view, &event);
+    };
+    const auto cleanup = qScopeGuard(deactivate);
+    const auto pressAndMove = [&] {
+        if (penEraser) {
+            QVERIFY(TestSupport::sendTabletEvent(*editor.view.viewport(), device,
+                                                 QEvent::TabletPress, overwriteStart, 0.7,
+                                                 Qt::LeftButton, Qt::LeftButton));
+            QVERIFY(TestSupport::sendTabletEvent(*editor.view.viewport(), device,
+                                                 QEvent::TabletMove, overwriteEnd, 0.7,
+                                                 Qt::NoButton, Qt::LeftButton));
+        } else {
+            QTest::mousePress(editor.view.viewport(), button, Qt::NoModifier, overwriteStart);
+            editor.moveWithButton(overwriteEnd, button);
+        }
+    };
+    const auto releaseStroke = [&] {
+        if (penEraser) {
+            QVERIFY(TestSupport::sendTabletEvent(*editor.view.viewport(), device,
+                                                 QEvent::TabletRelease, overwriteEnd, 0.0,
+                                                 Qt::LeftButton, Qt::NoButton));
+        } else {
+            QTest::mouseRelease(editor.view.viewport(), button, Qt::NoModifier, overwriteEnd);
+        }
+    };
+    const auto normalMouseStillDraws = [&] {
+        const auto beforeMouse = runtime.documentVersion();
+        QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, overwriteStart);
+        editor.moveWithButton(overwriteEnd);
+        QVERIFY(qAbs(valueAt(editor.foreground->editedCurves(), 720) - 750) <= valuePerPixel);
+        QTest::keyClick(&editor.view, Qt::Key_Escape);
+        QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, overwriteEnd);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(runtime.documentVersion(), beforeMouse);
+        QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+    };
+    pressAndMove();
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(editSessionManager->hasActiveTransaction());
     QVERIFY(editor.foreground->editedCurves().first()->values() != baselineValues);
     QVERIFY(matchesStrokeValue(valueAt(editor.foreground->editedCurves(), 720)));
@@ -485,8 +532,12 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QCOMPARE(baseline->values(), baselineValues);
     QCOMPARE(runtime.documentVersion(), before);
 
-    QTest::keyClick(&editor.view, Qt::Key_Escape);
-    QTest::mouseRelease(editor.view.viewport(), button, Qt::NoModifier, overwriteEnd);
+    if (penEraser) {
+        deactivate();
+    } else {
+        QTest::keyClick(&editor.view, Qt::Key_Escape);
+        releaseStroke();
+    }
     QCOMPARE(discarded.count(), 1);
     QCOMPARE(committed.count(), 0);
     QVERIFY(!editSessionManager->hasActiveTransaction());
@@ -503,9 +554,17 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QVERIFY(historyManager->canUndo());
     QVERIFY(!historyManager->canRedo());
 
-    QTest::mousePress(editor.view.viewport(), button, Qt::NoModifier, overwriteStart);
-    editor.moveWithButton(overwriteEnd, button);
-    QTest::mouseRelease(editor.view.viewport(), button, Qt::NoModifier, overwriteEnd);
+    if (penEraser) {
+        normalMouseStillDraws();
+        if (QTest::currentTestFailed())
+            return;
+    }
+    pressAndMove();
+    if (QTest::currentTestFailed())
+        return;
+    releaseStroke();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(committed.count(), 1);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     const auto edited = AppModelUtils::getDrawCurves(parameter->curves(Param::Edited));
@@ -517,6 +576,8 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     QCOMPARE(editor.foreground->editedCurves().size(), 1);
     QCOMPARE(editor.foreground->editedCurves().first()->values(), baselineValues);
+    if (penEraser)
+        normalMouseStillDraws();
 }
 
 void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel_data() {
