@@ -16,6 +16,8 @@
 #include <QString>
 
 class ClipRangeOverlay;
+class GhostNoteOverlay;
+class GhostNoteSource;
 class NoteHandleOverlay;
 class AnchorOverlayView;
 class PitchEditorView;
@@ -58,6 +60,8 @@ public:
     CurveTransform::PitchContext m_pitchTransformContext;
     AnchorOverlayView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
+    GhostNoteOverlay *m_ghostOverlay = nullptr;
+    GhostNoteSource *m_ghostSource = nullptr;
     NoteHandleOverlay *m_noteHandleOverlay = nullptr;
     // Id of the note currently drawn with the handle frame, -1 for no frame. Only
     // the id is kept, never a pointer, so deleting a note leaves no dangling

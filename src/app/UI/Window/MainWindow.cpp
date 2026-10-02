@@ -53,10 +53,12 @@
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QMouseEvent>
 #include <QMimeData>
 #include <QProcess>
 #include <QShortcut>
 #include <QSplitter>
+#include <QWindow>
 #include <QWKWidgets/widgetwindowagent.h>
 
 #include <cmath>
@@ -268,6 +270,17 @@ void MainWindow::updateWindowTitle() {
                                           : document->projectName;
     setWindowTitle((document->saved ? QString() : QStringLiteral("● ")) + displayName);
     updateShutdownBlockReason();
+}
+
+bool MainWindow::event(QEvent *event) {
+    // Keep the right-edge workaround filter attached to the platform window,
+    // re-installing it whenever the native window is recreated (e.g. by
+    // setWindowFlag calls).
+    if (event->type() == QEvent::WinIdChange) {
+        if (auto *window = windowHandle())
+            window->installEventFilter(this);
+    }
+    return QMainWindow::event(event);
 }
 
 void MainWindow::changeEvent(QEvent *event) {
@@ -881,6 +894,38 @@ void MainWindow::attachBottomPanel() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == windowHandle()) {
+        switch (event->type()) {
+            case QEvent::MouseMove:
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick: {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                const QPointF pos = mouseEvent->position();
+                // With non-integral DPI factors the window's last logical pixel
+                // column never resolves to any child in QWidget::childAt (its
+                // float-point rect check stops at width-1), so the frameless
+                // title bar buttons lose hover and clicks when a maximized
+                // window reaches the screen edge. Re-dispatch such events
+                // nudged one physical column to the left when they land on a
+                // system button; the clone goes through the regular
+                // QWidgetWindow path so Qt maintains all hover/press state.
+                if (pos.x() >= width() - 1.0 && m_titleBar->systemButtonAt(pos)) {
+                    const QPointF fixedPos(width() - 1.5, pos.y());
+                    QMouseEvent fixed(mouseEvent->type(), fixedPos, fixedPos,
+                                      mouseEvent->globalPosition(), mouseEvent->button(),
+                                      mouseEvent->buttons(), mouseEvent->modifiers(),
+                                      mouseEvent->source(), mouseEvent->pointingDevice());
+                    fixed.setTimestamp(mouseEvent->timestamp());
+                    QCoreApplication::sendEvent(watched, &fixed);
+                    return true;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
     if (watched == m_bottomPanelView && event->type() == QEvent::WindowActivate) {
         editorViewController->activatePanelContext(m_bottomPanelView->panelType());
         return false;

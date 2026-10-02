@@ -25,6 +25,7 @@
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -191,6 +192,11 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             onDragAutoScrollFrame(dtMs);
     });
 
+    // A theme switch re-reads every color during the next frame rebuild; without this
+    // the widget keeps blitting the last frame texture with the old palette until the
+    // next interaction.
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            &TracksRhiWidget::scheduleSnapshot);
     connect(appModel, &AppModel::modelChanged, this, [this] {
         rebuildModelConnections();
         m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);

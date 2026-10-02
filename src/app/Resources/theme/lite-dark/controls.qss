@@ -1312,10 +1312,14 @@ SeekBar {
 
 /* SwitchButton */
 SwitchButton {
-    qproperty-trackOffColor: ${control.fill.default};
-    qproperty-trackOnColor: ${accent.default};
-    qproperty-thumbOffColor: ${text.emphasis};
-    qproperty-thumbOnColor: ${icon.onAccent};
+    qproperty-trackOffColor: ${switch.trackOff};
+    qproperty-trackOnColor: ${switch.trackOn};
+    qproperty-thumbOffColor: ${switch.thumbOff};
+    qproperty-thumbOnColor: ${switch.thumbOn};
+    qproperty-trackOffDisabledColor: ${switch.trackOff.disabled};
+    qproperty-trackOnDisabledColor: ${switch.trackOn.disabled};
+    qproperty-thumbOffDisabledColor: ${switch.thumbOff.disabled};
+    qproperty-thumbOnDisabledColor: ${switch.thumbOn.disabled};
 }
 
 /* ProgressIndicator */

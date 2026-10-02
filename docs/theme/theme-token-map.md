@@ -162,6 +162,14 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `checkBox.fill.unchecked` | 未选中复选框的默认填充 |
 | `checkBox.fill.uncheckedHover` | 未选中复选框的悬停填充 |
 | `checkBox.fill.uncheckedPressed` | 未选中复选框的按下填充 |
+| `switch.trackOff` | 开关未选中轨道 |
+| `switch.trackOn` | 开关选中轨道 |
+| `switch.thumbOff` | 开关未选中滑块 |
+| `switch.thumbOn` | 开关选中滑块 |
+| `switch.trackOff.disabled` | 开关禁用时的未选中轨道 |
+| `switch.trackOn.disabled` | 开关禁用时的选中轨道 |
+| `switch.thumbOff.disabled` | 开关禁用时的未选中滑块 |
+| `switch.thumbOn.disabled` | 开关禁用时的选中滑块 |
 | `scrollbar.handle` | 滚动条手柄默认填充 |
 | `scrollbar.handleHover` | 滚动条手柄悬停填充 |
 | `scrollbar.handlePressed` | 滚动条手柄按下填充 |

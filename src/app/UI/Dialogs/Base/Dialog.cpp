@@ -2,8 +2,11 @@
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QCoreApplication>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QWKWidgets/widgetwindowagent.h>
+#include <QWindow>
 
 #include "DialogTitleBar.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -112,6 +115,47 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
 Dialog::~Dialog() {
     ThemeManager::instance()->removeWindow(this);
     delete m_buttonBar;
+}
+
+bool Dialog::event(QEvent *event) {
+    // Keep the right-edge workaround filter attached to the platform window,
+    // re-installing it whenever the native window is recreated (e.g. by
+    // setWindowFlag calls).
+    if (event->type() == QEvent::WinIdChange) {
+        if (auto *window = windowHandle())
+            window->installEventFilter(this);
+    }
+    return QDialog::event(event);
+}
+
+bool Dialog::eventFilter(QObject *watched, QEvent *event) {
+    if (m_dialogTitleBar && watched == windowHandle()) {
+        switch (event->type()) {
+            case QEvent::MouseMove:
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick: {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                const QPointF pos = mouseEvent->position();
+                // Same right-edge gap workaround as MainWindow::eventFilter; see
+                // docs/design/title-bar-edge-deadzone-fix-design.md.
+                if (pos.x() >= width() - 1.0 && m_dialogTitleBar->systemButtonAt(pos)) {
+                    const QPointF fixedPos(width() - 1.5, pos.y());
+                    QMouseEvent fixed(mouseEvent->type(), fixedPos, fixedPos,
+                                      mouseEvent->globalPosition(), mouseEvent->button(),
+                                      mouseEvent->buttons(), mouseEvent->modifiers(),
+                                      mouseEvent->source(), mouseEvent->pointingDevice());
+                    fixed.setTimestamp(mouseEvent->timestamp());
+                    QCoreApplication::sendEvent(watched, &fixed);
+                    return true;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 void Dialog::setTitle(const QString &title) const {

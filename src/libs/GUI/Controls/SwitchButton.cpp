@@ -65,9 +65,15 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     m_trackEnd.setY(m_halfRectHeight);
     const auto trackLength = m_trackEnd.x() - m_trackStart.x();
 
+    // QSS qproperty cannot express :disabled, so pick the color set here
+    const auto trackOffColor = isEnabled() ? m_trackOffColor : m_trackOffDisabledColor;
+    const auto trackOnColor = isEnabled() ? m_trackOnColor : m_trackOnDisabledColor;
+    const auto thumbOffColor = isEnabled() ? m_thumbOffColor : m_thumbOffDisabledColor;
+    const auto thumbOnColor = isEnabled() ? m_thumbOnColor : m_thumbOnDisabledColor;
+
     // Draw inactive background
     pen.setWidthF(rect().height() - m_vPadding * 2);
-    auto trackOff = m_trackOffColor;
+    auto trackOff = trackOffColor;
     if (m_apparentValue == 255)
         trackOff.setAlpha(0);
     pen.setColor(trackOff);
@@ -81,7 +87,7 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
         alpha = 255;
     if (alpha < 0)
         alpha = 0;
-    auto trackOn = m_trackOnColor;
+    auto trackOn = trackOnColor;
     trackOn.setAlpha(alpha * trackOn.alpha() / 255);
     pen.setColor(trackOn);
     painter.setPen(pen);
@@ -98,11 +104,13 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
         t = 255;
     if (t < 0)
         t = 0;
-    // Interpolate thumb color between off and on states
+    // Interpolate thumb color between off and on states (alpha included, or
+    // translucent disabled tokens would render fully opaque)
     const auto lerp = [t](const int from, const int to) { return from + (to - from) * t / 255; };
-    painter.setBrush(QColor(lerp(m_thumbOffColor.red(), m_thumbOnColor.red()),
-                            lerp(m_thumbOffColor.green(), m_thumbOnColor.green()),
-                            lerp(m_thumbOffColor.blue(), m_thumbOnColor.blue())));
+    painter.setBrush(QColor(lerp(thumbOffColor.red(), thumbOnColor.red()),
+                            lerp(thumbOffColor.green(), thumbOnColor.green()),
+                            lerp(thumbOffColor.blue(), thumbOnColor.blue()),
+                            lerp(thumbOffColor.alpha(), thumbOnColor.alpha())));
     painter.drawEllipse(handlePos, thumbRadius, thumbRadius);
 }
 
@@ -168,6 +176,50 @@ void SwitchButton::setThumbOnColor(const QColor &color) {
     update();
 }
 
+QColor SwitchButton::trackOffDisabledColor() const {
+    return m_trackOffDisabledColor;
+}
+
+void SwitchButton::setTrackOffDisabledColor(const QColor &color) {
+    if (m_trackOffDisabledColor == color)
+        return;
+    m_trackOffDisabledColor = color;
+    update();
+}
+
+QColor SwitchButton::trackOnDisabledColor() const {
+    return m_trackOnDisabledColor;
+}
+
+void SwitchButton::setTrackOnDisabledColor(const QColor &color) {
+    if (m_trackOnDisabledColor == color)
+        return;
+    m_trackOnDisabledColor = color;
+    update();
+}
+
+QColor SwitchButton::thumbOffDisabledColor() const {
+    return m_thumbOffDisabledColor;
+}
+
+void SwitchButton::setThumbOffDisabledColor(const QColor &color) {
+    if (m_thumbOffDisabledColor == color)
+        return;
+    m_thumbOffDisabledColor = color;
+    update();
+}
+
+QColor SwitchButton::thumbOnDisabledColor() const {
+    return m_thumbOnDisabledColor;
+}
+
+void SwitchButton::setThumbOnDisabledColor(const QColor &color) {
+    if (m_thumbOnDisabledColor == color)
+        return;
+    m_thumbOnDisabledColor = color;
+    update();
+}
+
 void SwitchButton::updateAnimationDuration() {
     const auto valueDuration = getEffectiveAnimationTime(400);
     const auto hoverDuration = getEffectiveAnimationTime(200);
@@ -197,21 +249,30 @@ void SwitchButton::updateAnimationDuration() {
 
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     const auto type = event->type();
-    if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
-        m_thumbHoverAnimation.stop();
-        m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
-        m_thumbHoverAnimation.setEndValue(125);
-        m_thumbHoverAnimation.start();
-    } else if (type == QEvent::HoverLeave) {
+    if (type == QEvent::EnabledChange) {
+        // HoverLeave never arrives once disabled, shrink the thumb back smoothly
         m_thumbHoverAnimation.stop();
         m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
         m_thumbHoverAnimation.setEndValue(100);
         m_thumbHoverAnimation.start();
-    } else if (type == QEvent::MouseButtonPress) {
-        m_thumbHoverAnimation.stop();
-        m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
-        m_thumbHoverAnimation.setEndValue(85);
-        m_thumbHoverAnimation.start();
+        update();
+    } else if (isEnabled()) {
+        if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
+            m_thumbHoverAnimation.stop();
+            m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
+            m_thumbHoverAnimation.setEndValue(125);
+            m_thumbHoverAnimation.start();
+        } else if (type == QEvent::HoverLeave) {
+            m_thumbHoverAnimation.stop();
+            m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
+            m_thumbHoverAnimation.setEndValue(100);
+            m_thumbHoverAnimation.start();
+        } else if (type == QEvent::MouseButtonPress) {
+            m_thumbHoverAnimation.stop();
+            m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
+            m_thumbHoverAnimation.setEndValue(85);
+            m_thumbHoverAnimation.start();
+        }
     }
     return QObject::eventFilter(object, event);
 }

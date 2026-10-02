@@ -153,6 +153,15 @@
         "checkBox.fill.uncheckedHover": "{neutral.250}",
         "checkBox.fill.uncheckedPressed": "{neutral.300}",
 
+        "switch.trackOff": "{neutral.black04}",
+        "switch.trackOn": "{accent.500}",
+        "switch.thumbOff": "{neutral.1000}",
+        "switch.thumbOn": "{neutral.0}",
+        "switch.trackOff.disabled": "{neutral.black04}",
+        "switch.trackOn.disabled": "{neutral.black13}",
+        "switch.thumbOff.disabled": "{neutral.black38}",
+        "switch.thumbOn.disabled": "{neutral.black38}",
+
         "scrollbar.handle": "{neutral.black28}",
         "scrollbar.handleHover": "{neutral.black38}",
         "scrollbar.handlePressed": "{neutral.black20}",

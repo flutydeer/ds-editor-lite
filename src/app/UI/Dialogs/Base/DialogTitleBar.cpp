@@ -94,6 +94,16 @@ SystemWindowButton *DialogTitleBar::closeButton() const {
     return m_btnClose;
 }
 
+SystemWindowButton *DialogTitleBar::systemButtonAt(const QPointF &windowPos) const {
+    if (!m_btnClose || m_btnClose->isHidden())
+        return nullptr;
+    const QRect geo(m_btnClose->mapTo(m_window, QPoint(0, 0)), m_btnClose->size());
+    if (windowPos.y() >= geo.top() && windowPos.y() < geo.bottom() &&
+        windowPos.x() >= geo.left())
+        return m_btnClose;
+    return nullptr;
+}
+
 void DialogTitleBar::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
 }

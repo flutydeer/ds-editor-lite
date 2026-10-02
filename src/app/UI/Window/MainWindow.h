@@ -82,6 +82,7 @@ public slots:
     void closeAppOptions();
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
