@@ -364,6 +364,10 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
                 dispatch(m_gesture.moved(point.id(), position, timestamp));
                 break;
             case QEventPoint::State::Released:
+                // Resolve an expired hold before release discards the pending phase.
+                if (const auto deadline = m_gesture.longPressDeadline();
+                    deadline != 0 && timestamp >= deadline)
+                    dispatch(m_gesture.longPressTimeout(timestamp));
                 dispatch(m_gesture.released(point.id(), position, timestamp));
                 break;
             case QEventPoint::State::Stationary:

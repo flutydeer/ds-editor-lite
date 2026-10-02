@@ -412,14 +412,22 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
 void ApplicationGuiTests::pianoTouchLongPressDefersMenus_data() {
     QTest::addColumn<bool>("content");
     QTest::addColumn<bool>("drag");
-    QTest::newRow("note-menu-on-release") << true << false;
-    QTest::newRow("blank-menu-on-release") << false << false;
-    QTest::newRow("blank-held-selection") << false << true;
+    QTest::addColumn<bool>("delayedTimer");
+    QTest::newRow("note-menu-on-release") << true << false << false;
+    QTest::newRow("blank-menu-on-release") << false << false << false;
+    QTest::newRow("blank-held-selection") << false << true << false;
+    QTest::newRow("note-menu-after-delayed-timer") << true << false << true;
+    QTest::newRow("blank-menu-after-delayed-timer") << false << false << true;
 }
 
 void ApplicationGuiTests::pianoTouchLongPressDefersMenus() {
     QFETCH(bool, content);
     QFETCH(bool, drag);
+    QFETCH(bool, delayedTimer);
+    auto *developer = context->m_appOptions->developer();
+    const auto previousProbe = developer->logTouchEvents;
+    developer->logTouchEvents = true;
+    const auto restoreProbe = qScopeGuard([&] { developer->logTouchEvents = previousProbe; });
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -441,14 +449,17 @@ void ApplicationGuiTests::pianoTouchLongPressDefersMenus() {
         disconnect(connection);
     });
     const auto start = content ? pointFor(600, 62) : pointFor(360, 64);
-    sequence.press(0, start).commit();
-    QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
+    sequence.press(0, start).commit(!delayedTimer);
+    if (delayedTimer)
+        QTest::qSleep(EditorTouchGesture::Config{}.longPressMs + 50);
+    else
+        QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
     QVERIFY(menus.isEmpty());
     QCOMPARE(view->selectedNotesId(), QList<int>{id});
     const auto end = drag ? pointFor(840, 60) : start;
     if (drag)
         sequence.move(0, end).commit();
-    sequence.release(0, end).commit();
+    sequence.release(0, end).commit(!delayedTimer);
     if (drag) {
         QCoreApplication::sendPostedEvents();
         QVERIFY(menus.isEmpty());
