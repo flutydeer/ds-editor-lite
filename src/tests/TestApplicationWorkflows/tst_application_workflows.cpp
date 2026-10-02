@@ -783,9 +783,9 @@ void ApplicationWorkflowTests::prepareInferenceTarget(
                                                  QStringLiteral("workflow-test"),
                                                  QVersionNumber(1, 0, 0)});
         targetClip->setOwnSingerAndSpeaker(singer, {});
-        targetClip->removeAllPieces();
-        targetClip->reSegment(context->m_appModel->timeline());
     }
+    targetClip->removeAllPieces();
+    targetClip->reSegment(context->m_appModel->timeline());
     QCOMPARE(targetClip->pieces().size(), 1);
     piece = targetClip->pieces().first();
 }
@@ -918,7 +918,14 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
     QVERIFY2(!staleError, "Only the replacement task may publish its terminal state");
 }
 
+void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges_data() {
+    QTest::addColumn<bool>("removeTarget");
+    QTest::newRow("cancel-running") << false;
+    QTest::newRow("remove-running-target") << true;
+}
+
 void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges() {
+    QFETCH(bool, removeTarget);
     auto packageStatus = appStatus->packageModuleStatus.get();
     const auto restorePackageStatus =
         qScopeGuard([&packageStatus] { appStatus->packageModuleStatus = packageStatus; });
@@ -993,12 +1000,45 @@ void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges(
     QCOMPARE(workerEntered.available(), 1);
     QVERIFY(runtime().documentVersion().revision > accepted.get().document.revision);
 
-    const auto canceled = runtime().automationTasks().requestCancel(
-        accepted.get().document.documentId, accepted.get().taskId);
-    QVERIFY(canceled);
+    if (removeTarget) {
+        const auto targetClipId = Automation::ClipId(clip->id());
+        QVERIFY(runtime().project().removeClips(commandContext(), {targetClipId}));
+        QVERIFY(!context->m_appModel->findClipById(targetClipId.value()));
+    } else {
+        const auto targetTrack = Automation::TrackId(context->m_appModel->tracks().last()->id());
+        QVERIFY(targetTrack != trackId);
+        QVERIFY(runtime().project().moveClips(commandContext(),
+                                              {
+                                                  {.id = Automation::ClipId(clip->id()),
+                                                   .targetTrackId = targetTrack,
+                                                   .start = clip->start()}
+        }));
+        QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Running);
+        QVERIFY(runtime().history().undo(commandContext()));
+        QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Running);
+        QVERIFY(runtime().history().redo(commandContext()));
+        QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Running);
+        const auto canceled = runtime().automationTasks().requestCancel(
+            accepted.get().document.documentId, accepted.get().taskId);
+        QVERIFY(canceled);
+    }
+    const auto afterChange = runtime().documentVersion();
+    const auto afterContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *afterUndo = HistoryManager::instance()->nextUndoEntry();
+    releaseWorker.release();
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     const auto terminal = snapshot();
     QVERIFY(terminal);
-    QCOMPARE(terminal.get().state, Automation::AutomationTaskState::Canceled);
+    QCOMPARE(terminal.get().state, removeTarget ? Automation::AutomationTaskState::Failed
+                                                : Automation::AutomationTaskState::Canceled);
+    QVERIFY(!terminal.get().mutation);
+    if (removeTarget) {
+        QVERIFY(terminal.get().error);
+        QCOMPARE(terminal.get().error->fieldPath, QStringLiteral("scope"));
+    }
+    QCOMPARE(runtime().documentVersion(), afterChange);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterContent);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), afterUndo);
 }
 
 void ApplicationWorkflowTests::cleanup() {

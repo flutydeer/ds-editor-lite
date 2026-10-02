@@ -20,6 +20,7 @@
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/History/HistoryManager.h>
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -1715,6 +1716,7 @@ namespace Automation {
             void start();
             void requestCancel();
             void handleState(const QString &state);
+            bool validateTargets();
             void evaluate();
             void finishCanceled();
             void fail(AutomationError error);
@@ -1838,6 +1840,9 @@ namespace Automation {
                         QStringLiteral("scope")));
                 });
             }
+            // Check after the complete edit so a cross-track move keeps its admitted targets.
+            connect(HistoryManager::instance(), &HistoryManager::undoRedoChanged, this,
+                    [this] { validateTargets(); });
             // Reset and enqueue in the admission turn, before unrelated completions can advance
             // the document revision. The state machine still runs inference asynchronously.
             start();
@@ -1895,8 +1900,22 @@ namespace Automation {
             evaluate();
         }
 
-        void HeadlessInferenceTask::evaluate() {
+        bool HeadlessInferenceTask::validateTargets() {
             if (!m_started || m_finished)
+                return false;
+            for (const auto &piece : std::as_const(m_pieces)) {
+                if (!piece || m_model->findClipById(piece->clip->id()) != piece->clip) {
+                    fail(inferenceError(
+                        QStringLiteral("An inference target was removed while running"),
+                        QStringLiteral("scope")));
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void HeadlessInferenceTask::evaluate() {
+            if (!validateTargets())
                 return;
             const auto ready =
                 std::all_of(m_pieces.cbegin(), m_pieces.cend(), [](const auto &piece) {

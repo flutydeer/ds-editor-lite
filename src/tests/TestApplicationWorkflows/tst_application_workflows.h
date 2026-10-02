@@ -108,6 +108,7 @@ private slots:
     void restartInferenceReleasesReplacedTask();
     void restartInferenceReleasesReplacedTask_data();
 
+    void publicInferenceStartsBeforeQueuedDocumentChanges_data();
     void publicInferenceStartsBeforeQueuedDocumentChanges();
     void publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges();
     void publicInferenceStatusAssociatesTasksWithTheirScope();
