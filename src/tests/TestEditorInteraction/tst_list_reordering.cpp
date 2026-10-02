@@ -1,5 +1,6 @@
 #include "tst_editor_interaction.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/ProjectSnapshot.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -38,6 +39,7 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QTouchEvent>
 #include <QWindow>
 #include <QtTest/QTest>
 
@@ -228,14 +230,19 @@ void EditorInteractionTests::speakerMixSourceChoicePreservesWeightsAndUpdatesTag
 void EditorInteractionTests::trackListDragReordersOrCancels_data() {
     QTest::addColumn<int>("from");
     QTest::addColumn<bool>("cancel");
-    QTest::newRow("first-to-last") << 0 << false;
-    QTest::newRow("last-to-first") << 2 << false;
-    QTest::newRow("escape-preserves-order") << 0 << true;
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("first-to-last") << 0 << false << false;
+    QTest::newRow("last-to-first") << 2 << false << false;
+    QTest::newRow("escape-preserves-order") << 0 << true << false;
+    QTest::newRow("touch-first-to-last") << 0 << false << true;
+    QTest::newRow("touch-last-to-first") << 2 << false << true;
+    QTest::newRow("system-cancel-preserves-order-and-allows-retry") << 0 << true << true;
 }
 
 void EditorInteractionTests::trackListDragReordersOrCancels() {
     QFETCH(int, from);
     QFETCH(bool, cancel);
+    QFETCH(bool, touch);
     GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &context = fixture.context;
@@ -279,6 +286,7 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
         clipIds.insert(track->id(), (*track->clips().begin())->id());
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto originalProject = TestSupport::projectSnapshot(*context->m_appModel);
     auto *sourceControl = qobject_cast<TrackControlView *>(list->itemWidget(list->item(from)));
     QVERIFY(sourceControl);
     auto *handle = sourceControl->findChild<QLabel *>(QStringLiteral("lbTrackIndex"));
@@ -289,18 +297,52 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     const auto targetRect = list->visualItemRect(list->item(from == 0 ? 2 : 0));
     const QPoint destination(source.x(),
                              from == 0 ? targetRect.bottom() - 2 : targetRect.top() + 2);
-    dragListItem(*list, source, destination, cancel, [&] {
+    const auto verifyPreview = [&] {
         QCOMPARE(trackIds(), original);
         QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalProject);
         QVERIFY(!historyManager->canUndo());
         auto *indicator = list->findChild<QWidget *>(QStringLiteral("trackDropIndicator"));
         QVERIFY(indicator && indicator->isVisible());
-    });
+    };
+    auto *touchDevice = touch ? QTest::createTouchDevice() : nullptr;
+    int nextTouchId = 0;
+    const auto drag = [&](bool cancelGesture) {
+        if (!touch) {
+            dragListItem(*list, source, destination, cancelGesture, verifyPreview);
+            return;
+        }
+        auto *window = editor.windowHandle();
+        QVERIFY(window);
+        const auto start = window->mapFromGlobal(list->viewport()->mapToGlobal(source));
+        const auto finish = window->mapFromGlobal(list->viewport()->mapToGlobal(destination));
+        const auto touchId = nextTouchId++;
+        auto sequence = QTest::touchEvent(window, touchDevice, false);
+        bool pressed = false;
+        const auto cleanup = qScopeGuard([&] {
+            if (pressed)
+                sequence.release(touchId, finish).commit(false);
+        });
+        sequence.press(touchId, start).commit(false);
+        pressed = true;
+        sequence.move(touchId, finish).commit(false);
+        verifyPreview();
+        if (QTest::currentTestFailed())
+            return;
+        if (cancelGesture) {
+            QTouchEvent canceled(QEvent::TouchCancel, touchDevice);
+            QApplication::sendEvent(list->viewport(), &canceled);
+            QVERIFY(!list->findChild<QWidget *>(QStringLiteral("trackDropIndicator"))->isVisible());
+        }
+        sequence.release(touchId, finish).commit(false);
+        pressed = false;
+    };
+    drag(cancel);
     if (QTest::currentTestFailed())
         return;
-    const auto expected = cancel      ? original
-                          : from == 0 ? QList<int>{original.at(1), original.at(2), original.at(0)}
-                                      : QList<int>{original.at(2), original.at(0), original.at(1)};
+    const auto reordered = from == 0 ? QList<int>{original.at(1), original.at(2), original.at(0)}
+                                     : QList<int>{original.at(2), original.at(0), original.at(1)};
+    auto expected = cancel ? original : reordered;
     QCOMPARE(trackIds(), expected);
     const auto verifyPresentation = [&] {
         QCOMPARE(list->trackCount(), context->m_appModel->tracks().size());
@@ -322,13 +364,22 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     QVERIFY(!list->findChild<QWidget *>(QStringLiteral("trackDropIndicator"))->isVisible());
     if (cancel) {
         QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalProject);
         QVERIFY(!historyManager->canUndo());
-        return;
+        if (!touch)
+            return;
+        drag(false);
+        if (QTest::currentTestFailed())
+            return;
+        expected = reordered;
+        QCOMPARE(trackIds(), expected);
+        verifyPresentation();
     }
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QTRY_COMPARE(list->currentRow(), from == 0 ? 2 : 0);
     historyManager->undo();
     QCOMPARE(trackIds(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalProject);
     verifyPresentation();
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();

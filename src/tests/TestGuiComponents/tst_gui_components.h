@@ -39,6 +39,8 @@ private slots:
     void mixerSliderReleaseEndsPreview_data();
     void mixerSliderReleaseEndsPreview();
     void reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags();
+    void touchClaimsFinishOnSystemCancel_data();
+    void touchClaimsFinishOnSystemCancel();
     void touchClaimsKeepControlsIndependentOfPageScrolling();
     void touchFlickContinuesAfterRelease();
     void comboPopupTouchKeepsScrollingAndSelectionSeparate_data();
