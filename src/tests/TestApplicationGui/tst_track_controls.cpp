@@ -24,7 +24,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QApplication>
-#include <QClipboard>
+#include <QInputMethodEvent>
 #include <QLocale>
 #include <QContextMenuEvent>
 #include <QCursor>
@@ -123,9 +123,10 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
         QTest::mouseDClick(label, Qt::LeftButton);
         QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
         auto *input = qobject_cast<QLineEdit *>(QApplication::focusWidget());
-        QApplication::clipboard()->setText(value);
         QTest::keySequence(input, QKeySequence::SelectAll);
-        QTest::keySequence(input, QKeySequence::Paste);
+        QInputMethodEvent textInput;
+        textInput.setCommitString(value);
+        QApplication::sendEvent(input, &textInput);
         QTest::keyClick(input, finish);
     };
     historyManager->reset();
@@ -145,6 +146,19 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     enter(gain, QLocale().toString(-12.0, 'f', 1), Qt::Key_Escape);
     QCOMPARE(control().gain(), -6.0);
     QCOMPARE(historyManager->nextUndoEntry(), gainEdit);
+    enter(gain, QStringLiteral("-∞"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(control().gain(), -54.0);
+    QCOMPARE(gain->text(), QStringLiteral("-∞"));
+    enter(gain, QLocale().toString(-6.0, 'f', 1));
+    QCOMPARE(control().gain(), -6.0);
+    enter(pan, QLocale().toString(-100));
+    QCOMPARE(control().pan(), -1.0);
+    QCOMPARE(pan->text(), QStringLiteral("L100"));
+    enter(pan, QLocale().toString(100));
+    QCOMPARE(control().pan(), 1.0);
+    QCOMPARE(pan->text(), QStringLiteral("R100"));
     enter(pan, QStringLiteral("L25"));
     QCOMPARE(control().pan(), -0.25);
     QCOMPARE(pan->text(), QStringLiteral("L25"));
@@ -157,7 +171,7 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QCOMPARE(control().pan(), -0.1);
     QCOMPARE(pan->text(), QStringLiteral("L10"));
     const auto applied = runtime.documentVersion();
-    QCOMPARE(applied.revision, before.revision + 5);
+    QCOMPARE(applied.revision, before.revision + 9);
     const auto *panEdit = historyManager->nextUndoEntry();
     enter(pan, QStringLiteral("invalid"));
     if (QTest::currentTestFailed())
@@ -166,7 +180,7 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QCOMPARE(historyManager->nextUndoEntry(), panEdit);
     QCOMPARE(control().pan(), -0.1);
     QCOMPARE(pan->text(), QStringLiteral("L10"));
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 9; ++i)
         QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(!historyManager->canUndo());
     QCOMPARE(control().gain(), initial.gain());
