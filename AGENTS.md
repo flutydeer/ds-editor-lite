@@ -2,7 +2,7 @@
 
 ## Project overview
 
-DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice editor). The build target is `DsEditorLite`. Primary language in docs and comments is Chinese.
+DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice editor). The build target is `DsEditorLite`. Docs are written in Chinese; code comments and commit messages are in English.
 
 ## Build system
 
@@ -18,6 +18,8 @@ DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice edit
 - **vcpkg**：克隆到项目同级目录或全局安装，详见下方 vcpkg 安装步骤。
 
 ### 配置和构建（Windows presets 主线）
+
+Agent 做 CMake 配置/构建验证时，优先加载 `.agents/skills/cmake-configure` 与 `.agents/skills/cmake-build` skill，不要使用 CLion MCP run configuration 代替构建。
 
 本项目使用 CMake presets 作为标准构建入口。以下步骤在**同一个**命令行会话中执行：
 
@@ -138,6 +140,16 @@ docs/           # Chinese-language dev docs (design/ = 已完成的设计契约,
 - `.clang-format` at repo root: LLVM-based, 4-space indent, 100-column limit, `PointerAlignment: Right`, `NamespaceIndentation: All`, `SortIncludes: Never`.
 - C++20 standard, MSVC on Windows.
 - `SortIncludes: Never` - do not reorder `#include` directives.
+
+## Writing style
+
+- 中文里不要用分号断句。该断就用句号，该并列就用逗号或顿号。
+- 这条对提交信息、代码注释、文档、回复一律适用。
+
+## Git commits
+
+- Commit messages follow Conventional Commits (`feat(editor): ...`, `fix(automation): ...`): a single English title line, no body. Details go into `docs/`.
+- Never add AI attribution lines to commit messages (e.g. `Co-Authored-By`, `Claude-Session`).
 
 ## CodeGraph MCP
 
