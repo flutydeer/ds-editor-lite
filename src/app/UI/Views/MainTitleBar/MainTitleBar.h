@@ -29,6 +29,12 @@ public:
     [[nodiscard]] TitleBarComboBox *titleComboBox() const;
     void setTitle(const QString &title) const;
 
+    // Returns the system button covering the window-level position pos, with
+    // the button hit area extended to the window's right edge. Used to work
+    // around the one-logical-pixel gap at the window edge where
+    // QWidget::childAt never resolves to any child (non-integral DPR only).
+    [[nodiscard]] SystemWindowButton *systemButtonAt(const QPointF &windowPos) const;
+
 signals:
     void minimizeTriggered();
     void maximizeTriggered(bool max = false);

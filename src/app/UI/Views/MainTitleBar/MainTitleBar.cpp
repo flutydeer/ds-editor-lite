@@ -188,6 +188,21 @@ void MainTitleBar::setTitle(const QString &title) const {
     m_titleComboBox->setTitle(title);
 }
 
+SystemWindowButton *MainTitleBar::systemButtonAt(const QPointF &windowPos) const {
+    // Check from the rightmost button so that positions beyond the close
+    // button's left edge (the window's last logical pixel column) still
+    // resolve to the close button.
+    for (const auto btn : {m_btnClose, m_btnMax, m_btnMin}) {
+        if (!btn || btn->isHidden())
+            continue;
+        const QRect geo(btn->mapTo(m_window, QPoint(0, 0)), btn->size());
+        if (windowPos.y() >= geo.top() && windowPos.y() < geo.bottom() &&
+            windowPos.x() >= geo.left())
+            return btn;
+    }
+    return nullptr;
+}
+
 bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window)
         return QWidget::eventFilter(watched, event);
