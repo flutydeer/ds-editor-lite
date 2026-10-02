@@ -865,6 +865,40 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
     arguments.insert(QStringLiteral("names"), QJsonArray{"m", "a", "n"});
     fixture.runtimeFixture.history()->reset();
     const auto originalModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto offsetVersion = runtime.documentVersion();
+    auto offsetArguments = commandArguments(offsetVersion);
+    offsetArguments.insert(QStringLiteral("clip_id"), clip.value());
+    offsetArguments.insert(QStringLiteral("note_id"), original.id.value());
+    offsetArguments.insert(QStringLiteral("offsets"), QJsonArray{0, 90});
+    const auto retimed =
+        registry.invoke(QStringLiteral("notes.set_phoneme_offsets"), offsetArguments);
+    QVERIFY2(retimed, qPrintable(errorMessage(retimed)));
+    const auto retimedNotes = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+    QVERIFY(retimedNotes);
+    QCOMPARE(retimedNotes.get().first().id, original.id);
+    QCOMPARE(retimedNotes.get().first().data.phonemes.offsetSeq.edited, (QList<int>{0, 90}));
+    QCOMPARE(retimedNotes.get().first().data.phonemes.nameSeq.original,
+             original.data.phonemes.nameSeq.original);
+    QCOMPARE(runtime.documentVersion().revision, offsetVersion.revision + 1);
+    const auto retimedModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    auto resetOffsets = commandArguments(runtime.documentVersion());
+    resetOffsets.insert(QStringLiteral("clip_id"), clip.value());
+    resetOffsets.insert(QStringLiteral("note_ids"), QJsonArray{original.id.value()});
+    const auto offsetsReset =
+        registry.invoke(QStringLiteral("notes.reset_phoneme_offsets"), resetOffsets);
+    QVERIFY2(offsetsReset, qPrintable(errorMessage(offsetsReset)));
+    const auto resetNotes = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+    QVERIFY(resetNotes);
+    QVERIFY(resetNotes.get().first().data.phonemes.offsetSeq.edited.isEmpty());
+    QCOMPARE(resetNotes.get().first().data.phonemes.offsetSeq.original,
+             original.data.phonemes.offsetSeq.original);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), retimedModel);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), originalModel);
+    QVERIFY(!fixture.runtimeFixture.history()->canUndo());
+    arguments.insert(QStringLiteral("expected_revision"),
+                     qint64(runtime.documentVersion().revision));
     const auto set = registry.invoke(QStringLiteral("notes.set_phonemes"), arguments);
     QVERIFY2(set, qPrintable(errorMessage(set)));
     const auto after = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
