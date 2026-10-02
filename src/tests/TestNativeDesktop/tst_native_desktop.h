@@ -53,7 +53,7 @@ private slots:
     void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
-    void rhiPianoWheelInputsReachTheActiveViewport();
+    void rhiPianoNavigationInputsReachTheActiveViewport();
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();

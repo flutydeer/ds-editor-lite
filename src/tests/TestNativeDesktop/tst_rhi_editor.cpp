@@ -30,6 +30,7 @@
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTip.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -520,7 +521,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
 }
 
-void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
+void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     GuiDocumentFixture fixture;
@@ -571,9 +572,9 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     QCOMPARE(canvas->scaleX(), 1.25);
     QCOMPARE(canvas->scaleY(), 1.25);
     QVERIFY(std::abs(tickAtPosition() - anchorTick) <= ticksPerPixel);
-    const auto wheel = [](QWidget &target) {
+    const auto wheel = [](QWidget &target, int delta = 120) {
         const auto position = target.rect().center();
-        QWheelEvent event(position, target.mapToGlobal(position), {}, {0, 120}, Qt::NoButton,
+        QWheelEvent event(position, target.mapToGlobal(position), {}, {0, delta}, Qt::NoButton,
                           Qt::NoModifier, Qt::NoScrollPhase, false);
         event.setAccepted(false);
         QApplication::sendEvent(&target, &event);
@@ -588,6 +589,48 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     const auto centerKey = canvas->centerKeyIndex();
     wheel(*canvas);
     QTRY_VERIFY(canvas->centerKeyIndex() != centerKey);
+    const auto bars = canvas->findChildren<OverlayScrollBar *>();
+    for (const auto orientation : {Qt::Horizontal, Qt::Vertical}) {
+        const auto found = std::find_if(bars.begin(), bars.end(), [&](const auto *bar) {
+            return bar->orientation() == orientation;
+        });
+        QVERIFY(found != bars.end());
+        auto *bar = *found;
+        QTRY_VERIFY(bar->isVisible() && bar->maximum() > 0);
+        const auto barValue = bar->value();
+        const auto previousTick = canvas->startTick();
+        const auto previousKey = canvas->centerKeyIndex();
+        wheel(*bar, -120);
+        QTRY_VERIFY(bar->value() > barValue);
+        // Scrollbar offsets have integer logical-pixel precision.
+        if (bar->orientation() == Qt::Horizontal) {
+            QTRY_VERIFY(canvas->startTick() > previousTick);
+            QVERIFY(std::abs(canvas->centerKeyIndex() - previousKey) *
+                        ClipEditorGlobal::noteHeight * canvas->scaleY() <=
+                    1.0);
+        } else {
+            QTRY_VERIFY(canvas->centerKeyIndex() < previousKey);
+            QVERIFY(std::abs(canvas->startTick() - previousTick) <=
+                    (canvas->endTick() - canvas->startTick()) / canvas->width());
+        }
+    }
+    QVERIFY(editor.centerAt(1920, 60));
+    const auto touchStartTick = canvas->startTick();
+    const auto touchCenterKey = canvas->centerKeyIndex();
+    const auto press = canvas->rect().center();
+    const auto destination = press - QPoint(40, 20);
+    auto *touchDevice = QTest::createTouchDevice();
+    auto touchSequence = QTest::touchEvent(canvas, touchDevice, false);
+    const auto stopPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(canvas, &deactivate);
+    });
+    touchSequence.press(0, press).commit();
+    touchSequence.move(0, destination).commit();
+    QVERIFY(canvas->startTick() > touchStartTick);
+    QVERIFY(canvas->centerKeyIndex() < touchCenterKey);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    touchSequence.release(0, destination).commit();
     const auto previousFrame = frames.size();
     canvas->update();
     QTRY_VERIFY(frames.size() > previousFrame);
@@ -886,12 +929,16 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
 
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion_data() {
     QTest::addColumn<bool>("leftEdge");
-    QTest::newRow("left-edge") << true;
-    QTest::newRow("right-edge") << false;
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("left-edge") << true << false;
+    QTest::newRow("right-edge") << false << false;
+    QTest::newRow("touch-left-handle") << true << true;
+    QTest::newRow("touch-right-handle") << false << true;
 }
 
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     QFETCH(bool, leftEdge);
+    QFETCH(bool, touch);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
@@ -901,13 +948,36 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     auto &canvas = *fixture.canvas;
     auto *note = fixture.clip->findNoteById(fixture.noteId);
     QVERIFY(note);
-    const auto press = fixture.pointFor(leftEdge ? 480 : 960, 60) + QPoint(leftEdge ? 2 : -2, 0);
+    auto *touchDevice = QTest::createTouchDevice();
+    auto touchSequence = QTest::touchEvent(&canvas, touchDevice, false);
+    const auto cancelPointer = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    });
+    if (touch) {
+        const auto center = fixture.pointFor(720, 60);
+        touchSequence.press(0, center).commit();
+        touchSequence.release(0, center).commit();
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+    }
+    const auto inset = touch ? -5 : 2;
+    const auto edgeOffset = QPoint(leftEdge ? inset : -inset, 0);
+    const auto press = fixture.pointFor(leftEdge ? 480 : 960, 60) + edgeOffset;
+    // Left resizing snaps the pointer down, so finish inside the requested grid cell.
     const auto release = fixture.pointFor(leftEdge ? 240 : 1200, 60) + QPoint(leftEdge ? 2 : -2, 0);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
     const auto before = fixture.runtime().documentVersion();
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-    fixture.moveTo(release);
+    if (touch) {
+        touchSequence.press(0, press).commit();
+        touchSequence.move(0, release).commit();
+    } else {
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        fixture.moveTo(release);
+    }
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
     const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
     QCOMPARE(preview.rStart, leftEdge ? 240 : 480);
@@ -915,7 +985,10 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->localStart(), 480);
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    if (touch)
+        touchSequence.release(0, release).commit();
+    else
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
     QCOMPARE(note->length(), 720);
     QCOMPARE(note->localStart(), leftEdge ? 240 : 480);
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
