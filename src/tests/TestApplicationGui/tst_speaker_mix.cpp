@@ -412,6 +412,10 @@ void ApplicationGuiTests::speakerMixSelectionAndDrag() {
 }
 
 void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
     const SingerInfo singer(
         {QStringLiteral("preset-test"), QStringLiteral("gui-tests"), QVersionNumber(1, 0)},
         QStringLiteral("Preset Test"),
