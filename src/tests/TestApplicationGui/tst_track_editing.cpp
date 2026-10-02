@@ -20,7 +20,9 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QImage>
 #include <QMouseEvent>
+#include <QPixmap>
 #include <QScopeGuard>
 #include <QtTest/QTest>
 
@@ -309,7 +311,14 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QCOMPARE(item->clipLen(), expectedLength);
 }
 
+void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits_data() {
+    QTest::addColumn<bool>("leftEdge");
+    QTest::newRow("resize-left") << true;
+    QTest::newRow("resize-right") << false;
+}
+
 void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
+    QFETCH(bool, leftEdge);
     auto &runtime = *context->m_coreRuntime;
     const LoopSettings original(true, 480, 960);
     QVERIFY(runtime.playback().setLoop(commandContext(), original));
@@ -332,6 +341,20 @@ void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
                          Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(&ruler, &move);
     };
+    const auto enabledImage = ruler.grab().toImage();
+    QVERIFY(!enabledImage.isNull());
+    QVERIFY(runtime.playback().setLoop(commandContext(), LoopSettings(false, 480, 960)));
+    const auto disabledImage = ruler.grab().toImage();
+    QVERIFY(!disabledImage.isNull());
+    const auto colorAt = [&](const QImage &image, const int y) {
+        const auto location = QPointF(point(960, y)) * image.devicePixelRatio();
+        return image.pixelColor(location.toPoint());
+    };
+    QVERIFY(colorAt(enabledImage, 1) != colorAt(disabledImage, 1));
+    QVERIFY(colorAt(enabledImage, 6) != colorAt(disabledImage, 6));
+    QVERIFY(colorAt(disabledImage, 1) != colorAt(disabledImage, 6));
+    QVERIFY(runtime.playback().setLoop(commandContext(), original));
+    historyManager->reset();
     const auto before = runtime.documentVersion();
     QTest::mouseClick(&ruler, Qt::LeftButton, Qt::NoModifier, point(960, ruler.height() - 6));
     QCOMPARE(playbackController->position(), 960.0);
@@ -356,15 +379,19 @@ void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
     QCOMPARE(runtime.documentVersion(), afterMove);
     QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
 
-    QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, point(moved.end(), 5));
-    moveWithLeftButton(point(2400, 5));
-    QCOMPARE(appStatus->loopSettings.get(), LoopSettings(true, 960, 1440));
+    const LoopSettings resized(true, leftEdge ? 480 : 960, 1440);
+    const auto resizeStart = point(leftEdge ? moved.start : moved.end(), 5);
+    const auto resizeEnd = point(leftEdge ? resized.start : resized.end(), 5);
+    QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, resizeStart);
+    moveWithLeftButton(resizeEnd);
+    QCOMPARE(appStatus->loopSettings.get(), resized);
     QCOMPARE(runtime.documentVersion(), afterMove);
-    QTest::mouseRelease(&ruler, Qt::LeftButton, Qt::NoModifier, point(2400, 5));
+    QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
+    QTest::mouseRelease(&ruler, Qt::LeftButton, Qt::NoModifier, resizeEnd);
     QCOMPARE(runtime.documentVersion().revision, afterMove.revision + 1);
     const auto playback = runtime.playback().getPlayback(runtime.documentVersion().documentId);
     QVERIFY(playback);
-    QCOMPARE(playback.get().loop, LoopSettings(true, 960, 1440));
+    QCOMPARE(playback.get().loop, resized);
     historyManager->undo();
     QCOMPARE(appStatus->loopSettings.get(), moved);
     historyManager->undo();

@@ -117,6 +117,7 @@ private slots:
     void dynamicSpeakerMixNavigationUsesProjectTime_data();
     void dynamicSpeakerMixNavigationUsesProjectTime();
     void dynamicSpeakerMixBypassAndStopFollowToolbarInputs();
+    void timelineGesturesSeekAndCommitLoopEdits_data();
     void timelineGesturesSeekAndCommitLoopEdits();
     void resizingANotePreviewsAndCommitsItsBoundary_data();
     void resizingANotePreviewsAndCommitsItsBoundary();
