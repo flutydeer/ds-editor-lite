@@ -40,7 +40,7 @@
 
 ## 覆盖范围与已知边界
 
-- 只覆盖主窗口（`MainWindow`）。QWK 管理的 `Dialog` 不可最大化，仅在用户把对话框拖到屏幕右缘时才会遇到同样的缝隙，如需覆盖可将同样的过滤器逻辑复制到 `Dialog` 基类。
+- 主窗口与 `Dialog` 基类均已覆盖（两者使用相同的 `eventFilter` 结构）。所有模态对话框都继承 `Dialog` 基类（`AppOptionsDialog` 的独立外壳、`TaskDialog`/`ProgressDialog`、`MessageDialog`、`ResourceCheckDialog`），`DialogTitleBar` 提供只含关闭按钮的 `systemButtonAt`。非 QWK 窗口不受影响。
 - 缝隙列内只有按钮行被重定向；其余位置（如钢琴卷帘滚动条右缘 1px）维持原有行为。
 - 触摸合成的鼠标事件（`Qt::MouseEventSynthesizedBySystem`）同样经过过滤器并按同一规则钳位，触摸盲点一并修复。
 

@@ -61,6 +61,10 @@ public:
     [[nodiscard]] static QWidget *globalParent();
     static void setGlobalContext(QWidget *parent);
 
+protected:
+    bool event(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     using QDialog::setLayout;
 

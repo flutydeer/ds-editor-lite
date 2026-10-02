@@ -18,6 +18,11 @@ public:
 
     [[nodiscard]] SystemWindowButton *closeButton() const;
 
+    // Returns the close button covering the window-level position pos, with
+    // the button hit area extended to the window's right edge. Same rationale
+    // as MainTitleBar::systemButtonAt.
+    [[nodiscard]] SystemWindowButton *systemButtonAt(const QPointF &windowPos) const;
+
     void setTitle(const QString &title) const;
 
 signals:
