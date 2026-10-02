@@ -137,11 +137,10 @@ void GuiComponentTests::comboPopupTouchKeepsScrollingAndSelectionSeparate() {
         QScroller::scroller(viewport)->stop();
     });
     const auto open = [&] {
-        QTest::mouseClick(&combo, Qt::LeftButton);
+        // Keyboard opening separates picker input from Qt's opening mouse-release guard.
+        QTest::keyClick(&combo, Qt::Key_Down, Qt::AltModifier);
         QTRY_VERIFY(view->isVisible() && viewport->height() > 80);
         QTRY_VERIFY(scroll->maximum() > 0);
-        // Let Qt's opening-click guard expire before starting another touch.
-        QTest::qWait(QApplication::doubleClickInterval());
     };
     const auto send = [&](QEvent::Type type, const QPoint &position, Qt::MouseEventSource source) {
         const auto button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;

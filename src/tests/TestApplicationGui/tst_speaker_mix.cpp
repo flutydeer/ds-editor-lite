@@ -12,6 +12,7 @@
 #include "Controller/TrackController.h"
 #include "Utils/UiLanguageManager.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/PointerInput.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/TagButton.h>
@@ -272,7 +273,7 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
         answer.start();
         choose(QCoreApplication::translate(clipTarget ? "ClipEditorToolBarViewPrivate"
                                                       : "TrackControlView",
-                                          "Manage mix presets..."));
+                                           "Manage mix presets..."));
         if (QTest::currentTestFailed())
             return;
         QVERIFY(inspected);
@@ -437,13 +438,29 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     dialog.activateWindow();
     QTRY_VERIFY(save->isVisible());
 
+    QString step;
+    QTimer watchdog;
+    // Bound nested dialog event loops and report the input step that stalled.
+    watchdog.setSingleShot(true);
+    connect(&watchdog, &QTimer::timeout, &dialog, [&] {
+        if (auto *popup = QApplication::activePopupWidget())
+            popup->close();
+        if (auto *prompt = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+            prompt->reject();
+        QFAIL(qPrintable(QStringLiteral("Preset input did not finish: %1").arg(step)));
+    });
+
     const auto saveAs = [&](bool accept) {
         bool visited = false;
+        step = accept ? QStringLiteral("save preset") : QStringLiteral("cancel saving preset");
+        watchdog.start(5000);
         QTimer input;
-        input.setSingleShot(true);
+        input.setInterval(10);
         connect(&input, &QTimer::timeout, &dialog, [&] {
             auto *prompt = qobject_cast<QInputDialog *>(QApplication::activeModalWidget());
-            QVERIFY(prompt);
+            if (!prompt || !prompt->isVisible())
+                return;
+            input.stop();
             const auto close = qScopeGuard([&] {
                 if (prompt->isVisible())
                     prompt->reject();
@@ -455,8 +472,9 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
             QTest::keyClick(editor, accept ? Qt::Key_Return : Qt::Key_Escape);
             visited = true;
         });
-        input.start(0);
+        input.start();
         QTest::mouseClick(save, Qt::LeftButton);
+        watchdog.stop();
         QVERIFY(visited);
     };
     saveAs(false);
@@ -509,11 +527,15 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     const auto choosePresetAction = [&](const QString &label,
                                         QMessageBox::StandardButton response) {
         bool visited = false;
+        step = QStringLiteral("%1 (%2)").arg(label).arg(response);
+        watchdog.start(5000);
         QTimer confirmation;
-        confirmation.setSingleShot(true);
+        confirmation.setInterval(10);
         connect(&confirmation, &QTimer::timeout, &reopened, [&] {
             auto *prompt = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            QVERIFY(prompt);
+            if (!prompt || !prompt->isVisible())
+                return;
+            confirmation.stop();
             const auto close = qScopeGuard([&] {
                 if (prompt->isVisible())
                     prompt->reject();
@@ -524,24 +546,27 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
             visited = true;
         });
         QTimer choose;
-        choose.setSingleShot(true);
+        choose.setInterval(10);
         connect(&choose, &QTimer::timeout, &reopened, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
-            QVERIFY(menu);
+            if (!menu || !menu->isVisible())
+                return;
+            choose.stop();
             const auto close = qScopeGuard([&] { menu->close(); });
             for (auto *action : menu->actions()) {
                 if (action->text() != label)
                     continue;
                 QVERIFY(action->isEnabled());
-                confirmation.start(0);
-                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
-                                  menu->actionGeometry(action).center());
+                confirmation.start();
+                TestSupport::clickWidget(*menu, menu->actionGeometry(action).center());
                 return;
             }
             QFAIL(qPrintable(QStringLiteral("Preset action was not found: %1").arg(label)));
         });
-        choose.start(0);
+        TestSupport::hoverWidget(*more, more->rect().center());
+        choose.start();
         QTest::mouseClick(more, Qt::LeftButton);
+        watchdog.stop();
         QVERIFY(visited);
     };
     auto *invert = mixButton(reopened, SpeakerMixDialog::tr("Invert"));
@@ -569,9 +594,8 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(presets->currentIndex(), 0);
-    QCOMPARE(list->getLabels(),
-             QVector<QString>({QStringLiteral("bright"), QStringLiteral("warm"),
-                               QStringLiteral("air")}));
+    QCOMPARE(list->getLabels(), QVector<QString>({QStringLiteral("bright"), QStringLiteral("warm"),
+                                                  QStringLiteral("air")}));
     QCOMPARE(list->getValues(), QVector<int>({34, 33, 33}));
     QVERIFY(SpeakerMixPresetStore::findPreset(savedId));
     QTest::mouseClick(presets, Qt::LeftButton);

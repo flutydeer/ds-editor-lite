@@ -15,6 +15,13 @@ namespace TestSupport {
         auto *window = surface.window();
         QTest::mouseMove(window->windowHandle(), window->mapFromGlobal(global));
     }
+
+    inline void clickWidget(QWidget &surface, const QPoint &position) {
+        hoverWidget(surface, position);
+        auto *window = surface.window();
+        QTest::mouseClick(window->windowHandle(), Qt::LeftButton, Qt::NoModifier,
+                          window->mapFromGlobal(surface.mapToGlobal(position)));
+    }
 }
 
 #endif

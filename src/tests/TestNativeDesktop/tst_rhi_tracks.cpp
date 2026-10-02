@@ -621,12 +621,12 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
                 QVERIFY(!historyManager->canUndo());
             }
             if (commit)
-                QTest::mouseClick(popup, Qt::LeftButton, Qt::NoModifier, target);
+                TestSupport::clickWidget(*popup, target);
             else
                 QTest::keyClick(popup, Qt::Key_Escape);
         });
+        TestSupport::hoverWidget(canvas, position);
         const auto global = canvas.mapToGlobal(position);
-        QTest::mouseMove(fixture.host->windowHandle(), fixture.host->mapFromGlobal(global));
         QContextMenuEvent event(QContextMenuEvent::Mouse, position, global);
         respond.start(0);
         QApplication::sendEvent(&canvas, &event);
