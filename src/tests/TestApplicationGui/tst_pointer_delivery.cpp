@@ -4,6 +4,8 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Model/AppOptions/Options/DeveloperOption.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
@@ -48,6 +50,10 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers_data() {
 
 void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
     QFETCH(QString, finish);
+    auto *developer = context->m_appOptions->developer();
+    const auto previousProbe = developer->logTouchEvents;
+    developer->logTouchEvents = true;
+    const auto restoreProbe = qScopeGuard([&] { developer->logTouchEvents = previousProbe; });
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -70,9 +76,10 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
         deactivate(*view);
     });
     const auto notePoint = pointFor(600, 62);
+    // Keep unrelated platform events outside the two contacts of the double tap.
     for (int tap = 0; tap < 2; ++tap) {
-        sequence.press(0, notePoint).commit();
-        sequence.release(0, notePoint).commit();
+        sequence.press(0, notePoint).commit(false);
+        sequence.release(0, notePoint).commit(false);
     }
     QTRY_VERIFY(overlay->isEditing());
     auto *input = overlay->findChild<QLineEdit *>();
@@ -91,7 +98,12 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
         QVERIFY(QApplication::activePopupWidget() == nullptr);
         QCOMPARE(runtime.documentVersion(), before);
         sequence.release(0, right).commit();
-        QTRY_VERIFY(qobject_cast<QMenu *>(QApplication::activePopupWidget()));
+        QTRY_VERIFY2(qobject_cast<QMenu *>(QApplication::activePopupWidget()),
+                     qPrintable(QStringLiteral("editing=%1 inputFocus=%2 ownerActive=%3 draft=%4")
+                                    .arg(overlay->isEditing())
+                                    .arg(input->hasFocus())
+                                    .arg(view->isActiveWindow())
+                                    .arg(input->text())));
         const QPointer<QMenu> menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
         QVERIFY(menu->isVisible());
         QCOMPARE(runtime.documentVersion(), before);

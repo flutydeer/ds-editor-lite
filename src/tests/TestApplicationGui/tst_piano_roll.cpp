@@ -87,9 +87,11 @@ void ApplicationGuiTests::createPianoRoll() {
     view->setEditMode(ClipEditorGlobal::DrawNote);
     view->setAnimationEnabled(false);
     view->show();
+    QVERIFY(QTest::qWaitForWindowExposed(view.get()));
     view->activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(view.get()));
     view->setFocus();
-    QTRY_VERIFY(view->isVisible() && view->viewport()->width() > 800);
+    QTRY_VERIFY(view->hasFocus() && view->viewport()->width() > 800);
     view->setViewportScale(1.0, 1.0);
     view->setViewportCenterAt(1920, 60, false);
     QCoreApplication::processEvents();

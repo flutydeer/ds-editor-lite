@@ -35,6 +35,8 @@
 #include <QMessageBox>
 #include <QScopeGuard>
 #include <QTimer>
+#include <QWindow>
+#include <QPointer>
 #include <QtTest/QTest>
 
 namespace {
@@ -439,32 +441,56 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     QVERIFY(more);
     QVERIFY(list);
     dialog.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dialog));
     dialog.activateWindow();
-    QTRY_VERIFY(save->isVisible());
+    QVERIFY(QTest::qWaitForWindowActive(&dialog));
 
     QString step;
+    QString phase;
+    QPointer<QDialog> activePrompt;
+    QPointer<QMenu> activeMenu;
     QTimer watchdog;
-    // Bound nested dialog event loops and report the input step that stalled.
+    // Bound synchronous confirmations and clean up only this test's windows.
     watchdog.setSingleShot(true);
     connect(&watchdog, &QTimer::timeout, &dialog, [&] {
-        if (auto *popup = QApplication::activePopupWidget())
-            popup->close();
-        if (auto *prompt = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-            prompt->reject();
-        QFAIL(qPrintable(QStringLiteral("Preset input did not finish: %1").arg(step)));
+        const auto describe = [](QWidget *widget) {
+            if (!widget)
+                return QStringLiteral("none");
+            return QStringLiteral("%1 visible=%2 exposed=%3 active=%4")
+                .arg(QString::fromLatin1(widget->metaObject()->className()))
+                .arg(widget->isVisible())
+                .arg(widget->windowHandle() && widget->windowHandle()->isExposed())
+                .arg(widget->isActiveWindow());
+        };
+        const auto diagnostic =
+            QStringLiteral("Preset input did not finish: %1; phase=%2; menu=%3; prompt=%4; "
+                           "popup=%5; modal=%6")
+                .arg(step, phase, describe(activeMenu), describe(activePrompt),
+                     describe(QApplication::activePopupWidget()),
+                     describe(QApplication::activeModalWidget()));
+        if (activeMenu)
+            activeMenu->close();
+        if (activePrompt)
+            activePrompt->reject();
+        QFAIL(qPrintable(diagnostic));
     });
 
     const auto saveAs = [&](bool accept) {
         bool visited = false;
         step = accept ? QStringLiteral("save preset") : QStringLiteral("cancel saving preset");
+        phase = QStringLiteral("waiting for name prompt");
         watchdog.start(5000);
         QTimer input;
         input.setInterval(10);
         connect(&input, &QTimer::timeout, &dialog, [&] {
-            auto *prompt = qobject_cast<QInputDialog *>(QApplication::activeModalWidget());
+            auto *prompt = dialog.findChild<QInputDialog *>();
             if (!prompt || !prompt->isVisible())
                 return;
+            activePrompt = prompt;
+            if (!prompt->windowHandle() || !prompt->windowHandle()->isExposed())
+                return;
             input.stop();
+            phase = QStringLiteral("entering preset name");
             const auto close = qScopeGuard([&] {
                 if (prompt->isVisible())
                     prompt->reject();
@@ -479,6 +505,7 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
         input.start();
         QTest::mouseClick(save, Qt::LeftButton);
         watchdog.stop();
+        activePrompt.clear();
         QVERIFY(visited);
     };
     saveAs(false);
@@ -512,8 +539,9 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     QVERIFY(list);
     QVERIFY(more);
     reopened.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&reopened));
     reopened.activateWindow();
-    QTRY_VERIFY(presets->isVisible());
+    QVERIFY(QTest::qWaitForWindowActive(&reopened));
     QCOMPARE(presets->currentData().toString(), savedId);
     QTest::mouseClick(presets, Qt::LeftButton);
     QTRY_VERIFY(presets->view()->isVisible());
@@ -532,46 +560,73 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
                                         QMessageBox::StandardButton response) {
         bool visited = false;
         step = QStringLiteral("%1 (%2)").arg(label).arg(response);
-        watchdog.start(5000);
+        phase = QStringLiteral("opening preset menu");
+        auto *menu = more->findChild<QMenu *>();
+        QVERIFY(menu);
+        activeMenu = menu;
+        const auto closeMenu = qScopeGuard([&] {
+            menu->close();
+            activeMenu.clear();
+        });
+        TestSupport::hoverWidget(*more, more->rect().center());
+        QTest::mouseClick(more, Qt::LeftButton);
+        QTRY_VERIFY(menu->isVisible() && QApplication::activePopupWidget() == menu);
+        QVERIFY(QTest::qWaitForWindowExposed(menu));
+        QAction *selected = nullptr;
+        for (auto *action : menu->actions()) {
+            if (action->text() == label) {
+                selected = action;
+                break;
+            }
+        }
+        QVERIFY2(selected,
+                 qPrintable(QStringLiteral("Preset action was not found: %1").arg(label)));
+        QVERIFY(selected->isEnabled());
+        phase = QStringLiteral("hovering preset action");
+        const auto actionRect = menu->actionGeometry(selected);
+        TestSupport::hoverWidget(*menu, QPoint(actionRect.left() + 1, actionRect.center().y()));
+        TestSupport::hoverWidget(*menu, actionRect.center());
+        QTRY_COMPARE(menu->activeAction(), selected);
+        QSignalSpy triggered(selected, &QAction::triggered);
         QTimer confirmation;
         confirmation.setInterval(10);
         connect(&confirmation, &QTimer::timeout, &reopened, [&] {
-            auto *prompt = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            auto *prompt = reopened.findChild<QMessageBox *>();
             if (!prompt || !prompt->isVisible())
                 return;
+            activePrompt = prompt;
+            phase = QStringLiteral("waiting for confirmation exposure");
+            if (!prompt->windowHandle() || !prompt->windowHandle()->isExposed())
+                return;
             confirmation.stop();
+            phase = QStringLiteral("clicking confirmation");
             const auto close = qScopeGuard([&] {
                 if (prompt->isVisible())
                     prompt->reject();
             });
             auto *button = prompt->button(response);
             QVERIFY(button);
+            QVERIFY(button->isVisible() && button->isEnabled());
+            QSignalSpy clicked(button, &QAbstractButton::clicked);
             QTest::mouseClick(button, Qt::LeftButton);
+            QVERIFY(!clicked.isEmpty());
+            QVERIFY(!prompt->isVisible());
             visited = true;
         });
-        QTimer choose;
-        choose.setInterval(10);
-        connect(&choose, &QTimer::timeout, &reopened, [&] {
-            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
-            if (!menu || !menu->isVisible())
-                return;
-            choose.stop();
-            const auto close = qScopeGuard([&] { menu->close(); });
-            for (auto *action : menu->actions()) {
-                if (action->text() != label)
-                    continue;
-                QVERIFY(action->isEnabled());
-                confirmation.start();
-                TestSupport::clickWidget(*menu, menu->actionGeometry(action).center());
-                return;
-            }
-            QFAIL(qPrintable(QStringLiteral("Preset action was not found: %1").arg(label)));
-        });
-        TestSupport::hoverWidget(*more, more->rect().center());
-        choose.start();
-        QTest::mouseClick(more, Qt::LeftButton);
+        phase = QStringLiteral("clicking preset action");
+        confirmation.start();
+        watchdog.start(5000);
+        // Keep the click together after the native hover queue has settled.
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, actionRect.center());
+        QTRY_VERIFY(visited || QTest::currentTestFailed());
+        confirmation.stop();
         watchdog.stop();
+        activePrompt.clear();
+        if (QTest::currentTestFailed())
+            return;
         QVERIFY(visited);
+        QCOMPARE(triggered.size(), 1);
+        QVERIFY(!menu->isVisible());
     };
     auto *invert = mixButton(reopened, SpeakerMixDialog::tr("Invert"));
     auto *all = mixButton(reopened, SpeakerMixDialog::tr("All"));

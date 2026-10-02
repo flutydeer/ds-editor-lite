@@ -182,7 +182,7 @@ QWidget *SpeakerMixDialog::buildPresetBar() {
     m_deleteAction = menu->addAction(tr("Delete"), this, &SpeakerMixDialog::onDeletePreset);
     connect(m_btnMenu, &Button::clicked, this, [this, menu] {
         m_deleteAction->setEnabled(!m_currentPresetId.isEmpty());
-        menu->exec(m_btnMenu->mapToGlobal(QPoint(0, m_btnMenu->height())));
+        menu->popup(m_btnMenu->mapToGlobal(QPoint(0, m_btnMenu->height())));
     });
 
     layout->addWidget(m_cbPresets, 1);
