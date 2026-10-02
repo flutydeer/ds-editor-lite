@@ -36,6 +36,7 @@ private slots:
     void publicPlaybackDeviceFailureDoesNotOpenAModalDialog();
     void invalidClipboardDoesNotEdit_data();
     void invalidClipboardDoesNotEdit();
+    void drawingCommitsOnceAndUndoRedoUpdatesTheScene_data();
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
     void pianoTouchDrawingCommitsOrCancels_data();
     void pianoTouchDrawingCommitsOrCancels();

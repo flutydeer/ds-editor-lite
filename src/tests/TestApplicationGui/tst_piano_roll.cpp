@@ -17,6 +17,7 @@
 #include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
 #include "UI/Window/MainWindow.h"
 #include "../TestSupport/PointerInput.h"
+#include "../TestSupport/PointerEvents.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/GUI/Controls/ToolTip.h>
@@ -31,6 +32,8 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QSignalSpy>
 #include <QLineEdit>
 #include <QMimeData>
 #include <QScopeGuard>
@@ -471,7 +474,14 @@ void ApplicationGuiTests::pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit() 
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene_data() {
+    QTest::addColumn<bool>("usePen");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("pen-tip-with-side-button-noise") << true;
+}
+
 void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
+    QFETCH(bool, usePen);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -487,7 +497,30 @@ void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
     QVERIFY(singingClip->notes().count() == 0);
     QVERIFY(!historyManager->canUndo());
 
-    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    const QPointingDevice pen(
+        QStringLiteral("Fixture drawing pen"), 1003, QInputDevice::DeviceType::Stylus,
+        QPointingDevice::PointerType::Pen,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    const auto promotedMouse = [&](QEvent::Type type, const QPoint &position) {
+        const auto button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
+        const auto buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
+        QMouseEvent event(type, position, view->viewport()->mapToGlobal(position), button, buttons,
+                          Qt::NoModifier, &pen);
+        QApplication::sendEvent(view->viewport(), &event);
+    };
+    const auto cleanup = qScopeGuard([&] {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(view.get(), &deactivate);
+    });
+    QSignalSpy menus(view.get(), &PianoRollGraphicsView::contextMenuRequested);
+    if (usePen) {
+        // Feed the unclaimed tablet event and its externally promoted mouse pair.
+        QVERIFY(!TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletPress, press,
+                                              0.7, Qt::LeftButton, Qt::LeftButton));
+        promotedMouse(QEvent::MouseButtonPress, press);
+    } else {
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    }
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
     QVERIFY(singingClip->notes().count() == 0);
     QVERIFY(!historyManager->canUndo());
@@ -495,10 +528,16 @@ void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(sceneNoteCount(-1), 1);
 
-    QMouseEvent move(QEvent::MouseMove, QPointF(release),
-                     QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
-                     Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &move);
+    if (usePen) {
+        QVERIFY(!TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletMove, release,
+                                              0.7, Qt::NoButton, Qt::LeftButton));
+        promotedMouse(QEvent::MouseMove, release);
+    } else {
+        QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                         QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view->viewport(), &move);
+    }
     const auto preview = appStatus->pianoRollNoteEditPreview.get();
     QCOMPARE(preview.size(), 1);
     QCOMPARE(preview.first().rStart, startTick);
@@ -507,7 +546,28 @@ void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
     QVERIFY(singingClip->notes().count() == 0);
     QVERIFY(runtime.documentVersion() == before);
 
-    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    if (usePen) {
+        QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletPress, release,
+                                             0.7, Qt::RightButton,
+                                             Qt::LeftButton | Qt::RightButton));
+        QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletRelease, release,
+                                             0.7, Qt::RightButton, Qt::LeftButton));
+        QContextMenuEvent platformCopy(QContextMenuEvent::Mouse, release,
+                                       view->viewport()->mapToGlobal(release));
+        platformCopy.setAccepted(false);
+        QApplication::sendEvent(view->viewport(), &platformCopy);
+        QVERIFY(platformCopy.isAccepted());
+        QCOMPARE(appStatus->pianoRollNoteEditPreview.get(), preview);
+        QCOMPARE(sceneNoteCount(-1), 1);
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(menus.isEmpty());
+        QVERIFY(!TestSupport::sendTabletEvent(*view->viewport(), pen, QEvent::TabletRelease,
+                                              release, 0.0, Qt::LeftButton, Qt::NoButton));
+        promotedMouse(QEvent::MouseButtonRelease, release);
+    } else {
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    }
     QTRY_COMPARE(singingClip->notes().count(), 1);
     const auto *note = *singingClip->notes().begin();
     const auto noteId = note->id();
