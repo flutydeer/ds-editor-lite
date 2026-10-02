@@ -455,7 +455,8 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
     if (scene()) {
         if (m_ensureSceneFillViewX) {
             adjustScaleXToFillView();
-        } else if (m_ensureSceneFillViewY) {
+        }
+        if (m_ensureSceneFillViewY) {
             adjustScaleYToFillView();
         }
     }

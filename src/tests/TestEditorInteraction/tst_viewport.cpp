@@ -80,6 +80,20 @@ void EditorInteractionTests::legacyWheelZoomPreservesTheInputAnchor() {
     const auto lowerBound = scale();
     sendTimeViewWheel(view, position, -120, modifiers);
     QCOMPARE(scale(), lowerBound);
+
+    auto enlarged = view.size();
+    if (vertical)
+        enlarged.setHeight(qCeil(view.sceneRect().height()) + 150);
+    else
+        enlarged.setWidth(qCeil(view.sceneRect().width()) + 150);
+    view.resize(enlarged);
+    QCoreApplication::processEvents();
+    QVERIFY(std::isfinite(scale()));
+    QVERIFY(scale() > lowerBound);
+    if (vertical)
+        QVERIFY(view.sceneRect().height() >= view.viewport()->height());
+    else
+        QVERIFY(view.sceneRect().width() >= view.viewport()->width());
 }
 
 void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted_data() {
