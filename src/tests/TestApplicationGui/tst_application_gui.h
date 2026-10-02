@@ -209,7 +209,7 @@ private:
     void createPianoRoll();
     void createExportTracks();
     QString createWaveFixture(const QString &path) const;
-    void createLyricSelection();
+    void createLyricSelection(int firstTick = 0);
     int insertSelectedNote();
     Automation::CommandContext commandContext() const;
     QPoint pointFor(int tick, int key) const;

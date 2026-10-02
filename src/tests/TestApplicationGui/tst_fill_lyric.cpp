@@ -216,7 +216,7 @@ namespace {
     }
 }
 
-void ApplicationGuiTests::createLyricSelection() {
+void ApplicationGuiTests::createLyricSelection(const int firstTick) {
     QTRY_COMPARE(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
     QTRY_COMPARE(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready);
     QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
@@ -242,7 +242,7 @@ void ApplicationGuiTests::createLyricSelection() {
     QList<Automation::NoteDraftDto> notes;
     for (int index = 0; index < 3; ++index) {
         Automation::NoteDraftDto note;
-        note.localStart = index * 480;
+        note.localStart = firstTick + index * 480;
         note.length = 480;
         note.keyIndex = 60;
         note.lyric = TestSupport::fixtureLyric();

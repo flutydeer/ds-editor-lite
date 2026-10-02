@@ -705,20 +705,22 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
 }
 
 void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
-    createLyricSelection();
+    createLyricSelection(480);
     if (QTest::currentTestFailed())
         return;
     const auto notes = singingClip->notes().toList();
     QCOMPARE(notes.size(), 3);
+    auto &runtime = *context->m_coreRuntime;
     PhonemeView phonemes;
     phonemes.resize(960, 100);
     phonemes.setDataContext(singingClip);
-    phonemes.setTimeRange(0, 1920);
+    constexpr int viewStart = 0;
+    constexpr int viewEnd = 2400;
+    phonemes.setTimeRange(viewStart, viewEnd);
     const auto detach = qScopeGuard([&] { phonemes.setDataContext(nullptr); });
     phonemes.show();
     phonemes.activateWindow();
     QTRY_VERIFY(phonemes.isVisible());
-    auto &runtime = *context->m_coreRuntime;
     const auto phonemeTick = [&](const Note *note, const qsizetype index) {
         return qRound(appModel->msToTick(appModel->tickToMs(note->globalStart()) +
                                          note->phonemeOffsetSeq().result().at(index)));
@@ -738,14 +740,18 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
     QVERIFY(!startedTransaction);
     QCOMPARE(runtime.documentVersion(), beforeZoomedOutInput);
     QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeZoomedOutModel);
-    phonemes.setTimeRange(0, 1920);
+    phonemes.setTimeRange(viewStart, viewEnd);
+    const auto positionAtTick = [&](int tick) {
+        return QPoint(qRound((tick - viewStart) * phonemes.width() / double(viewEnd - viewStart)),
+                      50);
+    };
     const auto dragAndUndo = [&](Note *note, const qsizetype index, const int requestedTick,
                                  const int expectedTick) {
         const auto original = note->phonemeOffsetSeq();
         const auto names = note->phonemeNameSeq().result();
         QVERIFY(!original.isEdited());
-        const auto press = QPoint(qRound(phonemeTick(note, index) * phonemes.width() / 1920.0), 50);
-        const auto release = QPoint(qRound(requestedTick * phonemes.width() / 1920.0), 50);
+        const auto press = positionAtTick(phonemeTick(note, index));
+        const auto release = positionAtTick(requestedTick);
         QVERIFY(phonemes.rect().contains(press));
         QVERIFY(phonemes.rect().contains(release));
         const auto before = runtime.documentVersion();
@@ -768,7 +774,10 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
         QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
         const auto changed = note->phonemeOffsetSeq().edited;
         QCOMPARE(changed.size(), original.result().size());
-        QVERIFY(qAbs(phonemeTick(note, index) - expectedTick) <= 2);
+        QVERIFY2(qAbs(phonemeTick(note, index) - expectedTick) <= 2,
+                 qPrintable(QStringLiteral("Phoneme tick %1, expected %2")
+                                .arg(phonemeTick(note, index))
+                                .arg(expectedTick)));
         for (qsizetype phone = 0; phone < changed.size(); ++phone) {
             if (phone != index)
                 QCOMPARE(changed.at(phone), original.result().at(phone));
@@ -785,6 +794,15 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
         QVERIFY(runtime.history().undo(commandContext()));
         QTRY_VERIFY(taskManager->tasks().isEmpty());
     };
+    auto *first = notes.first();
+    QVERIFY(first->phonemeOffsetSeq().result().size() >= 2);
+    const auto firstStart = phonemeTick(first, 0);
+    const auto firstGap = phonemeTick(first, 1) - firstStart;
+    QVERIFY(firstGap > 1);
+    const auto movedHead = firstStart + qMin(60, firstGap / 2);
+    dragAndUndo(first, 0, movedHead, movedHead);
+    if (QTest::currentTestFailed())
+        return;
     auto *middle = notes.at(1);
     auto *last = notes.last();
     QVERIFY(middle->phonemeOffsetSeq().result().size() >= 2);
