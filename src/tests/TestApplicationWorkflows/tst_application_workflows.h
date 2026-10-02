@@ -89,6 +89,7 @@ private slots:
     void movingInheritedVoiceReusesOrRebuildsInference();
 
     void unavailableInferenceProviderFallsBackAndExits();
+    void availableGpuSelectionInitializesAndExits();
 
     void changedTargetInputDropsResult();
 

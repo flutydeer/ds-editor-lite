@@ -53,35 +53,47 @@ namespace {
         return output.write(data) == data.size() ? 0 : 7;
     }
 
-    int unavailableInferenceProvider(int argc, char **argv) {
+    int inferenceProviderStartup(int argc, char **argv, const bool selectedDevice) {
         QCoreApplication application(argc, argv);
+        const auto deviceId = application.arguments().value(2);
+        bool validIndex = false;
+        const auto deviceIndex = application.arguments().value(3).toInt(&validIndex);
+        if (selectedDevice && (deviceId.isEmpty() || !validIndex || deviceIndex < 0))
+            return 5;
         AppEnvironment::postInit(AppHostMode::Headless);
         auto options = std::make_unique<AppOptions>();
         options->general()->packageSearchPaths.clear();
         options->inference()->autoStartInfer = false;
-        options->inference()->executionProvider = QStringLiteral("CUDA");
-        options->inference()->selectedGpuIndex = 3;
-        options->inference()->selectedGpuId = QStringLiteral("unavailable-gpu");
-        CudaGpuUtils::setNvidiaSmiPath(
-            QDir(AppDataPaths::testRoot()).filePath(QStringLiteral("missing-nvidia-smi")));
+        options->inference()->executionProvider =
+            selectedDevice ? QStringLiteral("DirectML") : QStringLiteral("CUDA");
+        options->inference()->selectedGpuIndex = selectedDevice ? deviceIndex : 3;
+        options->inference()->selectedGpuId =
+            selectedDevice ? deviceId : QStringLiteral("unavailable-gpu");
+        if (!selectedDevice) {
+            CudaGpuUtils::setNvidiaSmiPath(
+                QDir(AppDataPaths::testRoot()).filePath(QStringLiteral("missing-nvidia-smi")));
+        }
         AppContext context(std::move(options), AppHostMode::Headless);
         packageManager->initialize({});
         if (!TestSupport::waitUntil(
                 [] { return appStatus->inferEngineEnvStatus == AppStatus::ModuleStatus::Ready; },
                 5000)) {
-            qCritical("The unavailable provider did not fall back to a ready CPU runtime");
+            qCritical("Inference startup did not reach a ready runtime");
             return 1;
         }
         if (!SynthrtEngine::instance().runtimeInitialized() ||
             !SynthrtEngine::instance().initializationDone()) {
-            qCritical("CPU fallback must complete runtime initialization");
+            qCritical("Inference startup must complete runtime initialization");
             return 2;
         }
-        if (ExecutionProviderUtils::effective() != ExecutionProvider::Cpu ||
-            appOptions->inference()->executionProvider != QStringLiteral("CPU") ||
-            appOptions->inference()->selectedGpuIndex != -1 ||
-            !appOptions->inference()->selectedGpuId.isEmpty()) {
-            qCritical("CPU fallback must clear the unavailable GPU selection");
+        const auto expectedProvider =
+            selectedDevice ? ExecutionProvider::DirectML : ExecutionProvider::Cpu;
+        if (ExecutionProviderUtils::effective() != expectedProvider ||
+            appOptions->inference()->executionProvider !=
+                ExecutionProviderUtils::toString(expectedProvider) ||
+            appOptions->inference()->selectedGpuIndex != (selectedDevice ? deviceIndex : -1) ||
+            appOptions->inference()->selectedGpuId != (selectedDevice ? deviceId : QString{})) {
+            qCritical("Inference startup must resolve the provider and saved GPU selection");
             return 4;
         }
         if (!TestSupport::waitUntil(
@@ -90,7 +102,7 @@ namespace {
                            appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready;
                 },
                 5000)) {
-            qCritical("Package discovery must finish after CPU fallback");
+            qCritical("Package discovery must finish after inference startup");
             return 3;
         }
         return 0;
@@ -101,7 +113,10 @@ namespace {
 int main(int argc, char **argv) {
     if (argc > 1 &&
         QString::fromLocal8Bit(argv[1]) == QStringLiteral("--unavailable-inference-provider"))
-        return unavailableInferenceProvider(argc, argv);
+        return inferenceProviderStartup(argc, argv, false);
+    if (argc > 1 &&
+        QString::fromLocal8Bit(argv[1]) == QStringLiteral("--selected-inference-device"))
+        return inferenceProviderStartup(argc, argv, true);
     QCoreApplication application(argc, argv);
     if (application.arguments().value(1) == QStringLiteral("proj"))
         return libreSvipProcessFixture(application.arguments());

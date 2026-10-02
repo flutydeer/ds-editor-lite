@@ -14,6 +14,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/States/UpdateVarianceState.h"
@@ -519,6 +520,29 @@ void ApplicationWorkflowTests::unavailableInferenceProviderFallsBackAndExits() {
     QVERIFY2(finished, qPrintable(diagnostics));
     QCOMPARE(process.exitStatus(), QProcess::NormalExit);
     QVERIFY2(process.exitCode() == 0, qPrintable(diagnostics));
+}
+
+void ApplicationWorkflowTests::availableGpuSelectionInitializesAndExits() {
+    const auto devices = DmlGpuUtils::getGpuList();
+    if (devices.isEmpty())
+        QSKIP("No usable DirectML device is available on this platform");
+    const auto &device = devices.first();
+    TestSupport::ProcessFixture fixture(QStringLiteral("selected-inference-device"));
+    QVERIFY(fixture.isValid());
+    auto &process = fixture.process(QStringLiteral("application"));
+    process.start(QCoreApplication::applicationFilePath(),
+                  {QStringLiteral("--selected-inference-device"), device.deviceId,
+                   QString::number(device.index)});
+    QVERIFY2(process.waitForStarted(5000), qPrintable(process.errorString()));
+    const auto finished = process.waitForFinished(10000);
+    const auto diagnostics = QString::fromUtf8(TestSupport::readProcessStdout(process)) +
+                             QString::fromUtf8(TestSupport::readProcessStderr(process));
+    QVERIFY2(finished, qPrintable(diagnostics));
+    QCOMPARE(process.exitStatus(), QProcess::NormalExit);
+    QVERIFY2(process.exitCode() == 0, qPrintable(diagnostics));
+    QVERIFY2(diagnostics.contains(QStringLiteral("Selecting GPU")), qPrintable(diagnostics));
+    QVERIFY2(diagnostics.contains(QStringLiteral("Device ID: %1").arg(device.deviceId)),
+             qPrintable(diagnostics));
 }
 
 void ApplicationWorkflowTests::changedTargetInputDropsResult() {
