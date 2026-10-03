@@ -192,6 +192,7 @@ private slots:
     void trackColorMenuPreviewsAndCommits();
     void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
     void pianoContextMenuPastePreservesRelativeNotesAndManualWords();
+    void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish();
     void lyricGridSelectionDeletesOnlyChosenWords_data();
     void lyricGridSelectionDeletesOnlyChosenWords();

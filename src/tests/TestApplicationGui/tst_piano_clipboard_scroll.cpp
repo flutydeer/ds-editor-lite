@@ -313,7 +313,14 @@ void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish_data() {
+    QTest::addColumn<bool>("vertical");
+    QTest::newRow("horizontal") << false;
+    QTest::newRow("vertical") << true;
+}
+
 void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish() {
+    QFETCH(bool, vertical);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -334,6 +341,7 @@ void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFin
     QTRY_VERIFY(view->isActiveWindow());
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto previousCursor = QCursor::pos();
     QPoint releasePosition;
     bool pressed = false;
@@ -346,10 +354,12 @@ void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFin
         QCursor::setPos(previousCursor);
     });
     const auto dragToEdge = [&](bool commit) {
+        view->setViewportCenterAt(1920, draft.keyIndex, false);
         view->setViewportStartTick(0);
         QCoreApplication::processEvents();
         const auto press = pointFor(draft.localStart + draft.length / 2, draft.keyIndex);
-        releasePosition = QPoint(view->viewport()->rect().right() - 1, press.y());
+        releasePosition = vertical ? QPoint(press.x(), view->viewport()->rect().bottom() - 1)
+                                   : QPoint(view->viewport()->rect().right() - 1, press.y());
         QVERIFY(view->viewport()->rect().contains(press));
         QVERIFY(view->viewport()->rect().contains(releasePosition));
         const auto windowPoint = [&](const QPoint &point) {
@@ -365,16 +375,30 @@ void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFin
         QCOMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
         const auto firstPreview = appStatus->pianoRollNoteEditPreview.get().first();
         const auto firstVisibleTick = view->startTick();
+        const auto scrollPosition = [&] {
+            return vertical ? view->verticalBarValue() : view->horizontalBarValue();
+        };
+        const auto firstScrollPosition = scrollPosition();
         // No further move event is sent: the real scroll timer must continue the same drag.
-        QTRY_VERIFY(view->startTick() > firstVisibleTick &&
+        QTRY_VERIFY(scrollPosition() > firstScrollPosition &&
                     appStatus->pianoRollNoteEditPreview.get().size() == 1 &&
-                    appStatus->pianoRollNoteEditPreview.get().first().rStart > firstPreview.rStart);
+                    (vertical ? appStatus->pianoRollNoteEditPreview.get().first().keyIndex <
+                                    firstPreview.keyIndex
+                              : appStatus->pianoRollNoteEditPreview.get().first().rStart >
+                                    firstPreview.rStart));
         const auto lastPreview = appStatus->pianoRollNoteEditPreview.get().first();
         QCOMPARE(lastPreview.id, noteId);
         QCOMPARE(lastPreview.length, draft.length);
-        QCOMPARE(lastPreview.keyIndex, draft.keyIndex);
+        if (vertical)
+            QCOMPARE(lastPreview.rStart, draft.localStart);
+        else {
+            QVERIFY(view->startTick() > firstVisibleTick);
+            QCOMPARE(lastPreview.keyIndex, draft.keyIndex);
+        }
         QCOMPARE(note->localStart(), draft.localStart);
+        QCOMPARE(note->keyIndex(), draft.keyIndex);
         QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QVERIFY(!historyManager->canUndo());
         QVERIFY(editSessionManager->hasActiveTransaction());
         if (!commit)
@@ -384,13 +408,23 @@ void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFin
         pressed = false;
         QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
         QVERIFY(!editSessionManager->hasActiveTransaction());
-        if (commit)
-            QVERIFY(note->localStart() >= lastPreview.rStart);
-        else
+        if (commit) {
+            if (vertical) {
+                QVERIFY(note->keyIndex() <= lastPreview.keyIndex);
+                QCOMPARE(note->localStart(), draft.localStart);
+            } else {
+                QVERIFY(note->localStart() >= lastPreview.rStart);
+                QCOMPARE(note->keyIndex(), draft.keyIndex);
+            }
+        } else {
             QCOMPARE(note->localStart(), draft.localStart);
-        const auto stoppedAt = view->startTick();
+            QCOMPARE(note->keyIndex(), draft.keyIndex);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        }
+        QCOMPARE(note->length(), draft.length);
+        const auto stoppedAt = scrollPosition();
         QTest::qWait(100);
-        QCOMPARE(view->startTick(), stoppedAt);
+        QCOMPARE(scrollPosition(), stoppedAt);
         QCOMPARE(runtime.documentVersion().revision, before.revision + (commit ? 1 : 0));
     };
     dragToEdge(false);
@@ -402,7 +436,10 @@ void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFin
     QVERIFY(historyManager->canUndo());
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(note->localStart(), draft.localStart);
+    QCOMPARE(note->keyIndex(), draft.keyIndex);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(sceneNote(noteId));
     QCOMPARE(sceneNote(noteId)->rStart(), draft.localStart);
+    QCOMPARE(sceneNote(noteId)->keyIndex(), draft.keyIndex);
     QVERIFY(!historyManager->canUndo());
 }
