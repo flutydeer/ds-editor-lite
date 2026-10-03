@@ -35,6 +35,7 @@ private slots:
     void publicClipCopyAndMovePreserveTheSourcePhrase();
     void publicNotePhraseEditsPreserveUnselectedNotesAndHistory();
     void publicTimelineEditsPreserveThePhraseAndUndo();
+    void publicTrackOrganizationPreservesClipsAndHistory();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets();
     void insertedPhonemesPreserveTimingAndRejectPartialOffsets();

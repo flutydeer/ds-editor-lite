@@ -856,6 +856,155 @@ void AutomationProtocolTests::publicTimelineEditsPreserveThePhraseAndUndo() {
     fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
 }
 
+void AutomationProtocolTests::publicTrackOrganizationPreservesClipsAndHistory() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto lead = lyricTrack();
+    auto harmony = lyricTrack();
+    harmony.name = QStringLiteral("Harmony");
+    harmony.clips.first().notes.first().keyIndex = 67;
+    auto document = DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {lead, harmony};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(runtime), document));
+    const auto initial = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(initial);
+    const auto leadId = initial.get().tracks.first().id;
+    const auto harmonyId = initial.get().tracks.last().id;
+    const auto clipId = initial.get().tracks.first().clips.first().id;
+    const auto notesBefore = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(notesBefore);
+    const auto original = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto originalHarmony = original.value(QStringLiteral("content"))
+                                     .toObject()
+                                     .value(QStringLiteral("tracks"))
+                                     .toArray()
+                                     .last();
+    const auto *initialUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    QList<QJsonObject> checkpoints{original};
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    const auto apply = [&](const QString &tool, QJsonObject arguments) -> QString {
+        const auto before = runtime.documentVersion();
+        const auto context = commandArguments(before);
+        for (auto it = context.begin(); it != context.end(); ++it)
+            arguments.insert(it.key(), it.value());
+        const auto result = registry.invoke(tool, arguments);
+        if (!result)
+            return errorMessage(result);
+        if (!result.get().value(QStringLiteral("changed")).toBool() ||
+            runtime.documentVersion().documentId != before.documentId ||
+            runtime.documentVersion().revision != before.revision + 1)
+            return tool + QStringLiteral(" did not commit exactly one document revision");
+        checkpoints.append(TestSupport::projectSnapshot(fixture.runtimeFixture.model()));
+        return {};
+    };
+    QCOMPARE(
+        apply(QStringLiteral("tracks.insert"),
+              {
+                  {"index",  1                                                 },
+                  {"tracks", QJsonArray{QJsonObject{{"client_ref", "scratch"}}}}
+    }),
+        QString{});
+    const auto inserted = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(inserted);
+    QCOMPARE(inserted.get().tracks.size(), 3);
+    const auto scratchId = inserted.get().tracks.at(1).id;
+    QVERIFY(scratchId.isValid() && scratchId != leadId && scratchId != harmonyId);
+    QVERIFY(!inserted.get().tracks.at(1).data.name.isEmpty());
+    QVERIFY(inserted.get().tracks.at(1).clips.isEmpty());
+    QCOMPARE(inserted.get().tracks.first().id, leadId);
+    QCOMPARE(inserted.get().tracks.last().id, harmonyId);
+    QCOMPARE(apply(QStringLiteral("tracks.move"),
+                   {
+                       {"track_ids",    QJsonArray{harmonyId.value(), leadId.value()}},
+                       {"target_index", 3                                            }
+    }),
+             QString{});
+    const auto moved = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(moved);
+    QCOMPARE(moved.get().tracks.at(0).id, scratchId);
+    QCOMPARE(moved.get().tracks.at(1).id, leadId);
+    QCOMPARE(moved.get().tracks.at(2).id, harmonyId);
+    QCOMPARE(moved.get().tracks.at(1).clips.first().id, clipId);
+    QCOMPARE(apply(QStringLiteral("tracks.set_color"),
+                   {
+                       {"track_id",    leadId.value()},
+                       {"color_index", 3             }
+    }),
+             QString{});
+    QCOMPARE(apply(QStringLiteral("tracks.set_default_language"),
+                   {
+                       {"track_id",    leadId.value()},
+                       {"language_id", "eng"         }
+    }),
+             QString{});
+    QCOMPARE(apply(QStringLiteral("clips.rename"),
+                   {
+                       {"clip_id", clipId.value()},
+                       {"name",    "Verse"       }
+    }),
+             QString{});
+    const auto organized = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(organized);
+    QCOMPARE(organized.get().tracks.at(1).data.colorIndex, 3);
+    QCOMPARE(organized.get().tracks.at(1).data.defaultLanguage, QStringLiteral("eng"));
+    QCOMPARE(organized.get().tracks.at(1).clips.first().data.properties.name,
+             QStringLiteral("Verse"));
+    const auto retained = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(retained);
+    QCOMPARE(retained.get().size(), notesBefore.get().size());
+    for (qsizetype index = 0; index < notesBefore.get().size(); ++index) {
+        QCOMPARE(retained.get().at(index).id, notesBefore.get().at(index).id);
+    }
+    const auto trackContent = [](const QJsonObject &snapshot, qsizetype index) {
+        return snapshot.value(QStringLiteral("content"))
+            .toObject()
+            .value(QStringLiteral("tracks"))
+            .toArray()
+            .at(index)
+            .toObject();
+    };
+    auto expectedClips = trackContent(original, 0).value(QStringLiteral("clips")).toArray();
+    auto expectedClip = expectedClips.first().toObject();
+    expectedClip.insert(QStringLiteral("name"), QStringLiteral("Verse"));
+    expectedClips[0] = expectedClip;
+    QCOMPARE(trackContent(checkpoints.last(), 1).value(QStringLiteral("clips")).toArray(),
+             expectedClips);
+    QCOMPARE(checkpoints.last()
+                 .value(QStringLiteral("content"))
+                 .toObject()
+                 .value(QStringLiteral("tracks"))
+                 .toArray()
+                 .last(),
+             originalHarmony);
+    QCOMPARE(apply(QStringLiteral("clips.remove"),
+                   {
+                       {"clip_ids", QJsonArray{clipId.value()}}
+    }),
+             QString{});
+    const auto removedClip = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(removedClip);
+    QVERIFY(removedClip.get().tracks.at(1).clips.isEmpty());
+    QCOMPARE(apply(QStringLiteral("tracks.remove"),
+                   {
+                       {"track_ids", QJsonArray{scratchId.value()}}
+    }),
+             QString{});
+    const auto final = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(final);
+    QCOMPARE(final.get().tracks.size(), 2);
+    QCOMPARE(final.get().tracks.first().id, leadId);
+    QCOMPARE(final.get().tracks.last().id, harmonyId);
+    QCOMPARE(checkpoints.last()
+                 .value(QStringLiteral("content"))
+                 .toObject()
+                 .value(QStringLiteral("tracks"))
+                 .toArray()
+                 .last(),
+             originalHarmony);
+    fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
+}
+
 void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
@@ -1005,6 +1154,8 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
         });
     };
     fixture.runtimeFixture.history()->reset();
+    const auto emptyProject = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto *initialUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     const auto replaced = replace({draw, anchor});
     QVERIFY2(replaced, qPrintable(errorMessage(replaced)));
     const auto initial = runtime.parameters().getParameter(runtime.documentVersion().documentId,
@@ -1050,6 +1201,10 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
 
     const auto beforeAnchors = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto versionBeforeAnchors = runtime.documentVersion();
+    QList<QJsonObject> checkpoints{emptyProject, beforeAnchors};
+    const auto checkpoint = [&] {
+        checkpoints.append(TestSupport::projectSnapshot(fixture.runtimeFixture.model()));
+    };
     const auto created = edit(
         QStringLiteral("parameters.create_anchor_curve"),
         {
@@ -1060,6 +1215,7 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
                  QJsonObject{{"position", 1920}, {"value", 6400}, {"interpolation", "step"}}}}
     });
     QVERIFY2(created, qPrintable(errorMessage(created)));
+    checkpoint();
     int curveId = -1;
     for (const auto &value : created.get().value(QStringLiteral("created_objects")).toArray()) {
         const auto entry = value.toObject();
@@ -1080,6 +1236,7 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
                                                     {"interpolation", "linear"}}}}
     });
     QVERIFY2(inserted, qPrintable(errorMessage(inserted)));
+    checkpoint();
     const auto withAnchors = runtime.parameters().getParameter(
         runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
     QVERIFY(withAnchors);
@@ -1104,6 +1261,7 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
                                                   {"value", 6650}}}}
     });
     QVERIFY2(moved, qPrintable(errorMessage(moved)));
+    checkpoint();
     const auto afterMove = runtime.parameters().getParameter(runtime.documentVersion().documentId,
                                                              clip, ParamInfo::Pitch, Param::Edited);
     QVERIFY(afterMove);
@@ -1117,15 +1275,66 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
     QCOMPARE(movedCurve.nodes.at(2).value, 6650);
     QCOMPARE(afterMove.get().curves.first().values, storedDraw.values);
     QCOMPARE(afterMove.get().curves.at(1).id, storedAnchor.id);
-    QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 3);
-    for (int i = 0; i < 3; ++i)
-        QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeAnchors);
-    QVERIFY(runtime.history().undo(commandContext(runtime)));
-    const auto empty = runtime.parameters().getParameter(runtime.documentVersion().documentId, clip,
-                                                         ParamInfo::Pitch, Param::Edited);
-    QVERIFY(empty && empty.get().curves.isEmpty());
-    QVERIFY(!fixture.runtimeFixture.history()->canUndo());
+    const auto interpolation =
+        edit(QStringLiteral("parameters.set_anchor_interpolation"),
+             {
+                 {"anchor_ids",    QJsonArray{firstInsertedId.value(), secondInsertedId.value()}},
+                 {"interpolation", "step"                                                       }
+    });
+    QVERIFY2(interpolation, qPrintable(errorMessage(interpolation)));
+    checkpoint();
+    const auto stepped = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                           clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(stepped);
+    QCOMPARE(stepped.get().curves.last().nodes.at(1).id, firstInsertedId);
+    QCOMPARE(stepped.get().curves.last().nodes.at(1).interpolation, AnchorNode::None);
+    QCOMPARE(stepped.get().curves.last().nodes.at(2).id, secondInsertedId);
+    QCOMPARE(stepped.get().curves.last().nodes.at(2).interpolation, AnchorNode::None);
+    const auto removed = edit(QStringLiteral("parameters.remove_anchors"),
+                              {
+                                  {"anchor_ids", QJsonArray{firstInsertedId.value()}}
+    });
+    QVERIFY2(removed, qPrintable(errorMessage(removed)));
+    checkpoint();
+    const auto shortened = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                             clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(shortened);
+    const auto &remaining = shortened.get().curves.last();
+    QCOMPARE(remaining.nodes.size(), 3);
+    QCOMPARE(remaining.nodes.first().id, continuation.nodes.first().id);
+    QCOMPARE(remaining.nodes.at(1).id, secondInsertedId);
+    QCOMPARE(remaining.nodes.at(1).position, 1740);
+    QCOMPARE(remaining.nodes.at(1).value, 6650);
+    QCOMPARE(remaining.nodes.at(1).interpolation, AnchorNode::None);
+    QCOMPARE(remaining.nodes.last().id, continuation.nodes.last().id);
+    const auto merged =
+        edit(QStringLiteral("parameters.merge_anchor_curves"),
+             {
+                 {"target_curve_id", storedAnchor.id.value()},
+                 {"source_curve_id", curveId                }
+    });
+    QVERIFY2(merged, qPrintable(errorMessage(merged)));
+    checkpoint();
+    const auto combined = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                            clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(combined);
+    QCOMPARE(combined.get().curves.size(), 2);
+    QCOMPARE(combined.get().curves.first().id, storedDraw.id);
+    QCOMPARE(combined.get().curves.first().values, storedDraw.values);
+    const auto &combinedAnchors = combined.get().curves.last();
+    QCOMPARE(combinedAnchors.id, storedAnchor.id);
+    QCOMPARE(combinedAnchors.nodes.size(), storedAnchor.nodes.size() + remaining.nodes.size());
+    auto expectedNodes = storedAnchor.nodes;
+    expectedNodes.append(remaining.nodes);
+    for (qsizetype index = 0; index < expectedNodes.size(); ++index) {
+        QCOMPARE(combinedAnchors.nodes.at(index).id, expectedNodes.at(index).id);
+        QCOMPARE(combinedAnchors.nodes.at(index).position, expectedNodes.at(index).position);
+        QCOMPARE(combinedAnchors.nodes.at(index).value, expectedNodes.at(index).value);
+        QCOMPARE(combinedAnchors.nodes.at(index).interpolation,
+                 expectedNodes.at(index).interpolation);
+    }
+    QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 6);
+    fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
 }
 
 void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data() {
