@@ -204,6 +204,8 @@ Windows 的启动转发出现连接和写入已完成、连接仍打开却等不
 
 RHI 主窗口的参数面板共享时间线导航已通过 Windows 原生定向及完整 NativeDesktop 集合。真实 Shift 滚轮和单指水平平移改变钢琴窗位置，两画布同步，倍率与参数纵向值域保留，工程、版本、历史及事务保持，RHI 帧继续提交。随后原主题、片段导航与窗口迁移流程继续通过。
 
+RHI 成组锚点移动的边缘滚动行已通过 Windows 定向和完整 NativeDesktop 集合，原同曲线与跨曲线数据行继续通过。QWindow 输入满足滚动器的应用级鼠标状态检查，静止指针时持续滚动，预览不提交，取消与释放后停止，未选节点及身份保留，单次提交与完整撤销恢复通过。
+
 ### 4.1. 平台和资源边界
 
 Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合。Linux 使用独立覆盖构建，Tests 之后由 Coverage 步骤读取执行数据生成报告。Windows/macOS 使用 `build/Tests` 中的普通 Debug 构建执行全部适用测试。普通控件使用 offscreen。原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，常规测试不要求覆盖率工具，也不以 CI 身份作为启用条件。Linux 的 RtMidi 在 manifest 中显式请求 ALSA。三平台依赖解析确认仅 Linux 引入该特性和依赖。

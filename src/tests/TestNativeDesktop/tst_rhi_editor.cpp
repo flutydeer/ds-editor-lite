@@ -1078,25 +1078,28 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_
 
 void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically_data() {
     QTest::addColumn<bool>("acrossCurves");
-    QTest::newRow("within-curve") << false;
-    QTest::newRow("across-curves") << true;
+    QTest::addColumn<bool>("edgeScroll");
+    QTest::newRow("within-curve") << false << false;
+    QTest::newRow("across-curves") << true << false;
+    QTest::newRow("edge-scroll") << false << true;
 }
 
 void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
     QFETCH(bool, acrossCurves);
+    QFETCH(bool, edgeScroll);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(edgeScroll ? 38400 : 3840);
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
     Automation::CurveDraftDto first;
     first.type = Automation::CurveDraftDto::Type::Anchor;
     first.nodes = {
-        {480,  6000,                       AnchorNode::Hermite},
-        {960,  6300,                       AnchorNode::Hermite},
-        {1440, acrossCurves ? 6400 : 6000, AnchorNode::None   }
+        {480,                       6000,                       AnchorNode::Hermite},
+        {960,                       6300,                       AnchorNode::Hermite},
+        {edgeScroll ? 10000 : 1440, acrossCurves ? 6400 : 6000, AnchorNode::None   }
     };
     QList<Automation::CurveDraftDto> curves{first};
     if (acrossCurves) {
@@ -1138,6 +1141,12 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
     const auto before = fixture.runtime().documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const auto selectGroup = [&] {
+        if (edgeScroll) {
+            QVERIFY(canvas.centerAt(1920, 60));
+            fixture.waitForFrame();
+            if (QTest::currentTestFailed())
+                return;
+        }
         const auto start = fixture.pointFor(360, acrossCurves ? 60.5 : 64);
         const auto end = fixture.pointFor(acrossCurves ? 2040 : 1200, acrossCurves ? 59.5 : 59);
         QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
@@ -1154,12 +1163,42 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
         fixture.waitForFrame();
     };
     const auto press = fixture.pointFor(480, 60);
-    const auto release = fixture.pointFor(720, 61);
+    auto release = fixture.pointFor(720, 61);
+    if (edgeScroll)
+        release.setX(canvas.width() - 2);
+    const auto releasePointer = [&] {
+        if (edgeScroll)
+            QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, release);
+        else
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    };
+    const auto cancelPointer = qScopeGuard([&] {
+        if (edgeScroll) {
+            QEvent deactivate(QEvent::WindowDeactivate);
+            QApplication::sendEvent(&canvas, &deactivate);
+            releasePointer();
+        }
+    });
     const auto dragGroup = [&] {
+        const auto startTick = canvas.startTick();
         fixture.moveTo(press);
-        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-        QTest::mouseMove(&canvas, release);
+        if (edgeScroll) {
+            QVERIFY(canvas.windowHandle());
+            // The scroll timer checks Qt's application-wide mouse-button state.
+            QTest::mousePress(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, press);
+            QCursor::setPos(canvas.mapToGlobal(release));
+            QTest::mouseMove(canvas.windowHandle(), release);
+            QVERIFY(QGuiApplication::mouseButtons().testFlag(Qt::LeftButton));
+        } else {
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+            QTest::mouseMove(&canvas, release);
+        }
         fixture.waitForFrame(QEventLoop::ExcludeUserInputEvents);
+        if (edgeScroll) {
+            QTRY_VERIFY(canvas.startTick() > startTick);
+            const auto scrollingTick = canvas.startTick();
+            QTRY_VERIFY(canvas.startTick() > scrollingTick);
+        }
     };
     selectGroup();
     if (QTest::currentTestFailed())
@@ -1171,18 +1210,23 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
     QCOMPARE(anchors(), initial);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
     QTest::keyClick(&canvas, Qt::Key_Escape);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    releasePointer();
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
+    if (edgeScroll) {
+        const auto stoppedTick = canvas.startTick();
+        QTest::qWait(80);
+        QCOMPARE(canvas.startTick(), stoppedTick);
+    }
     selectGroup();
     if (QTest::currentTestFailed())
         return;
     dragGroup();
     if (QTest::currentTestFailed())
         return;
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    releasePointer();
     QCoreApplication::processEvents();
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
@@ -1192,7 +1236,10 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
     QCOMPARE(moved.keys(), initial.keys());
     const auto tickPerPixel = (canvas.endTick() - canvas.startTick()) / canvas.width();
     const auto delta = moved.value(selected.first()).first - initial.value(selected.first()).first;
-    QVERIFY(qAbs(delta - 240) <= tickPerPixel);
+    if (edgeScroll)
+        QVERIFY(delta > (release.x() - press.x()) * tickPerPixel);
+    else
+        QVERIFY(qAbs(delta - 240) <= tickPerPixel);
     for (auto it = initial.cbegin(); it != initial.cend(); ++it) {
         const auto actual = moved.value(it.key());
         if (selected.contains(it.key())) {
@@ -1203,6 +1250,11 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
         }
     }
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    if (edgeScroll) {
+        const auto stoppedTick = canvas.startTick();
+        QTest::qWait(80);
+        QCOMPARE(canvas.startTick(), stoppedTick);
+    }
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QCOMPARE(anchors(), initial);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
