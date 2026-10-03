@@ -145,6 +145,8 @@ private slots:
     void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void trackEditInputsFollowTheFocusedPanelAndUndo_data();
     void trackEditInputsFollowTheFocusedPanelAndUndo();
+    void parameterDeleteMenuFollowsTheFocusedPanelAndUndo_data();
+    void parameterDeleteMenuFollowsTheFocusedPanelAndUndo();
     void undoShortcutRevealsThePianoEditBeforeChangingIt_data();
     void undoShortcutRevealsThePianoEditBeforeChangingIt();
     void fileMenuOpensSavesAndExportsThroughThePicker();

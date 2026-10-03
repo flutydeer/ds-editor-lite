@@ -17,8 +17,10 @@
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
+#include "UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
@@ -44,6 +46,7 @@
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -759,6 +762,171 @@ void ApplicationGuiTests::trackEditInputsFollowTheFocusedPanelAndUndo() {
     QCOMPARE(track->clips().count(), 2);
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::parameterDeleteMenuFollowsTheFocusedPanelAndUndo_data() {
+    QTest::addColumn<bool>("speakerMix");
+    QTest::newRow("parameter-anchor") << false;
+    QTest::newRow("speaker-mix-keyframe") << true;
+}
+
+void ApplicationGuiTests::parameterDeleteMenuFollowsTheFocusedPanelAndUndo() {
+    QFETCH(bool, speakerMix);
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto draft;
+    draft.type = Automation::CurveDraftDto::Type::Anchor;
+    draft.nodes = {
+        {.position = 240,  .value = 300},
+        {.position = 960,  .value = 500},
+        {.position = 1920, .value = 700}
+    };
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(),
+                                                  Automation::ClipId(singingClip->id()),
+                                                  ParamInfo::MouthOpening, Param::Edited, {draft}));
+    const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
+    const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
+    const SingerInfo singer({QStringLiteral("mix"), QStringLiteral("gui"), QVersionNumber(1, 0)},
+                            QStringLiteral("Mix"), {bright, warm});
+    SpeakerMixModel::SpeakerMixData mixDraft;
+    mixDraft.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+    mixDraft.sources = {{bright}, {warm}};
+    mixDraft.fixedWeights = {0.5};
+    mixDraft.dynamicKeyframes = {
+        {240,  {0.5} },
+        {960,  {0.25}},
+        {1920, {0.75}}
+    };
+    QVERIFY(runtime.parameters().applyClipSpeakerMix(
+        commandContext(), Automation::ClipId(singingClip->id()), singer, bright, mixDraft));
+    auto &editor = runtime.facade();
+    QVERIFY(runtime.windowId());
+    const auto version = runtime.documentVersion();
+    const Automation::GuiCommandContext gui{.windowId = *runtime.windowId(),
+                                            .source = Automation::InvocationSource::PublicMcp};
+    const Automation::GuiDocumentCommandContext document{.documentId = version.documentId,
+                                                         .expectedRevision = version.revision,
+                                                         .windowId = gui.windowId,
+                                                         .source = gui.source};
+    QVERIFY(editor.setActiveClip(document, Automation::ClipId(singingClip->id())));
+    QVERIFY(editor.showRegion(gui, EditorViewGlobal::Region::Parameters));
+    QVERIFY(editor.setParameterForeground(document, ParamInfo::MouthOpening));
+    QVERIFY(editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Draw));
+    QVERIFY(editor.setParameterValueViewport(document, {.centerRatio = 0.5, .verticalScale = 1}));
+    QVERIFY(editor.setClipEditorTimeViewport(gui, {.centerTick = 1440, .horizontalScale = 1}));
+    auto *panel = window.findChild<ParamEditorView *>();
+    QVERIFY(panel && panel->isVisible());
+    auto *graphics = panel->graphicsView();
+    QVERIFY(graphics && graphics->isVisible());
+    CommonParamEditorView *foreground = nullptr;
+    for (auto *item : graphics->scene()->items()) {
+        if (auto *candidate = dynamic_cast<CommonParamEditorView *>(item);
+            candidate && !candidate->transparentMouseEvents())
+            foreground = candidate;
+    }
+    QVERIFY(foreground);
+    if (speakerMix)
+        QVERIFY(editor.setParameterForeground(document, ParamInfo::SpeakerMix));
+    else
+        QVERIFY(editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Anchor));
+    QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::Parameters));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::Parameters);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    historyManager->reset();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto before = runtime.documentVersion();
+    const auto originalMix = singingClip->speakerMixData();
+    const auto curve = [&] {
+        return dynamic_cast<const AnchorCurve *>(
+            singingClip->params.getParamByName(ParamInfo::MouthOpening)
+                ->curves(Param::Edited)
+                .value(0));
+    };
+    QVERIFY(curve());
+    const auto originalCurveId = curve()->id();
+    const auto originalNodes = curve()->nodes().toList();
+    QCOMPARE(originalNodes.size(), 3);
+    QList<int> originalNodeIds;
+    for (const auto *node : originalNodes)
+        originalNodeIds.append(node->id());
+    const auto firstNodeId = originalNodes.first()->id();
+    const auto lastNodeId = originalNodes.last()->id();
+    auto *mix = graphics->speakerMixView();
+    QVERIFY(mix);
+    const auto visible = graphics->visibleRect();
+    const auto ratio =
+        (960 - graphics->startTick()) / (graphics->endTick() - graphics->startTick());
+    const auto y = speakerMix ? mix->mapToScene(QPointF(0, mix->rect().height() * 0.9)).y()
+                              : foreground->sceneYForValue(500);
+    auto *viewport = graphics->viewport();
+    const auto position =
+        graphics->mapFromScene(QPointF(visible.left() + ratio * visible.width(), y));
+    QVERIFY(viewport->rect().contains(position));
+    QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, position);
+    if (speakerMix)
+        QCOMPARE(mix->selectedKeyframeIndex(), 1);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    auto *bar = window.findChild<MainMenuView *>();
+    QVERIFY(bar);
+    QAction *remove = nullptr;
+    for (auto *entry : bar->actions()) {
+        if (auto *menu = entry->menu()) {
+            for (auto *action : menu->actions()) {
+                if (action->shortcut() == QKeySequence(QKeySequence::Delete))
+                    remove = action;
+            }
+        }
+    }
+    QVERIFY(remove && remove->isEnabled());
+    QSignalSpy removed(remove, &QAction::triggered);
+    auto *input = QApplication::focusWidget();
+    QVERIFY(input && (input == panel || panel->isAncestorOf(input)));
+    clickMainMenuAction(window, "&Delete");
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE(removed.size(), 1);
+    QTRY_COMPARE(runtime.documentVersion().revision, before.revision + 1);
+    auto expectedMix = originalMix;
+    if (speakerMix)
+        expectedMix.dynamicKeyframes.removeAt(1);
+    QCOMPARE(singingClip->speakerMixData(), expectedMix);
+    QCOMPARE(mix->committedMixData(), expectedMix);
+    QCOMPARE(mix->workingMixData(), expectedMix);
+    QVERIFY(curve());
+    QCOMPARE(curve()->id(), originalCurveId);
+    const auto remaining = curve()->nodes().toList();
+    QCOMPARE(remaining.size(), speakerMix ? 3 : 2);
+    QCOMPARE(remaining.first()->id(), firstNodeId);
+    QCOMPARE(remaining.last()->id(), lastNodeId);
+    QCOMPARE(remaining.first()->pos(), 240);
+    QCOMPARE(remaining.first()->value(), 300);
+    QCOMPARE(remaining.last()->pos(), 1920);
+    QCOMPARE(remaining.last()->value(), 700);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QCOMPARE(singingClip->speakerMixData(), originalMix);
+    QCOMPARE(mix->committedMixData(), originalMix);
+    QCOMPARE(mix->workingMixData(), originalMix);
+    QVERIFY(curve());
+    QCOMPARE(curve()->id(), originalCurveId);
+    QList<int> restoredNodeIds;
+    for (const auto *node : curve()->nodes())
+        restoredNodeIds.append(node->id());
+    QCOMPARE(restoredNodeIds, originalNodeIds);
     QVERIFY(!historyManager->canUndo());
 }
 
