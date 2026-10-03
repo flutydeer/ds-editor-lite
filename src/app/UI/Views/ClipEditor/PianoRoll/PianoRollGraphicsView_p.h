@@ -119,6 +119,9 @@ public:
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;
+    // The error badge sits outside its note, so it cannot be reached through
+    // noteViewAt; hit-tests the badge rects of the errored notes directly
+    [[nodiscard]] NoteView *errorBadgeAt(const QPoint &pos);
 
     // Syncs the resize handle frame on the selected note (see NoteHandleGeometry).
     // Called once after each of these state changes: selection, note properties,

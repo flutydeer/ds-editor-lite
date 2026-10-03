@@ -13,6 +13,7 @@
 #include <QRectF>
 
 class PronunciationView;
+class NoteErrorBadgeItem;
 
 class NoteView final : public AbstractGraphicsRectItem,
                        public UniqueObject,
@@ -69,9 +70,11 @@ private:
     void updateRectAndPos() override;
     void adjustPronView() const;
     void initUi();
-    void drawErrorBadge(QPainter *painter, const QRectF &rect, QWidget *widget);
 
     PronunciationView *m_pronView = nullptr;
+    // Child item holding the inference-error badge above the note, created in
+    // initUi and toggled by setInferenceError
+    NoteErrorBadgeItem *m_errorBadge = nullptr;
     bool m_editingLyric = false;
     bool m_inferenceError = false;
     int m_rStart = 0;

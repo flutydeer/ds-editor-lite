@@ -880,28 +880,51 @@ public:
         return font;
     }
 
+    // The error badge sits outside its note, so it cannot be reached through
+    // noteAt; hit-test the badge rects of the errored notes directly
+    const Note *errorBadgeAt(const QPointF &viewportPosition) const {
+        if (!clip)
+            return nullptr;
+        const auto &errors = clip->noteInferenceErrors();
+        if (errors.isEmpty())
+            return nullptr;
+        for (auto iterator = clip->notes().rbegin(); iterator != clip->notes().rend(); ++iterator) {
+            const auto *note = *iterator;
+            if (erasedNoteIds.contains(note->id()) || !errors.contains(note->id()))
+                continue;
+            if (PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteViewportRect(note))
+                    .contains(viewportPosition))
+                return note;
+        }
+        return nullptr;
+    }
+
     void updateHoverToolTips(const QPointF &viewportPosition) {
-        auto *note = noteAt(viewportPosition);
-        const bool editing = inlineEditor && inlineEditor->isEditing();
-        if (!note || editing || !clip) {
+        if (!clip) {
             hideHoverToolTips();
             return;
         }
 
         // The error badge outranks the elided-lyric tooltip: a pointer resting
         // on the badge asks why the note is silent
-        const auto noteRect = noteViewportRect(note);
-        const auto &errors = clip->noteInferenceErrors();
-        const auto error = errors.constFind(note->id());
-        if (error != errors.constEnd() &&
-            PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteRect).contains(viewportPosition)) {
+        if (const auto *badgeNote = errorBadgeAt(viewportPosition)) {
             lyricToolTip->hide();
-            showErrorToolTip(note->id(), note->lyric(), *error, noteRect);
+            showErrorToolTip(badgeNote->id(), badgeNote->lyric(),
+                             clip->noteInferenceErrors().value(badgeNote->id()),
+                             noteViewportRect(badgeNote));
             return;
         }
         if (errorToolTip)
             errorToolTip->hide();
 
+        auto *note = noteAt(viewportPosition);
+        const bool editing = inlineEditor && inlineEditor->isEditing();
+        if (!note || editing) {
+            hideHoverToolTips();
+            return;
+        }
+
+        const auto noteRect = noteViewportRect(note);
         const QRectF visibleRect(QPointF(), QSizeF(q->size()));
         const auto font = lyricFont();
         const auto layout =
@@ -1893,12 +1916,10 @@ public:
         if (!noteEditingEnabled())
             return;
         // A tap on the error badge asks for the reason instead of interacting
-        if (note && clip && clip->noteInferenceErrors().contains(note->id()) &&
-            PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteViewportRect(note))
-                .contains(event->position())) {
-            showErrorToolTip(note->id(), note->lyric(),
-                             clip->noteInferenceErrors().value(note->id()),
-                             noteViewportRect(note));
+        if (const auto *badgeNote = errorBadgeAt(event->position())) {
+            showErrorToolTip(badgeNote->id(), badgeNote->lyric(),
+                             clip->noteInferenceErrors().value(badgeNote->id()),
+                             noteViewportRect(badgeNote));
             return;
         }
         if (editMode == DrawNote) {

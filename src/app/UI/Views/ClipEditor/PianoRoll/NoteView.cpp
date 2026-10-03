@@ -20,6 +20,47 @@
 
 using namespace ClipEditorGlobal;
 
+// The inference-error badge hanging above the note, mirrored from the
+// pronunciation view below. A child item so the area outside the note's
+// bounding rect repaints correctly
+class NoteErrorBadgeItem final : public QGraphicsItem {
+public:
+    explicit NoteErrorBadgeItem(QGraphicsItem *parent) : QGraphicsItem(parent) {
+        // Never take part in item-level event delivery; the view hit-tests
+        // the badge itself through noteErrorBadgeRect
+        setAcceptedMouseButtons(Qt::NoButton);
+        setPos(badgeOffset());
+    }
+
+    [[nodiscard]] QRectF boundingRect() const override {
+        return {QPointF(0, 0), PianoRollGraphicsViewHelper::noteErrorBadgeSize()};
+    }
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget) override {
+        const auto markColor =
+            ThemeManager::instance()->semanticColor(QStringLiteral("piano.roll.noteErrorMark"));
+        if (!markColor.isValid() || markColor.alpha() == 0)
+            return;
+        const auto badgeSize = PianoRollGraphicsViewHelper::noteErrorBadgeSize();
+        const auto dpr = widget ? widget->devicePixelRatioF() : 1.0;
+        const auto pixmap =
+            IconUtils::renderTintedSvgPixmap(QStringLiteral(":svg/icons/dismiss_circle_16_regular.svg"),
+                                             badgeSize.toSize(), markColor, dpr);
+        if (pixmap.isNull())
+            return;
+        painter->drawPixmap(QRectF(QPointF(0, 0), badgeSize), pixmap,
+                            QRectF(QPointF(), QSizeF(pixmap.size())));
+    }
+
+private:
+    [[nodiscard]] static QPointF badgeOffset() {
+        constexpr double margin = 2.0;
+        return {EditorItemGeometry::noteBorderWidth + margin,
+                -PianoRollGraphicsViewHelper::noteErrorBadgeSize().height() - margin};
+    }
+};
+
 int NoteView::s_trackColorIndex = 0;
 QColor NoteView::s_selectedBorderColor = {255, 255, 255};
 
@@ -157,26 +198,11 @@ void NoteView::setInferenceError(const bool on) {
     if (m_inferenceError == on)
         return;
     m_inferenceError = on;
-    update();
+    m_errorBadge->setVisible(on);
 }
 
 bool NoteView::hasInferenceError() const {
     return m_inferenceError;
-}
-
-void NoteView::drawErrorBadge(QPainter *painter, const QRectF &rect, QWidget *widget) {
-    const auto markColor =
-        ThemeManager::instance()->semanticColor(QStringLiteral("piano.roll.noteErrorMark"));
-    if (!markColor.isValid() || markColor.alpha() == 0)
-        return;
-    const auto badgeRect = PianoRollGraphicsViewHelper::noteErrorBadgeRect(rect);
-    const auto dpr = widget ? widget->devicePixelRatioF() : 1.0;
-    const auto pixmap =
-        IconUtils::renderTintedSvgPixmap(QStringLiteral(":svg/icons/dismiss_circle_16_regular.svg"),
-                                         badgeRect.size().toSize(), markColor, dpr);
-    if (pixmap.isNull())
-        return;
-    painter->drawPixmap(badgeRect, pixmap, QRectF(QPointF(), QSizeF(pixmap.size())));
 }
 
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
@@ -281,9 +307,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         drawRectOnly();
     else
         drawFullNote();
-
-    if (m_inferenceError)
-        drawErrorBadge(painter, rect, widget);
 }
 
 void NoteView::updateRectAndPos() {
@@ -308,6 +331,8 @@ void NoteView::adjustPronView() const {
 
 void NoteView::initUi() {
     setFlag(ItemIsSelectable);
+    m_errorBadge = new NoteErrorBadgeItem(this);
+    m_errorBadge->setVisible(false);
     fontPixelSize.onChanged([this](int) { update(); });
 }
 

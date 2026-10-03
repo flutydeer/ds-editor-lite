@@ -488,19 +488,13 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     const auto pressMode =
         d->activePenErasure() == EditorPenEraser::EraseNote ? EraseNote : d->m_editMode;
     // A tap on the error badge asks for the reason instead of interacting. The
-    // eraser and the split tool keep their own semantics
-    if ((pressMode == Select || pressMode == DrawNote || pressMode == IntervalSelect) &&
-        event->button() == Qt::LeftButton) {
-        const auto badgeScenePos = mapToScene(event->position().toPoint());
-        if (const auto *badgeNoteView = d->noteViewAt(event->pos())) {
-            if (d->m_clip && d->m_clip->noteInferenceErrors().contains(badgeNoteView->id()) &&
-                PianoRollGraphicsViewHelper::noteErrorBadgeRect(badgeNoteView->rect())
-                    .contains(badgeNoteView->mapFromScene(badgeScenePos))) {
-                d->showErrorToolTip(
-                    *badgeNoteView, d->m_clip->noteInferenceErrors().value(badgeNoteView->id()));
-                event->accept();
-                return;
-            }
+    // eraser keeps its own semantics
+    if (event->button() == Qt::LeftButton && pressMode != EraseNote) {
+        if (auto *badgeView = d->errorBadgeAt(event->pos())) {
+            d->showErrorToolTip(*badgeView,
+                                d->m_clip->noteInferenceErrors().value(badgeView->id()));
+            event->accept();
+            return;
         }
     }
     d->m_interactionController->setMouseDown(true, event->button());
@@ -1996,28 +1990,40 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
                                                                  : Qt::SizeHorCursor);
 }
 
+NoteView *PianoRollGraphicsViewPrivate::errorBadgeAt(const QPoint &pos) {
+    Q_Q(PianoRollGraphicsView);
+    if (!m_clip || m_clip->noteInferenceErrors().isEmpty())
+        return nullptr;
+    const auto scenePos = q->mapToScene(pos);
+    for (auto iterator = noteViews.rbegin(); iterator != noteViews.rend(); ++iterator) {
+        auto *view = *iterator;
+        if (!view->hasInferenceError())
+            continue;
+        if (PianoRollGraphicsViewHelper::noteErrorBadgeRect(view->rect())
+                .contains(view->mapFromScene(scenePos)))
+            return view;
+    }
+    return nullptr;
+}
+
 void PianoRollGraphicsViewPrivate::updateHoverToolTips(const QPoint &position) {
     Q_Q(PianoRollGraphicsView);
+    // The error badge outranks the elided-lyric tooltip: a pointer resting on
+    // the badge asks why the note is silent
+    if (auto *badgeView = errorBadgeAt(position)) {
+        m_lyricToolTip->hide();
+        showErrorToolTip(*badgeView, m_clip->noteInferenceErrors().value(badgeView->id()));
+        return;
+    }
+    if (m_errorToolTip)
+        m_errorToolTip->hide();
+
     auto *noteView = noteViewAt(position);
     if (!noteView || noteView->id() < 0 || (m_inlineEditor && m_inlineEditor->isEditing()) ||
         !m_clip) {
         hideHoverToolTips();
         return;
     }
-
-    // The error badge outranks the elided-lyric tooltip: a pointer resting on
-    // the badge asks why the note is silent
-    const auto &errors = m_clip->noteInferenceErrors();
-    const auto error = errors.constFind(noteView->id());
-    const auto itemPos = noteView->mapFromScene(q->mapToScene(position));
-    if (error != errors.constEnd() &&
-        PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteView->rect()).contains(itemPos)) {
-        m_lyricToolTip->hide();
-        showErrorToolTip(*noteView, *error);
-        return;
-    }
-    if (m_errorToolTip)
-        m_errorToolTip->hide();
 
     if (!noteView->isLyricElided(q->visibleRect())) {
         hideHoverToolTips();

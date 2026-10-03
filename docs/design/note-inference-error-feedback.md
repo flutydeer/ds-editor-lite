@@ -40,10 +40,12 @@
 
 ### 角标
 
-音符右上内侧绘制 Fluent `dismiss_circle_16_regular`（新图标经 `tools/sync_fluent_icons.py` 同步，qrc 挂载），逻辑尺寸 14px，过窄音符居中放置。颜色读独立 token `piano.roll.noteErrorMark`（lite-dark 初始 #FF9B9D，lite-light 初始 #B3262E，可自行调值）。
+音符上方悬挂 Fluent `dismiss_circle_16_regular`（新图标经 `tools/sync_fluent_icons.py` 同步，qrc 挂载），左缘与歌词内边距对齐，镜像发音视图的下挂方式，逻辑尺寸 14px，与音符保持 2px 间距。颜色读独立 token `piano.roll.noteErrorMark`（lite-dark 初始 #FF9B9D，lite-light 初始 #B3262E，可自行调值）。
 
-- Legacy 后端：`NoteView::paint` 内 `drawErrorBadge`，用 `IconUtils::renderTintedSvgPixmap` 染色绘制，错误状态由视图在 `noteInferenceErrorsChanged` 时推送到每个 NoteView
+- Legacy 后端：徽标是挂在 NoteView 下的子图形项 `NoteErrorBadgeItem`（发音视图同款思路），不接受鼠标事件，视图在 `noteInferenceErrorsChanged` 时通过 `syncNoteInferenceErrors` 推送可见性
 - RHI 后端：`EditorGlyphAtlas` 新增 `appendImage`（与字形块同一分配与染色约定），`appendNoteErrorBadges` 在 `appendClipMask` 之后绘制，主题切换走已有的 themeChanged 重绘连线
+
+徽标在音符矩形之外，两个后端的悬停与点按命中都不经 `noteAt`/`noteViewAt`，而是遍历有错误的音符直接测试徽标矩形（`errorBadgeAt`）。
 
 ### 原因 tooltip
 

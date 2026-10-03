@@ -15,6 +15,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -166,12 +167,11 @@ QSizeF PianoRollGraphicsViewHelper::noteErrorBadgeSize() {
 QRectF PianoRollGraphicsViewHelper::noteErrorBadgeRect(const QRectF &noteRect) {
     constexpr double margin = 2.0;
     const auto badgeSize = noteErrorBadgeSize();
-    // On very narrow notes the badge is centered so that it stays visible
-    if (noteRect.width() < badgeSize.width() + 2 * margin)
-        return {noteRect.center().x() - badgeSize.width() / 2, noteRect.top() + margin,
-                badgeSize.width(), badgeSize.height()};
-    return {noteRect.right() - badgeSize.width() - margin, noteRect.top() + margin,
-            badgeSize.width(), badgeSize.height()};
+    // Above the note's top edge, left-aligned with the lyric inset, mirroring
+    // the pronunciation view hanging below the note
+    const auto left = noteRect.left() + EditorItemGeometry::noteBorderWidth + margin;
+    return {left, noteRect.top() - badgeSize.height() - margin, badgeSize.width(),
+            badgeSize.height()};
 }
 
 QString PianoRollGraphicsViewHelper::noteInferenceErrorText(const NoteInferenceErrorInfo &error) {
