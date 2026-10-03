@@ -66,7 +66,6 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     auto titleFont = option.font;
     titleFont.setPixelSize(m_titlePixelSize);
     const QFontMetrics idMetrics(titleFont);
-    qreal idTextWidth = idMetrics.horizontalAdvance(id);
     QPointF idTextPos = {contentRect.left(), contentRect.top() + idMetrics.ascent()};
 
     auto descTextY = contentRect.top() + idMetrics.ascent() + m_spacing;
@@ -94,7 +93,7 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     // Draw title text
     painter->setPen(colorTitle);
     painter->setFont(titleFont);
-    painter->drawText(idTextPos, id);
+    painter->drawText(idTextPos, idMetrics.elidedText(id, Qt::ElideRight, contentRect.width()));
 
     // Draw vendor text
     painter->setPen(colorDesc);
