@@ -2486,9 +2486,6 @@ void ProjectEditingTests::parameterEditing() {
     };
 
     {
-        // Automation::OperationIds::parameters::replace /
-        // QStringLiteral("validate-roundtrip-noop-undo")
-
         Automation::CurveDraftDto draw;
         draw.type = Automation::CurveDraftDto::Type::Draw;
         draw.localStart = 10;
@@ -2501,6 +2498,7 @@ void ProjectEditingTests::parameterEditing() {
             {0,   10, AnchorNode::Linear },
             {120, 20, AnchorNode::Hermite}
         };
+        const auto initialModel = TestSupport::projectSnapshot(testRuntime.model());
         const auto base = runtime.documentVersion();
         const auto preview = runtime.parameters().replaceParameter(
             commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited, {draw, anchor});
@@ -2520,35 +2518,77 @@ void ProjectEditingTests::parameterEditing() {
             commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited, {draw, anchor});
         QVERIFY2((noOp && !noOp.get().changed),
                  qPrintable(QStringLiteral("identical parameter replacement must be a no-op")));
+        auto invalid = draw;
+        invalid.step = 0;
+        auto overflow = draw;
+        overflow.localStart = std::numeric_limits<int>::max() - 1;
+        overflow.step = 2;
+        overflow.values = {6000, 6010};
+        auto invalidAnchor = anchor;
+        invalidAnchor.nodes = {
+            {0, 10, AnchorNode::Linear}
+        };
+        auto overlapping = anchor;
+        for (auto &node : overlapping.nodes)
+            node.position += 60;
+        const auto spec = ParamInfo::valueSpec(ParamInfo::Pitch);
+        auto outOfRangeDraw = draw;
+        outOfRangeDraw.values.last() = spec.maximum + spec.step;
+        auto outOfRangeAnchor = anchor;
+        outOfRangeAnchor.nodes.last().value = spec.maximum + spec.step;
+
+        struct RejectedReplacement {
+            QString name;
+            QList<Automation::CurveDraftDto> curves;
+            QString field;
+        };
+
+        const QList<RejectedReplacement> rejectedReplacements{
+            {QStringLiteral("non-positive step"),                   {invalid},  QStringLiteral("curves.step")  },
+            {QStringLiteral("timeline overflow"),                   {overflow}, QStringLiteral("curves.values")},
+            {QStringLiteral("incomplete anchor curve"),
+             {invalidAnchor},
+             QStringLiteral("curves.nodes")                                                                    },
+            {QStringLiteral("overlapping anchor curves"),
+             {draw, anchor, overlapping},
+             QStringLiteral("curves.nodes.position")                                                           },
+            {QStringLiteral("draw value outside editable range"),
+             {outOfRangeDraw, anchor},
+             QStringLiteral("curves")                                                                          },
+            {QStringLiteral("anchor value outside editable range"),
+             {draw, outOfRangeAnchor},
+             QStringLiteral("curves")                                                                          },
+        };
+        const auto preservedModel = TestSupport::projectSnapshot(testRuntime.model());
+        const auto preservedVersion = runtime.documentVersion();
+        const auto *preservedUndo = testRuntime.history()->nextUndoEntry();
+        for (const auto &rejected : rejectedReplacements) {
+            const auto result = runtime.parameters().replaceParameter(
+                commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited, rejected.curves);
+            QVERIFY2(isError(result, AutomationErrorCode::InvalidArgument, rejected.field),
+                     qPrintable(rejected.name));
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), preservedModel);
+            QCOMPARE(runtime.documentVersion(), preservedVersion);
+            QCOMPARE(testRuntime.history()->nextUndoEntry(), preservedUndo);
+            const auto current = runtime.parameters().getParameter(
+                preservedVersion.documentId, clipId, ParamInfo::Pitch, Param::Edited);
+            QVERIFY(current);
+            QCOMPARE(current.get().curves.size(), snapshot.get().curves.size());
+            for (qsizetype index = 0; index < current.get().curves.size(); ++index) {
+                const auto &curve = current.get().curves.at(index);
+                const auto &original = snapshot.get().curves.at(index);
+                QCOMPARE(curve.id, original.id);
+                QCOMPARE(curve.nodes.size(), original.nodes.size());
+                for (qsizetype node = 0; node < curve.nodes.size(); ++node)
+                    QCOMPARE(curve.nodes.at(node).id, original.nodes.at(node).id);
+            }
+        }
         const auto undo = runtime.history().undo(commandContext(runtime));
         const auto restored = runtime.parameters().getParameter(
             runtime.documentVersion().documentId, clipId, ParamInfo::Pitch, Param::Edited);
         QVERIFY2((undo && restored && restored.get().curves.isEmpty()),
                  qPrintable(QStringLiteral("parameter replacement must undo once")));
-
-        auto invalid = draw;
-        invalid.step = 0;
-        const auto invalidStep = runtime.parameters().replaceParameter(
-            commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited, {invalid});
-        auto overflow = draw;
-        overflow.localStart = std::numeric_limits<int>::max() - 1;
-        overflow.step = 2;
-        overflow.values = {6000, 6010};
-        const auto invalidRange = runtime.parameters().replaceParameter(
-            commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited, {overflow});
-        auto invalidAnchor = anchor;
-        invalidAnchor.nodes = {
-            {0, 10, AnchorNode::Linear}
-        };
-        const auto invalidTopology =
-            runtime.parameters().replaceParameter(commandContext(runtime, true), clipId,
-                                                  ParamInfo::Pitch, Param::Edited, {invalidAnchor});
-        QVERIFY2((isError(invalidStep, AutomationErrorCode::InvalidArgument) &&
-                  isError(invalidRange, AutomationErrorCode::InvalidArgument,
-                          QStringLiteral("curves.values")) &&
-                  isError(invalidTopology, AutomationErrorCode::InvalidArgument,
-                          QStringLiteral("curves.nodes"))),
-                 qPrintable(QStringLiteral("draw geometry and anchor topology must be valid")));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), initialModel);
     };
 
     {
