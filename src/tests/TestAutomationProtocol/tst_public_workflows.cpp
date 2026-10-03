@@ -19,6 +19,7 @@
 #include <QtTest>
 
 #include <filesystem>
+#include <optional>
 
 using namespace Automation;
 
@@ -1114,7 +1115,13 @@ void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
 void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
-    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
+    auto track = lyricTrack();
+    CurveDraftDto originalDraw;
+    originalDraw.localStart = 100;
+    for (int index = 0; index < 41; ++index)
+        originalDraw.values.append(5800 + index * 2);
+    track.clips.first().params.append({ParamInfo::Pitch, Param::Original, {originalDraw}});
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, track));
     const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
     QVERIFY(project);
     const auto clip = project.get().tracks.first().clips.first().id;
@@ -1334,6 +1341,85 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
                  expectedNodes.at(index).interpolation);
     }
     QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 6);
+
+    const auto sampleAt = [](const ParameterSnapshotDto &parameter,
+                             const int tick) -> std::optional<int> {
+        for (const auto &curve : parameter.curves) {
+            if (curve.type != CurveDraftDto::Type::Draw || tick < curve.localStart)
+                continue;
+            const auto index = (tick - curve.localStart) / curve.step;
+            if (index < curve.values.size())
+                return curve.values.at(index);
+        }
+        return std::nullopt;
+    };
+    const auto trace = [&](const int start, const int end) {
+        return edit(QStringLiteral("parameters.trace"),
+                    {
+                        {"local_start", start},
+                        {"local_end",   end  }
+        });
+    };
+    const auto traced = trace(100, 300);
+    QVERIFY2(traced, qPrintable(errorMessage(traced)));
+    QVERIFY(traced.get().value(QStringLiteral("changed")).toBool());
+    checkpoint();
+    const auto tracedPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(tracedPitch);
+    QCOMPARE(sampleAt(tracedPitch.get(), 120), std::optional<int>{5808});
+    QCOMPARE(sampleAt(tracedPitch.get(), 200), std::optional<int>{5840});
+    QCOMPARE(sampleAt(tracedPitch.get(), 280), std::optional<int>{5872});
+    const auto erased =
+        edit(QStringLiteral("parameters.erase"), {
+                                                     {"local_start", 180},
+                                                     {"local_end",   220}
+    });
+    QVERIFY2(erased, qPrintable(errorMessage(erased)));
+    QVERIFY(erased.get().value(QStringLiteral("changed")).toBool());
+    checkpoint();
+    const auto erasedPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(erasedPitch);
+    QVERIFY(!sampleAt(erasedPitch.get(), 200));
+    QCOMPARE(sampleAt(erasedPitch.get(), 120), std::optional<int>{5808});
+    QCOMPARE(sampleAt(erasedPitch.get(), 280), std::optional<int>{5872});
+    const auto retraced = trace(180, 220);
+    QVERIFY2(retraced, qPrintable(errorMessage(retraced)));
+    QVERIFY(retraced.get().value(QStringLiteral("changed")).toBool());
+    checkpoint();
+    const auto restoredPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(restoredPitch);
+    QCOMPARE(sampleAt(restoredPitch.get(), 200), std::optional<int>{5840});
+    for (const auto &parameter : {tracedPitch.get(), erasedPitch.get(), restoredPitch.get()}) {
+        QCOMPARE(sampleAt(parameter, 20), std::optional<int>{6000});
+        QCOMPARE(sampleAt(parameter, 40), std::optional<int>{6020});
+        int retainedAnchors = 0;
+        for (const auto &curve : parameter.curves) {
+            if (curve.type != CurveDraftDto::Type::Anchor)
+                continue;
+            ++retainedAnchors;
+            QCOMPARE(curve.id, combinedAnchors.id);
+            QCOMPARE(curve.nodes.size(), expectedNodes.size());
+            for (qsizetype index = 0; index < expectedNodes.size(); ++index) {
+                QCOMPARE(curve.nodes.at(index).id, expectedNodes.at(index).id);
+                QCOMPARE(curve.nodes.at(index).position, expectedNodes.at(index).position);
+                QCOMPARE(curve.nodes.at(index).value, expectedNodes.at(index).value);
+                QCOMPARE(curve.nodes.at(index).interpolation,
+                         expectedNodes.at(index).interpolation);
+            }
+        }
+        QCOMPARE(retainedAnchors, 1);
+    }
+    const auto originalPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Original);
+    QVERIFY(originalPitch);
+    QCOMPARE(originalPitch.get().curves.size(), 1);
+    QCOMPARE(originalPitch.get().curves.first().localStart, originalDraw.localStart);
+    QCOMPARE(originalPitch.get().curves.first().step, originalDraw.step);
+    QCOMPARE(originalPitch.get().curves.first().values, originalDraw.values);
+    QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 9);
     fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
 }
 
