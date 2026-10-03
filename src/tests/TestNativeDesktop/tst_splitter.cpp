@@ -1,9 +1,11 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "Automation/CoreRuntime.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
+#include "UI/Views/TrackEditor/TrackEditorView.h"
 
 #include <lite/GUI/Controls/OverlaySplitter.h>
 #include <lite/GUI/Controls/Button.h>
@@ -127,6 +129,8 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     });
     const auto before = fixture.context->m_coreRuntime->documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*fixture.context->m_appModel);
+    auto *trackPanel = window.findChild<TrackEditorView *>();
+    QVERIFY(trackPanel && trackPanel->isVisible());
     const auto sizes = splitter->sizes();
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
@@ -140,6 +144,23 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     exerciseButtons(*bottom, title->minimizeButton(), title->maximizeButton());
     if (QTest::currentTestFailed())
         return;
+    QVERIFY(window.setEditorPanelVisibility(true, false));
+    QTRY_VERIFY(!bottom->isVisible());
+    QVERIFY(appStatus->bottomPanelCollapsed);
+    QVERIFY(!appStatus->trackPanelCollapsed);
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
+    QTRY_VERIFY(bottom->isVisible());
+    QVERIFY(!appStatus->bottomPanelCollapsed);
+    QVERIFY(window.setEditorPanelVisibility(false, true));
+    QVERIFY(appStatus->trackPanelCollapsed);
+    QTRY_VERIFY(!trackPanel->isVisible());
+    QVERIFY(bottom->isVisible());
+    QVERIFY(window.setEditorPanelVisibility(true, true));
+    QTRY_VERIFY(trackPanel->isVisible());
+    QVERIFY(!appStatus->trackPanelCollapsed && !appStatus->bottomPanelCollapsed);
+    QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
     const auto detachedGeometry = bottom->geometry();
     QTest::mouseClick(title->closeButton(), Qt::LeftButton);
     QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());

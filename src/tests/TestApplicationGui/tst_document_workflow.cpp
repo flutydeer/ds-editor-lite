@@ -7,7 +7,10 @@
 #include "Controller/Tasks/OpenDspxProjectTask.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
+#include "../TestSupport/MainWindowFixture.h"
 
+#include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -21,6 +24,7 @@
 #include <QAbstractButton>
 #include <QPointer>
 #include <QSemaphore>
+#include <QTimer>
 #include <QtTest>
 
 #include <functional>
@@ -49,8 +53,7 @@ namespace {
         }
 
         bool confirmOpenWithoutPackageMetadata() override {
-            ++metadataCalls;
-            return allowWithoutMetadata;
+            return false;
         }
 
         void showDocumentWorkflowError(const ProjectOperationError &error) override {
@@ -68,8 +71,6 @@ namespace {
         int decisionCalls = 0;
         int pathCalls = 0;
         int busyCalls = 0;
-        int metadataCalls = 0;
-        bool allowWithoutMetadata = false;
         bool promptsWereBusy = true;
         std::function<void()> duringPrompt;
     };
@@ -87,6 +88,10 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
     QFETCH(QString, completion);
     QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -103,10 +108,8 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
     QString error;
     QVERIFY2(converter.save(path, &imported, error), qPrintable(error));
 
-    WorkflowPrompt prompt;
-    prompt.allowWithoutMetadata = completion == QStringLiteral("accept");
     auto *workflow = documentWorkflowController;
-    workflow->setUi(&prompt);
+    QSignalSpy failures(workflow, &DocumentWorkflowController::operationFailed);
     const auto previousStatus = appStatus->packageModuleStatus.get();
     const auto restore = qScopeGuard([&] {
         workflow->setUi(nullptr);
@@ -126,6 +129,39 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
                     change == TaskManager::Added && parse && parse->filePath() == path)
                     ++parseStarts;
             });
+    int metadataCalls = 0;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, host.window.get(), [&] {
+        QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog || qobject_cast<ProgressDialog *>(dialog.data()))
+            return;
+        const auto dismissOnFailure = qScopeGuard([&] {
+            if (QTest::currentTestFailed() && dialog) {
+                answer.stop();
+                dialog->reject();
+            }
+        });
+        QVERIFY(qobject_cast<MessageDialog *>(dialog.data()));
+        QVERIFY(completion == QStringLiteral("accept") || completion == QStringLiteral("reject"));
+        QCOMPARE(metadataCalls, 0);
+        QVERIFY(workflow->busy());
+        QCOMPARE(parseStarts, 0);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        const auto label = completion == QStringLiteral("accept") ? MainWindow::tr("Open Anyway")
+                                                                  : MainWindow::tr("Cancel");
+        Button *choice = nullptr;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == label)
+                choice = button;
+        }
+        QVERIFY(choice && choice->isVisible() && choice->isEnabled());
+        ++metadataCalls;
+        answer.stop();
+        QTest::mouseClick(choice, Qt::LeftButton);
+    });
+    answer.start();
     appStatus->packageModuleStatus = AppStatus::ModuleStatus::Loading;
     workflow->requestOpen(path);
     QTRY_VERIFY(([&] {
@@ -150,10 +186,10 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
                                              : AppStatus::ModuleStatus::Error;
     }
     QTRY_VERIFY_WITH_TIMEOUT(!workflow->busy(), 10000);
-    QCOMPARE(prompt.metadataCalls,
+    QCOMPARE(metadataCalls,
              completion == QStringLiteral("accept") || completion == QStringLiteral("reject") ? 1
                                                                                               : 0);
-    QVERIFY(prompt.errors.isEmpty());
+    QVERIFY(failures.isEmpty());
     const bool opened =
         completion == QStringLiteral("ready") || completion == QStringLiteral("accept");
     QCOMPARE(parseStarts, opened ? 1 : 0);
