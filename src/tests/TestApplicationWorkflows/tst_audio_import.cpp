@@ -58,23 +58,30 @@ namespace {
 void ApplicationWorkflowTests::audioBatchFailurePolicy_data() {
     QTest::addColumn<bool>("bestEffort");
     QTest::addColumn<bool>("includeValid");
-    QTest::newRow("atomic-preserves-project") << false << true;
-    QTest::newRow("best-effort-imports-decoded-audio") << true << true;
-    QTest::newRow("best-effort-no-decodable-audio") << true << false;
+    QTest::addColumn<bool>("removeSourceAfterAdmission");
+    QTest::newRow("atomic-preserves-project") << false << true << false;
+    QTest::newRow("best-effort-imports-decoded-audio") << true << true << false;
+    QTest::newRow("best-effort-no-decodable-audio") << true << false << false;
+    QTest::newRow("atomic-source-removed-after-admission") << false << true << true;
+    QTest::newRow("best-effort-source-removed-after-admission") << true << true << true;
 }
 
 void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QFETCH(bool, bestEffort);
     QFETCH(bool, includeValid);
+    QFETCH(bool, removeSourceAfterAdmission);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto validPath = files.filePath(QStringLiteral("phrase.wav"));
     const auto invalidPath = files.filePath(QStringLiteral("damaged.wav"));
     QVERIFY(writeAudio(validPath));
-    QFile invalid(invalidPath);
-    QVERIFY(invalid.open(QIODevice::WriteOnly));
-    QCOMPARE(invalid.write("not an audio file"), qint64{17});
-    invalid.close();
+    if (removeSourceAfterAdmission) {
+        QVERIFY(writeAudio(invalidPath));
+    } else {
+        QFile invalid(invalidPath);
+        QVERIFY(invalid.open(QIODevice::WriteOnly));
+        QCOMPARE(invalid.write("not an audio file"), qint64{17});
+    }
     const auto before = runtime().documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
@@ -104,6 +111,12 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         {"name",     "invalid-audio"},
         {"start",    960            }
     });
+    std::unique_ptr<TestSupport::ThreadPoolBarrier> workers;
+    if (removeSourceAfterAdmission) {
+        QVERIFY(QThreadPool::globalInstance()->waitForDone(5000));
+        workers = std::make_unique<TestSupport::ThreadPoolBarrier>();
+        QTRY_VERIFY_WITH_TIMEOUT(workers->ready(), 5000);
+    }
     const auto accepted =
         registry.invoke(QStringLiteral("audio_clips.import_batch"),
                         {
@@ -118,6 +131,10 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     const auto taskId =
         TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!taskId.isNull());
+    if (removeSourceAfterAdmission) {
+        QVERIFY(QFile::remove(invalidPath));
+        workers->resume();
+    }
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), {taskId, before}), 10000);
     const auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);

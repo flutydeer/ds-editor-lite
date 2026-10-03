@@ -560,6 +560,32 @@ private slots:
             return provider.value(QStringLiteral("id")).toString() == providerId &&
                    provider.value(QStringLiteral("available")).toBool();
         }));
+        const auto verifyAcousticStatus = [&](const QString &expectedState) {
+            QJsonObject status;
+            QVERIFY2(client.call(QStringLiteral("inference.get_status"),
+                                 {
+                                     {QStringLiteral("document_id"), client.documentId},
+                                     {QStringLiteral("scope"),       scope            },
+            },
+                                 status),
+                     qPrintable(client.error));
+            QJsonObject acoustic;
+            for (const auto &value : status.value(QStringLiteral("status"))
+                                         .toObject()
+                                         .value(QStringLiteral("stages"))
+                                         .toArray()) {
+                const auto stage = value.toObject();
+                if (stage.value(QStringLiteral("stage")) == QStringLiteral("acoustic")) {
+                    acoustic = stage;
+                    break;
+                }
+            }
+            QVERIFY(!acoustic.isEmpty());
+            QCOMPARE(acoustic.value(QStringLiteral("state")).toString(), expectedState);
+            QVERIFY(acoustic.value(QStringLiteral("task_id")).isNull());
+            QCOMPARE(acoustic.value(QStringLiteral("reason")).toString().isEmpty(),
+                     expectedState == QStringLiteral("ready"));
+        };
         QVERIFY2(client.mutate(QStringLiteral("inference.start"),
                                {
                                    {QStringLiteral("scope"),   scope                        },
@@ -571,6 +597,9 @@ private slots:
         if (repairModel) {
             QVERIFY2(client.waitForTask(result, false, 30000, QStringLiteral("failed")),
                      qPrintable(client.error));
+            verifyAcousticStatus(QStringLiteral("failed"));
+            if (QTest::currentTestFailed())
+                return;
             const QDir cache(fixture.filePath(QStringLiteral("cache")));
             QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files).isEmpty());
             QFile model(damagedModelPath);
@@ -587,6 +616,11 @@ private slots:
                      qPrintable(client.error));
         }
         QVERIFY2(client.waitForTask(result, false, 300000), qPrintable(client.error));
+        if (repairModel) {
+            verifyAcousticStatus(QStringLiteral("ready"));
+            if (QTest::currentTestFailed())
+                return;
+        }
 
         const auto output = fixture.filePath(QStringLiteral("render.wav"));
         QJsonObject exportArguments{
