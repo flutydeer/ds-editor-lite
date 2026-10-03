@@ -6,6 +6,7 @@
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
@@ -768,6 +769,30 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QCOMPARE(first->lyric(), QStringLiteral("one"));
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
+
+    const auto previousDefaultLyrics = appOptions->general()->defaultLyrics;
+    const auto restoreDefaultLyrics =
+        qScopeGuard([&] { appOptions->general()->defaultLyrics = previousDefaultLyrics; });
+    appOptions->general()->defaultLyrics[QStringLiteral("eng")] = QStringLiteral("ah");
+    const auto beforeEmptyLyric = runtime.documentVersion();
+    const auto beforeEmptyLyricModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *beforeEmptyLyricUndo = historyManager->nextUndoEntry();
+    editFirst();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keySequence(input, QKeySequence::SelectAll);
+    QTest::keyClick(input, Qt::Key_Backspace);
+    QVERIFY(input->text().isEmpty());
+    QCOMPARE(first->lyric(), replacement);
+    QTest::keyClick(input, Qt::Key_Return);
+    QVERIFY(!overlay->isEditing());
+    QCOMPARE(first->lyric(), QStringLiteral("ah"));
+    QCOMPARE(sceneNote(first->id())->lyric(), first->lyric());
+    QCOMPARE(runtime.documentVersion().revision, beforeEmptyLyric.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeEmptyLyricModel);
+    QCOMPARE(sceneNote(first->id())->lyric(), replacement);
+    QCOMPARE(historyManager->nextUndoEntry(), beforeEmptyLyricUndo);
 
     const auto beforeHover = runtime.documentVersion();
     const auto *beforeHoverUndo = historyManager->nextUndoEntry();

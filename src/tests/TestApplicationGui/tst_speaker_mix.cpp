@@ -7,12 +7,14 @@
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixList.h"
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 #include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Controller/TrackController.h"
 #include "Utils/UiLanguageManager.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "../TestSupport/PointerInput.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/TagButton.h>
@@ -28,6 +30,7 @@
 #include <QSignalSpy>
 #include <QApplication>
 #include <QAbstractItemView>
+#include <QAbstractButton>
 #include <QComboBox>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -37,6 +40,8 @@
 #include <QTimer>
 #include <QWindow>
 #include <QPointer>
+#include <QTemporaryDir>
+#include <QEvent>
 #include <QtTest/QTest>
 
 namespace {
@@ -64,7 +69,16 @@ namespace {
     }
 }
 
+void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget_data() {
+    QTest::addColumn<bool>("secondAudio");
+    QTest::newRow("singing-to-singing") << false;
+    QTest::newRow("singing-to-audio") << true;
+}
+
 void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
+    QFETCH(bool, secondAudio);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
     auto &runtime = *context->m_coreRuntime;
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     Automation::TrackDraftDto track;
@@ -73,10 +87,23 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
         clip.properties.name = name;
         clip.properties.length = 1920;
         clip.properties.clipLen = 1920;
+        if (secondAudio && name == QStringLiteral("Second clip")) {
+            clip.type = Automation::ClipDraftDto::Type::Audio;
+            clip.audioPath = files.filePath(QStringLiteral("toolbar.wav"));
+            QVERIFY(TestSupport::writeWave(clip.audioPath, QVector<float>(4800, 0.125f)));
+        }
         track.clips.append(clip);
     }
     document.tracks = {track};
     QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    const auto releaseAudio = qScopeGuard([&] {
+        if (!secondAudio)
+            return;
+        QVERIFY(runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    });
     Clip *first = nullptr;
     Clip *second = nullptr;
     for (auto *clip : context->m_appModel->tracks().first()->clips()) {
@@ -92,10 +119,16 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     toolbar.show();
     toolbar.activateWindow();
     auto *label = toolbar.findChild<InlineEditLabel *>("leClipName");
-    QVERIFY(label);
+    auto *language = toolbar.findChild<LanguageComboBox *>();
+    auto *noteTool = toolbar.findChild<QAbstractButton *>("btnNotePencil");
+    QVERIFY(label && language && noteTool);
     QTRY_VERIFY(toolbar.isActiveWindow() && label->isVisible() && label->isEnabled());
+    QVERIFY(language->isVisible() && language->isEnabled());
+    QVERIFY(noteTool->isVisible() && noteTool->isEnabled());
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto edit = [&](const char *text) {
         QTest::mouseDClick(label, Qt::LeftButton);
         QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
@@ -120,6 +153,10 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     QCOMPARE(second->name(), QStringLiteral("Second clip"));
     QCOMPARE(label->text(), second->name());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(language->isVisible(), !secondAudio);
+    QCOMPARE(language->isEnabled(), !secondAudio);
+    QCOMPARE(noteTool->isVisible(), !secondAudio);
+    QCOMPARE(noteTool->isEnabled(), !secondAudio);
     edit("Edited second clip");
     if (QTest::currentTestFailed())
         return;
@@ -133,6 +170,16 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(first->name(), QStringLiteral("First clip"));
     QCOMPARE(label->text(), second->name());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+    const auto beforeReturn = runtime.documentVersion();
+    const auto beforeReturnModel = TestSupport::projectSnapshot(*context->m_appModel);
+    toolbar.setDataContext(first);
+    QCOMPARE(label->text(), first->name());
+    QVERIFY(language->isVisible() && language->isEnabled());
+    QVERIFY(noteTool->isVisible() && noteTool->isEnabled());
+    QCOMPARE(runtime.documentVersion(), beforeReturn);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeReturnModel);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -311,6 +358,32 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
     QVERIFY(modelClip->usesTrackVoiceContext());
     QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
     QVERIFY(!historyManager->canUndo());
+    if (clipTarget) {
+        auto *language = host->findChild<LanguageComboBox *>();
+        QVERIFY(language && language->isVisible() && language->isEnabled());
+        const auto previousLanguage = modelClip->defaultLanguage();
+        const auto previousIndex = language->currentIndex();
+        const auto otherIndex = previousIndex == 0 ? 1 : 0;
+        QVERIFY(otherIndex < language->count());
+        const auto chosenLanguage = language->itemData(otherIndex).toString();
+        QVERIFY(!chosenLanguage.isEmpty() && chosenLanguage != previousLanguage);
+        const auto beforeLanguage = runtime.documentVersion();
+        const auto beforeLanguageModel = TestSupport::projectSnapshot(*context->m_appModel);
+        QTest::mouseClick(language, Qt::LeftButton);
+        QTRY_VERIFY(language->view()->isVisible());
+        QTest::keyClick(language->view(), Qt::Key_Home);
+        if (otherIndex == 1)
+            QTest::keyClick(language->view(), Qt::Key_Down);
+        QTest::keyClick(language->view(), Qt::Key_Return);
+        QCOMPARE(modelClip->defaultLanguage(), chosenLanguage);
+        QCOMPARE(language->currentLanguage(), chosenLanguage);
+        QCOMPARE(runtime.documentVersion().revision, beforeLanguage.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(modelClip->defaultLanguage(), previousLanguage);
+        QCOMPARE(language->currentLanguage(), previousLanguage);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeLanguageModel);
+        QVERIFY(!historyManager->canUndo());
+    }
 }
 
 void ApplicationGuiTests::speakerMixSelectionAndDrag_data() {
