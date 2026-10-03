@@ -1054,6 +1054,56 @@ void ProjectEditingTests::speakerMixModeTransitionsPreserveTrackInheritance() {
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(read(clipTarget).inherited);
     QVERIFY(!fixture.history()->canUndo());
+
+    auto dynamicOnly = singingClipDraft(QStringLiteral("Dynamic-only mix"),
+                                       QStringLiteral("dynamic-only"));
+    dynamicOnly.properties.start = 4800;
+    dynamicOnly.usesTrackVoiceContext = false;
+    dynamicOnly.ownSingerInfo = voice;
+    dynamicOnly.ownSpeakerInfo = soft;
+    dynamicOnly.ownSpeakerMixData.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+    dynamicOnly.ownSpeakerMixData.sources = fixed.sources;
+    dynamicOnly.ownSpeakerMixData.dynamicKeyframes = {{0, {0.8}}, {960, {0.2}}};
+    const auto inserted = runtime.project().insertClips(commandContext(runtime),
+                                                      {{.trackId = track, .clip = dynamicOnly}});
+    QVERIFY(inserted);
+    QCOMPARE(inserted.get().createdObjects.size(), 1);
+    const auto dynamicClip = ClipId(inserted.get().createdObjects.first().object.value);
+    const Automation::SpeakerMixTargetDto dynamicTarget{
+        Automation::SpeakerMixTargetKind::Clip, dynamicClip.value()};
+    const auto originalDynamic = read(dynamicTarget).mix;
+    QCOMPARE(originalDynamic.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QVERIFY(originalDynamic.fixedWeights.isEmpty());
+    QCOMPARE(originalDynamic.dynamicKeyframes.first().weights, QVector<double>{0.8});
+    const auto beforeConversion = TestSupport::projectSnapshot(fixture.model());
+    fixture.history()->reset();
+    for (const bool bypass : {false, true}) {
+        const auto version = runtime.documentVersion();
+        const auto converted =
+            bypass ? parameters.setClipDynamicSpeakerMixBypassed(commandContext(runtime),
+                                                                dynamicClip, true)
+                   : parameters.disableClipDynamicSpeakerMix(commandContext(runtime), dynamicClip);
+        QVERIFY(converted && converted.get().changed);
+        QCOMPARE(runtime.documentVersion().revision, version.revision + 1);
+        const auto current = read(dynamicTarget);
+        QVERIFY(!current.inherited);
+        QCOMPARE(current.mix.fixedWeights, originalDynamic.dynamicKeyframes.first().weights);
+        QCOMPARE(current.mix.dynamicBypassed, bypass);
+        if (bypass) {
+            QCOMPARE(current.mix.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+            QCOMPARE(current.mix.dynamicKeyframes, originalDynamic.dynamicKeyframes);
+        } else {
+            QCOMPARE(current.mix.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+            QVERIFY(current.mix.dynamicKeyframes.isEmpty());
+        }
+        QCOMPARE(read(trackTarget).mix, fixed);
+        QVERIFY(read(clipTarget).inherited);
+        QCOMPARE(read(clipTarget).mix, fixed);
+        QVERIFY(runtime.history().undo(commandContext(runtime)));
+        QCOMPARE(read(dynamicTarget).mix, originalDynamic);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeConversion);
+        QVERIFY(!fixture.history()->canUndo());
+    }
 }
 
 void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
