@@ -1785,8 +1785,10 @@ void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
         if (QTest::currentTestFailed())
             return;
         leaveRange();
-        QTest::mouseMove(canvas.windowHandle(), position);
+        // Qt filters QPA mouse moves that leave the global position unchanged.
+        QTest::mouseMove(canvas.windowHandle(), position + QPoint(1, 0));
         QTRY_VERIFY(canvas.cursor().shape() != Qt::ForbiddenCursor);
+        QTest::mouseMove(canvas.windowHandle(), position);
     }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
     QCOMPARE(fixture.clip->notes().count(), 2);
