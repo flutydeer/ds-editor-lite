@@ -726,6 +726,112 @@ private slots:
             QVERIFY(fasterAudio.info.frames < softAudio.info.frames);
             QVERIFY(fasterAudio.energy > 0);
             QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files) != changedSpeakerCache);
+
+            QVERIFY2(client.mutate(
+                         QStringLiteral("tracks.insert"),
+                         {
+                             {QStringLiteral("index"),  1                                        },
+                             {QStringLiteral("tracks"),
+                              QJsonArray{QJsonObject{
+                                  {QStringLiteral("client_ref"), QStringLiteral("destination")},
+                                  {QStringLiteral("name"), QStringLiteral("Clear destination")}}}}
+            },
+                         result),
+                     qPrintable(client.error));
+            const auto destinationTrackId = createdId(result, QStringLiteral("destination"));
+            QVERIFY(destinationTrackId > 0 && destinationTrackId != trackId);
+            const QJsonObject destinationVoice{
+                {QStringLiteral("singer"),  singer },
+                {QStringLiteral("speaker"), speaker}
+            };
+            QVERIFY2(client.mutate(QStringLiteral("tracks.set_voice"),
+                                   {
+                                       {QStringLiteral("track_id"), destinationTrackId},
+                                       {QStringLiteral("voice"),    destinationVoice  }
+            },
+                                   result),
+                     qPrintable(client.error));
+            const QJsonObject clipQuery{
+                {QStringLiteral("document_id"), client.documentId},
+                {QStringLiteral("clip_id"),     clipId           }
+            };
+            QVERIFY2(client.call(QStringLiteral("clips.get"), clipQuery, result),
+                     qPrintable(client.error));
+            const auto originalClip = result.value(QStringLiteral("snapshot")).toObject();
+            const auto originalVoice = originalClip.value(QStringLiteral("voice_context"))
+                                           .toObject()
+                                           .value(QStringLiteral("effective_voice"))
+                                           .toObject();
+            QVERIFY2(client.call(QStringLiteral("notes.list"), clipQuery, result),
+                     qPrintable(client.error));
+            const auto originalNotes = result.value(QStringLiteral("notes")).toArray();
+            QVERIFY(!originalNotes.isEmpty());
+            const auto verifyPlacement = [&](const int expectedTrackId,
+                                             const QJsonObject &expectedVoice) {
+                QJsonObject current;
+                QVERIFY2(client.call(QStringLiteral("clips.get"), clipQuery, current),
+                         qPrintable(client.error));
+                const auto snapshot = current.value(QStringLiteral("snapshot")).toObject();
+                QCOMPARE(snapshot.value(QStringLiteral("clip_id")).toInt(), clipId);
+                QCOMPARE(snapshot.value(QStringLiteral("track_id")).toInt(), expectedTrackId);
+                QCOMPARE(snapshot.value(QStringLiteral("start")),
+                         originalClip.value(QStringLiteral("start")));
+                QCOMPARE(snapshot.value(QStringLiteral("length")),
+                         originalClip.value(QStringLiteral("length")));
+                const auto voiceContext =
+                    snapshot.value(QStringLiteral("voice_context")).toObject();
+                QVERIFY(voiceContext.value(QStringLiteral("inherits_track")).toBool());
+                QVERIFY(voiceContext.value(QStringLiteral("own_voice")).isNull());
+                QCOMPARE(voiceContext.value(QStringLiteral("effective_voice")).toObject(),
+                         expectedVoice);
+                QVERIFY2(client.call(QStringLiteral("notes.list"), clipQuery, current),
+                         qPrintable(client.error));
+                const auto notes = current.value(QStringLiteral("notes")).toArray();
+                QCOMPARE(notes.size(), originalNotes.size());
+                for (qsizetype i = 0; i < notes.size(); ++i) {
+                    const auto note = notes.at(i).toObject();
+                    const auto original = originalNotes.at(i).toObject();
+                    QCOMPARE(note.value(QStringLiteral("note_id")),
+                             original.value(QStringLiteral("note_id")));
+                    QCOMPARE(note.value(QStringLiteral("local_start")),
+                             original.value(QStringLiteral("local_start")));
+                    QCOMPARE(note.value(QStringLiteral("length")),
+                             original.value(QStringLiteral("length")));
+                    QCOMPARE(note.value(QStringLiteral("lyric")),
+                             original.value(QStringLiteral("lyric")));
+                }
+            };
+            QVERIFY2(client.mutate(QStringLiteral("clips.move"),
+                                   {
+                                       {QStringLiteral("moves"),
+                                        QJsonArray{QJsonObject{
+                                            {QStringLiteral("clip_id"), clipId},
+                                            {QStringLiteral("target_track_id"), destinationTrackId},
+                                            {QStringLiteral("start"), 0}}}}
+            },
+                                   result),
+                     qPrintable(client.error));
+            verifyPlacement(destinationTrackId, destinationVoice);
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY2(inferAndExport(QStringLiteral("cross-track.wav")), qPrintable(client.error));
+            const auto movedAudio =
+                decodeAudio(fixture.filePath(QStringLiteral("cross-track.wav")));
+            QVERIFY2(movedAudio.error.isEmpty(), qPrintable(movedAudio.error));
+            QCOMPARE(movedAudio.info.frames, fasterAudio.info.frames);
+            QVERIFY(movedAudio.energy > 0);
+            QVERIFY(movedAudio.pcm != fasterAudio.pcm);
+            QVERIFY2(client.mutate(QStringLiteral("history.undo"), {}, result),
+                     qPrintable(client.error));
+            verifyPlacement(trackId, originalVoice);
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY2(inferAndExport(QStringLiteral("cross-track-undo.wav")),
+                     qPrintable(client.error));
+            const auto restoredAudio =
+                decodeAudio(fixture.filePath(QStringLiteral("cross-track-undo.wav")));
+            QVERIFY2(restoredAudio.error.isEmpty(), qPrintable(restoredAudio.error));
+            QCOMPARE(restoredAudio.pcm, fasterAudio.pcm);
         }
         QVERIFY2(client.call(QStringLiteral("application.request_exit"),
                              {
