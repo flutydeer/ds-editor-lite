@@ -14,6 +14,7 @@
 
 #include <QFile>
 #include <QTemporaryDir>
+#include <QUuid>
 #include <QtTest>
 
 #include <algorithm>
@@ -117,16 +118,19 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         workers = std::make_unique<TestSupport::ThreadPoolBarrier>();
         QTRY_VERIFY_WITH_TIMEOUT(workers->ready(), 5000);
     }
-    const auto accepted =
-        registry.invoke(QStringLiteral("audio_clips.import_batch"),
-                        {
-                            {"document_id",       before.documentId.toString()         },
-                            {"expected_revision", static_cast<qint64>(before.revision) },
-                            {"items",             items                                },
-                            {"failure_policy",    bestEffort ? "best_effort" : "atomic"}
-    },
-                        {.clientId = QStringLiteral("audio-import-client"),
-                         .source = InvocationSource::PublicJsonRpc});
+    const QJsonObject arguments{
+        {"document_id",       before.documentId.toString()                      },
+        {"expected_revision", static_cast<qint64>(before.revision)              },
+        {"items",             items                                             },
+        {"failure_policy",    bestEffort ? "best_effort" : "atomic"             },
+        {"idempotency_key",   QUuid::createUuid().toString(QUuid::WithoutBraces)},
+    };
+    const auto invoke = [&] {
+        return registry.invoke(QStringLiteral("audio_clips.import_batch"), arguments,
+                               {.clientId = QStringLiteral("audio-import-client"),
+                                .source = InvocationSource::PublicJsonRpc});
+    };
+    const auto accepted = invoke();
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     const auto taskId =
         TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
@@ -136,8 +140,10 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         workers->resume();
     }
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), {taskId, before}), 10000);
-    const auto task = runtime().tasks().getTask(before.documentId, taskId);
+    auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);
+    auto completedTaskId = taskId;
+    bool repaired = false;
     if (!bestEffort || !includeValid) {
         QCOMPARE(task.get().state, AutomationTaskState::Failed);
         QVERIFY(task.get().error);
@@ -149,32 +155,66 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
-        return;
+        QVERIFY(writeAudio(invalidPath));
+        const auto retried = invoke();
+        QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
+        completedTaskId =
+            TaskId::fromString(retried.get().value(QStringLiteral("task_id")).toString());
+        QVERIFY(!completedTaskId.isNull() && completedTaskId != taskId);
+        QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), {completedTaskId, before}), 10000);
+        task = runtime().tasks().getTask(before.documentId, completedTaskId);
+        QVERIFY(task);
+        const auto failedAttempt = runtime().tasks().getTask(before.documentId, taskId);
+        QVERIFY(failedAttempt);
+        QCOMPARE(failedAttempt.get().state, AutomationTaskState::Failed);
+        repaired = true;
     }
 
     QVERIFY2(task.get().state == AutomationTaskState::Succeeded,
              qPrintable(task.get().error ? task.get().error->message : QString{}));
     QVERIFY(task.get().mutation);
-    QCOMPARE(task.get().mutation->warnings.size(), 1);
-    QVERIFY(task.get().mutation->warnings.first().contains(QStringLiteral("damaged.wav")));
+    if (repaired) {
+        QVERIFY(task.get().mutation->warnings.isEmpty());
+    } else {
+        QCOMPARE(task.get().mutation->warnings.size(), 1);
+        QVERIFY(task.get().mutation->warnings.first().contains(QStringLiteral("damaged.wav")));
+    }
     QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
-    QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips + 1);
+    QCOMPARE(context->m_appModel->tracks().first()->clips().count(),
+             beforeClips + (repaired ? items.size() : 1));
     const auto snapshot = runtime().project().getProject(before.documentId);
     QVERIFY(snapshot);
     const auto &clips = snapshot.get().tracks.first().clips;
-    const auto found = std::find_if(clips.cbegin(), clips.cend(), [&](const auto &clip) {
-        return clip.data.properties.name == QStringLiteral("valid-audio");
-    });
-    QVERIFY(found != clips.cend());
-    QCOMPARE(QFileInfo(found->data.audioPath).canonicalFilePath(),
-             QFileInfo(validPath).canonicalFilePath());
-    QCOMPARE(found->data.audioInfo.frames, qint64{4800});
-    QCOMPARE(found->data.audioInfo.sampleRate, 48000);
-    QCOMPARE(found->data.properties.materialLengthMs, 100.0);
-    QCOMPARE(found->data.properties.start, 480);
-    QCOMPARE(found->data.properties.gain, 0.5);
-    QVERIFY(found->data.properties.mute);
-    QVERIFY(!found->data.audioPathInfo.sha512.isEmpty());
+    for (const auto &value : items) {
+        const auto item = value.toObject();
+        if (!repaired && item.value(QStringLiteral("path")).toString() == invalidPath)
+            continue;
+        const auto found = std::find_if(clips.cbegin(), clips.cend(), [&](const auto &clip) {
+            return clip.data.properties.name == item.value(QStringLiteral("name")).toString();
+        });
+        QVERIFY(found != clips.cend());
+        QCOMPARE(QFileInfo(found->data.audioPath).canonicalFilePath(),
+                 QFileInfo(item.value(QStringLiteral("path")).toString()).canonicalFilePath());
+        QCOMPARE(found->data.audioInfo.frames, qint64{4800});
+        QCOMPARE(found->data.audioInfo.sampleRate, 48000);
+        QCOMPARE(found->data.properties.materialLengthMs, 100.0);
+        QCOMPARE(found->data.properties.start, item.value(QStringLiteral("start")).toInt());
+        QCOMPARE(found->data.properties.gain, item.value(QStringLiteral("gain")).toDouble());
+        QCOMPARE(found->data.properties.mute, item.value(QStringLiteral("mute")).toBool());
+        QVERIFY(!found->data.audioPathInfo.sha512.isEmpty());
+    }
+    if (removeSourceAfterAdmission && !repaired)
+        QVERIFY(writeAudio(invalidPath));
+    const auto committedModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto committedVersion = runtime().documentVersion();
+    const auto *committedUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto replay = invoke();
+    QVERIFY2(replay, qPrintable(replay ? QString{} : replay.getError().message));
+    QCOMPARE(TaskId::fromString(replay.get().value(QStringLiteral("task_id")).toString()),
+             completedTaskId);
+    QCOMPARE(runtime().documentVersion(), committedVersion);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), committedModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), committedUndo);
     QVERIFY(runtime().history().undo(commandContext()));
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
