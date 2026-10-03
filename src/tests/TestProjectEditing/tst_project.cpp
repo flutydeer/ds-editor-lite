@@ -748,6 +748,29 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     QCOMPARE(snapshot().nodes.last().value, 6400);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(snapshot().nodes.size(), 4);
+    const auto curveBeforePrune = snapshot();
+    const auto modelBeforePrune = TestSupport::projectSnapshot(testRuntime.model());
+    const auto versionBeforePrune = runtime.documentVersion();
+    const auto prune = parameters.removeAnchors(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+        {curveBeforePrune.nodes.at(0).id, curveBeforePrune.nodes.at(1).id,
+         curveBeforePrune.nodes.at(2).id});
+    QVERIFY(prune && prune.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, versionBeforePrune.revision + 1);
+    const auto prunedParameter = parameters.getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(prunedParameter);
+    QVERIFY(prunedParameter.get().curves.isEmpty());
+    const auto prunedModel = TestSupport::projectSnapshot(testRuntime.model());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforePrune);
+    const auto restoredCurve = snapshot();
+    QCOMPARE(restoredCurve.id, curveBeforePrune.id);
+    QCOMPARE(restoredCurve.nodes.size(), curveBeforePrune.nodes.size());
+    for (qsizetype index = 0; index < restoredCurve.nodes.size(); ++index)
+        QCOMPARE(restoredCurve.nodes.at(index).id, curveBeforePrune.nodes.at(index).id);
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), prunedModel);
 }
 
 void ProjectEditingTests::anchorCreationRetriesKeepTheCommittedIdentity() {
