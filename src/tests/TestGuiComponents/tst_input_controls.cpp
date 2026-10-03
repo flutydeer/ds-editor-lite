@@ -286,16 +286,20 @@ void GuiComponentTests::seekBarKeyboardStepsClampAndDoubleClickResets() {
 
 void GuiComponentTests::mixerSliderReleaseEndsPreview_data() {
     QTest::addColumn<bool>("vertical");
-    QTest::newRow("gain-fader") << true;
-    QTest::newRow("pan-slider") << false;
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("gain-fader") << true << false;
+    QTest::newRow("pan-slider") << false << false;
+    QTest::newRow("gain-touch") << true << true;
+    QTest::newRow("pan-touch") << false << true;
 }
 
 void GuiComponentTests::mixerSliderReleaseEndsPreview() {
     QFETCH(bool, vertical);
+    QFETCH(bool, touch);
     const auto originalCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(originalCursor); });
-    const auto exerciseDrag = [](auto &slider, const QPoint &press, const QPoint &release,
-                                 const double externalValue) {
+    const auto exerciseDrag = [touch](auto &slider, const QPoint &press, const QPoint &release,
+                                      const double externalValue) {
         using Slider = std::remove_reference_t<decltype(slider)>;
         slider.show();
         slider.activateWindow();
@@ -304,23 +308,37 @@ void GuiComponentTests::mixerSliderReleaseEndsPreview() {
         QCoreApplication::processEvents();
         QSignalSpy moved(&slider, &Slider::sliderMoved);
         QSignalSpy changed(&slider, &Slider::valueChanged);
+        auto *touchDevice = QTest::createTouchDevice();
+        auto gesture = QTest::touchEvent(&slider, touchDevice, false);
+        const auto releaseInput = [&] {
+            if (touch)
+                gesture.release(0, release).commit();
+            else
+                QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, release);
+        };
         bool released = false;
         const auto releaseOnFailure = qScopeGuard([&] {
             if (!released)
-                QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, release);
+                releaseInput();
         });
         const auto initial = slider.value();
-        QTest::mousePress(&slider, Qt::LeftButton, Qt::NoModifier, press);
-        QCoreApplication::processEvents();
-        // The controls warp the cursor to the thumb and ignore that synthetic move.
-        moveWithLeftButton(slider, slider.mapFromGlobal(QCursor::pos()));
-        moveWithLeftButton(slider, release);
+        if (touch) {
+            gesture.press(0, press).commit();
+            QCOMPARE(slider.value(), initial);
+            gesture.move(0, release).commit();
+        } else {
+            QTest::mousePress(&slider, Qt::LeftButton, Qt::NoModifier, press);
+            QCoreApplication::processEvents();
+            // The controls warp the cursor to the thumb and ignore that synthetic move.
+            moveWithLeftButton(slider, slider.mapFromGlobal(QCursor::pos()));
+            moveWithLeftButton(slider, release);
+        }
         QVERIFY(!moved.isEmpty());
         QVERIFY(changed.isEmpty());
         const auto preview = slider.sliderPosition();
         QVERIFY(preview > initial);
         QCOMPARE(moved.last().first().toDouble(), preview);
-        QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, release);
+        releaseInput();
         released = true;
         QCOMPARE(slider.value(), preview);
         QCOMPARE(changed.count(), 1);
