@@ -7,6 +7,7 @@
 #include <lite/PackageManager/Tasks/GetInstalledPackagesTask.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ItemViewTouchFilter.h>
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -229,6 +230,8 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
         // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(listView);
+        // Touch scrolling must not select the item under the finger; taps still select
+        ItemViewTouchFilter::install(listView);
     }
 
     auto layout = new QVBoxLayout;
