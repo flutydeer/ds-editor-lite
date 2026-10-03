@@ -569,11 +569,18 @@ namespace {
             QJsonObject arguments;
         };
 
+        const QJsonArray defaultLyrics{
+            QJsonObject{{QStringLiteral("language_id"), QStringLiteral("en")},
+                        {QStringLiteral("lyric"), QStringLiteral("ah")}},
+            QJsonObject{{QStringLiteral("language_id"), QStringLiteral("zh")},
+                        {QStringLiteral("lyric"), QStringLiteral("啦")}},
+        };
         const QList<SettingsUpdate> updates{
             {"settings.ui_language.update",
              {{QStringLiteral("ui_language"), QStringLiteral("zh_CN")}}                                        },
             {"settings.singing.update",
-             {{QStringLiteral("default_language"), QStringLiteral("zh")}}                                      },
+             {{QStringLiteral("default_language"), QStringLiteral("zh")},
+              {QStringLiteral("default_lyrics"), defaultLyrics}}                                               },
             {"settings.theme.update",                    {{QStringLiteral("theme_id"), QStringLiteral("dark")}}},
             {"settings.audio_device.update",
              {{QStringLiteral("gain"), 0.5}, {QStringLiteral("validate_only"), true}}                          },
@@ -588,6 +595,30 @@ namespace {
             invokeSchemaValid(registry, QString::fromLatin1(update.operationId), update.arguments,
                               QString::fromLatin1(update.operationId));
         }
+        const auto settingsAfter = runtime.settings().getSettings();
+        QVERIFY(settingsAfter);
+        const QMap<QString, QString> expectedLyrics{
+            {QStringLiteral("en"), QStringLiteral("ah")},
+            {QStringLiteral("zh"), QStringLiteral("啦")},
+        };
+        QCOMPARE(settingsAfter.get().general.defaultLyrics, expectedLyrics);
+        const auto singingQuery = invokeSchemaValid(
+            registry, QStringLiteral("settings.query"),
+            QJsonObject{
+                {QStringLiteral("domains"), QJsonArray{QStringLiteral("singing")}}
+        },
+            QStringLiteral("updated default lyrics query"));
+        QVERIFY(singingQuery);
+        const auto singingConfigured = singingQuery->value(QStringLiteral("domains"))
+                                           .toObject()
+                                           .value(QStringLiteral("singing"))
+                                           .toObject()
+                                           .value(QStringLiteral("configured"))
+                                           .toObject();
+        QCOMPARE(singingConfigured.value(QStringLiteral("default_language")).toString(),
+                 QStringLiteral("zh"));
+        QCOMPARE(singingConfigured.value(QStringLiteral("default_lyrics")).toArray(),
+                 defaultLyrics);
         invokeSchemaValid(registry, QStringLiteral("settings.audio_device.update"),
                           QJsonObject{
                               {QStringLiteral("device_name"),   QString()},

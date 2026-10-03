@@ -209,20 +209,23 @@ namespace {
                                                  QStringLiteral("1.0"),
                                                  {},
                                                  {}};
-        Automation::McpHttpLimits limits = [] {
-            Automation::McpHttpLimits value;
-            value.maximumRequestBytes = 1024;
-            value.maximumResponseBytes = 4096;
-            value.maximumJsonNodes = 128;
-            value.maximumLegacySessions = 2;
-            return value;
-        }();
+        Automation::McpHttpLimits limits;
         Automation::McpHttpServer server;
         QNetworkAccessManager manager;
         QString error;
 
-        McpServerFixture()
-            : server(
+        explicit McpServerFixture(
+            int maximumInFlight = Automation::McpHttpLimits{}.maximumGlobalInFlight)
+            : limits([maximumInFlight] {
+                  Automation::McpHttpLimits value;
+                  value.maximumRequestBytes = 1024;
+                  value.maximumResponseBytes = 4096;
+                  value.maximumJsonNodes = 128;
+                  value.maximumLegacySessions = 2;
+                  value.maximumGlobalInFlight = maximumInFlight;
+                  return value;
+              }()),
+              server(
                   [this](const Mcp::RequestEnvelope &request, const QString &clientId) {
                       {
                           const QMutexLocker locker(&observationMutex);
@@ -253,6 +256,8 @@ namespace {
                       }
                       if (request.name == QStringLiteral("invalid.response"))
                           return QJsonObject{};
+                      if (request.name == QStringLiteral("throwing.response"))
+                          throw std::runtime_error("MCP handler failure");
                       if (request.name == QStringLiteral("large.response")) {
                           return Mcp::makeResultResponse(
                               request.id,
@@ -945,38 +950,43 @@ void AutomationProtocolTests::jsonAndRequestLimits() {
 }
 
 void AutomationProtocolTests::handlerResponseLimits() {
-    McpServerFixture fixture;
+    McpServerFixture fixture(1);
     QVERIFY2(fixture.start(), qPrintable(fixture.error));
-    auto &server = fixture.server;
     auto &manager = fixture.manager;
     const auto endpoint = fixture.endpoint();
-    const auto invalidResponseCall =
-        requestObject(QString::fromLatin1(Mcp::ToolsCallMethod), QStringLiteral("invalid-response"),
-                      QJsonObject{
-                          {QStringLiteral("name"),      QStringLiteral("invalid.response")},
-                          {QStringLiteral("arguments"), QJsonObject{}                     }
-    });
-    const auto invalidResponse =
-        send(manager,
-             baseRequest(endpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
-                         QStringLiteral("invalid.response")),
-             QJsonDocument(invalidResponseCall).toJson(QJsonDocument::Compact));
-    expect(invalidResponse.status == 200 && jsonRpcErrorCode(invalidResponse) == Mcp::InternalError,
-           QStringLiteral("invalid handler envelopes must be replaced by an internal error"));
+    for (const auto &[name, status] : {
+             std::pair{"invalid.response",  200},
+             std::pair{"throwing.response", 200},
+             std::pair{"large.response",    500}
+    }) {
+        const auto tool = QString::fromLatin1(name);
+        const auto requestId = QStringLiteral("failed-%1").arg(tool);
+        const auto call = requestObject(
+            QString::fromLatin1(Mcp::ToolsCallMethod), requestId,
+            QJsonObject{
+                {QStringLiteral("name"),      tool         },
+                {QStringLiteral("arguments"), QJsonObject{}}
+        });
+        const auto failed =
+            send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::ToolsCallMethod), tool),
+                 QJsonDocument(call).toJson(QJsonDocument::Compact));
+        QVERIFY(!failed.timedOut);
+        QCOMPARE(failed.status, status);
+        QCOMPARE(jsonRpcErrorCode(failed), Mcp::InternalError);
+        QCOMPARE(bodyObject(failed).value(QStringLiteral("id")).toString(), requestId);
 
-    const auto largeResponseCall =
-        requestObject(QString::fromLatin1(Mcp::ToolsCallMethod), QStringLiteral("large-response"),
-                      QJsonObject{
-                          {QStringLiteral("name"),      QStringLiteral("large.response")},
-                          {QStringLiteral("arguments"), QJsonObject{}                   }
-    });
-    const auto largeResponse =
-        send(manager,
-             baseRequest(endpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
-                         QStringLiteral("large.response")),
-             QJsonDocument(largeResponseCall).toJson(QJsonDocument::Compact));
-    expect(largeResponse.status == 500 && jsonRpcErrorCode(largeResponse) == Mcp::InternalError,
-           QStringLiteral("responses above the configured limit must fail closed"));
+        const auto recoveryId = QStringLiteral("recovered-%1").arg(tool);
+        const auto ping = requestObject(QString::fromLatin1(Mcp::PingMethod), recoveryId);
+        const auto recovered =
+            send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::PingMethod)),
+                 QJsonDocument(ping).toJson(QJsonDocument::Compact));
+        QVERIFY(!recovered.timedOut);
+        QCOMPARE(recovered.status, 200);
+        const auto body = bodyObject(recovered);
+        QVERIFY(body.contains(QStringLiteral("result")));
+        QVERIFY(!body.contains(QStringLiteral("error")));
+        QCOMPARE(body.value(QStringLiteral("id")).toString(), recoveryId);
+    }
 }
 
 void AutomationProtocolTests::listenerLifecycle() {
