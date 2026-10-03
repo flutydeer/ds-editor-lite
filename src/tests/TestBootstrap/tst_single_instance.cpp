@@ -10,7 +10,9 @@
 #include <QElapsedTimer>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocalServer>
 #include <QLocalSocket>
+#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QSemaphore>
 #include <QTemporaryDir>
@@ -635,6 +637,108 @@ void BootstrapTests::coordinator() {
     expect(replacement.start() == SingleInstanceCoordinator::StartResult::Primary,
            "a new coordinator must take ownership after primary shutdown");
     replacement.shutdown();
+}
+
+void BootstrapTests::forwardRequestReportsPeerFailureAndRecovers_data() {
+    QTest::addColumn<QString>("reason");
+    QTest::addColumn<bool>("mismatchedResponse");
+    QTest::addColumn<bool>("disconnectBeforeAck");
+    QTest::newRow("rejected-with-reason")
+        << QStringLiteral("The primary cannot open this project") << false << false;
+    QTest::newRow("rejected-without-reason") << QString() << false << false;
+    QTest::newRow("mismatched-confirmation") << QString() << true << false;
+    QTest::newRow("lost-confirmation") << QString() << false << true;
+}
+
+void BootstrapTests::forwardRequestReportsPeerFailureAndRecovers() {
+    QFETCH(QString, reason);
+    QFETCH(bool, mismatchedResponse);
+    QFETCH(bool, disconnectBeforeAck);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    QLocalServer server;
+    QVERIFY2(server.listen(serverName), qPrintable(server.errorString()));
+    const QList<SingleInstanceRequest> expected{
+        openRequest({directory.filePath(QStringLiteral("first.dspx"))}),
+        openRequest({directory.filePath(QStringLiteral("recovered.dspx"))}),
+    };
+    QList<SingleInstanceRequest> received;
+    QString peerError;
+    QObject::connect(&server, &QLocalServer::newConnection, &server, [&] {
+        auto *socket = server.nextPendingConnection();
+        if (!socket)
+            return;
+        const auto buffer = std::make_shared<QByteArray>();
+        const auto readRequest = [&, socket, buffer] {
+            buffer->append(socket->readAll());
+            QByteArray payload;
+            QString error;
+            if (!SingleInstanceProtocol::takeFrame(*buffer, payload, error)) {
+                if (!error.isEmpty()) {
+                    peerError = error;
+                    socket->disconnectFromServer();
+                }
+                return;
+            }
+            SingleInstanceRequest request;
+            if (!SingleInstanceProtocol::decodeRequest(payload, request, error)) {
+                peerError = error;
+                socket->disconnectFromServer();
+                return;
+            }
+            received.append(request);
+            if (received.size() == 1 && disconnectBeforeAck) {
+                socket->disconnectFromServer();
+                return;
+            }
+            SingleInstanceResponse response{
+                request.requestId, true, {}, QCoreApplication::applicationPid()};
+            if (received.size() == 1) {
+                response.accepted = mismatchedResponse;
+                response.error = reason;
+                if (mismatchedResponse)
+                    response.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            }
+            const auto frame =
+                SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeResponse(response));
+            if (socket->write(frame) != frame.size())
+                peerError = socket->errorString();
+            socket->disconnectFromServer();
+        };
+        QObject::connect(socket, &QLocalSocket::readyRead, &server, readRequest);
+        readRequest();
+    });
+    bool forwarded = false;
+    bool recovered = false;
+    QString forwardError;
+    QString recoveryError;
+    // Keep the peer's event loop running while the coordinator waits for an ACK.
+    const auto clientThread = std::unique_ptr<QThread>(QThread::create([&] {
+        SingleInstanceCoordinator secondary(directory.path(), serverName);
+        forwarded = secondary.forwardRequest(expected.at(0), forwardError);
+        recovered = secondary.forwardRequest(expected.at(1), recoveryError);
+    }));
+    const auto joinClient = qScopeGuard([&] {
+        if (clientThread->isRunning())
+            clientThread->wait(7000);
+    });
+    clientThread->start();
+    QTRY_VERIFY_WITH_TIMEOUT(clientThread->isFinished(), 8000);
+    QVERIFY(clientThread->wait(1000));
+    QVERIFY2(peerError.isEmpty(), qPrintable(peerError));
+    QCOMPARE(received.size(), expected.size());
+    for (qsizetype i = 0; i < expected.size(); ++i) {
+        QCOMPARE(received.at(i).requestId, expected.at(i).requestId);
+        QCOMPARE(received.at(i).command, expected.at(i).command);
+        QCOMPARE(received.at(i).paths, expected.at(i).paths);
+    }
+    QVERIFY(!forwarded);
+    QVERIFY(!forwardError.isEmpty());
+    if (!reason.isEmpty())
+        QCOMPARE(forwardError, reason);
+    QVERIFY2(recovered, qPrintable(recoveryError));
+    QVERIFY(recoveryError.isEmpty());
 }
 
 void BootstrapTests::queuedStartupConnectionIsAcknowledged() {

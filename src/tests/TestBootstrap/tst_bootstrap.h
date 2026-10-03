@@ -21,5 +21,7 @@ private slots:
     void watcherLimit();
     void initialReadTimeout();
     void coordinator();
+    void forwardRequestReportsPeerFailureAndRecovers_data();
+    void forwardRequestReportsPeerFailureAndRecovers();
     void queuedStartupConnectionIsAcknowledged();
 };
