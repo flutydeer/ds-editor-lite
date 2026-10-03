@@ -701,12 +701,15 @@ void ApplicationGuiTests::trackEditInputsFollowTheFocusedPanelAndUndo() {
 
 void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt_data() {
     QTest::addColumn<bool>("hiddenPanel");
-    QTest::newRow("offscreen-clip") << false;
-    QTest::newRow("hidden-track-panel") << true;
+    QTest::addColumn<bool>("removedClip");
+    QTest::newRow("offscreen-clip") << false << false;
+    QTest::newRow("hidden-track-panel") << true << false;
+    QTest::newRow("deleted-long-clip") << false << true;
 }
 
 void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
     QFETCH(bool, hiddenPanel);
+    QFETCH(bool, removedClip);
     MainWindowFixture host;
     host.show();
     if (QTest::currentTestFailed())
@@ -729,12 +732,25 @@ void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
     QVERIFY(window.setTrackPanelScale(1.0, 1.0));
     QVERIFY(window.centerTrackPanelAt(1920, 0));
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
-    historyManager->reset();
     auto &runtime = *context->m_coreRuntime;
     const auto clipId = Automation::ClipId(singingClip->id());
-    QVERIFY(runtime.project().moveClips(commandContext(), {
-                                                              {clipId, trackId, 24000}
-    }));
+    if (removedClip) {
+        QVERIFY(runtime.project().patchClipProperties(
+            commandContext(), {.id = clipId, .start = 24000, .length = 38400, .clipLen = 38400}));
+    }
+    historyManager->reset();
+    const auto beforeEdit = TestSupport::projectSnapshot(*context->m_appModel);
+    if (removedClip) {
+        QVERIFY(runtime.project().removeClips(commandContext(), {clipId}));
+        QVERIFY(!context->m_appModel->findClipById(clipId.value()));
+        QVERIFY(!tracks->findClipItemById(clipId.value()));
+        QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::TrackPanel));
+    } else {
+        QVERIFY(runtime.project().moveClips(commandContext(), {
+                                                                  {clipId, trackId, 24000}
+        }));
+    }
+    const auto edited = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *entry = historyManager->nextUndoEntry();
     QVERIFY(entry && entry->focusTransition());
     const auto focus = *entry->focusTransition();
@@ -770,23 +786,37 @@ void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
     QCOMPARE(singingClip->start(), 24000);
     QCOMPARE(runtime.documentVersion(), beforeUndo);
     QCOMPARE(historyManager->nextUndoEntry(), entry);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), edited);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
     auto *item = tracks->findClipItemById(singingClip->id());
-    QVERIFY(item);
-    QVERIFY(canvas->logicalVisibleRect().contains(item->mapRectToScene(item->rect())));
+    if (removedClip) {
+        QVERIFY(!item && !context->m_appModel->findClipById(clipId.value()));
+        QVERIFY(canvas->startTick() <= focus.after.tickStart);
+        QVERIFY(canvas->endTick() >= focus.after.tickEnd);
+    } else {
+        QVERIFY(item);
+        QVERIFY(canvas->logicalVisibleRect().contains(item->mapRectToScene(item->rect())));
+    }
     input = QApplication::focusWidget();
     QVERIFY(input && (input == tracks || tracks->isAncestorOf(input)));
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
-    QTRY_COMPARE(singingClip->start(), 0);
+    QTRY_VERIFY(context->m_appModel->findClipById(clipId.value()) == singingClip);
+    QCOMPARE(singingClip->start(), removedClip ? 24000 : 0);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeEdit);
     QCOMPARE(navigation.size(), 1);
     QCOMPARE(runtime.documentVersion().revision, beforeUndo.revision + 1);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(historyManager->canRedo());
     QTRY_COMPARE(window.focusVisibility(focus.before), HistoryFocusVisibility::Visible);
+    QTRY_VERIFY(tracks->findClipItemById(clipId.value()));
+    const auto *restoredItem = tracks->findClipItemById(clipId.value());
+    QVERIFY(canvas->logicalVisibleRect().contains(restoredItem->mapRectToScene(restoredItem->rect())));
     input = QApplication::focusWidget();
     QVERIFY(input);
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Y")));
-    QTRY_COMPARE(singingClip->start(), 24000);
+    QTRY_COMPARE(TestSupport::projectSnapshot(*context->m_appModel), edited);
+    QCOMPARE(context->m_appModel->findClipById(clipId.value()) == nullptr, removedClip);
+    QCOMPARE(singingClip->start(), 24000);
     QCOMPARE(navigation.size(), 1);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
     QVERIFY(historyManager->canUndo());
