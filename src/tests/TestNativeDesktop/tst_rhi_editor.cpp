@@ -20,6 +20,8 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Window/MainWindow.h"
@@ -63,6 +65,7 @@
 #include <QTemporaryDir>
 #include <QTextDocument>
 #include <QTimer>
+#include <QTouchEvent>
 #include <QWindow>
 #include <QWheelEvent>
 #include <QNativeGestureEvent>
@@ -388,6 +391,62 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     historyManager->reset();
     const auto before = runtime.documentVersion();
     const auto model = TestSupport::projectSnapshot(*fixture.context->m_appModel);
+    {
+        QVERIFY(editor->setRegionVisibility(true, true));
+        QVERIFY(window.setParameterForeground(ParamInfo::MouthOpening));
+        QVERIFY(window.setPianoRollScale(2, 1));
+        QVERIFY(window.centerPianoRollAt(1920, 60));
+        auto *panel = window.findChild<ParamEditorView *>();
+        QVERIFY(panel && panel->isVisible());
+        auto *parameters = panel->graphicsView();
+        QVERIFY(parameters && parameters->isVisible());
+        auto *viewport = parameters->viewport();
+        const QPointF originalScale(piano->scaleX(), piano->scaleY());
+        const auto originalValues = panel->viewState();
+        const auto verifyTimeline = [&] {
+            QCOMPARE(QPointF(piano->scaleX(), piano->scaleY()), originalScale);
+            QTRY_COMPARE(parameters->scaleX(), piano->scaleX());
+            const auto ticksPerPixel = (piano->endTick() - piano->startTick()) / piano->width();
+            QTRY_VERIFY(std::abs(parameters->startTick() - piano->startTick()) <= ticksPerPixel);
+            QCOMPARE(panel->viewState().centerRatio, originalValues.centerRatio);
+            QCOMPARE(panel->viewState().verticalScale, originalValues.verticalScale);
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+            QVERIFY(!historyManager->canUndo());
+            QVERIFY(!editSessionManager->hasActiveTransaction());
+        };
+        const auto position = viewport->rect().center();
+        const auto beforeWheel = piano->startTick();
+        QWheelEvent wheel(position, viewport->mapToGlobal(position), QPoint(0, -80), {},
+                          Qt::NoButton, Qt::ShiftModifier, Qt::ScrollUpdate, false);
+        QApplication::sendEvent(viewport, &wheel);
+        QTRY_VERIFY(piano->startTick() > beforeWheel);
+        verifyTimeline();
+        if (QTest::currentTestFailed())
+            return;
+        const auto fingerEditing = appOptions->general()->drawParamWithFinger;
+        auto *touchDevice = QTest::createTouchDevice();
+        const auto restoreInput = qScopeGuard([&] {
+            QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+            QApplication::sendEvent(viewport, &cancel);
+            appOptions->general()->drawParamWithFinger = fingerEditing;
+        });
+        appOptions->general()->drawParamWithFinger = false;
+        const auto beforePan = piano->startTick();
+        const auto beforeFrame = pianoFrames.size();
+        auto touch = QTest::touchEvent(viewport, touchDevice, false);
+        touch.press(0, position).commit();
+        touch.move(0, position - QPoint(24, 0)).commit();
+        touch.move(0, position - QPoint(48, 0)).commit();
+        QTRY_VERIFY(piano->startTick() > beforePan);
+        touch.release(0, position - QPoint(48, 0)).commit();
+        verifyTimeline();
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_VERIFY(pianoFrames.size() > beforeFrame);
+        QVERIFY(window.setPianoRollScale(1, 1));
+        QVERIFY(window.centerPianoRollAt(1920, 60));
+    }
     const auto darkPiano = piano->property("whiteKeyColor").value<QColor>();
     const auto darkTracks = tracks->property("backgroundColor").value<QColor>();
     const auto verifyTimelines = [&] {

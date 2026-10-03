@@ -202,6 +202,8 @@ Windows 的启动转发出现连接和写入已完成、连接仍打开却等不
 
 主窗口参数删除的普通锚点与动态声线数据行已通过 Windows 本地定向测试，所属完整 ApplicationGui 集合也通过。场景从真实画布点击选区，再由可见主菜单发出删除，检查主窗口 QAction 触发、单次提交、未选择端点及另一类参数保留，视图读回与模型一致，一次撤销恢复完整工程和节点身份。
 
+RHI 主窗口的参数面板共享时间线导航已通过 Windows 原生定向及完整 NativeDesktop 集合。真实 Shift 滚轮和单指水平平移改变钢琴窗位置，两画布同步，倍率与参数纵向值域保留，工程、版本、历史及事务保持，RHI 帧继续提交。随后原主题、片段导航与窗口迁移流程继续通过。
+
 ### 4.1. 平台和资源边界
 
 Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合。Linux 使用独立覆盖构建，Tests 之后由 Coverage 步骤读取执行数据生成报告。Windows/macOS 使用 `build/Tests` 中的普通 Debug 构建执行全部适用测试。普通控件使用 offscreen。原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，常规测试不要求覆盖率工具，也不以 CI 身份作为启用条件。Linux 的 RtMidi 在 manifest 中显式请求 ALSA。三平台依赖解析确认仅 Linux 引入该特性和依赖。
