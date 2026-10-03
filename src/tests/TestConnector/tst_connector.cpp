@@ -2299,7 +2299,6 @@ namespace {
         auto &responses = fixture.responses;
         const auto &context = fixture.context;
         const auto &ready = fixture.ready;
-        const auto fixedToolCount = runtime.downstreamTools().size();
         const auto policyRefreshCount = http.toolsListCount;
         http.applicationAvailability = QStringLiteral("control_level_disabled");
         bootstrap.publish(ready);
@@ -2398,6 +2397,69 @@ namespace {
         } else {
             expect(false, "editor-policy-rejected generic invoke must return a result");
         }
+
+        const auto refresh = [&](const QString &compatibility) {
+            const auto previousPages = http.toolsListCount;
+            bootstrap.publish(ready);
+            return waitUntil(
+                [&] {
+                    const auto status = runtime.status();
+                    return http.toolsListCount > previousPages &&
+                           status.value(QStringLiteral("toolset"))
+                                   .toObject()
+                                   .value(QStringLiteral("compatibility")) == compatibility &&
+                           status.value(QStringLiteral("mcp"))
+                                   .toObject()
+                                   .value(QStringLiteral("pending_request_count"))
+                                   .toInt() == 0;
+                },
+                10000);
+        };
+        const auto checkApplicationCall = [&](const QString &id, const QString &error = {}) {
+            const auto callsBefore = http.calledTools.size();
+            fixture.sendTool(id, QStringLiteral("application.get_info"));
+            const auto response = fixture.response(id);
+            QVERIFY(response);
+            const auto result = response->value(QStringLiteral("result")).toObject();
+            QCOMPARE(result.value(QStringLiteral("isError")).toBool(), !error.isEmpty());
+            const auto content = result.value(QStringLiteral("structuredContent")).toObject();
+            if (error.isEmpty()) {
+                QCOMPARE(content.value(QStringLiteral("name")).toString(),
+                         QStringLiteral("DS Editor Lite"));
+                QCOMPARE(http.calledTools.size(), callsBefore + 1);
+            } else {
+                QCOMPARE(content.value(QStringLiteral("code")).toString(), error);
+                QCOMPARE(http.calledTools.size(), callsBefore);
+            }
+        };
+        http.applicationAvailability.clear();
+        QVERIFY(refresh(QStringLiteral("compatible")));
+        checkApplicationCall(QStringLiteral("policy-restored"));
+        if (QTest::currentTestFailed())
+            return;
+
+        http.adjustToolsPage = [](QJsonObject &page, int) {
+            auto tools = page.value(QStringLiteral("tools")).toArray();
+            for (auto index = tools.size(); index > 0; --index) {
+                if (tools.at(index - 1).toObject().value(QStringLiteral("name")) ==
+                    QStringLiteral("application.get_status"))
+                    tools.removeAt(index - 1);
+            }
+            page.insert(QStringLiteral("tools"), tools);
+        };
+        QVERIFY(refresh(QStringLiteral("status_unavailable")));
+        const auto mcp = runtime.status().value(QStringLiteral("mcp")).toObject();
+        QVERIFY(mcp.value(QStringLiteral("connected")).toBool());
+        QCOMPARE(mcp.value(QStringLiteral("error")).toString(),
+                 QStringLiteral("status_unavailable"));
+        checkApplicationCall(QStringLiteral("missing-status"),
+                             QStringLiteral("status_unavailable"));
+        if (QTest::currentTestFailed())
+            return;
+
+        http.adjustToolsPage = {};
+        QVERIFY(refresh(QStringLiteral("compatible")));
+        checkApplicationCall(QStringLiteral("status-restored"));
     }
 
     void TestConnector::schemaRefreshKeepsVersionCompatibility() {
