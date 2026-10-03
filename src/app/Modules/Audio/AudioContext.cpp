@@ -559,6 +559,7 @@ void AudioContext::handleTrackMoved(const int from, const int to) {
 
 void AudioContext::handleMasterControlChanged(const TrackControl &control) const {
     masterControlMixer()->setGain(talcs::Decibels::decibelsToGain(control.gain()));
+    masterControlMixer()->setPan(static_cast<float>(control.pan()));
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) const {

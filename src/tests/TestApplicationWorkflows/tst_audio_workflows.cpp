@@ -381,6 +381,60 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         return;
     QVERIFY(std::abs(mixed.at(middle) / selected.at(middle) - 1.25f) < 1e-5f);
 
+    const auto masterSnapshot = [&] {
+        return registry.invoke(QStringLiteral("master.get"),
+                               {
+                                   {QStringLiteral("document_id"),
+                                    runtime().documentVersion().documentId.toString()}
+        });
+    };
+    const auto initialMaster = masterSnapshot();
+    QVERIFY2(initialMaster,
+             qPrintable(initialMaster ? QString{} : initialMaster.getError().message));
+    const auto initialMasterState =
+        initialMaster.get().value(QStringLiteral("snapshot")).toObject();
+    QCOMPARE(initialMasterState.value(QStringLiteral("pan")).toDouble(), 0.0);
+    const auto beforeMasterPan = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeMasterPan = historyManager->nextUndoEntry();
+    options.insert(QStringLiteral("channel_mode"), QStringLiteral("stereo"));
+    QVector<float> centeredMaster;
+    exportSamples(QStringLiteral("master-centered.wav"), centeredMaster, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(centeredMaster.at(middle * 2) > 0.1f);
+    QCOMPARE(centeredMaster.at(middle * 2), centeredMaster.at(middle * 2 + 1));
+    QVERIFY(editMix(QStringLiteral("master.set_pan"), {
+                                                          {QStringLiteral("pan"), 1.0}
+    }));
+    const auto pannedMaster = masterSnapshot();
+    QVERIFY(pannedMaster);
+    QCOMPARE(pannedMaster.get()
+                 .value(QStringLiteral("snapshot"))
+                 .toObject()
+                 .value(QStringLiteral("pan"))
+                 .toDouble(),
+             1.0);
+    QVector<float> rightMaster;
+    exportSamples(QStringLiteral("master-right.wav"), rightMaster, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(rightMaster.at(middle * 2 + 1) > 0.1f);
+    for (qsizetype index = 0; index < rightMaster.size(); index += 2)
+        QVERIFY(std::abs(rightMaster.at(index)) < 1e-6f);
+    QVERIFY(editMix(QStringLiteral("history.undo"), {}));
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeMasterPan);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeMasterPan);
+    const auto restoredMaster = masterSnapshot();
+    QVERIFY(restoredMaster);
+    QCOMPARE(restoredMaster.get().value(QStringLiteral("snapshot")).toObject(), initialMasterState);
+    QVector<float> restoredMasterSamples;
+    exportSamples(QStringLiteral("master-restored.wav"), restoredMasterSamples,
+                  talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(restoredMasterSamples, centeredMaster);
+    options.insert(QStringLiteral("channel_mode"), QStringLiteral("mono"));
+
     historyManager->reset();
     const auto beforeMixChanges = TestSupport::projectSnapshot(*context->m_appModel);
     const auto firstTrack = context->m_appModel->tracks().first()->id();
