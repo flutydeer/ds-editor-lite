@@ -1723,9 +1723,18 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
     fixture.waitForFrame();
 }
 
+void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase_data() {
+    QTest::addColumn<bool>("refusedPen");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("refused-eraser-then-mouse") << true;
+}
+
 void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
+    QFETCH(bool, refusedPen);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
+    if (refusedPen && QGuiApplication::platformName() == QStringLiteral("windows"))
+        QSKIP("Windows native pen hover requires pointer messages from a physical device");
     ExistingRhiNoteFixture fixture;
     fixture.initialize();
     if (QTest::currentTestFailed())
@@ -1744,6 +1753,41 @@ void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
         return;
     QCOMPARE(fixture.clip->notes().count(), 1);
     QCOMPARE(fixture.runtime().documentVersion(), before);
+    if (refusedPen) {
+        const auto content = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+        const auto *undo = historyManager->nextUndoEntry();
+        const QPointingDevice eraser(
+            QStringLiteral("Fixture split-tool eraser"), 1012, QInputDevice::DeviceType::Stylus,
+            QPointingDevice::PointerType::Eraser,
+            QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 1);
+        const auto leaveRange = [&] {
+            QTabletEvent leave(QEvent::TabletLeaveProximity, &eraser, position,
+                               canvas.mapToGlobal(position), 0.0, 0, 0, 0, 0, 0, Qt::NoModifier,
+                               Qt::NoButton, Qt::NoButton);
+            QApplication::sendEvent(qApp, &leave);
+        };
+        const auto restorePointer = qScopeGuard(leaveRange);
+        TestSupport::sendTabletEvent(canvas, eraser, QEvent::TabletMove, position, 0.0,
+                                     Qt::NoButton, Qt::NoButton);
+        QMouseEvent hover(QEvent::MouseMove, position, canvas.mapToGlobal(position), Qt::NoButton,
+                          Qt::NoButton, Qt::NoModifier, &eraser);
+        QApplication::sendEvent(&canvas, &hover);
+        QTRY_COMPARE(canvas.cursor().shape(), Qt::ForbiddenCursor);
+        TestSupport::sendTabletEvent(canvas, eraser, QEvent::TabletPress, position, 0.8,
+                                     Qt::LeftButton, Qt::LeftButton);
+        TestSupport::sendTabletEvent(canvas, eraser, QEvent::TabletRelease, position, 0.0,
+                                     Qt::LeftButton, Qt::NoButton);
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), content);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        leaveRange();
+        QTest::mouseMove(canvas.windowHandle(), position);
+        QTRY_VERIFY(canvas.cursor().shape() != Qt::ForbiddenCursor);
+    }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
     QCOMPARE(fixture.clip->notes().count(), 2);
     const auto *first = fixture.clip->findNoteById(fixture.noteId);

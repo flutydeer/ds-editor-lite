@@ -51,6 +51,7 @@ private slots:
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();
     void rhiPitchStrokePreviewsCancelAndCommit_data();
     void rhiPitchStrokePreviewsCancelAndCommit();
+    void rhiNoteSplittingSnapsAndUndoRestoresThePhrase_data();
     void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();

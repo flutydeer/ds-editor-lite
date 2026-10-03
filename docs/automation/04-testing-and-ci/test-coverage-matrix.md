@@ -272,5 +272,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例。既有数�
 | 声库目录的多语言显示与版本刷新 | workflow | 真实扫描内置声库副本，检查制作方、说明、歌手、声线和语言显示，以及未匹配语言时的回退。版本改变后刷新保留新的显示内容和查找结果，文档及历史不变。同版本仅改显示信息的上游刷新缺陷单独列入测试报告 | ApplicationWorkflows::localizedPackageMetadataLoadsAndUpdatesWithTheVersion。包刷新用例共用 tst_package_catalog.cpp | 通用。内置声库临时副本。无需设备或推理输出 |
 | 依赖包共享声码器的能力解析 | workflow | 与包内阶段共用临时声库复制和目录刷新，歌手保留 Resolved，跨包声码器的音高控制能力与原已加载资源一致，依赖包不产生歌手，原多语言、版本刷新和目录恢复断言继续执行。全部阶段跨包的空能力报告及额外错误警告单独记录，不将上游缺陷视为已修复 | ApplicationWorkflows::localizedPackageMetadataLoadsAndUpdatesWithTheVersion | 通用，真实微型声库目录及生产 Session，无需设备或推理输出 |
 | 锚点删除后的曲线清理 | domain | 复用批量锚点的插入、移动及撤销场景，删除后仅剩一个节点时清除无效曲线，检查一次 revision、完整工程恢复和曲线及节点身份保留，重做恢复清理结果 | ProjectEditing::batchAnchorsCommitAndUndoTogether | 通用，无需声库或设备 |
+| RHI 切分工具拒绝笔擦除与输入恢复 | gui | 正常鼠标及笔拒绝后恢复鼠标共用真实画布，Qt 悬停检查禁止光标，拒绝笔划不改变完整工程、版本、历史或事务，离开感应范围后继续原量化切分、帧、撤销及选择恢复 | NativeDesktop::rhiNoteSplittingSnapsAndUndoRestoresThePhrase | 原生窗口及 Linux Xvfb，鼠标行各平台运行，合成 Qt 悬停行在 Windows 原生后端明确不适用，其余 Qt 事件后端执行 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
