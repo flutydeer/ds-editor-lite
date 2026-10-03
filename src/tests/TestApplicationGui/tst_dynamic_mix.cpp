@@ -22,6 +22,7 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QImage>
 #include <QtTest/QTest>
 
 namespace {
@@ -252,6 +253,24 @@ void ApplicationGuiTests::dynamicSpeakerMixRangeDeletionAndContextMenu() {
     const auto selectTo = speakerMixPoint(*graphics, 1200, 0.1);
     QVERIFY(graphics->viewport()->rect().contains(selectFrom));
     QVERIFY(graphics->viewport()->rect().contains(selectTo));
+    QTest::mousePress(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, selectFrom);
+    const auto beforeSelection = graphics->viewport()->grab().toImage();
+    QVERIFY(!beforeSelection.isNull());
+    movePressedMouse(*graphics->viewport(), selectTo);
+    QVERIFY(graphics->viewport()->grab().toImage() != beforeSelection);
+    QCOMPARE(singingClip->speakerMixData(), initial);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(commits.isEmpty());
+    QVERIFY(!historyManager->canUndo());
+    QTest::keyClick(graphics, Qt::Key_Escape);
+    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, selectTo);
+    QTest::mouseMove(graphics->viewport(), selectFrom);
+    QTRY_COMPARE(graphics->viewport()->grab().toImage(), beforeSelection);
+    QCOMPARE(mix->workingMixData(), initial);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(commits.isEmpty());
+    QVERIFY(!historyManager->canUndo());
+
     QTest::mousePress(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, selectFrom);
     movePressedMouse(*graphics->viewport(), selectTo);
     QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, selectTo);

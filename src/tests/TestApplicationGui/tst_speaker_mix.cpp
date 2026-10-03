@@ -42,7 +42,10 @@
 #include <QPointer>
 #include <QTemporaryDir>
 #include <QEvent>
+#include <QImage>
 #include <QtTest/QTest>
+
+#include <lite/GUI/Theme/ThemeManager.h>
 
 namespace {
     QJsonArray savedPresets() {
@@ -428,6 +431,13 @@ void ApplicationGuiTests::speakerMixSelectionAndDrag() {
     const auto before = context->m_coreRuntime->documentVersion();
     const auto presets = savedPresets();
     SpeakerMixDialog dialog(singer, {});
+    auto *theme = ThemeManager::instance();
+    const auto originalTheme = theme->currentThemeId();
+    theme->addStyleRoot(&dialog);
+    const auto restoreTheme = qScopeGuard([&] {
+        QVERIFY(theme->applyTheme(originalTheme));
+        theme->removeStyleRoot(&dialog);
+    });
     auto *list = dialog.findChild<SpeakerMixList *>();
     auto *air = speakerTag(dialog, QStringLiteral("air"));
     QVERIFY(list);
@@ -457,6 +467,32 @@ void ApplicationGuiTests::speakerMixSelectionAndDrag() {
     QVERIFY(!valuesChanged.isEmpty());
     QCOMPARE(bar->getValues(), QVector<int>({70, 30}));
     QCOMPARE(list->getValues(), QVector<int>({70, 30}));
+
+    const auto labels = list->getLabels();
+    const auto weights = bar->getDoubleValues();
+    const auto notifications = valuesChanged.size();
+    QImage previousFrame;
+    for (const auto &id : {QStringLiteral("lite-light"), QStringLiteral("lite-dark")}) {
+        QVERIFY(theme->applyTheme(id));
+        QTRY_COMPARE(bar->property("trackColor").value<QColor>().rgba(),
+                     theme->semanticColor(QStringLiteral("speakerMix.track")).rgba());
+        QCOMPARE(bar->property("segmentTextColor").value<QColor>().rgba(),
+                 theme->semanticColor(QStringLiteral("speakerMix.segmentText")).rgba());
+        QCOMPARE(bar->property("dividerColor").value<QColor>().rgba(),
+                 theme->semanticColor(QStringLiteral("speakerMix.divider")).rgba());
+        QCOMPARE(bar->property("dividerDraggingColor").value<QColor>().rgba(),
+                 theme->semanticColor(QStringLiteral("speakerMix.dividerDragging")).rgba());
+        const auto frame = bar->grab().toImage();
+        QVERIFY(!frame.isNull());
+        if (!previousFrame.isNull())
+            QVERIFY(frame != previousFrame);
+        previousFrame = frame;
+        QCOMPARE(list->getLabels(), labels);
+        QCOMPARE(bar->getDoubleValues(), weights);
+        QCOMPARE(valuesChanged.size(), notifications);
+        QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+    }
 
     if (accept)
         QTest::mouseClick(dialog.okButton(), Qt::LeftButton);
