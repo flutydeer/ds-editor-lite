@@ -5,6 +5,7 @@
 #include "NoteHandleGeometry.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
+#include "NoteErrorToolTipController.h"
 #include "NoteLyricPresentation.h"
 #include "NoteLyricToolTipController.h"
 #include "PianoPaintUtils.h"
@@ -43,6 +44,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -220,7 +222,7 @@ public:
         viewport.setEnsureContentFillsViewport(true, true);
         viewport.setVerticalContent(128.0, noteHeight);
         QObject::connect(&viewport, &EditorViewportController::viewportChanged, q, [this] {
-            hideLyricToolTip();
+            hideHoverToolTips();
             this->q->notifyViewportChanged();
             scheduleSnapshot();
         });
@@ -289,6 +291,7 @@ public:
 
     void initializeLyricToolTip() {
         lyricToolTip = std::make_unique<NoteLyricToolTipController>(q);
+        errorToolTip = std::make_unique<NoteErrorToolTipController>(q);
     }
 
     void initializeScrollBars() {
@@ -322,7 +325,7 @@ public:
     }
 
     void setDataContext(SingingClip *newClip) {
-        hideLyricToolTip();
+        hideHoverToolTips();
         wheel.stop();
         viewport.stopAnimation();
         disarmEdgeAutoScroll();
@@ -348,7 +351,7 @@ public:
         viewport.setContentTickRange(0.0, effectiveSceneLength());
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
-                hideLyricToolTip();
+                hideHoverToolTips();
                 if (pitchTransformEnabled()) {
                     cancelPitchTransform();
                     pitchTransformContext.invalidate();
@@ -377,6 +380,10 @@ public:
                     reloadPitchTransformSource();
                 }
                 q->notifyViewportChanged();
+                scheduleSnapshot();
+            });
+            QObject::connect(clip, &SingingClip::noteInferenceErrorsChanged, q, [this] {
+                hideHoverToolTips();
                 scheduleSnapshot();
             });
         }
@@ -425,7 +432,7 @@ public:
     }
 
     void resize() {
-        hideLyricToolTip();
+        hideHoverToolTips();
         viewport.setViewportSize(q->size());
         if (!cameraInitialized) {
             if (q->isVisible())
@@ -873,20 +880,34 @@ public:
         return font;
     }
 
-    void updateLyricToolTip(const QPointF &viewportPosition) {
+    void updateHoverToolTips(const QPointF &viewportPosition) {
         auto *note = noteAt(viewportPosition);
-        if (!note || (inlineEditor && inlineEditor->isEditing())) {
-            hideLyricToolTip();
+        const bool editing = inlineEditor && inlineEditor->isEditing();
+        if (!note || editing || !clip) {
+            hideHoverToolTips();
             return;
         }
 
+        // The error badge outranks the elided-lyric tooltip: a pointer resting
+        // on the badge asks why the note is silent
         const auto noteRect = noteViewportRect(note);
+        const auto &errors = clip->noteInferenceErrors();
+        const auto error = errors.constFind(note->id());
+        if (error != errors.constEnd() &&
+            PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteRect).contains(viewportPosition)) {
+            lyricToolTip->hide();
+            showErrorToolTip(note->id(), note->lyric(), *error, noteRect);
+            return;
+        }
+        if (errorToolTip)
+            errorToolTip->hide();
+
         const QRectF visibleRect(QPointF(), QSizeF(q->size()));
         const auto font = lyricFont();
         const auto layout =
             NoteLyricPresentation::layout(noteRect, note->lyric(), font, horizontalScale());
         if (!NoteLyricPresentation::isElidedInRect(layout, note->lyric(), font, visibleRect)) {
-            hideLyricToolTip();
+            hideHoverToolTips();
             return;
         }
 
@@ -895,9 +916,22 @@ public:
                               {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
     }
 
-    void hideLyricToolTip() {
+    void showErrorToolTip(const int noteId, const QString &lyric,
+                          const NoteInferenceErrorInfo &error, const QRectF &noteRect) {
+        const QRectF visibleRect(QPointF(), QSizeF(q->size()));
+        const auto visibleNoteRect = noteRect.intersected(visibleRect).toAlignedRect();
+        auto message = PianoRollGraphicsViewHelper::noteInferenceErrorText(error);
+        if (!error.detail.isEmpty())
+            message += QLatin1Char('\n') + error.detail;
+        errorToolTip->showFor(noteId, lyric, message,
+                              {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
+    }
+
+    void hideHoverToolTips() {
         if (lyricToolTip)
             lyricToolTip->hide();
+        if (errorToolTip)
+            errorToolTip->hide();
     }
 
     void eraseNoteAt(const QPointF &viewportPosition) {
@@ -1046,7 +1080,7 @@ public:
             inlineEditor->isEditing()) {
             return;
         }
-        hideLyricToolTip();
+        hideHoverToolTips();
         finishInlineEditing();
         inlineEditField = InlineEditField::Lyric;
         inlineEditingNoteId = note->id();
@@ -1068,7 +1102,7 @@ public:
             inlineEditingNoteId == note->id() && inlineEditor->isEditing()) {
             return;
         }
-        hideLyricToolTip();
+        hideHoverToolTips();
         finishInlineEditing();
         inlineEditField = InlineEditField::Pronunciation;
         inlineEditingNoteId = note->id();
@@ -1754,7 +1788,7 @@ public:
     // without a release: window deactivation, or a second finger promoting the
     // gesture to navigation.
     void abortPointerInteractions() {
-        hideLyricToolTip();
+        hideHoverToolTips();
         disarmEdgeAutoScroll();
         discardNoteInteraction();
         finishNoteErase(EditSessionEndReason::Discard);
@@ -1806,7 +1840,7 @@ public:
     void mousePress(QMouseEvent *event) {
         if (!clip)
             return;
-        hideLyricToolTip();
+        hideHoverToolTips();
         wheel.stop();
         viewport.stopAnimation();
         // On a precise-pointer press the touch affordance was just cleared
@@ -1858,6 +1892,15 @@ public:
         }
         if (!noteEditingEnabled())
             return;
+        // A tap on the error badge asks for the reason instead of interacting
+        if (note && clip && clip->noteInferenceErrors().contains(note->id()) &&
+            PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteViewportRect(note))
+                .contains(event->position())) {
+            showErrorToolTip(note->id(), note->lyric(),
+                             clip->noteInferenceErrors().value(note->id()),
+                             noteViewportRect(note));
+            return;
+        }
         if (editMode == DrawNote) {
             syncNoteSelection({});
             noteSelection.clearAnchor();
@@ -1913,9 +1956,9 @@ public:
         if (event->buttons() == Qt::NoButton)
             updateNoteCursor(event->position());
         if (event->buttons() == Qt::NoButton)
-            updateLyricToolTip(event->position());
+            updateHoverToolTips(event->position());
         else
-            hideLyricToolTip();
+            hideHoverToolTips();
         // A pen offering an eraser this tool cannot honour: the stroke is
         // swallowed before it can reach the interaction layer, so no hover move
         // may feed the tool either — the split preview and the anchor hover
@@ -2114,6 +2157,7 @@ public:
             appendPitch(localStart, localEnd);
             appendAnchors(localStart, localEnd);
             appendClipMask(localStart, localEnd, sceneTop, sceneBottom);
+            appendNoteErrorBadges(localStart, localEnd);
             appendNoteHandles();
             appendLastPlaybackIndicator(sceneTop, sceneBottom);
             appendRubberBand();
@@ -2391,6 +2435,57 @@ private:
             pronunciation, pronunciationFont, pronunciationRect.topLeft(), pronunciationColor,
             pronunciationRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
         drawList.appendTexture(pronunciationSpan, vertices.size());
+    }
+
+    QColor noteErrorMarkColor() const {
+        return ThemeManager::instance()->semanticColor(QStringLiteral("piano.roll.noteErrorMark"));
+    }
+
+    // The dismiss-circle badge rasterized white so the atlas vertex color tints
+    // it, matching the glyph coverage convention
+    const QImage &noteErrorMarkImage() {
+        const auto physicalSize = qRound(
+            PianoRollGraphicsViewHelper::noteErrorBadgeSize().width() * dpr);
+        if (noteErrorMarkIconPhysicalSize != physicalSize || noteErrorMarkIcon.isNull()) {
+            noteErrorMarkIconPhysicalSize = physicalSize;
+            noteErrorMarkIcon =
+                IconUtils::renderTintedSvgPixmap(QStringLiteral(":svg/icons/dismiss_circle_16_regular.svg"),
+                                                  QSize(physicalSize, physicalSize), Qt::white, 1.0)
+                    .toImage()
+                    .convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        }
+        return noteErrorMarkIcon;
+    }
+
+    void appendNoteErrorBadges(const double localStart, const double localEnd) {
+        if (!clip)
+            return;
+        const auto &errors = clip->noteInferenceErrors();
+        if (errors.isEmpty())
+            return;
+        const auto markColor = noteErrorMarkColor();
+        if (!markColor.isValid() || markColor.alpha() == 0)
+            return;
+        const auto &icon = noteErrorMarkImage();
+        if (icon.isNull())
+            return;
+        const auto imageKey = QStringLiteral("noteErrorMark\n%1").arg(noteErrorMarkIconPhysicalSize);
+        for (const auto *note : clip->notes()) {
+            if (erasedNoteIds.contains(note->id()))
+                continue;
+            if (!errors.contains(note->id()))
+                continue;
+            double draggedStart = 0.0;
+            double draggedEnd = 0.0;
+            const auto rect = noteDrawSceneRect(note, &draggedStart, &draggedEnd);
+            if (draggedEnd < localStart || draggedStart > localEnd)
+                continue;
+            const auto badgeRect = PianoRollGraphicsViewHelper::noteErrorBadgeRect(rect);
+            const auto span = glyphAtlas.appendImage(
+                imageKey, icon, QPointF(badgeRect.left() * dpr, badgeRect.top() * dpr), markColor,
+                {}, physicalCameraOffset());
+            drawList.appendTexture(span, vertices.size());
+        }
     }
 
     // Geometry of the note being dragged (**scene** logical pixels, without the
@@ -3154,6 +3249,9 @@ public:
     QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
     std::unique_ptr<NoteLyricToolTipController> lyricToolTip;
+    std::unique_ptr<NoteErrorToolTipController> errorToolTip;
+    QImage noteErrorMarkIcon;
+    int noteErrorMarkIconPhysicalSize = 0;
     EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;
@@ -3359,7 +3457,7 @@ EditorPenEraser PianoRollRhiWidget::penEraserAction() const {
 }
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (d->editMode != mode) {
         setCursor(Qt::ArrowCursor);
         d->disarmEdgeAutoScroll();
@@ -3455,7 +3553,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->touchController->cancel();
     d->penController->interrupt();
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
@@ -3470,7 +3568,7 @@ void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
 }
 
 void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (!d->wheel.handleWheel(event))
         EditorRhiWidget::wheelEvent(event);
 }
@@ -3501,7 +3599,7 @@ void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
 
 void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     d->lastPointerPosition = event->position();
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
         d->prepareEdgeAutoScroll(event->position());
@@ -3567,7 +3665,7 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
 void PianoRollRhiWidget::leaveEvent(QEvent *event) {
     unsetCursor();
     d->setPitchTransformHover(-1);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (d->hoveredKey >= 0) {
         d->hoveredKey = -1;
         emit keyHoverCleared();
@@ -3685,7 +3783,7 @@ int PianoRollRhiWidget::noteFontPixelSize() const {
 void PianoRollRhiWidget::setNoteFontPixelSize(const int size) {
     if (d->noteFontPixelSize == size)
         return;
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     d->noteFontPixelSize = size;
     d->glyphAtlas.clear();
     d->scheduleSnapshot();

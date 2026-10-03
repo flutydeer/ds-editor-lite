@@ -19,6 +19,8 @@
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
+#include <QCoreApplication>
+
 QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *clip) {
     const auto language =
         clip ? clip->effectiveDefaultLanguage() : appOptions->general()->defaultSingingLanguage;
@@ -155,4 +157,41 @@ void PianoRollGraphicsViewHelper::updateAnchorPitch(const Param &param,
             anchorCurves.append(static_cast<AnchorCurve *>(curve));
     }
     handler.loadFromModel(anchorCurves);
+}
+
+QSizeF PianoRollGraphicsViewHelper::noteErrorBadgeSize() {
+    return {14.0, 14.0};
+}
+
+QRectF PianoRollGraphicsViewHelper::noteErrorBadgeRect(const QRectF &noteRect) {
+    constexpr double margin = 2.0;
+    const auto badgeSize = noteErrorBadgeSize();
+    // On very narrow notes the badge is centered so that it stays visible
+    if (noteRect.width() < badgeSize.width() + 2 * margin)
+        return {noteRect.center().x() - badgeSize.width() / 2, noteRect.top() + margin,
+                badgeSize.width(), badgeSize.height()};
+    return {noteRect.right() - badgeSize.width() - margin, noteRect.top() + margin,
+            badgeSize.width(), badgeSize.height()};
+}
+
+QString PianoRollGraphicsViewHelper::noteInferenceErrorText(const NoteInferenceErrorInfo &error) {
+    switch (error.reason) {
+        case SliceExclusionReason::MissingPhonemes:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "No phonemes are available for this note. Check the lyric, the pronunciation, or "
+                "the language settings");
+        case SliceExclusionReason::FirstNoteInvalid:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "A phrase cannot start with a slur or syllabification note");
+        case SliceExclusionReason::UnassignedSyllabification:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "This syllabification note was not assigned any phonemes");
+        case SliceExclusionReason::Overlapped:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "This note overlaps another note and is ignored");
+    }
+    return {};
 }

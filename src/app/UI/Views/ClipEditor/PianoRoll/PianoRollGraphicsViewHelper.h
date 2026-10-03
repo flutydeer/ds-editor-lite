@@ -2,8 +2,10 @@
 #define PIANOROLLGRAPHICSVIEWHELPER_H
 
 #include <lite/ProjectModel/AppModel/Params.h>
+#include <lite/ProjectModel/SingingClipSlicer/Models/SliceResult.h>
 
 #include <QList>
+#include <QRectF>
 #include <QString>
 
 class PitchEditorView;
@@ -26,6 +28,14 @@ namespace PianoRollGraphicsViewHelper {
     void updateNoteWord(NoteView &noteView, const Note &note);
     void updatePitch(Param::Type paramType, const Param &param, PitchEditorView &pitchEditor);
     void updateAnchorPitch(const Param &param, EditPitchAnchorHandler &handler);
+
+    // Size of the inference-error badge drawn on silenced notes, in logical pixels
+    [[nodiscard]] QSizeF noteErrorBadgeSize();
+    // The inference-error badge rect inside a note rect, in the same coordinate
+    // system and units as the given note rect
+    [[nodiscard]] QRectF noteErrorBadgeRect(const QRectF &noteRect);
+    // Human-readable reason why a note is excluded from inference, for tooltips
+    [[nodiscard]] QString noteInferenceErrorText(const NoteInferenceErrorInfo &error);
 }
 
 #endif // PIANOROLLGRAPHICSVIEWHELPER_H

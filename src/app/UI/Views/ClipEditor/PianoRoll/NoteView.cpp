@@ -1,12 +1,15 @@
 #include "NoteView.h"
 
 #include "NoteLyricPresentation.h"
+#include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Utils/AppColorPalette.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/IconUtils.h>
 
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
@@ -150,6 +153,32 @@ void NoteView::resetOffset() {
     updateRectAndPos();
 }
 
+void NoteView::setInferenceError(const bool on) {
+    if (m_inferenceError == on)
+        return;
+    m_inferenceError = on;
+    update();
+}
+
+bool NoteView::hasInferenceError() const {
+    return m_inferenceError;
+}
+
+void NoteView::drawErrorBadge(QPainter *painter, const QRectF &rect, QWidget *widget) {
+    const auto markColor =
+        ThemeManager::instance()->semanticColor(QStringLiteral("piano.roll.noteErrorMark"));
+    if (!markColor.isValid() || markColor.alpha() == 0)
+        return;
+    const auto badgeRect = PianoRollGraphicsViewHelper::noteErrorBadgeRect(rect);
+    const auto dpr = widget ? widget->devicePixelRatioF() : 1.0;
+    const auto pixmap =
+        IconUtils::renderTintedSvgPixmap(QStringLiteral(":svg/icons/dismiss_circle_16_regular.svg"),
+                                         badgeRect.size().toSize(), markColor, dpr);
+    if (pixmap.isNull())
+        return;
+    painter->drawPixmap(badgeRect, pixmap, QRectF(QPointF(), QSizeF(pixmap.size())));
+}
+
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     QElapsedTimer timer;
     timer.start();
@@ -252,6 +281,9 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         drawRectOnly();
     else
         drawFullNote();
+
+    if (m_inferenceError)
+        drawErrorBadge(painter, rect, widget);
 }
 
 void NoteView::updateRectAndPos() {

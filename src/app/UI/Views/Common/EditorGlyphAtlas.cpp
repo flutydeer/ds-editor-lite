@@ -90,6 +90,43 @@ EditorRhiTextureDrawSpan EditorGlyphAtlas::appendText(
     return {page.id, vertexOffset, page.vertices.size() - vertexOffset, color};
 }
 
+EditorRhiTextureDrawSpan EditorGlyphAtlas::appendImage(const QString &imageKey, const QImage &image,
+                                                       const QPointF &physicalTopLeft,
+                                                       const QColor &color,
+                                                       const QRectF &physicalClip,
+                                                       const QPointF &physicalCameraOffset) {
+    if (image.isNull() || image.size().isEmpty() || color.alpha() == 0)
+        return {};
+
+    const auto viewportTopLeft = physicalTopLeft - physicalCameraOffset;
+    const QPointF alignedViewportTopLeft(std::floor(viewportTopLeft.x()),
+                                         std::floor(viewportTopLeft.y()));
+    auto *block = ensureImageBlock(QStringLiteral("img\n%1").arg(imageKey), image);
+    if (!block || block->rect.isEmpty())
+        return {};
+    auto pageIterator = std::find_if(m_pages.begin(), m_pages.end(),
+                                     [block](const auto &p) { return p->id == block->pageId; });
+    if (pageIterator == m_pages.end())
+        return {};
+    auto &page = **pageIterator;
+    page.lastUse = m_useCounter;
+    block->lastUse = m_useCounter;
+
+    QRectF target(alignedViewportTopLeft + physicalCameraOffset, block->contentRect.size());
+    QRectF source(block->contentRect);
+    if (!physicalClip.isEmpty()) {
+        const auto clipped = target.intersected(physicalClip);
+        if (clipped.isEmpty())
+            return {};
+        const auto delta = clipped.topLeft() - target.topLeft();
+        source = QRectF(source.topLeft() + delta, clipped.size());
+        target = clipped;
+    }
+    const auto vertexOffset = page.vertices.size();
+    appendTexturedRect(page.vertices, target, source, page.image.size(), color);
+    return {page.id, vertexOffset, page.vertices.size() - vertexOffset, color};
+}
+
 void EditorGlyphAtlas::populateTextureBatches(QVector<EditorRhiTextureBatch> &batches) const {
     const auto batchCount = std::count_if(m_pages.cbegin(), m_pages.cend(), [](const auto &page) {
         return !page->vertices.isEmpty();
@@ -167,6 +204,62 @@ EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const 
             target[x * 4 + 1] = static_cast<uchar>(green);
             target[x * 4 + 2] = static_cast<uchar>(blue);
             target[x * 4 + 3] = static_cast<uchar>(alpha);
+        }
+    }
+    {
+        QPainter painter(&page->image);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+        painter.drawImage(targetBlock.topLeft(), coverage);
+    }
+    page->generation = ++m_generationCounter;
+    page->cursorX += blockSize.width() + 1;
+    page->rowHeight = std::max(page->rowHeight, blockSize.height());
+    page->lastUse = m_useCounter;
+
+    Block block;
+    block.pageId = page->id;
+    block.rect = targetBlock;
+    block.contentRect = contentRect;
+    block.lastUse = m_useCounter;
+    const auto inserted = m_blocks.insert(key, block);
+    return &inserted.value();
+}
+
+EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureImageBlock(const QString &key,
+                                                            const QImage &image) {
+    const auto existing = m_blocks.find(key);
+    if (existing != m_blocks.end()) {
+        ++m_hitCount;
+        existing->lastUse = m_useCounter;
+        return &existing.value();
+    }
+    ++m_missCount;
+
+    const auto blockSize = image.size() + QSize(2 * kBlockPadding, 2 * kBlockPadding);
+    if (blockSize.width() + 2 > m_pageSize.width() || blockSize.height() + 2 > m_pageSize.height())
+        return nullptr;
+    auto *page = allocatePageFor(blockSize);
+    if (!page)
+        return nullptr;
+
+    const QRect targetBlock(page->cursorX, page->cursorY, blockSize.width(), blockSize.height());
+    const auto contentRect =
+        targetBlock.adjusted(kBlockPadding, kBlockPadding, -kBlockPadding, -kBlockPadding);
+
+    // Same coverage convention as text blocks: white pixels carrying the source
+    // alpha, so the vertex color tints the shape
+    QImage coverage(blockSize, QImage::Format_RGBA8888_Premultiplied);
+    coverage.fill(0);
+    const auto sourceImage = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    for (int y = 0; y < sourceImage.height(); ++y) {
+        const auto *source = reinterpret_cast<const QRgb *>(sourceImage.constScanLine(y));
+        auto *target = coverage.scanLine(y + kBlockPadding);
+        for (int x = 0; x < sourceImage.width(); ++x) {
+            const auto alpha = qAlpha(source[x]);
+            target[(x + kBlockPadding) * 4] = 255;
+            target[(x + kBlockPadding) * 4 + 1] = 255;
+            target[(x + kBlockPadding) * 4 + 2] = 255;
+            target[(x + kBlockPadding) * 4 + 3] = static_cast<uchar>(alpha);
         }
     }
     {
