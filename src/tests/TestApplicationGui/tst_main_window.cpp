@@ -543,6 +543,9 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     auto &runtime = *context->m_coreRuntime;
     auto &editor = runtime.facade();
     QVERIFY(runtime.windowId());
+    QVERIFY(runtime.project().patchClipProperties(
+        commandContext(),
+        {.id = Automation::ClipId(singingClip->id()), .length = 38400, .clipLen = 38400}));
     const auto before = runtime.documentVersion();
     const Automation::GuiCommandContext gui{.windowId = *runtime.windowId(),
                                             .source = Automation::InvocationSource::PublicMcp};
@@ -602,6 +605,33 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QCOMPARE(state.get().view->parameters, window.captureEditorViewState().parameters);
     QCOMPARE(state.get().selection.activeClipId,
              std::optional(Automation::ClipId(singingClip->id())));
+    auto *canvas = window.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas && canvas->isVisible());
+    const auto previousPlayback = runtime.playback().getPlayback(before.documentId);
+    QVERIFY(previousPlayback);
+    const auto restorePlayback = qScopeGuard([&] {
+        QVERIFY(runtime.playback().setPosition(commandContext(), previousPlayback.get().position));
+        QVERIFY(runtime.playback().setLastPosition(commandContext(),
+                                                   previousPlayback.get().lastPosition));
+    });
+    const auto initialStart = canvas->startTick();
+    const auto initialEnd = canvas->endTick();
+    const auto span = initialEnd - initialStart;
+    QVERIFY(std::isfinite(span) && span > 0);
+    QVERIFY(runtime.playback().seek(commandContext(), initialEnd + span * 2));
+    QCOMPARE(canvas->startTick(), initialStart);
+    QVERIFY(editor.setAutoPageTurn(gui, Automation::EditorAutoPageTarget::PianoRoll, true));
+    const auto distantTick = initialEnd + span * 3;
+    QVERIFY(runtime.playback().seek(commandContext(), distantTick));
+    QTRY_VERIFY(std::abs(canvas->startTick() - distantTick) < 8);
+    const auto pageEnd = canvas->endTick();
+    const auto nextPageTick = pageEnd + span * 0.25;
+    QVERIFY(runtime.playback().seek(commandContext(), nextPageTick));
+    QTRY_VERIFY(std::abs(canvas->startTick() - pageEnd) < 8);
+    QVERIFY(canvas->startTick() <= nextPageTick && canvas->endTick() >= nextPageTick);
+    const auto backwardTick = std::max(0.0, initialStart + span * 0.5);
+    QVERIFY(runtime.playback().seek(commandContext(), backwardTick));
+    QTRY_VERIFY(std::abs(canvas->startTick() - backwardTick) < 8);
     QVERIFY(editor.restoreView(gui, originalView));
     QCOMPARE(window.captureEditorViewState().parameters.foreground,
              originalView.parameters.foreground);
