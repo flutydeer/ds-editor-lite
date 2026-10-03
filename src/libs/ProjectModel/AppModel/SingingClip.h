@@ -7,8 +7,11 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/ADT/Property.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
+#include <lite/ProjectModel/SingingClipSlicer/Models/SliceResult.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
+
+#include <QHash>
 
 class DrawCurve;
 class InferPiece;
@@ -65,6 +68,14 @@ public:
     QString effectiveDefaultLanguage() const;
     QString defaultG2pId() const;
 
+    // Transient diagnostics of the last segmentation/inference cycle, never
+    // serialized nor undoable
+    const QHash<int, NoteInferenceErrorInfo> &noteInferenceErrors() const;
+    const QList<QPair<int, int>> &skippedPhraseRanges() const;
+    // Task-level failure messages to merge into the diagnostics on the next
+    // reSegment; set by the inference automation bridge right before it
+    void setPendingNoteTaskErrors(const QHash<int, QString> &taskErrors);
+
     SingerInfo singerInfo() const;
     SingerInfo ownSingerInfo() const;
     SpeakerInfo speakerInfo() const;
@@ -101,15 +112,23 @@ signals:
     void defaultG2pIdChanged(QString g2pId);
     void piecesChanged(const PieceList &pieces, const PieceList &newPieces,
                        const PieceList &discardedPieces);
+    void noteInferenceErrorsChanged();
 
 private:
     void init();
     void updateDefaultG2pId(const QString &language);
     void notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext);
+    void rebuildNoteInferenceErrors(const SliceResult &sliceResult);
+    void clearNoteInferenceErrors(const QList<Note *> &notes);
+    void clearAllNoteInferenceErrors();
 
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
     quint64 m_inferenceRevision = 0;
+
+    QHash<int, NoteInferenceErrorInfo> m_noteInferenceErrors;
+    QList<QPair<int, int>> m_skippedPhraseRanges;
+    QHash<int, QString> m_pendingNoteTaskErrors;
 
     Property<QString> m_defaultLanguage{"unknown"};
     Property<QString> m_defaultG2pId{"unknown"};

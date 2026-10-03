@@ -84,7 +84,10 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         // Keep the fallback result index-aligned with the input notes.
         qCCritical(logInferPhoneme) << "Language module not ready yet, using fallback";
         m_success.store(false, std::memory_order_release);
-        return QList<PhonemeNameResult>(m_inputs.size());
+        QList<PhonemeNameResult> results(m_inputs.size());
+        for (auto &result : results)
+            result.errorMessage = tr("Language module is not ready");
+        return results;
     }
     // R14/TD-21: For fallback singers (Pending/Missing) LanguageService is
     // not invoked; return an equal-length fallback aligned with
@@ -93,7 +96,10 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         qCWarning(logInferPhoneme) << "SingerInfo not resolved, skip phoneme fetch. identifier:"
                                    << m_clipSingerInfo.identifier();
         m_success.store(false, std::memory_order_release);
-        return QList<PhonemeNameResult>(m_inputs.size());
+        QList<PhonemeNameResult> results(m_inputs.size());
+        for (auto &result : results)
+            result.errorMessage = tr("Singer is not available");
+        return results;
     }
 
     // B1b-3/B1c: S2P conversion via VoicebankSession::convertS2p().
@@ -102,7 +108,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
     // failedS2pLanguages so subsequent inputs in the same language skip fast.
     // Replaces the legacy resolveS2pResource() + LanguageResource::convert() pair
     // removed in B1c.
-    QSet<QString> failedS2pLanguages;
+    QHash<QString, QString> failedS2pLanguages;
     QSet<QString> readyLanguages;
 
     auto &session = SynthrtEngine::instance().session();
@@ -130,6 +136,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         } else {
             if (failedS2pLanguages.contains(input.language)) {
                 allSuccess = false;
+                result.errorMessage = failedS2pLanguages.value(input.language);
                 results.append(result);
                 continue;
             }
@@ -139,11 +146,14 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                 const auto lang = input.language.toStdString();
                 auto readyExp = session.ensureLanguageReady(packageId, version, lang);
                 if (!readyExp) {
-                    failedS2pLanguages.insert(input.language);
+                    failedS2pLanguages.insert(
+                        input.language, tr("Failed to load the phoneme module for language %1")
+                                            .arg(input.language));
                     qCWarning(logInferPhoneme)
                         << "S2P language ready failed for language:" << input.language << ":"
                         << QString::fromUtf8(readyExp.error().message());
                     result.success = false;
+                    result.errorMessage = failedS2pLanguages.value(input.language);
                     allSuccess = false;
                     results.append(result);
                     continue;
@@ -160,6 +170,8 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                     << "S2P conversion failed for pronunciation:" << input.pronunciation << ":"
                     << QString::fromUtf8(sylExp.error().message());
                 result.success = false;
+                result.errorMessage =
+                    tr("Failed to convert the pronunciation of \"%1\"").arg(input.pronunciation);
                 allSuccess = false;
                 results.append(result);
                 continue;
@@ -177,6 +189,9 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             if (!result.success) {
                 qCWarning(logInferPhoneme)
                     << "S2P returned empty phonemes for pronunciation:" << input.pronunciation;
+                result.errorMessage =
+                    tr("No phonemes are available for the pronunciation of \"%1\"")
+                        .arg(input.pronunciation);
                 allSuccess = false;
             }
         }

@@ -47,6 +47,8 @@ namespace Automation {
     struct InferencePhonemeNamesDto {
         NoteId noteId;
         QList<PhonemeName> phonemeNames;
+        bool success = false;
+        QString errorMessage;
     };
 
     struct InferenceVarianceResultDto {
