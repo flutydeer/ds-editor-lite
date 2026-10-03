@@ -552,7 +552,7 @@ void AudioContext::handleTrackMoved(const int from, const int to) {
     if (from == to || from < 0 || from >= trackCount || to < 0 || to >= trackCount)
         return;
 
-    // talcs 的 dest 是从原列表移除前的插入位置；AppModel 的 to 是最终下标。
+    // talcs uses the insertion index before removal. AppModel uses the final index.
     const auto destination = to > from ? to + 1 : to;
     talcs::DspxProjectContext::moveTrack(from, 1, destination);
 }
