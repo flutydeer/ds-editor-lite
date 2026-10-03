@@ -69,6 +69,7 @@
 #include <QToolButton>
 #include <QMenu>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -643,6 +644,57 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
         QVERIFY(!historyManager->canUndo());
     }
     QVERIFY(editor.setClipEditorTimeViewport(gui, {.centerTick = 1440, .horizontalScale = 2}));
+    QVERIFY(editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Draw));
+    CommonParamEditorView *foreground = nullptr;
+    for (auto *item : parameterCanvas->scene()->items()) {
+        if (auto *candidate = dynamic_cast<CommonParamEditorView *>(item);
+            candidate && !candidate->transparentMouseEvents())
+            foreground = candidate;
+    }
+    QVERIFY(foreground);
+    auto *parameterInput = parameterCanvas->viewport();
+    const auto press = parameterInput->rect().center() - QPoint(40, 0);
+    const auto release = press + QPoint(80, -20);
+    QVERIFY(parameterInput->rect().contains(press) && parameterInput->rect().contains(release));
+    QSignalSpy started(foreground, &CommonParamEditorView::editStarted);
+    QSignalSpy committed(foreground, &CommonParamEditorView::editCommitted);
+    bool pressed = true;
+    const auto releaseInput = qScopeGuard([&] {
+        if (pressed) {
+            QTest::keyClick(parameterInput, Qt::Key_Escape);
+            QTest::mouseRelease(parameterInput, Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    QTest::mousePress(parameterInput, Qt::LeftButton, Qt::NoModifier, press);
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(parameterInput->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(parameterInput, &move);
+    QTRY_COMPARE(started.count(), 1);
+    QTRY_COMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::Param);
+    QTRY_VERIFY(!foreground->editedCurves().isEmpty());
+    const auto drawingState = window.captureEditorViewState().parameters;
+    const auto rejected =
+        editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Shape);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::Busy);
+    QCOMPARE(window.captureEditorViewState().parameters, drawingState);
+    QCOMPARE(committed.count(), 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
+    QVERIFY(!historyManager->canUndo());
+    QTest::keyClick(parameterInput, Qt::Key_Escape);
+    QTest::mouseRelease(parameterInput, Qt::LeftButton, Qt::NoModifier, release);
+    pressed = false;
+    QTRY_COMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
+    QTRY_VERIFY(foreground->editedCurves().isEmpty());
+    QCOMPARE(committed.count(), 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Shape));
+    QCOMPARE(window.captureEditorViewState().parameters.editMode,
+             EditorViewGlobal::ParameterEditMode::Shape);
     const auto previousPlayback = runtime.playback().getPlayback(before.documentId);
     QVERIFY(previousPlayback);
     const auto restorePlayback = qScopeGuard([&] {
