@@ -63,7 +63,10 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     QVERIFY(!editor->transparentMouseEvents());
     QCoreApplication::processEvents();
     historyManager->reset();
-    const auto before = runtime.documentVersion();
+    auto before = runtime.documentVersion();
+    const auto timeline = runtime.timeline().getTimeline(before.documentId);
+    QVERIFY(timeline && !timeline.get().tempos.isEmpty());
+    const auto originalTempos = timeline.get().tempos;
     const auto snapshot = [&] {
         QList<DrawCurve> curves;
         for (const auto *curve : parameter->curves(Param::Edited))
@@ -137,6 +140,23 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     selectRange();
     if (QTest::currentTestFailed())
         return;
+    const auto tempo = originalTempos.first().value + 30.0;
+    QVERIFY(runtime.timeline().setTempo(commandContext(), 0, tempo));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
+    const auto changedTimeline = runtime.timeline().getTimeline(before.documentId);
+    QVERIFY(changedTimeline);
+    QCOMPARE(changedTimeline.get().tempos.first().value, tempo);
+    before = runtime.documentVersion();
+    QCOMPARE(snapshot(), original);
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(snapshot(), original);
+
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
     QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
     moveWithLeftButton(release);
     QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
@@ -154,6 +174,13 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(snapshot(), original);
     QCOMPARE(valueAt(editor->editedCurves(), 720), 6200);
+    QVERIFY(historyManager->canUndo());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
+    const auto restoredTimeline = runtime.timeline().getTimeline(before.documentId);
+    QVERIFY(restoredTimeline);
+    QCOMPARE(restoredTimeline.get().tempos, originalTempos);
+    QCOMPARE(snapshot(), original);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(historyManager->canRedo());
 }

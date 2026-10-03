@@ -2340,18 +2340,29 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     const auto *targetNote = fixture.clip->findNoteById(fixture.noteId);
     QVERIFY(targetNote);
     const auto originalStart = targetNote->localStart();
-    for (const bool moveNote : {false, true}) {
+    const auto timeline = runtime.timeline().getTimeline(runtime.documentVersion().documentId);
+    QVERIFY(timeline && !timeline.get().tempos.isEmpty());
+    const auto originalTempos = timeline.get().tempos;
+    for (const auto change : {QByteArrayLiteral("clip-name"), QByteArrayLiteral("note-position"),
+                              QByteArrayLiteral("tempo")}) {
         selectRange();
         if (QTest::currentTestFailed())
             return;
-        if (moveNote) {
+        if (change == QByteArrayLiteral("note-position")) {
             QVERIFY(runtime.notes().moveNotes(fixture.command(), clipId,
                                               {Automation::NoteId(fixture.noteId)}, 120, 0));
             QCOMPARE(targetNote->localStart(), originalStart + 120);
-        } else {
+        } else if (change == QByteArrayLiteral("clip-name")) {
             QVERIFY(runtime.project().renameClip(fixture.command(), clipId,
                                                  QStringLiteral("Renamed while selecting pitch")));
             QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        } else {
+            const auto tempo = originalTempos.first().value + 30.0;
+            QVERIFY(runtime.timeline().setTempo(fixture.command(), 0, tempo));
+            const auto changedTimeline =
+                runtime.timeline().getTimeline(runtime.documentVersion().documentId);
+            QVERIFY(changedTimeline);
+            QCOMPARE(changedTimeline.get().tempos.first().value, tempo);
         }
         QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
         const auto changed = runtime.documentVersion();
@@ -2369,6 +2380,10 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
         QCOMPARE(fixture.clip->name(), originalName);
         QCOMPARE(targetNote->localStart(), originalStart);
+        const auto restoredTimeline =
+            runtime.timeline().getTimeline(runtime.documentVersion().documentId);
+        QVERIFY(restoredTimeline);
+        QCOMPARE(restoredTimeline.get().tempos, originalTempos);
         QCOMPARE(snapshot(), initial);
         before = runtime.documentVersion();
         QVERIFY(!historyManager->canUndo());
