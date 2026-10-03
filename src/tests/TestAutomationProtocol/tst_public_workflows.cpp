@@ -553,6 +553,195 @@ void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
+void AutomationProtocolTests::publicNotePhraseEditsPreserveUnselectedNotesAndHistory() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto draft = lyricTrack();
+    draft.clips.first().notes[0].length = 317;
+    draft.clips.first().notes[1].length = 317;
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, draft));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clipId = project.get().tracks.first().clips.first().id;
+    const auto originalNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(originalNotes);
+    QCOMPARE(originalNotes.get().size(), 4);
+    const auto firstId = originalNotes.get().at(0).id;
+    const auto secondId = originalNotes.get().at(1).id;
+    const QJsonArray selected{firstId.value(), secondId.value()};
+    const auto *initialUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    QList<QJsonObject> checkpoints{TestSupport::projectSnapshot(fixture.runtimeFixture.model())};
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    QJsonObject lastMutation;
+    const auto apply = [&](const QString &tool, QJsonObject arguments) -> QString {
+        const auto before = runtime.documentVersion();
+        const auto command = commandArguments(before);
+        for (auto it = command.begin(); it != command.end(); ++it)
+            arguments.insert(it.key(), it.value());
+        const auto result = registry.invoke(tool, arguments);
+        if (!result)
+            return errorMessage(result);
+        lastMutation = result.get();
+        if (!lastMutation.value(QStringLiteral("changed")).toBool() ||
+            runtime.documentVersion().documentId != before.documentId ||
+            runtime.documentVersion().revision != before.revision + 1)
+            return tool + QStringLiteral(" did not commit exactly one document revision");
+        checkpoints.append(TestSupport::projectSnapshot(fixture.runtimeFixture.model()));
+        return {};
+    };
+    const auto noteArguments = [&](const QJsonArray &ids) {
+        return QJsonObject{
+            {QStringLiteral("clip_id"),  clipId.value()},
+            {QStringLiteral("note_ids"), ids           }
+        };
+    };
+
+    auto arguments = noteArguments(selected);
+    arguments.insert(QStringLiteral("delta_tick"), 73);
+    arguments.insert(QStringLiteral("delta_key"), 2);
+    QCOMPARE(apply(QStringLiteral("notes.move"), arguments), QString{});
+    const auto moved = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(moved);
+    QCOMPARE(moved.get().at(0).data.localStart, 73);
+    QCOMPARE(moved.get().at(1).data.localStart, 553);
+    QCOMPARE(moved.get().at(0).data.keyIndex, 62);
+    QCOMPARE(moved.get().at(1).data.keyIndex, 62);
+
+    arguments = noteArguments(selected);
+    arguments.insert(QStringLiteral("quantize"), 16);
+    arguments.insert(QStringLiteral("quantize_start"), true);
+    arguments.insert(QStringLiteral("quantize_length"), true);
+    QCOMPARE(apply(QStringLiteral("notes.quantize"), arguments), QString{});
+    const auto quantized = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(quantized);
+    QCOMPARE(quantized.get().at(0).data.localStart, 120);
+    QCOMPARE(quantized.get().at(1).data.localStart, 600);
+    QCOMPARE(quantized.get().at(0).data.length, 360);
+    QCOMPARE(quantized.get().at(1).data.length, 360);
+
+    arguments = noteArguments(QJsonArray{firstId.value()});
+    arguments.insert(QStringLiteral("delta_tick"), 60);
+    QCOMPARE(apply(QStringLiteral("notes.resize_left"), arguments), QString{});
+    const auto leftTrimmed = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(leftTrimmed);
+    QCOMPARE(leftTrimmed.get().first().data.localStart, 180);
+    QCOMPARE(leftTrimmed.get().first().data.length, 300);
+    arguments.insert(QStringLiteral("delta_tick"), 120);
+    QCOMPARE(apply(QStringLiteral("notes.resize_right"), arguments), QString{});
+    const auto rightTrimmed =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(rightTrimmed);
+    QCOMPARE(rightTrimmed.get().first().data.localStart, 180);
+    QCOMPARE(rightTrimmed.get().first().data.length, 420);
+
+    QCOMPARE(apply(QStringLiteral("notes.split_at"),
+                   {
+                       {QStringLiteral("clip_id"),        clipId.value() },
+                       {QStringLiteral("note_id"),        firstId.value()},
+                       {QStringLiteral("local_position"), 420            }
+    }),
+             QString{});
+    const auto created = lastMutation.value(QStringLiteral("created_objects")).toArray();
+    QCOMPARE(created.size(), 1);
+    const auto createdObject =
+        created.first().toObject().value(QStringLiteral("object")).toObject();
+    QCOMPARE(createdObject.value(QStringLiteral("kind")).toString(), QStringLiteral("note"));
+    const NoteId splitId(createdObject.value(QStringLiteral("id")).toInt(-1));
+    QVERIFY(splitId.value() >= 0 && splitId != firstId && splitId != secondId);
+    const auto split = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(split);
+    QCOMPARE(split.get().size(), 5);
+    QCOMPARE(split.get().at(0).id, firstId);
+    QCOMPARE(split.get().at(0).data.localStart, 180);
+    QCOMPARE(split.get().at(0).data.length, 240);
+    QCOMPARE(split.get().at(1).id, splitId);
+    QCOMPARE(split.get().at(1).data.localStart, 420);
+    QCOMPARE(split.get().at(1).data.length, 180);
+    QCOMPARE(split.get().at(1).data.keyIndex, 62);
+    QCOMPARE(split.get().at(1).data.lyric, QStringLiteral("-"));
+
+    QCOMPARE(apply(QStringLiteral("notes.set_lyric"),
+                   {
+                       {QStringLiteral("clip_id"), clipId.value()              },
+                       {QStringLiteral("note_id"), firstId.value()             },
+                       {QStringLiteral("lyric"),   QStringLiteral("new phrase")}
+    }),
+             QString{});
+    const auto beforeCopy = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(beforeCopy);
+    QCOMPARE(beforeCopy.get().first().data.lyric, QStringLiteral("new phrase"));
+    const auto &unchangedSecond = beforeCopy.get().at(2);
+    QCOMPARE(unchangedSecond.id, secondId);
+    QCOMPARE(unchangedSecond.data.localStart, 600);
+    QCOMPARE(unchangedSecond.data.length, 360);
+    for (qsizetype index = 2; index < originalNotes.get().size(); ++index) {
+        const auto &original = originalNotes.get().at(index);
+        const auto &retained = beforeCopy.get().at(index + 1);
+        QCOMPARE(retained.id, original.id);
+        QCOMPARE(retained.data.localStart, original.data.localStart);
+        QCOMPARE(retained.data.length, original.data.length);
+        QCOMPARE(retained.data.keyIndex, original.data.keyIndex);
+        QCOMPARE(retained.data.lyric, original.data.lyric);
+        QCOMPARE(retained.data.language, original.data.language);
+    }
+
+    QCOMPARE(apply(QStringLiteral("notes.duplicate"),
+                   {
+                       {QStringLiteral("source_clip_id"), clipId.value()                              },
+                       {QStringLiteral("note_ids"),       QJsonArray{firstId.value(), splitId.value()}},
+                       {QStringLiteral("target_clip_id"), clipId.value()                              },
+                       {QStringLiteral("target_start"),   2160                                        }
+    }),
+             QString{});
+    const auto copies = lastMutation.value(QStringLiteral("created_objects")).toArray();
+    QCOMPARE(copies.size(), 2);
+    const auto afterCopy = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(afterCopy);
+    QCOMPARE(afterCopy.get().size(), beforeCopy.get().size() + 2);
+    QJsonArray copiedIds;
+    for (qsizetype index = 0; index < copies.size(); ++index) {
+        const auto object = copies.at(index).toObject().value(QStringLiteral("object")).toObject();
+        QCOMPARE(object.value(QStringLiteral("kind")).toString(), QStringLiteral("note"));
+        const NoteId copyId(object.value(QStringLiteral("id")).toInt(-1));
+        QVERIFY(copyId.value() >= 0 && copyId != firstId && copyId != splitId);
+        copiedIds.append(copyId.value());
+        const auto &copy = afterCopy.get().at(beforeCopy.get().size() + index);
+        const auto &source = beforeCopy.get().at(index);
+        QCOMPARE(copy.id, copyId);
+        QCOMPARE(copy.data.localStart,
+                 source.data.localStart + 2160 - beforeCopy.get().first().data.localStart);
+        QCOMPARE(copy.data.length, source.data.length);
+        QCOMPARE(copy.data.keyIndex, source.data.keyIndex);
+        QCOMPARE(copy.data.lyric, source.data.lyric);
+        QCOMPARE(copy.data.language, source.data.language);
+    }
+    QCOMPARE(apply(QStringLiteral("notes.remove"), noteArguments(copiedIds)), QString{});
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
+             checkpoints.at(checkpoints.size() - 3));
+
+    for (qsizetype index = checkpoints.size() - 2; index >= 0; --index) {
+        const auto before = runtime.documentVersion();
+        const auto undone =
+            registry.invoke(QStringLiteral("history.undo"), commandArguments(before));
+        QVERIFY2(undone, qPrintable(errorMessage(undone)));
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
+                 checkpoints.at(index));
+    }
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), initialUndo);
+    for (qsizetype index = 1; index < checkpoints.size(); ++index) {
+        const auto before = runtime.documentVersion();
+        const auto redone =
+            registry.invoke(QStringLiteral("history.redo"), commandArguments(before));
+        QVERIFY2(redone, qPrintable(errorMessage(redone)));
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
+                 checkpoints.at(index));
+    }
+}
+
 void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;

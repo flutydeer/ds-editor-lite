@@ -33,6 +33,7 @@ private slots:
     void parameterQueryBoundsSamplesAndPreservesAnchors();
     void publicParameterEditsPreserveCurvesAndUndo();
     void publicClipCopyAndMovePreserveTheSourcePhrase();
+    void publicNotePhraseEditsPreserveUnselectedNotesAndHistory();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets();
     void insertedPhonemesPreserveTimingAndRejectPartialOffsets();
