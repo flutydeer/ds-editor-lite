@@ -45,6 +45,7 @@ private slots:
 
     void projectBatchImportUsesRealLoaders();
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
+    void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
     void publicProjectLoadUsesThePreparedPlan();
     void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument_data();

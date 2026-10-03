@@ -167,12 +167,26 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
     }
 }
 
+void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {
+    QTest::addColumn<bool>("sharedStages");
+    QTest::newRow("stages-in-singer-package") << false;
+    QTest::newRow("vocoder-in-dependent-package") << true;
+}
+
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion() {
+    QFETCH(bool, sharedStages);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
     const auto original = packageManager->installedPackages().successfulPackages;
+    const auto originalPackage =
+        std::find_if(original.cbegin(), original.cend(),
+                     [](const auto &item) { return item.id() == QStringLiteral("ci-fixture"); });
+    QVERIFY(originalPackage != original.cend() && !originalPackage->singers().isEmpty());
+    const auto baseline = originalPackage->singers().first();
+    QCOMPARE(baseline.resolutionState(), ResolutionState::Resolved);
+    QVERIFY(baseline.capability() && baseline.capability()->acousticParameters);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto root = directory.filePath(QStringLiteral("ci-fixture@1.0.0"));
@@ -186,8 +200,8 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
         QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
         QCOMPARE(packageManager->installedPackages().successfulPackages, original);
     });
-    const auto rewrite = [&](const QString &relativePath, auto amend) {
-        QFile file(QDir(root).filePath(relativePath));
+    const auto rewrite = [&](const QString &packageRoot, const QString &relativePath, auto amend) {
+        QFile file(QDir(packageRoot).filePath(relativePath));
         QVERIFY(file.open(QIODevice::ReadOnly));
         const auto document = QJsonDocument::fromJson(file.readAll());
         QVERIFY(document.isObject());
@@ -204,7 +218,38 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
             {QStringLiteral("zh-CN"), chinese }
         };
     };
-    rewrite(QStringLiteral("desc.json"), [&](QJsonObject &object) {
+    QStringList searchPaths{root};
+    if (sharedStages) {
+        const auto stageRoot = directory.filePath(QStringLiteral("ci-fixture-stages@1.0.0"));
+        std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                              std::filesystem::u8path(stageRoot.toUtf8().constData()),
+                              std::filesystem::copy_options::recursive, error);
+        QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
+        rewrite(stageRoot, QStringLiteral("desc.json"), [](QJsonObject &object) {
+            object.insert(QStringLiteral("id"), QStringLiteral("ci-fixture-stages"));
+            auto contributes = object.value(QStringLiteral("contributes")).toObject();
+            contributes.insert(QStringLiteral("singers"), QJsonArray{});
+            contributes.insert(QStringLiteral("inferences"),
+                               QJsonArray{QStringLiteral("inferences/vocoder/config.json")});
+            object.insert(QStringLiteral("contributes"), contributes);
+        });
+        rewrite(root, QStringLiteral("desc.json"), [](QJsonObject &object) {
+            object.insert(QStringLiteral("dependencies"),
+                          QJsonArray{QStringLiteral("ci-fixture-stages")});
+            auto contributes = object.value(QStringLiteral("contributes")).toObject();
+            QJsonArray inferences;
+            for (const auto &inference : contributes.value(QStringLiteral("inferences")).toArray()) {
+                if (inference.toString() != QStringLiteral("inferences/vocoder/config.json"))
+                    inferences.append(inference);
+            }
+            contributes.insert(QStringLiteral("inferences"), inferences);
+            object.insert(QStringLiteral("contributes"), contributes);
+        });
+        if (QTest::currentTestFailed())
+            return;
+        searchPaths.append(stageRoot);
+    }
+    rewrite(root, QStringLiteral("desc.json"), [&](QJsonObject &object) {
         object.insert(QStringLiteral("vendor"),
                       localized(QStringLiteral("Fixture vendor"), QStringLiteral("测试制作方")));
         object.insert(QStringLiteral("description"),
@@ -212,7 +257,7 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
     });
     if (QTest::currentTestFailed())
         return;
-    rewrite(QStringLiteral("characters/fixture/config.json"), [&](QJsonObject &object) {
+    rewrite(root, QStringLiteral("characters/fixture/config.json"), [&](QJsonObject &object) {
         object.insert(QStringLiteral("name"),
                       localized(QStringLiteral("Fixture singer"), QStringLiteral("测试歌手")));
         auto configuration = object.value(QStringLiteral("configuration")).toObject();
@@ -242,14 +287,14 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
         {QStringLiteral("1.0.1"), QStringLiteral("更新后的制作方")},
     };
     for (const auto &[version, vendor] : releases) {
-        rewrite(QStringLiteral("desc.json"), [&](QJsonObject &object) {
+        rewrite(root, QStringLiteral("desc.json"), [&](QJsonObject &object) {
             object.insert(QStringLiteral("version"), version);
             object.insert(QStringLiteral("vendor"),
                           localized(QStringLiteral("Fixture vendor"), vendor));
         });
         if (QTest::currentTestFailed())
             return;
-        const auto result = packageManager->refreshInstalledPackages({root});
+        const auto result = packageManager->refreshInstalledPackages(searchPaths);
         QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
         const auto &packages = result.get().successfulPackages;
         const auto package = std::find_if(packages.cbegin(), packages.cend(), [](const auto &item) {
@@ -262,6 +307,20 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
                  QStringLiteral("目录测试资源"));
         QVERIFY(!package->singers().isEmpty());
         const auto singer = package->singers().first();
+        QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
+        QVERIFY(singer.capability());
+        if (sharedStages) {
+            QCOMPARE(singer.capability()->vocoderPitchControllable,
+                     baseline.capability()->vocoderPitchControllable);
+            const auto stages =
+                std::find_if(packages.cbegin(), packages.cend(), [](const auto &item) {
+                    return item.id() == QStringLiteral("ci-fixture-stages");
+                });
+            QVERIFY(stages != packages.cend());
+            QVERIFY(stages->singers().isEmpty());
+        } else {
+            QCOMPARE(singer.capability(), baseline.capability());
+        }
         QCOMPARE(singer.displayName(QStringLiteral("zh-CN")), QStringLiteral("测试歌手"));
         QCOMPARE(singer.displayName(QStringLiteral("de")), QStringLiteral("Fixture singer"));
         QVERIFY(!singer.speakers().isEmpty() && !singer.languages().isEmpty());
