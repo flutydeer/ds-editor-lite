@@ -433,16 +433,23 @@ void OverlayScrollBar::updateLayout() {
                             ? QPoint(0, 0)
                             : m_viewport->mapTo(parentWidget(), QPoint(0, 0));
     const bool companionShown = m_companion && m_companion->willShow();
-    if (orientation() == Qt::Horizontal) {
+    // With a geometry host (popup container, padded panel) the bar pins to the host's
+    // trailing wall, so an inset viewport does not drag the bar over its content; the
+    // inset acts as the gutter the handle rests in. Without one the bar follows the
+    // viewport's trailing edge as before.
+    const bool horizontal = orientation() == Qt::Horizontal;
+    const int trailing =
+        m_geometryHost
+            ? (horizontal ? parentWidget()->height() : parentWidget()->width())
+            : (horizontal ? mapped.y() + m_viewport->height() : mapped.x() + m_viewport->width());
+    if (horizontal) {
         const int width =
             companionShown ? m_viewport->width() - kBarThickness : m_viewport->width();
-        setGeometry(mapped.x(), mapped.y() + m_viewport->height() - kBarThickness, width,
-                    kBarThickness);
+        setGeometry(mapped.x(), trailing - kBarThickness, width, kBarThickness);
     } else {
         const int height =
             companionShown ? m_viewport->height() - kBarThickness : m_viewport->height();
-        setGeometry(mapped.x() + m_viewport->width() - kBarThickness, mapped.y(), kBarThickness,
-                    height);
+        setGeometry(trailing - kBarThickness, mapped.y(), kBarThickness, height);
     }
     raise();
 }
