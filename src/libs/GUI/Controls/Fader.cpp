@@ -5,7 +5,6 @@
 #include <QInputDevice>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QTimer>
 
 class FaderPrivate : public QObject {
     Q_DECLARE_PUBLIC(Fader)
@@ -46,9 +45,6 @@ public:
     bool mouseMoveBarrier = false;
     bool canMoveThumb = false;
 
-    QTimer timer;
-    bool doubleClickWindow = false;
-    QPoint mouseDownPos;
     // Touch drags have no cursor to teleport onto the thumb center, so a
     // thumb-initiated touch press stores the offset between the finger and
     // the thumb center and every move applies it: the value follows the
@@ -152,11 +148,6 @@ Fader::Fader(QWidget *parent) : Fader(parent, *new FaderPrivate) {
     Q_D(Fader);
     setAttribute(Qt::WA_StyledBackground);
     d->q_ptr = this;
-    d->timer.setInterval(400);
-    QObject::connect(&d->timer, &QTimer::timeout, this, [=] {
-        d->timer.stop();
-        d->doubleClickWindow = false;
-    });
     resetValue();
     this->setMinimumWidth(32);
     setAttribute(Qt::WA_Hover, true);
@@ -297,14 +288,11 @@ void Fader::mouseMoveEvent(QMouseEvent *event) {
 
 void Fader::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(Fader);
-    // Qt replaces the second press of a double tap with this event, so the
-    // press-to-press reset window never sees a clean double tap. Two
-    // deliberate taps anywhere on the control reset to the default - a safe
-    // value - while the mouse keeps its existing paths.
-    if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen) {
+    const auto touch =
+        event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen;
+    if (event->button() == Qt::LeftButton && (touch || d->mouseOnThumb(event->pos()))) {
         resetValue();
         d->canMoveThumb = false;
-        d->doubleClickWindow = false;
         event->accept();
         return;
     }
@@ -339,14 +327,6 @@ void Fader::mousePressEvent(QMouseEvent *event) {
             d->grabOffsetY = QRectF(d->thumbPos, d->thumbSize).center().y() - pos.y();
             d->isSliderDown = true;
             d->canMoveThumb = true;
-            if (d->doubleClickWindow) {
-                resetValue();
-                d->canMoveThumb = false;
-                d->doubleClickWindow = false;
-            } else {
-                d->doubleClickWindow = true;
-                d->timer.start();
-            }
         } else {
             d->canMoveThumb = false;
         }
@@ -361,15 +341,6 @@ void Fader::mousePressEvent(QMouseEvent *event) {
         QCursor::setPos(mapToGlobal(thumbRect.center().toPoint()));
         d->isSliderDown = true;
         d->canMoveThumb = true;
-
-        if (d->doubleClickWindow) {
-            resetValue();
-            d->canMoveThumb = false;
-            d->doubleClickWindow = false;
-        } else {
-            d->doubleClickWindow = true;
-            d->timer.start();
-        }
     } else
         d->canMoveThumb = false;
 }

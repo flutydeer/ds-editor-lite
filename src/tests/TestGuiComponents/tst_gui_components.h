@@ -36,8 +36,8 @@ private slots:
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();
     void seekBarTrackingControlsWhenDraggedValuesCommit();
     void seekBarKeyboardStepsClampAndDoubleClickResets();
-    void mixerSliderReleaseEndsPreview_data();
-    void mixerSliderReleaseEndsPreview();
+    void mixerSliderDragsCommitAndDoubleClickResets_data();
+    void mixerSliderDragsCommitAndDoubleClickResets();
     void reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags();
     void touchClaimsFinishOnSystemCancel_data();
     void touchClaimsFinishOnSystemCancel();

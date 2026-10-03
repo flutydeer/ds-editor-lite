@@ -284,7 +284,7 @@ void GuiComponentTests::seekBarKeyboardStepsClampAndDoubleClickResets() {
     QVERIFY(!slider.isSliderDown());
 }
 
-void GuiComponentTests::mixerSliderReleaseEndsPreview_data() {
+void GuiComponentTests::mixerSliderDragsCommitAndDoubleClickResets_data() {
     QTest::addColumn<bool>("vertical");
     QTest::addColumn<bool>("touch");
     QTest::newRow("gain-fader") << true << false;
@@ -293,13 +293,13 @@ void GuiComponentTests::mixerSliderReleaseEndsPreview_data() {
     QTest::newRow("pan-touch") << false << true;
 }
 
-void GuiComponentTests::mixerSliderReleaseEndsPreview() {
+void GuiComponentTests::mixerSliderDragsCommitAndDoubleClickResets() {
     QFETCH(bool, vertical);
     QFETCH(bool, touch);
     const auto originalCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(originalCursor); });
-    const auto exerciseDrag = [touch](auto &slider, const QPoint &press, const QPoint &release,
-                                      const double externalValue) {
+    const auto exerciseDrag = [touch, vertical](auto &slider, const QPoint &press,
+                                                const QPoint &release, const double externalValue) {
         using Slider = std::remove_reference_t<decltype(slider)>;
         slider.show();
         slider.activateWindow();
@@ -310,43 +310,89 @@ void GuiComponentTests::mixerSliderReleaseEndsPreview() {
         QSignalSpy changed(&slider, &Slider::valueChanged);
         auto *touchDevice = QTest::createTouchDevice();
         auto gesture = QTest::touchEvent(&slider, touchDevice, false);
-        const auto releaseInput = [&] {
-            if (touch)
-                gesture.release(0, release).commit();
-            else
-                QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, release);
-        };
-        bool released = false;
-        const auto releaseOnFailure = qScopeGuard([&] {
-            if (!released)
-                releaseInput();
-        });
-        const auto initial = slider.value();
-        if (touch) {
-            gesture.press(0, press).commit();
-            QCOMPARE(slider.value(), initial);
-            gesture.move(0, release).commit();
-        } else {
-            QTest::mousePress(&slider, Qt::LeftButton, Qt::NoModifier, press);
-            QCoreApplication::processEvents();
-            // The controls warp the cursor to the thumb and ignore that synthetic move.
-            moveWithLeftButton(slider, slider.mapFromGlobal(QCursor::pos()));
-            moveWithLeftButton(slider, release);
+        const auto initialValue = slider.value();
+        slider.setValue(externalValue);
+        QCoreApplication::processEvents();
+        const auto changesBeforeReset = changed.count();
+        if (!touch && vertical) {
+            const QPoint outsideThumb(slider.width() / 2, slider.height() / 10);
+            QTest::mouseDClick(&slider, Qt::LeftButton, Qt::NoModifier, outsideThumb);
+            QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, outsideThumb);
+            QCOMPARE(slider.value(), externalValue);
+            QCOMPARE(changed.count(), changesBeforeReset);
         }
-        QVERIFY(!moved.isEmpty());
-        QVERIFY(changed.isEmpty());
-        const auto preview = slider.sliderPosition();
-        QVERIFY(preview > initial);
-        QCOMPARE(moved.last().first().toDouble(), preview);
-        releaseInput();
-        released = true;
-        QCOMPARE(slider.value(), preview);
-        QCOMPARE(changed.count(), 1);
-        QCOMPARE(changed.first().first().toDouble(), preview);
+        const auto resetPoint = touch ? slider.rect().center() : release;
+        if (touch) {
+            gesture.press(0, resetPoint).commit();
+            gesture.release(0, resetPoint).commit();
+        } else {
+            QTest::mouseClick(&slider, Qt::LeftButton, Qt::NoModifier, resetPoint);
+        }
+        QCOMPARE(slider.value(), externalValue);
+        QCOMPARE(changed.count(), changesBeforeReset);
+        if (touch) {
+            gesture.press(0, resetPoint).commit();
+            gesture.release(0, resetPoint).commit();
+        } else {
+            QTest::mouseDClick(&slider, Qt::LeftButton, Qt::NoModifier, resetPoint);
+            QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, resetPoint);
+        }
+        QCOMPARE(slider.value(), 0.0);
+        QCOMPARE(slider.sliderPosition(), 0.0);
+        QCOMPARE(changed.count(), changesBeforeReset + 1);
+        QCOMPARE(changed.last().first().toDouble(), 0.0);
+        QVERIFY(moved.isEmpty());
+        slider.setValue(initialValue);
+        QCoreApplication::processEvents();
+        for (int step = 0; step < 2; ++step) {
+            const auto from = step == 0 ? press : release;
+            const auto to = step == 0 ? release : release + (release - press) / 2;
+            const auto releaseInput = [&] {
+                if (touch)
+                    gesture.release(0, to).commit();
+                else
+                    QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, to);
+            };
+            bool released = false;
+            const auto releaseOnFailure = qScopeGuard([&] {
+                if (!released)
+                    releaseInput();
+            });
+            const auto initial = slider.value();
+            const auto previousMoves = moved.count();
+            const auto previousChanges = changed.count();
+            if (touch) {
+                gesture.press(0, from).commit();
+                QCOMPARE(slider.value(), initial);
+                gesture.move(0, to).commit();
+            } else {
+                QTest::mousePress(&slider, Qt::LeftButton, Qt::NoModifier, from);
+                QCoreApplication::processEvents();
+                QCOMPARE(slider.value(), initial);
+                // The controls warp the cursor to the thumb and ignore that synthetic move.
+                moveWithLeftButton(slider, slider.mapFromGlobal(QCursor::pos()));
+                moveWithLeftButton(slider, to);
+            }
+            QVERIFY2(moved.count() > previousMoves,
+                     qPrintable(QStringLiteral("No preview during drag %1 from value %2")
+                                    .arg(step + 1)
+                                    .arg(initial)));
+            QCOMPARE(changed.count(), previousChanges);
+            const auto preview = slider.sliderPosition();
+            QVERIFY(preview > initial);
+            QCOMPARE(moved.last().first().toDouble(), preview);
+            releaseInput();
+            released = true;
+            QCOMPARE(slider.value(), preview);
+            QCOMPARE(changed.count(), previousChanges + 1);
+            QCOMPARE(changed.last().first().toDouble(), preview);
+            QCoreApplication::processEvents();
+        }
         const auto completedMoves = moved.count();
+        const auto changesBeforeExternal = changed.count();
         slider.setValue(externalValue);
         QCOMPARE(slider.value(), externalValue);
-        QCOMPARE(changed.count(), 2);
+        QCOMPARE(changed.count(), changesBeforeExternal + 1);
         QCOMPARE(changed.last().first().toDouble(), externalValue);
         QCOMPARE(moved.count(), completedMoves);
     };
