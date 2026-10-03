@@ -17,6 +17,8 @@
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
@@ -71,6 +73,7 @@
 #include <QTabBar>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QWheelEvent>
 #include <QtTest/QTest>
 
 #include <cmath>
@@ -607,6 +610,36 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
              std::optional(Automation::ClipId(singingClip->id())));
     auto *canvas = window.findChild<PianoRollGraphicsView *>();
     QVERIFY(canvas && canvas->isVisible());
+    auto *parameterPanel = window.findChild<ParamEditorView *>();
+    QVERIFY(parameterPanel && parameterPanel->isVisible());
+    auto *parameterCanvas = parameterPanel->graphicsView();
+    QVERIFY(parameterCanvas && parameterCanvas->isVisible());
+    const auto valueViewport = window.captureEditorViewState().parameters;
+    for (const auto modifier : {Qt::ControlModifier, Qt::ShiftModifier}) {
+        const auto scale = canvas->scaleX();
+        const auto startTick = canvas->startTick();
+        auto *input = parameterCanvas->viewport();
+        const auto position = input->rect().center();
+        QWheelEvent wheel(position, input->mapToGlobal(position),
+                          QPoint(0, modifier == Qt::ControlModifier ? 40 : -80), {},
+                          Qt::NoButton, modifier, Qt::ScrollUpdate, false);
+        QApplication::sendEvent(input, &wheel);
+        if (modifier == Qt::ControlModifier) {
+            QTRY_VERIFY(canvas->scaleX() > scale);
+        } else {
+            QTRY_VERIFY(canvas->startTick() > startTick);
+            QCOMPARE(canvas->scaleX(), scale);
+        }
+        QTRY_COMPARE(parameterCanvas->scaleX(), canvas->scaleX());
+        QTRY_VERIFY(std::abs(parameterCanvas->startTick() - canvas->startTick()) < 8);
+        const auto currentValues = window.captureEditorViewState().parameters;
+        QCOMPARE(currentValues.centerRatio, valueViewport.centerRatio);
+        QCOMPARE(currentValues.verticalScale, valueViewport.verticalScale);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
+        QVERIFY(!historyManager->canUndo());
+    }
+    QVERIFY(editor.setClipEditorTimeViewport(gui, {.centerTick = 1440, .horizontalScale = 2}));
     const auto previousPlayback = runtime.playback().getPlayback(before.documentId);
     QVERIFY(previousPlayback);
     const auto restorePlayback = qScopeGuard([&] {
