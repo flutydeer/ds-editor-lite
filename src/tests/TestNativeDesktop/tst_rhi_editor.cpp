@@ -2083,6 +2083,37 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
         QCOMPARE(historyManager->canUndo(), commit);
     }
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    const auto *entry = historyManager->nextUndoEntry();
+    QVERIFY(entry && entry->focusTransition());
+    const auto focus = entry->focusTransition()->after;
+    const auto editedVersion = fixture.runtime().documentVersion();
+    const auto editedModel = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto originalSize = canvas.size();
+    const auto originalView = canvas.viewState();
+    canvas.resize(originalSize.width(), 200);
+    QVERIFY(canvas.setViewScale(5.0, 8.0));
+    QVERIFY(canvas.centerAt(1440, 62));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::ScrollRequired);
+    const auto zoomed = canvas.viewState();
+    QVERIFY(canvas.revealFocus(focus, false));
+    QVERIFY(canvas.scaleX() < zoomed.horizontalScale);
+    QVERIFY(canvas.scaleY() < zoomed.verticalScale);
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.runtime().documentVersion(), editedVersion);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), editedModel);
+    QCOMPARE(historyManager->nextUndoEntry(), entry);
+    canvas.resize(originalSize);
+    QVERIFY(canvas.setViewScale(originalView.horizontalScale, originalView.verticalScale));
+    QVERIFY(canvas.centerAt(originalView.centerTick, originalView.centerKeyIndex));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
     historyManager->undo();
     QCOMPARE(first->localStart(), 480);
     QCOMPARE(second->localStart(), 1200);
