@@ -111,6 +111,30 @@ namespace {
             return services;
         }
 
+        void verifyHistorySnapshots(PublicAutomationRegistry &registry,
+                                    const QList<QJsonObject> &checkpoints,
+                                    const ActionSequence *initialUndo) {
+            for (qsizetype index = checkpoints.size() - 2; index >= 0; --index) {
+                const auto before = runtime.documentVersion();
+                const auto undone =
+                    registry.invoke(QStringLiteral("history.undo"), commandArguments(before));
+                QVERIFY2(undone, qPrintable(errorMessage(undone)));
+                QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+                QCOMPARE(TestSupport::projectSnapshot(runtimeFixture.model()),
+                         checkpoints.at(index));
+            }
+            QCOMPARE(runtimeFixture.history()->nextUndoEntry(), initialUndo);
+            for (qsizetype index = 1; index < checkpoints.size(); ++index) {
+                const auto before = runtime.documentVersion();
+                const auto redone =
+                    registry.invoke(QStringLiteral("history.redo"), commandArguments(before));
+                QVERIFY2(redone, qPrintable(errorMessage(redone)));
+                QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+                QCOMPARE(TestSupport::projectSnapshot(runtimeFixture.model()),
+                         checkpoints.at(index));
+            }
+        }
+
         AutomationTestSupport::TestRuntime runtimeFixture;
         CoreRuntime &runtime;
         AutomationAccessPolicy access;
@@ -721,25 +745,115 @@ void AutomationProtocolTests::publicNotePhraseEditsPreserveUnselectedNotesAndHis
     QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
              checkpoints.at(checkpoints.size() - 3));
 
-    for (qsizetype index = checkpoints.size() - 2; index >= 0; --index) {
+    fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
+}
+
+void AutomationProtocolTests::publicTimelineEditsPreserveThePhraseAndUndo() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto draft = lyricTrack();
+    draft.clips.first().notes.last().localStart = 2400;
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, draft));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clipId = project.get().tracks.first().clips.first().id;
+    const auto originalNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(originalNotes);
+    const auto original = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto originalTracks =
+        original.value(QStringLiteral("content")).toObject().value(QStringLiteral("tracks"));
+    const auto *initialUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    const auto query = [&] {
+        return registry.invoke(
+            QStringLiteral("timeline.get"),
+            {
+                {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()}
+        });
+    };
+    const auto initial = query();
+    QVERIFY2(initial, qPrintable(errorMessage(initial)));
+    const auto initialTimeline = initial.get().value(QStringLiteral("snapshot")).toObject();
+    QList<QJsonObject> checkpoints{original};
+    const auto apply = [&](const QString &tool, QJsonObject arguments) -> QString {
         const auto before = runtime.documentVersion();
-        const auto undone =
-            registry.invoke(QStringLiteral("history.undo"), commandArguments(before));
-        QVERIFY2(undone, qPrintable(errorMessage(undone)));
-        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-        QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
-                 checkpoints.at(index));
-    }
-    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), initialUndo);
-    for (qsizetype index = 1; index < checkpoints.size(); ++index) {
-        const auto before = runtime.documentVersion();
-        const auto redone =
-            registry.invoke(QStringLiteral("history.redo"), commandArguments(before));
-        QVERIFY2(redone, qPrintable(errorMessage(redone)));
-        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-        QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
-                 checkpoints.at(index));
-    }
+        const auto context = commandArguments(before);
+        for (auto it = context.begin(); it != context.end(); ++it)
+            arguments.insert(it.key(), it.value());
+        const auto result = registry.invoke(tool, arguments);
+        if (!result)
+            return errorMessage(result);
+        if (!result.get().value(QStringLiteral("changed")).toBool() ||
+            runtime.documentVersion().documentId != before.documentId ||
+            runtime.documentVersion().revision != before.revision + 1)
+            return tool + QStringLiteral(" did not commit exactly one document revision");
+        const auto snapshot = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+        if (snapshot.value(QStringLiteral("content")).toObject().value(QStringLiteral("tracks")) !=
+            originalTracks)
+            return tool + QStringLiteral(" changed phrase content");
+        checkpoints.append(snapshot);
+        return {};
+    };
+
+    QCOMPARE(apply(QStringLiteral("tempos.set"),
+                   {
+                       {QStringLiteral("tick"),  1920 },
+                       {QStringLiteral("tempo"), 93.75}
+    }),
+             QString{});
+    QCOMPARE(apply(QStringLiteral("time_signatures.set"),
+                   {
+                       {QStringLiteral("bar_index"),   1},
+                       {QStringLiteral("numerator"),   3},
+                       {QStringLiteral("denominator"), 4}
+    }),
+             QString{});
+    const auto changed = query();
+    QVERIFY2(changed, qPrintable(errorMessage(changed)));
+    const auto changedTimeline = changed.get().value(QStringLiteral("snapshot")).toObject();
+    auto expectedTempos = initialTimeline.value(QStringLiteral("tempos")).toArray();
+    expectedTempos.append(QJsonObject{
+        {QStringLiteral("tick"),  1920 },
+        {QStringLiteral("tempo"), 93.75}
+    });
+    auto expectedSignatures = initialTimeline.value(QStringLiteral("time_signatures")).toArray();
+    expectedSignatures.append(QJsonObject{
+        {QStringLiteral("bar_index"),   1},
+        {QStringLiteral("numerator"),   3},
+        {QStringLiteral("denominator"), 4}
+    });
+    QCOMPARE(changedTimeline.value(QStringLiteral("tempos")).toArray(), expectedTempos);
+    QCOMPARE(changedTimeline.value(QStringLiteral("time_signatures")).toArray(),
+             expectedSignatures);
+
+    QCOMPARE(apply(QStringLiteral("tempos.remove"),
+                   {
+                       {QStringLiteral("tick"), 1920}
+    }),
+             QString{});
+    const auto withoutTempo = query();
+    QVERIFY(withoutTempo);
+    const auto remaining = withoutTempo.get().value(QStringLiteral("snapshot")).toObject();
+    QCOMPARE(remaining.value(QStringLiteral("tempos")),
+             initialTimeline.value(QStringLiteral("tempos")));
+    QCOMPARE(remaining.value(QStringLiteral("time_signatures")).toArray(), expectedSignatures);
+    QCOMPARE(apply(QStringLiteral("time_signatures.remove"),
+                   {
+                       {QStringLiteral("bar_index"), 1}
+    }),
+             QString{});
+    const auto restored = query();
+    QVERIFY(restored);
+    QCOMPARE(restored.get().value(QStringLiteral("snapshot")).toObject(), initialTimeline);
+    const auto retained = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(retained);
+    QCOMPARE(retained.get().size(), originalNotes.get().size());
+    for (qsizetype index = 0; index < originalNotes.get().size(); ++index)
+        QCOMPARE(retained.get().at(index).id, originalNotes.get().at(index).id);
+
+    fixture.verifyHistorySnapshots(registry, checkpoints, initialUndo);
 }
 
 void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {

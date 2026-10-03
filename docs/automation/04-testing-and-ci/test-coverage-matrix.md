@@ -71,6 +71,7 @@ ApplicationGui 的平台条件统一为 Windows/Linux offscreen、macOS 原生�
 | 权限、路径、分页、准入 | protocol | 已有真实边界验证，分页游标独立目标与 Wire 职责重叠 | 保留实际拒绝和副作用断言。准入/文件授权归入 AutomationRuntime，Cursor/Wire 归入 AutomationProtocol。公开文件访问状态与实际目录、会话读写授权及清除后的拒绝一致，查询不修改工程或权限 | AutomationRuntime、AutomationProtocol::routing 的 bindingAndPolicy 及 Cursor/Wire 用例 | 通用/平台 |
 | 公共接口及协议转换 | protocol | 数量和 Schema 镜像与行为测试混合 | 删除 Contract 镜像程序。真实无效输入归入 Registry 并检查无副作用。共享场景比较四种调用路径 | AutomationProtocol | 通用 |
 | 公开乐句编辑与历史接线 | protocol | 领域层的几何断言不能证明公开命令转换和历史接线 | 同一乐句经过移动、量化、两端裁剪、拆分、改词、复制及删除副本，检查实际几何、创建身份、未选音符保留和单次版本变化。逐步撤销重做恢复每个完整工程快照 | AutomationProtocol::publicNotePhraseEditsPreserveUnselectedNotesAndHistory | 通用。生产 Registry、领域命令及 History，无需声库或设备 |
+| 公开时间线修改与历史接线 | protocol | 领域测试未验证公开拍号修改、删除及速度删除的转换 | 同一工程经公开入口修改速度和拍号，再分别删除，查询与实际时间线一致。跨过变化点的乐句内容及音符身份不变，每步提交及撤销重做共用完整工程快照和版本断言 | AutomationProtocol::publicTimelineEditsPreserveThePhraseAndUndo | 通用。共用 Registry fixture 及历史回放，无需声库或设备 |
 | 公共参数查询范围与输出预算 | protocol | 完整快照不能验证有界查询和曲线数据保真 | 检查时间范围裁剪、绘制曲线降采样、锚点原样保留、点数预算不足拒绝及查询无副作用 | AutomationProtocol::parameterQueryBoundsSamplesAndPreservesAnchors | 通用 |
 | GUI 编辑模式设置与查询 | protocol | 参数 Shape/Scale 和音高调制未接入公开转换，实际状态被回报成默认模式，设置请求被拒绝 | 补齐输入/输出模式与转换。既有接口场景验证到达服务的枚举、状态读回及工程版本不变 | AutomationProtocol::routing(guiBindings) | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派。可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为。CMake 提供可执行路径，测试自身提供跨平台接收端。大帧验证不依赖工具总数 | Connector | 通用 |

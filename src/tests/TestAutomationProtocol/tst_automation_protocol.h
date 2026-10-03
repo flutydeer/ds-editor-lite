@@ -34,6 +34,7 @@ private slots:
     void publicParameterEditsPreserveCurvesAndUndo();
     void publicClipCopyAndMovePreserveTheSourcePhrase();
     void publicNotePhraseEditsPreserveUnselectedNotesAndHistory();
+    void publicTimelineEditsPreserveThePhraseAndUndo();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets();
     void insertedPhonemesPreserveTimingAndRejectPartialOffsets();
