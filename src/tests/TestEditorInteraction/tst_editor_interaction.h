@@ -85,7 +85,8 @@ private slots:
     void horizontalAndShiftGestures();
     void fractionalAndReversedWheelMotion();
     void pendingWheelTargetsRespectBounds();
-    void stoppingWheelMotionPreservesExternalInput();
+    void wheelMotionSettingsAndExternalInputPreserveDestinations_data();
+    void wheelMotionSettingsAndExternalInputPreserveDestinations();
     void wheelAndNativeZoomAnchors();
     void controlWheelPolicies();
     void editingFocusProtectsTextInput();

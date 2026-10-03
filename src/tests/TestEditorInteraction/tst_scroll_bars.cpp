@@ -11,11 +11,9 @@
 
 #include <QGraphicsRectItem>
 #include <QGraphicsView>
-#include <QEventLoop>
 #include <QScrollBar>
 #include <QTextStream>
 #include <QApplication>
-#include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
 #include <QPointingDevice>
@@ -339,25 +337,85 @@ void EditorInteractionTests::pendingWheelTargetsRespectBounds() {
     resizedWheelScroll.stop();
 }
 
-void EditorInteractionTests::stoppingWheelMotionPreservesExternalInput() {
-    QWheelEvent wheelTowardEnd(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -120), Qt::NoButton,
-                               Qt::NoModifier, Qt::NoScrollPhase, false);
-    QWheelEvent wheelAwayFromEnd(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, 120), Qt::NoButton,
-                                 Qt::NoModifier, Qt::NoScrollPhase, false);
-    double scrollbarValue = 90.0;
-    WheelInputController scrollbarWheelScroll;
-    scrollbarWheelScroll.setAnimationEnabled(true);
-    scrollbarWheelScroll.setTimeScale(1.0);
-    configureScrollTarget(scrollbarWheelScroll, Qt::Vertical, scrollbarValue, 100.0, 20.0);
-    scrollbarWheelScroll.handleWheel(&wheelTowardEnd);
-    scrollbarWheelScroll.stop();
-    scrollbarValue = 25.0;
-    QEventLoop scrollbarWait;
-    QTimer::singleShot(300, &scrollbarWait, &QEventLoop::quit);
-    scrollbarWait.exec();
-    QVERIFY2((qFuzzyCompare(scrollbarValue, 25.0) &&
-              !scrollbarWheelScroll.logicalScrollValue(Qt::Vertical).has_value()),
-             "external scrollbar input must remain authoritative after stopping wheel motion");
+void EditorInteractionTests::wheelMotionSettingsAndExternalInputPreserveDestinations_data() {
+    QTest::addColumn<int>("axis");
+    QTest::addColumn<bool>("zoom");
+    QTest::newRow("horizontal-scroll") << int(Qt::Horizontal) << false;
+    QTest::newRow("vertical-scroll") << int(Qt::Vertical) << false;
+    QTest::newRow("horizontal-zoom") << int(Qt::Horizontal) << true;
+    QTest::newRow("vertical-zoom") << int(Qt::Vertical) << true;
+}
+
+void EditorInteractionTests::wheelMotionSettingsAndExternalInputPreserveDestinations() {
+    QFETCH(int, axis);
+    QFETCH(bool, zoom);
+    const auto orientation = static_cast<Qt::Orientation>(axis);
+    const auto horizontal = orientation == Qt::Horizontal;
+    const Qt::KeyboardModifiers modifiers =
+        zoom ? (horizontal ? Qt::ControlModifier : Qt::AltModifier)
+             : (horizontal ? Qt::ShiftModifier : Qt::NoModifier);
+    const QPointF position(25, 10);
+    const auto anchor = horizontal ? position.x() : position.y();
+    const auto delta = zoom ? 120 : -120;
+    QWheelEvent forward(position, position, {}, QPoint(0, delta), Qt::NoButton, modifiers,
+                        Qt::NoScrollPhase, false);
+    QWheelEvent reverse(position, position, {}, QPoint(0, -delta), Qt::NoButton, modifiers,
+                        Qt::NoScrollPhase, false);
+    double value = zoom ? 1.0 : 50.0;
+    double appliedAnchor = -1.0;
+    WheelInputController controller;
+    controller.setAnimationEnabled(true);
+    controller.setTimeScale(1.0);
+    if (zoom) {
+        controller.setZoomTarget(
+            orientation,
+            {
+                .value = [&] { return value; },
+                .setValueAt =
+                    [&](const double next, const double at) {
+                        value = next;
+                        appliedAnchor = at;
+                    },
+                .boundedValue = [](const double next) { return std::clamp(next, 0.5, 2.0); },
+                .step = 0.4,
+            });
+    } else {
+        configureScrollTarget(controller, orientation, value, 100.0, 20.0);
+    }
+
+    QVERIFY(controller.handleWheel(&forward));
+    QTRY_VERIFY(qFuzzyCompare(value, zoom ? 1.4 : 70.0));
+    if (zoom)
+        QCOMPARE(appliedAnchor, anchor);
+    else
+        QTRY_VERIFY(!controller.logicalScrollValue(orientation).has_value());
+
+    QVERIFY(controller.handleWheel(&forward));
+    controller.setTimeScale(2.0);
+    controller.setAnimationEnabled(false);
+    QVERIFY(qFuzzyCompare(value, zoom ? 1.96 : 90.0));
+    if (zoom)
+        QCOMPARE(appliedAnchor, anchor);
+    else
+        QVERIFY(!controller.logicalScrollValue(orientation).has_value());
+
+    controller.setAnimationEnabled(true);
+    controller.setTimeScale(1.0);
+    QVERIFY(controller.handleWheel(&reverse));
+    controller.stop();
+    const auto externalValue = zoom ? 0.75 : 25.0;
+    value = externalValue;
+    QTest::qWait(300);
+    QCOMPARE(value, externalValue);
+    if (!zoom)
+        QVERIFY(!controller.logicalScrollValue(orientation).has_value());
+
+    controller.setAnimationEnabled(false);
+    QCOMPARE(value, externalValue);
+    QVERIFY(controller.handleWheel(&forward));
+    QVERIFY(qFuzzyCompare(value, zoom ? 1.05 : 45.0));
+    if (zoom)
+        QCOMPARE(appliedAnchor, anchor);
 }
 
 void EditorInteractionTests::wheelAndNativeZoomAnchors() {
