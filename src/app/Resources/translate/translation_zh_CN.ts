@@ -186,6 +186,16 @@
         <translation>以矮条显示，仅供参考</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="158"/>
+        <source>Show tempo track</source>
+        <translation>显示曲速轨</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="159"/>
+        <source>Show time signature track</source>
+        <translation>显示拍号轨</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="151"/>
         <source>Touch</source>
         <translation>触摸</translation>
@@ -5338,6 +5348,18 @@ type: %L1</source>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="438"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="80"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="452"/>
+        <source>Tempo</source>
+        <translation>曲速</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="86"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="453"/>
+        <source>Time Sig.</source>
+        <translation>拍号</translation>
     </message>
 </context>
 <context>

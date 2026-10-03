@@ -20,3 +20,7 @@ InfoLaneHeaderView::InfoLaneHeaderView(QWidget *parent) : QWidget(parent) {
 void InfoLaneHeaderView::setTitle(const QString &title) {
     m_titleLabel->setText(title);
 }
+
+void InfoLaneHeaderView::setTitleMargins(const int left, const int right) {
+    static_cast<QHBoxLayout *>(layout())->setContentsMargins(left, 0, right, 0);
+}

@@ -14,6 +14,8 @@ public:
     explicit InfoLaneHeaderView(QWidget *parent = nullptr);
 
     void setTitle(const QString &title);
+    // Tighter title margins for narrow hosts (e.g. the piano roll keyboard column)
+    void setTitleMargins(int left, int right);
 
 private:
     QLabel *m_titleLabel = nullptr;

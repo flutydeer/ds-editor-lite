@@ -28,6 +28,8 @@ private:
     SwitchButton *m_swAnimationEnabled;
     LineEdit *m_leAnimationTimeScale;
     SwitchButton *m_swShowGhostNotes;
+    SwitchButton *m_swShowTempoLane;
+    SwitchButton *m_swShowTimeSignatureLane;
     QStringList m_fontFamilies;
 };
 

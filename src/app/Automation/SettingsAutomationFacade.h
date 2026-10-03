@@ -34,6 +34,8 @@ namespace Automation {
         QString themeId;
         QString uiFontFamily;
         bool showGhostNotes = true;
+        bool showTempoLane = false;
+        bool showTimeSignatureLane = false;
 
         friend bool operator==(const AppearanceSettingsDto &,
                                const AppearanceSettingsDto &) = default;

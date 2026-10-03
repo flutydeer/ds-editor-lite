@@ -38,6 +38,8 @@ void AppearancePage::modifyOption() {
     settings.animationEnabled = m_swAnimationEnabled->value();
     settings.animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
     settings.showGhostNotes = m_swShowGhostNotes->value();
+    settings.showTempoLane = m_swShowTempoLane->value();
+    settings.showTimeSignatureLane = m_swShowTimeSignatureLane->value();
     runtime->settings().updateAppearance({}, settings);
 }
 
@@ -148,9 +150,16 @@ QWidget *AppearancePage::createContentWidget() {
     m_swShowGhostNotes = new SwitchButton(option->showGhostNotes);
     connect(m_swShowGhostNotes, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
+    m_swShowTempoLane = new SwitchButton(option->showTempoLane);
+    connect(m_swShowTempoLane, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+    m_swShowTimeSignatureLane = new SwitchButton(option->showTimeSignatureLane);
+    connect(m_swShowTimeSignatureLane, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+
     const auto pianoRollCard = new OptionListCard(tr("Piano Roll"));
     pianoRollCard->addItem(tr("Show notes from other tracks"),
                            tr("Displayed as thin bars for reference only"), m_swShowGhostNotes);
+    pianoRollCard->addItem(tr("Show tempo track"), m_swShowTempoLane);
+    pianoRollCard->addItem(tr("Show time signature track"), m_swShowTimeSignatureLane);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(themeCard);
