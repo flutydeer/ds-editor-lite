@@ -17,6 +17,7 @@ class LevelMeterViewModel : public QObject {
 
 public:
     explicit LevelMeterViewModel(QObject *parent = nullptr);
+    LevelMeterViewModel(int peakHoldTime, int decayTime, QObject *parent = nullptr);
 
     void setLevels(double dBL, double dBR);
     void resetClip();
@@ -56,8 +57,8 @@ private:
 
     ChannelData m_leftChannel;
     ChannelData m_rightChannel;
-    int m_peakHoldTime = 2500;
-    int m_decayTime = 1000;
+    int m_peakHoldTime;
+    int m_decayTime;
     double m_lastPeakValue = 0.0;
 };
 

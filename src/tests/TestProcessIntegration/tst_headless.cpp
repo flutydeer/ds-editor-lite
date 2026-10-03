@@ -1,0 +1,2164 @@
+#include "tst_process_integration.h"
+#include <Bootstrap/SingleInstanceCoordinator.h>
+#include <Bootstrap/SingleInstanceIdentity.h>
+#include <BootstrapWatcher.h>
+#include <UpstreamMcpClient.h>
+
+#include <lite/AutomationWire/McpProtocol.h>
+#include <lite/ProductMetadata.h>
+
+#include <QCoreApplication>
+#include <QtTest>
+#include "../TestSupport/ProcessFixture.h"
+#include "../TestSupport/NativeRpc.h"
+#include <lite/AutomationWire/PublicToolContract.h>
+#include <QDataStream>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
+#include <QFile>
+#include <QFileInfo>
+#include <QHostAddress>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLocalSocket>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QScopeGuard>
+#include <QSet>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QTemporaryDir>
+#include <QTextStream>
+#include <QThread>
+#include <QTimer>
+#include <QUuid>
+
+#include <sndfile.h>
+
+#include <array>
+#include <cerrno>
+#include <cmath>
+#include <functional>
+#include <memory>
+#include <numbers>
+#include <optional>
+#include <utility>
+
+#ifdef Q_OS_MACOS
+#  include <cstring>
+#  include <libproc.h>
+#  include <sys/proc.h>
+#  include <sys/sysctl.h>
+#endif
+
+#ifdef Q_OS_WIN
+#  include <qt_windows.h>
+#  include <shellapi.h>
+#  include <tlhelp32.h>
+#  include <winternl.h>
+#else
+#  include <signal.h>
+#  include <unistd.h>
+#endif
+
+namespace {
+    using TestSupport::nativeExchange;
+    using TestSupport::nativeRequest;
+    using TestSupport::ProcessFixture;
+    using TestSupport::stopProcess;
+    using TestSupport::waitUntil;
+
+    bool fail(const QString &message) {
+        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
+        return false;
+    }
+
+    QString compactJson(const QJsonObject &object) {
+        return QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact));
+    }
+
+    std::optional<QJsonObject> mcpExchange(DsConnector::UpstreamMcpClient &client,
+                                           const QString &method, QJsonObject params,
+                                           QString &error, const int timeoutMilliseconds = 5000) {
+        error.clear();
+        std::optional<DsConnector::UpstreamResult> response;
+        client.send(
+            method, std::move(params),
+            [&response](DsConnector::UpstreamResult result) { response = std::move(result); },
+            timeoutMilliseconds);
+        if (!waitUntil([&response] { return response.has_value(); }, timeoutMilliseconds + 1000)) {
+            error = QStringLiteral("MCP request timed out");
+            return std::nullopt;
+        }
+        if (!response->connectorError.isEmpty()) {
+            error = QStringLiteral("MCP transport error: %1 (%2)")
+                        .arg(response->connectorError, response->connectorErrorMessage);
+            return std::nullopt;
+        }
+        if (response->protocolError) {
+            error = QStringLiteral("MCP protocol error %1: %2")
+                        .arg(response->protocolError->code)
+                        .arg(response->protocolError->message);
+            return std::nullopt;
+        }
+        return response->result;
+    }
+
+    bool tcpListenerAvailable(const quint16 port, const int timeoutMilliseconds = 250) {
+        QTcpSocket socket;
+        socket.connectToHost(QHostAddress(QStringLiteral("127.0.0.1")), port);
+        const auto connected = socket.waitForConnected(timeoutMilliseconds);
+        socket.abort();
+        return connected;
+    }
+
+    bool localServiceAvailable(const QString &serviceName, const int timeoutMilliseconds = 250) {
+        QLocalSocket socket;
+        socket.connectToServer(serviceName, QIODevice::ReadWrite);
+        const auto connected = socket.waitForConnected(timeoutMilliseconds);
+        socket.abort();
+        return connected;
+    }
+
+#ifdef Q_OS_WIN
+    struct ProcessSnapshot {
+        QString executablePath;
+        QString currentDirectory;
+        QStringList arguments;
+    };
+
+    struct RemoteProcessParametersPrefix {
+        ULONG maximumLength;
+        ULONG length;
+        ULONG flags;
+        ULONG debugFlags;
+        HANDLE consoleHandle;
+        ULONG consoleFlags;
+        HANDLE standardInput;
+        HANDLE standardOutput;
+        HANDLE standardError;
+        UNICODE_STRING currentDirectoryPath;
+        HANDLE currentDirectoryHandle;
+        UNICODE_STRING dllPath;
+        UNICODE_STRING imagePathName;
+        UNICODE_STRING commandLine;
+    };
+
+    static_assert(offsetof(RemoteProcessParametersPrefix, imagePathName) ==
+                  offsetof(RTL_USER_PROCESS_PARAMETERS, ImagePathName));
+    static_assert(offsetof(RemoteProcessParametersPrefix, commandLine) ==
+                  offsetof(RTL_USER_PROCESS_PARAMETERS, CommandLine));
+
+    QString normalizedPath(const QString &path) {
+        return QDir::toNativeSeparators(QDir::cleanPath(QFileInfo(path).absoluteFilePath()))
+            .toCaseFolded();
+    }
+
+    std::optional<QString> readRemoteString(HANDLE process, const UNICODE_STRING &value) {
+        if (value.Length == 0)
+            return QString{};
+        if (!value.Buffer || value.Length > value.MaximumLength ||
+            value.Length % sizeof(wchar_t) != 0) {
+            return std::nullopt;
+        }
+        QByteArray bytes(value.Length, '\0');
+        SIZE_T bytesRead = 0;
+        if (!ReadProcessMemory(process, value.Buffer, bytes.data(), bytes.size(), &bytesRead) ||
+            bytesRead != static_cast<SIZE_T>(bytes.size())) {
+            return std::nullopt;
+        }
+        return QString::fromWCharArray(reinterpret_cast<const wchar_t *>(bytes.constData()),
+                                       value.Length / sizeof(wchar_t));
+    }
+
+    std::optional<ProcessSnapshot> processSnapshot(const qint64 processId) {
+        const auto process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE,
+                                         FALSE, static_cast<DWORD>(processId));
+        if (!process)
+            return std::nullopt;
+        const auto closeProcess = qScopeGuard([process] { CloseHandle(process); });
+
+        using NtQueryInformationProcessFunction =
+            NTSTATUS(NTAPI *)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+        const auto ntdll = GetModuleHandleW(L"ntdll.dll");
+        const auto query = reinterpret_cast<NtQueryInformationProcessFunction>(
+            ntdll ? GetProcAddress(ntdll, "NtQueryInformationProcess") : nullptr);
+        if (!query)
+            return std::nullopt;
+        PROCESS_BASIC_INFORMATION basic{};
+        if (query(process, ProcessBasicInformation, &basic, sizeof(basic), nullptr) < 0 ||
+            !basic.PebBaseAddress) {
+            return std::nullopt;
+        }
+        PEB peb{};
+        SIZE_T bytesRead = 0;
+        if (!ReadProcessMemory(process, basic.PebBaseAddress, &peb, sizeof(peb), &bytesRead) ||
+            bytesRead != sizeof(peb) || !peb.ProcessParameters) {
+            return std::nullopt;
+        }
+        RemoteProcessParametersPrefix parameters{};
+        if (!ReadProcessMemory(process, peb.ProcessParameters, &parameters, sizeof(parameters),
+                               &bytesRead) ||
+            bytesRead != sizeof(parameters)) {
+            return std::nullopt;
+        }
+        const auto currentDirectory = readRemoteString(process, parameters.currentDirectoryPath);
+        const auto commandLine = readRemoteString(process, parameters.commandLine);
+        if (!currentDirectory || !commandLine)
+            return std::nullopt;
+
+        std::wstring executableBuffer(32768, L'\0');
+        DWORD executableLength = static_cast<DWORD>(executableBuffer.size());
+        if (!QueryFullProcessImageNameW(process, 0, executableBuffer.data(), &executableLength))
+            return std::nullopt;
+        executableBuffer.resize(executableLength);
+
+        int argumentCount = 0;
+        auto *arguments =
+            CommandLineToArgvW(reinterpret_cast<LPCWSTR>(commandLine->utf16()), &argumentCount);
+        if (!arguments)
+            return std::nullopt;
+        const auto freeArguments = qScopeGuard([arguments] { LocalFree(arguments); });
+        QStringList parsedArguments;
+        parsedArguments.reserve(argumentCount);
+        for (int index = 0; index < argumentCount; ++index)
+            parsedArguments.append(QString::fromWCharArray(arguments[index]));
+        return ProcessSnapshot{
+            .executablePath = QString::fromStdWString(executableBuffer),
+            .currentDirectory = *currentDirectory,
+            .arguments = std::move(parsedArguments),
+        };
+    }
+
+    bool processMatches(const ProcessSnapshot &snapshot, const QString &executablePath,
+                        const QString &workingDirectory, const QStringList &arguments) {
+        return normalizedPath(snapshot.executablePath) == normalizedPath(executablePath) &&
+               normalizedPath(snapshot.currentDirectory) == normalizedPath(workingDirectory) &&
+               snapshot.arguments.mid(1) == arguments;
+    }
+
+    bool processIsRunning(const qint64 processId) {
+        const auto process = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(processId));
+        if (!process)
+            return false;
+        const auto running = WaitForSingleObject(process, 0) == WAIT_TIMEOUT;
+        CloseHandle(process);
+        return running;
+    }
+
+    qint64 findOwnedProcess(const QString &executablePath, const QString &workingDirectory,
+                            const QStringList &arguments, const qint64 excludedProcessId) {
+        const auto processes = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (processes == INVALID_HANDLE_VALUE)
+            return 0;
+        const auto closeProcesses = qScopeGuard([processes] { CloseHandle(processes); });
+        PROCESSENTRY32W entry{.dwSize = sizeof(PROCESSENTRY32W)};
+        if (!Process32FirstW(processes, &entry))
+            return 0;
+        do {
+            if (entry.th32ProcessID == 0 ||
+                entry.th32ProcessID == static_cast<DWORD>(excludedProcessId)) {
+                continue;
+            }
+            const auto snapshot = processSnapshot(entry.th32ProcessID);
+            if (snapshot && processMatches(*snapshot, executablePath, workingDirectory, arguments))
+                return entry.th32ProcessID;
+        } while (Process32NextW(processes, &entry));
+        return 0;
+    }
+
+    void terminateOwnedProcess(const qint64 processId, const QString &executablePath,
+                               const QString &workingDirectory, const QStringList &arguments) {
+        const auto snapshot = processSnapshot(processId);
+        if (!snapshot || !processMatches(*snapshot, executablePath, workingDirectory, arguments))
+            return;
+        const auto process =
+            OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, static_cast<DWORD>(processId));
+        if (!process)
+            return;
+        TerminateProcess(process, EXIT_FAILURE);
+        WaitForSingleObject(process, 5000);
+        CloseHandle(process);
+    }
+
+    struct WindowProbe {
+        DWORD processId = 0;
+        int count = 0;
+    };
+
+    BOOL CALLBACK countProcessWindow(HWND window, LPARAM parameter) {
+        auto &probe = *reinterpret_cast<WindowProbe *>(parameter);
+        DWORD processId = 0;
+        GetWindowThreadProcessId(window, &processId);
+        if (processId == probe.processId)
+            ++probe.count;
+        return TRUE;
+    }
+
+    int topLevelWindowCount(const qint64 processId) {
+        WindowProbe probe{static_cast<DWORD>(processId), 0};
+        if (!EnumWindows(countProcessWindow, reinterpret_cast<LPARAM>(&probe)))
+            return -1;
+        return probe.count;
+    }
+
+    bool sendConsoleControlEvent(const qint64 processId, const DWORD eventType, QString &error) {
+        DWORD consoleProcesses[2];
+        const auto hadConsole = GetConsoleProcessList(consoleProcesses, 2) != 0;
+        if (hadConsole && !FreeConsole()) {
+            error = QStringLiteral("Could not detach the test console: Windows error %1")
+                        .arg(GetLastError());
+            return false;
+        }
+
+        if (!AttachConsole(static_cast<DWORD>(processId))) {
+            const auto errorNumber = GetLastError();
+            if (hadConsole)
+                AttachConsole(ATTACH_PARENT_PROCESS);
+            error = QStringLiteral("Could not attach the child console: Windows error %1")
+                        .arg(errorNumber);
+            return false;
+        }
+
+        const auto sent = GenerateConsoleCtrlEvent(eventType, static_cast<DWORD>(processId));
+        const auto sendError = sent ? ERROR_SUCCESS : GetLastError();
+        const auto detached = FreeConsole();
+        const auto detachError = detached ? ERROR_SUCCESS : GetLastError();
+        const auto restored = !hadConsole || AttachConsole(ATTACH_PARENT_PROCESS);
+        const auto restoreError = restored ? ERROR_SUCCESS : GetLastError();
+        if (!sent || !detached || !restored) {
+            error = QStringLiteral("Could not deliver CTRL_BREAK_EVENT: send=%1, detach=%2, "
+                                   "restore=%3")
+                        .arg(sendError)
+                        .arg(detachError)
+                        .arg(restoreError);
+            return false;
+        }
+        return true;
+    }
+#else
+    struct ProcessSnapshot {
+        QString executablePath;
+        QString currentDirectory;
+        QStringList arguments;
+    };
+
+    QString normalizedPath(const QString &path) {
+        const auto canonical = QFileInfo(path).canonicalFilePath();
+        return canonical.isEmpty() ? QDir::cleanPath(QFileInfo(path).absoluteFilePath())
+                                   : canonical;
+    }
+
+    std::optional<ProcessSnapshot> processSnapshot(const qint64 processId) {
+#  ifdef Q_OS_LINUX
+        const auto root = QStringLiteral("/proc/%1/").arg(processId);
+        const auto executable = QFileInfo(root + QStringLiteral("exe")).symLinkTarget();
+        const auto directory = QFileInfo(root + QStringLiteral("cwd")).symLinkTarget();
+        QFile commandLine(root + QStringLiteral("cmdline"));
+        if (executable.isEmpty() || directory.isEmpty() || !commandLine.open(QIODevice::ReadOnly))
+            return std::nullopt;
+        auto bytes = commandLine.readAll();
+        if (bytes.isEmpty() || !bytes.endsWith('\0'))
+            return std::nullopt;
+        bytes.chop(1);
+        QStringList arguments;
+        for (const auto &argument : bytes.split('\0'))
+            arguments.append(QFile::decodeName(argument));
+        return ProcessSnapshot{executable, directory, arguments};
+#  elif defined(Q_OS_MACOS)
+        char executable[PROC_PIDPATHINFO_MAXSIZE]{};
+        proc_vnodepathinfo paths{};
+        if (proc_pidpath(static_cast<int>(processId), executable, sizeof(executable)) <= 0 ||
+            proc_pidinfo(static_cast<int>(processId), PROC_PIDVNODEPATHINFO, 0, &paths,
+                         sizeof(paths)) != sizeof(paths))
+            return std::nullopt;
+        int maximumSize = 0;
+        size_t size = sizeof(maximumSize);
+        int sizeQuery[]{CTL_KERN, KERN_ARGMAX};
+        if (sysctl(sizeQuery, 2, &maximumSize, &size, nullptr, 0) != 0 || maximumSize <= 0)
+            return std::nullopt;
+        QByteArray bytes(maximumSize, '\0');
+        size = static_cast<size_t>(bytes.size());
+        int argumentsQuery[]{CTL_KERN, KERN_PROCARGS2, static_cast<int>(processId)};
+        if (sysctl(argumentsQuery, 3, bytes.data(), &size, nullptr, 0) != 0 || size < sizeof(int))
+            return std::nullopt;
+        bytes.resize(static_cast<qsizetype>(size));
+        int count = 0;
+        std::memcpy(&count, bytes.constData(), sizeof(count));
+        auto offset = bytes.indexOf('\0', sizeof(count));
+        if (count <= 0 || offset < 0)
+            return std::nullopt;
+        // KERN_PROCARGS2 places the executable path and padding before argv.
+        while (offset < bytes.size() && bytes[offset] == '\0')
+            ++offset;
+        QStringList arguments;
+        for (int index = 0; index < count; ++index) {
+            const auto end = bytes.indexOf('\0', offset);
+            if (end < 0)
+                return std::nullopt;
+            arguments.append(QFile::decodeName(bytes.mid(offset, end - offset)));
+            offset = end + 1;
+        }
+        return ProcessSnapshot{QFile::decodeName(executable),
+                               QFile::decodeName(paths.pvi_cdir.vip_path), arguments};
+#  else
+        return std::nullopt;
+#  endif
+    }
+
+    bool processMatches(const ProcessSnapshot &snapshot, const QString &executablePath,
+                        const QString &workingDirectory, const QStringList &arguments) {
+        return normalizedPath(snapshot.executablePath) == normalizedPath(executablePath) &&
+               normalizedPath(snapshot.currentDirectory) == normalizedPath(workingDirectory) &&
+               snapshot.arguments.mid(1) == arguments;
+    }
+
+    bool processIsRunning(const qint64 processId) {
+        if (processId <= 0 || (::kill(static_cast<pid_t>(processId), 0) != 0 && errno != EPERM))
+            return false;
+#  ifdef Q_OS_LINUX
+        QFile status(QStringLiteral("/proc/%1/stat").arg(processId));
+        if (status.open(QIODevice::ReadOnly)) {
+            const auto bytes = status.readAll();
+            const auto stateOffset = bytes.lastIndexOf(')') + 2;
+            if (stateOffset >= 2 && stateOffset < bytes.size())
+                return bytes[stateOffset] != 'Z' && bytes[stateOffset] != 'X';
+        }
+#  elif defined(Q_OS_MACOS)
+        proc_bsdinfo status{};
+        if (proc_pidinfo(static_cast<int>(processId), PROC_PIDTBSDINFO, 0, &status,
+                         sizeof(status)) == sizeof(status))
+            return status.pbi_status != SZOMB;
+#  endif
+        return true;
+    }
+
+    qint64 findOwnedProcess(const QString &executablePath, const QString &workingDirectory,
+                            const QStringList &arguments, const qint64 excludedProcessId) {
+        QList<qint64> processIds;
+#  ifdef Q_OS_LINUX
+        const auto entries =
+            QDir(QStringLiteral("/proc")).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const auto &entry : entries) {
+            bool numeric = false;
+            const auto processId = entry.toLongLong(&numeric);
+            if (numeric)
+                processIds.append(processId);
+        }
+#  elif defined(Q_OS_MACOS)
+        const auto requiredSize = proc_listpids(PROC_UID_ONLY, getuid(), nullptr, 0);
+        if (requiredSize <= 0)
+            return 0;
+        QList<pid_t> identifiers(requiredSize / sizeof(pid_t) + 32);
+        const auto size = proc_listpids(PROC_UID_ONLY, getuid(), identifiers.data(),
+                                        static_cast<int>(identifiers.size() * sizeof(pid_t)));
+        for (int index = 0; index < size / static_cast<int>(sizeof(pid_t)); ++index)
+            processIds.append(identifiers[index]);
+#  endif
+        for (const auto processId : processIds) {
+            if (processId <= 0 || processId == excludedProcessId)
+                continue;
+            const auto snapshot = processSnapshot(processId);
+            if (snapshot && processMatches(*snapshot, executablePath, workingDirectory, arguments))
+                return processId;
+        }
+        return 0;
+    }
+
+    void terminateOwnedProcess(const qint64 processId, const QString &executablePath,
+                               const QString &workingDirectory, const QStringList &arguments) {
+        const auto owned = [&] {
+            const auto snapshot = processSnapshot(processId);
+            return snapshot &&
+                   processMatches(*snapshot, executablePath, workingDirectory, arguments);
+        };
+        if (!owned())
+            return;
+        ::kill(static_cast<pid_t>(processId), SIGTERM);
+        if (!waitUntil([&] { return !processIsRunning(processId); }, 5000) && owned()) {
+            ::kill(static_cast<pid_t>(processId), SIGKILL);
+            waitUntil([&] { return !processIsRunning(processId); }, 5000);
+        }
+    }
+#endif
+
+    QString processDiagnostics(QProcess &process, const QString &appDataRoot, const quint16 port) {
+        return QStringLiteral("appdata=%1; port=%2; state=%3; exit_status=%4; exit_code=%5; "
+                              "stdout=%6; stderr=%7")
+            .arg(appDataRoot)
+            .arg(port)
+            .arg(static_cast<int>(process.state()))
+            .arg(static_cast<int>(process.exitStatus()))
+            .arg(process.exitCode())
+            .arg(QString::fromUtf8(TestSupport::readProcessStdout(process)),
+                 QString::fromUtf8(TestSupport::readProcessStderr(process)));
+    }
+
+    class HeadlessProcessFixture final {
+    public:
+        const QString editorPath;
+        ProcessFixture storage;
+        QNetworkAccessManager manager;
+        QProcessEnvironment environment;
+        QString serviceName;
+        QString audioPath;
+        QString error;
+        quint16 controlPort = 0;
+        QUrl nativeEndpoint;
+
+        HeadlessProcessFixture(const QString &path, const QString &name)
+            : editorPath(path), storage(name) {
+            manager.setProxy(QNetworkProxy::NoProxy);
+        }
+
+        bool prepare() {
+            if (!storage.isValid())
+                return fail(QStringLiteral("Could not create the headless-test sandbox"));
+            if (!storage.writeConfig({
+                    {QStringLiteral("general"),
+                     QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}       },
+                    {QStringLiteral("inference"),
+                     QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                                 {QStringLiteral("autoStartInfer"), false}}                  },
+                    {QStringLiteral("automation"),
+                     QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{storage.path()}}}}
+            }))
+                return fail(QStringLiteral("Could not seed headless configuration"));
+            audioPath = storage.filePath(QStringLiteral("headless-import.wav"));
+            if (!ProcessFixture::writeWaveFixture(audioPath))
+                return fail(QStringLiteral("Could not create headless audio fixture"));
+            environment = storage.environment();
+            environment.insert(QStringLiteral("QT_QPA_PLATFORM"),
+                               QStringLiteral("invalid-test-platform"));
+            serviceName = SingleInstanceIdentity::serviceName(storage.dataDirectory());
+            QTcpServer reservation;
+            if (!reservation.listen(QHostAddress::LocalHost, 0))
+                return fail(reservation.errorString());
+            controlPort = reservation.serverPort();
+            nativeEndpoint =
+                QUrl(QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(controlPort));
+            return true;
+        }
+
+        bool start(QProcess &process, const QStringList &arguments,
+                   const QString &workingDirectory = {}) {
+            process.setProcessEnvironment(environment);
+            process.setWorkingDirectory(workingDirectory.isEmpty()
+                                            ? QFileInfo(editorPath).absolutePath()
+                                            : workingDirectory);
+            process.setProcessChannelMode(QProcess::SeparateChannels);
+            process.start(editorPath, arguments);
+            return process.waitForStarted(10000) || fail(process.errorString());
+        }
+
+        std::optional<QJsonObject> waitForStatus(QProcess &process, const QUrl &endpoint) {
+            std::optional<QJsonObject> status;
+            waitUntil(
+                [&] {
+                    if (process.state() == QProcess::NotRunning)
+                        return true;
+                    const auto response =
+                        nativeExchange(manager, endpoint,
+                                       nativeRequest(QStringLiteral("ready"),
+                                                     QStringLiteral("application.get_status")),
+                                       error, 500);
+                    if (response && response->value(QStringLiteral("result")).isObject())
+                        status = response->value(QStringLiteral("result")).toObject();
+                    return status.has_value();
+                },
+                45000);
+            return status;
+        }
+
+        bool seedProject(const QString &path) {
+            auto &process = storage.process(QStringLiteral("project-fixture"));
+            if (!start(process, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                 QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                 QStringLiteral("--control-port"), QString::number(controlPort)}))
+                return false;
+            const auto status = waitForStatus(process, nativeEndpoint);
+            if (!status || status->value(QStringLiteral("documents")).toArray().isEmpty())
+                return fail(QStringLiteral("Project fixture host did not become ready"));
+            const auto document =
+                status->value(QStringLiteral("documents")).toArray().first().toObject();
+            const auto saved = nativeExchange(
+                manager, nativeEndpoint,
+                nativeRequest(
+                    QStringLiteral("seed-project"), QStringLiteral("documents.save_as"),
+                    QJsonObject{
+                        {QStringLiteral("document_id"),
+                         document.value(QStringLiteral("document_id"))                   },
+                        {QStringLiteral("expected_revision"),
+                         document.value(QStringLiteral("revision"))                      },
+                        {QStringLiteral("path"),              path                       },
+                        {QStringLiteral("overwrite_policy"),  QStringLiteral("overwrite")}
+            }),
+                error);
+            if (!saved || saved->contains(QStringLiteral("error")) || !QFileInfo::exists(path))
+                return fail(
+                    QStringLiteral("Could not create startup project fixture: %1").arg(error));
+            return exit(process, nativeEndpoint);
+        }
+
+        bool exit(QProcess &process, const QUrl &endpoint, const bool discardChanges = false) {
+            const auto result = nativeExchange(
+                manager, endpoint,
+                nativeRequest(QStringLiteral("fixture-exit"),
+                              QStringLiteral("application.request_exit"),
+                              QJsonObject{
+                                  {QStringLiteral("discard_changes"), discardChanges}
+            }),
+                error);
+            if (!result || result->contains(QStringLiteral("error")) ||
+                !process.waitForFinished(15000) || process.exitStatus() != QProcess::NormalExit ||
+                process.exitCode() != 0)
+                return fail(QStringLiteral("Headless fixture did not exit cleanly: %1").arg(error));
+            return waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000) ||
+                   fail(QStringLiteral("Headless fixture left its Primary service"));
+        }
+    };
+
+    bool runNativeWorkflow(const QString &editorPath) {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-editing-and-files"));
+        if (!fixture.prepare())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+        const auto &environment = fixture.environment;
+        const auto &serviceName = fixture.serviceName;
+        const auto controlPort = fixture.controlPort;
+        const auto &nativeEndpoint = fixture.nativeEndpoint;
+        const auto &audioPath = fixture.audioPath;
+        auto &manager = fixture.manager;
+        auto &exchangeError = fixture.error;
+        auto &editor = isolatedRoot.process(QStringLiteral("native-editor"));
+        auto &mcpEditor = isolatedRoot.process(QStringLiteral("combined-editor"));
+        QString workingDirectory;
+        QStringList arguments;
+        editor.setProcessEnvironment(environment);
+        editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        editor.setProcessChannelMode(QProcess::SeparateChannels);
+        editor.start(editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                  QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                  QStringLiteral("--control-port"), QString::number(controlPort)});
+        if (!editor.waitForStarted(10000)) {
+            return fail(
+                QStringLiteral("Headless editor failed to start: %1").arg(editor.errorString()));
+        }
+
+        DsConnector::BootstrapWatcher watcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                              QStringLiteral("1"), serviceName);
+        watcher.start();
+        const auto watcherCleanup = qScopeGuard([&watcher] { watcher.stop(); });
+
+        std::optional<QJsonObject> statusResponse;
+        const auto nativeSettled = waitUntil(
+            [&] {
+                if (editor.state() == QProcess::NotRunning)
+                    return true;
+                const auto response =
+                    nativeExchange(manager, nativeEndpoint,
+                                   nativeRequest(QStringLiteral("status"),
+                                                 QStringLiteral("application.get_status")),
+                                   exchangeError, 500);
+                if (!response || !response->value(QStringLiteral("result")).isObject())
+                    return false;
+                statusResponse = response;
+                return true;
+            },
+            45000);
+        if (!nativeSettled || !statusResponse) {
+            return fail(
+                QStringLiteral("Headless Native endpoint did not become ready: %1; %2")
+                    .arg(exchangeError, processDiagnostics(editor, appDataRoot, controlPort)));
+        }
+
+        const auto status = statusResponse->value(QStringLiteral("result")).toObject();
+        const auto documents = status.value(QStringLiteral("documents")).toArray();
+        if (status.value(QStringLiteral("host_mode")) != QStringLiteral("headless") ||
+            status.value(QStringLiteral("control_level")) != QStringLiteral("l3") ||
+            documents.size() != 1 || !status.value(QStringLiteral("windows")).toArray().isEmpty()) {
+            return fail(
+                QStringLiteral("Headless status did not expose one document and no windows: %1")
+                    .arg(compactJson(status)));
+        }
+        const auto document = documents.first().toObject();
+        const auto documentId = document.value(QStringLiteral("document_id")).toString();
+        const auto initialRevision = document.value(QStringLiteral("revision")).toInteger(-1);
+        if (documentId.isEmpty() || initialRevision < 0) {
+            return fail(QStringLiteral("Headless status did not expose a real document version: %1")
+                            .arg(compactJson(status)));
+        }
+
+        const auto themeSettings = nativeExchange(
+            manager, nativeEndpoint,
+            nativeRequest(QStringLiteral("theme-settings"), QStringLiteral("settings.query"),
+                          QJsonObject{
+                              {QStringLiteral("domains"), QJsonArray{QStringLiteral("theme")}}
+        }),
+            exchangeError);
+        const auto themeDomain = themeSettings ? themeSettings->value(QStringLiteral("result"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("domains"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("theme"))
+                                                     .toObject()
+                                               : QJsonObject{};
+        if (!themeSettings || themeSettings->contains(QStringLiteral("error")) ||
+            themeDomain.value(QStringLiteral("available")).toBool(true) ||
+            themeDomain.value(QStringLiteral("unavailable_reason")).toString().isEmpty()) {
+            return fail(
+                QStringLiteral("Headless theme settings did not report UI unavailability: %1")
+                    .arg(themeSettings ? compactJson(*themeSettings) : exchangeError));
+        }
+
+        const auto bootstrapSettled = waitUntil(
+            [&] {
+                return (watcher.observation().snapshot &&
+                        watcher.observation().snapshot->result.state ==
+                            SingleInstanceAutomationState::ServerDisabled) ||
+                       editor.state() == QProcess::NotRunning;
+            },
+            10000);
+        if (!bootstrapSettled || !watcher.observation().snapshot) {
+            return fail(
+                QStringLiteral("Headless bootstrap snapshot did not become available: %1; %2")
+                    .arg(watcher.observation().error,
+                         processDiagnostics(editor, appDataRoot, controlPort)));
+        }
+        const auto &bootstrap = watcher.observation().snapshot->result;
+        if (bootstrap.hostMode != QStringLiteral("headless") || bootstrap.serverEnabled ||
+            !bootstrap.serverEndpoint.isEmpty() ||
+            bootstrap.state != SingleInstanceAutomationState::ServerDisabled ||
+            bootstrap.editorInstanceId !=
+                status.value(QStringLiteral("editor_instance_id")).toString()) {
+            return fail(QStringLiteral("Headless --no-mcp bootstrap state was incorrect"));
+        }
+
+#ifdef Q_OS_WIN
+        const auto windowCount = topLevelWindowCount(editor.processId());
+        if (windowCount != 0) {
+            return fail(QStringLiteral("Headless process exposed %1 top-level windows; %2")
+                            .arg(windowCount)
+                            .arg(processDiagnostics(editor, appDataRoot, controlPort)));
+        }
+#endif
+
+        const auto getDocument = [&](const QString &requestId) {
+            return nativeExchange(manager, nativeEndpoint,
+                                  nativeRequest(requestId, QStringLiteral("documents.get"),
+                                                QJsonObject{
+                                                    {QStringLiteral("document_id"), documentId}
+            }),
+                                  exchangeError);
+        };
+        const auto initialDocument = getDocument(QStringLiteral("document-before"));
+        if (!initialDocument || initialDocument->contains(QStringLiteral("error"))) {
+            return fail(QStringLiteral("Initial documents.get failed: %1")
+                            .arg(initialDocument ? compactJson(*initialDocument) : exchangeError));
+        }
+        const auto initialTrackCount = initialDocument->value(QStringLiteral("result"))
+                                           .toObject()
+                                           .value(QStringLiteral("snapshot"))
+                                           .toObject()
+                                           .value(QStringLiteral("statistics"))
+                                           .toObject()
+                                           .value(QStringLiteral("track_count"))
+                                           .toInteger(-1);
+
+        const auto insertTrack = [&](const QString &requestId, const qint64 expectedRevision,
+                                     const QString &clientRef) {
+            return nativeExchange(
+                manager, nativeEndpoint,
+                nativeRequest(requestId, QStringLiteral("tracks.insert"),
+                              QJsonObject{
+                                  {QStringLiteral("document_id"),       documentId      },
+                                  {QStringLiteral("expected_revision"), expectedRevision},
+                                  {QStringLiteral("index"),             0               },
+                                  {QStringLiteral("tracks"),
+                                   QJsonArray{QJsonObject{
+                                       {QStringLiteral("client_ref"), clientRef},
+                                       {QStringLiteral("name"), QStringLiteral("Headless Track")},
+                                       {QStringLiteral("color_index"), 0},
+                                   }}                                                   },
+            }),
+                exchangeError);
+        };
+        const auto insertion =
+            insertTrack(QStringLiteral("insert"), initialRevision, QStringLiteral("insert-one"));
+        const auto insertionResult =
+            insertion ? insertion->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        const auto insertedRevision = insertionResult.value(QStringLiteral("current"))
+                                          .toObject()
+                                          .value(QStringLiteral("revision"))
+                                          .toInteger(-1);
+        if (!insertion || insertion->contains(QStringLiteral("error")) ||
+            !insertionResult.value(QStringLiteral("changed")).toBool() ||
+            insertedRevision != initialRevision + 1) {
+            return fail(QStringLiteral("Native tracks.insert failed: %1")
+                            .arg(insertion ? compactJson(*insertion) : exchangeError));
+        }
+
+        const auto undo = nativeExchange(
+            manager, nativeEndpoint,
+            nativeRequest(QStringLiteral("undo"), QStringLiteral("history.undo"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       documentId      },
+                              {QStringLiteral("expected_revision"), insertedRevision},
+        }),
+            exchangeError);
+        const auto undoResult =
+            undo ? undo->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        const auto undoneRevision = undoResult.value(QStringLiteral("current"))
+                                        .toObject()
+                                        .value(QStringLiteral("revision"))
+                                        .toInteger(-1);
+        if (!undo || undo->contains(QStringLiteral("error")) ||
+            !undoResult.value(QStringLiteral("changed")).toBool() ||
+            undoneRevision != insertedRevision + 1) {
+            return fail(QStringLiteral("Native history.undo failed: %1")
+                            .arg(undo ? compactJson(*undo) : exchangeError));
+        }
+        const auto documentAfterUndo = getDocument(QStringLiteral("document-after-undo"));
+        const auto trackCountAfterUndo = documentAfterUndo
+                                             ? documentAfterUndo->value(QStringLiteral("result"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("snapshot"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("statistics"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("track_count"))
+                                                   .toInteger(-1)
+                                             : -1;
+        if (!documentAfterUndo || documentAfterUndo->contains(QStringLiteral("error")) ||
+            trackCountAfterUndo != initialTrackCount) {
+            return fail(
+                QStringLiteral("Undo did not restore the document track count: %1")
+                    .arg(documentAfterUndo ? compactJson(*documentAfterUndo) : exchangeError));
+        }
+
+        const auto redo =
+            nativeExchange(manager, nativeEndpoint,
+                           nativeRequest(QStringLiteral("redo"), QStringLiteral("history.redo"),
+                                         QJsonObject{
+                                             {QStringLiteral("document_id"),       documentId    },
+                                             {QStringLiteral("expected_revision"), undoneRevision},
+        }),
+                           exchangeError);
+        const auto redoResult =
+            redo ? redo->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        const auto redoneRevision = redoResult.value(QStringLiteral("current"))
+                                        .toObject()
+                                        .value(QStringLiteral("revision"))
+                                        .toInteger(-1);
+        const auto documentAfterRedo = getDocument(QStringLiteral("document-after-redo"));
+        const auto trackCountAfterRedo = documentAfterRedo
+                                             ? documentAfterRedo->value(QStringLiteral("result"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("snapshot"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("statistics"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("track_count"))
+                                                   .toInteger(-1)
+                                             : -1;
+        if (!redo || redo->contains(QStringLiteral("error")) ||
+            !redoResult.value(QStringLiteral("changed")).toBool() ||
+            redoneRevision != undoneRevision + 1 || !documentAfterRedo ||
+            documentAfterRedo->contains(QStringLiteral("error")) ||
+            trackCountAfterRedo != initialTrackCount + 1) {
+            return fail(QStringLiteral("Native history.redo did not restore the inserted track: %1")
+                            .arg(redo ? compactJson(*redo) : exchangeError));
+        }
+
+        const auto startupProjectPath =
+            isolatedRoot.filePath(QStringLiteral("headless-startup.dspx"));
+        const auto startupProjectSave = nativeExchange(
+            manager, nativeEndpoint,
+            nativeRequest(QStringLiteral("save-startup-project"),
+                          QStringLiteral("documents.save_as"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       documentId                 },
+                              {QStringLiteral("expected_revision"), redoneRevision             },
+                              {QStringLiteral("path"),              startupProjectPath         },
+                              {QStringLiteral("overwrite_policy"),  QStringLiteral("overwrite")},
+        }),
+            exchangeError, 10000);
+        if (!startupProjectSave || startupProjectSave->contains(QStringLiteral("error")) ||
+            !QFileInfo::exists(startupProjectPath)) {
+            return fail(
+                QStringLiteral("Could not prepare the startup-project fixture: %1")
+                    .arg(startupProjectSave ? compactJson(*startupProjectSave) : exchangeError));
+        }
+        const auto forwardedStartupProjectPath =
+            isolatedRoot.filePath(QStringLiteral("headless-forwarded-startup.dspx"));
+        if (!QFile::copy(startupProjectPath, forwardedStartupProjectPath)) {
+            return fail(QStringLiteral("Could not prepare the forwarded startup-project fixture"));
+        }
+
+        const auto guiOnly = nativeExchange(
+            manager, nativeEndpoint,
+            nativeRequest(QStringLiteral("gui-only"), QStringLiteral("track_panel.set_viewport"),
+                          QJsonObject{
+                              {QStringLiteral("window_id"), 42}
+        }),
+            exchangeError);
+        const auto guiOnlyError =
+            guiOnly ? guiOnly->value(QStringLiteral("error")).toObject() : QJsonObject{};
+        const auto guiOnlyData = guiOnlyError.value(QStringLiteral("data")).toObject();
+        if (!guiOnly || guiOnlyError.value(QStringLiteral("code")).toInt() != -32000 ||
+            guiOnlyData.value(QStringLiteral("code")) !=
+                QStringLiteral("host_capability_unavailable") ||
+            guiOnlyData.value(QStringLiteral("operation_id")) !=
+                QStringLiteral("track_panel.set_viewport") ||
+            guiOnlyData.contains(QStringLiteral("field_path"))) {
+            return fail(QStringLiteral("GUI-only Host gate did not precede window schema: %1")
+                            .arg(guiOnly ? compactJson(*guiOnly) : exchangeError));
+        }
+
+        const auto dirtyInsertion = insertTrack(QStringLiteral("dirty-insert"), redoneRevision,
+                                                QStringLiteral("insert-dirty"));
+        if (!dirtyInsertion || dirtyInsertion->contains(QStringLiteral("error"))) {
+            return fail(QStringLiteral("Could not make the headless document dirty: %1")
+                            .arg(dirtyInsertion ? compactJson(*dirtyInsertion) : exchangeError));
+        }
+        const auto rejectedExit =
+            nativeExchange(manager, nativeEndpoint,
+                           nativeRequest(QStringLiteral("exit-rejected"),
+                                         QStringLiteral("application.request_exit")),
+                           exchangeError);
+        const auto rejectedExitData = rejectedExit ? rejectedExit->value(QStringLiteral("error"))
+                                                         .toObject()
+                                                         .value(QStringLiteral("data"))
+                                                         .toObject()
+                                                   : QJsonObject{};
+        if (!rejectedExit ||
+            rejectedExitData.value(QStringLiteral("code")) != QStringLiteral("busy") ||
+            rejectedExitData.value(QStringLiteral("field_path")) !=
+                QStringLiteral("discard_changes") ||
+            editor.state() != QProcess::Running) {
+            return fail(QStringLiteral("Dirty headless exit was not rejected: %1")
+                            .arg(rejectedExit ? compactJson(*rejectedExit) : exchangeError));
+        }
+
+        const auto acceptedExit =
+            nativeExchange(manager, nativeEndpoint,
+                           nativeRequest(QStringLiteral("exit-accepted"),
+                                         QStringLiteral("application.request_exit"),
+                                         QJsonObject{
+                                             {QStringLiteral("discard_changes"), true}
+        }),
+                           exchangeError, 10000);
+        const auto acceptedExitResult =
+            acceptedExit ? acceptedExit->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        if (!acceptedExit || acceptedExit->contains(QStringLiteral("error")) ||
+            !acceptedExitResult.value(QStringLiteral("accepted")).toBool() ||
+            acceptedExitResult.value(QStringLiteral("action")) != QStringLiteral("exit") ||
+            !acceptedExitResult.value(QStringLiteral("discard_changes")).toBool() ||
+            !editor.waitForFinished(15000) || editor.exitStatus() != QProcess::NormalExit ||
+            editor.exitCode() != 0) {
+            return fail(QStringLiteral("Discarded headless exit did not complete cleanly: %1; %2")
+                            .arg(acceptedExit ? compactJson(*acceptedExit) : exchangeError,
+                                 processDiagnostics(editor, appDataRoot, controlPort)));
+        }
+        watcher.stop();
+        if (!waitUntil([&] { return !tcpListenerAvailable(controlPort); }, 5000) ||
+            !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
+            return fail(
+                QStringLiteral("Graceful headless exit left a listener or Primary service"));
+        }
+
+        QTcpServer mcpPortProbe;
+        if (!mcpPortProbe.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0)) {
+            return fail(QStringLiteral("Could not allocate the combined Native/MCP port: %1")
+                            .arg(mcpPortProbe.errorString()));
+        }
+        const auto mcpPort = mcpPortProbe.serverPort();
+        mcpPortProbe.close();
+        const auto mcpEndpoint = QStringLiteral("http://127.0.0.1:%1/mcp").arg(mcpPort);
+        const QUrl combinedNativeEndpoint(
+            QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(mcpPort));
+        DsConnector::BootstrapWatcher mcpWatcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                                 QStringLiteral("1"), serviceName);
+        mcpWatcher.start();
+        const auto mcpWatcherCleanup = qScopeGuard([&mcpWatcher] { mcpWatcher.stop(); });
+
+        workingDirectory =
+            QDir(isolatedRoot.path()).filePath(QStringLiteral("restart-working-directory"));
+        if (!QDir().mkpath(workingDirectory))
+            return fail(QStringLiteral("Could not create the isolated restart working directory"));
+        arguments = {
+            QStringLiteral("--headless"),
+            QStringLiteral("--mcp"),
+            QStringLiteral("--control-level"),
+            QStringLiteral("l3"),
+            QStringLiteral("--control-port"),
+            QString::number(mcpPort),
+            startupProjectPath,
+        };
+        mcpEditor.setProcessEnvironment(environment);
+        mcpEditor.setWorkingDirectory(workingDirectory);
+        mcpEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        mcpEditor.start(editorPath, arguments);
+        if (!mcpEditor.waitForStarted(10000)) {
+            return fail(QStringLiteral("Combined Native/MCP headless editor failed to start: %1")
+                            .arg(mcpEditor.errorString()));
+        }
+        QString forwardError;
+        SingleInstanceCoordinator forwardingClient(editorDataDirectory, serviceName);
+        const SingleInstanceRequest forwardedStartupRequest{
+            QUuid::createUuid().toString(QUuid::WithoutBraces),
+            SingleInstanceCommand::OpenProjects,
+            {forwardedStartupProjectPath},
+        };
+        if (!forwardingClient.forwardRequest(forwardedStartupRequest, forwardError)) {
+            return fail(
+                QStringLiteral("Could not forward a project during headless startup: %1; %2")
+                    .arg(forwardError, processDiagnostics(mcpEditor, appDataRoot, mcpPort)));
+        }
+
+        const auto mcpBootstrapSettled = waitUntil(
+            [&] {
+                return (mcpWatcher.observation().snapshot &&
+                        mcpWatcher.observation().snapshot->result.state ==
+                            SingleInstanceAutomationState::ServerReady) ||
+                       mcpEditor.state() == QProcess::NotRunning;
+            },
+            45000);
+        if (!mcpBootstrapSettled || !mcpWatcher.observation().snapshot) {
+            return fail(QStringLiteral("Combined Native/MCP bootstrap did not become ready: %1; %2")
+                            .arg(mcpWatcher.observation().error,
+                                 processDiagnostics(mcpEditor, appDataRoot, mcpPort)));
+        }
+        const auto &mcpBootstrap = mcpWatcher.observation().snapshot->result;
+        if (mcpBootstrap.hostMode != QStringLiteral("headless") ||
+            mcpBootstrap.state != SingleInstanceAutomationState::ServerReady ||
+            !mcpBootstrap.serverEnabled || mcpBootstrap.serverEndpoint != mcpEndpoint) {
+            return fail(QStringLiteral("Combined Native/MCP bootstrap state was incorrect"));
+        }
+
+        std::optional<QJsonObject> combinedStatusResponse;
+        const auto combinedNativeSettled = waitUntil(
+            [&] {
+                if (mcpEditor.state() == QProcess::NotRunning)
+                    return true;
+                const auto response =
+                    nativeExchange(manager, combinedNativeEndpoint,
+                                   nativeRequest(QStringLiteral("combined-status"),
+                                                 QStringLiteral("application.get_status")),
+                                   exchangeError, 500);
+                if (!response || !response->value(QStringLiteral("result")).isObject())
+                    return false;
+                combinedStatusResponse = response;
+                return true;
+            },
+            10000);
+        const auto combinedStatus =
+            combinedStatusResponse
+                ? combinedStatusResponse->value(QStringLiteral("result")).toObject()
+                : QJsonObject{};
+        if (!combinedNativeSettled || !combinedStatusResponse ||
+            combinedStatus.value(QStringLiteral("host_mode")) != QStringLiteral("headless") ||
+            combinedStatus.value(QStringLiteral("documents")).toArray().size() != 1 ||
+            !combinedStatus.value(QStringLiteral("windows")).toArray().isEmpty()) {
+            return fail(
+                QStringLiteral("Native route was unavailable beside MCP: %1; %2")
+                    .arg(exchangeError, processDiagnostics(mcpEditor, appDataRoot, mcpPort)));
+        }
+
+        DsConnector::UpstreamMcpClient mcpClient(QStringLiteral("headless-process-integration"),
+                                                 QStringLiteral("1"));
+        QString endpointError;
+        if (!mcpClient.setEndpoint(mcpEndpoint, &endpointError)) {
+            return fail(
+                QStringLiteral("Could not configure the direct MCP client: %1").arg(endpointError));
+        }
+        const auto mcpStatusResponse =
+            mcpExchange(mcpClient, QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                        QJsonObject{
+                            {QStringLiteral("name"),      QStringLiteral("application.get_status")},
+                            {QStringLiteral("arguments"), QJsonObject{}                           },
+        },
+                        exchangeError, 10000);
+        const auto mcpStatus =
+            mcpStatusResponse
+                ? mcpStatusResponse->value(QStringLiteral("structuredContent")).toObject()
+                : QJsonObject{};
+        if (!mcpStatusResponse || mcpStatusResponse->value(QStringLiteral("isError")).toBool() ||
+            mcpStatus != combinedStatus) {
+            return fail(
+                QStringLiteral("Native and MCP application status were not equivalent: %1")
+                    .arg(mcpStatusResponse ? compactJson(*mcpStatusResponse) : exchangeError));
+        }
+        QSet<QString> toolNames;
+        QString cursor;
+        for (int pageIndex = 0; pageIndex < 16; ++pageIndex) {
+            QJsonObject params;
+            if (!cursor.isEmpty())
+                params.insert(QStringLiteral("cursor"), cursor);
+            const auto page =
+                mcpExchange(mcpClient, QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
+                            std::move(params), exchangeError, 10000);
+            if (!page) {
+                return fail(
+                    QStringLiteral("Headless MCP tools/list failed: %1").arg(exchangeError));
+            }
+            const auto tools = page->value(QStringLiteral("tools")).toArray();
+            for (const auto &toolValue : tools) {
+                const auto name = toolValue.toObject().value(QStringLiteral("name")).toString();
+                if (name.isEmpty() || toolNames.contains(name)) {
+                    return fail(QStringLiteral("Headless MCP tools/list returned an invalid or "
+                                               "duplicate tool name"));
+                }
+                toolNames.insert(name);
+            }
+            cursor = page->value(QStringLiteral("nextCursor")).toString();
+            if (cursor.isEmpty())
+                break;
+            if (pageIndex == 15)
+                return fail(QStringLiteral("Headless MCP tools/list pagination did not terminate"));
+        }
+        QSet<QString> expectedToolNames;
+        for (const auto &contract : AutomationWire::publicToolContracts()) {
+            if (contract.hostAvailability == QStringLiteral("both"))
+                expectedToolNames.insert(contract.operationId);
+        }
+        if (toolNames != expectedToolNames)
+            return fail(QStringLiteral("Headless MCP catalog differs from eligible contracts"));
+
+        const auto combinedDocument =
+            combinedStatus.value(QStringLiteral("documents")).toArray().first().toObject();
+        const auto combinedDocumentId =
+            combinedDocument.value(QStringLiteral("document_id")).toString();
+        const auto combinedRevision =
+            combinedDocument.value(QStringLiteral("revision")).toInteger(-1);
+        const auto startupLoadedDocument =
+            nativeExchange(manager, combinedNativeEndpoint,
+                           nativeRequest(QStringLiteral("startup-loaded-document"),
+                                         QStringLiteral("documents.get"),
+                                         QJsonObject{
+                                             {QStringLiteral("document_id"), combinedDocumentId}
+        }),
+                           exchangeError, 10000);
+        const auto startupLoadedSnapshot =
+            startupLoadedDocument ? startupLoadedDocument->value(QStringLiteral("result"))
+                                        .toObject()
+                                        .value(QStringLiteral("snapshot"))
+                                        .toObject()
+                                  : QJsonObject{};
+        if (!startupLoadedDocument || startupLoadedDocument->contains(QStringLiteral("error")) ||
+            QFileInfo(startupLoadedSnapshot.value(QStringLiteral("path")).toString())
+                    .canonicalFilePath() !=
+                QFileInfo(forwardedStartupProjectPath).canonicalFilePath()) {
+            return fail(
+                QStringLiteral("Headless readiness preceded a forwarded startup project: %1")
+                    .arg(startupLoadedDocument ? compactJson(*startupLoadedDocument)
+                                               : exchangeError));
+        }
+        const auto taskTrackInsertion = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("task-track"), QStringLiteral("tracks.insert"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       combinedDocumentId},
+                              {QStringLiteral("expected_revision"), combinedRevision  },
+                              {QStringLiteral("index"),             0                 },
+                              {QStringLiteral("tracks"),
+                               QJsonArray{QJsonObject{
+                                   {QStringLiteral("client_ref"), QStringLiteral("task-track")},
+                                   {QStringLiteral("name"), QStringLiteral("Task Track")},
+                                   {QStringLiteral("color_index"), 0},
+                               }}                                                     },
+        }),
+            exchangeError);
+        const auto taskTrackResult =
+            taskTrackInsertion ? taskTrackInsertion->value(QStringLiteral("result")).toObject()
+                               : QJsonObject{};
+        const auto taskTrackRevision = taskTrackResult.value(QStringLiteral("current"))
+                                           .toObject()
+                                           .value(QStringLiteral("revision"))
+                                           .toInteger(-1);
+        qint64 taskTrackId = -1;
+        for (const auto &createdValue :
+             taskTrackResult.value(QStringLiteral("created_objects")).toArray()) {
+            const auto created = createdValue.toObject();
+            const auto object = created.value(QStringLiteral("object")).toObject();
+            if (created.value(QStringLiteral("client_ref")) == QStringLiteral("task-track") &&
+                object.value(QStringLiteral("kind")) == QStringLiteral("track")) {
+                taskTrackId = object.value(QStringLiteral("id")).toInteger(-1);
+            }
+        }
+        if (!taskTrackInsertion || taskTrackInsertion->contains(QStringLiteral("error")) ||
+            taskTrackId < 0 || taskTrackRevision != combinedRevision + 1) {
+            return fail(
+                QStringLiteral("Could not create the Headless async-task track: %1")
+                    .arg(taskTrackInsertion ? compactJson(*taskTrackInsertion) : exchangeError));
+        }
+
+        const auto audioImport = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("audio-import"), QStringLiteral("audio_clips.import"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       combinedDocumentId              },
+                              {QStringLiteral("expected_revision"), taskTrackRevision               },
+                              {QStringLiteral("track_id"),          taskTrackId                     },
+                              {QStringLiteral("start"),             0                               },
+                              {QStringLiteral("path"),              audioPath                       },
+                              {QStringLiteral("idempotency_key"),   QStringLiteral("headless-audio")},
+        }),
+            exchangeError, 10000);
+        const auto audioTaskId = audioImport ? audioImport->value(QStringLiteral("result"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("task_id"))
+                                                   .toString()
+                                             : QString{};
+        if (audioTaskId.isEmpty()) {
+            return fail(QStringLiteral("Native audio import did not create a task: %1")
+                            .arg(audioImport ? compactJson(*audioImport) : exchangeError));
+        }
+
+        QJsonObject audioTask;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            const auto taskResponse =
+                mcpExchange(mcpClient, QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                            QJsonObject{
+                                {QStringLiteral("name"),      QStringLiteral("tasks.get")},
+                                {QStringLiteral("arguments"),
+                                 QJsonObject{
+                                     {QStringLiteral("scope"), QStringLiteral("document")},
+                                     {QStringLiteral("document_id"), combinedDocumentId},
+                                     {QStringLiteral("task_id"), audioTaskId},
+                                 }                                                       },
+            },
+                            exchangeError, 10000);
+            if (!taskResponse || taskResponse->value(QStringLiteral("isError")).toBool()) {
+                return fail(QStringLiteral("MCP tasks.get could not read the Native task: %1")
+                                .arg(taskResponse ? compactJson(*taskResponse) : exchangeError));
+            }
+            audioTask = taskResponse->value(QStringLiteral("structuredContent")).toObject();
+            const auto state = audioTask.value(QStringLiteral("state")).toString();
+            if (state == QStringLiteral("succeeded") || state == QStringLiteral("failed") ||
+                state == QStringLiteral("canceled")) {
+                break;
+            }
+            QThread::msleep(50);
+        }
+        if (audioTask.value(QStringLiteral("state")) != QStringLiteral("succeeded")) {
+            return fail(QStringLiteral("Headless audio import task did not succeed: %1")
+                            .arg(compactJson(audioTask)));
+        }
+
+        const auto audioMutation = audioTask.value(QStringLiteral("result")).toObject();
+        const auto savedRevision = audioMutation.value(QStringLiteral("current"))
+                                       .toObject()
+                                       .value(QStringLiteral("revision"))
+                                       .toInteger(-1);
+        const auto roundTripPath =
+            isolatedRoot.filePath(QStringLiteral("headless-round-trip.dspx"));
+        const auto savedAs = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("save-round-trip"), QStringLiteral("documents.save_as"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       combinedDocumentId         },
+                              {QStringLiteral("expected_revision"), savedRevision              },
+                              {QStringLiteral("path"),              roundTripPath              },
+                              {QStringLiteral("overwrite_policy"),  QStringLiteral("overwrite")},
+        }),
+            exchangeError, 10000);
+        const auto saveResult =
+            savedAs ? savedAs->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        if (savedRevision < 0 || !savedAs || savedAs->contains(QStringLiteral("error")) ||
+            saveResult.value(QStringLiteral("current"))
+                    .toObject()
+                    .value(QStringLiteral("document_id")) != combinedDocumentId ||
+            saveResult.value(QStringLiteral("current"))
+                    .toObject()
+                    .value(QStringLiteral("revision"))
+                    .toInteger(-1) != savedRevision ||
+            !QFileInfo::exists(roundTripPath) || QFileInfo(roundTripPath).size() <= 0) {
+            return fail(QStringLiteral("Headless documents.save_as did not publish a DSPX copy: %1")
+                            .arg(savedAs ? compactJson(*savedAs) : exchangeError));
+        }
+
+        const auto opened = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("open-round-trip"), QStringLiteral("documents.open"),
+                          QJsonObject{
+                              {QStringLiteral("current_document_id"), combinedDocumentId      },
+                              {QStringLiteral("expected_revision"),   savedRevision           },
+                              {QStringLiteral("path"),                roundTripPath           },
+                              {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+        }),
+            exchangeError, 10000);
+        const auto openTaskId = opened ? opened->value(QStringLiteral("result"))
+                                             .toObject()
+                                             .value(QStringLiteral("task_id"))
+                                             .toString()
+                                       : QString{};
+        if (openTaskId.isEmpty()) {
+            return fail(QStringLiteral("Headless documents.open did not create a task: %1")
+                            .arg(opened ? compactJson(*opened) : exchangeError));
+        }
+
+        QJsonObject openTask;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            const auto currentStatus =
+                nativeExchange(manager, combinedNativeEndpoint,
+                               nativeRequest(QStringLiteral("open-status-%1").arg(attempt),
+                                             QStringLiteral("application.get_status")),
+                               exchangeError, 5000);
+            const auto currentDocuments = currentStatus
+                                              ? currentStatus->value(QStringLiteral("result"))
+                                                    .toObject()
+                                                    .value(QStringLiteral("documents"))
+                                                    .toArray()
+                                              : QJsonArray{};
+            if (currentDocuments.size() != 1) {
+                QThread::msleep(50);
+                continue;
+            }
+            const auto currentDocumentId =
+                currentDocuments.first().toObject().value(QStringLiteral("document_id")).toString();
+            const auto taskResponse = nativeExchange(
+                manager, combinedNativeEndpoint,
+                nativeRequest(QStringLiteral("open-task-%1").arg(attempt),
+                              QStringLiteral("tasks.get"),
+                              QJsonObject{
+                                  {QStringLiteral("scope"),       QStringLiteral("document")},
+                                  {QStringLiteral("document_id"), currentDocumentId         },
+                                  {QStringLiteral("task_id"),     openTaskId                },
+            }),
+                exchangeError, 5000);
+            if (taskResponse && !taskResponse->contains(QStringLiteral("error"))) {
+                openTask = taskResponse->value(QStringLiteral("result")).toObject();
+                const auto state = openTask.value(QStringLiteral("state")).toString();
+                if (state == QStringLiteral("succeeded") || state == QStringLiteral("failed") ||
+                    state == QStringLiteral("canceled")) {
+                    break;
+                }
+            }
+            QThread::msleep(50);
+        }
+        const auto openMutation = openTask.value(QStringLiteral("result")).toObject();
+        const auto openedDocument = openMutation.value(QStringLiteral("current")).toObject();
+        const auto openedDocumentId =
+            openedDocument.value(QStringLiteral("document_id")).toString();
+        const auto reopenedDocument = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("reopened-document"), QStringLiteral("documents.get"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"), openedDocumentId}
+        }),
+            exchangeError, 10000);
+        const auto reopenedSnapshot = reopenedDocument
+                                          ? reopenedDocument->value(QStringLiteral("result"))
+                                                .toObject()
+                                                .value(QStringLiteral("snapshot"))
+                                                .toObject()
+                                          : QJsonObject{};
+        const auto reopenedStatistics =
+            reopenedSnapshot.value(QStringLiteral("statistics")).toObject();
+        if (openTask.value(QStringLiteral("state")) != QStringLiteral("succeeded") ||
+            openedDocumentId.isEmpty() || openedDocumentId == combinedDocumentId ||
+            openedDocument.value(QStringLiteral("revision")).toInteger(-1) != 0 ||
+            !reopenedDocument || reopenedDocument->contains(QStringLiteral("error")) ||
+            QFileInfo(reopenedSnapshot.value(QStringLiteral("path")).toString())
+                    .canonicalFilePath() != QFileInfo(roundTripPath).canonicalFilePath() ||
+            !reopenedSnapshot.value(QStringLiteral("saved")).toBool() ||
+            reopenedStatistics.value(QStringLiteral("track_count")).toInteger() < 1 ||
+            reopenedStatistics.value(QStringLiteral("clip_count")).toInteger() < 1) {
+            return fail(QStringLiteral("Headless DSPX round trip did not reopen the saved project: "
+                                       "task=%1; document=%2")
+                            .arg(compactJson(openTask), reopenedDocument
+                                                            ? compactJson(*reopenedDocument)
+                                                            : exchangeError));
+        }
+
+        return fixture.exit(mcpEditor, combinedNativeEndpoint, true);
+    }
+
+    bool runConsoleTermination(const QString &editorPath, int signalValue,
+                               const QString &signalName) {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-console-termination"));
+        if (!fixture.prepare())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+        const auto &environment = fixture.environment;
+        const auto &serviceName = fixture.serviceName;
+        const auto controlPort = fixture.controlPort;
+        const auto &nativeEndpoint = fixture.nativeEndpoint;
+        const auto &audioPath = fixture.audioPath;
+        auto &manager = fixture.manager;
+        auto &exchangeError = fixture.error;
+        auto &signalEditor = isolatedRoot.process(QStringLiteral("signal-editor"));
+
+        const struct {
+            int value;
+            QString name;
+        } terminationSignal{signalValue, signalName};
+#ifdef Q_OS_WIN
+        signalEditor.setCreateProcessArgumentsModifier(
+            [](QProcess::CreateProcessArguments *arguments) {
+                arguments->flags |= CREATE_NEW_PROCESS_GROUP | CREATE_NEW_CONSOLE;
+                arguments->startupInfo->dwFlags |= STARTF_USESHOWWINDOW;
+                arguments->startupInfo->wShowWindow = SW_HIDE;
+            });
+#endif
+        signalEditor.setProcessEnvironment(environment);
+        signalEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        signalEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        QTcpServer signalPortProbe;
+        if (!signalPortProbe.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0)) {
+            return fail(QStringLiteral("Could not allocate the %1 control port: %2")
+                            .arg(terminationSignal.name, signalPortProbe.errorString()));
+        }
+        const auto signalPort = signalPortProbe.serverPort();
+        signalPortProbe.close();
+        const QUrl signalEndpoint(
+            QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(signalPort));
+
+        signalEditor.start(editorPath,
+                           {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                            QStringLiteral("--control-level"), QStringLiteral("l3"),
+                            QStringLiteral("--control-port"), QString::number(signalPort)});
+        if (!signalEditor.waitForStarted(10000)) {
+            return fail(QStringLiteral("%1 headless editor failed to start: %2")
+                            .arg(terminationSignal.name, signalEditor.errorString()));
+        }
+
+        QString signalExchangeError;
+        std::optional<QJsonObject> signalStatusResponse;
+        const auto signalReady = waitUntil(
+            [&] {
+                if (signalEditor.state() == QProcess::NotRunning)
+                    return true;
+                const auto response =
+                    nativeExchange(manager, signalEndpoint,
+                                   nativeRequest(QStringLiteral("signal-status"),
+                                                 QStringLiteral("application.get_status")),
+                                   signalExchangeError, 500);
+                if (!response || !response->value(QStringLiteral("result")).isObject())
+                    return false;
+                signalStatusResponse = response;
+                return true;
+            },
+            45000);
+        if (!signalReady || !signalStatusResponse) {
+            return fail(QStringLiteral("%1 headless endpoint did not become ready: %2; %3")
+                            .arg(terminationSignal.name, signalExchangeError,
+                                 processDiagnostics(signalEditor, appDataRoot, signalPort)));
+        }
+        const auto signalDocuments = signalStatusResponse->value(QStringLiteral("result"))
+                                         .toObject()
+                                         .value(QStringLiteral("documents"))
+                                         .toArray();
+        if (signalDocuments.size() != 1) {
+            return fail(QStringLiteral("%1 status did not expose one document")
+                            .arg(terminationSignal.name));
+        }
+        const auto signalDocument = signalDocuments.first().toObject();
+        const auto signalDocumentId =
+            signalDocument.value(QStringLiteral("document_id")).toString();
+        const auto signalRevision = signalDocument.value(QStringLiteral("revision")).toInteger(-1);
+        const auto signalDirtyInsertion = nativeExchange(
+            manager, signalEndpoint,
+            nativeRequest(
+                QStringLiteral("signal-dirty-insert"), QStringLiteral("tracks.insert"),
+                QJsonObject{
+                    {QStringLiteral("document_id"),       signalDocumentId},
+                    {QStringLiteral("expected_revision"), signalRevision  },
+                    {QStringLiteral("index"),             0               },
+                    {QStringLiteral("tracks"),
+                     QJsonArray{QJsonObject{
+                         {QStringLiteral("client_ref"), QStringLiteral("signal-dirty-track")},
+                         {QStringLiteral("name"), QStringLiteral("Signal Track")},
+                         {QStringLiteral("color_index"), 0},
+                     }}                                                   },
+        }),
+            signalExchangeError);
+        if (signalDocumentId.isEmpty() || signalRevision < 0 || !signalDirtyInsertion ||
+            signalDirtyInsertion->contains(QStringLiteral("error")) ||
+            !signalDirtyInsertion->value(QStringLiteral("result"))
+                 .toObject()
+                 .value(QStringLiteral("changed"))
+                 .toBool()) {
+            return fail(QStringLiteral("Could not make the %1 document dirty: %2")
+                            .arg(terminationSignal.name, signalDirtyInsertion
+                                                             ? compactJson(*signalDirtyInsertion)
+                                                             : signalExchangeError));
+        }
+
+#ifdef Q_OS_WIN
+        QString sendError;
+        if (!sendConsoleControlEvent(signalEditor.processId(), terminationSignal.value,
+                                     sendError)) {
+            return fail(
+                QStringLiteral("Could not send %1: %2").arg(terminationSignal.name, sendError));
+        }
+#else
+        if (::kill(static_cast<pid_t>(signalEditor.processId()), terminationSignal.value) == -1) {
+            return fail(QStringLiteral("Could not send %1: errno %2")
+                            .arg(terminationSignal.name)
+                            .arg(errno));
+        }
+#endif
+        if (!signalEditor.waitForFinished(15000) ||
+            signalEditor.exitStatus() != QProcess::NormalExit || signalEditor.exitCode() != 0) {
+            return fail(QStringLiteral("%1 did not cause a clean headless exit: %2")
+                            .arg(terminationSignal.name,
+                                 processDiagnostics(signalEditor, appDataRoot, signalPort)));
+        }
+        const auto signalOutput = QString::fromUtf8(TestSupport::readProcessStdout(signalEditor)) +
+                                  QString::fromUtf8(TestSupport::readProcessStderr(signalEditor));
+        if (!signalOutput.contains(terminationSignal.name)) {
+            return fail(QStringLiteral("%1 graceful-exit log was not observed: %2")
+                            .arg(terminationSignal.name, signalOutput));
+        }
+        if (!waitUntil([&] { return !tcpListenerAvailable(signalPort); }, 5000) ||
+            !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
+            return fail(QStringLiteral("%1 exit left a listener or Primary service")
+                            .arg(terminationSignal.name));
+        }
+        return true;
+    }
+
+    bool runOccupiedPort(const QString &editorPath) {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-occupied-port"));
+        if (!fixture.prepare())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+        const auto &environment = fixture.environment;
+        const auto &serviceName = fixture.serviceName;
+        const auto controlPort = fixture.controlPort;
+        const auto &nativeEndpoint = fixture.nativeEndpoint;
+        const auto &audioPath = fixture.audioPath;
+        auto &manager = fixture.manager;
+        auto &exchangeError = fixture.error;
+        auto &conflictingEditor = isolatedRoot.process(QStringLiteral("conflicting-editor"));
+        QTcpServer conflictOwner;
+        if (!conflictOwner.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0)) {
+            return fail(QStringLiteral("Could not reserve the conflicting control port: %1")
+                            .arg(conflictOwner.errorString()));
+        }
+        const auto conflictingPort = conflictOwner.serverPort();
+        conflictingEditor.setProcessEnvironment(environment);
+        conflictingEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        conflictingEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        conflictingEditor.start(
+            editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                         QStringLiteral("--control-level"), QStringLiteral("l3"),
+                         QStringLiteral("--control-port"), QString::number(conflictingPort)});
+        if (!conflictingEditor.waitForStarted(10000) || !conflictingEditor.waitForFinished(20000) ||
+            conflictingEditor.exitStatus() != QProcess::NormalExit ||
+            conflictingEditor.exitCode() == 0 || !conflictOwner.isListening()) {
+            return fail(
+                QStringLiteral("Port-conflicted headless editor did not fail cleanly: %1")
+                    .arg(processDiagnostics(conflictingEditor, appDataRoot, conflictingPort)));
+        }
+        conflictOwner.close();
+        if (!waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000) ||
+            conflictingEditor.state() != QProcess::NotRunning) {
+            return fail(
+                QStringLiteral("Port-conflicted headless editor left process or Primary state"));
+        }
+        QTcpServer releasedPortProbe;
+        if (!releasedPortProbe.listen(QHostAddress(QStringLiteral("127.0.0.1")), conflictingPort)) {
+            return fail(
+                QStringLiteral("Conflicted control port remained occupied after cleanup: %1")
+                    .arg(releasedPortProbe.errorString()));
+        }
+
+        return true;
+    }
+
+    bool runRestart(const QString &editorPath) {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-restart"));
+        if (!fixture.prepare())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+        const auto &environment = fixture.environment;
+        const auto &serviceName = fixture.serviceName;
+        const auto controlPort = fixture.controlPort;
+        const auto &nativeEndpoint = fixture.nativeEndpoint;
+        const auto &audioPath = fixture.audioPath;
+        auto &manager = fixture.manager;
+        auto &exchangeError = fixture.error;
+        const auto startupProjectPath = isolatedRoot.filePath(QStringLiteral("restart.dspx"));
+        if (!fixture.seedProject(startupProjectPath))
+            return false;
+        auto &mcpEditor = isolatedRoot.process(QStringLiteral("restart-source"));
+        // The detached replacement must not inherit pipes owned by the retiring QProcess.
+        mcpEditor.setStandardOutputFile(
+            isolatedRoot.filePath(QStringLiteral("logs/restart-source.stdout.log")),
+            QIODevice::Append);
+        mcpEditor.setStandardErrorFile(
+            isolatedRoot.filePath(QStringLiteral("logs/restart-source.stderr.log")),
+            QIODevice::Append);
+        const auto mcpPort = controlPort;
+        const auto combinedNativeEndpoint = nativeEndpoint;
+        const auto restartWorkingDirectory =
+            isolatedRoot.filePath(QStringLiteral("restart-working-directory"));
+        if (!QDir().mkpath(restartWorkingDirectory))
+            return fail(QStringLiteral("Could not create restart working directory"));
+        const QStringList restartArguments{QStringLiteral("--headless"),
+                                           QStringLiteral("--mcp"),
+                                           QStringLiteral("--control-level"),
+                                           QStringLiteral("l3"),
+                                           QStringLiteral("--control-port"),
+                                           QString::number(mcpPort),
+                                           startupProjectPath};
+        if (!fixture.start(mcpEditor, restartArguments, restartWorkingDirectory))
+            return false;
+        const auto restartSourceProcessId = mcpEditor.processId();
+        qint64 restartedProcessId = 0;
+        const auto cleanup = qScopeGuard([&] {
+            stopProcess(mcpEditor);
+            if (restartedProcessId == 0)
+                restartedProcessId = findOwnedProcess(editorPath, restartWorkingDirectory,
+                                                      restartArguments, restartSourceProcessId);
+            if (restartedProcessId != 0)
+                terminateOwnedProcess(restartedProcessId, editorPath, restartWorkingDirectory,
+                                      restartArguments);
+        });
+        DsConnector::BootstrapWatcher mcpWatcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                                 QStringLiteral("1"), serviceName);
+        mcpWatcher.start();
+        const auto stopWatcher = qScopeGuard([&] { mcpWatcher.stop(); });
+        if (!fixture.waitForStatus(mcpEditor, combinedNativeEndpoint) ||
+            !waitUntil(
+                [&] {
+                    return mcpWatcher.observation().snapshot &&
+                           mcpWatcher.observation().snapshot->result.state ==
+                               SingleInstanceAutomationState::ServerReady;
+                },
+                10000))
+            return fail(QStringLiteral("Restart source did not become ready"));
+        const auto mcpBootstrap = mcpWatcher.observation().snapshot->result;
+        const auto originalMcpInstanceId = mcpBootstrap.editorInstanceId;
+        const auto originalProcessSnapshot = processSnapshot(restartSourceProcessId);
+        if (!originalProcessSnapshot ||
+            !processMatches(*originalProcessSnapshot, editorPath, restartWorkingDirectory,
+                            restartArguments)) {
+            return fail(QStringLiteral("Could not verify the original restart process parameters"));
+        }
+        const auto restartResponse = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("restart"), QStringLiteral("application.request_restart"),
+                          QJsonObject{
+                              {QStringLiteral("discard_changes"), true}
+        }),
+            exchangeError, 10000);
+        const auto restartResult = restartResponse
+                                       ? restartResponse->value(QStringLiteral("result")).toObject()
+                                       : QJsonObject{};
+        if (!restartResponse || restartResponse->contains(QStringLiteral("error")) ||
+            !restartResult.value(QStringLiteral("accepted")).toBool() ||
+            restartResult.value(QStringLiteral("action")) != QStringLiteral("restart") ||
+            !restartResult.value(QStringLiteral("discard_changes")).toBool() ||
+            !mcpEditor.waitForFinished(15000) || mcpEditor.exitStatus() != QProcess::NormalExit ||
+            mcpEditor.exitCode() != 0) {
+            return fail(
+                QStringLiteral("Headless restart request did not retire the old process: %1; %2")
+                    .arg(restartResponse ? compactJson(*restartResponse) : exchangeError,
+                         processDiagnostics(mcpEditor, appDataRoot, mcpPort)));
+        }
+
+        const auto restartedReady = waitUntil(
+            [&] {
+                const auto &observation = mcpWatcher.observation();
+                if (!observation.snapshot ||
+                    observation.snapshot->result.editorInstanceId == originalMcpInstanceId ||
+                    observation.snapshot->result.state !=
+                        SingleInstanceAutomationState::ServerReady) {
+                    return false;
+                }
+                restartedProcessId = observation.snapshot->primaryProcessId;
+                return restartedProcessId > 0 && restartedProcessId != restartSourceProcessId;
+            },
+            45000);
+        if (!restartedReady) {
+            restartedProcessId = findOwnedProcess(editorPath, restartWorkingDirectory,
+                                                  restartArguments, restartSourceProcessId);
+            return fail(QStringLiteral("Restarted Headless instance did not become ready: %1")
+                            .arg(mcpWatcher.observation().error));
+        }
+        const auto restartedSnapshot = processSnapshot(restartedProcessId);
+        if (!restartedSnapshot || !originalProcessSnapshot ||
+            !processMatches(*restartedSnapshot, editorPath, restartWorkingDirectory,
+                            restartArguments) ||
+            restartedSnapshot->arguments != originalProcessSnapshot->arguments ||
+            normalizedPath(restartedSnapshot->currentDirectory) !=
+                normalizedPath(originalProcessSnapshot->currentDirectory)) {
+            return fail(
+                QStringLiteral("Restarted process did not preserve executable, args, or cwd"));
+        }
+
+        const auto restartedStatusResponse =
+            nativeExchange(manager, combinedNativeEndpoint,
+                           nativeRequest(QStringLiteral("restarted-status"),
+                                         QStringLiteral("application.get_status")),
+                           exchangeError, 10000);
+        const auto restartedStatus =
+            restartedStatusResponse
+                ? restartedStatusResponse->value(QStringLiteral("result")).toObject()
+                : QJsonObject{};
+        const auto restartedInstanceId =
+            restartedStatus.value(QStringLiteral("editor_instance_id")).toString();
+        if (!restartedStatusResponse ||
+            restartedStatusResponse->contains(QStringLiteral("error")) ||
+            restartedInstanceId.isEmpty() || restartedInstanceId == originalMcpInstanceId ||
+            restartedInstanceId != mcpWatcher.observation().snapshot->result.editorInstanceId ||
+            restartedStatus.value(QStringLiteral("host_mode")) != QStringLiteral("headless")) {
+            return fail(
+                QStringLiteral("Restarted Headless status did not expose a new instance: %1")
+                    .arg(restartedStatusResponse ? compactJson(*restartedStatusResponse)
+                                                 : exchangeError));
+        }
+
+        const auto restartedExit =
+            nativeExchange(manager, combinedNativeEndpoint,
+                           nativeRequest(QStringLiteral("restarted-exit"),
+                                         QStringLiteral("application.request_exit")),
+                           exchangeError, 10000);
+        const auto restartedExitResult =
+            restartedExit ? restartedExit->value(QStringLiteral("result")).toObject()
+                          : QJsonObject{};
+        if (!restartedExit || restartedExit->contains(QStringLiteral("error")) ||
+            !restartedExitResult.value(QStringLiteral("accepted")).toBool() ||
+            !waitUntil([&] { return !processIsRunning(restartedProcessId); }, 15000)) {
+            return fail(QStringLiteral("Restarted Headless process did not exit cleanly: %1")
+                            .arg(restartedExit ? compactJson(*restartedExit) : exchangeError));
+        }
+        restartedProcessId = 0;
+        mcpWatcher.stop();
+        if (!waitUntil([&] { return !tcpListenerAvailable(mcpPort); }, 5000) ||
+            !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
+            return fail(
+                QStringLiteral("Restarted Native/MCP host left a listener or Primary service"));
+        }
+        return true;
+    }
+
+    bool runCrossHostForwarding(const QString &editorPath, const QString &platformPluginDirectory) {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-cross-host"));
+        if (!fixture.prepare())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+        const auto &environment = fixture.environment;
+        const auto &serviceName = fixture.serviceName;
+        const auto controlPort = fixture.controlPort;
+        const auto &nativeEndpoint = fixture.nativeEndpoint;
+        const auto &audioPath = fixture.audioPath;
+        auto &manager = fixture.manager;
+        auto &exchangeError = fixture.error;
+        auto &competitionHeadless = isolatedRoot.process(QStringLiteral("headless-primary"));
+        auto &guiSecondary = isolatedRoot.process(QStringLiteral("gui-secondary"));
+        QTcpServer competitionPortProbe;
+        if (!competitionPortProbe.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0)) {
+            return fail(QStringLiteral("Could not allocate the Primary competition port: %1")
+                            .arg(competitionPortProbe.errorString()));
+        }
+        const auto competitionPort = competitionPortProbe.serverPort();
+        competitionPortProbe.close();
+        const QUrl competitionNativeEndpoint(
+            QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(competitionPort));
+        competitionHeadless.setProcessEnvironment(environment);
+        competitionHeadless.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        competitionHeadless.setProcessChannelMode(QProcess::SeparateChannels);
+        competitionHeadless.start(
+            editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                         QStringLiteral("--control-level"), QStringLiteral("l3"),
+                         QStringLiteral("--control-port"), QString::number(competitionPort)});
+        if (!competitionHeadless.waitForStarted(10000)) {
+            return fail(QStringLiteral("Headless Primary competition host failed to start: %1")
+                            .arg(competitionHeadless.errorString()));
+        }
+        DsConnector::BootstrapWatcher competitionWatcher(
+            QUuid::createUuid().toString(QUuid::WithoutBraces), QStringLiteral("1"), serviceName);
+        competitionWatcher.start();
+        const auto competitionWatcherCleanup =
+            qScopeGuard([&competitionWatcher] { competitionWatcher.stop(); });
+        std::optional<QJsonObject> competitionStatusResponse;
+        const auto competitionReady = waitUntil(
+            [&] {
+                if (competitionHeadless.state() == QProcess::NotRunning)
+                    return true;
+                const auto response =
+                    nativeExchange(manager, competitionNativeEndpoint,
+                                   nativeRequest(QStringLiteral("competition-status"),
+                                                 QStringLiteral("application.get_status")),
+                                   exchangeError, 500);
+                if (!response || !response->value(QStringLiteral("result")).isObject())
+                    return false;
+                competitionStatusResponse = response;
+                return competitionWatcher.observation().snapshot.has_value();
+            },
+            45000);
+        if (!competitionReady || !competitionStatusResponse ||
+            !competitionWatcher.observation().snapshot) {
+            return fail(
+                QStringLiteral("Headless Primary competition host did not become ready: %1")
+                    .arg(processDiagnostics(competitionHeadless, appDataRoot, competitionPort)));
+        }
+        const auto competitionInstanceId =
+            competitionStatusResponse->value(QStringLiteral("result"))
+                .toObject()
+                .value(QStringLiteral("editor_instance_id"))
+                .toString();
+        const auto competitionProcessId = competitionHeadless.processId();
+        if (competitionWatcher.observation().snapshot->primaryProcessId != competitionProcessId ||
+            competitionWatcher.observation().snapshot->result.editorInstanceId !=
+                competitionInstanceId) {
+            return fail(
+                QStringLiteral("Headless competition process was not the published Primary"));
+        }
+
+        if (!QDir(platformPluginDirectory).exists()) {
+            return fail(QStringLiteral("Qt offscreen platform-plugin directory does not exist"));
+        }
+        auto guiEnvironment = environment;
+        guiEnvironment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+        guiEnvironment.insert(QStringLiteral("QT_QPA_PLATFORM_PLUGIN_PATH"),
+                              platformPluginDirectory);
+        guiEnvironment.insert(QStringLiteral("QT_OPENGL"), QStringLiteral("software"));
+        guiSecondary.setProcessEnvironment(guiEnvironment);
+        guiSecondary.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        guiSecondary.setProcessChannelMode(QProcess::SeparateChannels);
+        guiSecondary.start(editorPath, {});
+        if (!guiSecondary.waitForStarted(10000) || !guiSecondary.waitForFinished(20000) ||
+            guiSecondary.exitStatus() != QProcess::NormalExit || guiSecondary.exitCode() != 0 ||
+            competitionHeadless.state() != QProcess::Running ||
+            !competitionWatcher.observation().snapshot ||
+            competitionWatcher.observation().snapshot->primaryProcessId != competitionProcessId ||
+            competitionWatcher.observation().snapshot->result.editorInstanceId !=
+                competitionInstanceId) {
+            return fail(QStringLiteral("GUI secondary did not forward to the Headless Primary: %1")
+                            .arg(processDiagnostics(guiSecondary, appDataRoot, competitionPort)));
+        }
+
+        const auto competitionExit =
+            nativeExchange(manager, competitionNativeEndpoint,
+                           nativeRequest(QStringLiteral("competition-exit"),
+                                         QStringLiteral("application.request_exit")),
+                           exchangeError, 10000);
+        if (!competitionExit || competitionExit->contains(QStringLiteral("error")) ||
+            !competitionHeadless.waitForFinished(15000) ||
+            competitionHeadless.exitStatus() != QProcess::NormalExit ||
+            competitionHeadless.exitCode() != 0) {
+            return fail(QStringLiteral("Headless competition Primary did not exit cleanly: %1")
+                            .arg(competitionExit ? compactJson(*competitionExit) : exchangeError));
+        }
+        competitionWatcher.stop();
+        if (!waitUntil([&] { return !tcpListenerAvailable(competitionPort); }, 5000) ||
+            !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
+            return fail(QStringLiteral("Primary competition left listener or QLocal state"));
+        }
+        return true;
+    }
+
+}
+
+void ProcessIntegrationTests::nativeEditingAndFiles() {
+    QVERIFY(runNativeWorkflow(editorPath));
+}
+
+void ProcessIntegrationTests::audioImportAndWaveExport() {
+    HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-audio-export"));
+    QVERIFY(fixture.prepare());
+    QVERIFY(fixture.storage.writeConfig({
+        {QStringLiteral("general"),
+         QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}               },
+        {QStringLiteral("inference"),
+         QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                     {QStringLiteral("autoStartInfer"), false}}                          },
+        {QStringLiteral("automation"),
+         QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{fixture.storage.path()}}}},
+    }));
+    using AudioFile = std::unique_ptr<SNDFILE, decltype(&sf_close)>;
+    const auto openAudio = [](const QString &path, const int mode, SF_INFO &info) {
+#ifdef Q_OS_WIN
+        return AudioFile(
+            sf_wchar_open(reinterpret_cast<const wchar_t *>(path.utf16()), mode, &info), sf_close);
+#else
+        return AudioFile(sf_open(QFile::encodeName(path).constData(), mode, &info), sf_close);
+#endif
+    };
+    SF_INFO inputInfo{};
+    auto input = openAudio(fixture.audioPath, SFM_RDWR, inputInfo);
+    QVERIFY2(input != nullptr, sf_strerror(nullptr));
+    QCOMPARE(sf_seek(input.get(), 0, SEEK_SET), sf_count_t{0});
+    QVector<float> inputSamples(inputInfo.frames);
+    for (qsizetype index = 0; index < inputSamples.size(); ++index)
+        inputSamples[index] =
+            0.25f * std::sin(2.0 * std::numbers::pi * 400.0 * index / inputInfo.samplerate);
+    QCOMPARE(sf_write_float(input.get(), inputSamples.constData(), inputSamples.size()),
+             inputInfo.frames);
+    input.reset();
+    const auto inputDuration = double(inputInfo.frames) / inputInfo.samplerate;
+
+    auto &editor = fixture.storage.process(QStringLiteral("editor"));
+    QVERIFY(fixture.start(editor, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                   QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                   QStringLiteral("--control-port"),
+                                   QString::number(fixture.controlPort)}));
+    QVERIFY(fixture.waitForStatus(editor, fixture.nativeEndpoint));
+    int sequence = 0;
+    const auto call = [&](const QString &operation,
+                          const QJsonObject &arguments) -> std::optional<QJsonObject> {
+        const auto request = nativeRequest(QString::number(++sequence), operation, arguments);
+        TestSupport::recordProcessMessage(editor, "request",
+                                          QJsonDocument(request).toJson(QJsonDocument::Compact));
+        const auto response =
+            nativeExchange(fixture.manager, fixture.nativeEndpoint, request, fixture.error, 10000);
+        if (!response)
+            return std::nullopt;
+        TestSupport::recordProcessMessage(editor, "response",
+                                          QJsonDocument(*response).toJson(QJsonDocument::Compact));
+        if (response->contains(QStringLiteral("error")) ||
+            !response->value(QStringLiteral("result")).isObject()) {
+            fixture.error = compactJson(*response);
+            return std::nullopt;
+        }
+        return response->value(QStringLiteral("result")).toObject();
+    };
+    const auto created = call(QStringLiteral("documents.new"),
+                              {
+                                  {QStringLiteral("template"),       QStringLiteral("empty")  },
+                                  {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+    });
+    QVERIFY2(created, qPrintable(fixture.error));
+    const auto version = created->value(QStringLiteral("current")).toObject();
+    const auto documentId = version.value(QStringLiteral("document_id"));
+    const auto track = call(
+        QStringLiteral("tracks.insert"),
+        {
+            {QStringLiteral("document_id"),       documentId                                  },
+            {QStringLiteral("expected_revision"), version.value(QStringLiteral("revision"))   },
+            {QStringLiteral("index"),             0                                           },
+            {QStringLiteral("tracks"),
+             QJsonArray{QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("audio")},
+                                    {QStringLiteral("name"), QStringLiteral("Audio export")}}}}
+    });
+    QVERIFY2(track, qPrintable(fixture.error));
+    QJsonValue trackId;
+    for (const auto &value : track->value(QStringLiteral("created_objects")).toArray()) {
+        const auto binding = value.toObject();
+        if (binding.value(QStringLiteral("client_ref")) == QStringLiteral("audio"))
+            trackId =
+                binding.value(QStringLiteral("object")).toObject().value(QStringLiteral("id"));
+    }
+    QVERIFY(trackId.isDouble());
+    const auto waitForTask = [&](const QJsonObject &accepted) -> std::optional<QJsonObject> {
+        const auto taskId = accepted.value(QStringLiteral("task_id"));
+        if (!taskId.isString() || taskId.toString().isEmpty()) {
+            fixture.error =
+                QStringLiteral("Operation did not create a task: ") + compactJson(accepted);
+            return std::nullopt;
+        }
+        QElapsedTimer deadline;
+        deadline.start();
+        while (deadline.elapsed() < 30000 && editor.state() != QProcess::NotRunning) {
+            const auto task = call(QStringLiteral("tasks.get"),
+                                   {
+                                       {QStringLiteral("scope"),       QStringLiteral("document")},
+                                       {QStringLiteral("document_id"), documentId                },
+                                       {QStringLiteral("task_id"),     taskId                    }
+            });
+            if (!task)
+                return std::nullopt;
+            const auto state = task->value(QStringLiteral("state")).toString();
+            if (state == QStringLiteral("succeeded"))
+                return task;
+            if (state == QStringLiteral("failed") || state == QStringLiteral("canceled")) {
+                fixture.error = compactJson(*task);
+                return std::nullopt;
+            }
+            QTest::qWait(20);
+        }
+        fixture.error = QStringLiteral("Audio workflow task did not finish");
+        return std::nullopt;
+    };
+    const auto imported = call(
+        QStringLiteral("audio_clips.import"),
+        {
+            {QStringLiteral("document_id"),       documentId                                     },
+            {QStringLiteral("expected_revision"),
+             track->value(QStringLiteral("current")).toObject().value(QStringLiteral("revision"))},
+            {QStringLiteral("track_id"),          trackId                                        },
+            {QStringLiteral("start"),             0                                              },
+            {QStringLiteral("path"),              fixture.audioPath                              }
+    });
+    QVERIFY2(imported, qPrintable(fixture.error));
+    QVERIFY2(waitForTask(*imported), qPrintable(fixture.error));
+    const QJsonObject documentArguments{
+        {QStringLiteral("document_id"), documentId}
+    };
+    const auto beforeExport = call(QStringLiteral("documents.get"), documentArguments);
+    QVERIFY2(beforeExport, qPrintable(fixture.error));
+    const auto outputPath = fixture.storage.filePath(QStringLiteral("mix.wav"));
+    const auto exported =
+        call(QStringLiteral("exports.audio.start"),
+             {
+                 {QStringLiteral("document_id"),      documentId                },
+                 {QStringLiteral("path"),             outputPath                },
+                 {QStringLiteral("overwrite_policy"), QStringLiteral("reject")  },
+                 {QStringLiteral("options"),
+                  QJsonObject{{QStringLiteral("format"), QStringLiteral("wav")},
+                              {QStringLiteral("sample_rate"), 44100},
+                              {QStringLiteral("channel_mode"), QStringLiteral("mono")},
+                              {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
+                              {QStringLiteral("source"), QStringLiteral("all")}}}
+    });
+    QVERIFY2(exported, qPrintable(fixture.error));
+    QVERIFY2(waitForTask(*exported), qPrintable(fixture.error));
+
+    SF_INFO outputInfo{};
+    auto output = openAudio(outputPath, SFM_READ, outputInfo);
+    QVERIFY2(output != nullptr, sf_strerror(nullptr));
+    QCOMPARE(outputInfo.samplerate, 44100);
+    QCOMPARE(outputInfo.channels, 1);
+    const auto outputDuration = double(outputInfo.frames) / outputInfo.samplerate;
+    // Clip endpoints are quantized to project ticks before rendering.
+    QVERIFY2(std::abs(outputDuration - inputDuration) < 0.002,
+             qPrintable(QStringLiteral("Export duration %1s differs from source duration %2s")
+                            .arg(outputDuration, 0, 'f', 6)
+                            .arg(inputDuration, 0, 'f', 6)));
+    std::array<float, 4096> samples{};
+    double energy = 0;
+    sf_count_t total = 0;
+    while (const auto count = sf_read_float(output.get(), samples.data(), samples.size())) {
+        for (sf_count_t index = 0; index < count; ++index) {
+            const auto sample = samples[static_cast<size_t>(index)];
+            QVERIFY(std::isfinite(sample));
+            energy += double(sample) * sample;
+        }
+        total += count;
+    }
+    QCOMPARE(sf_error(output.get()), SF_ERR_NO_ERROR);
+    QCOMPARE(total, outputInfo.frames);
+    QVERIFY2(energy > 0.001 * total, "Audio-only export must preserve audible source content");
+    output.reset();
+    const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
+    QVERIFY2(afterExport, qPrintable(fixture.error));
+    QCOMPARE(afterExport->value(QStringLiteral("document")),
+             beforeExport->value(QStringLiteral("document")));
+    QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
+}
+
+void ProcessIntegrationTests::consoleTermination_data() {
+    QTest::addColumn<int>("signalValue");
+    QTest::addColumn<QString>("signalName");
+#ifdef Q_OS_WIN
+    QTest::newRow("ctrl-break") << int(CTRL_BREAK_EVENT) << QStringLiteral("CTRL_BREAK_EVENT");
+#else
+    QTest::newRow("sigint") << int(SIGINT) << QStringLiteral("SIGINT");
+    QTest::newRow("sigterm") << int(SIGTERM) << QStringLiteral("SIGTERM");
+#endif
+}
+
+void ProcessIntegrationTests::consoleTermination() {
+    QFETCH(int, signalValue);
+    QFETCH(QString, signalName);
+    QVERIFY(runConsoleTermination(editorPath, signalValue, signalName));
+}
+
+void ProcessIntegrationTests::occupiedPort() {
+    QVERIFY(runOccupiedPort(editorPath));
+}
+
+void ProcessIntegrationTests::restart() {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
+    QSKIP("Restart process inspection is available on Windows, Linux, and macOS");
+#endif
+    QVERIFY(runRestart(editorPath));
+}
+
+void ProcessIntegrationTests::isolatedPrimaries() {
+    ProcessFixture first(QStringLiteral("headless-first-primary"));
+    ProcessFixture second(QStringLiteral("headless-second-primary"));
+    QVERIFY(first.isValid());
+    QVERIFY(second.isValid());
+    const QJsonObject configuration{
+        {QStringLiteral("general"),
+         QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}},
+        {QStringLiteral("inference"),
+         QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                     {QStringLiteral("autoStartInfer"), false}}           },
+    };
+    QVERIFY(first.writeConfig(configuration));
+    QVERIFY(second.writeConfig(configuration));
+    QTcpServer firstReservation;
+    QTcpServer secondReservation;
+    QVERIFY(firstReservation.listen(QHostAddress::LocalHost, 0));
+    QVERIFY(secondReservation.listen(QHostAddress::LocalHost, 0));
+    const auto firstPort = firstReservation.serverPort();
+    const auto secondPort = secondReservation.serverPort();
+    firstReservation.close();
+    secondReservation.close();
+    const auto start = [&](ProcessFixture &fixture, const quint16 port) -> QProcess & {
+        auto &process = fixture.process(QStringLiteral("editor"));
+        auto environment = fixture.environment();
+        environment.insert(QStringLiteral("QT_QPA_PLATFORM"),
+                           QStringLiteral("invalid-test-platform"));
+        process.setProcessEnvironment(environment);
+        process.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        process.start(editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                   QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                   QStringLiteral("--control-port"), QString::number(port)});
+        return process;
+    };
+    auto &firstProcess = start(first, firstPort);
+    auto &secondProcess = start(second, secondPort);
+    QVERIFY(firstProcess.waitForStarted(10000));
+    QVERIFY(secondProcess.waitForStarted(10000));
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const auto ready = [&](QProcess &process, const quint16 port) -> QJsonObject {
+        QJsonObject status;
+        QString error;
+        const QUrl endpoint(QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(port));
+        waitUntil(
+            [&] {
+                if (process.state() == QProcess::NotRunning)
+                    return true;
+                const auto response =
+                    nativeExchange(manager, endpoint,
+                                   nativeRequest(QStringLiteral("isolation"),
+                                                 QStringLiteral("application.get_status")),
+                                   error, 500);
+                if (response)
+                    status = response->value(QStringLiteral("result")).toObject();
+                return !status.isEmpty();
+            },
+            45000);
+        return status;
+    };
+    const auto firstStatus = ready(firstProcess, firstPort);
+    const auto secondStatus = ready(secondProcess, secondPort);
+    QVERIFY(!firstStatus.isEmpty());
+    QVERIFY(!secondStatus.isEmpty());
+    QCOMPARE(firstProcess.state(), QProcess::Running);
+    QCOMPARE(secondProcess.state(), QProcess::Running);
+    const auto firstId = firstStatus.value(QStringLiteral("editor_instance_id")).toString();
+    const auto secondId = secondStatus.value(QStringLiteral("editor_instance_id")).toString();
+    QVERIFY(!firstId.isEmpty());
+    QVERIFY(!secondId.isEmpty());
+    QVERIFY(firstId != secondId);
+}
+
+void ProcessIntegrationTests::crossHost() {
+    QVERIFY(!platformPluginDirectory.isEmpty());
+    QVERIFY(runCrossHostForwarding(editorPath, platformPluginDirectory));
+}

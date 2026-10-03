@@ -1,6 +1,5 @@
 #include "PackageDetailsHeader.h"
 
-#include <lite/PackageManager/Models/PackageInfo.h>
 #include "Utils/UiLanguageManager.h"
 #include <lite/GUI/Controls/Button.h>
 

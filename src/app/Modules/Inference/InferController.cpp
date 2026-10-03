@@ -195,12 +195,20 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
 void InferController::restartPieceInference(InferPiece &piece) {
     Q_D(InferController);
-    d->createPipeline(piece);
+    d->createPipeline(piece, true);
 }
 
 void InferController::cancelPieceInference(const int pieceId) {
     Q_D(InferController);
+    // Install worker cleanup before removing states, and stop already queued stage transitions.
     d->cancelPieceRelatedTasks(pieceId);
+    const auto pipelines = Linq::where(
+        d->m_inferPipelines, [pieceId](const InferPipeline *p) { return p->pieceId() == pieceId; });
+    for (const auto pipeline : pipelines) {
+        pipeline->stop();
+        d->m_inferPipelines.removeOne(pipeline);
+        pipeline->deleteLater();
+    }
 }
 
 void InferController::addInferDurationTask(InferDurationTask &task) {
@@ -666,6 +674,19 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
         if (auto *piece = clip->findPieceById(pieceId.value()))
             dirtyPieces.append(piece);
     }
+    const auto notifyPipeline = [this](InferPiece &piece, void (InferPipeline::*notify)(),
+                                       const Automation::InferenceStage firstStage) {
+        const auto pipelines =
+            Linq::where(m_inferPipelines, [&piece](const InferPipeline *pipeline) {
+                return pipeline->pieceId() == piece.id();
+            });
+        if (pipelines.isEmpty()) {
+            createPipeline(piece, false, firstStage);
+            return;
+        }
+        Q_ASSERT(pipelines.size() == 1);
+        (pipelines.first()->*notify)();
+    };
     switch (name) {
         case ParamInfo::Expressiveness:
             for (const auto &piece : dirtyPieces) {
@@ -675,11 +696,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onExpressivenessChanged();
+                notifyPipeline(*piece, &InferPipeline::onExpressivenessChanged,
+                               Automation::InferenceStage::Pitch);
             }
             break;
         case ParamInfo::Pitch:
@@ -690,11 +708,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onPitchChanged();
+                notifyPipeline(*piece, &InferPipeline::onPitchChanged,
+                               Automation::InferenceStage::Variance);
             }
             break;
         case ParamInfo::Energy:
@@ -709,11 +724,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onVarianceChanged();
+                notifyPipeline(*piece, &InferPipeline::onVarianceChanged,
+                               Automation::InferenceStage::Acoustic);
             }
             break;
         case ParamInfo::SpeakerMix:
@@ -1181,7 +1193,13 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     m_getPhoneTasks.add(task);
 }
 
-void InferControllerPrivate::createPipeline(InferPiece &piece) {
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested) {
+    createPipeline(piece, acousticInferenceRequested, Automation::InferenceStage::Duration);
+}
+
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested,
+                                            const Automation::InferenceStage firstStage) {
+    Q_Q(InferController);
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
 
@@ -1189,18 +1207,16 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
-    for (const auto pipeline : duplicatePipelines) {
-        m_inferPipelines.removeOne(pipeline);
-        pipeline->deleteLater();
-    }
+    if (!duplicatePipelines.isEmpty())
+        q->cancelPieceInference(piece.id());
 
-    auto pipeline = new InferPipeline(piece);
+    auto pipeline = new InferPipeline(piece, acousticInferenceRequested);
     m_inferPipelines.append(pipeline);
     connect(pipeline, &InferPipeline::dropped, this,
             [this, pipeline](const QString &reason, int, const QString &) {
                 handlePipelineDropped(pipeline, reason);
             });
-    pipeline->run();
+    pipeline->run(firstStage);
 }
 
 void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, const QString &reason) {

@@ -2,6 +2,7 @@
 
 #include <QInputDevice>
 #include <QWheelEvent>
+#include <QSignalBlocker>
 
 #include <algorithm>
 #include <cmath>
@@ -359,8 +360,16 @@ void WheelInputController::updateAnimationDuration() {
         const auto running = motion.animation.state() == QAbstractAnimation::Running;
         const auto endValue = motion.animation.endValue();
         const auto currentValue = motion.animation.currentValue();
-        motion.animation.stop();
-        motion.animation.setDuration(duration);
+        {
+            // Metadata changes can emit stale values even from a stopped animation.
+            const QSignalBlocker blocker(&motion.animation);
+            motion.animation.stop();
+            motion.animation.setDuration(duration);
+            if (running && duration > 0) {
+                motion.animation.setStartValue(currentValue);
+                motion.animation.setEndValue(endValue);
+            }
+        }
         if (!running)
             return;
         if (duration == 0) {
@@ -368,8 +377,6 @@ void WheelInputController::updateAnimationDuration() {
             motion.logicalValue.reset();
             return;
         }
-        motion.animation.setStartValue(currentValue);
-        motion.animation.setEndValue(endValue);
         motion.animation.start();
     };
 

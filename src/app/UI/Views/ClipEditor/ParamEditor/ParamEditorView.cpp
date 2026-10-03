@@ -262,27 +262,29 @@ void ParamEditorView::onBackgroundChanged(const ParamInfo::Name name) {
 
 void ParamEditorView::onPreviousKeyframe() const {
     auto *mixView = m_graphicsView->speakerMixView();
-    if (!mixView)
+    if (!m_clip || !mixView)
         return;
 
-    const double currentTick = playbackController->position();
+    const double currentTick = playbackController->position() - m_clip->start();
     const double prevTick = mixView->previousKeyframeTick(currentTick);
     if (prevTick >= 0) {
-        m_graphicsView->setViewportCenterAtTick(prevTick);
-        playbackController->setPosition(prevTick);
+        const double projectTick = m_clip->start() + prevTick;
+        m_graphicsView->setViewportCenterAtTick(projectTick);
+        playbackController->setPosition(projectTick);
     }
 }
 
 void ParamEditorView::onNextKeyframe() const {
     auto *mixView = m_graphicsView->speakerMixView();
-    if (!mixView)
+    if (!m_clip || !mixView)
         return;
 
-    const double currentTick = playbackController->position();
+    const double currentTick = playbackController->position() - m_clip->start();
     const double nextTick = mixView->nextKeyframeTick(currentTick);
     if (nextTick >= 0) {
-        m_graphicsView->setViewportCenterAtTick(nextTick);
-        playbackController->setPosition(nextTick);
+        const double projectTick = m_clip->start() + nextTick;
+        m_graphicsView->setViewportCenterAtTick(projectTick);
+        playbackController->setPosition(projectTick);
     }
 }
 

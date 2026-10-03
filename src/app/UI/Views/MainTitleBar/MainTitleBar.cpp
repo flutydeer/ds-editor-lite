@@ -5,8 +5,6 @@
 #include "MainMenuView.h"
 #include "PlaybackView.h"
 #include "TitleBarComboBox.h"
-#include "Controller/AppController.h"
-#include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -38,9 +36,6 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     m_actionButtonsView = new ActionButtonsView(this);
     connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, menuView->actionSave(),
             &QAction::trigger);
-
-    connect(historyManager, &HistoryManager::undoRedoChanged, appController,
-            &AppController::onUndoRedoChanged);
 
     m_titleComboBox = new TitleBarComboBox;
 

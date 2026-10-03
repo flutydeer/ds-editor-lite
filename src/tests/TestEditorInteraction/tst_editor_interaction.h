@@ -1,0 +1,170 @@
+#ifndef EDITORINTERACTIONTESTS_H
+#define EDITORINTERACTIONTESTS_H
+
+#include <QObject>
+#include <memory>
+
+class GuiAppFixture;
+
+class EditorInteractionTests final : public QObject {
+    Q_OBJECT
+
+public:
+    EditorInteractionTests();
+    ~EditorInteractionTests() override;
+
+private slots:
+    void initTestCase();
+    void cleanupTestCase();
+    void noView();
+    void commandCapabilities();
+    void modeAwareCommandRouting();
+    void forwardingAndSnapshots();
+    void activePanels();
+    void interactionRouting();
+    void panelVisibilityRouting();
+    void visibleExecutesImmediately();
+    void scrollRequiredExecutesOnSecondRequest();
+    void redoUsesTwoPhases();
+    void contextSwitchExecutesOnSecondRequest();
+    void directionChangeClearsPending();
+    void historyChangeInvalidatesPending();
+    void fallbacksAndEditGuard();
+    void viewportMargin();
+    void viewportResizeClamping();
+    void emptyContentKeepsViewportZoomUsable_data();
+    void emptyContentKeepsViewportZoomUsable();
+    void pianoViewportZoomAnchor();
+    void focusReveal();
+    void repeatedBoundaryScrollDoesNotNotify();
+    void animatedAndImmediateViewportDestinations();
+    void legacyWheelZoomPreservesTheInputAnchor_data();
+    void legacyWheelZoomPreservesTheInputAnchor();
+    void legacyViewportAnimationCanBeFinishedOrInterrupted_data();
+    void legacyViewportAnimationCanBeFinishedOrInterrupted();
+    void outsideHotZone();
+    void edgeDirections();
+    void speedSaturation();
+    void cornerAndDisabledAxes();
+    void subpixelAccumulation();
+    void fractionalRemainders();
+    void pressDeadZone();
+    void pressAwareHorizontalAxis();
+    void pressAwareDisabledAxes();
+    void pressOutsideHotZone();
+    void pressAwareStep();
+    void dragSessionLifecycle();
+    void pointerClamping();
+    void canonicalNoteOrder();
+    void drawAndResizeGeometry();
+    void lyricVisibility();
+    void orderedSelection();
+    void clickAndDragSelection();
+    void contextMenuSelection();
+    void resizeHitTesting();
+    void touchNoteResizeFramesExposeOnlyTheSideBands();
+    void touchNoteResizeFrameVisibilityRespectsTheEditingContext();
+    void clipSelection();
+    void singingClipRightResize();
+    void pasteExtendsVisibleRange();
+    void trimmedClipRetainsTailRoom();
+    void clipResizeBounds();
+    void minimumLengthAndContentBounds();
+    void clipPreviewLayout();
+    void projectedNotePreview();
+    void audioMovePreservesRealTimeWindow();
+    void audioLeftTrimPreservesMaterialOriginAndRightEdge();
+    void audioRightTrimStopsAtMaterialBoundary();
+    void audioResizeAcrossOppositeEdge_data();
+    void audioResizeAcrossOppositeEdge();
+    void sceneAttachment();
+    void overlayStartupAndZoom();
+    void rhiScrollbars();
+    void touchpadAndWheelDelta();
+    void discreteWheelWithPixelDelta();
+    void horizontalAndShiftGestures();
+    void fractionalAndReversedWheelMotion();
+    void pendingWheelTargetsRespectBounds();
+    void wheelMotionSettingsAndExternalInputPreserveDestinations_data();
+    void wheelMotionSettingsAndExternalInputPreserveDestinations();
+    void wheelAndNativeZoomAnchors();
+    void controlWheelPolicies();
+    void editingFocusProtectsTextInput();
+    void applicationShortcutOverridesTools_data();
+    void applicationShortcutOverridesTools();
+    void applicationShortcutPreservesTextInput();
+    void applicationShortcutPreservesOtherWindows_data();
+    void applicationShortcutPreservesOtherWindows();
+    void disablingShortcutRestoresButtonInput();
+    void leavingMenuClearsPastePreview();
+    void trackListDragReordersOrCancels_data();
+    void trackListDragReordersOrCancels();
+    void speakerMixDragKeepsWeightsWithTheirSources_data();
+    void speakerMixDragKeepsWeightsWithTheirSources();
+    void speakerMixSourceChoicePreservesWeightsAndUpdatesTags();
+    void ghostNotesFollowDocumentChangesAndOptions();
+    void ghostNoteGeometryFollowsTheVisibleReferenceRange();
+    void lyricRuleDragPreservesEditsAndChangesPriority_data();
+    void lyricRuleDragPreservesEditsAndChangesPriority();
+
+    void touchTapProducesPressAndRelease();
+    void touchDragProducesPressAtTheOriginalPosition();
+    void touchDoubleTapIsReportedOnTheSecondTap();
+    void touchDoubleTapExpiresAfterTheTimeout();
+    void touchLongPressOnContentIsConsumed();
+    void touchLongPressOnBlankBecomesAHeldDrag();
+    void touchMovingPastTheSlopCancelsTheLongPress();
+    void touchSecondFingerCancelsTheSingleStream();
+    void touchSecondFingerBeforeAnyDragEmitsNoCancel();
+    void touchTwoFingerPanCarriesNoZoom();
+    void touchPartiallyAppliedTouchEventEmitsNothing();
+    void touchHorizontalPinchLocksTheHorizontalAxis();
+    void touchVerticalPinchLocksTheVerticalAxis();
+    void touchDiagonalPinchKeepsBothAxes();
+    void touchTheAxisLockHoldsForTheWholeGesture();
+    void touchNavigationEndReportsFlickVelocity();
+    void touchSlowReleaseReportsNoInertia();
+    void touchTheRemainingFingerDoesNotStartAnEdit();
+    void touchAConsumedLongPressDoesNotBlockNavigation();
+    void touchAFingerReturningAfterNavigationResumesNavigation();
+    void touchASingleFingerCannotRestartFromSettling();
+    void touchSyncingActivePointsRecoversFromALostRelease();
+    void touchSyncingActivePointsCancelsALostSingleStream();
+    void touchSyncingActivePointsKeepsPointsThatAreStillDown();
+    void touchLiftingOneOfThreeFingersHandsNavigationToTheRest();
+    void touchLiftingOneOfTwoFingersEndsNavigation();
+    void touchAnUnknownFingerIsAdoptedInsteadOfIgnored();
+    void touchAnAdoptedFingerNeverArmsTheLongPress();
+    void touchCancelUndoesAnInFlightDrag();
+    void touchCancelEndsNavigation();
+    void touchSlowReleaseWithoutMotionIsNotATap();
+    void touchFingerStreamMatchesTheHistoricalPolicy();
+    void touchNavigationOnlyFingerNeverReachesTheTool();
+    void penAPlainTipIsLeftToQt();
+    void penTheEraserIsRecognizedByPointerType();
+    void penAnyNonTipButtonCountsAsTheSideButton();
+    void penATipStrokeIsAPlainLeftStream();
+    void penTheEraserBecomesALeftStreamWithTheEraseIntent();
+    void penAnEraserStrokeUnderAnUnsupportedToolProducesNothing();
+    void penTheStrokeEndsOnTheReleaseFrameNotOnTheContactFlag();
+    void penMidStrokeBarrelNoiseNeitherRestartsNorEndsTheStroke();
+    void penTheSideButtonIsLockedWhenThePenGoesDown();
+    void penABarrelPressMidStrokeDoesNotChangeTheInput();
+    void penASideButtonPressInsideTheSlopPressesNothing();
+    void penASideButtonDragErasesFromTheOriginalPosition();
+    void penTheSideButtonSlopIsARadius();
+    void penASideButtonClickAsksForTheContextMenu();
+    void penASideButtonClickStillOpensTheMenuWhereErasingIsUnsupported();
+    void penASwallowedSideButtonDragDoesNotFallBackToTheMenu();
+    void penACancelledStrokeIsReleasedAndNotTurnedIntoAMenu();
+    void penAnInterruptedStrokeEmitsNothingAndRecovers();
+    void penAbortingAnIdleStrokeChangesNothing();
+    void penThePianoRollTableHasNoGaps();
+    void penTheParameterEditorTableHasNoGaps();
+    void penTheArrangementCanvasRespondsToNothing();
+
+private:
+    std::unique_ptr<GuiAppFixture> application;
+};
+
+#endif

@@ -102,13 +102,18 @@ Toast::Toast(QObject *parent) : QObject(parent) {
 }
 
 Toast::~Toast() {
-    if (m_globalContext)
-        m_globalContext->removeEventFilter(this);
+    m_queue.clear();
+    destroyCurrentToast();
 }
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(Toast)
 
 void Toast::setGlobalContext(QWidget *context) {
+    if (m_globalContext == context)
+        return;
+    auto *toast = instance();
+    toast->m_queue.clear();
+    toast->destroyCurrentToast();
     m_globalContext = context;
 }
 
@@ -140,6 +145,12 @@ void Toast::showNextToast() {
     // Parent to the global context (main window) so the toast inherits the
     // theme stylesheet cascade; window flags keep it a top-level window
     m_toastWidget = new ToastWidget(m_queue.dequeue(), m_globalContext);
+    connect(m_toastWidget, &QObject::destroyed, this, [this] {
+        // The context can delete its toast before the display timer expires.
+        m_toastWidget.clear();
+        m_queue.clear();
+        destroyCurrentToast();
+    });
     m_toastWidget->show();
 
     m_opacityAnimation.setTargetObject(m_toastWidget);
@@ -182,10 +193,11 @@ void Toast::destroyCurrentToast() {
         m_globalContext->removeEventFilter(this);
     m_opacityAnimation.stop();
     m_posAnimation.stop();
-    if (m_toastWidget) {
-        m_toastWidget->hide();
-        delete m_toastWidget;
-        m_toastWidget = nullptr;
+    if (auto *widget = m_toastWidget.data()) {
+        m_toastWidget.clear();
+        QObject::disconnect(widget, nullptr, this, nullptr);
+        widget->hide();
+        delete widget;
     }
     if (m_isShowingToast)
         oneToastShowFinished();

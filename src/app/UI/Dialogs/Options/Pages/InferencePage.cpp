@@ -41,6 +41,7 @@
 #include <QMCore/qmsystem.h>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
     /// Resolves a synthrt DisplayText for the UI using frontend-side ICU
@@ -70,9 +71,19 @@ enum CustomRole {
     IsDefaultGpuRole = Qt::UserRole + 1,
 };
 
-InferencePage::InferencePage(QWidget *parent)
+InferencePage::InferencePage(QWidget *parent, GpuDetector gpuDetector)
     : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)),
+      m_gpuDetector(std::move(gpuDetector)),
       m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
+    if (!m_gpuDetector) {
+        m_gpuDetector = [](const QString &provider) {
+            if (provider == QStringLiteral("DirectML"))
+                return DmlGpuUtils::getGpuList();
+            if (provider == QStringLiteral("CUDA"))
+                return CudaGpuUtils::getGpuList();
+            return QList<GpuInfo>{};
+        };
+    }
     connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
         const auto detectedProvider = m_activeGpuProvider;
         m_activeGpuProvider.clear();
@@ -113,15 +124,7 @@ void InferencePage::requestGpuDetection() {
 
 void InferencePage::startGpuDetection(const QString &provider) {
     m_activeGpuProvider = provider;
-    m_gpuDetectionWatcher->setFuture(QtConcurrent::run([provider] {
-        if (provider == QStringLiteral("DirectML")) {
-            return DmlGpuUtils::getGpuList();
-        }
-        if (provider == QStringLiteral("CUDA")) {
-            return CudaGpuUtils::getGpuList();
-        }
-        return QList<GpuInfo>{};
-    }));
+    m_gpuDetectionWatcher->setFuture(QtConcurrent::run(m_gpuDetector, provider));
 }
 
 void InferencePage::showGpuDetectionPending() {
@@ -282,16 +285,17 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
-    m_cbExecutionProvider->addItems(
-        {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
-         ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
-    if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
-        m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(ExecutionProvider::Cuda));
+    m_cbExecutionProvider->setObjectName(QStringLiteral("inferenceExecutionProvider"));
+    for (const auto provider :
+         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        if (ExecutionProviderUtils::availableInBuild(provider))
+            m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(provider));
     }
     m_cbExecutionProvider->setCurrentText(option->executionProvider);
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
+    m_cbDeviceList->setObjectName(QStringLiteral("inferenceDevice"));
     m_cbDeviceList->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
@@ -312,6 +316,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
+    m_cbSamplingSteps->setObjectName(QStringLiteral("inferenceSamplingSteps"));
     m_cbSamplingSteps->setEditable(true);
     // Prevent wheel-scroll over this editable combo from grabbing focus.
     m_cbSamplingSteps->setFocusPolicy(Qt::StrongFocus);
@@ -347,10 +352,12 @@ QWidget *InferencePage::createContentWidget() {
         dlg->show();
     };
     m_swRunVocoderOnCpu = new SwitchButton(appOptions->inference()->runVocoderOnCpu);
+    m_swRunVocoderOnCpu->setObjectName(QStringLiteral("inferenceRunVocoderOnCpu"));
     connect(m_swRunVocoderOnCpu, &SwitchButton::toggled, this, modifyAndRestart);
 
     // Render - decayInfer
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
+    m_autoStartInfer->setObjectName(QStringLiteral("inferenceAutoStart"));
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     // Render - playback lookahead window (seconds)
@@ -425,12 +432,15 @@ QWidget *InferencePage::createContentWidget() {
             [this] { QM::reveal(appOptions->inference()->cacheDirectory); });
 
     m_lblCacheStats = new QLabel(tr("Scanning..."));
+    m_lblCacheStats->setObjectName(QStringLiteral("inferenceCacheStats"));
     m_lblCacheStats->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     m_btnScanCache = new Button(tr("Refresh"), this);
+    m_btnScanCache->setObjectName(QStringLiteral("inferenceScanCache"));
     connect(m_btnScanCache, &Button::clicked, this, &InferencePage::startCacheScan);
 
     m_btnCleanCache = new Button(tr("Clean Up..."), this);
+    m_btnCleanCache->setObjectName(QStringLiteral("inferenceCleanCache"));
     m_btnCleanCache->setEnabled(false);
     connect(m_btnCleanCache, &Button::clicked, this, &InferencePage::confirmCleanCache);
 

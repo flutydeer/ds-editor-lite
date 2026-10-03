@@ -55,10 +55,16 @@ namespace EditorShortcutUtils {
                 if (!m_shortcut->keys().contains(QKeySequence(keyEvent->keyCombination())))
                     return false;
 
-                if (!m_isWindowAllowed(QApplication::activeWindow()) ||
-                    isTextInput(QApplication::focusWidget()) || QApplication::activePopupWidget() ||
-                    QApplication::activeModalWidget() ||
-                    qobject_cast<QDialog *>(QApplication::activeWindow())) {
+                const bool windowAllowed = m_isWindowAllowed(QApplication::activeWindow()) &&
+                                           !qobject_cast<QDialog *>(QApplication::activeWindow());
+                // Change the editor shortcut scope before Qt searches for matching shortcuts.
+                // Foreign windows must retain their own shortcuts, not just raw key events.
+                m_shortcut->setContext(windowAllowed ? Qt::ApplicationShortcut : Qt::WidgetShortcut);
+                if (!windowAllowed)
+                    return false;
+
+                if (isTextInput(QApplication::focusWidget()) || QApplication::activePopupWidget() ||
+                    QApplication::activeModalWidget()) {
                     event->accept();
                     return true;
                 }

@@ -11,6 +11,7 @@
 #include <synthrt/Core/Support/Logging.h>
 
 #include <QCoreApplication>
+#include <QScopeGuard>
 
 #include "Utils/DmlGpuUtils.h"
 #include <lite/Support/Log.h>
@@ -93,11 +94,9 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
         const auto initTask = new InitInferEngineTask;
-        connect(initTask, &Task::finished, this, [=] {
-            taskManager->removeTask(initTask);
+        connect(initTask, &Task::finished, this, [this, initTask] {
             QWriteLocker lock(&m_engineRwLock);
             if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
-                delete initTask;
                 return;
             }
 
@@ -119,7 +118,11 @@ void InferEngine::startInitialization() {
                 appStatus->languageModuleError = initTask->errorMessage;
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
             }
-            delete initTask;
+        });
+        // Cleanup must survive engine teardown while completion is still queued.
+        connect(initTask, &Task::finished, initTask, [initTask] {
+            taskManager->removeTask(initTask);
+            initTask->deleteLater();
         });
         appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
         appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
@@ -139,6 +142,9 @@ bool InferEngine::isAboutToQuit() const noexcept {
 
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
+    const auto finishAttempt = qScopeGuard([] {
+        SynthrtEngine::instance().completeInitializationAttempt();
+    });
     if (m_disposed) {
         error = "Application is about to quit.";
         return false;

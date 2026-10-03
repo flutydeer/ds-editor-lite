@@ -555,17 +555,22 @@ namespace Automation {
                             switch (stage) {
                                 case InferenceStage::Duration:
                                     InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
+                                    piece->state = QStringLiteral("Duration.Awaiting");
                                     break;
                                 case InferenceStage::Pitch:
                                     InferControllerHelper::resetPitch(*piece);
+                                    piece->state = QStringLiteral("Pitch.Awaiting");
                                     break;
                                 case InferenceStage::Variance:
                                     InferControllerHelper::resetVariance(*piece);
+                                    piece->state = QStringLiteral("Variance.Awaiting");
                                     break;
                                 case InferenceStage::Acoustic:
                                     InferControllerHelper::resetAcoustic(*piece);
+                                    piece->state = QStringLiteral("Acoustic.Awaiting");
                                     break;
                             }
+                            piece->acousticInferStatus = Pending;
                         }
                     },
             };

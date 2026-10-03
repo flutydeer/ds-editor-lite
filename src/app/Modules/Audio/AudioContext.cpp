@@ -35,7 +35,6 @@
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
-#include <Modules/Audio/TrackSynthesizer.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
@@ -119,7 +118,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this,
             [this](auto status) {
-                if (status != talcs::TransportAudioSource::Paused)
+                // A queued pause acknowledgment may arrive after playback has resumed.
+                if (status != talcs::TransportAudioSource::Paused ||
+                    transport()->playbackStatus() != talcs::TransportAudioSource::Paused)
                     return;
                 if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
                     playbackController->pause();
@@ -254,9 +255,6 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
 AudioContext::~AudioContext() {
     playbackController->setPlaybackStartGuard({});
-    for (const auto trackSynthesizer : m_trackSynthDict.values()) {
-        delete trackSynthesizer;
-    }
     m_instance = nullptr;
 }
 
@@ -350,6 +348,10 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
     switch (status) {
         case Stopped:
             transport()->pause();
+            // An already paused transport emits no further state change when stopped.
+            if (transport()->playbackStatus() == talcs::TransportAudioSource::Paused &&
+                AudioSettings::playheadBehavior() == ReturnToStart)
+                playbackController->setPosition(playbackController->lastPosition());
             break;
         case Playing:
             if (!m_levelMeterActive) {
@@ -389,7 +391,10 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
         (device->isStarted() || device->start(outputContext->playback()))) {
         return true;
     }
-    if (qobject_cast<QApplication *>(QCoreApplication::instance()))
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    const bool interactive = runtime && runtime->dispatcher().currentInvocationSource() ==
+                                           Automation::InvocationSource::TrustedGui;
+    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance()))
         QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
     else
         qWarning("Cannot open audio device");
@@ -547,13 +552,14 @@ void AudioContext::handleTrackMoved(const int from, const int to) {
     if (from == to || from < 0 || from >= trackCount || to < 0 || to >= trackCount)
         return;
 
-    // talcs 的 dest 是从原列表移除前的插入位置；AppModel 的 to 是最终下标。
+    // talcs uses the insertion index before removal. AppModel uses the final index.
     const auto destination = to > from ? to + 1 : to;
     talcs::DspxProjectContext::moveTrack(from, 1, destination);
 }
 
 void AudioContext::handleMasterControlChanged(const TrackControl &control) const {
     masterControlMixer()->setGain(talcs::Decibels::decibelsToGain(control.gain()));
+    masterControlMixer()->setPan(static_cast<float>(control.pan()));
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) const {

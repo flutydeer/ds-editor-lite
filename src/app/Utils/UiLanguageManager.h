@@ -35,16 +35,14 @@ signals:
     void languageChanged(const QString &effectiveLanguageId);
 
 private:
-    void removeTranslators();
-    bool loadChineseTranslators();
+    void removeTranslator();
+    bool loadChineseTranslator();
 
     static UiLanguageManager *s_instance;
 
     QString m_preference = System;
     QString m_effectiveLanguageId = English;
-    QTranslator m_qtBaseTranslator;
-    QTranslator m_qtTranslator;
-    QTranslator m_appTranslator;
+    QTranslator m_translator;
 };
 
 #endif // UILANGUAGEMANAGER_H

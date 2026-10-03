@@ -1,7 +1,5 @@
 #include "ProbeAcousticCacheState.h"
 
-#include "Controller/PlaybackController.h"
-#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferenceAutomationBridge.h"
@@ -17,6 +15,8 @@ ProbeAcousticCacheState::ProbeAcousticCacheState(InferPipeline &pipeline, QState
 }
 
 void ProbeAcousticCacheState::onEntry(QEvent *event) {
+    if (m_pipeline.stopped())
+        return;
     qDebug() << "ProbeAcousticCacheState::onEntry";
     QState::onEntry(event);
 
@@ -90,8 +90,7 @@ void ProbeAcousticCacheState::handleTaskFinished(InferAcousticCacheProbeTask &ta
     const bool hasCacheHit = task.cacheHit();
     if (hasCacheHit)
         m_pipeline.setAcousticResult(task.result());
-    const bool immediateInference = appOptions->inference()->autoStartInfer ||
-                                    playbackController->playbackStatus() == PlaybackStatus::Playing;
+    const bool immediateInference = m_pipeline.shouldStartAcousticInference();
     finishCurrentTask();
 
     QTimer::singleShot(0, this, [this, hasCacheHit, immediateInference] {

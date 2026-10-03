@@ -1730,14 +1730,7 @@ namespace Automation {
                 for (const auto &clip : track.clips) {
                     if (clip.id != clipId)
                         continue;
-                    if (!clip.data.defaultLanguage.isEmpty())
-                        return clip.data.defaultLanguage;
-                    const auto singer = clip.data.usesTrackVoiceContext ? track.data.singerInfo
-                                                                        : clip.data.ownSingerInfo;
-                    if (clip.data.usesTrackVoiceContext && !track.data.defaultLanguage.isEmpty()) {
-                        return track.data.defaultLanguage;
-                    }
-                    return singer.defaultLanguage();
+                    return clip.effectiveDefaultLanguage;
                 }
             }
             return {};
@@ -2071,6 +2064,23 @@ namespace Automation {
         Q_ASSERT(contract);
         Q_ASSERT(!m_handlers.contains(operationId));
         m_handlers.insert(operationId, std::move(handler));
+    }
+
+    std::function<AutomationResult<AutomationUnit>()>
+        PublicAutomationRegistry::audioPathCommitGuard(AuthorizedPath authorizedPath) const {
+        return [lifetime = std::weak_ptr<LifetimeState>(m_lifetimeState), guard = &m_fileGuard,
+                authorizedPath = std::move(authorizedPath)]() -> AutomationResult<AutomationUnit> {
+            const auto state = lifetime.lock();
+            if (!state || !state->active.load(std::memory_order_acquire)) {
+                return error(AutomationErrorCode::PermissionDenied,
+                             QStringLiteral("Audio source authorization is no longer available"),
+                             QStringLiteral("path"));
+            }
+            const auto authorized = guard->reauthorize(authorizedPath);
+            if (!authorized)
+                return authorized.getError();
+            return AutomationUnit{};
+        };
     }
 
     AutomationResult<QJsonObject>
@@ -2737,33 +2747,17 @@ namespace Automation {
         addBinding(ToolNames::notes_insert, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &invocation) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            QString effectiveDefaultLanguage;
             QString defaultLyric = QStringLiteral("la");
             auto settings = m_runtime.settings().getSettings();
-            if (settings)
-                effectiveDefaultLanguage = settings.get().general.defaultSingingLanguage;
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
                 return AutomationResult<QJsonObject>(project.getError());
-            for (const auto &track : project.get().tracks) {
-                for (const auto &clip : track.clips) {
-                    if (clip.id != clipId)
-                        continue;
-                    if (!clip.data.defaultLanguage.isEmpty())
-                        effectiveDefaultLanguage = clip.data.defaultLanguage;
-                    else if (clip.data.usesTrackVoiceContext) {
-                        if (!track.data.defaultLanguage.isEmpty())
-                            effectiveDefaultLanguage = track.data.defaultLanguage;
-                        else if (!track.data.singerInfo.defaultLanguage().isEmpty())
-                            effectiveDefaultLanguage = track.data.singerInfo.defaultLanguage();
-                    } else if (!clip.data.ownSingerInfo.defaultLanguage().isEmpty()) {
-                        effectiveDefaultLanguage = clip.data.ownSingerInfo.defaultLanguage();
-                    }
-                }
-            }
+            auto language = effectiveDefaultLanguage(project.get(), clipId);
+            if (language.isEmpty() && settings)
+                language = settings.get().general.defaultSingingLanguage;
             if (settings)
-                defaultLyric = settings.get().general.defaultLyrics.value(effectiveDefaultLanguage,
-                                                                          QStringLiteral("la"));
+                defaultLyric =
+                    settings.get().general.defaultLyrics.value(language, QStringLiteral("la"));
             QList<NoteDraftDto> notes;
             QList<ResolvedValue> resolvedValues;
             const auto inputNotes = arguments.value(QStringLiteral("notes")).toArray();
@@ -3535,6 +3529,7 @@ namespace Automation {
                            .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            .canonicalPath = path,
                            .mode = PublicAudioPathUpdateMode::Relocate,
+                           .authorizeCommit = audioPathCommitGuard(authorized.get()),
                        };
                        return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
                    });
@@ -3580,6 +3575,7 @@ namespace Automation {
                     .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     .canonicalPath = path,
                     .mode = PublicAudioPathUpdateMode::Confirm,
+                    .authorizeCommit = audioPathCommitGuard(authorized.get()),
                 };
                 return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
             });
@@ -3733,6 +3729,10 @@ namespace Automation {
                                             arguments.value(QStringLiteral("path")).toString()));
                 if (!config)
                     return AutomationResult<QJsonObject>(config.getError());
+                // Selecting a public output format explicitly opts into that format's lossiness.
+                const auto format = options.value(QStringLiteral("format")).toString();
+                policy.allowLossyFormat =
+                    format == QStringLiteral("ogg") || format == QStringLiteral("mp3");
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
                     return AutomationResult<QJsonObject>(context.getError());
@@ -4383,19 +4383,12 @@ namespace Automation {
                             const auto effectiveSpeaker = clip.data.usesTrackVoiceContext
                                                               ? track.data.speakerInfo
                                                               : clip.data.ownSpeakerInfo;
-                            auto language = clip.data.defaultLanguage;
-                            if (language.isEmpty()) {
-                                language = clip.data.usesTrackVoiceContext
-                                               ? (!track.data.defaultLanguage.isEmpty()
-                                                      ? track.data.defaultLanguage
-                                                      : effectiveSinger.defaultLanguage())
-                                               : effectiveSinger.defaultLanguage();
-                            }
                             snapshot.insert(QStringLiteral("voice_context"),
-                                            encodeVoiceContext(
-                                                clip.data.ownSingerInfo, clip.data.ownSpeakerInfo,
-                                                effectiveSinger, effectiveSpeaker,
-                                                clip.data.usesTrackVoiceContext, language));
+                                            encodeVoiceContext(clip.data.ownSingerInfo,
+                                                               clip.data.ownSpeakerInfo,
+                                                               effectiveSinger, effectiveSpeaker,
+                                                               clip.data.usesTrackVoiceContext,
+                                                               clip.effectiveDefaultLanguage));
                         } else {
                             snapshot.insert(QStringLiteral("voice_context"),
                                             QJsonValue(QJsonValue::Null));

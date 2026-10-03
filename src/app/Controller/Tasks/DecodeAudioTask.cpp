@@ -6,6 +6,8 @@
 
 #include <TalcsFormat/AbstractAudioFormatIO.h>
 
+#include <algorithm>
+
 DecodeAudioTask::DecodeAudioTask() {
     TaskStatus status;
     status.title = QCoreApplication::translate("DecodeAudioTask", "Decoding audio...");
@@ -37,14 +39,6 @@ void DecodeAudioTask::runTask() {
     status.message = path;
     setStatus(status);
 
-    auto pathStr =
-#ifdef Q_OS_WIN
-        path.toStdWString();
-#else
-        path.toStdString();
-#endif
-    //    SndfileHandle sf(pathStr.c_str());
-
     if (!io || !io->open(talcs::AbstractAudioFormatIO::Read)) {
         success = false;
         errorMessage = QCoreApplication::translate("DecodeAudioTask", "No audio IO");
@@ -63,8 +57,7 @@ void DecodeAudioTask::runTask() {
     std::vector<float> buffer(m_chunkSize * m_channels);
     const auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
-    qint64 samplesRead = 0;
-    while (samplesRead < m_frames * m_channels) {
+    while (true) {
         if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
             status.title = QCoreApplication::translate("DecodeAudioTask", "Canceling decoding...");
@@ -73,13 +66,12 @@ void DecodeAudioTask::runTask() {
             setStatus(status);
             return;
         }
-        samplesRead = io->read(buffer.data(), m_chunkSize);
-        if (samplesRead == 0) {
+        const auto framesRead = io->read(buffer.data(), m_chunkSize);
+        if (framesRead <= 0) {
             break;
         }
         double sampleMax = 0;
         double sampleMin = 0;
-        const qint64 framesRead = samplesRead / m_channels;
         for (qint64 i = 0; i < framesRead; i++) {
             double monoSample = 0.0;
             for (int j = 0; j < m_channels; j++) {
@@ -130,20 +122,15 @@ void DecodeAudioTask::runTask() {
             setStatus(status);
             return;
         }
+        const auto [frameMin, frameMax] = m_peakCache.at(i);
+        min = std::min(min, frameMin);
+        max = std::max(max, frameMax);
+        hasTail = true;
         if ((i + 1) % m_mipmapScale == 0) {
             m_peakCacheMipmap.append(std::make_pair(min, max));
             min = 0;
             max = 0;
             hasTail = false;
-        } else {
-            auto frame = m_peakCache.at(i);
-            const auto frameMin = std::get<0>(frame);
-            const auto frameMax = std::get<1>(frame);
-            if (frameMin < min)
-                min = frameMin;
-            if (frameMax > max)
-                max = frameMax;
-            hasTail = true;
         }
     }
     if (hasTail)

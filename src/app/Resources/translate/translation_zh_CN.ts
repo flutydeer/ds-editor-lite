@@ -2623,7 +2623,7 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="60"/>
         <source>Tagger rules affect all split modes. Rules only match tokens with language=&quot;unknown&quot;; first match wins.</source>
-        <translation>标注器规则影响所有分割模式。规则仅匹配 language=&quot;unknown&quot; 的标记；首个匹配优先。</translation>
+        <translation>标注器规则影响所有分割模式。规则仅匹配 language=&quot;unknown&quot; 的标记，首个匹配优先。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="66"/>
@@ -2866,7 +2866,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="93"/>
         <source>When off, a finger on the parameter panel or the piano roll's pitch tools only scrolls the timeline. Pen and mouse are unaffected.</source>
-        <translation>关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴；笔和鼠标不受影响。</translation>
+        <translation>关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴。笔和鼠标不受影响。</translation>
     </message>
 </context>
 <context>
@@ -4365,11 +4365,9 @@ path: %1</source>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="352"/>
         <source>Failed to load MIDI file.
-timeSignatures denominator must be: %L1, %L2, %L3, %L4
-current denominator: %L5</source>
+Invalid time signature positions or values.</source>
         <translation>加载 MIDI 文件失败。
-拍号分母必须为：%L1、%L2、%L3、%L4
-当前分母：%L5</translation>
+拍号的位置或数值无效。</translation>
     </message>
     <message>
         <location filename="../../Controller/DocumentWorkflow/MidiLoadSession.cpp" line="161"/>

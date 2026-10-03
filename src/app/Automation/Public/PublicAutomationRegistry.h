@@ -140,6 +140,7 @@ namespace Automation {
         ClipId clipId;
         QString canonicalPath;
         PublicAudioPathUpdateMode mode = PublicAudioPathUpdateMode::Relocate;
+        std::function<AutomationResult<AutomationUnit>()> authorizeCommit;
     };
 
     struct PublicAutomationHostServices {
@@ -204,6 +205,8 @@ namespace Automation {
         void registerAdvancedGuiBindings();
         void registerAdvancedApplicationBindings();
         void addBinding(QLatin1StringView toolName, Handler handler);
+        std::function<AutomationResult<AutomationUnit>()>
+            audioPathCommitGuard(AuthorizedPath authorizedPath) const;
         CoreRuntime &m_runtime;
         AutomationAccessPolicy &m_accessPolicy;
         AutomationFileGuard &m_fileGuard;

@@ -5,7 +5,6 @@
 #  include <WinUser.h>
 #endif
 
-#include "Controller/AppController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -133,12 +132,12 @@ MainWindow::MainWindow() {
     connect(appStatus, &AppStatus::unavailableExecutionProviderChanged, this,
             [showUnavailableProviderNotice](const QString &) { showUnavailableProviderNotice(); });
     showUnavailableProviderNotice();
-    appController->setMainWindow(this);
     documentWorkflowController->setUi(this);
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,
             &MainWindow::updateWindowTitle);
     connect(historyManager, &HistoryManager::savePointChanged, this,
             &MainWindow::updateWindowTitle);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this, &MainWindow::updateWindowTitle);
     connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
             [this](const TerminationMode mode) {
                 m_restartRequested = mode == TerminationMode::Restart;
@@ -225,6 +224,7 @@ MainWindow::~MainWindow() {
     ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
 #endif
     editorViewController->setView(nullptr);
+    documentWorkflowController->setUi(nullptr);
     ThemeManager::instance()->removeWindow(this);
 }
 

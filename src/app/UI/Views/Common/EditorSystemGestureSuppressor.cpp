@@ -12,6 +12,14 @@
 #endif
 
 namespace {
+    // One entry per touch-enabled editor widget, never more than a handful.
+    // QPointer keeps a view that goes away from being answered for.
+    QList<QPointer<QWidget>> &claimedWidgets() {
+        static QList<QPointer<QWidget>> widgets;
+        return widgets;
+    }
+
+#ifdef Q_OS_WIN
     // Windows asks the window under the contact whether it wants the
     // press-and-hold gesture, once per contact. The message lives in tpcshrd.h
     // next to a pile of MIDL-generated tablet interfaces, which is not worth
@@ -21,14 +29,6 @@ namespace {
     constexpr UINT wmTabletQuerySystemGestureStatus = 0x02CC;
     constexpr LRESULT tabletDisablePressAndHold = 0x00000001;
 
-    // One entry per touch-enabled editor widget, never more than a handful.
-    // QPointer keeps a view that goes away from being answered for.
-    QList<QPointer<QWidget>> &claimedWidgets() {
-        static QList<QPointer<QWidget>> widgets;
-        return widgets;
-    }
-
-#ifdef Q_OS_WIN
     // Is this native window one of the editor windows, or a native child of
     // one? GA_ROOT walks up to the top-level window, which is what the widgets
     // are registered as.

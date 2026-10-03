@@ -1,0 +1,25 @@
+diff --git a/src/device/built-in/SDLAudioDriver.cpp b/src/device/built-in/SDLAudioDriver.cpp
+--- a/src/device/built-in/SDLAudioDriver.cpp
++++ b/src/device/built-in/SDLAudioDriver.cpp
+@@ -49,8 +49,12 @@ namespace talcs {
+     bool SDLAudioDriver::initialize() {
+         Q_D(SDLAudioDriver);
+         if (SDL_Init(SDL_INIT_AUDIO) == 0 && SDL_AudioInit(name().toLocal8Bit()) == 0) {
+-            QTimer::singleShot(0, [=] {
++            QTimer::singleShot(0, this, [=] {
++                if (!isInitialized())
++                    return;
+                 SDL_FlushEvents(SDL_AUDIODEVICEADDED, SDL_AUDIODEVICEREMOVED);
++                // Reset before startup so finalize() cannot lose its stop request.
++                d->eventPoller->stopRequested = false;
+                 d->eventPollerThread->start();
+             });
+             return AudioDriver::initialize();
+@@ -156,7 +160,6 @@ namespace talcs {
+      */
+ 
+     void SDLEventPoller::start() {
+-        stopRequested = false;
+         SDL_Event e;
+         while (!stopRequested) {
+             while (SDL_PollEvent(&e) > 0) {

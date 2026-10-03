@@ -56,7 +56,7 @@ namespace FillLyric {
         void updateRect(LyricCell *cell);
         void updateCellPos();
 
-        void connectCell(const LyricCell *cell);
+        void connectCell(LyricCell *cell);
         void disconnectCell(const LyricCell *cell) const;
 
         // Re-parse the composite style properties from the view and repaint

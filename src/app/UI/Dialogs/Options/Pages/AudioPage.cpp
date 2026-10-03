@@ -69,15 +69,22 @@ QWidget *AudioPage::createContentWidget() {
     mainLayout->setContentsMargins({});
 
     m_driverComboBox = new ComboBox;
+    m_driverComboBox->setObjectName("audioDriver");
     m_deviceComboBox = new ComboBox;
+    m_deviceComboBox->setObjectName("audioDevice");
     m_testDeviceButton = new QPushButton(tr("&Test"));
+    m_testDeviceButton->setObjectName("audioDeviceTest");
     m_deviceControlPanelButton = new QPushButton(tr("Control &Panel"));
+    m_deviceControlPanelButton->setObjectName("audioDeviceControlPanel");
     m_bufferSizeComboBox = new ComboBox;
+    m_bufferSizeComboBox->setObjectName("audioBufferSize");
     m_sampleRateComboBox = new ComboBox;
+    m_sampleRateComboBox->setObjectName("audioSampleRate");
     // Scroll the popup list per pixel (pairs with global smooth scrolling;
     // per-line scrolling feels like jumping a lot)
     m_sampleRateComboBox->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_hotPlugModeComboBox = new ComboBox;
+    m_hotPlugModeComboBox->setObjectName("audioHotPlugMode");
     m_hotPlugModeComboBox->addItem(tr("Notify when any device added or removed"),
                                    talcs::OutputContext::Omni);
     m_hotPlugModeComboBox->addItem(tr("Notify when current device removed"),
@@ -85,12 +92,14 @@ QWidget *AudioPage::createContentWidget() {
     m_hotPlugModeComboBox->addItem(tr("Do not notify"), talcs::OutputContext::None);
 
     m_deviceGainSlider = new SVS::SeekBar;
+    m_deviceGainSlider->setObjectName("audioDeviceGainSlider");
     m_deviceGainSlider->setFixedWidth(256);
     m_deviceGainSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
                                  DecibelLinearizer::decibelToLinearValue(6));
     m_deviceGainSlider->setDisplayValueConverter(
         [](const double v) { return DecibelLinearizer::linearValueToDecibel(v); });
     m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
+    m_deviceGainSpinBox->setObjectName("audioDeviceGain");
     m_deviceGainSpinBox->setDecimals(1);
     m_deviceGainSpinBox->setRange(-96, 6);
     m_deviceGainSpinBox->setSpecialValueText("-INF");
@@ -99,10 +108,12 @@ QWidget *AudioPage::createContentWidget() {
     m_deviceGainSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_devicePanSlider = new SVS::SeekBar;
+    m_devicePanSlider->setObjectName("audioDevicePanSlider");
     m_devicePanSlider->setFixedWidth(256);
     m_devicePanSlider->setRange(-100, 100);
     m_devicePanSlider->setInterval(1);
     m_devicePanSpinBox = new SVS::ExpressionSpinBox;
+    m_devicePanSpinBox->setObjectName("audioDevicePan");
     m_devicePanSpinBox->setRange(-100, 100);
     // Prevent accidental value changes while scrolling the settings page.
     m_devicePanSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
@@ -122,6 +133,7 @@ QWidget *AudioPage::createContentWidget() {
     mainLayout->addWidget(m_audioOutputCard);
 
     m_playHeadBehaviorComboBox = new ComboBox;
+    m_playHeadBehaviorComboBox->setObjectName("audioPlayheadBehavior");
     m_playHeadBehaviorComboBox->addItem(tr("Return to the start position after stopped"),
                                         ReturnToStart);
     m_playHeadBehaviorComboBox->addItem(
@@ -136,6 +148,7 @@ QWidget *AudioPage::createContentWidget() {
     mainLayout->addWidget(m_playbackCard);
 
     m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
+    m_fileBufferingReadAheadSizeSpinBox->setObjectName("audioFileReadAhead");
     m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
     // Prevent accidental value changes while scrolling the settings page.
     m_fileBufferingReadAheadSizeSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
@@ -263,17 +276,25 @@ void AudioPage::updateDriverComboBox() {
                 if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
                     m_driverComboBox->removeItem(m_driverComboBox->count() - 1);
                 }
-                updateDeviceComboBox();
             }
+            updateDeviceComboBox();
         });
 }
 
 void AudioPage::updateDeviceComboBox() {
     auto outputSys = AudioSystem::outputSystem();
+    auto *driver = outputSys->outputContext()->driver();
+    m_deviceComboBox->setEnabled(driver != nullptr);
+    m_bufferSizeComboBox->setEnabled(false);
+    m_sampleRateComboBox->setEnabled(false);
+    m_testDeviceButton->setEnabled(false);
+    m_deviceControlPanelButton->setEnabled(false);
+    if (!driver)
+        return;
 
     bool currentIndexDetermined = false;
 
-    if (!outputSys->outputContext()->driver()->defaultDevice().isEmpty()) {
+    if (!driver->defaultDevice().isEmpty()) {
         m_deviceComboBox->addItem(tr("Default device"), QString(""));
         if (outputSys->outputContext()->device() &&
             outputSys->outputContext()->device()->name().isEmpty()) {
@@ -281,7 +302,7 @@ void AudioPage::updateDeviceComboBox() {
             m_deviceComboBox->setCurrentIndex(0);
         }
     }
-    auto deviceList = outputSys->outputContext()->driver()->devices();
+    auto deviceList = driver->devices();
     for (int i = 0; i < deviceList.size(); i++) {
         m_deviceComboBox->addItem(deviceList[i], deviceList[i]);
         if (outputSys->outputContext()->device() &&
@@ -301,6 +322,8 @@ void AudioPage::updateDeviceComboBox() {
 
     if (outputSys->outputContext()->device()) {
         updateBufferSizeAndSampleRateComboBox();
+        m_testDeviceButton->setEnabled(outputSys->isReady());
+        m_deviceControlPanelButton->setEnabled(true);
     }
 
     connect(m_deviceComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
@@ -333,6 +356,8 @@ void AudioPage::updateDeviceComboBox() {
                     disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
                     m_sampleRateComboBox->clear();
                     updateBufferSizeAndSampleRateComboBox();
+                    m_testDeviceButton->setEnabled(outputSys->isReady());
+                    m_deviceControlPanelButton->setEnabled(true);
                 }
             });
 }
@@ -346,6 +371,7 @@ void AudioPage::updateBufferSizeAndSampleRateComboBox() {
         if (bufferSizeList[i] == outputSys->outputContext()->adoptedBufferSize())
             m_bufferSizeComboBox->setCurrentIndex(i);
     }
+    m_bufferSizeComboBox->setEnabled(!bufferSizeList.isEmpty());
     connect(m_bufferSizeComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [outputSys, this](const int index) {
                 const auto newBufferSize = m_bufferSizeComboBox->itemData(index).value<qint64>();
@@ -357,6 +383,7 @@ void AudioPage::updateBufferSizeAndSampleRateComboBox() {
         if (sampleRateList[i] == outputSys->outputContext()->adoptedSampleRate())
             m_sampleRateComboBox->setCurrentIndex(i);
     }
+    m_sampleRateComboBox->setEnabled(!sampleRateList.isEmpty());
     connect(m_sampleRateComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [outputSys, this](const int index) {
                 const auto newSampleRate = m_sampleRateComboBox->itemData(index).value<double>();

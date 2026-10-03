@@ -1,0 +1,234 @@
+#ifndef APPLICATIONGUITESTS_H
+#define APPLICATIONGUITESTS_H
+
+#include "Automation/AutomationTypes.h"
+#include "../TestSupport/ProjectSnapshot.h"
+
+#include <QObject>
+#include <QPoint>
+#include <QTemporaryDir>
+
+#include <memory>
+
+class AppContext;
+
+namespace TestSupport {
+    class ClipboardSnapshot;
+}
+class PianoRollGraphicsScene;
+class PianoRollGraphicsView;
+class SingingClip;
+class NoteView;
+
+class ApplicationGuiTests final : public QObject {
+    Q_OBJECT
+
+public:
+    ApplicationGuiTests();
+    ~ApplicationGuiTests() override;
+
+private slots:
+    void initTestCase();
+    void init();
+    void copyPasteUsesTheActiveClipAndPlaybackPosition();
+    void cutCopiesThenRemovesSelectionAsOneUndoStep();
+    void wholeClipClipboardUsesSelectedTrackAndPreservesCurves();
+    void publicPlaybackDeviceFailureDoesNotOpenAModalDialog();
+    void invalidClipboardDoesNotEdit_data();
+    void invalidClipboardDoesNotEdit();
+    void drawingCommitsOnceAndUndoRedoUpdatesTheScene_data();
+    void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
+    void pianoTouchDrawingCommitsOrCancels_data();
+    void pianoTouchDrawingCommitsOrCancels();
+    void pianoTouchSelectionAndNavigationStayIndependent();
+    void pianoTouchLongPressDefersMenus_data();
+    void pianoTouchLongPressDefersMenus();
+    void pianoPenHoverHintsFollowTheDeliveredState();
+    void pianoPenErasingCommitsOrInterrupts_data();
+    void pianoPenErasingCommitsOrInterrupts();
+    void pianoTouchInlineLyricsKeepsEditingAndRecovers_data();
+    void pianoTouchInlineLyricsKeepsEditingAndRecovers();
+    void pianoPenClickOwnsOnlyItsContextMenu();
+    void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data();
+    void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange();
+    void pianoErasingRestoresSceneItemsOnCancelAndUndo();
+    void pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit();
+    void draggingExistingNoteCommitsOrCancels_data();
+    void draggingExistingNoteCommitsOrCancels();
+    void trackClipDragCommitsOrCancels_data();
+    void trackClipDragCommitsOrCancels();
+    void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void parameterStrokeCommitsOnceAndUndoRestoresView_data();
+    void parameterStrokeCommitsOnceAndUndoRestoresView();
+    void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
+    void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument();
+    void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry_data();
+    void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry();
+    void pitchAnchorCreationPreviewsBeforeCommitting();
+    void pitchAnchorRangeEditsUseTheViewAndMenu();
+    void pitchAnchorMergePreviewCommitsAndUndoes();
+    void parameterTransformGesturesCommitAndCancel_data();
+    void parameterTransformGesturesCommitAndCancel();
+    void parameterTransformHandlesControlTheTransitionRange();
+    void inlineLyricsCommitNavigateAndCancel();
+    void inlinePronunciationCommitsAndCancels();
+    void pronunciationMenuChangesOnlyTheClickedNote();
+    void phonemeBoundaryDragCommitsAndUndoRestoresOffsets();
+    void phonemeWaveformsLoadAndDiscardResultsAfterChangingClips();
+    void exportFormatUpdatesFileNamePreview();
+    void exportSourcesAndMixingUpdateFilePlan();
+    void canceledExportConfigurationDoesNotPersist();
+    void exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset();
+    void audioExportProgressFollowsTheTaskOutcome_data();
+    void audioExportProgressFollowsTheTaskOutcome();
+    void appearanceInputsPersistAcrossReopening();
+    void ghostReferenceSwitchUpdatesTheCanvasAndKeepsInputOnTheHost();
+    void publicUiSettingsPersistAndRollback_data();
+    void publicUiSettingsPersistAndRollback();
+    void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
+    void switchingUiLanguagePreservesSettingsAndTheOpenDocument();
+    void experimentalRendererSettingPersistsWhenRestartIsDeferred();
+    void automationAccessInputsPersistAndRejectMissingFolders();
+    void automationCustomToolsetInputsPersistAndExportPermissions();
+    void automationServerReconfigurationUpdatesAccessAndConnectionDetails();
+    void inferenceProviderSelectionDetectsDevicesAndDefersRestart();
+    void gpuDetectionFiltersDevicesAndDiscardsStaleReplies_data();
+    void gpuDetectionFiltersDevicesAndDiscardsStaleReplies();
+    void inferenceInputsPersistAcrossReopening();
+    void cacheCleanupRequiresConfirmationAndRefreshesThePage();
+    void interactiveProjectImportRespectsSelectionAndCancellation_data();
+    void interactiveProjectImportRespectsSelectionAndCancellation();
+    void midiChannelSelectionRebuildsTracksBeforeImport_data();
+    void midiChannelSelectionRebuildsTracksBeforeImport();
+    void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
+    void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
+    void droppingMidiAndAudioFilesUsesOneBatchDecision();
+    void fillLyricInputsCommitOrCancel_data();
+    void fillLyricInputsCommitOrCancel();
+    void lyricRuleEditingChangesThePreviewAndPersists();
+    void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
+    void phonemeDurationResetConfirmsAdjacentChanges_data();
+    void phonemeDurationResetConfirmsAdjacentChanges();
+    void noteLanguageMenuChangesOnlyTheSelectedWords_data();
+    void noteLanguageMenuChangesOnlyTheSelectedWords();
+    void lyricSearchNavigatesTheActualEditorAndHandlesNoMatches();
+    void dynamicSpeakerMixGesturesPreserveIdentityAndUndo_data();
+    void dynamicSpeakerMixGesturesPreserveIdentityAndUndo();
+    void dynamicSpeakerMixRangeDeletionAndContextMenu();
+    void dynamicSpeakerMixNavigationUsesProjectTime_data();
+    void dynamicSpeakerMixNavigationUsesProjectTime();
+    void dynamicSpeakerMixBypassAndStopFollowToolbarInputs();
+    void timelineGesturesSeekAndCommitLoopEdits_data();
+    void timelineGesturesSeekAndCommitLoopEdits();
+    void resizingANotePreviewsAndCommitsItsBoundary_data();
+    void resizingANotePreviewsAndCommitsItsBoundary();
+    void speakerMixSelectionAndDrag_data();
+    void speakerMixSelectionAndDrag();
+    void speakerMixModifierDragPreservesGroupRatios();
+    void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
+    void voiceMenusApplyPresetsToTheChosenTarget_data();
+    void voiceMenusApplyPresetsToTheChosenTarget();
+    void clipToolbarNameEditingKeepsTheOriginalTarget_data();
+    void clipToolbarNameEditingKeepsTheOriginalTarget();
+    void packageSearchShowsTheSelectedPackageDetails();
+    void missingAudioResourceRelinkCanBeCanceledAndCommitted();
+    void audioResourceConfirmationKeepsTheDecodedSource();
+    void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void closingTheMainWindowReleasesTheDefaultDialogParent();
+    void cancelingMainWindowClosePreservesTheEditableDocument_data();
+    void cancelingMainWindowClosePreservesTheEditableDocument();
+    void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
+    void mainMenuQuantizationUsesTheChosenScopeAndOptions();
+    void mainMenuOctaveEditsFollowThePianoSelection();
+    void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt();
+    void trackEditInputsFollowTheFocusedPanelAndUndo_data();
+    void trackEditInputsFollowTheFocusedPanelAndUndo();
+    void parameterDeleteMenuFollowsTheFocusedPanelAndUndo_data();
+    void parameterDeleteMenuFollowsTheFocusedPanelAndUndo();
+    void undoShortcutRevealsThePianoEditBeforeChangingIt_data();
+    void undoShortcutRevealsThePianoEditBeforeChangingIt();
+    void fileMenuOpensSavesAndExportsThroughThePicker();
+    void recentProjectsMenuRemovesMissingFilesAndClearsTheList();
+    void titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries();
+    void failedProjectOpenPreservesTheDocumentAndRecovers();
+    void openingZeroLengthSingingClipPreservesTheNextProjectViewport();
+    void projectDropCanCancelThenOpenTheDocument();
+    void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
+    void detachedBottomPanelReattachesWithItsEditingContext();
+    void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
+    void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
+    void newDocumentHonorsTheSaveDecision_data();
+    void newDocumentHonorsTheSaveDecision();
+    void rejectedProjectInputAllowsTheNextRequest_data();
+    void rejectedProjectInputAllowsTheNextRequest();
+    void pendingProjectLoadCanCancelOrRequestExit_data();
+    void pendingProjectLoadCanCancelOrRequestExit();
+    void projectOpenWaitsForPackageMetadata_data();
+    void projectOpenWaitsForPackageMetadata();
+    void taggerRuleInputsApplyPersistAndReopen();
+    void invalidTaggerRegexPreservesAppliedRules();
+    void movingLyricsBackwardUsesTheSelectedWordRange_data();
+    void movingLyricsBackwardUsesTheSelectedWordRange();
+    void pianoKeyboardGlissandoAndHideReleasePressedNotes();
+    void pianoAuxiliaryViewsNavigateWithoutChangingTheDocument();
+    void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
+    void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
+    void audioPageInputsPersistWithoutPlayback();
+    void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
+    void midiPageSynthInputsPersistWithoutPlayback();
+    void trackHeaderInputsCommitAndUndo();
+    void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
+    void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
+    void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
+    void timelineLaneInputsEditAndRemoveMarkers_data();
+    void timelineLaneInputsEditAndRemoveMarkers();
+    void playbackTextInputsValidateCommitAndCancel();
+    void loopControlsCommitAndUndoTheSelectedRange_data();
+    void loopControlsCommitAndUndoTheSelectedRange();
+    void tapTempoMeasuresASequenceAndResetsAfterInactivity();
+    void mixerChannelInputsAndLevelsStayScoped_data();
+    void mixerChannelInputsAndLevelsStayScoped();
+    void trackColorMenuPreviewsAndCommits_data();
+    void trackColorMenuPreviewsAndCommits();
+    void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
+    void pianoContextMenuPastePreservesRelativeNotesAndManualWords();
+    void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
+    void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void lyricGridSelectionDeletesOnlyChosenWords_data();
+    void lyricGridSelectionDeletesOnlyChosenWords();
+    void lyricGridMovesSelectedLinesTogether_data();
+    void lyricGridMovesSelectedLinesTogether();
+    void lyricGridSplitKeepsTheNewLineEditable();
+    void lyricGridMenusInsertAndClearWords();
+    void lyricGridZoomAndScrollKeepWordsSelectable();
+    void trackMenusCreateCutAndDeleteWithUndo();
+    void trackAudioMenuPreparesClipOrCancels_data();
+    void trackAudioMenuPreparesClipOrCancels();
+    void cleanup();
+    void cleanupTestCase();
+
+private:
+    void createPianoRoll();
+    void createExportTracks();
+    QString createWaveFixture(const QString &path) const;
+    void createLyricSelection(int firstTick = 0);
+    int insertSelectedNote();
+    Automation::CommandContext commandContext() const;
+    QPoint pointFor(int tick, int key) const;
+    int sceneNoteCount(int id) const;
+    const NoteView *sceneNote(int id) const;
+
+    QTemporaryDir dataRoot;
+    QByteArray previousDataRoot;
+    bool dataRootInstalled = false;
+    std::unique_ptr<AppContext> context;
+    std::unique_ptr<PianoRollGraphicsScene> scene;
+    std::unique_ptr<PianoRollGraphicsView> view;
+    SingingClip *singingClip = nullptr;
+    Automation::TrackId trackId;
+    std::unique_ptr<TestSupport::ClipboardSnapshot> savedClipboard;
+};
+
+#endif
