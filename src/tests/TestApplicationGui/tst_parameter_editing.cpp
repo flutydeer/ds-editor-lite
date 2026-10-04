@@ -192,13 +192,45 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QCoreApplication::processEvents();
     auto *parameter = clip->params.getParamByName(ParamInfo::MouthOpening);
     QVERIFY(parameter && parameter->curves(Param::Edited).isEmpty());
-    const auto curve = [&] {
-        return dynamic_cast<const AnchorCurve *>(parameter->curves(Param::Edited).value(0));
-    };
     auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto initialDraw;
+    initialDraw.type = Automation::CurveDraftDto::Type::Draw;
+    initialDraw.localStart = 240;
+    initialDraw.step = 5;
+    initialDraw.values = QList<int>(192, 500);
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), Automation::ClipId(clip->id()),
+                                                  ParamInfo::MouthOpening, Param::Edited,
+                                                  {initialDraw}));
+    const auto curve = [&]() -> const AnchorCurve * {
+        for (const auto *item : parameter->curves(Param::Edited)) {
+            if (const auto *anchor = dynamic_cast<const AnchorCurve *>(item))
+                return anchor;
+        }
+        return nullptr;
+    };
+    const auto draw = [&]() -> const DrawCurve * {
+        for (const auto *item : parameter->curves(Param::Edited)) {
+            if (const auto *drawing = dynamic_cast<const DrawCurve *>(item))
+                return drawing;
+        }
+        return nullptr;
+    };
+    QVERIFY(draw());
+    const auto drawId = draw()->id();
+    const auto retainedDraw = *draw();
+    const auto verifyDraw = [&] {
+        QVERIFY(draw());
+        QCOMPARE(draw()->id(), drawId);
+        QCOMPARE(*draw(), retainedDraw);
+    };
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     auto *viewport = editor.view.viewport();
+    const auto idlePoint = QPoint(20, 10);
+    TestSupport::hoverWidget(*viewport, idlePoint);
+    const auto drawOnlyImage = viewport->grab().toImage();
+    QVERIFY(!drawOnlyImage.isNull());
     const auto first = editor.pointFor(480, 200);
     const auto last = editor.pointFor(960, 800);
     QVERIFY(viewport->rect().contains(first) && viewport->rect().contains(last));
@@ -216,6 +248,9 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     const auto segmentPreview = viewport->grab().toImage();
     QVERIFY(!segmentPreview.isNull() && segmentPreview != firstPreview);
     QCOMPARE(runtime.documentVersion(), before);
+    verifyDraw();
+    if (QTest::currentTestFailed())
+        return;
     QTest::keyClick(&editor.view, Qt::Key_Escape);
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QVERIFY(!curve());
@@ -225,6 +260,11 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, last);
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QVERIFY(curve());
+    verifyDraw();
+    if (QTest::currentTestFailed())
+        return;
+    TestSupport::hoverWidget(*viewport, idlePoint);
+    QTRY_VERIFY(viewport->grab().toImage() != drawOnlyImage);
     const auto nodes = curve()->nodes().toList();
     QCOMPARE(nodes.size(), 2);
     QVERIFY(qAbs(nodes.first()->pos() - 480) <= 4);
@@ -270,11 +310,20 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(menuUsed);
     QVERIFY(curve());
     QCOMPARE(curve()->nodes().toList().first()->interpMode(), selectedInterpolation);
+    verifyDraw();
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(curve());
     QCOMPARE(curve()->nodes().toList().first()->interpMode(), originalInterpolation);
     QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(!curve());
+    verifyDraw();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    TestSupport::hoverWidget(*viewport, idlePoint);
+    QTRY_COMPARE(viewport->grab().toImage(), drawOnlyImage);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(clip->params.getParamByName(ParamInfo::Tension)->curves(Param::Edited).isEmpty());
     editor.view.activateWindow();
@@ -286,6 +335,8 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QVERIFY(!curve());
     QVERIFY(!historyManager->canUndo());
+    verifyDraw();
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
 }
 
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView_data() {
@@ -682,22 +733,28 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
 
     const auto beforeCancel = runtime.documentVersion();
     const auto *historyEntry = historyManager->nextUndoEntry();
-    selectRange();
-    if (QTest::currentTestFailed())
-        return;
-    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithButton(release);
-    QVERIFY(editSessionManager->hasActiveTransaction());
-    QVERIFY(valueAt(editor.foreground->editedCurves(), 720) < previewCenter);
-    QTest::keyClick(&editor.view, Qt::Key_Escape);
-    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
-    QCOMPARE(discarded.count(), 1);
-    QCOMPARE(committed.count(), 1);
-    QVERIFY(!editSessionManager->hasActiveTransaction());
-    QCOMPARE(snapshot(), changed);
-    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
-    QCOMPARE(runtime.documentVersion(), beforeCancel);
-    QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+    for (const bool useRightButton : {false, true}) {
+        selectRange();
+        if (QTest::currentTestFailed())
+            return;
+        QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
+        editor.moveWithButton(release);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QVERIFY(valueAt(editor.foreground->editedCurves(), 720) < previewCenter);
+        const auto discardedBefore = discarded.count();
+        if (useRightButton)
+            QTest::mouseClick(editor.view.viewport(), Qt::RightButton, Qt::NoModifier, release);
+        else
+            QTest::keyClick(&editor.view, Qt::Key_Escape);
+        QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        QCOMPARE(discarded.count(), discardedBefore + 1);
+        QCOMPARE(committed.count(), 1);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(snapshot(), changed);
+        QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
+        QCOMPARE(runtime.documentVersion(), beforeCancel);
+        QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+    }
 }
 
 void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
