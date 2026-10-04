@@ -86,8 +86,9 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::addColumn<int>("invalidItems");
     QTest::addColumn<bool>("bestEffort");
     QTest::addColumn<QString>("changeAfterAdmission");
-    QTest::addColumn<QString>("invalidSource");
+    QTest::addColumn<QString>("sourceVariant");
     QTest::newRow("midi-and-dspx") << 0 << false << QString{} << QString{};
+    QTest::newRow("best-effort-empty-project") << 0 << true << QString{} << QStringLiteral("empty");
     QTest::newRow("atomic-failure") << 1 << false << QString{} << QStringLiteral("content");
     QTest::newRow("best-effort") << 1 << true << QString{} << QStringLiteral("content");
     QTest::newRow("best-effort-all-failed") << 2 << true << QString{} << QStringLiteral("content");
@@ -111,7 +112,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QFETCH(int, invalidItems);
     QFETCH(bool, bestEffort);
     QFETCH(QString, changeAfterAdmission);
-    QFETCH(QString, invalidSource);
+    QFETCH(QString, sourceVariant);
     const bool cancelRunning = changeAfterAdmission == QStringLiteral("cancel-running");
     QTemporaryDir files;
     QVERIFY(files.isValid());
@@ -122,11 +123,16 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     MidiConverter midiConverter;
     QVERIFY2(dspxConverter.save(dspx, context->m_appModel, error), qPrintable(error));
     QVERIFY2(midiConverter.save(midi, context->m_appModel, error), qPrintable(error));
-    if (invalidSource == QStringLiteral("extension")) {
+    if (sourceVariant == QStringLiteral("empty")) {
+        AppModel empty;
+        empty.setTimeline(context->m_appModel->timeline());
+        QVERIFY2(dspxConverter.save(dspx, &empty, error), qPrintable(error));
+    }
+    if (sourceVariant == QStringLiteral("extension")) {
         const auto unsupported = files.filePath(QStringLiteral("source.unsupported"));
         QVERIFY(QFile::rename(midi, unsupported));
         midi = unsupported;
-    } else if (invalidSource == QStringLiteral("missing")) {
+    } else if (sourceVariant == QStringLiteral("missing")) {
         QVERIFY(QFile::remove(midi));
     } else if (invalidItems > 0) {
         QFile broken(midi);
@@ -203,10 +209,10 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     const auto *undoBeforeAdmission = historyManager->nextUndoEntry();
     ProjectParsePause parsePause(cancelRunning);
     const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
-    if (!bestEffort && (invalidSource == QStringLiteral("extension") ||
-                        invalidSource == QStringLiteral("missing"))) {
+    if (!bestEffort && (sourceVariant == QStringLiteral("extension") ||
+                        sourceVariant == QStringLiteral("missing"))) {
         QVERIFY(!accepted);
-        QCOMPARE(accepted.getError().code, invalidSource == QStringLiteral("extension")
+        QCOMPARE(accepted.getError().code, sourceVariant == QStringLiteral("extension")
                                                ? Automation::AutomationErrorCode::FormatUnsupported
                                                : Automation::AutomationErrorCode::FileNotFound);
         QCOMPARE(runtime().automationTasks().list(before.documentId), tasksBeforeAdmission);
@@ -283,8 +289,14 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
         QVERIFY(terminal.mutation);
         QCOMPARE(terminal.mutation->warnings.isEmpty(),
-                 invalidItems == 0 && (changeAfterAdmission.isEmpty() || cancelRunning));
-        if (changeAfterAdmission == QStringLiteral("source"))
+                 invalidItems == 0 && sourceVariant != QStringLiteral("empty") &&
+                     (changeAfterAdmission.isEmpty() || cancelRunning));
+        if (sourceVariant == QStringLiteral("empty")) {
+            QCOMPARE(terminal.mutation->warnings.size(), 1);
+            QVERIFY(terminal.mutation->warnings.first().contains(QStringLiteral("No tracks")));
+        }
+        if (changeAfterAdmission == QStringLiteral("source") ||
+            sourceVariant == QStringLiteral("empty"))
             QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount * 2);
         QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
         QVERIFY(runtime().history().undo(commandContext()));
