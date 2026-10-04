@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
@@ -124,20 +125,24 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels_data() {
     QTest::addColumn<bool>("audio");
     QTest::addColumn<int>("edge");
     QTest::addColumn<bool>("cancel");
-    QTest::newRow("singing-move") << false << 0 << false;
-    QTest::newRow("singing-cancel-move") << false << 0 << true;
-    QTest::newRow("singing-trim-left") << false << -1 << false;
-    QTest::newRow("singing-extend-right") << false << 1 << false;
-    QTest::newRow("audio-move") << true << 0 << false;
-    QTest::newRow("audio-trim-left") << true << -1 << false;
-    QTest::newRow("audio-extend-right") << true << 1 << false;
-    QTest::newRow("audio-cancel-trim") << true << -1 << true;
+    QTest::addColumn<bool>("touch");
+    QTest::newRow("singing-move") << false << 0 << false << false;
+    QTest::newRow("singing-cancel-move") << false << 0 << true << false;
+    QTest::newRow("singing-trim-left") << false << -1 << false << false;
+    QTest::newRow("singing-extend-right") << false << 1 << false << false;
+    QTest::newRow("audio-move") << true << 0 << false << false;
+    QTest::newRow("audio-trim-left") << true << -1 << false << false;
+    QTest::newRow("audio-extend-right") << true << 1 << false << false;
+    QTest::newRow("audio-cancel-trim") << true << -1 << true << false;
+    QTest::newRow("touch-move") << false << 0 << false << true;
+    QTest::newRow("touch-cancel-move") << false << 0 << true << true;
 }
 
 void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QFETCH(bool, audio);
     QFETCH(int, edge);
     QFETCH(bool, cancel);
+    QFETCH(bool, touch);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -157,7 +162,13 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     TrackEditorView editor;
     auto *canvas = editor.findChild<TracksGraphicsView *>();
     QVERIFY(canvas);
-    const auto discardUnfinishedDrag = qScopeGuard([canvas] { canvas->discardAction(); });
+    const auto discardUnfinishedDrag = qScopeGuard([canvas, touch] {
+        if (touch) {
+            QEvent deactivate(QEvent::WindowDeactivate);
+            QApplication::sendEvent(canvas, &deactivate);
+        }
+        canvas->discardAction();
+    });
 
     constexpr int originalStart = 480;
     constexpr int clipLength = 1920;
@@ -212,7 +223,28 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QCoreApplication::processEvents();
     historyManager->reset();
 
+    auto *touchDevice = touch ? QTest::createTouchDevice() : nullptr;
     const auto before = runtime.documentVersion();
+    if (touch) {
+        const auto beforePan = TestSupport::projectSnapshot(*context->m_appModel);
+        const auto from = canvas->viewport()->rect().center() + QPoint(0, 100);
+        const auto to = from + QPoint(-60, 0);
+        const auto left = canvas->horizontalBarValue();
+        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, from);
+        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, from + QPoint(-25, 0));
+        QTest::qWait(20);
+        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, to);
+        QTRY_VERIFY(canvas->horizontalBarValue() > left);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforePan);
+        QVERIFY(!historyManager->canUndo());
+        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, to);
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(canvas, &deactivate);
+        QVERIFY(!EditorPointer::isTouchStreamActive());
+        canvas->setViewportStartTick(0);
+    }
     const auto originalRect = item->sceneBoundingRect();
     const auto clipState = [clip] {
         const auto properties = Automation::clipPropertiesDto(*clip);
@@ -238,18 +270,33 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QCOMPARE(canvas->itemAt(press), static_cast<QGraphicsItem *>(item));
     QVERIFY(!item->isSelected());
 
-    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    if (touch) {
+        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, press);
+        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, press);
+        QTRY_VERIFY(item->isSelected());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(clipState(), originalProperties);
+        QVERIFY(!historyManager->canUndo());
+    }
+    if (touch)
+        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, press);
+    else
+        QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(runtime.documentVersion(), before);
+
+    if (touch) {
+        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, release);
+    } else {
+        QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                         QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(canvas->viewport(), &move);
+    }
     QVERIFY(item->isSelected());
     QCOMPARE(item->activeClip(), !audio);
     QCOMPARE(canvas->selectedClipsId(), QList<int>{clipId});
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{clipId});
     QCOMPARE(appStatus->activeClipId.get(), audio ? -1 : clipId);
-    QCOMPARE(runtime.documentVersion(), before);
-
-    QMouseEvent move(QEvent::MouseMove, QPointF(release),
-                     QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
-                     Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(canvas->viewport(), &move);
     QTRY_COMPARE(item->start() + item->clipStart(), expectedLeft);
     QCOMPARE(item->clipLen(), expectedLength);
     QCOMPARE(clipState(), originalProperties);
@@ -259,9 +306,18 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QVERIFY(!historyManager->canUndo());
     QVERIFY(editSessionManager->hasActiveTransaction());
 
-    if (cancel)
-        QTest::keyClick(canvas, Qt::Key_Escape);
-    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    if (touch) {
+        if (cancel) {
+            QEvent deactivate(QEvent::WindowDeactivate);
+            QApplication::sendEvent(canvas, &deactivate);
+        }
+        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, release);
+        QVERIFY(!EditorPointer::isTouchStreamActive());
+    } else {
+        if (cancel)
+            QTest::keyClick(canvas, Qt::Key_Escape);
+        QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    }
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
     item = editor.findClipItemById(clipId);
