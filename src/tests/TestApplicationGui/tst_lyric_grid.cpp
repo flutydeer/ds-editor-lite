@@ -268,6 +268,34 @@ void ApplicationGuiTests::lyricGridMovesSelectedLinesTogether() {
     QCOMPARE(words(grid), original);
     for (int index = 1; index < grid.cellLists().size(); ++index)
         QVERIFY(grid.cellLists().at(index - 1)->y() < grid.cellLists().at(index)->y());
+    if (menu) {
+        const auto blankPosition = [&] {
+            const auto rect = firstSelected->sceneBoundingRect();
+            return grid.mapFromScene(QPointF(rect.right() - 16, rect.center().y()));
+        };
+        const auto chooseRowMenu = [&](const QString &text) {
+            const auto belowRows = grid.mapFromScene(
+                QPointF(16, grid.cellLists().last()->sceneBoundingRect().bottom() + 20));
+            clickAt(grid, belowRows);
+            QVERIFY(grid.scene()->selectedItems().isEmpty());
+            chooseMenu(grid, blankPosition(), text);
+        };
+        chooseRowMenu(FillLyric::CellList::tr("move down"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(words(grid), (Rows{{"one"}, {"three"}, {"two"}, {"four"}}));
+        QCOMPARE(grid.cellLists().at(2), firstSelected);
+        chooseRowMenu(FillLyric::CellList::tr("move up"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(words(grid), original);
+        QCOMPARE(grid.cellLists().at(1), firstSelected);
+        chooseRowMenu(FillLyric::CellList::tr("delete line"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(words(grid), (Rows{{"one"}, {"three"}, {"four"}}));
+        QCOMPARE(grid.cellLists().at(1), secondSelected);
+    }
     QVERIFY(!historyManager->canUndo());
 }
 

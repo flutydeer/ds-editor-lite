@@ -25,6 +25,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -46,6 +47,7 @@
 #include <QTabWidget>
 #include <QTimer>
 #include <QWheelEvent>
+#include <QImage>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -318,6 +320,7 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
         [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
     const auto before = runtime.documentVersion();
     const auto selected = appStatus->selectedNotes.get();
+    const auto contentBeforeDialog = TestSupport::projectSnapshot(*context->m_appModel);
     bool interacted = false;
     QTimer operateDialog;
     operateDialog.setInterval(10);
@@ -407,6 +410,39 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
             QVERIFY(!updated.get().fillLyric.extensionVisible);
         } else {
             splitIntoPreview(*dialog, TestSupport::fixtureLyric(), splitMode);
+            if (QTest::currentTestFailed())
+                return;
+            auto *preview = dialog->findChild<FillLyric::LyricWrapView *>();
+            QVERIFY(preview && preview->isVisible());
+            const auto lines = preview->cellLists();
+            QVERIFY(!lines.isEmpty() && !lines.first()->m_cells.isEmpty());
+            QList<QList<FillLyric::LyricCell *>> cells;
+            for (const auto *line : lines)
+                cells.append(line->m_cells);
+            auto *theme = ThemeManager::instance();
+            const auto originalTheme = theme->currentThemeId();
+            const auto restoreTheme =
+                qScopeGuard([&] { QVERIFY(theme->applyTheme(originalTheme)); });
+            QImage previousFrame;
+            for (const auto &id : {QStringLiteral("lite-light"), QStringLiteral("lite-dark")}) {
+                QVERIFY(theme->applyTheme(id));
+                QTRY_COMPARE(preview->styleSheet(), theme->lyricStyleSheet());
+                QCOMPARE(preview->cellLists(), lines);
+                for (qsizetype index = 0; index < lines.size(); ++index)
+                    QCOMPARE(lines.at(index)->m_cells, cells.at(index));
+                const auto cellRect = preview->mapFromScene(cells.first().first()->lyricRect())
+                                          .boundingRect()
+                                          .intersected(preview->viewport()->rect());
+                QVERIFY(!cellRect.isEmpty());
+                const auto frame = preview->viewport()->grab(cellRect).toImage();
+                QVERIFY(!frame.isNull());
+                if (!previousFrame.isNull())
+                    QVERIFY(frame != previousFrame);
+                previousFrame = frame;
+                QCOMPARE(runtime.documentVersion(), before);
+                QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDialog);
+                QVERIFY(!historyManager->canUndo());
+            }
         }
         if (QTest::currentTestFailed())
             return;
