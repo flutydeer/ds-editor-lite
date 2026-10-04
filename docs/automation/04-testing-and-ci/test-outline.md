@@ -144,7 +144,7 @@
 | TestAutomationProtocol | Wire/游标、公共注册及映射、Native/MCP 调度、HTTP 生命周期与响应停止边界 | protocol。通用 |
 | TestConnector | Connector 连接、重连、stdio 分帧、背压、超时与结果不明确 | protocol/process。真实 Connector |
 | TestBootstrap | 启动参数、Host 模式、单实例身份与传输 | protocol/process。当前平台 |
-| TestProcessIntegration | 真实 Editor/Connector 启动、跨 Host、编辑/文件闭环、退出/重启和信号 | process。通用/offscreen/平台 |
+| TestProcessIntegration | 真实 Editor/Connector 启动、跨 Host、编辑/文件闭环、音频导入属性及幂等、退出/重启和信号 | process。通用/offscreen/平台 |
 | TestModelResources | 内置或显式声库的 CPU 推理、语言和声线接线、缓存/失效与 WAV 导出，内置包的 DirectML/CUDA 实际推理及声码器执行 | workflow、默认内置资源、GPU 行按构建与设备条件执行 |
 | TestGuiComponents | 主题颜色/图标、二级菜单、组件动画、SeekBar/Fader/Pan 的输入与提交。触控占用与滚动、重建行的重排手柄、目录内联编辑及指针提示框位置 | gui。offscreen |
 | TestNativeDesktop | 原生分隔布局、窗口动画设置、Null RHI 钢琴窗/轨道输入与帧提交、条件音频及 MIDI 回环 | gui/workflow。原生桌面。设备条件按例报告 |

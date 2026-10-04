@@ -1231,6 +1231,9 @@ namespace {
             {QStringLiteral("expected_revision"), currentRevision                   },
             {QStringLiteral("track_id"),          createdTrackId                    },
             {QStringLiteral("start"),             0                                 },
+            {QStringLiteral("name"),              QStringLiteral("MCP import")      },
+            {QStringLiteral("gain"),              -3.0                              },
+            {QStringLiteral("mute"),              true                              },
             {QStringLiteral("path"),              audioPath                         },
             {QStringLiteral("idempotency_key"),   QStringLiteral("audio-import-key")},
         };
@@ -1317,6 +1320,27 @@ namespace {
             return failWithProcessDiagnostics(
                 QStringLiteral("Imported audio clip did not retain a SHA-512 digest: %1")
                     .arg(importedAudio ? compactJson(*importedAudio) : toolError));
+        }
+        const auto importedClip =
+            connectorToolContent(connector, 1201, QStringLiteral("clips.get"),
+                                 QJsonObject{
+                                     {QStringLiteral("document_id"), documentId        },
+                                     {QStringLiteral("clip_id"),     createdAudioClipId},
+        },
+                                 5000, toolError);
+        if (!importedClip)
+            return failWithProcessDiagnostics(toolError);
+        const auto clipSnapshot = importedClip->value(QStringLiteral("snapshot")).toObject();
+        if (clipSnapshot.value(QStringLiteral("track_id")).toInteger(-1) != createdTrackId ||
+            clipSnapshot.value(QStringLiteral("type")).toString() != QStringLiteral("audio") ||
+            clipSnapshot.value(QStringLiteral("name")).toString() != QStringLiteral("MCP import") ||
+            clipSnapshot.value(QStringLiteral("gain")).toDouble() != -3.0 ||
+            !clipSnapshot.value(QStringLiteral("mute")).toBool() ||
+            importedClip->value(QStringLiteral("document")) !=
+                importedAudio->value(QStringLiteral("document"))) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Audio import did not preserve requested clip properties: %1")
+                    .arg(compactJson(*importedClip)));
         }
 
         const auto historyBeforeCapabilities =
