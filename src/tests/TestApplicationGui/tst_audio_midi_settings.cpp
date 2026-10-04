@@ -201,6 +201,20 @@ void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {
         QCOMPARE(gain->value(), -6.0);
         QVERIFY(std::abs(gainSlider->displayValue() + 6.0) < 1e-4);
         QVERIFY(std::abs(mixer->gain() - 0.50118723f) < 1e-6f);
+        page->ensureWidgetVisible(gainSlider);
+        gainSlider->setFocus();
+        QTRY_VERIFY(gainSlider->hasFocus());
+        QTest::keyClick(gainSlider, Qt::Key_End);
+        QTRY_COMPARE(gain->value(), 6.0);
+        QVERIFY(std::abs(gainSlider->displayValue() - 6.0) < 1e-4);
+        QVERIFY(std::abs(mixer->gain() - 1.9952623f) < 1e-6f);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        enterNumber(*page, gain, QLocale().toString(-6.0));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(gain->value(), -6.0);
+        QVERIFY(std::abs(mixer->gain() - 0.50118723f) < 1e-6f);
         enterNumber(*page, pan, QStringLiteral("25"));
         if (QTest::currentTestFailed())
             return;
