@@ -689,13 +689,32 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::Parameters));
     QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
                  EditorViewGlobal::Region::Parameters);
+    QVERIFY(editor.setPanelVisibility(gui, true, false));
+    QVERIFY(!window.captureEditorViewState().layout.bottomPanelVisible);
+    QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::PianoRoll));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::PianoRoll);
+    const auto pianoLayout = window.captureEditorViewState().layout;
+    QVERIFY(pianoLayout.bottomPanelVisible && pianoLayout.pianoRollVisible);
+    QCOMPARE(pianoLayout.bottomPanelPageId, QStringLiteral("ClipEditor"));
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
+    QVERIFY(!historyManager->canUndo());
     QVERIFY(editor.setPianoRollQuantize(gui, 8, true));
     QCOMPARE(appStatus->pianoRollQuantize.get(), 8);
     QVERIFY(appStatus->pianoRollQuantizeEnabled);
     QVERIFY(editor.setAutoPageTurn(gui, Automation::EditorAutoPageTarget::TrackPanel, false));
     QVERIFY(editor.setAutoPageTurn(gui, Automation::EditorAutoPageTarget::PianoRoll, false));
     QVERIFY(!appStatus->trackAutoPageTurnEnabled && !appStatus->pianoRollAutoPageTurnEnabled);
+    QVERIFY(editor.setPanelVisibility(gui, false, true));
+    QVERIFY(!window.captureEditorViewState().layout.trackPanelVisible);
     QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::TrackPanel));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::TrackPanel);
+    QVERIFY(window.captureEditorViewState().layout.trackPanelVisible);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
+    QVERIFY(!historyManager->canUndo());
     QVERIFY(editor.setTrackPanelViewport(gui, {.centerTick = 1920, .horizontalScale = 1.5}));
     QTRY_COMPARE(window.captureEditorViewState().trackPanel.horizontalScale, 1.5);
     const auto state = editor.getEditorState(before.documentId, gui.windowId);
