@@ -174,6 +174,22 @@ QRectF PianoRollGraphicsViewHelper::noteErrorBadgeRect(const QRectF &noteRect) {
             badgeSize.height()};
 }
 
+QString PianoRollGraphicsViewHelper::noteInferenceErrorTitle(const SliceExclusionReason reason) {
+    switch (reason) {
+        case SliceExclusionReason::MissingPhonemes:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Missing phonemes");
+        case SliceExclusionReason::FirstNoteInvalid:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "Invalid phrase start");
+        case SliceExclusionReason::UnassignedSyllabification:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "Unassigned syllabification note");
+        case SliceExclusionReason::Overlapped:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Overlapping note");
+    }
+    return {};
+}
+
 QString PianoRollGraphicsViewHelper::noteInferenceErrorText(const NoteInferenceErrorInfo &error) {
     switch (error.reason) {
         case SliceExclusionReason::MissingPhonemes:

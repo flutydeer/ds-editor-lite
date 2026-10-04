@@ -909,7 +909,7 @@ public:
         // on the badge asks why the note is silent
         if (const auto *badgeNote = errorBadgeAt(viewportPosition)) {
             lyricToolTip->hide();
-            showErrorToolTip(badgeNote->id(), badgeNote->lyric(),
+            showErrorToolTip(badgeNote->id(),
                              clip->noteInferenceErrors().value(badgeNote->id()),
                              noteViewportRect(badgeNote));
             return;
@@ -939,14 +939,18 @@ public:
                               {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
     }
 
-    void showErrorToolTip(const int noteId, const QString &lyric,
-                          const NoteInferenceErrorInfo &error, const QRectF &noteRect) {
+    void showErrorToolTip(const int noteId, const NoteInferenceErrorInfo &error,
+                          const QRectF &noteRect) {
         const QRectF visibleRect(QPointF(), QSizeF(q->size()));
         const auto visibleNoteRect = noteRect.intersected(visibleRect).toAlignedRect();
-        auto message = PianoRollGraphicsViewHelper::noteInferenceErrorText(error);
-        if (!error.detail.isEmpty())
-            message += QLatin1Char('\n') + error.detail;
-        errorToolTip->showFor(noteId, lyric, message,
+        // The task detail replaces the generic body when present: repeating the
+        // generic explanation next to its specific cause is just noise
+        auto message = error.detail.isEmpty()
+                           ? PianoRollGraphicsViewHelper::noteInferenceErrorText(error)
+                           : error.detail;
+        errorToolTip->showFor(noteId,
+                              PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                              message,
                               {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
     }
 
@@ -1917,7 +1921,7 @@ public:
             return;
         // A tap on the error badge asks for the reason instead of interacting
         if (const auto *badgeNote = errorBadgeAt(event->position())) {
-            showErrorToolTip(badgeNote->id(), badgeNote->lyric(),
+            showErrorToolTip(badgeNote->id(),
                              clip->noteInferenceErrors().value(badgeNote->id()),
                              noteViewportRect(badgeNote));
             return;

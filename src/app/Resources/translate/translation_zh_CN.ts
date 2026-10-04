@@ -2907,11 +2907,27 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <source>No phonemes are available for the pronunciation of \"%1\"</source>
-        <translation>“%1”的发音没有对应的音素</translation>
+        <translation type="vanished">“%1”的发音没有对应的音素</translation>
     </message>
 </context>
 <context>
     <name>PianoRollGraphicsViewHelper</name>
+    <message>
+        <source>Missing phonemes</source>
+        <translation>无法生成音素</translation>
+    </message>
+    <message>
+        <source>Invalid phrase start</source>
+        <translation>乐句起始不合规</translation>
+    </message>
+    <message>
+        <source>Unassigned syllabification note</source>
+        <translation>缀字音符未分配音素</translation>
+    </message>
+    <message>
+        <source>Overlapping note</source>
+        <translation>音符重叠</translation>
+    </message>
     <message>
         <source>No phonemes are available for this note. Check the lyric, the pronunciation, or the language settings</source>
         <translation>该音符没有可用的音素，请检查歌词、发音或语言设置</translation>

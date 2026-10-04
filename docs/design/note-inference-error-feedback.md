@@ -49,7 +49,7 @@
 
 ### 原因 tooltip
 
-新建 `NoteErrorToolTipController`（仿歌词 tooltip），标题为歌词，正文为原因文案（`PianoRollGraphicsViewHelper::noteInferenceErrorText` 按 reason 映射，tr 上下文 `PianoRollGraphicsViewHelper`），任务详情非空时追加第二行。两个后端各持一个实例，角标命中优先于歌词截断 tooltip。鼠标悬停角标或触屏点按角标显示，离开、滚轮、按下、双击隐藏。
+新建 `NoteErrorToolTipController`（仿歌词 tooltip），标题为错误类别短语（`noteInferenceErrorTitle`，如"无法生成音素"、"音符重叠"），正文为一行说明，取舍规则是任务详情存在时用详情（语言模块未就绪、歌手不可用、音素模块加载失败、发音转换失败四类），否则用 `noteInferenceErrorText` 的通用文案。歌词与发音文本都在音符本体上展示，tooltip 不再重复。ToolTip 标题标签显式居左，与正文共用左缘。两个后端各持一个实例，角标命中优先于歌词截断 tooltip。鼠标悬停角标或触屏点按角标显示，离开、滚轮、按下、双击隐藏。
 
 ### 时间轴红条
 

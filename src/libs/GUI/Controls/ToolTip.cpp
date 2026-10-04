@@ -30,6 +30,9 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setObjectName("toolTipTitle");
     m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+    // The rich-text label may end up wider than its text when the card is
+    // stretched by long message lines; keep the title on the shared left edge
+    m_lbTitle->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     m_lbShortcutKey = new QLabel();
     m_lbShortcutKey->setObjectName("toolTipShortcutKey");

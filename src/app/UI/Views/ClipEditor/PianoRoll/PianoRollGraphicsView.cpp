@@ -2043,10 +2043,14 @@ void PianoRollGraphicsViewPrivate::showErrorToolTip(const NoteView &noteView,
     const auto noteRect = q->mapFromScene(noteView.sceneBoundingRect())
                               .boundingRect()
                               .intersected(q->viewport()->rect());
-    auto message = PianoRollGraphicsViewHelper::noteInferenceErrorText(error);
-    if (!error.detail.isEmpty())
-        message += QLatin1Char('\n') + error.detail;
-    m_errorToolTip->showFor(noteView.id(), noteView.lyric(), message,
+    // The task detail replaces the generic body when present: repeating the
+    // generic explanation next to its specific cause is just noise
+    auto message = error.detail.isEmpty()
+                       ? PianoRollGraphicsViewHelper::noteInferenceErrorText(error)
+                       : error.detail;
+    m_errorToolTip->showFor(noteView.id(),
+                            PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                            message,
                             {q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
 }
 

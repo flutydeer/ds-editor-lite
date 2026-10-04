@@ -11,26 +11,26 @@ NoteErrorToolTipController::NoteErrorToolTipController(QWidget *parent)
 
 NoteErrorToolTipController::~NoteErrorToolTipController() = default;
 
-void NoteErrorToolTipController::showFor(const int noteId, const QString &lyric,
+void NoteErrorToolTipController::showFor(const int noteId, const QString &title,
                                          const QString &message, const QRect &screenAnchor) {
-    if (lyric.isEmpty() || message.isEmpty() || screenAnchor.isEmpty()) {
+    if (title.isEmpty() || message.isEmpty() || screenAnchor.isEmpty()) {
         hide();
         return;
     }
-    if (m_noteId == noteId && m_lyric == lyric && m_message == message && m_toolTip->isVisible())
+    if (m_noteId == noteId && m_title == title && m_message == message && m_toolTip->isVisible())
         return;
 
     m_noteId = noteId;
-    m_lyric = lyric;
+    m_title = title;
     m_message = message;
-    m_toolTip->setTitle(Qt::convertFromPlainText(lyric));
+    m_toolTip->setTitle(Qt::convertFromPlainText(title));
     m_toolTip->setMessage({Qt::convertFromPlainText(message)});
     m_toolTip->showAbove(screenAnchor);
 }
 
 void NoteErrorToolTipController::hide() {
     m_noteId = -1;
-    m_lyric.clear();
+    m_title.clear();
     m_message.clear();
     if (m_toolTip->isVisible())
         m_toolTip->hideWithAnimation();

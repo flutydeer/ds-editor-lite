@@ -34,7 +34,10 @@ namespace PianoRollGraphicsViewHelper {
     // The inference-error badge rect inside a note rect, in the same coordinate
     // system and units as the given note rect
     [[nodiscard]] QRectF noteErrorBadgeRect(const QRectF &noteRect);
-    // Human-readable reason why a note is excluded from inference, for tooltips
+    // Short category label for a note excluded from inference, for tooltip titles
+    [[nodiscard]] QString noteInferenceErrorTitle(SliceExclusionReason reason);
+    // Human-readable one-line explanation for a note excluded from inference,
+    // for tooltip bodies when the task reports no more specific detail
     [[nodiscard]] QString noteInferenceErrorText(const NoteInferenceErrorInfo &error);
 }
 

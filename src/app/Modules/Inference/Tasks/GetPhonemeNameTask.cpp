@@ -187,11 +187,11 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             }
             result.success = !result.phonemeNames.isEmpty();
             if (!result.success) {
+                // No per-note detail here: the slicer-level diagnostics already
+                // explain the missing phonemes, and the pronunciation is visible
+                // on the note itself
                 qCWarning(logInferPhoneme)
                     << "S2P returned empty phonemes for pronunciation:" << input.pronunciation;
-                result.errorMessage =
-                    tr("No phonemes are available for the pronunciation of \"%1\"")
-                        .arg(input.pronunciation);
                 allSuccess = false;
             }
         }
