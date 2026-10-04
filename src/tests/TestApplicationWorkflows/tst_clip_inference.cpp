@@ -49,16 +49,14 @@
 #include <cmath>
 #include <utility>
 
-namespace {
-    bool inferenceSettled(const SingingClip *clip) {
-        return clip && !clip->pieces().isEmpty() &&
-               std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
-                           [](const InferPiece *piece) {
-                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
-                                      piece->state == QStringLiteral("Ready");
-                           }) &&
-               taskManager->tasks().isEmpty();
-    }
+bool ApplicationWorkflowTests::inferenceSettled(const SingingClip *clip) {
+    return clip && !clip->pieces().isEmpty() &&
+           std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
+                       [](const InferPiece *piece) {
+                           return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                  piece->state == QStringLiteral("Ready");
+                       }) &&
+           taskManager->tasks().isEmpty();
 }
 
 void ApplicationWorkflowTests::prepareVoicebankTarget() {

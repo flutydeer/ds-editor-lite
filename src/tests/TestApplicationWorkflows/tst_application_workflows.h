@@ -125,6 +125,7 @@ private slots:
 private:
     void prepareInferenceTarget(AppStatus::ModuleStatus &previousPackageStatus);
     void prepareVoicebankTarget();
+    static bool inferenceSettled(const SingingClip *clip);
 
     void verifyAcousticGate(InferPipeline &pipeline, bool immediateExpected, bool completeFirst);
 

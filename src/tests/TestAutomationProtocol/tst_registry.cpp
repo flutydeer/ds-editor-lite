@@ -1546,6 +1546,7 @@ namespace {
                      {QStringLiteral("id"), targetId},
                  }                                                                             },
         });
+        reportFailure(QStringLiteral("speaker_mix.get"), result);
         return result ? result.get().value(QStringLiteral("snapshot")).toObject() : QJsonObject{};
     }
 
@@ -1927,6 +1928,72 @@ namespace {
             speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value());
         QVERIFY(bypassed.value(QStringLiteral("bypassed")).toBool());
         QCOMPARE(bypassed.value(QStringLiteral("keyframes")).toArray(), keyframes);
+        const auto beforeDisable = TestSupport::projectSnapshot(testRuntime.model());
+        const auto trackBeforeDisable =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("track"), fixture.trackId.value());
+        QVERIFY(editMix(QStringLiteral("speaker_mix.disable_dynamic"),
+                        {
+                            {QStringLiteral("clip_id"), voiceClipId.value()}
+        }));
+        const auto disabled =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value());
+        QVERIFY(!disabled.value(QStringLiteral("dynamic_enabled")).toBool());
+        QVERIFY(!disabled.value(QStringLiteral("bypassed")).toBool());
+        QVERIFY(disabled.value(QStringLiteral("keyframes")).toArray().isEmpty());
+        QCOMPARE(disabled.value(QStringLiteral("mix")).toObject(), exactMix);
+        QCOMPARE(
+            speakerMixSnapshot(registry, runtime, QStringLiteral("track"), fixture.trackId.value()),
+            trackBeforeDisable);
+        const auto afterDisable = TestSupport::projectSnapshot(testRuntime.model());
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
+        QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value()),
+                 bypassed);
+        QVERIFY(runtime.history().redo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), afterDisable);
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
+
+        auto singleMix = exactMix;
+        singleMix.insert(
+            QStringLiteral("sources"),
+            QJsonArray{
+                QJsonObject{
+                            {QStringLiteral("speaker"),
+                     QJsonObject{{QStringLiteral("speaker_id"), sameIdNewerSpeakerB.id()}}},
+                            {QStringLiteral("weight"), 1.0},
+                            }
+        });
+        const QList<QPair<QString, int>> singleTargets{
+            {QStringLiteral("clip"),  voiceClipId.value()    },
+            {QStringLiteral("track"), fixture.trackId.value()},
+        };
+        for (const auto &[targetType, targetId] : singleTargets) {
+            QVERIFY(editMix(
+                QStringLiteral("speaker_mix.set_fixed"),
+                {
+                    {QStringLiteral("target"), QJsonObject{{QStringLiteral("type"), targetType},
+                                                           {QStringLiteral("id"), targetId}}},
+                    {QStringLiteral("mix"),    singleMix                                                                                  },
+            }));
+            const auto selectedSingle = speakerMixSnapshot(registry, runtime, targetType, targetId);
+            QCOMPARE(selectedSingle.value(QStringLiteral("mix")).toObject(), singleMix);
+            QVERIFY(!selectedSingle.value(QStringLiteral("dynamic_enabled")).toBool());
+            QVERIFY(selectedSingle.value(QStringLiteral("keyframes")).toArray().isEmpty());
+            QVERIFY(!queryClipVoice().value(QStringLiteral("inherits_track")).toBool());
+            if (targetType == QStringLiteral("clip")) {
+                QCOMPARE(voiceClip->effectiveVoiceContext().speaker.id(), sameIdNewerSpeakerB.id());
+                QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("track"),
+                                            fixture.trackId.value()),
+                         trackBeforeDisable);
+            } else {
+                QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"),
+                                            voiceClipId.value()),
+                         bypassed);
+            }
+            QVERIFY(runtime.history().undo(context()));
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
+        }
     }
 
     void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,

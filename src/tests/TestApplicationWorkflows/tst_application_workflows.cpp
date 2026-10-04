@@ -350,21 +350,80 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QCOMPARE(recoveredPreset->fixedWeights, stored->fixedWeights);
     QCOMPARE(runtime().documentVersion(), restoredVersion);
     QCOMPARE(historyManager->nextUndoEntry(), restoredUndo);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     historyManager->reset();
     const Automation::SpeakerMixTargetDto target{Automation::SpeakerMixTargetKind::Clip,
                                                  clip->id()};
     const auto baseline = runtime().parameters().getSpeakerMix(beforeCatalog.documentId, target);
     QVERIFY(baseline);
-    const auto apply = [&] {
+    const auto applyTo = [&](const QJsonObject &destination) {
         const auto version = runtime().documentVersion();
         return invoke(QStringLiteral("speaker_mix.presets.apply"),
                       {
-                          {"document_id",       version.documentId.toString()                    },
-                          {"expected_revision", static_cast<qint64>(version.revision)            },
-                          {"preset_id",         id                                               },
-                          {"target",            QJsonObject{{"type", "clip"}, {"id", clip->id()}}}
+                          {"document_id",       version.documentId.toString()        },
+                          {"expected_revision", static_cast<qint64>(version.revision)},
+                          {"preset_id",         id                                   },
+                          {"target",            destination                          },
         });
     };
+    const auto apply = [&] {
+        return applyTo(QJsonObject{
+            {"type", "clip"    },
+            {"id",   clip->id()}
+        });
+    };
+    const auto beforeTrackApply = runtime().documentVersion();
+    const auto beforeTrackModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto trackApplied = applyTo(QJsonObject{
+        {"type", "track"        },
+        {"id",   trackId.value()}
+    });
+    QVERIFY2(trackApplied, qPrintable(trackApplied ? QString{} : trackApplied.getError().message));
+    QCOMPARE(runtime().documentVersion().revision, beforeTrackApply.revision + 1);
+    const auto trackMix = runtime().parameters().getSpeakerMix(
+        beforeTrackApply.documentId, {Automation::SpeakerMixTargetKind::Track, trackId.value()});
+    QVERIFY(trackMix);
+    QCOMPARE(trackMix.get().mix.sourcePresetId, id);
+    QCOMPARE(trackMix.get().mix.fixedWeights, QVector<double>{0.7});
+    const auto independent =
+        runtime().parameters().getSpeakerMix(beforeTrackApply.documentId, target);
+    QVERIFY(independent);
+    QVERIFY(!independent.get().inherited);
+    QCOMPARE(independent.get().singer, baseline.get().singer);
+    QCOMPARE(independent.get().speaker, baseline.get().speaker);
+    QCOMPARE(independent.get().mix, baseline.get().mix);
+    const auto inheritVersion = runtime().documentVersion();
+    const auto inherited =
+        invoke(QStringLiteral("clips.use_track_voice"),
+               {
+                   {"document_id",       inheritVersion.documentId.toString()        },
+                   {"expected_revision", static_cast<qint64>(inheritVersion.revision)},
+                   {"clip_id",           clip->id()                                  },
+    });
+    QVERIFY2(inherited, qPrintable(inherited ? QString{} : inherited.getError().message));
+    QCOMPARE(inherited.get().value("previous").toObject().value("revision").toInteger(),
+             qint64(inheritVersion.revision));
+    // Voice changes can also invalidate persisted inference curves.
+    QVERIFY(runtime().documentVersion().revision > inheritVersion.revision);
+    QCOMPARE(inherited.get().value("current").toObject().value("revision").toInteger(),
+             qint64(runtime().documentVersion().revision));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    const auto following =
+        runtime().parameters().getSpeakerMix(beforeTrackApply.documentId, target);
+    QVERIFY(following);
+    QVERIFY(following.get().inherited);
+    QCOMPARE(following.get().singer, trackMix.get().singer);
+    QCOMPARE(following.get().mix, trackMix.get().mix);
+    QVERIFY(runtime().history().undo(commandContext()));
+    const auto restoredIndependent =
+        runtime().parameters().getSpeakerMix(beforeTrackApply.documentId, target);
+    QVERIFY(restoredIndependent);
+    QVERIFY(!restoredIndependent.get().inherited);
+    QCOMPARE(restoredIndependent.get().mix, baseline.get().mix);
+    QVERIFY(runtime().history().undo(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeTrackModel);
+    QVERIFY(!historyManager->canUndo());
     const auto applied = apply();
     QVERIFY2(applied, qPrintable(applied ? QString() : applied.getError().message));
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);

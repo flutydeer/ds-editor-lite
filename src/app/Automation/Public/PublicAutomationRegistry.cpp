@@ -16,6 +16,7 @@
 #include <lite/ProjectConverters/MidiTextCodecConverter.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 
 #include <opendspx/clip.h>
 #include <opendspx/singingclip.h>
@@ -1083,9 +1084,9 @@ namespace Automation {
                 QStringLiteral("The selected singer is not installed"));
         }
 
-        AutomationResult<QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>
-            resolveSpeakerMix(CoreRuntime &runtime, const QJsonObject &object,
-                              const QString &fieldPath) {
+        AutomationResult<EffectiveVoiceContext> resolveSpeakerMix(CoreRuntime &runtime,
+                                                                  const QJsonObject &object,
+                                                                  const QString &fieldPath) {
             const auto singerRef = object.value(QStringLiteral("singer")).toObject();
             const auto packageId = singerRef.value(QStringLiteral("package_id")).toString();
             const auto singerId = singerRef.value(QStringLiteral("singer_id")).toString();
@@ -1137,6 +1138,9 @@ namespace Automation {
                         mix.sources.append({*found});
                         fullWeights.append(source.value(QStringLiteral("weight")).toDouble());
                     }
+                    // Single mode stores its speaker outside the normalized mix.
+                    const auto speaker =
+                        mix.sources.isEmpty() ? SpeakerInfo{} : mix.sources.constFirst().speaker;
                     if (mix.sources.size() == 1) {
                         mix.mode = SpeakerMixModel::SingerSourceMode::Single;
                     } else {
@@ -1144,8 +1148,8 @@ namespace Automation {
                         mix.fixedWeights =
                             SpeakerMixModel::explicitWeightsFromFullWeights(fullWeights);
                     }
-                    return QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>{
-                        singer.info, SpeakerMixModel::normalizeSpeakerMixData(mix)};
+                    return EffectiveVoiceContext{singer.info, speaker,
+                                                 SpeakerMixModel::normalizeSpeakerMixData(mix)};
                 }
             }
             return AutomationError::invalidArgument(
@@ -1666,8 +1670,8 @@ namespace Automation {
             auto resolved = resolveSpeakerMix(runtime, object, QStringLiteral("preset"));
             if (!resolved)
                 return resolved.getError();
-            const auto &singer = resolved.get().first;
-            const auto &mix = resolved.get().second;
+            const auto &singer = resolved.get().singer;
+            const auto &mix = resolved.get().speakerMix;
             SpeakerMixPresetDto preset;
             preset.id = object.value(QStringLiteral("preset_id")).toString();
             preset.name = object.value(QStringLiteral("name")).toString();
@@ -1681,8 +1685,7 @@ namespace Automation {
             return preset;
         }
 
-        AutomationResult<
-            QPair<SpeakerMixPresetDto, QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>>
+        AutomationResult<QPair<SpeakerMixPresetDto, EffectiveVoiceContext>>
             resolveSpeakerMixPreset(CoreRuntime &runtime, const QString &presetId) {
             auto presets = runtime.presets().getSpeakerMixPresets();
             if (!presets)
@@ -1718,11 +1721,10 @@ namespace Automation {
                                   QStringLiteral("preset_id"));
             if (!resolved)
                 return resolved.getError();
-            resolved.get().second.sourcePresetId = found->id;
-            resolved.get().second.sourcePresetName = found->name;
-            resolved.get().second.sourcePresetDirty = false;
-            return QPair<SpeakerMixPresetDto, QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>{
-                *found, resolved.get()};
+            resolved.get().speakerMix.sourcePresetId = found->id;
+            resolved.get().speakerMix.sourcePresetName = found->name;
+            resolved.get().speakerMix.sourcePresetDirty = false;
+            return QPair<SpeakerMixPresetDto, EffectiveVoiceContext>{*found, resolved.get()};
         }
 
         QString effectiveDefaultLanguage(const ProjectSnapshotDto &project, const ClipId clipId) {
@@ -3050,12 +3052,9 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(mix.getError());
                        const auto target = decodeSpeakerMixTarget(
                            arguments.value(QStringLiteral("target")).toObject());
-                       const auto speaker = mix.get().second.sources.isEmpty()
-                                                ? SpeakerInfo{}
-                                                : mix.get().second.sources.constFirst().speaker;
                        return mutationResult(m_runtime.parameters().setFixedSpeakerMix(
-                           commandContext(arguments, invocation), target, mix.get().first, speaker,
-                           mix.get().second));
+                           commandContext(arguments, invocation), target, mix.get().singer,
+                           mix.get().speaker, mix.get().speakerMix));
                    });
         addBinding(ToolNames::speaker_mix_get, [this](const QJsonObject &arguments,
                                                       const PublicInvocationContext &) {
@@ -3138,18 +3137,15 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(preset.getError());
                        const auto target = decodeSpeakerMixTarget(
                            arguments.value(QStringLiteral("target")).toObject());
-                       const auto &singer = preset.get().second.first;
-                       const auto &mix = preset.get().second.second;
-                       const auto speaker =
-                           mix.sources.isEmpty() ? SpeakerInfo{} : mix.sources.constFirst().speaker;
+                       const auto &voice = preset.get().second;
                        if (target.kind == SpeakerMixTargetKind::Track) {
                            return mutationResult(m_runtime.parameters().applyTrackSpeakerMix(
-                               commandContext(arguments, invocation), TrackId(target.id), singer,
-                               speaker, mix));
+                               commandContext(arguments, invocation), TrackId(target.id),
+                               voice.singer, voice.speaker, voice.speakerMix));
                        }
                        return mutationResult(m_runtime.parameters().applyClipSpeakerMix(
-                           commandContext(arguments, invocation), ClipId(target.id), singer,
-                           speaker, mix));
+                           commandContext(arguments, invocation), ClipId(target.id), voice.singer,
+                           voice.speaker, voice.speakerMix));
                    });
         addBinding(ToolNames::clips_use_track_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
