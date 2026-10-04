@@ -35,6 +35,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QImage>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMouseEvent>
@@ -850,10 +851,13 @@ void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClip
     QVERIFY(!pieces.isEmpty());
     QVERIFY(!pieces.first()->audioPath.isEmpty());
     const auto pieceId = pieces.first()->id();
-    const auto before = context->m_coreRuntime->documentVersion();
+    auto &runtime = *context->m_coreRuntime;
+    const auto initialVersion = runtime.documentVersion();
+    const auto originalModel = TestSupport::projectSnapshot(*context->m_appModel);
     PhonemeView phonemes;
     phonemes.resize(960, 100);
     phonemes.setTimeRange(0, 1920);
+    phonemes.setStyleSheet(QStringLiteral("PhonemeView { qproperty-waveformColor: #0ee76b; }"));
     QSignalSpy loaded(&phonemes, &PhonemeView::waveformReady);
     phonemes.setDataContext(singingClip);
     const auto detach = qScopeGuard([&] { phonemes.setDataContext(nullptr); });
@@ -866,6 +870,41 @@ void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClip
     auto *pool = QThreadPool::globalInstance();
     QVERIFY(pool->waitForDone(5000));
     QCoreApplication::sendPostedEvents(&phonemes, QEvent::MetaCall);
+    const auto waveformVisible = [&] {
+        const auto image = phonemes.grab().toImage();
+        const QColor waveformColor(14, 231, 107);
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                if (image.pixelColor(x, y) == waveformColor)
+                    return true;
+            }
+        }
+        return false;
+    };
+    QVERIFY(waveformVisible());
+    QCOMPARE(runtime.documentVersion(), initialVersion);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalModel);
+    int waveformEnd = 0;
+    for (const auto *piece : pieces) {
+        waveformEnd = qMax(waveformEnd, singingClip->start() +
+                                            piece->localEndTick(context->m_appModel->timeline()));
+    }
+    const int laterTick = waveformEnd + 480;
+    QVERIFY(runtime.timeline().setTempo(commandContext(), laterTick, 180));
+    QCOMPARE(runtime.documentVersion().revision, initialVersion.revision + 1);
+    QCOMPARE(singingClip->pieces(), pieces);
+    QVERIFY(waveformVisible());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalModel);
+    QVERIFY(waveformVisible());
+    const auto before = runtime.documentVersion();
+    const auto *undoEntry = historyManager->nextUndoEntry();
+    phonemes.setTimeRange(laterTick, laterTick + 1920);
+    QVERIFY(!waveformVisible());
+    phonemes.setTimeRange(0, 1920);
+    QVERIFY(waveformVisible());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalModel);
+    QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
     const auto completedLoads = loaded.count();
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     phonemes.setDataContext(nullptr);
