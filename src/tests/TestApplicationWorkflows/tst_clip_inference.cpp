@@ -96,16 +96,19 @@ void ApplicationWorkflowTests::prepareVoicebankTarget() {
 void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying_data() {
     QTest::addColumn<QString>("stage");
     QTest::addColumn<bool>("replaceDocument");
-    QTest::newRow("duration") << QStringLiteral("duration") << false;
-    QTest::newRow("pitch") << QStringLiteral("pitch") << false;
-    QTest::newRow("variance") << QStringLiteral("variance") << false;
-    QTest::newRow("acoustic") << QStringLiteral("acoustic") << false;
-    QTest::newRow("replace-document") << QStringLiteral("acoustic") << true;
+    QTest::addColumn<bool>("changeInput");
+    QTest::newRow("duration") << QStringLiteral("duration") << false << false;
+    QTest::newRow("pitch") << QStringLiteral("pitch") << false << false;
+    QTest::newRow("variance") << QStringLiteral("variance") << false << false;
+    QTest::newRow("acoustic") << QStringLiteral("acoustic") << false << false;
+    QTest::newRow("replace-document") << QStringLiteral("acoustic") << true << false;
+    QTest::newRow("stale-pitch-input") << QStringLiteral("pitch") << false << true;
 }
 
 void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
     QFETCH(QString, stage);
     QFETCH(bool, replaceDocument);
+    QFETCH(bool, changeInput);
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
@@ -118,6 +121,7 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
     QSemaphore workerEntered;
     QSemaphore releaseWorker;
     std::atomic_bool paused = false;
+    int stageTasks = 0;
     QObject observations;
     const auto cleanup = qScopeGuard([&] {
         releaseWorker.release();
@@ -138,6 +142,7 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
                     inference->pieceId() != target->id() ||
                     inference->inferenceContext().taskType != stage)
                     return;
+                ++stageTasks;
                 connect(
                     task, &Task::statusUpdated, &observations,
                     [&](const TaskStatus &) {
@@ -164,10 +169,10 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
         return !target->audioPath.isEmpty();
     };
     QVERIFY(!hasResult());
-    const auto session = editSessionManager->beginTransaction(
-        {.domain = AppStatus::EditObjectType::Note,
-         .clipId = clip->id(),
-         .noteIds = {targetNote->id()}});
+    const auto session =
+        editSessionManager->beginTransaction({.domain = AppStatus::EditObjectType::Note,
+                                              .clipId = clip->id(),
+                                              .noteIds = {targetNote->id()}});
     QVERIFY(session != 0);
     const auto document = runtime().documentVersion();
     const auto model = TestSupport::projectSnapshot(*context->m_appModel);
@@ -197,9 +202,21 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
         QVERIFY(!historyManager->canUndo());
         return;
     }
+    const auto originalKey = targetNote->keyIndex();
+    const auto originalClipRevision = clip->inferenceRevision();
+    const auto tasksBeforeInputChange = stageTasks;
+    if (changeInput) {
+        // Queued results must be revalidated when inputs change before revision bookkeeping.
+        targetNote->setKeyIndex(originalKey + 1);
+        QCOMPARE(runtime().documentVersion(), document);
+        QCOMPARE(clip->inferenceRevision(), originalClipRevision);
+    }
     editSessionManager->endTransaction(session, EditSessionEndReason::Discard);
+    if (changeInput)
+        QTRY_VERIFY_WITH_TIMEOUT(stageTasks > tasksBeforeInputChange, 15000);
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     QVERIFY(hasResult());
+    QCOMPARE(targetNote->keyIndex(), originalKey + (changeInput ? 1 : 0));
     QCOMPARE(runtime().documentVersion().documentId, document.documentId);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     if (stage == QStringLiteral("acoustic")) {
