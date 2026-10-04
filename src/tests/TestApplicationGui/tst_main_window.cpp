@@ -17,6 +17,8 @@
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
+#include "Controller/EditorViewController.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
@@ -54,6 +56,7 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
+#include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCloseEvent>
@@ -474,7 +477,7 @@ void ApplicationGuiTests::mainMenuQuantizationUsesTheChosenScopeAndOptions() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::mainMenuOctaveEditsFollowThePianoSelection() {
+void ApplicationGuiTests::pianoEditControlsFollowTheVisibleSelectionAndUndo() {
     MainWindowFixture host;
     host.show();
     if (QTest::currentTestFailed())
@@ -532,6 +535,94 @@ void ApplicationGuiTests::mainMenuOctaveEditsFollowThePianoSelection() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(notes.first()->keyIndex(), first.keyIndex);
     QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
+    QVERIFY(!historyManager->canUndo());
+
+    auto *toolbar = qobject_cast<ClipEditorToolBarView *>(editor->toolBar());
+    auto *piano = editor->findChild<PianoRollGraphicsView *>();
+    QVERIFY(toolbar && piano);
+    auto *quantize = toolbar->findChild<QComboBox *>("cbPianoRollQuantize");
+    QVERIFY(quantize);
+    const auto originalQuantize = int(appStatus->pianoRollQuantize);
+    const auto originalQuantizeEnabled = bool(appStatus->pianoRollQuantizeEnabled);
+    const auto restoreQuantize = qScopeGuard([&] {
+        editorViewController->setPianoRollQuantize(originalQuantize, originalQuantizeEnabled);
+    });
+    const auto beforeTools = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    QTest::mouseClick(quantize, Qt::LeftButton);
+    QTest::keyClick(quantize, Qt::Key_End);
+    QTest::keyClick(quantize, Qt::Key_Return);
+    QTRY_VERIFY(appStatus->pianoRollQuantizeEnabled);
+    QTest::mouseClick(quantize, Qt::LeftButton);
+    QTest::keyClick(quantize, Qt::Key_Home);
+    QTest::keyClick(quantize, Qt::Key_Return);
+    QTRY_VERIFY(!appStatus->pianoRollQuantizeEnabled);
+    QVERIFY(window.centerPianoRollAt(singingClip->start() + 720, 60));
+    const auto clickTool = [&](const char *name, const ClipEditorGlobal::PianoRollEditMode mode) {
+        auto *button = toolbar->findChild<QAbstractButton *>(name);
+        QVERIFY(button && button->isVisible() && button->isEnabled());
+        QTest::mouseClick(button, Qt::LeftButton);
+        QVERIFY(button->isChecked());
+        QCOMPARE(toolbar->editMode(), mode);
+    };
+    const auto notePoint = [&](const int id) {
+        for (auto *item : piano->scene()->items()) {
+            if (auto *noteItem = dynamic_cast<NoteView *>(item); noteItem && noteItem->id() == id)
+                return piano->mapFromScene(noteItem->sceneBoundingRect().center());
+        }
+        return QPoint(-1, -1);
+    };
+    clickTool("btnArrow", ClipEditorGlobal::Select);
+    if (QTest::currentTestFailed())
+        return;
+    const auto firstId = notes.first()->id();
+    const auto firstPoint = notePoint(firstId);
+    QVERIFY(piano->viewport()->rect().contains(firstPoint));
+    QTest::mouseClick(piano->viewport(), Qt::LeftButton, Qt::NoModifier, firstPoint);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{firstId});
+    QCOMPARE(runtime.documentVersion(), beforeTools);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    clickTool("btnNoteSplit", ClipEditorGlobal::SplitNote);
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mouseMove(piano->viewport(), firstPoint);
+    QTest::mouseClick(piano->viewport(), Qt::LeftButton, Qt::NoModifier, firstPoint);
+    QTRY_COMPARE(singingClip->notes().count(), 3);
+    int splitId = -1;
+    for (const auto *note : singingClip->notes()) {
+        if (note->id() != firstId && note->id() != notes.last()->id())
+            splitId = note->id();
+    }
+    QVERIFY(splitId >= 0);
+    const auto *left = singingClip->findNoteById(firstId);
+    const auto *right = singingClip->findNoteById(splitId);
+    QVERIFY(left && right);
+    QVERIFY(left->length() > 0 && right->length() > 0);
+    QCOMPARE(left->localStart(), first.localStart);
+    QCOMPARE(right->localStart(), left->localStart() + left->length());
+    QCOMPARE(left->length() + right->length(), first.length);
+    QCOMPARE(notes.last()->localStart(), second.localStart);
+    QCOMPARE(notes.last()->length(), second.length);
+    QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
+    QCOMPARE(runtime.documentVersion().revision, beforeTools.revision + 1);
+    const auto afterSplit = TestSupport::projectSnapshot(*context->m_appModel);
+    clickTool("btnNoteEraser", ClipEditorGlobal::EraseNote);
+    if (QTest::currentTestFailed())
+        return;
+    const auto rightPoint = notePoint(splitId);
+    QVERIFY(piano->viewport()->rect().contains(rightPoint));
+    QTest::mouseClick(piano->viewport(), Qt::LeftButton, Qt::NoModifier, rightPoint);
+    QTRY_VERIFY(!singingClip->findNoteById(splitId));
+    QCOMPARE(singingClip->notes().count(), 2);
+    QVERIFY(singingClip->findNoteById(firstId));
+    clickTool("btnArrow", ClipEditorGlobal::Select);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(runtime.documentVersion().revision, beforeTools.revision + 2);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterSplit);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }
 
