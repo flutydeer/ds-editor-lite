@@ -42,6 +42,11 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     const auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
+    // qGeomCalc's last resort splits the row's leftover space between the
+    // chain start and end, which centers a lone fixed-size title inside a card
+    // stretched by long message lines; the stretch absorbs it and keeps the
+    // title on the shared left edge
+    titleShortcutLayout->addStretch(1);
     titleShortcutLayout->setContentsMargins({});
 
     m_messageLayout = new QVBoxLayout;

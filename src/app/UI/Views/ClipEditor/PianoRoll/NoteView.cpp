@@ -33,7 +33,12 @@ public:
     }
 
     [[nodiscard]] QRectF boundingRect() const override {
-        return {QPointF(0, 0), PianoRollGraphicsViewHelper::noteErrorBadgeSize()};
+        // The antialiased ring edge can bleed past the icon frame under
+        // fractional scene transforms; pad the culling rect so the edge is
+        // not clipped
+        constexpr double bleed = 1.0;
+        const auto size = PianoRollGraphicsViewHelper::noteErrorBadgeSize();
+        return {-bleed, -bleed, size.width() + 2 * bleed, size.height() + 2 * bleed};
     }
 
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
