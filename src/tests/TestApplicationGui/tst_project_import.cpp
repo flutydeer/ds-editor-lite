@@ -113,7 +113,7 @@ namespace {
     }
 
     template <typename Page>
-    void selectImportContent(Page *page) {
+    void selectImportContent(Page *page, const bool importSignature = true) {
         QVERIFY(page);
         auto *tracks = page->template findChild<QTreeView *>();
         auto *all = withText<QCheckBox>(page, Page::tr("Select All"));
@@ -145,10 +145,14 @@ namespace {
         QVERIFY(signature->isChecked());
         clickCheckBox(tempo);
         QVERIFY(!tempo->isChecked());
+        if (!importSignature) {
+            clickCheckBox(signature);
+            QVERIFY(!signature->isChecked());
+        }
         const auto input = page->collectInput();
         QCOMPARE(input.tracks.selectedTrackIndices, QList<int>{selected.row()});
         QVERIFY(!input.timeline.importTempo);
-        QVERIFY(input.timeline.importTimeSignature);
+        QCOMPARE(input.timeline.importTimeSignature, importSignature);
     }
 
     void selectMidiCodec(ComboBox *encoding, const QByteArray &codec = QByteArrayLiteral("UTF-8")) {
@@ -238,6 +242,7 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     }
     QVERIFY(importAction);
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*appModel);
     const auto originalTimeline = appModel->timeline();
     const auto originalLoop = appStatus->loopSettings.get();
     const auto originalTracks = appModel->tracks();
@@ -283,7 +288,7 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
             });
             if (midi) {
                 auto *page = qobject_cast<MidiConfigPage *>(dialog->page());
-                selectImportContent(page);
+                selectImportContent(page, false);
                 if (QTest::currentTestFailed())
                     return;
                 selectMidiEncoding(page);
@@ -320,6 +325,7 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(appModel->tracks(), originalTracks);
     QCOMPARE(appModel->timeline(), originalTimeline);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeModel);
     QCOMPARE(appStatus->loopSettings.get(), originalLoop);
     QVERIFY(!historyManager->canUndo());
 
@@ -341,22 +347,28 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->keyIndex(), 64);
     QCOMPARE(appModel->timeline().tempos(), originalTimeline.tempos());
-    QCOMPARE(appModel->timeline().timeSignatures(), QList<TimeSignature>({
-                                                        {0, 6, 8}
-    }));
+    const auto expectedSignatures = midi ? originalTimeline.timeSignatures()
+                                         : QList<TimeSignature>{
+                                               {0, 6, 8}
+    };
+    QCOMPARE(appModel->timeline().timeSignatures(), expectedSignatures);
     QCOMPARE(appStatus->loopSettings.get(), originalLoop);
     QCOMPARE(documentWorkflowController->projectPath(), originalProjectPath);
     QCOMPARE(runtime.documentVersion().documentId, before.documentId);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(historyManager->canUndo());
+    const auto importedModel = TestSupport::projectSnapshot(*appModel);
 
     historyManager->undo();
     QCOMPARE(appModel->tracks(), originalTracks);
     QCOMPARE(appModel->timeline(), originalTimeline);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
     QCOMPARE(appModel->tracks().size(), originalTracks.size() + 1);
     QCOMPARE(appModel->tracks().last()->name(), QStringLiteral("Imported lead"));
+    QCOMPARE(appModel->timeline().timeSignatures(), expectedSignatures);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), importedModel);
 }
 
 void ApplicationGuiTests::midiChannelSelectionRebuildsTracksBeforeImport_data() {
