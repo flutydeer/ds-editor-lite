@@ -183,7 +183,7 @@ QString PianoRollGraphicsViewHelper::noteInferenceErrorTitle(const SliceExclusio
                                                "Invalid phrase start");
         case SliceExclusionReason::UnassignedSyllabification:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper",
-                                               "Unassigned syllabification note");
+                                               "No phonemes assigned");
         case SliceExclusionReason::Overlapped:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Overlapping note");
     }

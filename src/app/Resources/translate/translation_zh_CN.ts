@@ -2914,15 +2914,15 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <name>PianoRollGraphicsViewHelper</name>
     <message>
         <source>Missing phonemes</source>
-        <translation>无法生成音素</translation>
+        <translation>缺少音素</translation>
     </message>
     <message>
         <source>Invalid phrase start</source>
-        <translation>乐句起始不合规</translation>
+        <translation>乐句起始无效</translation>
     </message>
     <message>
-        <source>Unassigned syllabification note</source>
-        <translation>缀字音符未分配音素</translation>
+        <source>No phonemes assigned</source>
+        <translation>未分配到音素</translation>
     </message>
     <message>
         <source>Overlapping note</source>
@@ -2934,11 +2934,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <source>A phrase cannot start with a slur or syllabification note</source>
-        <translation>乐句不能以滑音或缀字音符开头</translation>
+        <translation>乐句不能以连音或音节分配符开头</translation>
     </message>
     <message>
         <source>This syllabification note was not assigned any phonemes</source>
-        <translation>该缀字音符未被分配到音素</translation>
+        <translation>音节分配符未分配到音素</translation>
     </message>
     <message>
         <source>This note overlaps another note and is ignored</source>
