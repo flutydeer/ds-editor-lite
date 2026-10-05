@@ -3,6 +3,7 @@
 
 #include <lite/GUI/Animation/IAnimatable.h>
 
+#include <QPointer>
 #include <QScrollBar>
 
 class QAbstractScrollArea;
@@ -16,6 +17,7 @@ class OverlayScrollBar : public QScrollBar, public IAnimatable {
 
 public:
     explicit OverlayScrollBar(Qt::Orientation orientation, QWidget *parent = nullptr);
+    ~OverlayScrollBar() override;
 
     void attachTo(QAbstractScrollArea *scrollArea);
     void attachToViewport(QWidget *viewport);
@@ -56,29 +58,30 @@ private:
     void updateVisibilityAnimation();
     void restartHideTimer();
     void onHideTimeout();
-    void pollCursor();
     void updateAnimationSettings();
     void setViewport(QWidget *viewport);
     int pixelPosToRangeValue(int pos) const;
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
 
-    QWidget *m_viewport = nullptr;
+    // QPointer: the viewport may be destroyed before this bar (sibling widgets
+    // of the same scroll area), while application-level events can still arrive
+    // during that destruction window.
+    QPointer<QWidget> m_viewport;
     QVariantAnimation *m_animation = nullptr;
     QVariantAnimation *m_geometryAnimation = nullptr;
     QVariantAnimation *m_visibilityAnimation = nullptr;
     QTimer *m_hideTimer = nullptr;
-    QTimer *m_cursorPollTimer = nullptr;
     // Base handle color; opacity is animated on top in paintEvent
     QColor m_handleColor = QColor(255, 255, 255);
     qreal m_opacity = 0.0;
     qreal m_geometryProgress = 0.0;
     qreal m_visibility = 0.0;
-    QPoint m_lastCursorPos;
     bool m_hovered = false;
     bool m_pressed = false;
     bool m_rangeVisible = true;
     bool m_idleVisible = false;
+    bool m_applicationFilterInstalled = false;
     OverlayScrollBar *m_companion = nullptr;
     QWidget *m_geometryHost = nullptr;
     bool m_targetHighlightVisible = false;
