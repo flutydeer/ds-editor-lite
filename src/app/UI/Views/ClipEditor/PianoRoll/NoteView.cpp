@@ -33,9 +33,9 @@ public:
     }
 
     [[nodiscard]] QRectF boundingRect() const override {
-        // The antialiased ring edge can bleed past the icon frame under
-        // fractional scene transforms; pad the culling rect so the edge is
-        // not clipped
+        // The icon is blitted on the device pixel grid, which can shift it by
+        // up to half a device pixel against the item origin; pad the culling
+        // rect so the shift is not clipped
         constexpr double bleed = 1.0;
         const auto size = PianoRollGraphicsViewHelper::noteErrorBadgeSize();
         return {-bleed, -bleed, size.width() + 2 * bleed, size.height() + 2 * bleed};
@@ -54,8 +54,20 @@ public:
                                              badgeSize.toSize(), markColor, dpr);
         if (pixmap.isNull())
             return;
-        painter->drawPixmap(QRectF(QPointF(0, 0), badgeSize), pixmap,
-                            QRectF(QPointF(), QSizeF(pixmap.size())));
+
+        // Blit the pre-rendered icon 1:1 on the device pixel grid, anchored at
+        // the item origin: feeding it through the fractional zoom-dependent
+        // scene transform would resample the ring every frame, warping it and
+        // dropping the outermost edge pixels
+        painter->save();
+        const QPointF anchor = painter->transform().map(QPointF(0, 0));
+        painter->resetTransform();
+        painter->scale(1.0 / dpr, 1.0 / dpr);
+        const QRectF source(QPointF(), QSizeF(pixmap.size()));
+        painter->drawPixmap(QRectF(QPointF(qRound(anchor.x() * dpr), qRound(anchor.y() * dpr)),
+                                   source.size()),
+                            pixmap, source);
+        painter->restore();
     }
 
 private:
