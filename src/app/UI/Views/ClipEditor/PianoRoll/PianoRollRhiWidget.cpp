@@ -911,7 +911,7 @@ public:
             lyricToolTip->hide();
             showErrorToolTip(badgeNote->id(),
                              clip->noteInferenceErrors().value(badgeNote->id()),
-                             noteViewportRect(badgeNote));
+                             noteViewportRect(badgeNote), true);
             return;
         }
         if (errorToolTip)
@@ -940,18 +940,30 @@ public:
     }
 
     void showErrorToolTip(const int noteId, const NoteInferenceErrorInfo &error,
-                          const QRectF &noteRect) {
+                          const QRectF &noteRect, const bool delayed = false) {
+        // Anchor the card on the badge the pointer rests on, not on the note:
+        // the note's visible rect drifts with zoom and viewport clipping, and
+        // the card gap would land right on the badge, which hangs above the
+        // note's top edge
         const QRectF visibleRect(QPointF(), QSizeF(q->size()));
-        const auto visibleNoteRect = noteRect.intersected(visibleRect).toAlignedRect();
+        const auto badgeRect =
+            PianoRollGraphicsViewHelper::noteErrorBadgeRect(noteRect)
+                .intersected(visibleRect)
+                .toAlignedRect();
         // The task detail replaces the generic body when present: repeating the
         // generic explanation next to its specific cause is just noise
         auto message = error.detail.isEmpty()
                            ? PianoRollGraphicsViewHelper::noteInferenceErrorText(error)
                            : error.detail;
-        errorToolTip->showFor(noteId,
-                              PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
-                              message,
-                              {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
+        const QRect screenAnchor = {q->mapToGlobal(badgeRect.topLeft()), badgeRect.size()};
+        if (delayed)
+            errorToolTip->hoverFor(noteId,
+                                   PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                   message, screenAnchor);
+        else
+            errorToolTip->showFor(noteId,
+                                  PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                  message, screenAnchor);
     }
 
     void hideHoverToolTips() {

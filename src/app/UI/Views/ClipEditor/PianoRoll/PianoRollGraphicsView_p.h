@@ -141,7 +141,10 @@ public:
     void onHoverLeave(QHoverEvent *event);
     void onHoverMove(const QHoverEvent *event);
     void updateHoverToolTips(const QPoint &position);
-    void showErrorToolTip(const NoteView &noteView, const NoteInferenceErrorInfo &error);
+    // Anchors the card above the note's error badge; hover requests defer to
+    // the tooltip wake-up delay, taps on the badge show immediately
+    void showErrorToolTip(const NoteView &noteView, const NoteInferenceErrorInfo &error,
+                          bool delayed = false);
     void hideHoverToolTips();
     // Pushes the clip's per-note inference errors onto the note views (badge visibility)
     void syncNoteInferenceErrors();

@@ -51,6 +51,12 @@
 
 新建 `NoteErrorToolTipController`（仿歌词 tooltip），标题为错误类别短语（`noteInferenceErrorTitle`，如"缺少音素"、"音符重叠"），正文为一行说明，取舍规则是任务详情存在时用详情（语言模块未就绪、歌手不可用、音素模块加载失败、发音转换失败四类），否则用 `noteInferenceErrorText` 的通用文案。歌词与发音文本都在音符本体上展示，tooltip 不再重复。ToolTip 标题行以尾随 stretch 靠左（qGeomCalc 会把无主剩余空间均分给链首链尾，单个定宽标题因此居中），与正文共用左缘。两个后端各持一个实例，角标命中优先于歌词截断 tooltip。鼠标悬停角标或触屏点按角标显示，离开、滚轮、按下、双击隐藏。
 
+定位契约：锚定在**报错角标矩形**上，而不是音符可见矩形。`ToolTip::showAbove` 把卡片放在角标顶边上方 4px、水平以角标中心居中，距离随缩放和视口裁剪保持稳定，也不会盖住悬挂在音符上缘外的角标本体；近屏幕顶端时沿用 `positionAbove` 的翻转到下方与屏幕钳制逻辑。锚定矩形与命中测试（`errorBadgeAt`）使用同一个 `noteErrorBadgeRect`。
+
+出现时机：悬停路径走 `hoverFor`，延迟读样式提示 `SH_ToolTip_WakeUpDelay` / `SH_ToolTip_FallAsleepDelay`（即 Qt 原生 tooltip 的默认延迟），指针在同一角标内微动不重置计时，tooltip 仍在屏时移到新角标走更短的 fall-asleep 延迟。触屏点按路径走 `showFor` 立即显示。淡入淡出用共享 `ToolTip` 组件的 150ms windowOpacity 动画，受全局动画开关约束；拖拽读数等场景仍各自显式关闭动画。
+
+尺寸契约：`ToolTip` 每次显示经 `resizeToContentHint` 同步刷新布局树后再以 `setFixedSize(sizeHint())` 定尺寸。内容变更只会同步置脏文字 label 的直接父布局，嵌套子布局与顶层布局的缓存 hint 要等延迟的 LayoutRequest 事件才刷新（`QLayout::activate()` 递归进 widget 项即止），同步读 `sizeHint()` 拿到的是上一次内容的缓存值，复用的卡片因此只会沿用上一次的宽度。`resizeToContentHint` 先对卡片自身布局 activate（递归进全部子布局），其结尾触发的 `updateGeometry()` 再置脏顶层布局并 activate，保证 hint 全程新鲜，卡片随内容双向伸缩。
+
 ### 时间轴红条
 
 `TimelineView::drawPieces` 对 `skippedPhraseRanges` 画红条，样式与 piece 状态条一致（底部 2px 圆头），复用 `pieceFailedColor`。被跳过乐句没有 piece，这条红条补齐时间轴语义。

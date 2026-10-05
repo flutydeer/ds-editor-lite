@@ -247,20 +247,43 @@ void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
     show();
 }
 
+void ToolTip::resizeToContentHint() {
+    // A content change only dirties the direct parent layout of the changed
+    // label; the enclosing sub-layouts refresh their cached hints lazily
+    // through a deferred LayoutRequest event, so a synchronously read
+    // sizeHint() would size the card from the previous content and a reused
+    // card would never shrink. activate() refreshes a layout and its
+    // sub-layouts but stops at widget items, so the refresh is pushed through
+    // the card's own layout first; the updateGeometry() it issues on the card
+    // then also dirties the top-level layout for the re-read below
+    if (auto *topLayout = layout()) {
+        for (int i = 0; i < topLayout->count(); ++i) {
+            auto *widget = topLayout->itemAt(i)->widget();
+            if (widget && widget->layout())
+                widget->layout()->activate();
+        }
+        topLayout->activate();
+    }
+    const auto hint = sizeHint();
+    if (hint.isEmpty())
+        return;
+    setFixedSize(hint);
+}
+
 void ToolTip::showAbove(const QRect &screenRect) {
-    adjustSize();
+    resizeToContentHint();
     const auto *screen = resolveScreen(screenRect.center(), nullptr);
     showAt(positionAbove({screenRect.center().x(), screenRect.top()}, screen, anchorGap), screen);
 }
 
 void ToolTip::showAbovePointer(const QPoint &screenPos, const QScreen *screen) {
-    adjustSize();
+    resizeToContentHint();
     const auto *resolved = resolveScreen(screenPos, screen);
     showAt(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved);
 }
 
 void ToolTip::moveAbovePointer(const QPoint &screenPos, const QScreen *screen) {
-    adjustSize();
+    resizeToContentHint();
     const auto *resolved = resolveScreen(screenPos, screen);
     move(clampToScreen(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved));
 }
@@ -323,7 +346,10 @@ void ToolTip::completeOpacityAnimation() {
 void ToolTip::updateMessage() {
     QLayoutItem *child;
     while ((child = m_messageLayout->takeAt(0)) != nullptr) {
-        child->widget()->setParent(nullptr);
+        // takeAt() only unlists the item; the widget must be scheduled for
+        // deletion separately or every content change leaks a label
+        if (const auto widget = child->widget())
+            widget->deleteLater();
         delete child;
     }
 

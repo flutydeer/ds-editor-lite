@@ -2012,7 +2012,7 @@ void PianoRollGraphicsViewPrivate::updateHoverToolTips(const QPoint &position) {
     // the badge asks why the note is silent
     if (auto *badgeView = errorBadgeAt(position)) {
         m_lyricToolTip->hide();
-        showErrorToolTip(*badgeView, m_clip->noteInferenceErrors().value(badgeView->id()));
+        showErrorToolTip(*badgeView, m_clip->noteInferenceErrors().value(badgeView->id()), true);
         return;
     }
     if (m_errorToolTip)
@@ -2038,20 +2038,32 @@ void PianoRollGraphicsViewPrivate::updateHoverToolTips(const QPoint &position) {
 }
 
 void PianoRollGraphicsViewPrivate::showErrorToolTip(const NoteView &noteView,
-                                                    const NoteInferenceErrorInfo &error) {
+                                                    const NoteInferenceErrorInfo &error,
+                                                    bool delayed) {
     Q_Q(PianoRollGraphicsView);
-    const auto noteRect = q->mapFromScene(noteView.sceneBoundingRect())
-                              .boundingRect()
-                              .intersected(q->viewport()->rect());
+    // Anchor the card on the badge the pointer rests on, not on the note: the
+    // note's visible rect drifts with zoom and viewport clipping, and the card
+    // gap would land right on the badge, which hangs above the note's top edge
+    const auto badgeRect = q->mapFromScene(noteView.mapRectToScene(
+                                               PianoRollGraphicsViewHelper::noteErrorBadgeRect(
+                                                   noteView.rect())))
+                               .boundingRect()
+                               .intersected(q->viewport()->rect());
     // The task detail replaces the generic body when present: repeating the
     // generic explanation next to its specific cause is just noise
     auto message = error.detail.isEmpty()
                        ? PianoRollGraphicsViewHelper::noteInferenceErrorText(error)
                        : error.detail;
-    m_errorToolTip->showFor(noteView.id(),
-                            PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
-                            message,
-                            {q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
+    const QRect screenAnchor = {q->viewport()->mapToGlobal(badgeRect.topLeft()),
+                                badgeRect.size()};
+    if (delayed)
+        m_errorToolTip->hoverFor(noteView.id(),
+                                 PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                 message, screenAnchor);
+    else
+        m_errorToolTip->showFor(noteView.id(),
+                                PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                message, screenAnchor);
 }
 
 void PianoRollGraphicsViewPrivate::hideHoverToolTips() {
