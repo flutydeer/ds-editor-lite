@@ -60,6 +60,12 @@ public:
 
     static void handleInferPieceFailed();
 
+    // Document replacement: stops the engine and drops the transport position reports
+    // that the previous document (and this reset's own seek) keep producing. Without
+    // it those reports write a stale block-aligned position back into the controller,
+    // so the playhead leaves the reset position by one audio block.
+    void resetDocumentScopedState();
+
 signals:
     void exporterCausedTimeChanged();
 
@@ -100,6 +106,11 @@ private:
     // over-the-block position reports to the start for display while held
     qint64 m_transportStartSample = -1;
     bool m_snapToStartSample = false;
+    // Set while a document replacement is in flight. The transport still delivers
+    // block-aligned reports produced by the previous document, and they must not reach
+    // the controller. Cleared when playback starts again, after the engine has been
+    // resynced to the authoritative controller position.
+    bool m_suppressTransportPositionReports = false;
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;

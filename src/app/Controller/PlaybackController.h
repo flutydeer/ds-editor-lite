@@ -48,6 +48,12 @@ public slots:
     void pause();
     void stop();
 
+    // Resets the document-scoped playback state (status, position, last position).
+    // The document replace transaction calls it directly instead of going through
+    // the automation dispatcher, which rejects every command while the document
+    // session is in Replacing.
+    void resetForDocumentReplacement();
+
     void setPosition(double tick);
     void setLastPosition(double tick);
     void setLoopSettings(const LoopSettings &settings);

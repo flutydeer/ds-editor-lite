@@ -51,6 +51,29 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
         [this](auto value) { emit pianoRollAutoPageTurnAvailabilityChanged(value); });
 }
 
+void AppStatus::resetDocumentScopedState() {
+    // Project state
+    selectedTrackIndex = -1;
+    activeClipId = -1;
+    selectedClips = QList<int>();
+    primarySelectedClipId = -1;
+    selectedNotes = QList<int>();
+    primarySelectedNoteId = -1;
+    currentEditObject = EditObjectType::None;
+
+    // Editor tool state falls back to its defaults on a document switch
+    pianoRollQuantize = 16;
+    pianoRollQuantizeEnabled = true;
+    trackAutoPageTurnEnabled = true;
+    pianoRollAutoPageTurnEnabled = true;
+
+    // Values derived from the previous document
+    pianoRollVisibleRect = QRectF();
+    pianoRollNoteEditPreview = QVector<NoteEditPreview>();
+    pianoRollNoteErasePreview = QList<int>();
+    projectEditableLength = AppGlobal::ticksPerWholeNote * 100;
+}
+
 AppStatus::~AppStatus() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppStatus)

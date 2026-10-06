@@ -116,6 +116,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
         DspxProjectConverterUi converter(m_appStatus->loopSettings);
         return converter.save(path, model, error);
     };
+    documentServices.resetDocumentScopedState = [this] { resetDocumentScopedState(); };
     documentServices.afterCommit = [this](const Automation::DocumentCommitInfo &info) {
         bool recentFilesChanged = false;
         if (!info.current.path.isEmpty() &&
@@ -455,6 +456,22 @@ bool AppContext::initializeDefaultDocument(QString *error) {
     if (error)
         *error = result.getError().message;
     return false;
+}
+
+void AppContext::resetDocumentScopedState() {
+    // The audio engine owns the transport, so it is reset first: pausing it and
+    // dropping its pending position reports keeps the playhead at tick 0 while the
+    // controller and the editor state below are reset.
+    if (auto *audio = AudioContext::instance())
+        audio->resetDocumentScopedState();
+    m_playbackController->resetForDocumentReplacement();
+    m_appStatus->resetDocumentScopedState();
+    if (m_editSessionManager)
+        m_editSessionManager->clear();
+    if (m_hostMode == AppHostMode::Gui) {
+        if (auto *controller = guiEditorViewController())
+            controller->resetDocumentScopedState();
+    }
 }
 
 void AppContext::initializeCommonWiring() {

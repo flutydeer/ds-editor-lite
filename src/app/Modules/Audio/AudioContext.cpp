@@ -102,6 +102,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
             [this](const qint64 positionSample) {
+                if (m_suppressTransportPositionReports) {
+                    qDebug() << "AudioContext: dropped transport report" << positionSample
+                             << "after a document replacement";
+                    return;
+                }
                 m_transportPositionFlag = false;
                 // While the hold pins the engine at the start, clamp the over-the-block
                 // position report (emitted before the hold engaged) back to the start
@@ -346,6 +351,21 @@ void AudioContext::handleInferPieceFailed() {
         m_exporter->cancel(true, tr("Inference failed"));
 }
 
+void AudioContext::resetDocumentScopedState() {
+    DEVICE_LOCKER;
+    // Suppression engages before the pause and the seek below, because both answer
+    // with a block-aligned report of their own and the previous document may still
+    // deliver stale ones. Dropping them keeps the playhead on tick 0 until playback
+    // starts again.
+    m_suppressTransportPositionReports = true;
+    transport()->pause();
+    transport()->setPosition(0);
+    m_transportStartSample = -1;
+    m_snapToStartSample = false;
+    m_lastStatus = PlaybackGlobal::Stopped;
+    m_transportPositionFlag = true;
+}
+
 void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
     switch (status) {
         case Stopped:
@@ -370,6 +390,15 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
                     if (pos < loopSettings.start || pos >= loopSettings.end())
                         playbackController->setPosition(loopSettings.start);
                 }
+            }
+            if (m_suppressTransportPositionReports) {
+                // Reports were dropped since the document was replaced, so the engine
+                // may still sit on a stale block boundary. Resume from the position the
+                // controller holds before the transport starts reading again.
+                m_suppressTransportPositionReports = false;
+                transport()->setPosition(tickToSample(playbackController->position()));
+                qDebug() << "AudioContext: resynced the engine to" << playbackController->position()
+                         << "on playback start";
             }
             m_transportStartSample = transport()->position();
             m_snapToStartSample = false;

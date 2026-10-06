@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QIODevice>
 #include <QJsonDocument>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -56,6 +57,8 @@ namespace {
         QByteArray lastSavedModel;
         QList<Automation::DocumentId> replacementNotifications;
         QList<Automation::DocumentCommitInfo> commits;
+        QStringList trace;
+        int stateResetCalls = 0;
         std::function<void(const Automation::DocumentCommitInfo &)> onCommit;
     };
 
@@ -63,6 +66,7 @@ namespace {
         Automation::DocumentRuntimeServices services;
         services.applyLoopSettings = [&host](const LoopSettings &settings) {
             host.loopSettings = settings;
+            host.trace.append(QStringLiteral("loop"));
         };
         services.saveProject = [&host](const QString &path, AppModel *model,
                                        QString &errorMessage) {
@@ -91,9 +95,15 @@ namespace {
         };
         services.beforeReplaceGeneration = [&host](const Automation::DocumentId &documentId) {
             host.replacementNotifications.append(documentId);
+            host.trace.append(QStringLiteral("generation"));
+        };
+        services.resetDocumentScopedState = [&host] {
+            ++host.stateResetCalls;
+            host.trace.append(QStringLiteral("reset"));
         };
         services.afterCommit = [&host](const Automation::DocumentCommitInfo &info) {
             host.commits.append(info);
+            host.trace.append(QStringLiteral("commit"));
             if (host.onCommit)
                 host.onCommit(info);
         };
@@ -104,6 +114,8 @@ namespace {
     public:
         LifecycleFixture()
             : history(resetHistory()), runtime(&model, history, documentServices(host)) {
+            QObject::connect(&model, &AppModel::modelChanged, &model,
+                             [this] { host.trace.append(QStringLiteral("model")); });
         }
 
         ~LifecycleFixture() {
@@ -955,6 +967,63 @@ namespace {
                 domainError.getError().operationId == Automation::OperationIds::tracks::set_color,
             priorityScenario, "every prioritized error must retain the centralized operation ID");
     }
+
+    void testDocumentScopedStateReset(TestRun &test) {
+        constexpr auto scenario = "AFC-DOC-LIFECYCLE-011";
+        const QStringList replaceOrder{QStringLiteral("generation"), QStringLiteral("reset"),
+                                       QStringLiteral("model"), QStringLiteral("loop"),
+                                       QStringLiteral("commit")};
+
+        {
+            LifecycleFixture fixture;
+            auto &runtime = fixture.runtime;
+            auto &host = fixture.host;
+
+            host.trace.clear();
+            host.stateResetCalls = 0;
+            const auto opened = runtime.documents().commitOpenedDocument(
+                commandContext(runtime),
+                makeDocumentDraft(QStringLiteral("Reset Open"), QStringLiteral("reset-open")),
+                QStringLiteral("fixtures/reset-open.dspx"), QStringLiteral("reset-open.dspx"),
+                true);
+            test.expect(opened && host.stateResetCalls == 1 && host.trace == replaceOrder, scenario,
+                        "opening a document must reset the document-scoped host state after the "
+                        "generation cleanup and before the new model is installed");
+
+            host.trace.clear();
+            host.stateResetCalls = 0;
+            const auto created = runtime.documents().commitNewDocument(
+                commandContext(runtime), makeDocumentDraft(QStringLiteral("Reset New"),
+                                                           QStringLiteral("reset-new")));
+            test.expect(created && host.stateResetCalls == 1 && host.trace == replaceOrder, scenario,
+                        "creating a document must follow the same reset order as opening one");
+
+            host.trace.clear();
+            host.stateResetCalls = 0;
+            const auto imported = runtime.documents().commitImportedDocument(
+                commandContext(runtime),
+                makeDocumentDraft(QStringLiteral("Reset Import"), QStringLiteral("reset-import")),
+                false, false);
+            test.expect(imported && host.stateResetCalls == 0, scenario,
+                        "importing tracks appends to the current generation and must not reset "
+                        "the document-scoped host state");
+        }
+
+        {
+            // The callback is optional: a host that does not register it still replaces.
+            AppModel bareModel;
+            auto *bareHistory = HistoryManager::instance();
+            bareHistory->reset(HistoryManager::ResetState::Saved);
+            Automation::CoreRuntime bareRuntime(&bareModel, bareHistory);
+            const auto committed = bareRuntime.documents().commitNewDocument(
+                {.expected = bareRuntime.documentVersion(),
+                 .source = Automation::InvocationSource::Test},
+                makeDocumentDraft(QStringLiteral("No Hook"), QStringLiteral("no-hook")));
+            test.expect(static_cast<bool>(committed), scenario,
+                        "a host without the reset callback must still replace the document");
+            bareHistory->reset();
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -969,6 +1038,7 @@ int main(int argc, char *argv[]) {
     testSaveAndSaveAs(test);
     testGenerationCleanup(test);
     testOldIdCollisionAndErrorPriority(test);
+    testDocumentScopedStateReset(test);
 
     QTextStream(stdout) << "TestAutomationDocumentLifecycle: " << test.assertions() << " assertions"
                         << Qt::endl;

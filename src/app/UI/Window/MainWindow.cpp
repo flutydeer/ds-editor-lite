@@ -531,6 +531,14 @@ bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
     return true;
 }
 
+bool MainWindow::resetDocumentScopedViewState() {
+    // Document switch: viewports and editor tool state fall back to their defaults,
+    // while the panel layout, the active panel page and the region keep their state.
+    m_trackEditorView->setViewport(TrackPanelViewState());
+    m_bottomPanelView->clipEditorView()->resetDocumentScopedViewState();
+    return true;
+}
+
 bool MainWindow::centerTrackPanelAt(const double tick, const double trackIndex) {
     return m_trackEditorView->centerAt(tick, trackIndex);
 }

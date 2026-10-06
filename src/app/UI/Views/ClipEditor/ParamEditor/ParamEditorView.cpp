@@ -209,6 +209,14 @@ bool ParamEditorView::setValueViewport(const double centerRatio, const double ve
            m_graphicsView->setValueViewport(centerRatio, verticalScale);
 }
 
+void ParamEditorView::resetDocumentScopedToolState() {
+    const auto option = appOptions->general();
+    setForegroundParameter(option->defaultForegroundParam);
+    setBackgroundParameter(option->defaultBackgroundParam);
+    setParameterEditMode(EditorViewGlobal::ParameterEditMode::Draw);
+    setValueViewport(0.5, 1.0);
+}
+
 bool ParamEditorView::focusEditor() {
     if (!m_clip || !isVisibleTo(window()))
         return false;

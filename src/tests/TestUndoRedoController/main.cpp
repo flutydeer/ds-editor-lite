@@ -116,6 +116,10 @@ namespace {
             return true;
         }
 
+        bool resetDocumentScopedViewState() override {
+            return true;
+        }
+
         bool setEditorPanelVisibility(bool, bool) override {
             return true;
         }

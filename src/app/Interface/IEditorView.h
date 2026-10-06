@@ -10,6 +10,7 @@ LITE_INTERFACE IEditorView {
 
     I_NODSCD(EditorViewState captureEditorViewState() const);
     I_METHOD(bool restoreEditorViewState(const EditorViewState &state));
+    I_METHOD(bool resetDocumentScopedViewState());
 
     I_METHOD(bool centerTrackPanelAt(double tick, double trackIndex));
     I_METHOD(bool setTrackPanelScale(double horizontalScale, double verticalScale));

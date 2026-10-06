@@ -77,6 +77,11 @@ public:
     Property<bool> pianoRollAutoPageTurnEnabled = true;
     Property<bool> pianoRollAutoPageTurnAvailable = true;
 
+    // Clears the state that belongs to a single document generation. Called by the
+    // document replace transaction while the session is still in Replacing, so an
+    // implementation must not issue automation commands.
+    void resetDocumentScopedState();
+
 signals:
     // Modules
     void moduleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);

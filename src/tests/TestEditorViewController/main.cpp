@@ -59,6 +59,7 @@ namespace {
         EditorViewState state;
         mutable int captureCount = 0;
         int restoreCount = 0;
+        int resetCount = 0;
         int visibilityCallCount = 0;
         int refreshCount = 0;
         int previewCount = 0;
@@ -79,6 +80,12 @@ namespace {
             if (!validState(newState))
                 return false;
             state = newState;
+            return true;
+        }
+
+        bool resetDocumentScopedViewState() override {
+            ++resetCount;
+            state = EditorViewState();
             return true;
         }
 

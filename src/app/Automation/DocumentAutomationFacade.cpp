@@ -107,6 +107,10 @@ namespace Automation {
                 session.setLifecycleState(DocumentLifecycleState::Replacing);
                 if (m_services.beforeReplaceGeneration)
                     m_services.beforeReplaceGeneration(result.previous.documentId);
+                // Reset the document-scoped host state before the model swap so that
+                // every rebuild below observes the cleared selection and playback state.
+                if (m_services.resetDocumentScopedState)
+                    m_services.resetDocumentScopedState();
                 history->reset(HistoryManager::ResetState::Saved);
                 model->replaceProject(std::move(prepared));
                 if (m_services.applyLoopSettings)
