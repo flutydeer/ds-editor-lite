@@ -369,6 +369,57 @@ int main(int argc, char *argv[]) {
     expect(qFuzzyCompare(zoomValue, 2.0) && qFuzzyCompare(zoomAnchor, 30.0),
            "native touchpad zoom must share the same target bounds and anchor application");
 
+    // A zoom animation drives a stateful target: the editor recomputes the scroll
+    // offset from the scale it is handed, so a value the animation was never asked
+    // to interpolate (Qt publishes setStartValue/setEndValue writes while an
+    // animation is stopped) pushes the offset off a clamped edge and the rest of
+    // the animation springs it back.
+    double clampedScale = 1.0;
+    double clampedOffset = 0.0; // already clamped at the left content edge
+    double peakOffset = 0.0;
+    constexpr double clampedAnchor = 40.0;
+    WheelInputController clampedZoom;
+    clampedZoom.setAnimationEnabled(true);
+    clampedZoom.setTimeScale(1.0);
+    clampedZoom.setZoomTarget(
+        Qt::Horizontal,
+        {
+            .value = [&clampedScale] { return clampedScale; },
+            .setValueAt =
+                [&clampedScale, &clampedOffset, &peakOffset](const double value,
+                                                             const double anchor) {
+                    // The legacy view's anchor-preserving math, with the scroll bar
+                    // clamping the offset into its range.
+                    const auto ratio = value / clampedScale;
+                    clampedScale = value;
+                    clampedOffset =
+                        std::clamp((clampedOffset + anchor) * ratio - anchor, 0.0, 1000000.0);
+                    peakOffset = std::max(peakOffset, clampedOffset);
+                },
+            .boundedValue = [](const double value) { return std::clamp(value, 0.2, 5.0); },
+            .step = 0.4,
+        });
+    QWheelEvent clampedZoomOut(QPointF(clampedAnchor, 10), QPointF(clampedAnchor, 10), {},
+                               QPoint(0, -120), Qt::NoButton, Qt::ControlModifier,
+                               Qt::NoScrollPhase, false);
+    const auto runClampedZoom = [&clampedZoom, &clampedZoomOut] {
+        clampedZoom.handleWheel(&clampedZoomOut);
+        QEventLoop wait;
+        QTimer::singleShot(400, &wait, &QEventLoop::quit);
+        wait.exec();
+    };
+    // The stray value only appears when an animation that already ran to its end is
+    // reconfigured, which is exactly what consecutive wheel notches do.
+    runClampedZoom();
+    peakOffset = 0.0;
+    runClampedZoom();
+    expect(qFuzzyCompare(clampedScale, 1.0 / 1.4 / 1.4),
+           "zooming out must reach the requested scale");
+    expect(peakOffset <= 1.0,
+           "zooming out at a clamped content edge must keep the offset pinned, peak was " +
+               QString::number(peakOffset).toUtf8());
+    clampedZoom.stop();
+
     WheelProbe wheelParent;
     wheelParent.resize(300, 240);
     QWidget wheelContainer(&wheelParent);

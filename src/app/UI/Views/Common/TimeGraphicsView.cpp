@@ -25,6 +25,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/GUI/Animation/AnimationUtils.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
@@ -669,16 +670,22 @@ void TimeGraphicsView::updateAnimationDuration() {
                                       const auto &applyValue) {
         const auto running = animation.state() == QAbstractAnimation::Running;
         const auto endValue = animation.endValue();
-        animation.stop();
-        animation.setDuration(duration);
+        // This target writes straight into the scroll bar, so a stale publish from a
+        // metadata write would scroll the view (see AnimationUtils).
+        AnimationUtils::configureSilently(animation, [&] {
+            animation.stop();
+            animation.setDuration(duration);
+            if (running && duration > 0) {
+                animation.setStartValue(currentValue);
+                animation.setEndValue(endValue);
+            }
+        });
         if (!running)
             return;
         if (duration == 0) {
             applyValue(endValue);
             return;
         }
-        animation.setStartValue(currentValue);
-        animation.setEndValue(endValue);
         animation.start();
     };
 
