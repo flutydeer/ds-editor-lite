@@ -649,7 +649,8 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
                                              const Qt::KeyboardModifiers modifiers) {
     Q_D(PianoRollGraphicsView);
 
-    const bool quantizeOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
+    const bool quantizeOff =
+        !appStatus->pianoRollQuantizeEnabled || modifiers.testFlag(Qt::AltModifier);
     d->m_interactionController->setTempQuantizeOff(quantizeOff);
 
     const auto scenePos = mapToScene(viewportPos);

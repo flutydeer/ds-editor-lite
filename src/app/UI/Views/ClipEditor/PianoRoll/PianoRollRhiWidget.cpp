@@ -2191,7 +2191,8 @@ public:
                 ids.append(jointNeighborId);
             beginNoteEditSession(ids);
         }
-        const bool snapOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
+        const bool snapOff =
+            !appStatus->pianoRollQuantizeEnabled || modifiers.testFlag(Qt::AltModifier);
         const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, snapOff);
         interactionMinimumLength = step;
         const auto rawDelta = localTickAt(position) - mouseDownTick;
