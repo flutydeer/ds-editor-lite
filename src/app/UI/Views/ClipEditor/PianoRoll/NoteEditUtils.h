@@ -38,6 +38,17 @@ namespace NoteEditUtils {
             originalLength, snappedLocalTick - originalStart - originalLength, minimumLength);
     }
 
+    // Delta of a boundary dragged jointly between two adjacent notes. The boundary
+    // sits where the left note ends (== where the right note starts); the snap and
+    // minimum-length rules match the single-note resize of the same edge.
+    inline int jointBoundaryDelta(const int leftOriginalLength, const int rightOriginalLength,
+                                  const int originalBoundaryTick, const int snappedLocalTick,
+                                  const int minimumLength) {
+        return NoteResizeUtils::clampJointBoundaryDelta(leftOriginalLength, rightOriginalLength,
+                                                        snappedLocalTick - originalBoundaryTick,
+                                                        minimumLength);
+    }
+
     inline int lengthForSnappedEnd(const int startTick, const int snappedEndTick,
                                    const int minimumLength) {
         return std::max(std::max(1, minimumLength), snappedEndTick - startTick);

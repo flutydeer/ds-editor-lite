@@ -1,4 +1,5 @@
 #include "NoteInteractionController.h"
+#include "NoteAdjacencyUtils.h"
 #include "NoteHandleGeometry.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView.h"
@@ -10,6 +11,7 @@
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Global/AppGlobal.h"
 
 #include <QDebug>
@@ -23,6 +25,18 @@ NoteInteractionController::NoteInteractionController(PianoRollSelectionModel *se
 void NoteInteractionController::setMouseDown(bool down, Qt::MouseButton button) {
     m_mouseDown = down;
     m_mouseDownButton = button;
+}
+
+void NoteInteractionController::setDataContext(SingingClip *clip) {
+    m_clip = clip;
+}
+
+NoteView *NoteInteractionController::jointNeighborView() const {
+    return m_jointNeighborId < 0 ? nullptr : m_view->findNoteViewById(m_jointNeighborId);
+}
+
+void NoteInteractionController::clearJointResize() {
+    m_jointNeighborId = -1;
 }
 
 void NoteInteractionController::setMouseDownNoteParams(int rStart, int length, int keyIndex) {
@@ -50,7 +64,39 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
         return;
     }
 
-    (void) m_selectionModel->applyNoteSelection(noteItem, event->modifiers());
+    clearJointResize();
+
+    const auto rPos = noteItem->mapFromScene(scenePos);
+    // Provisional edge for the Shift decision: the joint branch may change the
+    // selection, and the behavior edge below is resolved against the settled
+    // handle-frame state like any plain press
+    const auto provisionalEdge = NoteHandleGeometry::resizeEdgeAt(
+        rPos, noteItem->rect(), EditorPointer::resizeTolerance(),
+        noteItem->id() == m_handleFramedNoteId);
+
+    // Shift on a resize edge asks for the joint boundary drag: the timeline
+    // neighbor on that side has to move with the boundary. A gapped or overlapped
+    // neighbor cannot, so the press is refused entirely instead of resizing one
+    // note apart from the other. Without a neighbor the plain path applies.
+    auto selectionModifiers = event->modifiers();
+    if (m_clip && selectionModifiers.testFlag(Qt::ShiftModifier) &&
+        provisionalEdge != EditorResizeUtils::HorizontalEdge::None) {
+        const auto neighbor = NoteAdjacencyUtils::neighborForEdge(
+            m_clip, m_clip->findNoteById(noteItem->id()), provisionalEdge);
+        if (neighbor.neighbor) {
+            if (!neighbor.exactlyAdjacent) {
+                m_mouseMoveBehavior = None;
+                m_currentEditingNote = nullptr;
+                return;
+            }
+            // Plain single-note press: the joint drag takes over the edge, so the
+            // Shift range-select semantics do not apply here
+            m_jointNeighborId = neighbor.neighbor->id();
+            selectionModifiers = Qt::NoModifier;
+        }
+    }
+
+    (void) m_selectionModel->applyNoteSelection(noteItem, selectionModifiers);
 
     if (!noteItem->isSelected()) {
         m_mouseMoveBehavior = None;
@@ -58,7 +104,6 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
         return;
     }
 
-    const auto rPos = noteItem->mapFromScene(scenePos);
     const auto edge = NoteHandleGeometry::resizeEdgeAt(rPos, noteItem->rect(),
                                                        EditorPointer::resizeTolerance(),
                                                        noteItem->id() == m_handleFramedNoteId);
@@ -106,6 +151,14 @@ void NoteInteractionController::handleNoteRightResized(const int noteId, const i
     clipController->onResizeNotesRight(notes, deltaTick, minimumLength);
 }
 
+void NoteInteractionController::handleNoteSharedBoundaryResized(const int leftNoteId,
+                                                                const int rightNoteId,
+                                                                const int deltaTick,
+                                                                const int minimumLength) {
+    qDebug() << "Note shared boundary resized" << leftNoteId << rightNoteId << "dt:" << deltaTick;
+    clipController->onResizeNotesSharedBoundary(leftNoteId, rightNoteId, deltaTick, minimumLength);
+}
+
 void NoteInteractionController::moveSelectedNotes(const int startOffset,
                                                   const int keyOffset) const {
     for (const auto note : m_selectionModel->selectedNoteItems()) {
@@ -123,10 +176,18 @@ void NoteInteractionController::resizeLeftSelectedNote(const int offset) const {
     // TODO: resize all selected notes
     m_currentEditingNote->setStartOffset(offset);
     m_currentEditingNote->setLengthOffset(-offset);
+    // Joint drag: the left neighbor lengthens by the same boundary shift
+    if (auto *neighbor = jointNeighborView())
+        neighbor->setLengthOffset(offset);
 }
 
 void NoteInteractionController::resizeRightSelectedNote(const int offset) const {
     m_currentEditingNote->setLengthOffset(offset);
+    // Joint drag: the right neighbor shifts its start and gives up the length
+    if (auto *neighbor = jointNeighborView()) {
+        neighbor->setStartOffset(offset);
+        neighbor->setLengthOffset(-offset);
+    }
 }
 
 void NoteInteractionController::updateMoveDeltaKeyRange() {
@@ -159,4 +220,5 @@ void NoteInteractionController::reset() {
     m_moveMinDeltaKey = 0;
     m_currentEditingNote = nullptr;
     m_mouseMoveBehavior = None;
+    m_jointNeighborId = -1;
 }

@@ -2,6 +2,7 @@
 
 #include "GhostNoteLayer.h"
 #include "GhostNoteSource.h"
+#include "NoteAdjacencyUtils.h"
 #include "NoteHandleGeometry.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
@@ -825,6 +826,15 @@ public:
         return Interaction::Move;
     }
 
+    static EditorResizeUtils::HorizontalEdge
+        horizontalEdgeOf(const Interaction interaction) {
+        return interaction == Interaction::ResizeLeft
+                   ? EditorResizeUtils::HorizontalEdge::Left
+               : interaction == Interaction::ResizeRight
+                   ? EditorResizeUtils::HorizontalEdge::Right
+                   : EditorResizeUtils::HorizontalEdge::None;
+    }
+
     // The frame's target note id, -1 for none. One read-only policy serves both
     // drawing and hit testing
     int framedNoteId() const {
@@ -843,7 +853,7 @@ public:
         return q->penEraserAction();
     }
 
-    void updateNoteCursor(const QPointF &viewportPosition) {
+    void updateNoteCursor(const QPointF &viewportPosition, const Qt::KeyboardModifiers modifiers) {
         // The pen eraser outranks the tool's own cursor while it is in range and
         // this tool has something it could erase. This is the view's half of the
         // hover hint: EditorPenController re-applies the same cursor when the
@@ -868,9 +878,21 @@ public:
             q->setCursor(Qt::ArrowCursor);
             return;
         }
-        const auto interaction = noteInteractionAt(noteAt(viewportPosition), viewportPosition);
+        const auto *note = noteAt(viewportPosition);
+        const auto interaction = noteInteractionAt(note, viewportPosition);
         const auto resizing =
             interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight;
+        // Shift offers the joint boundary drag; a neighbor that does not share the
+        // boundary (gap or overlap) cannot follow it, so the cursor refuses instead
+        // of letting the drag pull one note away from the other
+        if (resizing && modifiers.testFlag(Qt::ShiftModifier)) {
+            const auto neighbor =
+                NoteAdjacencyUtils::neighborForEdge(clip, note, horizontalEdgeOf(interaction));
+            if (neighbor.neighbor && !neighbor.exactlyAdjacent) {
+                q->setCursor(Qt::ForbiddenCursor);
+                return;
+            }
+        }
         q->setCursor(resizing ? Qt::SizeHorCursor : Qt::ArrowCursor);
     }
 
@@ -1796,6 +1818,19 @@ public:
                                                       : interactionDeltaTick),
                                 note->keyIndex()});
             }
+            // Joint drag: the neighbor follows the same boundary on the track side
+            if (jointResizeActive) {
+                if (const auto *neighbor = clip->findNoteById(jointNeighborId)) {
+                    const auto start = interaction == Interaction::ResizeLeft
+                                           ? neighbor->localStart()
+                                           : neighbor->localStart() + interactionDeltaTick;
+                    preview.append({neighbor->id(), start,
+                                    neighbor->length() + (interaction == Interaction::ResizeLeft
+                                                              ? interactionDeltaTick
+                                                              : -interactionDeltaTick),
+                                    neighbor->keyIndex()});
+                }
+            }
         }
         appStatus->pianoRollNoteEditPreview = preview;
     }
@@ -1808,6 +1843,8 @@ public:
         interactionDeltaKey = 0;
         interactionMinimumLength = 1;
         interactionMoved = false;
+        jointResizeActive = false;
+        jointNeighborId = -1;
         drawStart = 0;
         drawEnd = 0;
     }
@@ -1964,17 +2001,36 @@ public:
             return;
         }
 
-        const auto selectionResult = updateNoteSelection(note, event->modifiers());
+        // Shift on a resize edge asks for the joint boundary drag: the timeline
+        // neighbor on that side has to move with the boundary. A gapped or
+        // overlapped neighbor cannot, so the press is refused entirely instead of
+        // resizing one note apart from the other. Without a neighbor the plain
+        // press path applies.
+        const auto pressInteraction = noteInteractionAt(note, event->position());
+        NoteAdjacencyUtils::EdgeNeighbor jointNeighbor;
+        if (event->modifiers().testFlag(Qt::ShiftModifier)) {
+            const auto jointEdge = horizontalEdgeOf(pressInteraction);
+            if (jointEdge != EditorResizeUtils::HorizontalEdge::None)
+                jointNeighbor = NoteAdjacencyUtils::neighborForEdge(clip, note, jointEdge);
+        }
+        if (jointNeighbor.neighbor && !jointNeighbor.exactlyAdjacent)
+            return;
+
+        const auto selectionResult = updateNoteSelection(
+            note, jointNeighbor.neighbor ? Qt::KeyboardModifiers(Qt::NoModifier)
+                                         : event->modifiers());
         if (!selectionResult.targetSelected)
             return;
 
+        jointResizeActive = jointNeighbor.neighbor != nullptr;
+        jointNeighborId = jointNeighbor.neighbor ? jointNeighbor.neighbor->id() : -1;
         interactionNoteId = note->id();
         interactionStart = note->localStart();
         interactionLength = note->length();
         interactionKey = note->keyIndex();
         mouseDownTick = localTickAt(event->position());
         mouseDownKey = keyAt(event->position());
-        interaction = noteInteractionAt(note, event->position());
+        interaction = pressInteraction;
         interactionMoved = false;
         if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight)
             q->setCursor(Qt::SizeHorCursor);
@@ -1991,7 +2047,7 @@ public:
         // the frame has to disappear with it
         syncNoteHandleFrame();
         if (event->buttons() == Qt::NoButton)
-            updateNoteCursor(event->position());
+            updateNoteCursor(event->position(), event->modifiers());
         if (event->buttons() == Qt::NoButton)
             updateHoverToolTips(event->position());
         else
@@ -2092,12 +2148,24 @@ public:
                                                 interactionDeltaTick, interactionDeltaKey);
             } else if (interactionMoved && interaction == Interaction::ResizeLeft &&
                        interactionDeltaTick != 0) {
-                clipController->onResizeNotesLeft({interactionNoteId}, interactionDeltaTick,
-                                                  interactionMinimumLength);
+                if (jointResizeActive) {
+                    clipController->onResizeNotesSharedBoundary(jointNeighborId, interactionNoteId,
+                                                                interactionDeltaTick,
+                                                                interactionMinimumLength);
+                } else {
+                    clipController->onResizeNotesLeft({interactionNoteId}, interactionDeltaTick,
+                                                      interactionMinimumLength);
+                }
             } else if (interactionMoved && interaction == Interaction::ResizeRight &&
                        interactionDeltaTick != 0) {
-                clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick,
-                                                   interactionMinimumLength);
+                if (jointResizeActive) {
+                    clipController->onResizeNotesSharedBoundary(interactionNoteId, jointNeighborId,
+                                                                interactionDeltaTick,
+                                                                interactionMinimumLength);
+                } else {
+                    clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick,
+                                                       interactionMinimumLength);
+                }
             }
             appStatus->pianoRollNoteEditPreview = {};
             finishNoteEditSession(interactionMoved ? EditSessionEndReason::Commit
@@ -2105,7 +2173,7 @@ public:
         }
         syncNoteSelection(noteSelection.release(appStatus->selectedNotes.get(), interactionMoved));
         resetNoteInteraction();
-        updateNoteCursor(event->position());
+        updateNoteCursor(event->position(), event->modifiers());
         scheduleSnapshot();
     }
 
@@ -2114,8 +2182,13 @@ public:
             return;
         if (!interactionMoved) {
             interactionMoved = true;
-            const auto ids = interaction == Interaction::Move ? appStatus->selectedNotes.get()
+            QList<int> ids = interaction == Interaction::Move ? appStatus->selectedNotes.get()
                                                               : QList<int>{interactionNoteId};
+            // The joint boundary drag moves the neighbor too, so its inference
+            // cache is part of the same edit session
+            if (interaction != Interaction::Move && jointResizeActive &&
+                !ids.contains(jointNeighborId))
+                ids.append(jointNeighborId);
             beginNoteEditSession(ids);
         }
         const bool snapOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
@@ -2147,13 +2220,32 @@ public:
         } else if (interaction == Interaction::ResizeLeft) {
             const auto snappedTick = NoteEditUtils::snapLocalDown(
                 localTickAt(position) + clip->start(), clip->start(), step, appModel->timeline());
-            interactionDeltaTick = NoteEditUtils::leftResizeDelta(
-                interactionStart, interactionLength, snappedTick, step);
+            if (jointResizeActive) {
+                const auto *neighbor = clip->findNoteById(jointNeighborId);
+                interactionDeltaTick =
+                    neighbor ? NoteEditUtils::jointBoundaryDelta(neighbor->length(),
+                                                                 interactionLength,
+                                                                 interactionStart, snappedTick, step)
+                             : 0;
+            } else {
+                interactionDeltaTick = NoteEditUtils::leftResizeDelta(
+                    interactionStart, interactionLength, snappedTick, step);
+            }
         } else if (interaction == Interaction::ResizeRight) {
             const auto snappedTick = NoteEditUtils::snapLocalNearest(
                 localTickAt(position) + clip->start(), clip->start(), step, appModel->timeline());
-            interactionDeltaTick = NoteEditUtils::rightResizeDelta(
-                interactionStart, interactionLength, snappedTick, step);
+            if (jointResizeActive) {
+                const auto *neighbor = clip->findNoteById(jointNeighborId);
+                interactionDeltaTick =
+                    neighbor ? NoteEditUtils::jointBoundaryDelta(interactionLength,
+                                                                 neighbor->length(),
+                                                                 interactionStart + interactionLength,
+                                                                 snappedTick, step)
+                             : 0;
+            } else {
+                interactionDeltaTick = NoteEditUtils::rightResizeDelta(
+                    interactionStart, interactionLength, snappedTick, step);
+            }
         }
         publishNoteEditPreview();
     }
@@ -2544,6 +2636,18 @@ private:
             noteLength -= interactionDeltaTick;
         } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeRight) {
             noteLength += interactionDeltaTick;
+        } else if (jointResizeActive && note->id() == jointNeighborId &&
+                   (interaction == Interaction::ResizeLeft ||
+                    interaction == Interaction::ResizeRight)) {
+            // The neighbor follows the dragged shared boundary: it lengthens while
+            // the pressed note's left edge moves, and shifts + shrinks under a
+            // right-edge drag
+            if (interaction == Interaction::ResizeLeft) {
+                noteLength += interactionDeltaTick;
+            } else {
+                noteStart += interactionDeltaTick;
+                noteLength -= interactionDeltaTick;
+            }
         }
         if (localNoteStart)
             *localNoteStart = noteStart;
@@ -3195,6 +3299,10 @@ public:
     int interactionDeltaKey = 0;
     int interactionMinimumLength = 1;
     bool interactionMoved = false;
+    // Joint boundary resize (Shift + edge drag): the timeline neighbor sharing the
+    // dragged boundary follows it for the whole interaction
+    bool jointResizeActive = false;
+    int jointNeighborId = -1;
     quint64 noteEditSessionId = 0;
     double mouseDownTick = 0.0;
     int mouseDownKey = 60;

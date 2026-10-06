@@ -3,6 +3,7 @@
 #include "ClipRangeOverlay.h"
 #include "GhostNoteOverlay.h"
 #include "GhostNoteSource.h"
+#include "NoteAdjacencyUtils.h"
 #include "NoteHandleGeometry.h"
 #include "NoteHandleOverlay.h"
 #include "NoteEditUtils.h"
@@ -666,6 +667,11 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
         QList<int> noteIds;
         for (const auto *note : d->m_selectionModel->selectedNoteItems())
             noteIds.append(note->id());
+        // The joint boundary drag moves the neighbor too, so its inference cache
+        // is part of the same edit session
+        if (const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+            jointNeighbor && !noteIds.contains(jointNeighbor->id()))
+            noteIds.append(jointNeighbor->id());
         editSessionManager->beginTransaction(AppStatus::EditObjectType::Note,
                                              d->m_clip ? d->m_clip->id() : -1, {}, noteIds);
         appStatus->currentEditObject = AppStatus::EditObjectType::Note;
@@ -691,16 +697,33 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
                                                       d->m_interactionController->deltaKey());
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
-        const auto deltaStart = NoteEditUtils::leftResizeDelta(
-            d->m_interactionController->mouseDownRStart(),
-            d->m_interactionController->mouseDownLength(), snappedTick, quantizedTickLength);
+        const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+        const auto deltaStart = jointNeighbor
+                                    ? NoteEditUtils::jointBoundaryDelta(
+                                          jointNeighbor->length(),
+                                          d->m_interactionController->mouseDownLength(),
+                                          d->m_interactionController->mouseDownRStart(),
+                                          snappedTick, quantizedTickLength)
+                                    : NoteEditUtils::leftResizeDelta(
+                                          d->m_interactionController->mouseDownRStart(),
+                                          d->m_interactionController->mouseDownLength(),
+                                          snappedTick, quantizedTickLength);
         d->m_interactionController->setDeltaTick(deltaStart);
         d->m_interactionController->resizeLeftSelectedNote(d->m_interactionController->deltaTick());
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
-        const auto deltaLength = NoteEditUtils::rightResizeDelta(
-            d->m_interactionController->mouseDownRStart(),
-            d->m_interactionController->mouseDownLength(), snappedTickNearest, quantizedTickLength);
+        const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+        const auto deltaLength = jointNeighbor
+                                     ? NoteEditUtils::jointBoundaryDelta(
+                                           d->m_interactionController->mouseDownLength(),
+                                           jointNeighbor->length(),
+                                           d->m_interactionController->mouseDownRStart() +
+                                               d->m_interactionController->mouseDownLength(),
+                                           snappedTickNearest, quantizedTickLength)
+                                     : NoteEditUtils::rightResizeDelta(
+                                           d->m_interactionController->mouseDownRStart(),
+                                           d->m_interactionController->mouseDownLength(),
+                                           snappedTickNearest, quantizedTickLength);
         d->m_interactionController->setDeltaTick(deltaLength);
         d->m_interactionController->resizeRightSelectedNote(
             d->m_interactionController->deltaTick());
@@ -755,6 +778,12 @@ void PianoRollGraphicsView::publishNoteEditPreview() const {
             preview.append({note->id(), note->rStart() + note->startOffset(),
                             note->length() + note->lengthOffset(),
                             note->keyIndex() + note->keyOffset()});
+            // Joint drag: the neighbor follows the same boundary on the track side
+            if (const auto neighbor = d->m_interactionController->jointNeighborView()) {
+                preview.append({neighbor->id(), neighbor->rStart() + neighbor->startOffset(),
+                                neighbor->length() + neighbor->lengthOffset(),
+                                neighbor->keyIndex() + neighbor->keyOffset()});
+            }
         }
     }
     appStatus->pianoRollNoteEditPreview = preview;
@@ -1088,6 +1117,11 @@ void PianoRollGraphicsView::clearNoteSelections(const NoteView *except) {
     }
 }
 
+NoteView *PianoRollGraphicsView::findNoteViewById(const int id) const {
+    Q_D(const PianoRollGraphicsView);
+    return d->findNoteViewById(id);
+}
+
 HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus &focus) const {
     Q_D(const PianoRollGraphicsView);
     if (focus.kind != HistoryFocusKind::PianoRollNotes || !focus.isValid() || !d->m_clip ||
@@ -1193,14 +1227,19 @@ void PianoRollGraphicsView::discardAction() {
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
         d->m_interactionController->resetSelectedNotesOffset();
+        if (auto *jointNeighbor = d->m_interactionController->jointNeighborView())
+            jointNeighbor->resetOffset();
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
         d->m_interactionController->resetSelectedNotesOffset();
+        if (auto *jointNeighbor = d->m_interactionController->jointNeighborView())
+            jointNeighbor->resetOffset();
     }
     d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
     d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->clearJointResize();
     d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
@@ -1225,23 +1264,41 @@ void PianoRollGraphicsView::commitAction() {
                NoteInteractionController::ResizeLeft) {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
+            auto *jointNeighbor = d->m_interactionController->jointNeighborView();
             d->m_interactionController->resetSelectedNotesOffset();
+            if (jointNeighbor)
+                jointNeighbor->resetOffset();
             const auto minimumLength = TimelineSnapUtils::quantizeStep(
                 appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
-            NoteInteractionController::handleNoteLeftResized(
-                d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick(), minimumLength);
+            if (jointNeighbor) {
+                NoteInteractionController::handleNoteSharedBoundaryResized(
+                    jointNeighbor->id(), d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            } else {
+                NoteInteractionController::handleNoteLeftResized(
+                    d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            }
         }
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
+            auto *jointNeighbor = d->m_interactionController->jointNeighborView();
             d->m_interactionController->resetSelectedNotesOffset();
+            if (jointNeighbor)
+                jointNeighbor->resetOffset();
             const auto minimumLength = TimelineSnapUtils::quantizeStep(
                 appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
-            NoteInteractionController::handleNoteRightResized(
-                d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick(), minimumLength);
+            if (jointNeighbor) {
+                NoteInteractionController::handleNoteSharedBoundaryResized(
+                    d->m_interactionController->currentEditingNote()->id(), jointNeighbor->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            } else {
+                NoteInteractionController::handleNoteRightResized(
+                    d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            }
         }
     }
     // model 写入完成后才清空预览，避免轨道先画旧几何再跳变
@@ -1252,6 +1309,7 @@ void PianoRollGraphicsView::commitAction() {
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
     d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->clearJointResize();
     d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
@@ -1658,6 +1716,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     }
     m_clip = nullptr;
     m_selectionModel->setDataContext(nullptr);
+    m_interactionController->setDataContext(nullptr);
     m_ghostSource->setHostClip(nullptr);
     m_initialViewportPositionPending = false;
     syncNoteHandleFrame();
@@ -1678,6 +1737,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
 
     m_clip = clip;
     m_selectionModel->setDataContext(clip);
+    m_interactionController->setDataContext(clip);
     m_offset = clip->start();
     q->setOffset(m_offset);
     q->setSceneVisibility(true);
@@ -1986,8 +2046,22 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     // the finger, and the mouse never sees the frame there anyway
     const auto edge = NoteHandleGeometry::resizeEdgeAt(rPos, noteView->rect(),
                                                        EditorPointer::resizeTolerance(), false);
-    q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
-                                                                 : Qt::SizeHorCursor);
+    if (edge == EditorResizeUtils::HorizontalEdge::None) {
+        q->setCursor(Qt::ArrowCursor);
+        return;
+    }
+    // Shift offers the joint boundary drag; a neighbor that does not share the
+    // boundary (gap or overlap) cannot follow it, so the cursor refuses instead
+    // of letting the drag pull one note away from the other
+    if (m_clip && event->modifiers().testFlag(Qt::ShiftModifier)) {
+        const auto neighbor = NoteAdjacencyUtils::neighborForEdge(
+            m_clip, m_clip->findNoteById(noteView->id()), edge);
+        if (neighbor.neighbor && !neighbor.exactlyAdjacent) {
+            q->setCursor(Qt::ForbiddenCursor);
+            return;
+        }
+    }
+    q->setCursor(Qt::SizeHorCursor);
 }
 
 NoteView *PianoRollGraphicsViewPrivate::errorBadgeAt(const QPoint &pos) {

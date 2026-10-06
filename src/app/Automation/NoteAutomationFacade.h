@@ -71,6 +71,13 @@ namespace Automation {
         AutomationResult<MutationResult> resizeNotesRight(const CommandContext &context,
                                                           ClipId clipId, QList<NoteId> noteIds,
                                                           int deltaTick, int minimumLength);
+        // Moves the shared boundary between two exactly adjacent notes: the left
+        // note takes the delta on its length while the right one shifts its start
+        // and gives up the same amount. Adjacency is re-validated against the model.
+        AutomationResult<MutationResult> resizeNotesSharedBoundary(const CommandContext &context,
+                                                                   ClipId clipId, NoteId leftNoteId,
+                                                                   NoteId rightNoteId, int deltaTick,
+                                                                   int minimumLength);
         AutomationResult<MutationResult> splitNote(const CommandContext &context, ClipId clipId,
                                                    NoteId noteId, const NoteDraftDto &newNote,
                                                    int newLength);

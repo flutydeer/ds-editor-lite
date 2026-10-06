@@ -191,6 +191,19 @@ void NoteActions::quantizeNotes(const QList<Note *> &notes,
                                 const QList<QPair<int, int>> &newStartLengths, SingingClip *clip,
                                 Track *track) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Quantize notes"));
+    addGeometryChanges(notes, newStartLengths, clip, track);
+}
+
+void NoteActions::editNotesGeometry(const QList<Note *> &notes,
+                                    const QList<QPair<int, int>> &newStartLengths,
+                                    SingingClip *clip, Track *track) {
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Resize notes"));
+    addGeometryChanges(notes, newStartLengths, clip, track);
+}
+
+void NoteActions::addGeometryChanges(const QList<Note *> &notes,
+                                     const QList<QPair<int, int>> &newStartLengths,
+                                     SingingClip *clip, Track *track) {
     QList<QuantizeNotesAction::Change> changes;
     changes.reserve(notes.size());
     for (int i = 0; i < notes.size(); ++i) {

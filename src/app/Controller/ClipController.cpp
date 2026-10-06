@@ -302,6 +302,20 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
                                       ids, deltaTick, minimumLength);
 }
 
+void ClipController::onResizeNotesSharedBoundary(const int leftNoteId, const int rightNoteId,
+                                                 const int deltaTick,
+                                                 const int minimumLength) const {
+    Q_D(const ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+    runtime->notes().resizeNotesSharedBoundary(commandContext(*runtime),
+                                               Automation::ClipId(d->m_clip->id()),
+                                               Automation::NoteId(leftNoteId),
+                                               Automation::NoteId(rightNoteId), deltaTick,
+                                               minimumLength);
+}
+
 void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &offsets) const {
     Q_D(const ClipController);
     auto *runtime = automationRuntime();

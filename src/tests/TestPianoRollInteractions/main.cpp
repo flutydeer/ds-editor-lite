@@ -1,3 +1,4 @@
+#include "UI/Views/ClipEditor/PianoRoll/NoteAdjacencyUtils.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteHandleGeometry.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
@@ -115,6 +116,72 @@ int main(int argc, char *argv[]) {
                NoteResizeUtils::clampLeftDelta(240, 240, 1) == 239 &&
                NoteResizeUtils::clampRightDelta(240, -240, 1) == -239,
            "the model commit guard must retain the supplied dynamic minimum length");
+
+    expect(NoteEditUtils::jointBoundaryDelta(240, 240, 240, 720, quantize) == 120 &&
+               NoteEditUtils::jointBoundaryDelta(240, 240, 240, 120, quantize) == -120 &&
+               NoteEditUtils::jointBoundaryDelta(240, 240, 240, 290, quantize) == 50,
+           "a joint boundary drag must stay inside both notes' minimum lengths");
+    expect(NoteResizeUtils::clampJointBoundaryDelta(240, 240, 1000, 1) == 239 &&
+               NoteResizeUtils::clampJointBoundaryDelta(240, 240, -1000, 1) == -239,
+           "a joint boundary drag must retain one tick even when an invalid minimum is supplied");
+    expect(NoteResizeUtils::clampJointBoundaryDelta(30, 30, 50, 120) == 0 &&
+               NoteResizeUtils::clampJointBoundaryDelta(30, 30, -50, 120) == 0,
+           "a joint boundary drag must stay still when a note is already shorter than the minimum");
+
+    {
+        SingingClip clip;
+        auto makeNote = [](const int start, const int key, const int length = 120) {
+            auto *note = new Note;
+            note->setLocalStart(start);
+            note->setLength(length);
+            note->setKeyIndex(key);
+            return note;
+        };
+        // Melodic chain a-b (different keys, exactly adjacent), a gapped pair b-c,
+        // an overlapping pair d-c, a cross-key adjacent pair c-e, and a trailing
+        // note f with nothing after it
+        auto *a = makeNote(0, 60);
+        auto *b = makeNote(120, 64);
+        auto *c = makeNote(360, 60);
+        auto *d = makeNote(300, 67);
+        auto *e = makeNote(480, 72);
+        auto *f = makeNote(600, 60);
+        clip.insertNotes({f, e, d, c, b, a});
+
+        using EditorResizeUtils::HorizontalEdge;
+        const auto edgeOf = [&](const Note *note, const HorizontalEdge edge) {
+            return NoteAdjacencyUtils::neighborForEdge(&clip, note, edge);
+        };
+
+        expect(NoteAdjacencyUtils::nextNote(&clip, f) == nullptr &&
+                   NoteAdjacencyUtils::prevNote(&clip, a) == nullptr,
+               "the first and last notes of the sequence have no outer neighbor");
+        expect(NoteAdjacencyUtils::nextNote(&clip, a) == b &&
+                   NoteAdjacencyUtils::prevNote(&clip, b) == a,
+               "timeline neighbors must ignore pitch when listing the sequence");
+
+        const auto aRight = edgeOf(a, HorizontalEdge::Right);
+        expect(aRight.neighbor == b && aRight.exactlyAdjacent,
+               "an exactly adjacent pair must qualify for the joint boundary drag");
+        const auto bLeft = edgeOf(b, HorizontalEdge::Left);
+        expect(bLeft.neighbor == a && bLeft.exactlyAdjacent,
+               "the left edge of the right note must see the same adjacency");
+        const auto bRight = edgeOf(b, HorizontalEdge::Right);
+        expect(bRight.neighbor == d && !bRight.exactlyAdjacent,
+               "a gap to the next note must mark the pair illegal but keep it as the neighbor");
+        const auto cLeft = edgeOf(c, HorizontalEdge::Left);
+        expect(cLeft.neighbor == d && !cLeft.exactlyAdjacent,
+               "an overlap with the previous note must mark the pair illegal");
+        const auto cRight = edgeOf(c, HorizontalEdge::Right);
+        expect(cRight.neighbor == e && cRight.exactlyAdjacent,
+               "a cross-key exactly adjacent pair must qualify for the joint boundary drag");
+        const auto aLeft = edgeOf(a, HorizontalEdge::Left);
+        expect(aLeft.neighbor == nullptr && !aLeft.exactlyAdjacent,
+               "a note with nothing on the dragged side must fall back to plain resize");
+        const auto fRight = edgeOf(f, HorizontalEdge::Right);
+        expect(fRight.neighbor == nullptr && !fRight.exactlyAdjacent,
+               "a trailing note must fall back to plain resize on its right edge");
+    }
 
     QFont lyricFont;
     lyricFont.setPixelSize(13);
