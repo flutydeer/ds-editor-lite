@@ -224,6 +224,46 @@ int main(int argc, char **argv) {
         check(pathRequested.isEmpty(), "the path list's row body starts no reorder");
     }
 
+    // --- a stray move after the drag must not re-arm it ---
+    // The platform's drag loop swallows the release, so the drag returning is
+    // what ends the gesture. With the press left latched, the next move over the
+    // view reads as a handle press that crossed the threshold and starts a drag
+    // of the row that was just dropped - which is what made every entry drag the
+    // one that had been reordered.
+    QListWidget stray;
+    stray.resize(320, 240);
+    // The production lists track the mouse on their viewport (SmoothScroller),
+    // and Qt discards a button-less move for a widget that does not - without
+    // this the stray move below would never be delivered.
+    stray.viewport()->setMouseTracking(true);
+    DragHandle *strayHandle = nullptr;
+    addHandleRow(&stray, &strayHandle);
+    DragHandle *straySecondHandle = nullptr;
+    addHandleRow(&stray, &straySecondHandle);
+    stray.show();
+    QApplication::processEvents();
+
+    auto *strayController = new ItemViewReorderController(&stray);
+    QList<int> strayRequested;
+    QObject::connect(strayController, &ItemViewReorderController::dragRequested,
+                     [&strayRequested](const int row) { strayRequested.append(row); });
+
+    const QPoint strayPress = stray.visualItemRect(stray.item(0)).center();
+    sendMouseAt(strayHandle, stray.viewport(), QEvent::MouseButtonPress, strayPress, Qt::LeftButton,
+                Qt::LeftButton);
+    sendMouseAt(strayHandle, stray.viewport(), QEvent::MouseMove,
+                strayPress + QPoint(dragDistance, 0), Qt::NoButton, Qt::LeftButton);
+    check(strayRequested == QList<int>{0}, "the stray-test gesture requests a drag of its row");
+
+    // No release follows: the real drag loop never delivers one. The stray
+    // move is aimed at the viewport, not the handle: the platform delivers a
+    // button-less move to the deepest widget that tracks the mouse, and Qt
+    // discards it for widgets that do not (handles do not track) - in the real
+    // view the move reaches the handle's controller through the viewport.
+    sendMouseAt(stray.viewport(), stray.viewport(), QEvent::MouseMove,
+                strayPress + QPoint(dragDistance + 40, 0), Qt::NoButton, Qt::NoButton);
+    check(strayRequested == QList<int>{0}, "a stray move after the drag does not re-arm it");
+
     std::printf("%s (%d failure(s))\n", g_failures == 0 ? "ALL OK" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }
