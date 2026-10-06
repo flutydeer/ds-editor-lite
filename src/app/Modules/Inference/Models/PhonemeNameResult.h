@@ -7,6 +7,7 @@
 class PhonemeNameResult {
 public:
     bool success = false;
+    QString errorMessage;
     QList<PhonemeName> phonemeNames;
 };
 

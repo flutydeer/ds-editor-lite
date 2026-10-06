@@ -6,12 +6,14 @@
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include <lite/ADT/Property.h>
 #include <lite/Core/UniqueObject.h>
+#include <lite/ProjectModel/SingingClipSlicer/Models/SliceResult.h>
 
 #include <QColor>
 #include <QFont>
 #include <QRectF>
 
 class PronunciationView;
+class NoteErrorBadgeItem;
 
 class NoteView final : public AbstractGraphicsRectItem,
                        public UniqueObject,
@@ -57,6 +59,11 @@ public:
     void setEditingLyric(bool editing);
     [[nodiscard]] bool isEditingLyric() const;
 
+    // Whether the last inference cycle excluded this note and thus the error
+    // badge is drawn; pushed by the view when the clip's diagnostics change
+    void setInferenceError(bool on);
+    [[nodiscard]] bool hasInferenceError() const;
+
 private:
     [[nodiscard]] QFont lyricFont() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -65,7 +72,11 @@ private:
     void initUi();
 
     PronunciationView *m_pronView = nullptr;
+    // Child item holding the inference-error badge above the note, created in
+    // initUi and toggled by setInferenceError
+    NoteErrorBadgeItem *m_errorBadge = nullptr;
     bool m_editingLyric = false;
+    bool m_inferenceError = false;
     int m_rStart = 0;
     int m_length = AppGlobal::ticksPerQuarterNote;
     int m_keyIndex = 60;

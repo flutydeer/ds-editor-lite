@@ -2889,6 +2889,61 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <source>Processing: %1</source>
         <translation>处理中：%1</translation>
     </message>
+    <message>
+        <source>Language module is not ready</source>
+        <translation>语言模块尚未就绪</translation>
+    </message>
+    <message>
+        <source>Singer is not available</source>
+        <translation>歌手不可用</translation>
+    </message>
+    <message>
+        <source>Failed to load the phoneme module for language %1</source>
+        <translation>语言 %1 的音素模块加载失败</translation>
+    </message>
+    <message>
+        <source>Failed to convert the pronunciation of \"%1\"</source>
+        <translation>无法转换“%1”的发音</translation>
+    </message>
+    <message>
+        <source>No phonemes are available for the pronunciation of \"%1\"</source>
+        <translation type="vanished">“%1”的发音没有对应的音素</translation>
+    </message>
+</context>
+<context>
+    <name>PianoRollGraphicsViewHelper</name>
+    <message>
+        <source>Missing phonemes</source>
+        <translation>缺少音素</translation>
+    </message>
+    <message>
+        <source>Invalid phrase start</source>
+        <translation>乐句起始无效</translation>
+    </message>
+    <message>
+        <source>No phonemes assigned</source>
+        <translation>未分配到音素</translation>
+    </message>
+    <message>
+        <source>Overlapping note</source>
+        <translation>音符重叠</translation>
+    </message>
+    <message>
+        <source>No phonemes are available for this note. Check the lyric, the pronunciation, or the language settings</source>
+        <translation>该音符没有可用的音素，请检查歌词、发音或语言设置</translation>
+    </message>
+    <message>
+        <source>A phrase cannot start with a slur or syllabification note</source>
+        <translation>乐句不能以连音或音节分配符开头</translation>
+    </message>
+    <message>
+        <source>This syllabification note was not assigned any phonemes</source>
+        <translation>音节分配符未分配到音素</translation>
+    </message>
+    <message>
+        <source>This note overlaps another note and is ignored</source>
+        <translation>该音符与其他音符重叠，已被忽略</translation>
+    </message>
 </context>
 <context>
     <name>GetPronunciationTask</name>

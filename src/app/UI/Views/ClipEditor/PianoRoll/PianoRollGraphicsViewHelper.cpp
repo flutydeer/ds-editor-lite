@@ -15,9 +15,12 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
+
+#include <QCoreApplication>
 
 QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *clip) {
     const auto language =
@@ -155,4 +158,56 @@ void PianoRollGraphicsViewHelper::updateAnchorPitch(const Param &param,
             anchorCurves.append(static_cast<AnchorCurve *>(curve));
     }
     handler.loadFromModel(anchorCurves);
+}
+
+QSizeF PianoRollGraphicsViewHelper::noteErrorBadgeSize() {
+    return {14.0, 14.0};
+}
+
+QRectF PianoRollGraphicsViewHelper::noteErrorBadgeRect(const QRectF &noteRect) {
+    constexpr double margin = 2.0;
+    const auto badgeSize = noteErrorBadgeSize();
+    // Above the note's top edge, left-aligned with the lyric inset, mirroring
+    // the pronunciation view hanging below the note
+    const auto left = noteRect.left() + EditorItemGeometry::noteBorderWidth + margin;
+    return {left, noteRect.top() - badgeSize.height() - margin, badgeSize.width(),
+            badgeSize.height()};
+}
+
+QString PianoRollGraphicsViewHelper::noteInferenceErrorTitle(const SliceExclusionReason reason) {
+    switch (reason) {
+        case SliceExclusionReason::MissingPhonemes:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Missing phonemes");
+        case SliceExclusionReason::FirstNoteInvalid:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "Invalid phrase start");
+        case SliceExclusionReason::UnassignedSyllabification:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "No phonemes assigned");
+        case SliceExclusionReason::Overlapped:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Overlapping note");
+    }
+    return {};
+}
+
+QString PianoRollGraphicsViewHelper::noteInferenceErrorText(const NoteInferenceErrorInfo &error) {
+    switch (error.reason) {
+        case SliceExclusionReason::MissingPhonemes:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "No phonemes are available for this note. Check the lyric, the pronunciation, or "
+                "the language settings");
+        case SliceExclusionReason::FirstNoteInvalid:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "A phrase cannot start with a slur or syllabification note");
+        case SliceExclusionReason::UnassignedSyllabification:
+            return QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "This syllabification note was not assigned any phonemes");
+        case SliceExclusionReason::Overlapped:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "This note overlaps another note and is ignored");
+    }
+    return {};
 }

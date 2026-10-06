@@ -68,6 +68,7 @@ void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note 
         case EditedPronunciationOnly:
         case EditedPhonemeOffsetChange:
             bumpInferenceRevision();
+            clearNoteInferenceErrors(notes);
             break;
         case OriginalWordPropertyChange:
             break;
@@ -99,7 +100,8 @@ void SingingClip::removeAllPieces() {
 
 ReSegmentResult SingingClip::reSegment(const Timeline &timeline, const bool bumpRevision) {
     ReSegmentResult result;
-    auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
+    const auto sliceResult = SingingClipSlicer::slice(timeline, m_notes.toList());
+    const auto &segments = sliceResult.segments;
 
     // Check if existing piece and segment are the same
     // 1. Head padding length is the same
@@ -165,6 +167,7 @@ ReSegmentResult SingingClip::reSegment(const Timeline &timeline, const bool bump
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
         delete piece;
+    rebuildNoteInferenceErrors(sliceResult);
     return result;
 }
 
@@ -392,8 +395,59 @@ void SingingClip::notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext
     if (oldContext == newContext)
         return;
 
-    if (!oldContext.hasSameInferenceInput(newContext))
+    if (!oldContext.hasSameInferenceInput(newContext)) {
         bumpInferenceRevision();
+        clearAllNoteInferenceErrors();
+    }
 
     Q_EMIT voiceContextChanged({oldContext, newContext});
+}
+
+const QHash<int, NoteInferenceErrorInfo> &SingingClip::noteInferenceErrors() const {
+    return m_noteInferenceErrors;
+}
+
+const QList<QPair<int, int>> &SingingClip::skippedPhraseRanges() const {
+    return m_skippedPhraseRanges;
+}
+
+void SingingClip::setPendingNoteTaskErrors(const QHash<int, QString> &taskErrors) {
+    m_pendingNoteTaskErrors = taskErrors;
+}
+
+void SingingClip::rebuildNoteInferenceErrors(const SliceResult &sliceResult) {
+    QHash<int, NoteInferenceErrorInfo> errors;
+    for (const auto &excluded : sliceResult.excludedNotes) {
+        NoteInferenceErrorInfo info;
+        info.reason = excluded.reason;
+        info.detail = m_pendingNoteTaskErrors.value(excluded.noteId);
+        errors.insert(excluded.noteId, info);
+    }
+    const bool changed =
+        errors != m_noteInferenceErrors || sliceResult.skippedPhraseRanges != m_skippedPhraseRanges;
+    m_noteInferenceErrors = std::move(errors);
+    m_skippedPhraseRanges = sliceResult.skippedPhraseRanges;
+    if (changed)
+        emit noteInferenceErrorsChanged();
+}
+
+void SingingClip::clearNoteInferenceErrors(const QList<Note *> &notes) {
+    bool changed = false;
+    for (const auto note : notes) {
+        if (m_noteInferenceErrors.remove(note->id()) > 0)
+            changed = true;
+        if (m_pendingNoteTaskErrors.remove(note->id()) > 0)
+            changed = true;
+    }
+    if (changed)
+        emit noteInferenceErrorsChanged();
+}
+
+void SingingClip::clearAllNoteInferenceErrors() {
+    m_pendingNoteTaskErrors.clear();
+    if (m_noteInferenceErrors.isEmpty() && m_skippedPhraseRanges.isEmpty())
+        return;
+    m_noteInferenceErrors.clear();
+    m_skippedPhraseRanges.clear();
+    emit noteInferenceErrorsChanged();
 }

@@ -96,6 +96,25 @@ int main(int argc, char *argv[]) {
                "the clearance must survive a content change");
     }
 
+    // --- Shrinking back after the content gets narrower ---
+    {
+        // The card window is reused across shows, and its nested layouts
+        // refresh their cached hints lazily; a narrower readout must still
+        // shrink instead of keeping the previous content's width
+        const auto pointer = available.center();
+        toolTip.setTitle(QStringLiteral("12345678 ms"));
+        toolTip.moveAbovePointer(pointer);
+        const auto wideCard = visibleCard(toolTip);
+
+        toolTip.setTitle(QStringLiteral("5 ms"));
+        toolTip.moveAbovePointer(pointer);
+
+        expect(visibleCard(toolTip).width() < wideCard.width(),
+               "a narrower readout must shrink the card, not keep the old width");
+        expect(closeEnough(visibleCard(toolTip).center().x(), pointer.x()),
+               "the shrunk readout must be re-centred on the pointer");
+    }
+
     // --- Clamped at the left edge instead of running off screen ---
     {
         const auto pointer = QPoint(available.left() + 2, available.center().y());
