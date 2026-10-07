@@ -57,23 +57,6 @@ namespace {
                 piece->localEndTick(timeline) + clip->start()};
     }
 
-    QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
-        QList<NoteInferenceSnapshot> result;
-        result.reserve(clip.notes().count());
-        for (const auto note : clip.notes()) {
-            NoteInferenceSnapshot snapshot;
-            snapshot.noteId = note->id();
-            snapshot.lyric = note->lyric();
-            snapshot.language = note->effectiveLanguage();
-            snapshot.pronunciation = note->pronunciation().result();
-            snapshot.globalStart = note->globalStart();
-            snapshot.length = note->length();
-            snapshot.keyIndex = note->keyIndex();
-            result.append(snapshot);
-        }
-        return result;
-    }
-
     // 排序键：档位越小优先级越高，同档位内距播放头越近越优先。
     // 档位 0 = 播放头落在片段范围内(必须最先推理，否则一定位就听不到声音)，
     // 1 = 播放头之后，2 = 播放头之前，3 = 片段已不存在。

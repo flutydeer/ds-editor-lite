@@ -506,26 +506,39 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     const auto language = TestSupport::fixtureLanguage();
     const auto lyric = TestSupport::fixtureLyric();
     const auto singer = clip->singerInfo();
+    const QList<QPair<QString, QString>> words{
+        {QStringLiteral("SP"),              language                              },
+        {QStringLiteral("preserve first"),  QStringLiteral("unavailable-language")},
+        {lyric + QLatin1Char('+'),          language                              },
+        {QStringLiteral("+"),               language                              },
+        {QStringLiteral("preserve second"), QStringLiteral("unavailable-language")},
+        {QStringLiteral("-"),               language                              },
+    };
+    QList<Automation::NoteDraftDto> addedNotes;
+    auto nextStart = note->localStart() + note->length();
+    for (const auto &[word, wordLanguage] : words) {
+        Automation::NoteDraftDto draft;
+        draft.localStart = nextStart;
+        draft.length = 120;
+        draft.keyIndex = 60;
+        draft.lyric = word;
+        draft.language = wordLanguage;
+        addedNotes.append(draft);
+        nextStart += draft.length;
+    }
+    const auto inserted =
+        runtime().notes().insertNotes(commandContext(), Automation::ClipId(clip->id()), addedNotes);
+    QVERIFY2(inserted, qPrintable(inserted ? QString{} : inserted.getError().message));
+    auto inputs = buildNoteInferenceSnapshots(*clip);
+    QCOMPARE(inputs.size(), addedNotes.size() + 1);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !clip->noteInferenceErrors().value(inputs.at(2).noteId).detail.isEmpty() &&
+            !clip->noteInferenceErrors().value(inputs.at(5).noteId).detail.isEmpty(),
+        10000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
-    QList<NoteInferenceSnapshot> inputs{
-        {11, lyric,                         language, {}, 0,    480, 60},
-        {17, QStringLiteral("SP"),          language, {}, 480,  480, 60},
-        {23,
-         QStringLiteral("preserve first"),
-         QStringLiteral("unavailable-language"),
-         {},
-         960,                                                   480,
-         60                                                            },
-        {29, lyric + QLatin1Char('+'),      language, {}, 1440, 480, 60},
-        {31,
-         QStringLiteral("preserve second"),
-         QStringLiteral("unavailable-language"),
-         {},
-         1920,                                                  480,
-         60                                                            },
-        {37, QStringLiteral("-"),           language, {}, 2400, 480, 60},
-    };
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
     const auto execute = [](Task &task) {
         QThreadPool workers;
         QSignalSpy finished(&task, &Task::finished);
@@ -542,7 +555,7 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QVERIFY(!pronunciations.result.first().pronunciation.isEmpty());
     QCOMPARE(pronunciations.result.at(3).pronunciation,
              pronunciations.result.first().pronunciation);
-    for (const auto index : {1, 2, 4, 5}) {
+    for (const auto index : {1, 2, 4, 5, 6}) {
         QCOMPARE(pronunciations.result.at(index).pronunciation, inputs.at(index).lyric);
         QCOMPARE(pronunciations.result.at(index).candidates, QStringList{inputs.at(index).lyric});
     }
@@ -559,12 +572,50 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QVERIFY(phonemes.result.at(1).success);
     QCOMPARE(phonemes.result.at(1).phonemeNames.size(), 1);
     QCOMPARE(phonemes.result.at(1).phonemeNames.first().name, QStringLiteral("SP"));
-    for (const auto index : {2, 4}) {
+    QVERIFY(phonemes.result.at(3).success);
+    QCOMPARE(phonemes.result.at(3).phonemeNames, phonemes.result.first().phonemeNames);
+    for (const auto index : {2, 5}) {
         QVERIFY(!phonemes.result.at(index).success);
         QVERIFY(phonemes.result.at(index).phonemeNames.isEmpty());
     }
-    QVERIFY(phonemes.result.at(5).success);
-    QVERIFY(phonemes.result.at(5).phonemeNames.isEmpty());
+    for (const auto index : {4, 6}) {
+        QVERIFY(phonemes.result.at(index).success);
+        QVERIFY(phonemes.result.at(index).phonemeNames.isEmpty());
+    }
+
+    Automation::InferenceMutationRequest writeback;
+    writeback.kind = Automation::InferenceMutationKind::ApplyPhonemeNames;
+    writeback.clipId = Automation::ClipId(clip->id());
+    for (qsizetype index = 0; index < inputs.size(); ++index) {
+        const auto &result = phonemes.result.at(index);
+        writeback.phonemeNames.append({
+            .noteId = Automation::NoteId(inputs.at(index).noteId),
+            .phonemeNames = result.phonemeNames,
+            .success = result.success,
+            .errorMessage = result.errorMessage,
+        });
+    }
+    auto previewContext = commandContext();
+    previewContext.validateOnly = true;
+    const auto preview = runtime().inference().applyMutation(previewContext, writeback);
+    QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+    QVERIFY(preview.get().mutation.validatedOnly);
+    QCOMPARE(runtime().documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
+    const auto applied = runtime().inference().applyMutation(commandContext(), writeback);
+    QVERIFY2(applied, qPrintable(applied ? QString{} : applied.getError().message));
+    for (qsizetype index = 0; index < inputs.size(); ++index) {
+        const auto *currentNote = clip->findNoteById(inputs.at(index).noteId);
+        QVERIFY(currentNote);
+        QCOMPARE(currentNote->phonemeNameSeq().original, phonemes.result.at(index).phonemeNames);
+        if (index == 4 || index == 6)
+            QVERIFY(currentNote->phonemeOffsetSeq().original.isEmpty());
+    }
+    for (const auto index : {2, 5})
+        QCOMPARE(clip->noteInferenceErrors().value(inputs.at(index).noteId).detail,
+                 phonemes.result.at(index).errorMessage);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 
     auto missingSinger = singer;
     missingSinger.setResolutionState(ResolutionState::Missing);
@@ -597,7 +648,7 @@ void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
     const auto version = runtime().documentVersion();
     const auto *undo = HistoryManager::instance()->nextUndoEntry();
     const std::vector<srt::g2p::G2pInput> inputs{
-        {"hello", "g2p-eng-official"},
+        {"hello",      "g2p-eng-official"},
         {"codexarium", "g2p-eng-official"},
     };
     const auto converted = service.convertLyric(inputs);

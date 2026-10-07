@@ -1,6 +1,7 @@
 add_library(EditorInferenceCore STATIC
     Tasks/InferTaskCommon.cpp
     Models/GenericInferModel.cpp
+    Models/NoteInferenceSnapshot.cpp
     Models/SpeakerMixValidator.cpp
     Models/InferInputNote.cpp
     Tasks/Syllabification.cpp
