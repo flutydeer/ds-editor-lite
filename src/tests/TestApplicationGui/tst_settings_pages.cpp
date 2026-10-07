@@ -38,6 +38,7 @@
 #include <lite/AutomationWire/McpProtocol.h>
 
 #include <QApplication>
+#include <QAbstractItemModel>
 #include <QClipboard>
 #include <QDir>
 #include <QFile>
@@ -51,6 +52,7 @@
 #include <QMenu>
 #include <QLocale>
 #include <QPointer>
+#include <QTreeView>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSemaphore>
@@ -187,6 +189,7 @@ void ApplicationGuiTests::experimentalRendererSettingPersistsWhenRestartIsDeferr
     const auto before = runtime.documentVersion();
     const auto experimental =
         static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental);
+    QPointer<QAbstractItemModel> engineStateModel;
     {
         AppOptionsDialog panel;
         openOptionsPage(panel, AppOptionsGlobal::DeveloperOptions);
@@ -194,6 +197,10 @@ void ApplicationGuiTests::experimentalRendererSettingPersistsWhenRestartIsDeferr
             return;
         auto *page = panel.findChild<DeveloperPage *>();
         QVERIFY(page);
+        auto *engineState = page->findChild<QTreeView *>();
+        QVERIFY(engineState);
+        engineStateModel = engineState->model();
+        QVERIFY(engineStateModel);
         auto *backend = page->findChild<ComboBox *>();
         QVERIFY(backend);
         page->ensureWidgetVisible(backend);
@@ -211,6 +218,7 @@ void ApplicationGuiTests::experimentalRendererSettingPersistsWhenRestartIsDeferr
         QCOMPARE(static_cast<int>(appOptions->developer()->editorRenderBackend), experimental);
         panel.close();
     }
+    QVERIFY(engineStateModel.isNull());
     AppOptions persisted;
     QCOMPARE(static_cast<int>(persisted.developer()->editorRenderBackend), experimental);
     AppOptionsDialog reopened;

@@ -182,7 +182,7 @@ QWidget *DeveloperPage::createContentWidget() {
     inferStateCard->setTitle(tr("Inference Engine State"));
 
     auto treeView = new QTreeView();
-    auto stateModel = new QStandardItemModel();
+    auto stateModel = new QStandardItemModel(treeView);
     stateModel->setHorizontalHeaderLabels({tr("Key"), tr("Value")});
 
     // Root node
