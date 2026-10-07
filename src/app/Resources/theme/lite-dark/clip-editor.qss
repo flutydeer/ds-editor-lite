@@ -234,6 +234,19 @@ QWidget#pianoRollTopLeftSpacing {
     /* border-top-left-radius: 6px; */
 }
 
+/* Keyboard-column lane title cells; the border-top comes from the shared
+   InfoLaneHeaderView rule so the lane separators keep running across the full
+   width like the track editor */
+InfoLaneHeaderView#pianoRollTempoLaneHeader,
+InfoLaneHeaderView#pianoRollTimeSignatureLaneHeader {
+    background: ${piano.roll.background};
+}
+
+DividerLine#pianoRollLaneBottomDivider {
+    qproperty-lineColor: ${border.subtle};
+    qproperty-lineMargin: 0px;
+}
+
 QWidget#pianoRollBottomLeftSpacing {
     background: ${piano.roll.background};
     /* border-bottom-left-radius: 6px; */

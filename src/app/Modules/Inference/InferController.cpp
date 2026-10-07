@@ -155,6 +155,8 @@ namespace {
             request.phonemeNames.append({
                 .noteId = Automation::NoteId(context.noteIds.at(i)),
                 .phonemeNames = phonemeNames.at(i).phonemeNames,
+                .success = phonemeNames.at(i).success,
+                .errorMessage = phonemeNames.at(i).errorMessage,
             });
         }
         return request;

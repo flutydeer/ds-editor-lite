@@ -47,11 +47,8 @@ void ItemViewReorderController::setEnabled(const bool enabled) {
     if (m_enabled == enabled)
         return;
     m_enabled = enabled;
-    if (!m_enabled) {
-        m_pressed = false;
-        m_pressedOnChildHandle = false;
-        m_row = -1;
-    }
+    if (!m_enabled)
+        endGesture();
 }
 
 bool ItemViewReorderController::isEnabled() const {
@@ -103,6 +100,12 @@ bool ItemViewReorderController::pressIsOnHandle(const QObject *watched, const QP
     return false;
 }
 
+void ItemViewReorderController::endGesture() {
+    m_pressed = false;
+    m_pressedOnChildHandle = false;
+    m_row = -1;
+}
+
 void ItemViewReorderController::beginDrag() {
     if (!m_view || m_row < 0 || m_dragActive)
         return;
@@ -115,6 +118,13 @@ void ItemViewReorderController::beginDrag() {
     // Whatever happened, do not leave the view's startDrag() guard open.
     m_armPending = false;
     m_dragActive = false;
+    // The gesture is over once the drag returns. While the drag runs the
+    // platform owns the pointer and it swallows the release that would end the
+    // press, so waiting for one leaves the gesture latched: the next stray move
+    // over the view then still reads as a press on the handle that crossed the
+    // threshold, which re-arms a drag of the row that was just dropped - and a
+    // host that selects the requested row jumps its highlight back to it.
+    endGesture();
 }
 
 bool ItemViewReorderController::eventFilter(QObject *watched, QEvent *event) {
@@ -179,9 +189,7 @@ bool ItemViewReorderController::eventFilter(QObject *watched, QEvent *event) {
             if (!m_pressed)
                 break;
             const bool consumed = m_pressedOnChildHandle;
-            m_pressed = false;
-            m_pressedOnChildHandle = false;
-            m_row = -1;
+            endGesture();
             if (consumed)
                 return true;
             break;

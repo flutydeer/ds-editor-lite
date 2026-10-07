@@ -443,6 +443,39 @@ void EditorInteractionTests::wheelAndNativeZoomAnchors() {
     zoomInput.zoomByFactor(Qt::Horizontal, 2.0, 30.0);
     QVERIFY2((qFuzzyCompare(zoomValue, 2.0) && qFuzzyCompare(zoomAnchor, 30.0)),
              "native touchpad zoom must share the same target bounds and anchor application");
+
+    double clampedScale = 1.0;
+    double clampedOffset = 0.0;
+    double peakOffset = 0.0;
+    constexpr double clampedAnchor = 40.0;
+    WheelInputController clampedZoom;
+    clampedZoom.setAnimationEnabled(true);
+    clampedZoom.setTimeScale(1.0);
+    clampedZoom.setZoomTarget(
+        Qt::Horizontal,
+        {
+            .value = [&] { return clampedScale; },
+            .setValueAt =
+                [&](double value, double anchor) {
+                    const auto ratio = value / clampedScale;
+                    clampedScale = value;
+                    clampedOffset =
+                        std::clamp((clampedOffset + anchor) * ratio - anchor, 0.0, 1000000.0);
+                    peakOffset = std::max(peakOffset, clampedOffset);
+                },
+            .boundedValue = [](double value) { return std::clamp(value, 0.2, 5.0); },
+            .step = 0.4,
+        });
+    QWheelEvent clampedZoomOut(QPointF(clampedAnchor, 10), QPointF(clampedAnchor, 10), {},
+                               QPoint(0, -120), Qt::NoButton, Qt::ControlModifier,
+                               Qt::NoScrollPhase, false);
+    QVERIFY(clampedZoom.handleWheel(&clampedZoomOut));
+    QTRY_VERIFY_WITH_TIMEOUT(qFuzzyCompare(clampedScale, 1.0 / 1.4), 1000);
+    peakOffset = 0.0;
+    QVERIFY(clampedZoom.handleWheel(&clampedZoomOut));
+    QTRY_VERIFY_WITH_TIMEOUT(qFuzzyCompare(clampedScale, 1.0 / 1.4 / 1.4), 1000);
+    QVERIFY2(peakOffset <= 1.0, "consecutive zoom-out gestures must keep the clamped edge pinned");
+    clampedZoom.stop();
 }
 
 void EditorInteractionTests::controlWheelPolicies() {

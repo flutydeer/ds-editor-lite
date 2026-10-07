@@ -448,13 +448,28 @@ QListWidget::item:selected {
 PathListWidget {
     background: ${control.fill.default};
     border-radius: 6px;
+    /* Inset the rows from the frame, matching the ComboBox popup. */
+    padding: 4px;
     spacing: 0;
 }
 
 PathListWidget::item {
     border-radius: 6px;
-    padding: 4px 8px;
+    /* 28px grip gutter + 8px inset - mirrors PathItemDelegate::kGutterWidth */
+    padding: 4px 8px 4px 36px;
     margin: 1px 0;
+}
+
+/* Rows are painted on control.fill.default, which is also what the generic
+   QListWidget hover and inactive-selection rules use - both were invisible
+   here, so the row states get their own fills. */
+PathListWidget::item:hover {
+    background-color: ${control.fill.hover};
+}
+
+PathListWidget::item:selected {
+    background-color: ${selection.fill};
+    color: ${text.accent};
 }
 
 PathListWidget QLineEdit {

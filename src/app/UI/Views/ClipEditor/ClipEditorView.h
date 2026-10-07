@@ -55,6 +55,9 @@ public:
     bool revealFocus(const HistoryFocus &focus, bool animated) const;
     void refreshActiveClipTrackPresentation();
     void previewActiveClipTrackColor(int colorIndex) const;
+    // Document switch: plays back the default viewport and tool state. The layout
+    // and the active clip presentation keep whatever they currently show.
+    void resetDocumentScopedViewState();
 
 public slots:
     void onModelChanged();

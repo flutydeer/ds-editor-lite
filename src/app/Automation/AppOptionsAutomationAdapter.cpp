@@ -75,6 +75,8 @@ namespace Automation {
                 .themeId = value->themeId,
                 .uiFontFamily = value->uiFontFamily,
                 .showGhostNotes = value->showGhostNotes,
+                .showTempoLane = value->showTempoLane,
+                .showTimeSignatureLane = value->showTimeSignatureLane,
             };
         }
 
@@ -86,6 +88,8 @@ namespace Automation {
             target->themeId = value.themeId;
             target->uiFontFamily = value.uiFontFamily;
             target->showGhostNotes = value.showGhostNotes;
+            target->showTempoLane = value.showTempoLane;
+            target->showTimeSignatureLane = value.showTimeSignatureLane;
         }
 
         InferenceSettingsDto captureInference(AppOptions *options) {

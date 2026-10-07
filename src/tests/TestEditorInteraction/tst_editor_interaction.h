@@ -17,6 +17,7 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void noView();
+    void documentScopedStateReset();
     void commandCapabilities();
     void modeAwareCommandRouting();
     void forwardingAndSnapshots();
@@ -57,6 +58,7 @@ private slots:
     void pointerClamping();
     void canonicalNoteOrder();
     void drawAndResizeGeometry();
+    void jointNoteBoundaryGeometry();
     void lyricVisibility();
     void orderedSelection();
     void clickAndDragSelection();

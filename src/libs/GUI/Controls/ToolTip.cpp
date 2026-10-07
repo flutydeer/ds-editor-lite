@@ -30,6 +30,9 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setObjectName("toolTipTitle");
     m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+    // The rich-text label may end up wider than its text when the card is
+    // stretched by long message lines; keep the title on the shared left edge
+    m_lbTitle->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     m_lbShortcutKey = new QLabel();
     m_lbShortcutKey->setObjectName("toolTipShortcutKey");
@@ -39,6 +42,11 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     const auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
+    // qGeomCalc's last resort splits the row's leftover space between the
+    // chain start and end, which centers a lone fixed-size title inside a card
+    // stretched by long message lines; the stretch absorbs it and keeps the
+    // title on the shared left edge
+    titleShortcutLayout->addStretch(1);
     titleShortcutLayout->setContentsMargins({});
 
     m_messageLayout = new QVBoxLayout;
@@ -239,20 +247,43 @@ void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
     show();
 }
 
+void ToolTip::resizeToContentHint() {
+    // A content change only dirties the direct parent layout of the changed
+    // label; the enclosing sub-layouts refresh their cached hints lazily
+    // through a deferred LayoutRequest event, so a synchronously read
+    // sizeHint() would size the card from the previous content and a reused
+    // card would never shrink. activate() refreshes a layout and its
+    // sub-layouts but stops at widget items, so the refresh is pushed through
+    // the card's own layout first; the updateGeometry() it issues on the card
+    // then also dirties the top-level layout for the re-read below
+    if (auto *topLayout = layout()) {
+        for (int i = 0; i < topLayout->count(); ++i) {
+            auto *widget = topLayout->itemAt(i)->widget();
+            if (widget && widget->layout())
+                widget->layout()->activate();
+        }
+        topLayout->activate();
+    }
+    const auto hint = sizeHint();
+    if (hint.isEmpty())
+        return;
+    setFixedSize(hint);
+}
+
 void ToolTip::showAbove(const QRect &screenRect) {
-    adjustSize();
+    resizeToContentHint();
     const auto *screen = resolveScreen(screenRect.center(), nullptr);
     showAt(positionAbove({screenRect.center().x(), screenRect.top()}, screen, anchorGap), screen);
 }
 
 void ToolTip::showAbovePointer(const QPoint &screenPos, const QScreen *screen) {
-    adjustSize();
+    resizeToContentHint();
     const auto *resolved = resolveScreen(screenPos, screen);
     showAt(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved);
 }
 
 void ToolTip::moveAbovePointer(const QPoint &screenPos, const QScreen *screen) {
-    adjustSize();
+    resizeToContentHint();
     const auto *resolved = resolveScreen(screenPos, screen);
     move(clampToScreen(positionAbove(screenPos, resolved, pointerClearance(resolved)), resolved));
 }
@@ -315,7 +346,8 @@ void ToolTip::completeOpacityAnimation() {
 void ToolTip::updateMessage() {
     QLayoutItem *child;
     while ((child = m_messageLayout->takeAt(0)) != nullptr) {
-        delete child->widget();
+        if (const auto widget = child->widget())
+            widget->deleteLater();
         delete child;
     }
 

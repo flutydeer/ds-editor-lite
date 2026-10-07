@@ -7,6 +7,7 @@ namespace ClipEditorGlobal {
     constexpr int pixelsPerQuarterNote = 96;
     constexpr double noteHeight = 24;
     constexpr int timelineViewHeight = 32; // Increased for loop region display
+    constexpr int infoLaneHeight = 28;     // Height of the tempo/time signature lanes below the ruler
     constexpr int pianoKeyboardWidth = 64;
     constexpr int paramEditorToolControlHeight = 24;
     constexpr int paramEditorToolBarVerticalMargin = 4;

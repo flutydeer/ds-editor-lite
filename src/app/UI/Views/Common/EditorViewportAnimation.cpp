@@ -1,5 +1,7 @@
 #include "EditorViewportAnimation.h"
 
+#include <lite/GUI/Animation/AnimationUtils.h>
+
 #include <QEasingCurve>
 
 #include <utility>
@@ -19,16 +21,23 @@ void EditorViewportAnimation::moveTo(const QPointF &current, const QPointF &targ
     if (animated && isRunning() && target == m_target)
         return;
 
-    m_animation.stop();
+    const auto willAnimate = animated && m_animation.duration() > 0 && current != target;
+    // Writing endpoints to a stopped animation publishes the end value, which would
+    // jump the viewport to the destination before the animation even starts.
+    AnimationUtils::configureSilently(m_animation, [&] {
+        m_animation.stop();
+        if (willAnimate) {
+            m_animation.setStartValue(current);
+            m_animation.setEndValue(target);
+        }
+    });
+
     m_target = target;
-    if (!animated || m_animation.duration() <= 0 || current == target) {
+    if (!willAnimate) {
         if (m_apply && current != target)
             m_apply(target);
         return;
     }
-
-    m_animation.setStartValue(current);
-    m_animation.setEndValue(target);
     m_animation.start();
 }
 
@@ -57,8 +66,14 @@ void EditorViewportAnimation::updateDuration() {
     const auto target = m_target;
     const auto running = isRunning();
     const auto current = running ? m_animation.currentValue().toPointF() : QPointF();
-    m_animation.stop();
-    m_animation.setDuration(getEffectiveAnimationTime(durationBase));
+    AnimationUtils::configureSilently(m_animation, [&] {
+        m_animation.stop();
+        m_animation.setDuration(getEffectiveAnimationTime(durationBase));
+        if (running && m_animation.duration() > 0) {
+            m_animation.setStartValue(current);
+            m_animation.setEndValue(target);
+        }
+    });
     if (!running)
         return;
     if (m_animation.duration() <= 0) {
@@ -66,7 +81,5 @@ void EditorViewportAnimation::updateDuration() {
             m_apply(target);
         return;
     }
-    m_animation.setStartValue(current);
-    m_animation.setEndValue(target);
     m_animation.start();
 }

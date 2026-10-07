@@ -61,6 +61,7 @@ public:
     void reset();
     [[nodiscard]] QList<int> selectedNotesId() const;
     void clearNoteSelections(const NoteView *except = nullptr);
+    [[nodiscard]] NoteView *findNoteViewById(int id) const;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus);
     bool revealFocus(const HistoryFocus &focus, bool animated);

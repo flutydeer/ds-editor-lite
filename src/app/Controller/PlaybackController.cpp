@@ -28,13 +28,6 @@ PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(t
         if (d->m_playbackStatus == Playing)
             emit visualPositionChanged(d->m_position);
     });
-    connect(appModel, &AppModel::modelChanged, this, [d, this] {
-        if (d->m_playbackStatus != Stopped) {
-            stop();
-            setPosition(0);
-            setLastPosition(0);
-        }
-    });
 }
 
 PlaybackController::~PlaybackController() {
@@ -147,6 +140,25 @@ void PlaybackController::applyStop() {
     d->m_visualPositionTimer.stop();
     emit playbackStatusChanged(Stopped);
     emit visualPositionChanged(d->m_position);
+}
+
+void PlaybackController::resetForDocumentReplacement() {
+    Q_D(PlaybackController);
+    if (d->m_playbackStatus == Stopped && d->m_position == 0.0 && d->m_lastPlayPosition == 0.0 &&
+        !d->m_engineBuffering) {
+        return;
+    }
+    // ReturnToStart re-seeks to the last position when the transport pauses, so the
+    // anchor is cleared before stopping. The new document then starts at tick 0.
+    applyLastPosition(0.0);
+    applyStop();
+    applyPosition(0.0);
+    d->m_visualPositionTimer.stop();
+    d->m_visualPositionClock.invalidate();
+    if (d->m_engineBuffering) {
+        d->m_engineBuffering = false;
+        emit engineBufferingChanged(false);
+    }
 }
 
 void PlaybackController::setPosition(const double tick) {

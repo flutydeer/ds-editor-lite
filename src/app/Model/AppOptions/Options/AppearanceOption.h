@@ -26,6 +26,10 @@ public:
     QString uiFontFamily;
     // Draw notes from other tracks in the piano roll as thin reference bars.
     bool showGhostNotes = true;
+    // Show the tempo / time signature lane between the piano roll ruler and
+    // the note canvas. Hidden by default.
+    bool showTempoLane = false;
+    bool showTimeSignatureLane = false;
 
 protected:
     void save(QJsonObject &object) override;
@@ -37,6 +41,8 @@ private:
     const QString themeIdKey = "themeId";
     const QString uiFontFamilyKey = "uiFontFamily";
     const QString showGhostNotesKey = "showGhostNotes";
+    const QString showTempoLaneKey = "showTempoLane";
+    const QString showTimeSignatureLaneKey = "showTimeSignatureLane";
 };
 
 #endif // APPEARANCEOPTION_H

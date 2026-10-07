@@ -29,6 +29,14 @@ public:
                                         double devicePixelRatio = 1.0,
                                         const QPointF &physicalCameraOffset = {},
                                         const QPointF &physicalWindowOffset = {});
+    // Blits a rasterized ARGB image (e.g. a tinted SVG icon) as a tinted textured
+    // quad. `imageKey` identifies the content for block caching; the image is only
+    // consumed when the cache block is (re)created. The image dimensions are
+    // physical pixels
+    EditorRhiTextureDrawSpan appendImage(const QString &imageKey, const QImage &image,
+                                         const QPointF &physicalTopLeft, const QColor &color,
+                                         const QRectF &physicalClip,
+                                         const QPointF &physicalCameraOffset);
     void populateTextureBatches(QVector<EditorRhiTextureBatch> &batches) const;
     [[nodiscard]] double hitRate() const;
 
@@ -53,6 +61,7 @@ private:
 
     Block *ensureBlock(const QFont &font, const QString &text, double devicePixelRatio,
                        const QPointF &physicalPhase);
+    Block *ensureImageBlock(const QString &key, const QImage &image);
     Page *allocatePageFor(const QSize &blockSize);
     Page *createPage();
     void clearPage(Page &page);

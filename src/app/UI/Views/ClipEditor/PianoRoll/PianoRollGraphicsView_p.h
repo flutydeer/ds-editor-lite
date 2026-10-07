@@ -2,6 +2,7 @@
 #define PIANOROLLGRAPHICSVIEW_P_H
 
 #include "NoteLyricToolTipController.h"
+#include "NoteErrorToolTipController.h"
 #include "UI/Views/ClipEditor/CurveTransform/PitchCurveTransformContext.h"
 #include "UI/Views/Common/EditorPenTarget.h"
 
@@ -76,6 +77,7 @@ public:
     NoteInteractionController *m_interactionController = nullptr;
     InlineTextEditOverlay *m_inlineEditor = nullptr;
     std::unique_ptr<NoteLyricToolTipController> m_lyricToolTip;
+    std::unique_ptr<NoteErrorToolTipController> m_errorToolTip;
     InlineEditField m_inlineEditField = InlineEditField::None;
     int m_inlineEditingNoteId = -1;
     void restoreHandler();
@@ -117,6 +119,9 @@ public:
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;
+    // The error badge sits outside its note, so it cannot be reached through
+    // noteViewAt; hit-tests the badge rects of the errored notes directly
+    [[nodiscard]] NoteView *errorBadgeAt(const QPoint &pos);
 
     // Syncs the resize handle frame on the selected note (see NoteHandleGeometry).
     // Called once after each of these state changes: selection, note properties,
@@ -135,8 +140,14 @@ public:
     void onHoverEnter(QHoverEvent *event);
     void onHoverLeave(QHoverEvent *event);
     void onHoverMove(const QHoverEvent *event);
-    void updateLyricToolTip(const QPoint &position);
-    void hideLyricToolTip();
+    void updateHoverToolTips(const QPoint &position);
+    // Anchors the card above the note's error badge; hover requests defer to
+    // the tooltip wake-up delay, taps on the badge show immediately
+    void showErrorToolTip(const NoteView &noteView, const NoteInferenceErrorInfo &error,
+                          bool delayed = false);
+    void hideHoverToolTips();
+    // Pushes the clip's per-note inference errors onto the note views (badge visibility)
+    void syncNoteInferenceErrors();
 
 public slots:
     void onClipPropertyChanged();

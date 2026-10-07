@@ -3,6 +3,7 @@
 #include "ClipRangeOverlay.h"
 #include "GhostNoteOverlay.h"
 #include "GhostNoteSource.h"
+#include "NoteAdjacencyUtils.h"
 #include "NoteHandleGeometry.h"
 #include "NoteHandleOverlay.h"
 #include "NoteEditUtils.h"
@@ -88,6 +89,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(d->m_inlineEditor, &InlineTextEditOverlay::editCancelled, d,
             &PianoRollGraphicsViewPrivate::onInlineEditCancelled);
     d->m_lyricToolTip = std::make_unique<NoteLyricToolTipController>(viewport());
+    d->m_errorToolTip = std::make_unique<NoteErrorToolTipController>(viewport());
 
     d->m_selectionModel = new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, this);
     d->m_interactionController = new NoteInteractionController(d->m_selectionModel, this, this);
@@ -188,11 +190,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(this, &TimeGraphicsView::sizeChanged, d,
             &PianoRollGraphicsViewPrivate::finishInlineEditing);
     connect(this, &TimeGraphicsView::scaleChanged, d,
-            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+            &PianoRollGraphicsViewPrivate::hideHoverToolTips);
     connect(this, &TimeGraphicsView::visibleRectChanged, d,
-            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+            &PianoRollGraphicsViewPrivate::hideHoverToolTips);
     connect(this, &TimeGraphicsView::sizeChanged, d,
-            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+            &PianoRollGraphicsViewPrivate::hideHoverToolTips);
     // The frame holds the framed note's scene rect, and note views relayout on
     // every scale change. A touch pinch keeps the affordance up and delivers no
     // mouse events, so without this the ring stays at the pre-zoom geometry.
@@ -219,7 +221,7 @@ PianoRollGraphicsView::~PianoRollGraphicsView() {
 
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     setSceneLengthExtension(0);
     // 切换 clip 时清空编辑预览，避免残留到新 clip
     appStatus->pianoRollNoteEditPreview = {};
@@ -272,7 +274,7 @@ bool PianoRollGraphicsView::event(QEvent *event) {
             discardAction();
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
-        d->hideLyricToolTip();
+        d->hideHoverToolTips();
         cancelPointerInteraction();
     } else if (event->type() == QEvent::HoverEnter)
         d->onHoverEnter(dynamic_cast<QHoverEvent *>(event));
@@ -472,7 +474,7 @@ void PianoRollGraphicsView::deleteSelectedAnchors() {
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     // On a precise-pointer press the touch affordance was just cleared
     // (EditorTouchController sees the event first), so bring the frame back on
     // screen before hit testing sets out from that same state
@@ -481,6 +483,21 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         qWarning() << "Ignored mousePressEvent" << event
                    << "because there is already one mouse button pressed";
         return;
+    }
+    // A pen erase stroke is routed by intent rather than by the toolbar: the
+    // armed mode does not change, and for the note tools the handler was
+    // already swapped for the erase one (beginPenEraseStroke).
+    const auto pressMode =
+        d->activePenErasure() == EditorPenEraser::EraseNote ? EraseNote : d->m_editMode;
+    // A tap on the error badge asks for the reason instead of interacting. The
+    // eraser keeps its own semantics
+    if (event->button() == Qt::LeftButton && pressMode != EraseNote) {
+        if (auto *badgeView = d->errorBadgeAt(event->pos())) {
+            d->showErrorToolTip(*badgeView,
+                                d->m_clip->noteInferenceErrors().value(badgeView->id()));
+            event->accept();
+            return;
+        }
     }
     d->m_interactionController->setMouseDown(true, event->button());
 
@@ -506,12 +523,6 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto noteView = d->noteViewAt(event->pos());
     const auto pronView = d->pronViewAt(event->pos());
-
-    // A pen erase stroke is routed by intent rather than by the toolbar: the
-    // armed mode does not change, and for the note tools the handler was
-    // already swapped for the erase one (beginPenEraseStroke).
-    const auto pressMode =
-        d->activePenErasure() == EditorPenEraser::EraseNote ? EraseNote : d->m_editMode;
 
     if (pressMode == Select) {
         if (d->m_currentHandler)
@@ -639,7 +650,8 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
                                              const Qt::KeyboardModifiers modifiers) {
     Q_D(PianoRollGraphicsView);
 
-    const bool quantizeOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
+    const bool quantizeOff =
+        !appStatus->pianoRollQuantizeEnabled || modifiers.testFlag(Qt::AltModifier);
     d->m_interactionController->setTempQuantizeOff(quantizeOff);
 
     const auto scenePos = mapToScene(viewportPos);
@@ -657,6 +669,11 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
         QList<int> noteIds;
         for (const auto *note : d->m_selectionModel->selectedNoteItems())
             noteIds.append(note->id());
+        // The joint boundary drag moves the neighbor too, so its inference cache
+        // is part of the same edit session
+        if (const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+            jointNeighbor && !noteIds.contains(jointNeighbor->id()))
+            noteIds.append(jointNeighbor->id());
         editSessionManager->beginTransaction(AppStatus::EditObjectType::Note,
                                              d->m_clip ? d->m_clip->id() : -1, {}, noteIds);
         appStatus->currentEditObject = AppStatus::EditObjectType::Note;
@@ -682,16 +699,33 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
                                                       d->m_interactionController->deltaKey());
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
-        const auto deltaStart = NoteEditUtils::leftResizeDelta(
-            d->m_interactionController->mouseDownRStart(),
-            d->m_interactionController->mouseDownLength(), snappedTick, quantizedTickLength);
+        const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+        const auto deltaStart = jointNeighbor
+                                    ? NoteEditUtils::jointBoundaryDelta(
+                                          jointNeighbor->length(),
+                                          d->m_interactionController->mouseDownLength(),
+                                          d->m_interactionController->mouseDownRStart(),
+                                          snappedTick, quantizedTickLength)
+                                    : NoteEditUtils::leftResizeDelta(
+                                          d->m_interactionController->mouseDownRStart(),
+                                          d->m_interactionController->mouseDownLength(),
+                                          snappedTick, quantizedTickLength);
         d->m_interactionController->setDeltaTick(deltaStart);
         d->m_interactionController->resizeLeftSelectedNote(d->m_interactionController->deltaTick());
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
-        const auto deltaLength = NoteEditUtils::rightResizeDelta(
-            d->m_interactionController->mouseDownRStart(),
-            d->m_interactionController->mouseDownLength(), snappedTickNearest, quantizedTickLength);
+        const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
+        const auto deltaLength = jointNeighbor
+                                     ? NoteEditUtils::jointBoundaryDelta(
+                                           d->m_interactionController->mouseDownLength(),
+                                           jointNeighbor->length(),
+                                           d->m_interactionController->mouseDownRStart() +
+                                               d->m_interactionController->mouseDownLength(),
+                                           snappedTickNearest, quantizedTickLength)
+                                     : NoteEditUtils::rightResizeDelta(
+                                           d->m_interactionController->mouseDownRStart(),
+                                           d->m_interactionController->mouseDownLength(),
+                                           snappedTickNearest, quantizedTickLength);
         d->m_interactionController->setDeltaTick(deltaLength);
         d->m_interactionController->resizeRightSelectedNote(
             d->m_interactionController->deltaTick());
@@ -746,6 +780,12 @@ void PianoRollGraphicsView::publishNoteEditPreview() const {
             preview.append({note->id(), note->rStart() + note->startOffset(),
                             note->length() + note->lengthOffset(),
                             note->keyIndex() + note->keyOffset()});
+            // Joint drag: the neighbor follows the same boundary on the track side
+            if (const auto neighbor = d->m_interactionController->jointNeighborView()) {
+                preview.append({neighbor->id(), neighbor->rStart() + neighbor->startOffset(),
+                                neighbor->length() + neighbor->lengthOffset(),
+                                neighbor->keyIndex() + neighbor->keyOffset()});
+            }
         }
     }
     appStatus->pianoRollNoteEditPreview = preview;
@@ -780,7 +820,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
           d->m_editMode == EditPitchAnchor))
         return;
@@ -850,7 +890,7 @@ void PianoRollGraphicsView::showEvent(QShowEvent *event) {
 
 void PianoRollGraphicsView::hideEvent(QHideEvent *event) {
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     TimeGraphicsView::hideEvent(event);
 }
 
@@ -860,7 +900,7 @@ int PianoRollGraphicsView::noteFontPixelSize() const {
 
 void PianoRollGraphicsView::setNoteFontPixelSize(const int size) {
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     m_noteFontPixelSize = size;
     for (const auto noteView : d->noteViews)
         noteView->fontPixelSize = size;
@@ -1079,6 +1119,11 @@ void PianoRollGraphicsView::clearNoteSelections(const NoteView *except) {
     }
 }
 
+NoteView *PianoRollGraphicsView::findNoteViewById(const int id) const {
+    Q_D(const PianoRollGraphicsView);
+    return d->findNoteViewById(id);
+}
+
 HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus &focus) const {
     Q_D(const PianoRollGraphicsView);
     if (focus.kind != HistoryFocusKind::PianoRollNotes || !focus.isValid() || !d->m_clip ||
@@ -1186,14 +1231,19 @@ void PianoRollGraphicsView::discardAction() {
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
         d->m_interactionController->resetSelectedNotesOffset();
+        if (auto *jointNeighbor = d->m_interactionController->jointNeighborView())
+            jointNeighbor->resetOffset();
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
         d->m_interactionController->resetSelectedNotesOffset();
+        if (auto *jointNeighbor = d->m_interactionController->jointNeighborView())
+            jointNeighbor->resetOffset();
     }
     d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
     d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->clearJointResize();
     d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
@@ -1218,23 +1268,41 @@ void PianoRollGraphicsView::commitAction() {
                NoteInteractionController::ResizeLeft) {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
+            auto *jointNeighbor = d->m_interactionController->jointNeighborView();
             d->m_interactionController->resetSelectedNotesOffset();
+            if (jointNeighbor)
+                jointNeighbor->resetOffset();
             const auto minimumLength = TimelineSnapUtils::quantizeStep(
                 appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
-            NoteInteractionController::handleNoteLeftResized(
-                d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick(), minimumLength);
+            if (jointNeighbor) {
+                NoteInteractionController::handleNoteSharedBoundaryResized(
+                    jointNeighbor->id(), d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            } else {
+                NoteInteractionController::handleNoteLeftResized(
+                    d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            }
         }
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
+            auto *jointNeighbor = d->m_interactionController->jointNeighborView();
             d->m_interactionController->resetSelectedNotesOffset();
+            if (jointNeighbor)
+                jointNeighbor->resetOffset();
             const auto minimumLength = TimelineSnapUtils::quantizeStep(
                 appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
-            NoteInteractionController::handleNoteRightResized(
-                d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick(), minimumLength);
+            if (jointNeighbor) {
+                NoteInteractionController::handleNoteSharedBoundaryResized(
+                    d->m_interactionController->currentEditingNote()->id(), jointNeighbor->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            } else {
+                NoteInteractionController::handleNoteRightResized(
+                    d->m_interactionController->currentEditingNote()->id(),
+                    d->m_interactionController->deltaTick(), minimumLength);
+            }
         }
     }
     // model 写入完成后才清空预览，避免轨道先画旧几何再跳变
@@ -1245,6 +1313,7 @@ void PianoRollGraphicsView::commitAction() {
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
     d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->clearJointResize();
     d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
@@ -1286,7 +1355,7 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex,
 
 void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
-    d->hideLyricToolTip();
+    d->hideHoverToolTips();
     if (d->m_editMode != mode) {
         d->finishInlineEditing();
         discardAction();
@@ -1411,7 +1480,7 @@ bool PianoRollGraphicsViewPrivate::isInlineEditing() const {
 
 void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeType type,
                                                  const QList<Note *> &notes) {
-    hideLyricToolTip();
+    hideHoverToolTips();
     // Inline lyrics hold an edit lock: non-destructive property updates fired
     // while the inference pipeline applies results (Original/Edited word or
     // pronunciation changes) must not close an active edit. Only removal of
@@ -1482,7 +1551,7 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
         m_inlineEditor->isEditing())
         return;
 
-    hideLyricToolTip();
+    hideHoverToolTips();
     finishInlineEditing();
 
     m_inlineEditField = InlineEditField::Lyric;
@@ -1584,7 +1653,7 @@ void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView
         m_inlineEditingNoteId == pronView->id() && m_inlineEditor->isEditing())
         return;
 
-    hideLyricToolTip();
+    hideHoverToolTips();
     finishInlineEditing();
     const auto note = m_clip->findNoteById(pronView->id());
     if (!note)
@@ -1647,6 +1716,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     }
     m_clip = nullptr;
     m_selectionModel->setDataContext(nullptr);
+    m_interactionController->setDataContext(nullptr);
     m_ghostSource->setHostClip(nullptr);
     m_initialViewportPositionPending = false;
     syncNoteHandleFrame();
@@ -1667,6 +1737,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
 
     m_clip = clip;
     m_selectionModel->setDataContext(clip);
+    m_interactionController->setDataContext(clip);
     m_offset = clip->start();
     q->setOffset(m_offset);
     q->setSceneVisibility(true);
@@ -1691,8 +1762,21 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
             &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
     connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
     connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
+    connect(clip, &SingingClip::noteInferenceErrorsChanged, this, [this, q] {
+        hideHoverToolTips();
+        syncNoteInferenceErrors();
+        q->viewport()->update();
+    });
     m_selectionModel->setSelectionChangeBarrier(false);
+    syncNoteInferenceErrors();
     syncNoteHandleFrame();
+}
+
+void PianoRollGraphicsViewPrivate::syncNoteInferenceErrors() {
+    static const QHash<int, NoteInferenceErrorInfo> kEmptyErrors;
+    const auto &errors = m_clip ? m_clip->noteInferenceErrors() : kEmptyErrors;
+    for (auto *view : noteViews)
+        view->setInferenceError(errors.contains(view->id()));
 }
 
 void PianoRollGraphicsViewPrivate::positionViewportAtClipContent() {
@@ -1892,7 +1976,7 @@ void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
     if (m_currentHandler)
         m_currentHandler->hoverLeaveEvent(event);
-    hideLyricToolTip();
+    hideHoverToolTips();
     emit q->keyHoverCleared();
 }
 
@@ -1902,11 +1986,11 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     // time to yield to the cursor hints
     syncNoteHandleFrame();
     if (m_interactionController->isMouseDown()) {
-        hideLyricToolTip();
+        hideHoverToolTips();
         return;
     }
 
-    updateLyricToolTip(event->position().toPoint());
+    updateHoverToolTips(event->position().toPoint());
 
     // The pen eraser outranks the tool's own cursor while it is in range and
     // this tool has something it could erase. This is the view's half of the
@@ -1962,16 +2046,61 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     // the finger, and the mouse never sees the frame there anyway
     const auto edge = NoteHandleGeometry::resizeEdgeAt(rPos, noteView->rect(),
                                                        EditorPointer::resizeTolerance(), false);
-    q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
-                                                                 : Qt::SizeHorCursor);
+    if (edge == EditorResizeUtils::HorizontalEdge::None) {
+        q->setCursor(Qt::ArrowCursor);
+        return;
+    }
+    // Shift offers the joint boundary drag; a neighbor that does not share the
+    // boundary (gap or overlap) cannot follow it, so the cursor refuses instead
+    // of letting the drag pull one note away from the other
+    if (m_clip && event->modifiers().testFlag(Qt::ShiftModifier)) {
+        const auto neighbor = NoteAdjacencyUtils::neighborForEdge(
+            m_clip, m_clip->findNoteById(noteView->id()), edge);
+        if (neighbor.neighbor && !neighbor.exactlyAdjacent) {
+            q->setCursor(Qt::ForbiddenCursor);
+            return;
+        }
+    }
+    q->setCursor(Qt::SizeHorCursor);
 }
 
-void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
+NoteView *PianoRollGraphicsViewPrivate::errorBadgeAt(const QPoint &pos) {
     Q_Q(PianoRollGraphicsView);
+    if (!m_clip || m_clip->noteInferenceErrors().isEmpty())
+        return nullptr;
+    const auto scenePos = q->mapToScene(pos);
+    for (auto iterator = noteViews.rbegin(); iterator != noteViews.rend(); ++iterator) {
+        auto *view = *iterator;
+        if (!view->hasInferenceError())
+            continue;
+        if (PianoRollGraphicsViewHelper::noteErrorBadgeRect(view->rect())
+                .contains(view->mapFromScene(scenePos)))
+            return view;
+    }
+    return nullptr;
+}
+
+void PianoRollGraphicsViewPrivate::updateHoverToolTips(const QPoint &position) {
+    Q_Q(PianoRollGraphicsView);
+    // The error badge outranks the elided-lyric tooltip: a pointer resting on
+    // the badge asks why the note is silent
+    if (auto *badgeView = errorBadgeAt(position)) {
+        m_lyricToolTip->hide();
+        showErrorToolTip(*badgeView, m_clip->noteInferenceErrors().value(badgeView->id()), true);
+        return;
+    }
+    if (m_errorToolTip)
+        m_errorToolTip->hide();
+
     auto *noteView = noteViewAt(position);
-    if (!noteView || noteView->id() < 0 || !noteView->isLyricElided(q->visibleRect()) ||
-        (m_inlineEditor && m_inlineEditor->isEditing())) {
-        hideLyricToolTip();
+    if (!noteView || noteView->id() < 0 || (m_inlineEditor && m_inlineEditor->isEditing()) ||
+        !m_clip) {
+        hideHoverToolTips();
+        return;
+    }
+
+    if (!noteView->isLyricElided(q->visibleRect())) {
+        hideHoverToolTips();
         return;
     }
 
@@ -1982,14 +2111,45 @@ void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
                             {q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
 }
 
-void PianoRollGraphicsViewPrivate::hideLyricToolTip() {
+void PianoRollGraphicsViewPrivate::showErrorToolTip(const NoteView &noteView,
+                                                    const NoteInferenceErrorInfo &error,
+                                                    bool delayed) {
+    Q_Q(PianoRollGraphicsView);
+    // Anchor the card on the badge the pointer rests on, not on the note: the
+    // note's visible rect drifts with zoom and viewport clipping, and the card
+    // gap would land right on the badge, which hangs above the note's top edge
+    const auto badgeRect = q->mapFromScene(noteView.mapRectToScene(
+                                               PianoRollGraphicsViewHelper::noteErrorBadgeRect(
+                                                   noteView.rect())))
+                               .boundingRect()
+                               .intersected(q->viewport()->rect());
+    // The task detail replaces the generic body when present: repeating the
+    // generic explanation next to its specific cause is just noise
+    auto message = error.detail.isEmpty()
+                       ? PianoRollGraphicsViewHelper::noteInferenceErrorText(error)
+                       : error.detail;
+    const QRect screenAnchor = {q->viewport()->mapToGlobal(badgeRect.topLeft()),
+                                badgeRect.size()};
+    if (delayed)
+        m_errorToolTip->hoverFor(noteView.id(),
+                                 PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                 message, screenAnchor);
+    else
+        m_errorToolTip->showFor(noteView.id(),
+                                PianoRollGraphicsViewHelper::noteInferenceErrorTitle(error.reason),
+                                message, screenAnchor);
+}
+
+void PianoRollGraphicsViewPrivate::hideHoverToolTips() {
     if (m_lyricToolTip)
         m_lyricToolTip->hide();
+    if (m_errorToolTip)
+        m_errorToolTip->hide();
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     Q_Q(PianoRollGraphicsView);
-    hideLyricToolTip();
+    hideHoverToolTips();
     m_offset = m_clip->start();
     q->setOffset(m_offset);
     q->setSceneLength(m_clip->length());

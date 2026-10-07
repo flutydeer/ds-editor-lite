@@ -80,6 +80,10 @@ NEW_ICONS = [
     "question_circle_16_filled.svg",
     "add_circle_16_filled.svg",
 
+    # 音符推理错误标记（钢琴卷帘角标）
+    "dismiss_circle_16_regular.svg",
+    "dismiss_circle_16_filled.svg",
+
     # 规则列表
     "re_order_dots_vertical_16_regular.svg",
     "lock_closed_16_regular.svg",

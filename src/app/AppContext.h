@@ -98,6 +98,10 @@ private:
     struct GuiContext;
 
     void initializeCommonWiring();
+    // Resets the document-scoped state of the host (playback, editor selection and
+    // viewports) while a document is being replaced. See the contract in
+    // docs/design/document-scoped-state-reset-design.md.
+    void resetDocumentScopedState();
     [[nodiscard]] EditorViewController *guiEditorViewController() const;
     [[nodiscard]] DocumentWorkflowController *guiDocumentWorkflowController() const;
 

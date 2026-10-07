@@ -15,7 +15,8 @@ class PathItemDelegate : public QStyledItemDelegate {
 
 public:
     /// Width of the grip gutter. The whole gutter, not just the glyph, is what
-    /// starts a reorder, so the target stays finger-sized.
+    /// starts a reorder, so the target stays finger-sized. The theme keeps the
+    /// row text clear of it with an item left padding of kGutterWidth + 8.
     static constexpr int kGutterWidth = 28;
 
     explicit PathItemDelegate(QObject *parent = nullptr);

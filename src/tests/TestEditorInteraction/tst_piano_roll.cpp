@@ -1,5 +1,6 @@
 #include "tst_editor_interaction.h"
 
+#include "UI/Views/ClipEditor/PianoRoll/NoteAdjacencyUtils.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
@@ -80,6 +81,55 @@ void EditorInteractionTests::drawAndResizeGeometry() {
               NoteResizeUtils::clampLeftDelta(240, 240, 1) == 239 &&
               NoteResizeUtils::clampRightDelta(240, -240, 1) == -239),
              "the model commit guard must retain the supplied dynamic minimum length");
+}
+
+void EditorInteractionTests::jointNoteBoundaryGeometry() {
+    constexpr int quantize = 120;
+    QCOMPARE(NoteEditUtils::jointBoundaryDelta(240, 240, 240, 720, quantize), 120);
+    QCOMPARE(NoteEditUtils::jointBoundaryDelta(240, 240, 240, 120, quantize), -120);
+    QCOMPARE(NoteEditUtils::jointBoundaryDelta(240, 240, 240, 290, quantize), 50);
+    QCOMPARE(NoteResizeUtils::clampJointBoundaryDelta(240, 240, 1000, 1), 239);
+    QCOMPARE(NoteResizeUtils::clampJointBoundaryDelta(240, 240, -1000, 1), -239);
+    QCOMPARE(NoteResizeUtils::clampJointBoundaryDelta(30, 30, 50, 120), 0);
+    QCOMPARE(NoteResizeUtils::clampJointBoundaryDelta(30, 30, -50, 120), 0);
+
+    SingingClip clip;
+    const auto makeNote = [](int start, int key) {
+        auto *note = new Note;
+        note->setLocalStart(start);
+        note->setLength(120);
+        note->setKeyIndex(key);
+        return note;
+    };
+    auto *a = makeNote(0, 60);
+    auto *b = makeNote(120, 64);
+    auto *c = makeNote(360, 60);
+    auto *d = makeNote(300, 67);
+    auto *e = makeNote(480, 72);
+    auto *f = makeNote(600, 60);
+    clip.insertNotes({f, e, d, c, b, a});
+    using EditorResizeUtils::HorizontalEdge;
+    const auto edgeOf = [&](const Note *note, HorizontalEdge edge) {
+        return NoteAdjacencyUtils::neighborForEdge(&clip, note, edge);
+    };
+    QVERIFY(!NoteAdjacencyUtils::nextNote(&clip, f));
+    QVERIFY(!NoteAdjacencyUtils::prevNote(&clip, a));
+    QCOMPARE(NoteAdjacencyUtils::nextNote(&clip, a), b);
+    QCOMPARE(NoteAdjacencyUtils::prevNote(&clip, b), a);
+    const auto aRight = edgeOf(a, HorizontalEdge::Right);
+    QVERIFY(aRight.neighbor == b && aRight.exactlyAdjacent);
+    const auto bLeft = edgeOf(b, HorizontalEdge::Left);
+    QVERIFY(bLeft.neighbor == a && bLeft.exactlyAdjacent);
+    const auto bRight = edgeOf(b, HorizontalEdge::Right);
+    QVERIFY(bRight.neighbor == d && !bRight.exactlyAdjacent);
+    const auto cLeft = edgeOf(c, HorizontalEdge::Left);
+    QVERIFY(cLeft.neighbor == d && !cLeft.exactlyAdjacent);
+    const auto cRight = edgeOf(c, HorizontalEdge::Right);
+    QVERIFY(cRight.neighbor == e && cRight.exactlyAdjacent);
+    const auto aLeft = edgeOf(a, HorizontalEdge::Left);
+    QVERIFY(!aLeft.neighbor && !aLeft.exactlyAdjacent);
+    const auto fRight = edgeOf(f, HorizontalEdge::Right);
+    QVERIFY(!fRight.neighbor && !fRight.exactlyAdjacent);
 }
 
 void EditorInteractionTests::lyricVisibility() {

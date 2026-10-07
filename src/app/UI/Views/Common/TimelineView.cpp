@@ -98,6 +98,7 @@ void TimelineView::setDataContext(SingingClip *clip) {
     } else {
         onPiecesChanged(clip->pieces());
         connect(clip, &SingingClip::piecesChanged, this, &TimelineView::onPiecesChanged);
+        connect(clip, &SingingClip::noteInferenceErrorsChanged, this, qOverload<>(&QWidget::update));
         m_pieces = clip->pieces();
     }
     m_clip = clip;
@@ -376,6 +377,25 @@ void TimelineView::onLoopSettingsChanged(const LoopSettings &settings) {
 void TimelineView::drawPieces(QPainter *painter) const {
     for (const auto &piece : m_clip->pieces()) {
         drawPiece(painter, piece);
+    }
+
+    // Phrases skipped by segmentation never get a piece and would leave the
+    // silent range unmarked; draw their extent in the failed color instead
+    const auto &skipped = m_clip->skippedPhraseRanges();
+    if (skipped.isEmpty())
+        return;
+    auto penWidth = 2;
+    auto y = rect().height() - penWidth / 2;
+    QPen pen;
+    pen.setWidthF(penWidth);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setColor(m_piecesColors[Failed]);
+    painter->setPen(pen);
+    for (const auto &[startTick, endTick] : skipped) {
+        if (endTick <= startTick)
+            continue;
+        painter->drawLine(tickToX(startTick + m_clip->start()), y,
+                          tickToX(endTick + m_clip->start()), y);
     }
 }
 

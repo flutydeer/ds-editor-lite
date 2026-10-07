@@ -17,6 +17,7 @@
 #include <QFile>
 #include <QIODevice>
 #include <QJsonDocument>
+#include <QStringList>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -38,6 +39,8 @@ namespace {
         QByteArray lastSavedModel;
         QList<Automation::DocumentId> replacementNotifications;
         QList<Automation::DocumentCommitInfo> commits;
+        QStringList trace;
+        int stateResetCalls = 0;
         std::function<void(const Automation::DocumentCommitInfo &)> onCommit;
     };
 
@@ -45,6 +48,7 @@ namespace {
         Automation::DocumentRuntimeServices services;
         services.applyLoopSettings = [&host](const LoopSettings &settings) {
             host.loopSettings = settings;
+            host.trace.append(QStringLiteral("loop"));
         };
         services.saveProject = [&host](const QString &path, AppModel *model,
                                        QString &errorMessage) {
@@ -74,9 +78,15 @@ namespace {
         };
         services.beforeReplaceGeneration = [&host](const Automation::DocumentId &documentId) {
             host.replacementNotifications.append(documentId);
+            host.trace.append(QStringLiteral("generation"));
+        };
+        services.resetDocumentScopedState = [&host] {
+            ++host.stateResetCalls;
+            host.trace.append(QStringLiteral("reset"));
         };
         services.afterCommit = [&host](const Automation::DocumentCommitInfo &info) {
             host.commits.append(info);
+            host.trace.append(QStringLiteral("commit"));
             if (host.onCommit)
                 host.onCommit(info);
         };
@@ -87,6 +97,8 @@ namespace {
     public:
         LifecycleFixture()
             : history(resetHistory()), runtime(&model, history, documentServices(host)) {
+            QObject::connect(&model, &AppModel::modelChanged, &model,
+                             [this] { host.trace.append(QStringLiteral("model")); });
         }
 
         ~LifecycleFixture() {
@@ -300,6 +312,9 @@ void DocumentIOTests::initialUntitledSession() {
 void DocumentIOTests::newOpenAndImport() {
     LifecycleFixture fixture;
     auto &runtime = fixture.runtime;
+    const QStringList replaceOrder{QStringLiteral("generation"), QStringLiteral("reset"),
+                                   QStringLiteral("model"), QStringLiteral("loop"),
+                                   QStringLiteral("commit")};
 
     const auto initial = runtime.documentVersion();
     const LoopSettings newLoop(true, 120, 960);
@@ -316,6 +331,8 @@ void DocumentIOTests::newOpenAndImport() {
               !afterNew.documentId.isNull() && afterNew.documentId != initial.documentId &&
               afterNew.revision == 0 && !committedNew.get().createdObjects.isEmpty()),
              "commit-new must atomically rotate identity, reset revision, and bind objects");
+    QCOMPARE(fixture.host.stateResetCalls, 1);
+    QCOMPARE(fixture.host.trace, replaceOrder);
     QVERIFY2((newSnapshot && newSnapshot.get().path.isEmpty() &&
               newSnapshot.get().projectName.isEmpty() && newSnapshot.get().saved && newHistory &&
               !newHistory.get().canUndo && !newHistory.get().canRedo &&
@@ -345,6 +362,8 @@ void DocumentIOTests::newOpenAndImport() {
               importHistory.get().canUndo && !importHistory.get().onSavePoint && importedProject &&
               importedProject.get().tracks.size() == 2),
              "commit-import must retain identity and create one History/revision change");
+    QCOMPARE(fixture.host.stateResetCalls, 1);
+    fixture.host.trace.clear();
 
     const LoopSettings openedLoop(true, 480, 1440);
     auto openedDocument = makeDocumentDraft(QStringLiteral("Opened Lifecycle Track"),
@@ -368,6 +387,8 @@ void DocumentIOTests::newOpenAndImport() {
               committedOpen.get().current == afterOpen &&
               afterOpen.documentId != afterImport.documentId && afterOpen.revision == 0),
              "commit-open must rotate the document generation and reset revision");
+    QCOMPARE(fixture.host.stateResetCalls, 2);
+    QCOMPARE(fixture.host.trace, replaceOrder);
     QVERIFY2((openSnapshot && openSnapshot.get().path == openedPath &&
               openSnapshot.get().projectName == QStringLiteral("opened-lifecycle.dspx") &&
               openSnapshot.get().saved && openHistory && !openHistory.get().canUndo &&

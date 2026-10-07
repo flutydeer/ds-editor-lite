@@ -158,6 +158,7 @@ void GuiComponentTests::tooltipHoverRestoresUpdatedContent() {
         oldLabels.append(label);
     QCOMPARE(oldLabels.size(), 2);
     filter.setMessage({QStringLiteral("Updated description")});
+    QTRY_COMPARE(tip->findChildren<QLabel *>("toolTipMessage").size(), 1);
     const auto updated = tip->findChildren<QLabel *>("toolTipMessage");
     QCOMPARE(updated.size(), 1);
     QCOMPARE(updated.first()->text(), QStringLiteral("Updated description"));

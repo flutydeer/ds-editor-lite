@@ -161,6 +161,13 @@ bool EditorViewController::setPianoRollAutoPageTurn(const bool enabled) const {
                Automation::EditorAutoPageTarget::PianoRoll, enabled);
 }
 
+void EditorViewController::resetDocumentScopedState() {
+    if (!m_view)
+        return;
+    m_view->resetDocumentScopedViewState();
+    syncPianoRollEditMode(EditorViewGlobal::PianoRollEditMode::Select);
+}
+
 bool EditorViewController::applyRestoreState(const EditorViewState &state) const {
     return m_view && m_view->restoreEditorViewState(state);
 }

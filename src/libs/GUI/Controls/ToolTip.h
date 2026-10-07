@@ -67,6 +67,12 @@ protected:
 
     void updateMessage();
     void showAt(const QPoint &screenPos, const QScreen *screen);
+    // Sizes the window to the current content hint in both directions. The
+    // card is reused across shows: a content change leaves the top-level
+    // layout's cached hint stale until the deferred LayoutRequest lands, and
+    // wider content leaves its size constraints behind, so the layout is
+    // reactivated synchronously and min=max are pinned to the fresh hint
+    void resizeToContentHint();
     // Top-left corner of the widget that puts its visible card `gapPx` above
     // `anchorPos` and centred on it. Shared by the rect anchor (hover tooltips)
     // and the pointer anchor (drag tooltips); only the gap differs.

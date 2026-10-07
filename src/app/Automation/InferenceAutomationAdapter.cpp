@@ -4,6 +4,7 @@
 #include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Modules/Inference/Models/PronunciationFetchResult.h"
 
+#include <QHash>
 #include <QSet>
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -278,9 +279,12 @@ namespace Automation {
             }
             QList<NoteId> noteIds;
             QList<PhonemeNameResult> values;
+            QHash<int, QString> taskErrors;
             for (const auto &entry : request.phonemeNames) {
                 noteIds.append(entry.noteId);
-                values.append({true, entry.phonemeNames});
+                values.append({entry.success, entry.errorMessage, entry.phonemeNames});
+                if (!entry.success && !entry.errorMessage.isEmpty())
+                    taskErrors.insert(entry.noteId.value(), entry.errorMessage);
             }
             auto notesResult = resolveNotes(clipResult.get(), noteIds);
             if (!notesResult)
@@ -306,10 +310,11 @@ namespace Automation {
                 .advancesRevision = persistedChanged,
                 .affectedObjects = affected(request.clipId, {}, noteIds),
                 .apply =
-                    [model, clip, notes, values](InferenceMutationSideEffects &effects) {
+                    [model, clip, notes, values, taskErrors](InferenceMutationSideEffects &effects) {
                         InferControllerHelper::updatePhoneName(notes, values, *clip);
                         if (clip->singerInfo().isEmpty())
                             return;
+                        clip->setPendingNoteTaskErrors(taskErrors);
                         const auto segmentation = clip->reSegment(model->timeline());
                         for (const auto *piece : segmentation.addedPieces)
                             effects.addedPieces.append(PieceId(piece->id()));

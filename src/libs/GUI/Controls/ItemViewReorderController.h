@@ -66,6 +66,9 @@ private:
                                        int *row) const;
     void scheduleHandleRefresh();
     void beginDrag();
+    /// Drops the press the current gesture owns. The drag having returned means
+    /// the gesture is over, release or not.
+    void endGesture();
 
     QPointer<QAbstractItemView> m_view;
     HandleHitTest m_hitTest;

@@ -1,5 +1,7 @@
 #include "WheelInputController.h"
 
+#include <lite/GUI/Animation/AnimationUtils.h>
+
 #include <QInputDevice>
 #include <QWheelEvent>
 #include <QSignalBlocker>
@@ -340,15 +342,24 @@ bool WheelInputController::handleZoom(QWheelEvent *event, const Qt::Orientation 
 
 void WheelInputController::startMotion(Motion &motion, const double currentValue,
                                        const double targetValue) {
-    motion.animation.stop();
-    motion.animation.setStartValue(currentValue);
-    motion.animation.setEndValue(targetValue);
+    // Reconfiguring an animation that already ran to its end publishes the new end
+    // value before the animation starts. The zoom target derives the scroll offset
+    // from the scale it is handed, so that stray frame moves the viewport off a
+    // clamped edge and the rest of the animation springs it back. configureSilently
+    // keeps the endpoints to ourselves, start() then publishes the first real frame.
+    AnimationUtils::configureSilently(motion.animation, [&] {
+        motion.animation.stop();
+        motion.animation.setStartValue(currentValue);
+        motion.animation.setEndValue(targetValue);
+    });
     motion.logicalValue = targetValue;
     motion.animation.start();
 }
 
 void WheelInputController::stopMotion(Motion &motion, const bool resetRemainder) {
-    motion.animation.stop();
+    // Stopping rewinds an animation to its start value and publishes that rewind,
+    // which would snap an interrupted gesture back to where it began.
+    AnimationUtils::configureSilently(motion.animation, [&] { motion.animation.stop(); });
     motion.logicalValue.reset();
     if (resetRemainder)
         motion.remainder = 0.0;
@@ -360,16 +371,14 @@ void WheelInputController::updateAnimationDuration() {
         const auto running = motion.animation.state() == QAbstractAnimation::Running;
         const auto endValue = motion.animation.endValue();
         const auto currentValue = motion.animation.currentValue();
-        {
-            // Metadata changes can emit stale values even from a stopped animation.
-            const QSignalBlocker blocker(&motion.animation);
+        AnimationUtils::configureSilently(motion.animation, [&] {
             motion.animation.stop();
             motion.animation.setDuration(duration);
             if (running && duration > 0) {
                 motion.animation.setStartValue(currentValue);
                 motion.animation.setEndValue(endValue);
             }
-        }
+        });
         if (!running)
             return;
         if (duration == 0) {

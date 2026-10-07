@@ -119,6 +119,7 @@ namespace Automation::OperationIds {
     X(notes, reset_phoneme_offsets, "notes.reset_phoneme_offsets")                                 \
     X(notes, reset_phonemes, "notes.reset_phonemes")                                               \
     X(notes, reset_pronunciation, "notes.reset_pronunciation")                                     \
+    X(notes, resize_joint, "notes.resize_joint")                                                   \
     X(notes, resize_left, "notes.resize_left")                                                     \
     X(notes, resize_right, "notes.resize_right")                                                   \
     X(notes, search, "notes.search")                                                               \

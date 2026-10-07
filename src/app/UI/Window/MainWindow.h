@@ -41,6 +41,7 @@ public:
     void updateWindowTitle() override;
     [[nodiscard]] EditorViewState captureEditorViewState() const override;
     bool restoreEditorViewState(const EditorViewState &state) override;
+    bool resetDocumentScopedViewState() override;
     bool centerTrackPanelAt(double tick, double trackIndex) override;
     bool setTrackPanelScale(double horizontalScale, double verticalScale) override;
     bool setTrackPanelViewport(const TrackPanelViewState &state) override;

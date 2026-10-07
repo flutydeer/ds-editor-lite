@@ -60,6 +60,14 @@ void GuiComponentTests::tooltipPointerAnchorsFollowContentAndVisibility() {
     QVERIFY(closeEnough(card.center().x(), pointer.x()));
     QVERIFY(closeEnough(pointer.y() - card.bottom(), clearance));
 
+    toolTip.setTitle(QStringLiteral("12345678 ms"));
+    toolTip.moveAbovePointer(pointer);
+    const auto wideCard = visibleCard(toolTip);
+    toolTip.setTitle(QStringLiteral("5 ms"));
+    toolTip.moveAbovePointer(pointer);
+    QVERIFY(visibleCard(toolTip).width() < wideCard.width());
+    QVERIFY(closeEnough(visibleCard(toolTip).center().x(), pointer.x()));
+
     pointer = QPoint(available.left() + 2, available.center().y());
     toolTip.showAbovePointer(pointer);
     QVERIFY(visibleCard(toolTip).left() >= available.left());

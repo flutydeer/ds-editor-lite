@@ -9,6 +9,7 @@ class Note;
 class QMouseEvent;
 class PianoRollSelectionModel;
 class PianoRollGraphicsView;
+class SingingClip;
 
 class NoteInteractionController : public QObject {
     Q_OBJECT
@@ -57,6 +58,20 @@ public:
 
     // State setters
     void setMouseDown(bool down, Qt::MouseButton button = Qt::NoButton);
+
+    // Clip whose notes the adjacency of the joint boundary resize is resolved
+    // against; kept in sync with the view's data context
+    void setDataContext(SingingClip *clip);
+
+    // Joint boundary resize (Shift + edge drag): when armed, the resize also moves
+    // the adjacent note sharing the dragged boundary
+    [[nodiscard]] int jointNeighborId() const {
+        return m_jointNeighborId;
+    }
+
+    [[nodiscard]] NoteView *jointNeighborView() const;
+
+    void clearJointResize();
 
     void setMouseDownPos(const QPointF &pos) {
         m_mouseDownPos = pos;
@@ -143,6 +158,8 @@ public:
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick, int minimumLength);
     static void handleNoteRightResized(int noteId, int deltaTick, int minimumLength);
+    static void handleNoteSharedBoundaryResized(int leftNoteId, int rightNoteId, int deltaTick,
+                                                int minimumLength);
 
     // Note manipulation
     void moveSelectedNotes(int startOffset, int keyOffset) const;
@@ -178,6 +195,9 @@ private:
     NoteView *m_currentEditingNote = nullptr;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     int m_handleFramedNoteId = -1;
+
+    SingingClip *m_clip = nullptr;
+    int m_jointNeighborId = -1;
 
     PianoRollSelectionModel *m_selectionModel = nullptr;
     PianoRollGraphicsView *m_view = nullptr;

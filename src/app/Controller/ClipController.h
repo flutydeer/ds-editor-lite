@@ -55,6 +55,8 @@ public slots:
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick, int minimumLength) const;
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick, int minimumLength) const;
+    void onResizeNotesSharedBoundary(int leftNoteId, int rightNoteId, int deltaTick,
+                                     int minimumLength) const;
     void onAdjustPhonemeOffset(int noteId, const QList<int> &offsets) const;
     void onResetPhonemeOffsets(QWidget *parent) const;
     void selectNotes(const QList<int> &notesId, bool unselectOther);

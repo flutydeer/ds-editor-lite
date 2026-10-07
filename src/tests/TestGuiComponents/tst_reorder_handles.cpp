@@ -215,4 +215,30 @@ void GuiComponentTests::reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags() {
                     Qt::LeftButton, Qt::NoButton);
         QVERIFY2((pathRequested.isEmpty()), "the path list's row body starts no reorder");
     }
+    QListWidget stray;
+    stray.resize(320, 240);
+    // Button-less moves are delivered to the tracking viewport after the drag loop returns.
+    stray.viewport()->setMouseTracking(true);
+    DragHandle *strayHandle = nullptr;
+    addHandleRow(&stray, &strayHandle);
+    DragHandle *straySecondHandle = nullptr;
+    addHandleRow(&stray, &straySecondHandle);
+    stray.show();
+    QApplication::processEvents();
+
+    auto *strayController = new ItemViewReorderController(&stray);
+    QList<int> strayRequested;
+    QObject::connect(strayController, &ItemViewReorderController::dragRequested,
+                     [&strayRequested](const int row) { strayRequested.append(row); });
+
+    const QPoint strayPress = stray.visualItemRect(stray.item(0)).center();
+    sendMouseAt(strayHandle, stray.viewport(), QEvent::MouseButtonPress, strayPress, Qt::LeftButton,
+                Qt::LeftButton);
+    sendMouseAt(strayHandle, stray.viewport(), QEvent::MouseMove,
+                strayPress + QPoint(dragDistance, 0), Qt::NoButton, Qt::LeftButton);
+    QCOMPARE(strayRequested, QList<int>{0});
+
+    sendMouseAt(stray.viewport(), stray.viewport(), QEvent::MouseMove,
+                strayPress + QPoint(dragDistance + 40, 0), Qt::NoButton, Qt::NoButton);
+    QCOMPARE(strayRequested, QList<int>{0});
 }

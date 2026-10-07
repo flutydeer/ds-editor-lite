@@ -24,6 +24,10 @@ void AppearanceOption::load(const QJsonObject &object) {
         uiFontFamily = object.value(uiFontFamilyKey).toString().trimmed();
     if (object.value(showGhostNotesKey).isBool())
         showGhostNotes = object.value(showGhostNotesKey).toBool();
+    if (object.value(showTempoLaneKey).isBool())
+        showTempoLane = object.value(showTempoLaneKey).toBool();
+    if (object.value(showTimeSignatureLaneKey).isBool())
+        showTimeSignatureLane = object.value(showTimeSignatureLaneKey).toBool();
 }
 
 void AppearanceOption::save(QJsonObject &object) {
@@ -33,4 +37,6 @@ void AppearanceOption::save(QJsonObject &object) {
     object.insert(themeIdKey, themeId);
     object.insert(uiFontFamilyKey, uiFontFamily);
     object.insert(showGhostNotesKey, showGhostNotes);
+    object.insert(showTempoLaneKey, showTempoLane);
+    object.insert(showTimeSignatureLaneKey, showTimeSignatureLane);
 }

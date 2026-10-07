@@ -1,12 +1,15 @@
 #include "NoteView.h"
 
 #include "NoteLyricPresentation.h"
+#include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Utils/AppColorPalette.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/IconUtils.h>
 
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
@@ -16,6 +19,64 @@
 #include <QElapsedTimer>
 
 using namespace ClipEditorGlobal;
+
+// The inference-error badge hanging above the note, mirrored from the
+// pronunciation view below. A child item so the area outside the note's
+// bounding rect repaints correctly
+class NoteErrorBadgeItem final : public QGraphicsItem {
+public:
+    explicit NoteErrorBadgeItem(QGraphicsItem *parent) : QGraphicsItem(parent) {
+        // Never take part in item-level event delivery; the view hit-tests
+        // the badge itself through noteErrorBadgeRect
+        setAcceptedMouseButtons(Qt::NoButton);
+        setPos(badgeOffset());
+    }
+
+    [[nodiscard]] QRectF boundingRect() const override {
+        // The icon is blitted on the device pixel grid, which can shift it by
+        // up to half a device pixel against the item origin; pad the culling
+        // rect so the shift is not clipped
+        constexpr double bleed = 1.0;
+        const auto size = PianoRollGraphicsViewHelper::noteErrorBadgeSize();
+        return {-bleed, -bleed, size.width() + 2 * bleed, size.height() + 2 * bleed};
+    }
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget) override {
+        const auto markColor =
+            ThemeManager::instance()->semanticColor(QStringLiteral("piano.roll.noteErrorMark"));
+        if (!markColor.isValid() || markColor.alpha() == 0)
+            return;
+        const auto badgeSize = PianoRollGraphicsViewHelper::noteErrorBadgeSize();
+        const auto dpr = widget ? widget->devicePixelRatioF() : 1.0;
+        const auto pixmap =
+            IconUtils::renderTintedSvgPixmap(QStringLiteral(":svg/icons/dismiss_circle_16_regular.svg"),
+                                             badgeSize.toSize(), markColor, dpr);
+        if (pixmap.isNull())
+            return;
+
+        // Blit the pre-rendered icon 1:1 on the device pixel grid, anchored at
+        // the item origin: feeding it through the fractional zoom-dependent
+        // scene transform would resample the ring every frame, warping it and
+        // dropping the outermost edge pixels
+        painter->save();
+        const QPointF anchor = painter->transform().map(QPointF(0, 0));
+        painter->resetTransform();
+        painter->scale(1.0 / dpr, 1.0 / dpr);
+        const QRectF source(QPointF(), QSizeF(pixmap.size()));
+        painter->drawPixmap(QRectF(QPointF(qRound(anchor.x() * dpr), qRound(anchor.y() * dpr)),
+                                   source.size()),
+                            pixmap, source);
+        painter->restore();
+    }
+
+private:
+    [[nodiscard]] static QPointF badgeOffset() {
+        constexpr double margin = 2.0;
+        return {EditorItemGeometry::noteBorderWidth + margin,
+                -PianoRollGraphicsViewHelper::noteErrorBadgeSize().height() - margin};
+    }
+};
 
 int NoteView::s_trackColorIndex = 0;
 QColor NoteView::s_selectedBorderColor = {255, 255, 255};
@@ -150,6 +211,17 @@ void NoteView::resetOffset() {
     updateRectAndPos();
 }
 
+void NoteView::setInferenceError(const bool on) {
+    if (m_inferenceError == on)
+        return;
+    m_inferenceError = on;
+    m_errorBadge->setVisible(on);
+}
+
+bool NoteView::hasInferenceError() const {
+    return m_inferenceError;
+}
+
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     QElapsedTimer timer;
     timer.start();
@@ -276,6 +348,8 @@ void NoteView::adjustPronView() const {
 
 void NoteView::initUi() {
     setFlag(ItemIsSelectable);
+    m_errorBadge = new NoteErrorBadgeItem(this);
+    m_errorBadge->setVisible(false);
     fontPixelSize.onChanged([this](int) { update(); });
 }
 

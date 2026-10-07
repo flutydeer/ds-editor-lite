@@ -46,8 +46,15 @@ public:
     void quantizeNotes(const QList<Note *> &notes, const QList<QPair<int, int>> &newStartLengths,
                        SingingClip *clip, Track *track);
 
+    // Set absolute start/length values per note (shared-boundary resize)
+    void editNotesGeometry(const QList<Note *> &notes, const QList<QPair<int, int>> &newStartLengths,
+                           SingingClip *clip, Track *track);
+
 private:
     void addClipExtensionToFit(int contentEnd, SingingClip *clip, Track *track);
+    void addGeometryChanges(const QList<Note *> &notes,
+                            const QList<QPair<int, int>> &newStartLengths, SingingClip *clip,
+                            Track *track);
 };
 
 

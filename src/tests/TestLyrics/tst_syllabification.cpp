@@ -474,6 +474,88 @@ namespace {
         expect(closure.size() == 1 && closure.first() == a,
                "word without a baseline is never added to the closure");
     }
+    void testSlicerExclusionDiagnostics() {
+        // Overlapping notes are all flagged and none survives the filter
+        auto *first = new Note;
+        configureNote(*first, 960, "hi");
+        first->setPhonemeNameSeq(Note::Original, {phone("hh", false), phone("ay", true)});
+        auto *overlapped = new Note;
+        configureNote(*overlapped, 1000, "yo");
+        overlapped->setPhonemeNameSeq(Note::Original, {phone("hh", false), phone("ow", true)});
+        SingingClip overlapClip({first, overlapped});
+        {
+            const auto result = SingingClipSlicer::slice(Timeline{}, overlapClip.notes().toList());
+            expect(result.segments.isEmpty(), "overlapping notes produce no segment");
+            const auto expectedIds = QSet<int>{first->id(), overlapped->id()};
+            auto reportedIds = QSet<int>();
+            for (const auto &excluded : result.excludedNotes) {
+                reportedIds.insert(excluded.noteId);
+                expect(excluded.reason == SliceExclusionReason::Overlapped,
+                       "overlapping notes are reported with the Overlapped reason");
+            }
+            expect(reportedIds == expectedIds,
+                   "both overlapping notes are reported as the exclusion root causes");
+            expect(result.skippedPhraseRanges.size() == 1 &&
+                       result.skippedPhraseRanges.first() ==
+                           qMakePair(first->localStart(),
+                                     overlapped->localStart() + overlapped->length()),
+                   "the overlapped extent is reported as one skipped range");
+        }
+
+        // Missing phonemes are reported on the culprit, with the skipped range
+        auto *root = new Note;
+        configureNote(*root, 960, "hello");
+        root->setPhonemeNameSeq(Note::Original,
+                                {phone("hh", false), phone("eh", true), phone("ow", true)});
+        auto *empty = new Note;
+        configureNote(*empty, 1440, "??");
+        auto *tail = new Note;
+        configureNote(*tail, 1920, "there");
+        tail->setPhonemeNameSeq(Note::Original, {phone("dh", false), phone("eh", true)});
+        SingingClip clip({root, empty, tail});
+        {
+            const auto result = SingingClipSlicer::slice(Timeline{}, clip.notes().toList());
+            expect(result.segments.isEmpty(), "a phrase with a missing-phoneme note is skipped");
+            expect(result.excludedNotes.size() == 1 &&
+                       result.excludedNotes.first().noteId == empty->id() &&
+                       result.excludedNotes.first().reason == SliceExclusionReason::MissingPhonemes,
+                   "the note without phonemes is the reported root cause");
+            expect(result.skippedPhraseRanges.size() == 1 &&
+                       result.skippedPhraseRanges.first() ==
+                           qMakePair(root->localStart(), tail->localStart() + tail->length()),
+                   "the skipped phrase range spans the whole phrase");
+        }
+
+        // reSegment publishes the same diagnostics on the clip
+        clip.reSegment(Timeline{});
+        expect(clip.noteInferenceErrors().contains(empty->id()) &&
+                   clip.noteInferenceErrors().value(empty->id()).reason ==
+                       SliceExclusionReason::MissingPhonemes,
+               "reSegment publishes the per-note exclusion on the clip");
+        expect(clip.skippedPhraseRanges().size() == 1,
+               "reSegment publishes the skipped phrase range on the clip");
+
+        // Editing the culprit clears its error before the next inference cycle
+        clip.notifyNoteChanged(SingingClip::EditedWordPropertyChange, {empty});
+        expect(!clip.noteInferenceErrors().contains(empty->id()),
+               "editing a note clears its published inference error");
+
+        // A phrase starting with a slur is invalid and reported on the first note
+        auto *slurFirst = new Note;
+        configureNote(*slurFirst, 960, "-");
+        auto *next = new Note;
+        configureNote(*next, 1440, "there");
+        next->setPhonemeNameSeq(Note::Original, {phone("dh", false), phone("eh", true)});
+        SingingClip slurClip({slurFirst, next});
+        {
+            const auto result = SingingClipSlicer::slice(Timeline{}, slurClip.notes().toList());
+            expect(result.excludedNotes.size() == 1 &&
+                       result.excludedNotes.first().noteId == slurFirst->id() &&
+                       result.excludedNotes.first().reason ==
+                           SliceExclusionReason::FirstNoteInvalid,
+                   "a phrase starting with a slur reports the slur note");
+        }
+    }
 }
 
 void LyricsTests::syllabificationRanges() {

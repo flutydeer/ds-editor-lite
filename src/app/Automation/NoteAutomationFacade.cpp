@@ -762,6 +762,65 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> NoteAutomationFacade::resizeNotesSharedBoundary(
+        const CommandContext &context, const ClipId clipId, const NoteId leftNoteId,
+        const NoteId rightNoteId, const int deltaTick, const int minimumLength) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::resize_joint, context,
+            [this, clipId, leftNoteId, rightNoteId, deltaTick,
+             minimumLength](DocumentSession &session, const bool validateOnly) {
+                auto clipResult = m_objects.singingClip(session, clipId);
+                if (!clipResult)
+                    return AutomationResult<MutationResult>(clipResult.getError());
+                auto leftResult = m_objects.note(session, clipId, leftNoteId);
+                if (!leftResult)
+                    return AutomationResult<MutationResult>(leftResult.getError());
+                auto rightResult = m_objects.note(session, clipId, rightNoteId);
+                if (!rightResult)
+                    return AutomationResult<MutationResult>(rightResult.getError());
+                const auto *leftNote = leftResult.get().note;
+                const auto *rightNote = rightResult.get().note;
+                if (minimumLength <= 0 || leftNote == rightNote) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("resize"), QStringLiteral("Resize input is invalid")));
+                }
+                // The shared boundary exists only while the pair stays exactly
+                // adjacent; the drag preview kept that rule, the model may have
+                // moved on since the drag started
+                if (leftNote->localStart() + leftNote->length() != rightNote->localStart()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("resize"),
+                        QStringLiteral("Notes do not share a boundary")));
+                }
+                const auto safeDelta = NoteResizeUtils::clampJointBoundaryDelta(
+                    leftNote->length(), rightNote->length(), deltaTick, minimumLength);
+                const auto changed = safeDelta != 0;
+                const auto leftLength = static_cast<qint64>(leftNote->length()) + safeDelta;
+                const auto rightStart = static_cast<qint64>(rightNote->localStart()) + safeDelta;
+                const auto rightLength = static_cast<qint64>(rightNote->length()) - safeDelta;
+                if (leftLength > std::numeric_limits<int>::max() ||
+                    rightStart > std::numeric_limits<int>::max() ||
+                    rightLength > std::numeric_limits<int>::max()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("delta_tick"),
+                        QStringLiteral("Resized note range is out of bounds")));
+                }
+                const auto affected = noteRefs(QList<NoteId>{leftNoteId, rightNoteId});
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<NoteActions>();
+                actions->editNotesGeometry(
+                    {leftResult.get().note, rightResult.get().note},
+                    {{leftNote->localStart(), static_cast<int>(leftLength)},
+                     {static_cast<int>(rightStart), static_cast<int>(rightLength)}},
+                    static_cast<SingingClip *>(clipResult.get().clip), clipResult.get().track);
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
     AutomationResult<MutationResult> NoteAutomationFacade::splitNote(const CommandContext &context,
                                                                      const ClipId clipId,
                                                                      const NoteId noteId,

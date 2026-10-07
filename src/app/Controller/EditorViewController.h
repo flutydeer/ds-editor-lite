@@ -32,6 +32,10 @@ public:
     [[nodiscard]] std::optional<EditorViewState> captureState() const;
     bool restoreState(const EditorViewState &state) const;
 
+    // Document switch: resets viewports and editor tool state to their defaults.
+    // Panel layout, the active panel page and the focused region are kept.
+    void resetDocumentScopedState();
+
     bool centerTrackPanelAt(double tick, double trackIndex) const;
     bool setTrackPanelScale(double horizontalScale, double verticalScale) const;
     bool setPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible) const;

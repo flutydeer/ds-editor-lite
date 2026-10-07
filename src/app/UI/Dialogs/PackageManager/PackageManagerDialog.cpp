@@ -7,7 +7,10 @@
 #include <lite/PackageManager/Tasks/GetInstalledPackagesTask.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ItemViewTouchFilter.h>
 #include <lite/GUI/Controls/LineEdit.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/OverlaySplitter.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
@@ -21,7 +24,6 @@
 #include <QListView>
 #include <QMessageBox>
 #include <QScrollArea>
-#include <QSplitter>
 #include <QStackedWidget>
 
 namespace {
@@ -137,8 +139,14 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
 
 void PackageManagerDialog::initUi() {
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(buildPackagePanel());
-    mainLayout->addWidget(buildDetailsPanel());
+    auto splitter = new OverlaySplitter(Qt::Horizontal);
+    splitter->setChildrenCollapsible(false);
+    splitter->addWidget(buildPackagePanel());
+    splitter->addWidget(buildDetailsPanel());
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes({280, 1});
+    mainLayout->addWidget(splitter);
     mainLayout->setContentsMargins({});
     mainLayout->setSpacing(0);
     body()->setContentsMargins({});
@@ -211,12 +219,19 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     listView = new QListView;
     listView->setObjectName("PackageManagerDialogPackageListView");
     listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    // Package names are elided by the delegate instead of scrolling horizontally
+    listView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     listView->setItemDelegate(new PackageItemDelegate(listView));
     listView->setContentsMargins({});
+    OverlayScrollBar *listBar = nullptr;
     {
+        // Overlay scrollbar: the native bar is disabled (no space reserved)
+        listBar = OverlayScrollBar::install(listView, Qt::Vertical);
         // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(listView);
+        // Touch scrolling must not select the item under the finger; taps still select
+        ItemViewTouchFilter::install(listView);
     }
 
     auto layout = new QVBoxLayout;
@@ -230,7 +245,11 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     panel->setAttribute(Qt::WA_StyledBackground);
     panel->setLayout(layout);
     panel->setContentsMargins({12, 12, 12, 0});
-    panel->setFixedWidth(280);
+    panel->setMinimumWidth(280);
+    // Pin the bar to the panel's right wall so it rests in the gutter between the
+    // item edge and the divider instead of on top of the items
+    if (listBar)
+        listBar->setGeometryHost(panel);
     return panel;
 }
 
@@ -259,6 +278,8 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsPanelContent->setWidget(contentWidget);
     detailsPanelContent->viewport()->setContentsMargins({});
     {
+        // Overlay scrollbar: the native bar is disabled (no space reserved)
+        OverlayScrollBar::install(detailsPanelContent, Qt::Vertical);
         // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(detailsPanelContent);

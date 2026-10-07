@@ -40,6 +40,8 @@
         <file>svg/icons/chevron_down_16_regular.svg</file>
         <file>svg/icons/dismiss_16_filled.svg</file>
         <file>svg/icons/dismiss_16_regular.svg</file>
+        <file>svg/icons/dismiss_circle_16_regular.svg</file>
+        <file>svg/icons/dismiss_circle_16_filled.svg</file>
         <file>svg/icons/navigation_16_filled.svg</file>
         <file>svg/icons/home_16_filled.svg</file>
         <file>svg/icons/history_16_regular.svg</file>

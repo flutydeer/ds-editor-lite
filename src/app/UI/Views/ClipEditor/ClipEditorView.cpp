@@ -268,6 +268,13 @@ void ClipEditorView::reset() {
     onActiveClipChanged(-1);
 }
 
+void ClipEditorView::resetDocumentScopedViewState() {
+    m_pianoRollEditorView->pianoRollView()->setViewScale(1.0, 1.0);
+    m_pianoRollEditorView->paramEditorView()->resetDocumentScopedToolState();
+    // The toolbar owns the edit mode and propagates it to the piano roll
+    setEditMode(EditorViewGlobal::PianoRollEditMode::Select);
+}
+
 void ClipEditorView::applyTrackColor(const int colorIndex) const {
     NoteView::setTrackColorIndex(colorIndex);
     m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);

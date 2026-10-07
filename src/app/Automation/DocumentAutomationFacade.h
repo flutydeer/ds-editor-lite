@@ -34,6 +34,11 @@ namespace Automation {
         std::function<void(const LoopSettings &)> applyLoopSettings;
         std::function<bool(const QString &, AppModel *, QString &)> saveProject;
         std::function<void(const DocumentId &)> beforeReplaceGeneration;
+        // Invoked inside the replace transaction, after the previous generation's
+        // asynchronous work was discarded and before the new model is installed.
+        // Host-side calls only: the session is still in Replacing, so any command
+        // routed through the dispatcher would be rejected as document-busy.
+        std::function<void()> resetDocumentScopedState;
         // 此时文档已恢复 Active，接收者可同步查询完整的提交状态。
         std::function<void(const DocumentCommitInfo &)> afterCommit;
     };

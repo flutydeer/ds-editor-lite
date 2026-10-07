@@ -2,7 +2,7 @@
 #include <lite/GUI/Controls/Menu.h>
 
 #include <QAbstractScrollArea>
-#include <QCursor>
+#include <QCoreApplication>
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QPainter>
@@ -55,13 +55,6 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
     m_hideTimer->setInterval(kHideDelayMs);
     connect(m_hideTimer, &QTimer::timeout, this, &OverlayScrollBar::onHideTimeout);
 
-    // 无按键的 MouseMove 只会发给视口下最深层的 widget（且需开启鼠标跟踪），
-    // 视口内的子控件可能吞掉事件，故改用轮询全局鼠标位置
-    m_cursorPollTimer = new QTimer(this);
-    m_cursorPollTimer->setInterval(200);
-    connect(m_cursorPollTimer, &QTimer::timeout, this, &OverlayScrollBar::pollCursor);
-    m_cursorPollTimer->start();
-
     // initializeAnimation 会同步回调 afterSetAnimationLevel/afterSetTimeScale，
     // 必须在动画对象创建之后调用
     initializeAnimation();
@@ -76,6 +69,11 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
         if (!m_hovered)
             m_hideTimer->start();
     });
+}
+
+OverlayScrollBar::~OverlayScrollBar() {
+    if (m_applicationFilterInstalled)
+        QCoreApplication::instance()->removeEventFilter(this);
 }
 
 void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
@@ -117,8 +115,9 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     setSingleStep(source->singleStep());
     setVisible(m_rangeVisible && source->maximum() > 0);
 
-    // 视口需开启鼠标跟踪，未按键的 MouseMove 才会到达 eventFilter，
-    // 否则鼠标在视口内移动无法重置自动隐藏计时
+    // Mouse tracking on the viewport keeps buttonless MouseMove flowing to the
+    // event filter; moves swallowed by child widgets are covered by the
+    // application-level filter installed in setViewport().
     setViewport(scrollArea->viewport());
 }
 
@@ -260,11 +259,27 @@ void OverlayScrollBar::leaveEvent(QEvent *event) {
 bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched == m_geometryHost && event->type() == QEvent::Resize) {
         updatePosition();
-    } else if (watched == m_viewport) {
-        if (event->type() == QEvent::Resize)
-            updatePosition();
-        else if (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove)
-            restartHideTimer();
+    } else if (watched == m_viewport && event->type() == QEvent::Resize) {
+        updatePosition();
+    }
+    switch (event->type()) {
+        // This filter doubles as the application-level filter installed in
+        // setViewport(): refresh the auto-hide countdown on every pointer move
+        // inside the viewport subtree. Buttonless MouseMove is delivered only
+        // to the deepest widget (and only when it tracks the mouse), and child
+        // widgets may consume it, so no single widget can be watched instead.
+        // Pointer moves over other windows - of this app or any other - never
+        // reach here, unlike the QCursor::pos() polling this replaces.
+        case QEvent::Enter:
+        case QEvent::HoverMove:
+        case QEvent::MouseMove:
+        case QEvent::TabletMove:
+            if (m_viewport && watched->isWidgetType() &&
+                m_viewport->isAncestorOf(static_cast<QWidget *>(watched)))
+                restartHideTimer();
+            break;
+        default:
+            break;
     }
     return QScrollBar::eventFilter(watched, event);
 }
@@ -297,9 +312,10 @@ void OverlayScrollBar::updateVisualState() {
 
 void OverlayScrollBar::updateVisibilityAnimation() {
     const auto target = (m_hovered || m_pressed || m_idleVisible) ? 1.0 : 0.0;
+    // Called from restartHideTimer on every pointer move: no repaint when the
+    // target is already reached, or hovering would dirty the bar continuously.
     if (qFuzzyCompare(m_visibility, target)) {
         m_visibility = target;
-        update();
         return;
     }
     m_visibilityAnimation->stop();
@@ -329,17 +345,6 @@ void OverlayScrollBar::onHideTimeout() {
         return;
     m_idleVisible = false;
     updateVisibilityAnimation();
-}
-
-void OverlayScrollBar::pollCursor() {
-    if (!m_viewport || !m_viewport->isVisible())
-        return;
-    const QPoint pos = QCursor::pos();
-    if (pos == m_lastCursorPos)
-        return;
-    m_lastCursorPos = pos;
-    if (m_viewport->rect().contains(m_viewport->mapFromGlobal(pos)))
-        restartHideTimer();
 }
 
 void OverlayScrollBar::updateGeometryAnimation() {
@@ -433,16 +438,23 @@ void OverlayScrollBar::updateLayout() {
                             ? QPoint(0, 0)
                             : m_viewport->mapTo(parentWidget(), QPoint(0, 0));
     const bool companionShown = m_companion && m_companion->willShow();
-    if (orientation() == Qt::Horizontal) {
+    // With a geometry host (popup container, padded panel) the bar pins to the host's
+    // trailing wall, so an inset viewport does not drag the bar over its content; the
+    // inset acts as the gutter the handle rests in. Without one the bar follows the
+    // viewport's trailing edge as before.
+    const bool horizontal = orientation() == Qt::Horizontal;
+    const int trailing =
+        m_geometryHost
+            ? (horizontal ? parentWidget()->height() : parentWidget()->width())
+            : (horizontal ? mapped.y() + m_viewport->height() : mapped.x() + m_viewport->width());
+    if (horizontal) {
         const int width =
             companionShown ? m_viewport->width() - kBarThickness : m_viewport->width();
-        setGeometry(mapped.x(), mapped.y() + m_viewport->height() - kBarThickness, width,
-                    kBarThickness);
+        setGeometry(mapped.x(), trailing - kBarThickness, width, kBarThickness);
     } else {
         const int height =
             companionShown ? m_viewport->height() - kBarThickness : m_viewport->height();
-        setGeometry(mapped.x() + m_viewport->width() - kBarThickness, mapped.y(), kBarThickness,
-                    height);
+        setGeometry(trailing - kBarThickness, mapped.y(), kBarThickness, height);
     }
     raise();
 }
@@ -468,9 +480,21 @@ void OverlayScrollBar::setViewport(QWidget *viewport) {
     if (m_viewport)
         m_viewport->removeEventFilter(this);
     m_viewport = viewport;
-    if (!m_viewport)
+    if (!m_viewport) {
+        if (m_applicationFilterInstalled) {
+            QCoreApplication::instance()->removeEventFilter(this);
+            m_applicationFilterInstalled = false;
+        }
         return;
+    }
     m_viewport->setMouseTracking(true);
     m_viewport->installEventFilter(this);
-    m_lastCursorPos = QCursor::pos();
+    // Application-level filter: see pointer events for every widget in the
+    // viewport subtree regardless of which child consumes them. Events aimed
+    // at other windows never pass through this filter, so the bar can only be
+    // shown by pointers actually moving inside this viewport.
+    if (!m_applicationFilterInstalled) {
+        QCoreApplication::instance()->installEventFilter(this);
+        m_applicationFilterInstalled = true;
+    }
 }

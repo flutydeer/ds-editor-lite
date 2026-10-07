@@ -36,6 +36,9 @@ public:
     bool swapParameters();
     bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode);
     bool setValueViewport(double centerRatio, double verticalScale);
+    // Document switch: the parameter pair, the edit mode and the value viewport
+    // return to the defaults configured in AppOptions.
+    void resetDocumentScopedToolState();
     bool focusEditor();
 
 public slots:
