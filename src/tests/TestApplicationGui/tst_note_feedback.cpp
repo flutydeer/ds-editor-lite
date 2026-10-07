@@ -13,11 +13,14 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <QLabel>
 #include <QTextDocument>
 #include <QtTest/QTest>
+
+#include <algorithm>
 
 namespace {
     QString plainText(const QLabel *label) {
@@ -51,6 +54,14 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     const auto cleanBadge = view->viewport()->grab(badgeRect).toImage();
     const auto cleanProject = TestSupport::projectSnapshot(*context->m_appModel);
     const auto initialVersion = runtime.documentVersion();
+    const auto inferenceSettled = [&] {
+        return !singingClip->pieces().isEmpty() && taskManager->tasks().isEmpty() &&
+               std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
+                           [](const InferPiece *piece) {
+                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                      piece->state == QStringLiteral("Ready");
+                           });
+    };
     QVERIFY(runtime.notes().moveNotes(commandContext(), Automation::ClipId(singingClip->id()),
                                       {Automation::NoteId(second->id())}, -240, 0));
     QCOMPARE(runtime.documentVersion().revision, initialVersion.revision + 1);
@@ -58,7 +69,7 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     QVERIFY(editEntry);
     QTRY_VERIFY_WITH_TIMEOUT(singingClip->noteInferenceErrors().contains(first->id()) &&
                                  singingClip->noteInferenceErrors().contains(second->id()) &&
-                                 taskManager->tasks().isEmpty(),
+                                 inferenceSettled(),
                              15000);
     QCOMPARE(singingClip->noteInferenceErrors().value(first->id()).reason,
              SliceExclusionReason::Overlapped);
@@ -97,17 +108,16 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
 
     QVERIFY(runtime.history().undo(commandContext()));
-    QTRY_VERIFY_WITH_TIMEOUT(
-        singingClip->noteInferenceErrors().isEmpty() && taskManager->tasks().isEmpty(), 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(singingClip->noteInferenceErrors().isEmpty() && inferenceSettled(),
+                             15000);
     QVERIFY(!firstItem->hasInferenceError());
     QVERIFY(!sceneNote(second->id())->hasInferenceError());
     QTRY_VERIFY(!visibleErrorToolTip());
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), cleanProject);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
-    QTRY_VERIFY_WITH_TIMEOUT(singingClip->noteInferenceErrors().contains(first->id()) &&
-                                 taskManager->tasks().isEmpty(),
-                             15000);
+    QTRY_VERIFY_WITH_TIMEOUT(
+        singingClip->noteInferenceErrors().contains(first->id()) && inferenceSettled(), 15000);
     QVERIFY(firstItem->hasInferenceError());
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), overlappingProject);
 }
