@@ -40,6 +40,7 @@ private slots:
     void rhiThemeAndDockingPreserveBothEditorsAndTheirDocument();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
+    void rhiNoteMoveCanBeCanceledAndThenCommitted_data();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
     void rhiNoteDragKeepsScrollingUntilTheGestureEnds();
     void rhiMultiNoteSelectionAndMoveCommitAtomically();

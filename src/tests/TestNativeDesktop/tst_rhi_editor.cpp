@@ -72,6 +72,11 @@
 #include <QNativeGestureEvent>
 #include <QPointingDevice>
 #include <QtTest/QTest>
+#include <rhi/qrhi.h>
+#include <rhi/qrhi_platform.h>
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
+#include <QOffscreenSurface>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -95,6 +100,35 @@ namespace {
             .arg(describe(QApplication::activeModalWidget()),
                  describe(QApplication::activePopupWidget()), describe(QApplication::focusWidget()),
                  describe(QApplication::activeWindow()));
+    }
+
+    QRhiWidget::Api platformRhiApi() {
+#if defined(Q_OS_WIN)
+        return QRhiWidget::Api::Direct3D11;
+#elif defined(Q_OS_MACOS)
+        return QRhiWidget::Api::Metal;
+#else
+        return QRhiWidget::Api::OpenGL;
+#endif
+    }
+
+    bool platformRhiAvailable() {
+#if defined(Q_OS_WIN)
+        QRhiD3D11InitParams params;
+        std::unique_ptr<QRhi> device(QRhi::create(
+            QRhi::D3D11, &params, QRhi::PreferSoftwareRenderer | QRhi::SuppressSmokeTestWarnings));
+#elif defined(Q_OS_MACOS)
+        QRhiMetalInitParams params;
+        std::unique_ptr<QRhi> device(
+            QRhi::create(QRhi::Metal, &params, QRhi::SuppressSmokeTestWarnings));
+#else
+        std::unique_ptr<QOffscreenSurface> surface(QRhiGles2InitParams::newFallbackSurface());
+        QRhiGles2InitParams params;
+        params.fallbackSurface = surface.get();
+        std::unique_ptr<QRhi> device(
+            QRhi::create(QRhi::OpenGLES2, &params, QRhi::SuppressSmokeTestWarnings));
+#endif
+        return bool(device);
     }
 
     struct ExistingRhiNoteFixture {
@@ -160,7 +194,7 @@ namespace {
                                });
         }
 
-        void initialize(const int clipLength = 3840) {
+        void initialize(const int clipLength = 3840, QRhiWidget::Api api = QRhiWidget::Api::Null) {
             QVERIFY2(app.initialize(), qPrintable(app.error));
             Automation::NoteDraftDto note;
             note.localStart = 480;
@@ -188,7 +222,7 @@ namespace {
             appStatus->pianoRollQuantize = 16;
             appStatus->pianoRollQuantizeEnabled = true;
             canvas = std::make_unique<PianoRollRhiWidget>();
-            canvas->setApi(QRhiWidget::Api::Null);
+            canvas->setApi(api);
             canvas->setDataContext(clip);
             canvas->setEditMode(ClipEditorGlobal::Select);
             QObject::connect(canvas.get(), &EditorRhiWidget::backendFailed, canvas.get(),
@@ -246,6 +280,12 @@ namespace {
             // Deliver pending platform movement before the synthetic drag position.
             QCoreApplication::processEvents();
             QTest::mouseMove(canvas.get(), position);
+        }
+
+        void hoverAt(const QPoint &position) const {
+            moveTo(position);
+            // QWidget's hover overload only moves the cursor and may not deliver an event.
+            QTest::mouseMove(canvas->windowHandle(), position);
         }
 
         void waitForFrame(QEventLoop::ProcessEventsFlags flags = QEventLoop::AllEvents) const {
@@ -945,11 +985,31 @@ void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted_data() {
+    QTest::addColumn<bool>("platformRenderer");
+    QTest::newRow("null-renderer") << false;
+    QTest::newRow("platform-renderer") << true;
+}
+
 void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, platformRenderer);
+    const auto previousSoftware = qgetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
+    const auto restoreSoftware = qScopeGuard([&] {
+        if (previousSoftware.isNull())
+            qunsetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
+        else
+            qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", previousSoftware);
+    });
+    if (platformRenderer && !platformRhiAvailable())
+        QSKIP("No graphics backend is available for framebuffer validation");
+#ifdef Q_OS_WIN
+    if (platformRenderer)
+        qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", "1");
+#endif
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(3840, platformRenderer ? platformRhiApi() : QRhiWidget::Api::Null);
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
@@ -990,6 +1050,23 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
+    QImage originalFrame;
+    QRect originalRegion;
+    QRect movedRegion;
+    if (platformRenderer) {
+        originalFrame = canvas.grabFramebuffer();
+        QVERIFY(!originalFrame.isNull());
+        const auto regionFor = [&](const QPoint &point) {
+            const QPoint pixel(
+                qRound(point.x() * double(originalFrame.width()) / canvas.width()),
+                qRound(point.y() * double(originalFrame.height()) / canvas.height()));
+            return QRect(pixel - QPoint(1, 1), QSize(3, 3));
+        };
+        originalRegion = regionFor(fixture.pointFor(840, 60));
+        movedRegion = regionFor(fixture.pointFor(1320, 62));
+        QVERIFY(originalFrame.rect().contains(originalRegion));
+        QVERIFY(originalFrame.rect().contains(movedRegion));
+    }
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     fixture.moveTo(release);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
@@ -1002,6 +1079,12 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
+    QImage movedFrame;
+    if (platformRenderer) {
+        QTRY_VERIFY(!(movedFrame = canvas.grabFramebuffer()).isNull() &&
+                    movedFrame.copy(originalRegion) != originalFrame.copy(originalRegion));
+        QVERIFY(movedFrame.copy(movedRegion) != originalFrame.copy(movedRegion));
+    }
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QCOMPARE(note->localStart(), 480);
     QCOMPARE(note->keyIndex(), 60);
@@ -1009,6 +1092,12 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
+    if (platformRenderer) {
+        QImage restoredFrame;
+        QTRY_VERIFY((restoredFrame = canvas.grabFramebuffer()).copy(originalRegion) ==
+                    originalFrame.copy(originalRegion));
+        QCOMPARE(restoredFrame.copy(movedRegion), originalFrame.copy(movedRegion));
+    }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(1600, 70));
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
@@ -2574,14 +2663,14 @@ void NativeDesktopTests::rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     const auto overlappingVersion = runtime.documentVersion();
     const auto overlappingProject = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const auto selected = appStatus->selectedNotes.get();
-    fixture.moveTo(fixture.pointFor(1800, 66));
-    fixture.moveTo(badgeCenter(first));
+    fixture.hoverAt(fixture.pointFor(1800, 66));
+    fixture.hoverAt(badgeCenter(first));
     QTRY_VERIFY2(errorToolTip(), qPrintable(recentInput.join('\n')));
     QTextDocument message;
     message.setHtml(errorToolTip()->message().join('\n'));
     QCOMPARE(message.toPlainText(),
              QStringLiteral("This note overlaps another note and is ignored"));
-    fixture.moveTo(fixture.pointFor(1800, 66));
+    fixture.hoverAt(fixture.pointFor(1800, 66));
     QTRY_VERIFY(!errorToolTip());
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, badgeCenter(second));
     QTRY_VERIFY(errorToolTip());
@@ -2607,8 +2696,8 @@ void NativeDesktopTests::rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), overlappingProject);
-    fixture.moveTo(fixture.pointFor(1800, 66));
-    fixture.moveTo(badgeCenter(first));
+    fixture.hoverAt(fixture.pointFor(1800, 66));
+    fixture.hoverAt(badgeCenter(first));
     QTRY_VERIFY(errorToolTip());
 }
 
