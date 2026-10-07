@@ -35,6 +35,7 @@
 #include <QFileDialog>
 #include <QDialogButtonBox>
 #include <QPointer>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -76,7 +77,8 @@ namespace {
         QTest::keySequence(editor, QKeySequence::Paste);
     }
 
-    void splitIntoPreview(LyricDialog &dialog, const QString &lyric, const int splitMode) {
+    void splitIntoPreview(LyricDialog &dialog, const QString &lyric, const int splitMode,
+                          const bool singleWord = false) {
         auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
         QVERIFY(base);
         auto *text = base->findChild<FillLyric::PhonicTextEdit *>();
@@ -98,7 +100,8 @@ namespace {
                 return;
         }
         const auto input =
-            splitMode == FillLyric::ByChar
+            singleWord ? lyric
+            : splitMode == FillLyric::ByChar
                 ? QStringLiteral("la")
                 : lyric +
                       (splitMode == FillLyric::Custom ? QStringLiteral(";") : QStringLiteral(" ")) +
@@ -133,16 +136,23 @@ namespace {
         QVERIFY(preview);
         QCOMPARE(preview->cellLists().size(), 1);
         const auto cells = preview->cellLists().first()->m_cells;
-        QCOMPARE(cells.size(), 2);
+        QCOMPARE(cells.size(), singleWord ? 1 : 2);
         QCOMPARE(cells.first()->lyric(),
                  splitMode == FillLyric::ByChar ? QStringLiteral("l") : lyric);
-        QCOMPARE(cells.at(1)->lyric(),
-                 splitMode == FillLyric::ByChar ? QStringLiteral("a") : lyric);
+        if (!singleWord)
+            QCOMPARE(cells.at(1)->lyric(),
+                     splitMode == FillLyric::ByChar ? QStringLiteral("a") : lyric);
         if (splitMode != FillLyric::ByChar) {
             QVERIFY(!cells.first()->syllable().isEmpty());
             QVERIFY2(!cells.first()->note()->g2pId.isEmpty() &&
                          cells.first()->note()->g2pId != QLatin1String(kUnknownG2pId),
                      "Preview must contain a successful language-service result");
+        }
+        if (singleWord) {
+            const auto output = dialog.exportLangNotes();
+            QCOMPARE(output.langNotes.size(), 1);
+            QCOMPARE(output.langNotes.first().lyric, lyric);
+            return;
         }
 
         bool edited = false;
@@ -218,7 +228,7 @@ namespace {
     }
 }
 
-void ApplicationGuiTests::createLyricSelection(const int firstTick) {
+void ApplicationGuiTests::createLyricSelection(const int firstTick, const bool includeSlur) {
     QTRY_COMPARE(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
     QTRY_COMPARE(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready);
     QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
@@ -247,7 +257,7 @@ void ApplicationGuiTests::createLyricSelection(const int firstTick) {
         note.localStart = firstTick + index * 480;
         note.length = 480;
         note.keyIndex = 60;
-        note.lyric = TestSupport::fixtureLyric();
+        note.lyric = includeSlur && index == 1 ? QStringLiteral("-") : TestSupport::fixtureLyric();
         note.language = TestSupport::fixtureLanguage();
         notes.append(note);
     }
@@ -257,7 +267,7 @@ void ApplicationGuiTests::createLyricSelection(const int firstTick) {
     QCOMPARE(singingClip->notes().count(), 3);
     QList<int> selected;
     for (const auto *note : singingClip->notes()) {
-        if (selected.size() < 2)
+        if (includeSlur || selected.size() < 2)
             selected.append(note->id());
     }
     appStatus->selectedNotes = selected;
@@ -277,19 +287,23 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel_data() {
     QTest::addColumn<bool>("accept");
     QTest::addColumn<bool>("fromLrc");
     QTest::addColumn<int>("splitMode");
-    QTest::newRow("preview-import") << true << false << int(FillLyric::Auto);
-    QTest::newRow("preview-cancel") << false << false << int(FillLyric::Auto);
-    QTest::newRow("lrc-with-folded-preview") << true << true << int(FillLyric::Auto);
-    QTest::newRow("by-character-import") << true << false << int(FillLyric::ByChar);
-    QTest::newRow("custom-splitter-import") << true << false << int(FillLyric::Custom);
-    QTest::newRow("custom-splitter-cancel") << false << false << int(FillLyric::Custom);
+    QTest::addColumn<bool>("preserveSlurs");
+    QTest::newRow("preview-import") << true << false << int(FillLyric::Auto) << false;
+    QTest::newRow("preview-cancel") << false << false << int(FillLyric::Auto) << false;
+    QTest::newRow("lrc-with-folded-preview") << true << true << int(FillLyric::Auto) << false;
+    QTest::newRow("by-character-import") << true << false << int(FillLyric::ByChar) << false;
+    QTest::newRow("custom-splitter-import") << true << false << int(FillLyric::Custom) << false;
+    QTest::newRow("custom-splitter-cancel") << false << false << int(FillLyric::Custom) << false;
+    QTest::newRow("short-input-preserves-slur-and-remaining-note")
+        << true << false << int(FillLyric::Auto) << true;
 }
 
 void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     QFETCH(bool, accept);
     QFETCH(bool, fromLrc);
     QFETCH(int, splitMode);
-    createLyricSelection();
+    QFETCH(bool, preserveSlurs);
+    createLyricSelection(0, preserveSlurs);
     if (QTest::currentTestFailed())
         return;
     auto &runtime = *context->m_coreRuntime;
@@ -300,7 +314,7 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     auto settings = original;
     settings.baseVisible = true;
     settings.extensionVisible = true;
-    settings.skipSlur = false;
+    settings.skipSlur = preserveSlurs;
     settings.splitMode = FillLyric::Auto;
     QVERIFY(runtime.settings().updateFillLyric({}, settings));
     QTemporaryDir files;
@@ -321,6 +335,10 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     const auto before = runtime.documentVersion();
     const auto selected = appStatus->selectedNotes.get();
     const auto contentBeforeDialog = TestSupport::projectSnapshot(*context->m_appModel);
+    QHash<int, QString> originalLyrics;
+    for (const auto *note : singingClip->notes())
+        originalLyrics.insert(note->id(), note->lyric());
+    const auto inputLyric = preserveSlurs ? QStringLiteral("hello") : TestSupport::fixtureLyric();
     bool interacted = false;
     QTimer operateDialog;
     operateDialog.setInterval(10);
@@ -409,7 +427,7 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
             QVERIFY(updated);
             QVERIFY(!updated.get().fillLyric.extensionVisible);
         } else {
-            splitIntoPreview(*dialog, TestSupport::fixtureLyric(), splitMode);
+            splitIntoPreview(*dialog, inputLyric, splitMode, preserveSlurs);
             if (QTest::currentTestFailed())
                 return;
             auto *preview = dialog->findChild<FillLyric::LyricWrapView *>();
@@ -453,8 +471,7 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
         QCOMPARE(reopened.fillLyric()->splitMode, splitMode);
         QCOMPARE(runtime.documentVersion(), before);
         QVERIFY(!historyManager->canUndo());
-        for (const auto *note : singingClip->notes())
-            QCOMPARE(note->lyric(), TestSupport::fixtureLyric());
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDialog);
         auto *button = buttonWithText(dialog, LyricDialog::tr(accept ? "&Import" : "&Cancel"));
         QVERIFY(button);
         QTest::mouseClick(button, Qt::LeftButton);
@@ -467,23 +484,24 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(singingClip->notes().count(), 3);
-    const auto firstLyric =
-        splitMode == FillLyric::ByChar ? QStringLiteral("l") : TestSupport::fixtureLyric();
+    const auto firstLyric = splitMode == FillLyric::ByChar ? QStringLiteral("l") : inputLyric;
     for (const auto *note : singingClip->notes()) {
-        const auto expected = !accept || !selected.contains(note->id())
-                                  ? TestSupport::fixtureLyric()
+        const bool replaced =
+            selected.contains(note->id()) && (!preserveSlurs || note->id() == selected.first());
+        const auto expected = !accept || !replaced           ? originalLyrics.value(note->id())
                               : note->id() == selected.at(1) ? QStringLiteral("-")
                                                              : firstLyric;
         QCOMPARE(note->lyric(), expected);
     }
     if (accept) {
+        const auto committed = TestSupport::projectSnapshot(*context->m_appModel);
         QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
         QVERIFY(historyManager->canUndo());
         historyManager->undo();
-        for (const auto *note : singingClip->notes())
-            QCOMPARE(note->lyric(), TestSupport::fixtureLyric());
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDialog);
         QVERIFY(!historyManager->canUndo());
         historyManager->redo();
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), committed);
         QCOMPARE(singingClip->findNoteById(selected.first())->lyric(), firstLyric);
         QCOMPARE(singingClip->findNoteById(selected.at(1))->lyric(), QStringLiteral("-"));
     } else {
