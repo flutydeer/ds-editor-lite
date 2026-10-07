@@ -293,6 +293,16 @@ void AutomationProtocolTests::schemaValueDiagnostics_data() {
     const auto musicalSymbol = QString::fromUcs4(U"\U0001f3b5");
     row("unicode-code-point-length", JsonSchema::string({}, 1, 1), musicalSymbol,
         musicalSymbol + musicalSymbol, QStringLiteral("#/maxLength"));
+    row("empty-text", JsonSchema::string({}, 1), QStringLiteral("name"), QString(),
+        QStringLiteral("#/minLength"));
+    auto uuid = JsonSchema::string();
+    uuid.insert(QStringLiteral("format"), QStringLiteral("uuid"));
+    row("uuid-format", uuid, QStringLiteral("3b8b5205-8011-46c7-b0d3-7ae498407afe"),
+        QStringLiteral("not-a-uuid"), QStringLiteral("#/format"));
+    const auto boundedItems = JsonSchema::array(JsonSchema::integer(), 1, 2);
+    row("empty-array", boundedItems, QJsonArray{1}, QJsonArray{}, QStringLiteral("#/minItems"));
+    row("oversized-array", boundedItems, QJsonArray{1, 2}, QJsonArray{1, 2, 3},
+        QStringLiteral("#/maxItems"));
     auto identifier = JsonSchema::string();
     identifier.insert(QStringLiteral("pattern"), QStringLiteral("^[a-z]+-[0-9]+$"));
     row("text-pattern", identifier, QStringLiteral("take-12"), QStringLiteral("take"),
