@@ -1270,6 +1270,9 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession_data() {
     QTest::newRow("phoneme-replaced-by-lyric-edit") << true << QStringLiteral("edit-lyric");
     QTest::newRow("pronunciation-document-replaced") << false << QStringLiteral("replace-document");
     QTest::newRow("phoneme-clip-removed") << true << QStringLiteral("remove-clip");
+    QTest::newRow("pronunciation-language-service-failed")
+        << false << QStringLiteral("module-error");
+    QTest::newRow("phoneme-language-service-failed") << true << QStringLiteral("module-error");
 }
 
 void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
@@ -1405,6 +1408,48 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
                 taskManager->tasks().isEmpty(),
             15000);
         QVERIFY(runtime().documentVersion().revision > stageBase.revision);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
+        return;
+    }
+
+    if (completion == QStringLiteral("module-error")) {
+        const auto settings = runtime().settings().getSettings();
+        QVERIFY(settings);
+        const auto previousLanguage = settings.get().g2pLanguage;
+        const auto previousStatus = appStatus->languageModuleStatus.get();
+        const auto restoreLanguage = qScopeGuard([&] {
+            runtime().settings().updateG2pLanguage({}, previousLanguage);
+            appStatus->languageModuleStatus = previousStatus;
+        });
+        const auto beforeFailure = TestSupport::projectSnapshot(*context->m_appModel);
+        QTest::ignoreMessage(QtCriticalMsg,
+                             "Failed to start the language module; tasks have been canceled.");
+        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+        QCOMPARE(runtime().documentVersion(), stageBase);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeFailure);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        editSessionManager->endTransaction(editSessionId, EditSessionEndReason::Discard);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCoreApplication::processEvents();
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QVERIFY(targetNote->phonemes().nameSeq.original.isEmpty());
+        if (!phonemeStage)
+            QVERIFY(targetNote->pronunciation().original.isEmpty());
+        QCOMPARE(runtime().documentVersion(), stageBase);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeFailure);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+
+        QVERIFY(runtime().settings().updateG2pLanguage({}, previousLanguage));
+        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
+        QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(targetClip), 15000);
+        QVERIFY(!targetNote->phonemes().nameSeq.original.isEmpty());
+        if (phonemeStage)
+            QCOMPARE(targetNote->phonemes().nameSeq.original, expectedPhonemes);
+        else
+            QCOMPARE(targetNote->pronunciation().original, expectedPronunciation);
+        QCOMPARE(targetNote->lyric(), draftNote.lyric);
+        QCOMPARE(targetClip->findNoteById(targetNoteId), targetNote.data());
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
         return;
     }
