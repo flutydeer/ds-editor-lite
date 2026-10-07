@@ -3,11 +3,9 @@
 #include <lite/GUI/Controls/CardView.h>
 
 #include <QFile>
-#include <QFutureWatcher>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QString>
-#include <qtconcurrentrun.h>
 #include <QTextStream>
 
 ReadMeCard::ReadMeCard(QWidget *parent) : OptionsCard(parent) {
@@ -34,29 +32,17 @@ void ReadMeCard::onDataContextChanged(const QString &dataContext) {
         return;
     }
 
-    lbReadMe->setText(tr("Loading..."));
-
-    auto *watcher = new QFutureWatcher<QString>(this);
-    connect(watcher, &QFutureWatcher<QString>::finished, this, [=, this]() {
-        lbReadMe->setText(watcher->result());
-        watcher->deleteLater();
-    });
-
-    QFuture<QString> future = QtConcurrent::run([dataContext]() {
-        QFile file(dataContext);
-        // Check if file size exceeds 64KiB
-        if (file.size() > 64 * 1024) {
-            return QObject::tr("File is too large to read.");
-        }
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&file);
-            QString content = in.readAll();
-            file.close();
-            return content;
-        } else {
-            return QObject::tr("Failed to open file.");
-        }
-    });
-
-    watcher->setFuture(future);
+    QFile file(dataContext);
+    // Check if file size exceeds 64KiB
+    if (file.size() > 64 * 1024) {
+        lbReadMe->setText(tr("File is too large to read."));
+        return;
+    }
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        lbReadMe->setText(in.readAll());
+        file.close();
+    } else {
+        lbReadMe->setText(tr("Failed to open file."));
+    }
 }
