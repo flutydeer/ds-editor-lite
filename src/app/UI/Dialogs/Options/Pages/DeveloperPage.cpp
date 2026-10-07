@@ -366,10 +366,16 @@ QWidget *DeveloperPage::createContentWidget() {
     inferStateCard->setMinimumHeight(500);
 
     const auto mainLayout = new QVBoxLayout();
-    mainLayout->addWidget(appDataCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(diagnosticsCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(experimentalCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(inferStateCard, 1, Qt::AlignTop);
+    // No Qt::AlignTop on any item: an alignment would pin the item to its
+    // size hint inside its cell, so the surplus height of the page (its
+    // viewport is usually taller than the cards' content) would be left
+    // unpainted below the last card. Leaving the items unaligned lets the
+    // stretch item (the inference state card) grow into that space, so the
+    // page always ends flush with the last card.
+    mainLayout->addWidget(appDataCard, 0);
+    mainLayout->addWidget(diagnosticsCard, 0);
+    mainLayout->addWidget(experimentalCard, 0);
+    mainLayout->addWidget(inferStateCard, 1);
     mainLayout->setContentsMargins({});
 
     widget->setLayout(mainLayout);

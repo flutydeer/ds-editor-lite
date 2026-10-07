@@ -407,10 +407,16 @@ QWidget *InferencePage::createContentWidget() {
 
     // Main Layout
     const auto mainLayout = new QVBoxLayout();
-    mainLayout->addWidget(m_deviceCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(singerSessionCacheCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(cacheCard, 0, Qt::AlignTop);
+    // No Qt::AlignTop: an alignment pins each card to its size hint inside its
+    // cell, so the surplus height of a tall viewport is spread into the cells
+    // and shows up as inflated gaps between the cards. The trailing stretch
+    // takes that space instead, keeping the 12px card spacing (same structure
+    // as the other option pages).
+    mainLayout->addWidget(m_deviceCard);
+    mainLayout->addWidget(renderCard);
+    mainLayout->addWidget(singerSessionCacheCard);
+    mainLayout->addWidget(cacheCard);
+    mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
     widget->setLayout(mainLayout);
