@@ -75,6 +75,7 @@ private slots:
     void pronunciationMenuChangesOnlyTheClickedNote();
     void phonemeBoundaryDragCommitsAndUndoRestoresOffsets();
     void phonemeWaveformsLoadAndDiscardResultsAfterChangingClips();
+    void inferenceErrorBadgesExplainOverlapsAndFollowUndo_data();
     void inferenceErrorBadgesExplainOverlapsAndFollowUndo();
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();

@@ -8,6 +8,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.h"
+#include "UI/Views/Common/TimelineView.h"
 
 #include <lite/GUI/Controls/ToolTip.h>
 #include <lite/History/HistoryManager.h>
@@ -32,7 +33,14 @@ namespace {
     }
 }
 
+void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo_data() {
+    QTest::addColumn<bool>("allNotesOverlap");
+    QTest::newRow("partially-overlapping-phrase") << false;
+    QTest::newRow("entire-phrase-excluded") << true;
+}
+
 void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
+    QFETCH(bool, allNotesOverlap);
     createLyricSelection(480);
     if (QTest::currentTestFailed())
         return;
@@ -52,18 +60,36 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
             .boundingRect();
     QVERIFY(view->viewport()->rect().contains(badgeRect));
     const auto cleanBadge = view->viewport()->grab(badgeRect).toImage();
+    TimelineView timeline;
+    timeline.resize(900, 40);
+    const auto timelineStart = singingClip->start();
+    timeline.setTimeRange(timelineStart, timelineStart + 3840);
+    timeline.setDataContext(singingClip);
+    const auto indicatorColor = [&] {
+        const auto image = timeline.grab().toImage();
+        return image.pixelColor(qRound(720.0 * image.width() / 3840), image.height() - 1);
+    };
+    const auto cleanIndicator = indicatorColor();
+    const auto failedIndicator = timeline.property("pieceFailedColor").value<QColor>();
+    QVERIFY(cleanIndicator != failedIndicator);
     const auto cleanProject = TestSupport::projectSnapshot(*context->m_appModel);
     const auto initialVersion = runtime.documentVersion();
     const auto inferenceSettled = [&] {
-        return !singingClip->pieces().isEmpty() && taskManager->tasks().isEmpty() &&
-               std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
+        if (!taskManager->tasks().isEmpty())
+            return false;
+        if (singingClip->pieces().isEmpty())
+            return allNotesOverlap && singingClip->noteInferenceErrors().size() == notes.size();
+        return std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
                            [](const InferPiece *piece) {
                                return piece->state == QStringLiteral("Acoustic.Awaiting") ||
                                       piece->state == QStringLiteral("Ready");
                            });
     };
+    QList<Automation::NoteId> moved{Automation::NoteId(second->id())};
+    if (allNotesOverlap)
+        moved.append(Automation::NoteId(third->id()));
     QVERIFY(runtime.notes().moveNotes(commandContext(), Automation::ClipId(singingClip->id()),
-                                      {Automation::NoteId(second->id())}, -240, 0));
+                                      moved, allNotesOverlap ? -600 : -240, 0));
     QCOMPARE(runtime.documentVersion().revision, initialVersion.revision + 1);
     const auto *editEntry = historyManager->nextUndoEntry();
     QVERIFY(editEntry);
@@ -73,11 +99,16 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
                              15000);
     QCOMPARE(singingClip->noteInferenceErrors().value(first->id()).reason,
              SliceExclusionReason::Overlapped);
-    QVERIFY(!singingClip->noteInferenceErrors().contains(third->id()));
+    QCOMPARE(singingClip->noteInferenceErrors().contains(third->id()), allNotesOverlap);
     QVERIFY(firstItem->hasInferenceError());
     QVERIFY(sceneNote(second->id())->hasInferenceError());
-    QVERIFY(!sceneNote(third->id())->hasInferenceError());
+    QCOMPARE(sceneNote(third->id())->hasInferenceError(), allNotesOverlap);
     QVERIFY(view->viewport()->grab(badgeRect).toImage() != cleanBadge);
+    if (allNotesOverlap) {
+        QVERIFY(singingClip->pieces().isEmpty());
+        QVERIFY(!singingClip->skippedPhraseRanges().isEmpty());
+        QTRY_COMPARE(indicatorColor(), failedIndicator);
+    }
     QCOMPARE(historyManager->nextUndoEntry(), editEntry);
     const auto overlappingVersion = runtime.documentVersion();
     const auto overlappingProject = TestSupport::projectSnapshot(*context->m_appModel);
@@ -113,11 +144,20 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     QVERIFY(!firstItem->hasInferenceError());
     QVERIFY(!sceneNote(second->id())->hasInferenceError());
     QTRY_VERIFY(!visibleErrorToolTip());
+    if (allNotesOverlap) {
+        QVERIFY(singingClip->skippedPhraseRanges().isEmpty());
+        QTRY_COMPARE(indicatorColor(), cleanIndicator);
+    }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), cleanProject);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
     QTRY_VERIFY_WITH_TIMEOUT(
         singingClip->noteInferenceErrors().contains(first->id()) && inferenceSettled(), 15000);
     QVERIFY(firstItem->hasInferenceError());
+    if (allNotesOverlap) {
+        QVERIFY(singingClip->pieces().isEmpty());
+        QVERIFY(!singingClip->skippedPhraseRanges().isEmpty());
+        QTRY_COMPARE(indicatorColor(), failedIndicator);
+    }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), overlappingProject);
 }
