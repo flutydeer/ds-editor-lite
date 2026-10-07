@@ -463,6 +463,45 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QVERIFY(historyManager->isOnSavePoint());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 2);
 
+    if (useTouch) {
+        const auto beforeNavigation = runtime.documentVersion();
+        const auto initialScroll = editor.view.horizontalBarValue();
+        QSignalSpy panRequested(&editor.view, &ParamEditorGraphicsView::horizontalPanRequested);
+        touch.press(0, press).commit();
+        touchPressed = true;
+        touch.release(0, press).commit();
+        touchPressed = false;
+        QCOMPARE(started.count(), 1);
+        QCOMPARE(committed.count(), 1);
+        QVERIFY(panRequested.isEmpty());
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+
+        const auto panEnd = press + QPoint(-90, 0);
+        QVERIFY(editor.view.viewport()->rect().contains(panEnd));
+        touch.press(0, press).commit();
+        touchPressed = true;
+        touch.move(0, press + QPoint(-30, 0)).commit();
+        touch.move(0, panEnd).commit();
+        QTRY_VERIFY(!panRequested.isEmpty());
+        double panPixels = 0;
+        for (const auto &arguments : panRequested)
+            panPixels += arguments.first().toDouble();
+        QCOMPARE(panPixels, double(panEnd.x() - press.x()));
+        QTouchEvent cancel(QEvent::TouchCancel, device);
+        QApplication::sendEvent(editor.view.viewport(), &cancel);
+        touch.release(0, panEnd).commit();
+        touchPressed = false;
+        QCOMPARE(editor.view.horizontalBarValue(), initialScroll);
+        QCOMPARE(started.count(), 1);
+        QCOMPARE(committed.count(), 1);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(runtime.documentVersion(), beforeNavigation);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(historyManager->canRedo());
+        QVERIFY(historyManager->isOnSavePoint());
+    }
+
     QVERIFY(runtime.history().redo(commandContext()));
     QTRY_COMPARE(parameter->curves(Param::Edited).size(), 1);
     const auto *restored =
