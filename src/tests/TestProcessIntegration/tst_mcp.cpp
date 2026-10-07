@@ -46,6 +46,12 @@ namespace {
         return false;
     }
 
+    bool waitForCleanExit(QProcess &process, const int timeoutMilliseconds) {
+        const auto finished = process.state() == QProcess::NotRunning ||
+                              process.waitForFinished(timeoutMilliseconds);
+        return finished && process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
+    }
+
     QJsonObject requestMeta() {
         return {
             {QStringLiteral("io.modelcontextprotocol/protocolVersion"),
@@ -917,8 +923,7 @@ namespace {
                                          {QStringLiteral("discard_changes"), true}
             },
                                      10000, error);
-            return (result && editor.waitForFinished(15000) &&
-                    editor.exitStatus() == QProcess::NormalExit && editor.exitCode() == 0) ||
+            return (result && waitForCleanExit(editor, 15000)) ||
                    fail(QStringLiteral("Editor fixture did not exit cleanly: %1").arg(error));
         }
     };
@@ -1880,7 +1885,8 @@ namespace {
         return fixture.shutdown();
     }
 
-    bool runGracefulExit(const QString &editorPath, const QString &connectorPath) {
+    bool runGracefulExit(const QString &editorPath, const QString &connectorPath,
+                         const bool observeConnectorExitFirst) {
         EditorConnectorFixture fixture(editorPath, connectorPath,
                                        QStringLiteral("mcp-graceful-exit"));
         if (!fixture.start())
@@ -1943,12 +1949,17 @@ namespace {
                                  : QJsonObject{};
         const auto acceptedExit =
             acceptedExitResult.value(QStringLiteral("structuredContent")).toObject();
+        if (observeConnectorExitFirst &&
+            !waitUntil([&] { return connector.state() == QProcess::NotRunning; }, 5000)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Connector did not finish after its final response"));
+        }
         if (!acceptedExitResponse || acceptedExitResponse->contains(QStringLiteral("error")) ||
             acceptedExitResult.value(QStringLiteral("isError")).toBool() ||
             !acceptedExit.value(QStringLiteral("accepted")).toBool() ||
             acceptedExit.value(QStringLiteral("action")).toString() != QStringLiteral("exit") ||
             !acceptedExit.value(QStringLiteral("discard_changes")).toBool() ||
-            !connector.waitForFinished(5000) || !editor.waitForFinished(15000)) {
+            !waitForCleanExit(connector, 5000) || !waitForCleanExit(editor, 15000)) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Forced graceful editor exit did not complete: %1")
                     .arg(acceptedExitResponse ? compactJson(*acceptedExitResponse)
@@ -1980,6 +1991,13 @@ void ProcessIntegrationTests::documentLifecycle() {
     QVERIFY(runDocumentLifecycle(editorPath, connectorPath));
 }
 
+void ProcessIntegrationTests::gracefulExit_data() {
+    QTest::addColumn<bool>("observeConnectorExitFirst");
+    QTest::newRow("wait-after-response") << false;
+    QTest::newRow("connector-already-finished") << true;
+}
+
 void ProcessIntegrationTests::gracefulExit() {
-    QVERIFY(runGracefulExit(editorPath, connectorPath));
+    QFETCH(bool, observeConnectorExitFirst);
+    QVERIFY(runGracefulExit(editorPath, connectorPath, observeConnectorExitFirst));
 }

@@ -25,5 +25,6 @@ private slots:
     void legacyConnector();
     void legacyEditor();
     void documentLifecycle();
+    void gracefulExit_data();
     void gracefulExit();
 };
