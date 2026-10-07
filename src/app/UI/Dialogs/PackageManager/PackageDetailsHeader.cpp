@@ -52,7 +52,10 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
     layout->addLayout(detailsLayout);
     layout->addStretch();
     layout->addLayout(actionsLayout);
-    layout->setContentsMargins({16, 16, 16, 16});
+    // The details column root layout has no side margins (the scroll area must
+    // span the column edge to edge), so the header carries the column's 12px
+    // side insets on top of its own 16px padding.
+    layout->setContentsMargins({28, 16, 28, 16});
     layout->setSpacing(0);
 
     setContentsMargins({});

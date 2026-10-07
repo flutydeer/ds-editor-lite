@@ -277,7 +277,12 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto contentLayout = new QVBoxLayout;
     contentLayout->addWidget(detailsContent);
     contentLayout->addStretch();
-    contentLayout->setContentsMargins({});
+    // The scroll viewport spans the details column edge to edge: the column's
+    // 12px side margins live here so the whole area around the cards (gutters
+    // included) is part of the scrollable page, and the overlay scrollbar pins
+    // to the window's right edge. The margins are scrollable content - a gap
+    // on the root layout would stay visible under the header while scrolled.
+    contentLayout->setContentsMargins({12, 12, 12, 12});
     contentLayout->setSpacing(0);
 
     auto contentWidget = new QWidget;
@@ -310,8 +315,11 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(detailsHeader);
     mainLayout->addWidget(detailsPanelContent);
-    mainLayout->setContentsMargins({12, 0, 12, 0});
-    mainLayout->setSpacing(12);
+    // No side margins and no spacing here: the scroll area must span the
+    // column edge to edge and sit flush under the header (see contentLayout
+    // above); the header carries its own side margins.
+    mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(0);
 
     auto detailsWidget = new QWidget;
     detailsWidget->setObjectName("PackageManagerDialogDetailsWidget");
