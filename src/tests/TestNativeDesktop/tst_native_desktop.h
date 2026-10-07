@@ -58,6 +58,7 @@ private slots:
     void rhiPianoNavigationInputsReachTheActiveViewport();
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();
     void rhiPitchModulationUsesTheInferredBaseline();
+    void rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiAnchorSelectionMovesTheGroupAtomically_data();

@@ -18,6 +18,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
@@ -116,6 +117,47 @@ namespace {
         Automation::CommandContext command() const {
             return {.expected = runtime().documentVersion(),
                     .source = Automation::InvocationSource::Test};
+        }
+
+        void configureInference() {
+            const auto root = TestSupport::voicebankRoot();
+            QVERIFY2(QFileInfo(root).isAbsolute() && QFileInfo(root).isDir(), qPrintable(root));
+            QVERIFY(!TestSupport::fixtureLanguage().isEmpty());
+            QVERIFY(!TestSupport::fixtureLyric().isEmpty());
+            packageManager->initialize({root});
+            QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(),
+                                      AppStatus::ModuleStatus::Ready, 10000);
+            SingerInfo singer;
+            for (const auto &package : packageManager->installedPackages().successfulPackages)
+                for (const auto &candidate : package.singers())
+                    if (candidate.singerId() == TestSupport::fixtureSingerId())
+                        singer = candidate;
+            QVERIFY(!singer.isEmpty() && !singer.speakers().isEmpty());
+            const auto clipId = Automation::ClipId(clip->id());
+            QVERIFY(runtime().parameters().selectClipSingleSpeaker(command(), clipId, singer,
+                                                                   singer.speakers().first()));
+            QVERIFY(runtime().notes().patchWordProperties(
+                command(), clipId,
+                {
+                    {.noteId = Automation::NoteId(noteId),
+                     .lyric = TestSupport::fixtureLyric(),
+                     .language = TestSupport::fixtureLanguage()}
+            }));
+            QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
+        }
+
+        bool inferenceSettled() const {
+            qsizetype includedNotes = 0;
+            for (const auto *piece : clip->pieces())
+                includedNotes += piece->notes.size();
+            return !clip->pieces().isEmpty() &&
+                   includedNotes + clip->noteInferenceErrors().size() == clip->notes().count() &&
+                   taskManager->tasks().isEmpty() &&
+                   std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
+                               [](const InferPiece *piece) {
+                                   return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                          piece->state == QStringLiteral("Ready");
+                               });
         }
 
         void initialize(const int clipLength = 3840) {
@@ -2463,46 +2505,126 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
+void NativeDesktopTests::rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
-    const auto root = TestSupport::voicebankRoot();
-    QVERIFY2(QFileInfo(root).isAbsolute() && QFileInfo(root).isDir(), qPrintable(root));
-    QVERIFY(!TestSupport::fixtureLanguage().isEmpty() && !TestSupport::fixtureLyric().isEmpty());
     ExistingRhiNoteFixture fixture;
     fixture.initialize();
     if (QTest::currentTestFailed())
         return;
-    packageManager->initialize({root});
-    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
-                              10000);
-    SingerInfo singer;
-    for (const auto &package : packageManager->installedPackages().successfulPackages) {
-        for (const auto &candidate : package.singers()) {
-            if (candidate.singerId() == TestSupport::fixtureSingerId())
-                singer = candidate;
-        }
-    }
-    QVERIFY(!singer.isEmpty() && !singer.speakers().isEmpty());
+    fixture.configureInference();
+    if (QTest::currentTestFailed())
+        return;
     auto &runtime = fixture.runtime();
     const auto clipId = Automation::ClipId(fixture.clip->id());
-    QVERIFY(runtime.parameters().selectClipSingleSpeaker(fixture.command(), clipId, singer,
-                                                         singer.speakers().first()));
-    QVERIFY(runtime.notes().patchWordProperties(fixture.command(), clipId,
-                                                {
-                                                    {.noteId = Automation::NoteId(fixture.noteId),
-                                                     .lyric = TestSupport::fixtureLyric(),
-                                                     .language = TestSupport::fixtureLanguage()}
-    }));
-    const auto settled = [&] {
-        return !fixture.clip->pieces().isEmpty() &&
-               std::all_of(fixture.clip->pieces().cbegin(), fixture.clip->pieces().cend(),
-                           [](const InferPiece *piece) {
-                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
-                                      piece->state == QStringLiteral("Ready");
-                           }) &&
-               taskManager->tasks().isEmpty();
+    QList<Automation::NoteDraftDto> additional;
+    for (const auto tick : {960, 1440}) {
+        Automation::NoteDraftDto note;
+        note.localStart = tick;
+        note.length = 480;
+        note.keyIndex = 60;
+        note.lyric = TestSupport::fixtureLyric();
+        note.language = TestSupport::fixtureLanguage();
+        additional.append(note);
+    }
+    QVERIFY(runtime.notes().insertNotes(fixture.command(), clipId, additional));
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.inferenceSettled(), 15000);
+    QCOMPARE(fixture.clip->notes().count(), 3);
+    QVERIFY(fixture.clip->noteInferenceErrors().isEmpty());
+    const auto notes = fixture.clip->notes().toList();
+    const auto *first = notes.at(0);
+    const auto *second = notes.at(1);
+    const auto *third = notes.at(2);
+    historyManager->reset();
+    const auto cleanProject = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto initialVersion = runtime.documentVersion();
+    QVERIFY(runtime.notes().moveNotes(fixture.command(), clipId, {Automation::NoteId(second->id())},
+                                      -240, 0));
+    QCOMPARE(runtime.documentVersion().revision, initialVersion.revision + 1);
+    const auto *editEntry = historyManager->nextUndoEntry();
+    QVERIFY(editEntry);
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.clip->noteInferenceErrors().contains(first->id()) &&
+                                 fixture.clip->noteInferenceErrors().contains(second->id()) &&
+                                 fixture.inferenceSettled(),
+                             15000);
+    QCOMPARE(fixture.clip->noteInferenceErrors().value(first->id()).reason,
+             SliceExclusionReason::Overlapped);
+    QVERIFY(!fixture.clip->noteInferenceErrors().contains(third->id()));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    const auto badgeCenter = [&](const Note *note) {
+        const auto topLeft = fixture.pointFor(note->localStart(), note->keyIndex() + 0.5);
+        const auto topRight =
+            fixture.pointFor(note->localStart() + note->length(), note->keyIndex() + 0.5);
+        const QRectF rect(topLeft, QSizeF(topRight.x() - topLeft.x(),
+                                          ClipEditorGlobal::noteHeight * canvas.scaleY()));
+        return PianoRollGraphicsViewHelper::noteErrorBadgeRect(rect).center().toPoint();
     };
+    const auto errorToolTip = [&]() -> ToolTip * {
+        for (auto *tip : canvas.findChildren<ToolTip *>()) {
+            QTextDocument text;
+            text.setHtml(tip->title());
+            if (tip->isVisible() && text.toPlainText() == QStringLiteral("Overlapping note"))
+                return tip;
+        }
+        return nullptr;
+    };
+    const auto overlappingVersion = runtime.documentVersion();
+    const auto overlappingProject = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto selected = appStatus->selectedNotes.get();
+    fixture.moveTo(fixture.pointFor(1800, 66));
+    fixture.moveTo(badgeCenter(first));
+    QTRY_VERIFY2(errorToolTip(), qPrintable(recentInput.join('\n')));
+    QTextDocument message;
+    message.setHtml(errorToolTip()->message().join('\n'));
+    QCOMPARE(message.toPlainText(),
+             QStringLiteral("This note overlaps another note and is ignored"));
+    fixture.moveTo(fixture.pointFor(1800, 66));
+    QTRY_VERIFY(!errorToolTip());
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, badgeCenter(second));
+    QTRY_VERIFY(errorToolTip());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(appStatus->selectedNotes.get(), selected);
+    QCOMPARE(runtime.documentVersion(), overlappingVersion);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), overlappingProject);
+    QCOMPARE(historyManager->nextUndoEntry(), editEntry);
+    QVERIFY(runtime.history().undo(fixture.command()));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        fixture.clip->noteInferenceErrors().isEmpty() && fixture.inferenceSettled(), 15000);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(!errorToolTip());
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), cleanProject);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(fixture.command()));
+    QTRY_VERIFY_WITH_TIMEOUT(fixture.clip->noteInferenceErrors().contains(first->id()) &&
+                                 fixture.inferenceSettled(),
+                             15000);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), overlappingProject);
+    fixture.moveTo(fixture.pointFor(1800, 66));
+    fixture.moveTo(badgeCenter(first));
+    QTRY_VERIFY(errorToolTip());
+}
+
+void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    fixture.configureInference();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = fixture.runtime();
+    const auto clipId = Automation::ClipId(fixture.clip->id());
+    const auto settled = [&] { return fixture.inferenceSettled(); };
     QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
     auto *pitch = fixture.clip->params.getParamByName(ParamInfo::Pitch);
     QVERIFY(pitch && !pitch->curves(Param::Original).isEmpty());
