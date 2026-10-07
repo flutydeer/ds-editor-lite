@@ -40,6 +40,7 @@ private slots:
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
     void pianoTouchDrawingCommitsOrCancels_data();
     void pianoTouchDrawingCommitsOrCancels();
+    void pianoTouchSelectionAndNavigationStayIndependent_data();
     void pianoTouchSelectionAndNavigationStayIndependent();
     void pianoTouchLongPressDefersMenus_data();
     void pianoTouchLongPressDefersMenus();

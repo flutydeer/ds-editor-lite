@@ -8,6 +8,7 @@
 #include "Model/AppOptions/Options/DeveloperOption.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PronunciationView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
@@ -324,13 +325,25 @@ void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels() {
     QCOMPARE(sceneNoteCount(id), 1);
 }
 
+void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent_data() {
+    QTest::addColumn<bool>("pronunciation");
+    QTest::newRow("note-body") << false;
+    QTest::newRow("pronunciation-label") << true;
+}
+
 void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
+    QFETCH(bool, pronunciation);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
     auto &runtime = *context->m_coreRuntime;
     const auto id = insertSelectedNote();
     QVERIFY(id >= 0);
+    if (pronunciation) {
+        QVERIFY(runtime.notes().setPronunciation(
+            commandContext(), Automation::ClipId(singingClip->id()), Automation::NoteId(id), false,
+            QStringLiteral("h eh l ow")));
+    }
     view->setEditMode(ClipEditorGlobal::Select);
     QVERIFY(view->setViewportScale(2.0, 1.0));
     view->setViewportStartTick(0);
@@ -342,7 +355,17 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
     auto sequence = QTest::touchEvent(view->viewport(), device, false);
     const auto cleanup = qScopeGuard([&] { deactivate(*view); });
 
-    const auto unselected = pointFor(600, 62);
+    const auto *noteItem = sceneNote(id);
+    QVERIFY(noteItem);
+    const auto *label = noteItem->pronunciationView();
+    if (pronunciation)
+        QVERIFY(label && label->isVisible());
+    const auto contentPosition = [&] {
+        return pronunciation ? view->mapFromScene(label->sceneBoundingRect().center())
+                             : pointFor(600, 62);
+    };
+    const auto unselected = contentPosition();
+    QVERIFY(view->viewport()->rect().contains(unselected));
     const auto panTo = unselected + QPoint(-50, -40);
     const auto left = view->horizontalBarValue();
     const auto top = view->verticalBarValue();
@@ -375,14 +398,15 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
     view->setViewportStartTick(0);
     view->setViewportCenterAtKeyIndex(64, false);
 
-    const auto selected = pointFor(600, 62);
+    const auto selected = contentPosition();
     QVERIFY(view->viewport()->rect().contains(selected));
     sequence.press(0, selected).commit();
     sequence.release(0, selected).commit();
     QCOMPARE(view->selectedNotesId(), QList<int>{id});
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
-    const auto destination = pointFor(1080, 64);
+    const auto destination = selected + pointFor(1080, 64) - pointFor(600, 62);
+    QVERIFY(view->viewport()->rect().contains(destination));
     sequence.press(0, selected).commit();
     sequence.move(0, destination).commit();
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);

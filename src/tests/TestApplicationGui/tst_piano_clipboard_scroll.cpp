@@ -290,6 +290,12 @@ void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote() {
     appStatus->selectedNotes = QList<int>{notes.last()->id()};
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
+    QTest::mouseClick(canvas->viewport(), Qt::RightButton, Qt::NoModifier, position);
+    QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QVERIFY(!historyManager->canUndo());
     withPianoMenu(piano, *canvas, position, [&](QMenu &menu) {
         QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
         auto *current = actionNamed(menu, first.pronunciation.edited);
