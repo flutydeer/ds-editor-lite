@@ -1273,11 +1273,17 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession_data() {
     QTest::newRow("pronunciation-language-service-failed")
         << false << QStringLiteral("module-error");
     QTest::newRow("phoneme-language-service-failed") << true << QStringLiteral("module-error");
+    QTest::newRow("pronunciation-language-service-failed-before-delivery")
+        << false << QStringLiteral("module-error-before-delivery");
+    QTest::newRow("phoneme-language-service-failed-before-delivery")
+        << true << QStringLiteral("module-error-before-delivery");
 }
 
 void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     QFETCH(bool, phonemeStage);
     QFETCH(QString, completion);
+    const bool failsBeforeDelivery = completion == QStringLiteral("module-error-before-delivery");
+    const bool failsLanguage = failsBeforeDelivery || completion == QStringLiteral("module-error");
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready,
@@ -1328,6 +1334,12 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 
+    const auto settingsBeforeTask = runtime().settings().getSettings();
+    QVERIFY(settingsBeforeTask);
+    const auto previousLanguage = settingsBeforeTask.get().g2pLanguage;
+    const auto previousStatus = appStatus->languageModuleStatus.get();
+    QSemaphore resultReady;
+    bool failureBeforeResult = false;
     quint64 editSessionId = 0;
     int observedTaskId = -1;
     bool resultReceived = false;
@@ -1339,41 +1351,69 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     QObject observations;
     const auto finishSession =
         qScopeGuard([] { editSessionManager->endActiveTransaction(EditSessionEndReason::Cancel); });
-    connect(taskManager, &TaskManager::taskChanged, &observations,
-            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
-                auto *pronunciation = qobject_cast<GetPronunciationTask *>(task);
-                auto *phonemes = qobject_cast<GetPhonemeNameTask *>(task);
-                const bool selected =
-                    phonemeStage ? phonemes && phonemes->clipId() == targetClipId
-                                 : pronunciation && pronunciation->clipId() == targetClipId;
-                if (!selected)
-                    return;
-                if (change == TaskManager::Added && observedTaskId < 0) {
-                    observedTaskId = task->id();
-                    stageBase = runtime().documentVersion();
-                    stageUndo = HistoryManager::instance()->nextUndoEntry();
-                    // TaskManager announces the task before its worker starts.
-                    editSessionId = editSessionManager->beginTransaction(
-                        phonemeStage ? AppStatus::EditObjectType::Phoneme
-                                     : AppStatus::EditObjectType::Note,
-                        targetClipId, {}, {targetNoteId});
-                } else if (change == TaskManager::Removed && task->id() == observedTaskId) {
-                    // The controller has resolved and stored the completed result before queue
-                    // removal.
-                    resultReceived = true;
-                    if (phonemeStage) {
-                        validResult = !task->terminated() && phonemes->success() &&
-                                      phonemes->result.size() == 1 &&
-                                      phonemes->result.first().success;
-                        if (validResult)
-                            expectedPhonemes = phonemes->result.first().phonemeNames;
-                    } else {
-                        validResult = !task->terminated() && pronunciation->result.size() == 1;
-                        if (validResult)
-                            expectedPronunciation = pronunciation->result.first().pronunciation;
-                    }
+    const auto restoreLanguage = qScopeGuard([&] {
+        if (failsLanguage) {
+            QVERIFY(runtime().settings().updateG2pLanguage({}, previousLanguage));
+            appStatus->languageModuleStatus = previousStatus;
+        }
+    });
+    connect(
+        taskManager, &TaskManager::taskChanged, &observations,
+        [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+            auto *pronunciation = qobject_cast<GetPronunciationTask *>(task);
+            auto *phonemes = qobject_cast<GetPhonemeNameTask *>(task);
+            const bool selected = phonemeStage
+                                      ? phonemes && phonemes->clipId() == targetClipId
+                                      : pronunciation && pronunciation->clipId() == targetClipId;
+            if (!selected)
+                return;
+            if (change == TaskManager::Added && observedTaskId < 0) {
+                observedTaskId = task->id();
+                stageBase = runtime().documentVersion();
+                stageUndo = HistoryManager::instance()->nextUndoEntry();
+                // TaskManager announces the task before its worker starts.
+                editSessionId = editSessionManager->beginTransaction(
+                    phonemeStage ? AppStatus::EditObjectType::Phoneme
+                                 : AppStatus::EditObjectType::Note,
+                    targetClipId, {}, {targetNoteId});
+                if (failsBeforeDelivery) {
+                    connect(
+                        task, &Task::finished, &observations, [&] { resultReady.release(); },
+                        Qt::DirectConnection);
+                    // Queue before the worker starts so failure precedes its result delivery.
+                    QMetaObject::invokeMethod(
+                        &observations,
+                        [&] {
+                            if (!resultReady.tryAcquire(1, 10000)) {
+                                QTest::qFail("The language worker did not complete", __FILE__,
+                                             __LINE__);
+                                return;
+                            }
+                            QTest::ignoreMessage(
+                                QtCriticalMsg,
+                                "Failed to start the language module; tasks have been canceled.");
+                            appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+                            failureBeforeResult = true;
+                        },
+                        Qt::QueuedConnection);
                 }
-            });
+            } else if (change == TaskManager::Removed && task->id() == observedTaskId) {
+                // Read completed output before queue cleanup deletes the task.
+                resultReceived = true;
+                if (phonemeStage) {
+                    validResult = (failsBeforeDelivery || !task->terminated()) &&
+                                  phonemes->success() && phonemes->result.size() == 1 &&
+                                  phonemes->result.first().success;
+                    if (validResult)
+                        expectedPhonemes = phonemes->result.first().phonemeNames;
+                } else {
+                    validResult = (failsBeforeDelivery || !task->terminated()) &&
+                                  pronunciation->result.size() == 1;
+                    if (validResult)
+                        expectedPronunciation = pronunciation->result.first().pronunciation;
+                }
+            }
+        });
     QVERIFY(runtime().parameters().selectClipSingleSpeaker(
         commandContext(), Automation::ClipId(targetClipId), singer, singer.speakers().first()));
     QTRY_VERIFY_WITH_TIMEOUT(resultReceived, 15000);
@@ -1412,19 +1452,15 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
         return;
     }
 
-    if (completion == QStringLiteral("module-error")) {
-        const auto settings = runtime().settings().getSettings();
-        QVERIFY(settings);
-        const auto previousLanguage = settings.get().g2pLanguage;
-        const auto previousStatus = appStatus->languageModuleStatus.get();
-        const auto restoreLanguage = qScopeGuard([&] {
-            runtime().settings().updateG2pLanguage({}, previousLanguage);
-            appStatus->languageModuleStatus = previousStatus;
-        });
+    if (failsLanguage) {
         const auto beforeFailure = TestSupport::projectSnapshot(*context->m_appModel);
-        QTest::ignoreMessage(QtCriticalMsg,
-                             "Failed to start the language module; tasks have been canceled.");
-        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+        if (failsBeforeDelivery) {
+            QVERIFY(failureBeforeResult);
+        } else {
+            QTest::ignoreMessage(QtCriticalMsg,
+                                 "Failed to start the language module; tasks have been canceled.");
+            appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+        }
         QCOMPARE(runtime().documentVersion(), stageBase);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeFailure);
         QVERIFY(editSessionManager->hasActiveTransaction());

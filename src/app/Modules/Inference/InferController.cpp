@@ -823,7 +823,8 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
         qDebug() << "Language module is ready. Tasks will be started.";
     } else if (status == AppStatus::ModuleStatus::Error) {
         clearAllPendingApplies("pending-cleared-module-error");
-        m_getPronTasks.disposePendingTasks();
+        m_getPronTasks.cancelAll();
+        m_getPhoneTasks.cancelAll();
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
             runtime->settings().updateG2pLanguage({}, {});
         }
