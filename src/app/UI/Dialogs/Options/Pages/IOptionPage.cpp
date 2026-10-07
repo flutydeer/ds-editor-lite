@@ -31,6 +31,18 @@ void IOptionPage::initializePage() {
     if (auto *layout = widget->layout()) {
         layout->setContentsMargins(16, 16, 16, 16);
         layout->setSpacing(12);
+        // Pages whose content has heightForWidth (word-wrapped option
+        // descriptions) report a minimumSizeHint taller than their real
+        // heightForWidth at the viewport width: a wordWrap QLabel wraps its
+        // text at a heuristic width, so the unwrapped minimum wins.
+        // QScrollArea sizes a resizable page from that minimum
+        // (updateScrollBars: p.expandedTo(min)), which would leave a permanent
+        // unpainted gap below the last card. Pinning the explicit minimum lets
+        // the page height come from heightForWidth alone; the resize above
+        // still keeps it at least as tall as the viewport. Same fix as the
+        // package manager's details page.
+        if (layout->hasHeightForWidth())
+            widget->setMinimumHeight(1);
     }
     setWidget(widget);
 }

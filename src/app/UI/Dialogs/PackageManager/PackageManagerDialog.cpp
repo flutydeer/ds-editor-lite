@@ -19,6 +19,7 @@
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
+#include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListView>
@@ -73,13 +74,27 @@ void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
         return;
     }
     const QModelIndex sourceIndex = proxyModel->mapToSource(current);
+    // Suppress repaints while the cards change content: setText posts its
+    // repaint request ahead of the layout-invalidation chain, so the label
+    // would otherwise be painted with its previous geometry (clipped when the
+    // new text is taller, vertically centered with gaps when it is shorter)
+    // for a frame before the chain unwinds.
+    detailsPanel->setUpdatesEnabled(false);
+    detailsHeader->onPackageChanged(&listModel->getPackage(sourceIndex));
+    detailsContent->onPackageChanged(&listModel->getPackage(sourceIndex));
+    // The card updates above only post their layout-invalidation chain: each
+    // activation posts the next level's LayoutRequest, and sendPostedEvents
+    // does not deliver events posted during its own run, so one pass only
+    // unwinds a single layout level. Drain the whole chain: the stack switch
+    // below lays the details panel out synchronously and must read the new
+    // package's size hints, not the previous package's.
+    for (int i = 0; i < 8; ++i)
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
     if (auto package = &listModel->getPackage(sourceIndex))
         detailsPanel->setCurrentIndex(PackageSelected);
     else
         detailsPanel->setCurrentIndex(PackageUnselected);
-
-    detailsHeader->onPackageChanged(&listModel->getPackage(sourceIndex));
-    detailsContent->onPackageChanged(&listModel->getPackage(sourceIndex));
+    detailsPanel->setUpdatesEnabled(true);
 }
 
 void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) {
@@ -262,13 +277,25 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto contentLayout = new QVBoxLayout;
     contentLayout->addWidget(detailsContent);
     contentLayout->addStretch();
-    contentLayout->setContentsMargins({});
+    // The scroll viewport spans the details column edge to edge: the column's
+    // 12px side margins live here so the whole area around the cards (gutters
+    // included) is part of the scrollable page, and the overlay scrollbar pins
+    // to the window's right edge. The margins are scrollable content - a gap
+    // on the root layout would stay visible under the header while scrolled.
+    contentLayout->setContentsMargins({12, 12, 12, 12});
     contentLayout->setSpacing(0);
 
     auto contentWidget = new QWidget;
     contentWidget->setObjectName("PackageManagerDialogDetailsContentWidget");
     contentWidget->setLayout(contentLayout);
     contentWidget->setContentsMargins({});
+    // A wordWrap QLabel's sizeHint wraps its text at a heuristic ("golden ratio")
+    // width, so the page's minimumSizeHint height ends up taller than its real
+    // heightForWidth at the viewport width. QScrollArea (widgetResizable) starts
+    // sizing the page from that minimum (updateScrollBars: p.expandedTo(min)),
+    // which would leave a permanent gap below the last card. Pin the explicit
+    // minimum down so the page height comes from heightForWidth alone.
+    contentWidget->setMinimumHeight(1);
 
     detailsPanelContent = new QScrollArea;
     detailsPanelContent->setObjectName("PackageManagerDialogDetailsScrollArea");
@@ -288,8 +315,11 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(detailsHeader);
     mainLayout->addWidget(detailsPanelContent);
-    mainLayout->setContentsMargins({12, 0, 12, 0});
-    mainLayout->setSpacing(12);
+    // No side margins and no spacing here: the scroll area must span the
+    // column edge to edge and sit flush under the header (see contentLayout
+    // above); the header carries its own side margins.
+    mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(0);
 
     auto detailsWidget = new QWidget;
     detailsWidget->setObjectName("PackageManagerDialogDetailsWidget");

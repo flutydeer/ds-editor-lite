@@ -5,6 +5,7 @@
 
 class SwitchButton;
 class ComboBox;
+class Button;
 
 class DeveloperPage : public IOptionPage {
     Q_OBJECT
@@ -17,6 +18,9 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    Button *m_btnOpenConfigFolder;
+    Button *m_btnOpenLogFolder;
+    Button *m_btnOpenDumpFolder;
     SwitchButton *m_swEnableDiagnostics;
     SwitchButton *m_swShowLogWindow;
     SwitchButton *m_swShowTimelineDebugInfo;
