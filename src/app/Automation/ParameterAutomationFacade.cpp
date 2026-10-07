@@ -171,34 +171,6 @@ namespace Automation {
                 QStringLiteral("Speaker mix weights do not match the source count"));
         }
 
-        QVector<double> interpolatedSpeakerMixWeights(const SpeakerMixModel::SpeakerMixData &data,
-                                                      const int position) {
-            const auto &keyframes = data.dynamicKeyframes;
-            if (keyframes.isEmpty())
-                return {};
-            if (position <= keyframes.first().tick)
-                return keyframes.first().weights;
-            if (position >= keyframes.last().tick)
-                return keyframes.last().weights;
-            for (int index = 0; index + 1 < keyframes.size(); ++index) {
-                const auto &left = keyframes.at(index);
-                const auto &right = keyframes.at(index + 1);
-                if (position < left.tick || position >= right.tick)
-                    continue;
-                const auto ratio = static_cast<double>(position - left.tick) /
-                                   static_cast<double>(right.tick - left.tick);
-                QVector<double> result;
-                result.reserve(left.weights.size());
-                for (int weightIndex = 0; weightIndex < left.weights.size(); ++weightIndex) {
-                    result.append(
-                        left.weights.at(weightIndex) +
-                        ratio * (right.weights.value(weightIndex) - left.weights.at(weightIndex)));
-                }
-                return SpeakerMixModel::explicitWeightsFromFullWeights(
-                    SpeakerMixModel::fullWeightsFromExplicitWeights(result));
-            }
-            return keyframes.last().weights;
-        }
 
         bool supportedParameter(const ParamInfo::Name name, const Param::Type type) {
             return name >= ParamInfo::Pitch && name <= ParamInfo::ToneShift &&
@@ -1653,7 +1625,10 @@ namespace Automation {
                         return AutomationResult<bool>(converted.getError());
                     stored = converted.get();
                 } else {
-                    stored = interpolatedSpeakerMixWeights(data, position);
+                    stored = SpeakerMixModel::interpolateSpeakerMixWeights(data.dynamicKeyframes,
+                                                                           position);
+                    stored = SpeakerMixModel::explicitWeightsFromFullWeights(
+                        SpeakerMixModel::fullWeightsFromExplicitWeights(stored));
                 }
                 data.dynamicKeyframes.append({position, stored});
                 std::sort(

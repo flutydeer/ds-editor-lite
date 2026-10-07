@@ -149,7 +149,7 @@ RHI 回退场景通过 Qt 渲染失败通知进入生产处理，重复通知合
 | TestMusicTime | tempo/拍号与音乐时间换算、音频时间锚点 | unit。通用 |
 | TestParameters | 重采样、插值支持、曲线轨迹与变换、锚点编辑、音高显示策略 | unit/domain。通用 |
 | TestLyrics | 歌词拆分与规则、音节、文字/发音/音素属性级联 | unit/domain。通用 |
-| TestVoiceAndInference | Speaker Mix、真实声线继承、推理输入转换与校验、会话及推理缓存 | unit/domain。无需模型输出 |
+| TestVoiceAndInference | Speaker Mix、共用动态权重插值的端点/后段/小数时间、真实声线继承、推理输入转换与校验、会话及推理缓存 | unit/domain。无需模型输出 |
 | TestPreferences | 自动化及通用推理配置、语言选择和配置读写行为 | unit。通用 |
 | TestInferenceProviderDefault | 默认编译配置的推理 Provider 选择与约束 | unit。编译宏变体 |
 | TestInferenceProviderCuda | CUDA 编译配置的 Provider 选择与约束 | unit。编译宏变体，不执行 GPU 推理 |

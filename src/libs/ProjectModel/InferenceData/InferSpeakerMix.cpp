@@ -40,38 +40,6 @@ namespace {
         return result;
     }
 
-    QVector<double>
-        interpolateExplicitWeights(const QList<SpeakerMixModel::SpeakerMixKeyframe> &keyframes,
-                                   const int tick) {
-        if (keyframes.isEmpty())
-            return {};
-        if (tick <= keyframes.first().tick)
-            return keyframes.first().weights;
-        if (tick >= keyframes.last().tick)
-            return keyframes.last().weights;
-
-        for (int i = 1; i < keyframes.size(); ++i) {
-            const auto &right = keyframes.at(i);
-            if (tick > right.tick)
-                continue;
-
-            const auto &left = keyframes.at(i - 1);
-            const int span = right.tick - left.tick;
-            if (span <= 0)
-                return right.weights;
-
-            const double ratio = static_cast<double>(tick - left.tick) / span;
-            QVector<double> result;
-            result.reserve(left.weights.size());
-            for (int j = 0; j < left.weights.size(); ++j) {
-                const double leftWeight = left.weights.value(j);
-                const double rightWeight = right.weights.value(j);
-                result.append(leftWeight + (rightWeight - leftWeight) * ratio);
-            }
-            return result;
-        }
-        return keyframes.last().weights;
-    }
 }
 
 bool InferSpeakerMixSource::isValid() const {
@@ -208,8 +176,8 @@ namespace InferSpeakerMixModel {
             const int sampleTick =
                 qRound(timeline.secToTick(startSeconds + intervalSeconds * frame));
             const auto fullWeights = SpeakerMixModel::fullWeightsFromExplicitWeights(
-                interpolateExplicitWeights(normalized.dynamicKeyframes,
-                                           sampleTick - keyframeOriginTick));
+                SpeakerMixModel::interpolateSpeakerMixWeights(normalized.dynamicKeyframes,
+                                                              sampleTick - keyframeOriginTick));
             if (fullWeights.size() != sources.size())
                 return fixedSpeakerMixFromData(normalized, fallbackSpeaker);
             for (int i = 0; i < sources.size(); ++i)

@@ -83,6 +83,30 @@ void VoiceAndInferenceTests::speakerMixWeightConversions() {
         return;
 }
 
+void VoiceAndInferenceTests::speakerMixWeightInterpolation_data() {
+    QTest::addColumn<double>("tick");
+    QTest::addColumn<QVector<double>>("expected");
+    QTest::newRow("before-first-frame") << -2.0 << QVector<double>{0.25, 0.25};
+    QTest::newRow("first-frame") << 0.0 << QVector<double>{0.25, 0.25};
+    QTest::newRow("first-segment") << 2.0 << QVector<double>{0.5, 0.125};
+    QTest::newRow("interior-frame") << 4.0 << QVector<double>{0.75, 0.0};
+    QTest::newRow("later-segment-fractional-tick") << 5.5 << QVector<double>{0.5625, 0.1875};
+    QTest::newRow("last-frame") << 8.0 << QVector<double>{0.25, 0.5};
+    QTest::newRow("after-last-frame") << 10.0 << QVector<double>{0.25, 0.5};
+}
+
+void VoiceAndInferenceTests::speakerMixWeightInterpolation() {
+    QFETCH(double, tick);
+    QFETCH(QVector<double>, expected);
+    const QList<SpeakerMixModel::SpeakerMixKeyframe> keyframes{
+        {0, {0.25, 0.25}, 100},
+        {4, {0.75, 0.0},  101},
+        {8, {0.25, 0.5},  102},
+    };
+    const auto actual = SpeakerMixModel::interpolateSpeakerMixWeights(keyframes, tick);
+    compareVectorNear(actual, expected, __FILE__, __LINE__);
+}
+
 void VoiceAndInferenceTests::speakerMixOverlappingSplitResolution() {
 
     const QVector<double> positions{10.0, 10.0, 10.0, 20.0};
@@ -291,4 +315,15 @@ void VoiceAndInferenceTests::speakerMixDynamicInferenceMix() {
     bypassed.fixedWeights = {0.1};
     QCOMPARE(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, 0, timeline, 0.5),
              fixedSpeakerMixFromData(bypassed, "fallback"));
+
+    auto laterSegments = dynamicMixData();
+    laterSegments.dynamicKeyframes = {{0, {0.2}}, {480, {0.6}}, {960, {0.4}}};
+    const auto sampled =
+        dynamicSpeakerMixFromData(laterSegments, "fallback", 0, 1440, 0, timeline, 0.25);
+    QCOMPARE(sampled.sources.size(), 2);
+    if (!compareVectorNear(sampled.sources.at(0).proportions, {0.2, 0.4, 0.6, 0.5, 0.4, 0.4},
+                           __FILE__, __LINE__) ||
+        !compareVectorNear(sampled.sources.at(1).proportions, {0.8, 0.6, 0.4, 0.5, 0.6, 0.6},
+                           __FILE__, __LINE__))
+        return;
 }

@@ -13,6 +13,8 @@ class VoiceAndInferenceTests final : public QObject {
 
 private slots:
     void speakerMixWeightConversions();
+    void speakerMixWeightInterpolation_data();
+    void speakerMixWeightInterpolation();
     void speakerMixOverlappingSplitResolution();
     void speakerMixNormalizeSpeakerMixData();
     void speakerMixDynamicStatePredicates();

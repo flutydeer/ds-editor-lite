@@ -19,11 +19,7 @@ struct SpeakerMixSpeaker {
     QColor lineColor;
 };
 
-struct SpeakerMixKeyframe {
-    int tick = 0;
-    QList<double> weights;
-    int id = 0;
-};
+using SpeakerMixKeyframe = SpeakerMixModel::SpeakerMixKeyframe;
 
 struct SpeakerMixHitResult {
     int keyframeIndex = -1;
@@ -140,7 +136,7 @@ private:
 
         bool dragging = false;
         QPointF dragStartScenePos;
-        SpeakerMixKeyframe dragStartWeights;
+        SpeakerMixKeyframe dragStartWeights{.id = 0};
         int dragStartTick = 0;
         int dragSplitIndex = -1;
         bool dragSplitResolved = false;

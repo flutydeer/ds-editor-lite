@@ -42,6 +42,9 @@ namespace SpeakerMixModel {
         bool operator!=(const SpeakerMixData &other) const;
     };
 
+    // Keyframes are ordered and store all but the final source's weight.
+    QVector<double> interpolateSpeakerMixWeights(const QList<SpeakerMixKeyframe> &keyframes,
+                                                 double tick);
     SpeakerMixData normalizeSpeakerMixData(const SpeakerMixData &data);
     SpeakerMixData preservePresetSourceAsDirty(const SpeakerMixData &oldData,
                                                SpeakerMixData newData);

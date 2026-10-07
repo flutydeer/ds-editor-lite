@@ -1140,6 +1140,22 @@ void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
     QCOMPARE(frames.size(), 3);
     QCOMPARE(frames.at(1).tick, 480);
     QCOMPARE(frames.at(1).weights, QVector<double>{0.5});
+    const auto beforeLaterInsertion = TestSupport::projectSnapshot(testRuntime.model());
+    const auto beforeLaterVersion = runtime.documentVersion();
+    QVERIFY(parameters.insertSpeakerMixKeyframe(commandContext(runtime), clip, 720));
+    auto laterFrames = mix().dynamicKeyframes;
+    QCOMPARE(laterFrames.at(2).tick, 720);
+    QCOMPARE(laterFrames.at(2).weights, QVector<double>{0.75});
+    laterFrames.removeAt(2);
+    QCOMPARE(laterFrames, frames);
+    QCOMPARE(runtime.documentVersion().revision, beforeLaterVersion.revision + 1);
+    const auto afterLaterInsertion = TestSupport::projectSnapshot(testRuntime.model());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeLaterInsertion);
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), afterLaterInsertion);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeLaterInsertion);
     const auto middle = Automation::SpeakerMixKeyframeId(frames.at(1).id);
     const auto last = Automation::SpeakerMixKeyframeId(frames.last().id);
     QVERIFY(parameters.setSpeakerMixKeyframeWeights(commandContext(runtime), clip, middle,
