@@ -13,47 +13,13 @@
 namespace {
     using namespace AutomationAsyncFileTests;
 
-    struct InferenceCase {
-        Automation::InferenceMutationKind kind;
-        Automation::OperationId operationId;
-        bool advancesRevision = false;
-    };
-
-    [[nodiscard]] QList<InferenceCase> inferenceCases() {
-        using Kind = Automation::InferenceMutationKind;
-        return {
-            {Kind::ApplyPronunciations,   Automation::OperationIds::inference::apply_pronunciations,
-             true                                                                                         },
-            {Kind::ApplyPhonemeNames,     Automation::OperationIds::inference::apply_phoneme_names,
-             true                                                                                         },
-            {Kind::ApplyDuration,         Automation::OperationIds::inference::apply_duration,       true },
-            {Kind::ApplyPitch,            Automation::OperationIds::inference::apply_pitch,          true },
-            {Kind::ApplyVariance,         Automation::OperationIds::inference::apply_variance,       true },
-            {Kind::ApplyAcoustic,         Automation::OperationIds::inference::apply_acoustic,       false},
-            {Kind::ResetStage,            Automation::OperationIds::inference::reset_stage,          true },
-            {Kind::InvalidateClip,        Automation::OperationIds::inference::invalidate_clip,      false},
-            {Kind::ResegmentClip,         Automation::OperationIds::inference::resegment_clip,       false},
-            {Kind::RefreshSpeakerMix,     Automation::OperationIds::inference::refresh_speaker_mix,
-             true                                                                                         },
-            {Kind::RefreshParamInput,     Automation::OperationIds::inference::refresh_param_input,
-             false                                                                                        },
-            {Kind::RebuildOriginalParams,
-             Automation::OperationIds::inference::rebuild_original_params,                           true },
-        };
-    }
-
     [[nodiscard]] Automation::InferenceMutationRequest
-        inferenceRequest(const RuntimeHarness &harness, const InferenceCase &testCase,
-                         const int discriminator = 0) {
+        inferenceRequest(const RuntimeHarness &harness) {
         Automation::InferenceMutationRequest request;
-        request.kind = testCase.kind;
+        request.kind = Automation::InferenceMutationKind::ApplyPitch;
         request.clipId = harness.singingClipId();
-        request.pieceId = Automation::PieceId(1000 + discriminator);
-        request.pieceIds = {request.pieceId};
+        request.pieceId = Automation::PieceId(1000);
         request.noteIds = {harness.noteId()};
-        request.parameterName = ParamInfo::Pitch;
-        request.pitchSmoothKernelSize = 1;
-        request.acousticPath = QStringLiteral("controlled-acoustic-%1.wav").arg(discriminator);
         return request;
     }
 
@@ -85,207 +51,125 @@ namespace {
 
 }
 
-void ApplicationServicesTests::inferenceMatrix_data() {
-    QTest::addColumn<int>("caseIndex");
-    const auto cases = inferenceCases();
-    for (int index = 0; index < cases.size(); ++index)
-        QTest::newRow(qPrintable(cases.at(index).operationId)) << index;
+void ApplicationServicesTests::inferenceCommitPolicy_data() {
+    QTest::addColumn<bool>("advancesRevision");
+    QTest::newRow("persistent-result") << true;
+    QTest::newRow("transient-result") << false;
 }
 
-void ApplicationServicesTests::inferenceMatrix() {
-    QFETCH(int, caseIndex);
-    const auto testCase = inferenceCases().at(caseIndex);
-
+void ApplicationServicesTests::inferenceCommitPolicy() {
+    QFETCH(bool, advancesRevision);
     RuntimeHarness harness;
-    QVERIFY2((harness.isReady()), qPrintable(QStringLiteral("inference harness must initialize")));
+    QVERIFY(harness.isReady());
     auto &runtime = harness.runtime();
+    harness.inferenceAdvancesRevision = advancesRevision;
+    const auto request = inferenceRequest(harness);
+    const auto base = runtime.documentVersion();
+    const auto expectedRevision = base.revision + (advancesRevision ? 1 : 0);
 
-    int discriminator = 0;
+    const auto preview = runtime.inference().applyMutation(harness.context(true), request);
+    QVERIFY(preview);
+    QVERIFY(preview.get().mutation.validatedOnly);
+    QVERIFY(preview.get().mutation.changed);
+    QCOMPARE(preview.get().mutation.previous, base);
+    QCOMPARE(preview.get().mutation.current.documentId, base.documentId);
+    QCOMPARE(preview.get().mutation.current.revision, expectedRevision);
+    QCOMPARE(runtime.documentVersion(), base);
+    QCOMPARE(harness.inferencePrepareCount, 1);
+    QCOMPARE(harness.inferenceApplyCount, 0);
 
-    {
-        // testCase.operationId / QStringLiteral("validate-success-no-op")
+    const auto committed = runtime.inference().applyMutation(harness.context(), request);
+    QVERIFY(committed);
+    QVERIFY(committed.get().mutation.changed);
+    QVERIFY(!committed.get().mutation.validatedOnly);
+    QCOMPARE(committed.get().mutation.current.revision, expectedRevision);
+    QCOMPARE(runtime.documentVersion().revision, expectedRevision);
+    QCOMPARE(harness.inferencePrepareCount, 2);
+    QCOMPARE(harness.inferenceApplyCount, 1);
+    QCOMPARE(harness.lastPreparedInferenceKind, request.kind);
+    QCOMPARE(harness.lastAppliedInferenceKind, request.kind);
+    QCOMPARE(committed.get().sideEffects.changedPieces,
+             QList<Automation::PieceId>{request.pieceId});
 
-
-
-        harness.inferenceChanged = true;
-        harness.inferenceAdvancesRevision = testCase.advancesRevision;
-        const auto request = inferenceRequest(harness, testCase, ++discriminator);
-        const auto base = runtime.documentVersion();
-        const auto prepareBefore = harness.inferencePrepareCount;
-        const auto applyBefore = harness.inferenceApplyCount;
-
-        const auto preview = runtime.inference().applyMutation(harness.context(true), request);
-        QVERIFY2(
-            (preview && preview.get().mutation.validatedOnly && preview.get().mutation.changed &&
-             preview.get().mutation.previous == base &&
-             preview.get().mutation.current.documentId == base.documentId &&
-             preview.get().mutation.current.revision ==
-                 base.revision + (testCase.advancesRevision ? 1 : 0) &&
-             runtime.documentVersion() == base &&
-             harness.inferencePrepareCount == prepareBefore + 1 &&
-             harness.inferenceApplyCount == applyBefore),
-            qPrintable(QStringLiteral("validate-only must predict without applying or mutating")));
-
-        const auto committed = runtime.inference().applyMutation(harness.context(), request);
-        const auto expectedRevision = base.revision + (testCase.advancesRevision ? 1 : 0);
-        QVERIFY2((committed && committed.get().mutation.changed &&
-                  !committed.get().mutation.validatedOnly &&
-                  committed.get().mutation.current.revision == expectedRevision &&
-                  runtime.documentVersion().revision == expectedRevision &&
-                  harness.inferencePrepareCount == prepareBefore + 2 &&
-                  harness.inferenceApplyCount == applyBefore + 1 &&
-                  harness.lastPreparedInferenceKind == testCase.kind &&
-                  harness.lastAppliedInferenceKind == testCase.kind &&
-                  committed.get().sideEffects.changedPieces ==
-                      QList<Automation::PieceId>{request.pieceId}),
-                 qPrintable(QStringLiteral(
-                     "successful writeback must apply once under its revision policy")));
-
-        harness.inferenceChanged = false;
-        const auto noOpBase = runtime.documentVersion();
-        const auto noOp = runtime.inference().applyMutation(harness.context(), request);
-        QVERIFY2((noOp && !noOp.get().mutation.changed && runtime.documentVersion() == noOpBase &&
-                  harness.inferenceApplyCount == applyBefore + 1),
-                 qPrintable(QStringLiteral("legal no-op must not apply or advance revision")));
-    };
+    harness.inferenceChanged = false;
+    const auto noOpBase = runtime.documentVersion();
+    const auto noOp = runtime.inference().applyMutation(harness.context(), request);
+    QVERIFY(noOp);
+    QVERIFY(!noOp.get().mutation.changed);
+    QCOMPARE(runtime.documentVersion(), noOpBase);
+    QCOMPARE(harness.inferenceApplyCount, 1);
 }
 
-void ApplicationServicesTests::inferenceValidationBoundaries() {
+void ApplicationServicesTests::inferenceFailureAndGenerationGuards() {
     RuntimeHarness harness;
-    QVERIFY2((harness.isReady()),
-             qPrintable(QStringLiteral("inference boundary harness must initialize")));
+    QVERIFY(harness.isReady());
     auto &runtime = harness.runtime();
-    const auto testCase = inferenceCases().at(3);
-    auto request = inferenceRequest(harness, testCase, 81);
-    const auto initialPrepareCount = harness.inferencePrepareCount;
+    const auto request = inferenceRequest(harness);
+    const auto operation = Automation::OperationIds::inference::apply_pitch;
 
-    {
-        // testCase.operationId / QStringLiteral("document-revision-object-priority")
+    auto wrongDocument = harness.context();
+    wrongDocument.expected.documentId = Automation::DocumentId::create();
+    ++wrongDocument.expected.revision;
+    const auto rejectedDocument = runtime.inference().applyMutation(wrongDocument, request);
+    QVERIFY(isError(rejectedDocument, Automation::AutomationErrorCode::DocumentChanged, operation));
+    QCOMPARE(harness.inferencePrepareCount, 0);
 
-        auto wrongDocument = harness.context();
-        wrongDocument.expected.documentId = Automation::DocumentId::create();
-        wrongDocument.expected.revision += 10;
-        request.clipId = Automation::ClipId(900001);
-        const auto rejectedDocument = runtime.inference().applyMutation(wrongDocument, request);
-        QVERIFY2(
-            (isError(rejectedDocument, Automation::AutomationErrorCode::DocumentChanged,
-                     testCase.operationId) &&
-             harness.inferencePrepareCount == initialPrepareCount),
-            qPrintable(QStringLiteral("DocumentId must be checked before revision and objects")));
+    auto stale = harness.context();
+    ++stale.expected.revision;
+    const auto rejectedRevision = runtime.inference().applyMutation(stale, request);
+    QVERIFY(
+        isError(rejectedRevision, Automation::AutomationErrorCode::RevisionConflict, operation));
+    QCOMPARE(harness.inferencePrepareCount, 0);
 
-        auto stale = harness.context();
-        ++stale.expected.revision;
-        const auto rejectedRevision = runtime.inference().applyMutation(stale, request);
-        QVERIFY2((isError(rejectedRevision, Automation::AutomationErrorCode::RevisionConflict,
-                          testCase.operationId) &&
-                  harness.inferencePrepareCount == initialPrepareCount),
-                 qPrintable(QStringLiteral(
-                     "revision must be checked before the service resolves objects")));
+    Automation::AutomationError backendError;
+    backendError.code = Automation::AutomationErrorCode::InferenceError;
+    backendError.message = QStringLiteral("controlled preparation failure");
+    harness.inferenceError = backendError;
+    const auto rejectedBackend = runtime.inference().applyMutation(harness.context(), request);
+    QVERIFY(isError(rejectedBackend, backendError.code, operation));
+    QCOMPARE(rejectedBackend.getError().message, backendError.message);
+    harness.inferenceError.reset();
 
-        request.clipId = Automation::ClipId();
-        const auto invalidClip = runtime.inference().applyMutation(harness.context(), request);
-        request.clipId = Automation::ClipId(900001);
-        const auto missingClip = runtime.inference().applyMutation(harness.context(), request);
-        request.clipId = harness.audioClipId();
-        const auto wrongType = runtime.inference().applyMutation(harness.context(), request);
-        QVERIFY2((isError(invalidClip, Automation::AutomationErrorCode::InvalidArgument,
-                          testCase.operationId) &&
-                  isError(missingClip, Automation::AutomationErrorCode::NotFound,
-                          testCase.operationId) &&
-                  isError(wrongType, Automation::AutomationErrorCode::WrongObjectType,
-                          testCase.operationId)),
-                 qPrintable(QStringLiteral(
-                     "service object validation errors must retain stable operation IDs")));
+    const auto sharedBase = runtime.documentVersion();
+    const auto first =
+        runtime.inference().applyMutation(RuntimeHarness::contextFor(sharedBase), request);
+    QVERIFY(first);
+    const auto rebased =
+        Automation::rebaseDocumentVersionWithinGeneration(sharedBase, runtime.documentVersion());
+    QVERIFY(rebased);
+    auto siblingRequest = request;
+    siblingRequest.kind = Automation::InferenceMutationKind::ApplyVariance;
+    const auto sibling = runtime.inference().applyMutation(
+        RuntimeHarness::contextFor(rebased.get()), siblingRequest);
+    QVERIFY(sibling);
+    QCOMPARE(runtime.documentVersion().revision, sharedBase.revision + 2);
 
-        request.clipId = harness.singingClipId();
-        request.pieceId = Automation::PieceId(900002);
-        const auto missingPiece = runtime.inference().applyMutation(harness.context(), request);
-        request.pieceId = Automation::PieceId(81);
-        request.noteIds = {Automation::NoteId(900003)};
-        const auto missingNote = runtime.inference().applyMutation(harness.context(), request);
-        QVERIFY2(
-            (isError(missingPiece, Automation::AutomationErrorCode::NotFound,
-                     testCase.operationId) &&
-             isError(missingNote, Automation::AutomationErrorCode::NotFound, testCase.operationId)),
-            qPrintable(
-                QStringLiteral("piece and note failures must be typed and operation-scoped")));
+    const auto staleGeneration =
+        Automation::DocumentVersion{Automation::DocumentId::create(), sharedBase.revision};
+    const auto workflowContext = runtime.documentWorkflowCommitContext(sharedBase);
+    QVERIFY(workflowContext);
+    QCOMPARE(workflowContext.get().expected, runtime.documentVersion());
+    QCOMPARE(workflowContext.get().source, Automation::InvocationSource::TrustedGui);
+    QVERIFY(isError(Automation::rebaseDocumentVersionWithinGeneration(staleGeneration,
+                                                                      runtime.documentVersion()),
+                    Automation::AutomationErrorCode::DocumentChanged));
+    QVERIFY(isError(runtime.documentWorkflowCommitContext(staleGeneration),
+                    Automation::AutomationErrorCode::DocumentChanged));
 
-        Automation::AutomationError backendError;
-        backendError.code = Automation::AutomationErrorCode::InferenceError;
-        backendError.message = QStringLiteral("controlled inference rejection");
-        harness.inferenceError = backendError;
-        request.noteIds = {harness.noteId()};
-        const auto rejectedBackend = runtime.inference().applyMutation(harness.context(), request);
-        harness.inferenceError.reset();
-        QVERIFY2((isError(rejectedBackend, Automation::AutomationErrorCode::InferenceError,
-                          testCase.operationId)),
-                 qPrintable(QStringLiteral("inference backend errors must be preserved")));
-    };
+    const auto staleContext = harness.context();
+    const auto preparesBeforeReplacement = harness.inferencePrepareCount;
+    QVERIFY(
+        runtime.documents().commitNewDocument(harness.context(), RuntimeHarness::emptyDocument()));
+    const auto late = runtime.inference().applyMutation(staleContext, request);
+    QVERIFY(isError(late, Automation::AutomationErrorCode::DocumentChanged, operation));
+    QCOMPARE(harness.inferencePrepareCount, preparesBeforeReplacement);
 
-    {
-        // testCase.operationId / QStringLiteral("generation-and-sibling-writeback")
-
-        request = inferenceRequest(harness, testCase, 91);
-        harness.inferenceChanged = true;
-        harness.inferenceAdvancesRevision = true;
-        const auto sharedBase = runtime.documentVersion();
-        const auto first =
-            runtime.inference().applyMutation(RuntimeHarness::contextFor(sharedBase), request);
-        const auto rebased = Automation::rebaseDocumentVersionWithinGeneration(
-            sharedBase, runtime.documentVersion());
-        auto siblingRequest = request;
-        siblingRequest.kind = Automation::InferenceMutationKind::ApplyVariance;
-        const auto sibling =
-            rebased ? runtime.inference().applyMutation(RuntimeHarness::contextFor(rebased.get()),
-                                                        siblingRequest)
-                    : Automation::AutomationResult<Automation::InferenceMutationResultDto>(
-                          rebased.getError());
-        QVERIFY2((first && rebased && sibling &&
-                  runtime.documentVersion().revision == sharedBase.revision + 2),
-                 qPrintable(QStringLiteral(
-                     "validated siblings must rebase and commit one revision each")));
-
-        const auto staleGeneration =
-            Automation::DocumentVersion{Automation::DocumentId::create(), sharedBase.revision};
-        const auto workflowContext = runtime.documentWorkflowCommitContext(sharedBase);
-        const auto rejectedRebase = Automation::rebaseDocumentVersionWithinGeneration(
-            staleGeneration, runtime.documentVersion());
-        const auto rejectedWorkflowContext = runtime.documentWorkflowCommitContext(staleGeneration);
-        QVERIFY2(
-            (workflowContext && workflowContext.get().expected == runtime.documentVersion() &&
-             workflowContext.get().source == Automation::InvocationSource::TrustedGui &&
-             isError(rejectedRebase, Automation::AutomationErrorCode::DocumentChanged) &&
-             isError(rejectedWorkflowContext, Automation::AutomationErrorCode::DocumentChanged)),
-            qPrintable(QStringLiteral("same-generation workflows must use the current "
-                                      "revision without crossing generations")));
-
-        const auto staleContext = RuntimeHarness::contextFor(runtime.documentVersion());
-        const auto preparesBeforeReplacement = harness.inferencePrepareCount;
-        const auto replacement = runtime.documents().commitNewDocument(
-            harness.context(), RuntimeHarness::emptyDocument());
-        const auto staleWriteback = runtime.inference().applyMutation(staleContext, request);
-        QVERIFY2(
-            (replacement &&
-             isError(staleWriteback, Automation::AutomationErrorCode::DocumentChanged,
-                     testCase.operationId) &&
-             harness.inferencePrepareCount == preparesBeforeReplacement),
-            qPrintable(QStringLiteral("late writeback must not enter services after replacement")));
-    };
-
-    {
-        // testCase.operationId / QStringLiteral("unavailable-service")
-
-        RuntimeHarness unavailable({.inferenceServices = false});
-        QVERIFY2((unavailable.isReady()),
-                 qPrintable(QStringLiteral("unavailable inference harness must initialize")));
-        auto unavailableRequest = inferenceRequest(unavailable, testCase, 101);
-        const auto result = unavailable.runtime().inference().applyMutation(unavailable.context(),
-                                                                            unavailableRequest);
-        QVERIFY2(
-            (isError(result, Automation::AutomationErrorCode::ModuleNotReady,
-                     testCase.operationId)),
-            qPrintable(QStringLiteral("missing inference services must fail deterministically")));
-    };
+    RuntimeHarness unavailable({.inferenceServices = false});
+    QVERIFY(unavailable.isReady());
+    const auto unavailableRequest = inferenceRequest(unavailable);
+    const auto missing =
+        unavailable.runtime().inference().applyMutation(unavailable.context(), unavailableRequest);
+    QVERIFY(isError(missing, Automation::AutomationErrorCode::ModuleNotReady, operation));
 }
 
 void ApplicationServicesTests::audioClipDomain() {

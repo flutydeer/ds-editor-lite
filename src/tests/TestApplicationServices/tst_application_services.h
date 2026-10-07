@@ -65,9 +65,9 @@ private slots:
     void packageSearchPaths();
     void packages();
     void speakerMixPresets();
-    void inferenceMatrix_data();
-    void inferenceMatrix();
-    void inferenceValidationBoundaries();
+    void inferenceCommitPolicy_data();
+    void inferenceCommitPolicy();
+    void inferenceFailureAndGenerationGuards();
     void audioClipDomain();
     void documentAndImportDomains();
     void formatsAndMidiExport();

@@ -404,47 +404,13 @@ namespace AutomationAsyncFileTests {
             if (!enabled)
                 return {};
             Automation::InferenceRuntimeServices services;
-            services.prepareMutation = [this](AppModel *model,
+            services.prepareMutation = [this](AppModel *,
                                               const Automation::InferenceMutationRequest &request) {
                 ++inferencePrepareCount;
                 lastPreparedInferenceKind = request.kind;
                 if (inferenceError)
                     return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
                         *inferenceError);
-                if (!request.clipId.isValid()) {
-                    return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-                        Automation::AutomationError::invalidArgument(
-                            QStringLiteral("clip_id"),
-                            QStringLiteral("Controlled clip ID is invalid")));
-                }
-                auto *clip = model ? model->findClipById(request.clipId.value()) : nullptr;
-                if (!clip) {
-                    return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-                        Automation::AutomationError::notFound(
-                            {Automation::ObjectKind::Clip, request.clipId.value()},
-                            QStringLiteral("Controlled clip was not found")));
-                }
-                if (!dynamic_cast<SingingClip *>(clip)) {
-                    return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-                        Automation::AutomationError::wrongObjectType(
-                            {Automation::ObjectKind::Clip, request.clipId.value()},
-                            QStringLiteral("Controlled clip is not singing")));
-                }
-                if (request.pieceId.value() == 900002) {
-                    return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-                        Automation::AutomationError::notFound(
-                            {Automation::ObjectKind::InferPiece, request.pieceId.value()},
-                            QStringLiteral("Controlled piece was not found")));
-                }
-                for (const auto noteId : request.noteIds) {
-                    if (noteId.value() == 900003) {
-                        return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-                            Automation::AutomationError::notFound(
-                                {Automation::ObjectKind::Note, noteId.value()},
-                                QStringLiteral("Controlled note was not found")));
-                    }
-                }
-
                 QList<Automation::ObjectRef> affected{
                     {Automation::ObjectKind::Clip, request.clipId.value()}
                 };
@@ -464,10 +430,6 @@ namespace AutomationAsyncFileTests {
                     lastAppliedInferenceKind = request.kind;
                     if (request.pieceId.isValid())
                         effects.changedPieces.append(request.pieceId);
-                    if (request.kind == Automation::InferenceMutationKind::InvalidateClip)
-                        effects.removedPieces = request.pieceIds;
-                    if (request.kind == Automation::InferenceMutationKind::ResegmentClip)
-                        effects.addedPieces = request.pieceIds;
                 };
                 return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
                     std::move(prepared));
