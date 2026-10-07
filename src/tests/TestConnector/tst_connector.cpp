@@ -333,6 +333,7 @@ namespace {
         int discoverCount = 0;
         int initializeCount = 0;
         int initializedNotificationCount = 0;
+        bool rejectInitializedNotification = false;
         int cancelledNotificationCount = 0;
         int toolsListCount = 0;
         int statusCallCount = 0;
@@ -671,6 +672,11 @@ namespace {
             if (request.method ==
                 QString::fromLatin1(AutomationWire::Mcp::InitializedNotification)) {
                 ++initializedNotificationCount;
+                if (rejectInitializedNotification) {
+                    respondTransportError(socket, 403, QStringLiteral("forbidden"),
+                                          QStringLiteral("initialization notification denied"));
+                    return;
+                }
                 respondAccepted(socket);
                 return;
             }
@@ -1800,6 +1806,7 @@ namespace {
         {
             FakeHttpEditor http;
             http.legacyOnly = true;
+            http.rejectInitializedNotification = true;
             http.legacySessionId = QByteArrayLiteral("fixture-session-id");
             http.negotiatedLegacyProtocolVersion =
                 QString::fromLatin1(AutomationWire::Mcp::CompatibilityProtocolVersion);
@@ -1811,9 +1818,47 @@ namespace {
             expect(bootstrap.listen(), "legacy-only bootstrap must listen");
             if (QTest::currentTestFailed())
                 return;
-            bootstrap.publish(readyStatus(QStringLiteral("legacy-editor"), http.endpoint()));
+            const auto ready = readyStatus(QStringLiteral("legacy-editor"), http.endpoint());
+            bootstrap.publish(ready);
             DsConnector::ConnectorRuntime runtime(options, serviceName);
             runtime.start();
+            expect(waitUntil(
+                       [&] {
+                           const auto status = runtime.status();
+                           const auto mcp = status.value(QStringLiteral("mcp")).toObject();
+                           return !mcp.value(QStringLiteral("connected")).toBool() &&
+                                  mcp.value(QStringLiteral("error")).toString() ==
+                                      QStringLiteral("forbidden") &&
+                                  status.value(QStringLiteral("toolset"))
+                                          .toObject()
+                                          .value(QStringLiteral("compatibility"))
+                                          .toString() == QStringLiteral("not_loaded");
+                       },
+                       5000),
+                   "refused initialized notification must leave the runtime disconnected");
+            if (QTest::currentTestFailed())
+                return;
+            expect(http.toolsListCount == 0 && http.statusCallCount == 0,
+                   "refused initialization must not query tools or application status");
+            bool blockedCallFinished = false;
+            DsConnector::ToolCallOutcome blockedOutcome;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&](DsConnector::ToolCallOutcome outcome) {
+                                 blockedOutcome = std::move(outcome);
+                                 blockedCallFinished = true;
+                             });
+            expect(waitUntil([&] { return blockedCallFinished; }, 5000) &&
+                       blockedOutcome.result.value(QStringLiteral("isError")).toBool() &&
+                       blockedOutcome.result.value(QStringLiteral("structuredContent"))
+                               .toObject()
+                               .value(QStringLiteral("code")) ==
+                           QStringLiteral("editor_not_connected") &&
+                       !http.calledTools.contains(QStringLiteral("application.get_info")),
+                   "a failed handshake must not forward business calls");
+            if (QTest::currentTestFailed())
+                return;
+            http.rejectInitializedNotification = false;
+            bootstrap.publish(ready);
             expect(waitUntil(
                        [&] {
                            const auto status = runtime.status();
@@ -1826,8 +1871,8 @@ namespace {
                        },
                        10000),
                    "a 2025-06-18 editor must connect after the preferred 2026 probe fails");
-            expect(http.discoverCount == 1 && http.initializeCount == 1 &&
-                       http.initializedNotificationCount == 1 && http.toolsListCount == 1 &&
+            expect(http.discoverCount == 2 && http.initializeCount == 2 &&
+                       http.initializedNotificationCount == 2 && http.toolsListCount == 1 &&
                        http.statusCallCount == 1 && http.headersValid,
                    "legacy fallback must preserve the session while adopting negotiated "
                    "2025-06-18 transport metadata");
