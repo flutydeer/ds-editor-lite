@@ -8,6 +8,7 @@ class EditorRenderingTests final : public QObject {
 
 private slots:
     void coverageAndAtlasRows();
+    void imageIconsPreserveCoverageAndReuseTexturesAcrossThemeColors();
     void fractionalDprAndTextureReplacement();
     void subpixelPhaseCache();
     void cameraRelativeAlignment();

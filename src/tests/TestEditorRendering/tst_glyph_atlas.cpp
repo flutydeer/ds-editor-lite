@@ -9,6 +9,66 @@
 
 #include <cmath>
 
+void EditorRenderingTests::imageIconsPreserveCoverageAndReuseTexturesAcrossThemeColors() {
+    QImage icon(8, 8, QImage::Format_ARGB32);
+    icon.fill(Qt::transparent);
+    icon.setPixelColor(2, 2, QColor(20, 60, 180, 128));
+    icon.setPixelColor(3, 3, QColor(180, 60, 20, 255));
+    EditorGlyphAtlas atlas;
+    atlas.beginFrame();
+    const auto first = atlas.appendImage(QStringLiteral("error-mark"), icon, QPointF(20.4, 30.2),
+                                         Qt::white, {}, QPointF(10, 20));
+    QVERIFY(first.isValid());
+    QVector<EditorRhiTextureBatch> batches;
+    atlas.populateTextureBatches(batches);
+    QCOMPARE(batches.size(), 1);
+    const auto &batch = batches.first();
+    QCOMPARE(batch.vertices.size(), 6);
+    const auto generation = batch.generation;
+    const auto firstVertex = batch.vertices.first();
+    const auto sourceOrigin = QPoint(qRound(firstVertex.u * batch.image.width()),
+                                     qRound(firstVertex.v * batch.image.height()));
+    for (const auto point : {QPoint(0, 0), QPoint(2, 2), QPoint(3, 3)}) {
+        const auto pixel = batch.image.pixel(sourceOrigin + point);
+        const auto alpha = icon.pixelColor(point).alpha();
+        QCOMPARE(qAlpha(pixel), alpha);
+        QCOMPARE(qRed(pixel), alpha);
+        QCOMPARE(qGreen(pixel), alpha);
+        QCOMPARE(qBlue(pixel), alpha);
+    }
+    QCOMPARE(firstVertex.x, 20.0f);
+    QCOMPARE(firstVertex.y, 30.0f);
+    QCOMPARE(batch.vertices.at(1).x - firstVertex.x, float(icon.width()));
+    QCOMPARE(batch.vertices.at(2).y - firstVertex.y, float(icon.height()));
+
+    atlas.beginFrame();
+    const QColor themeColor(180, 40, 50);
+    const auto recolored =
+        atlas.appendImage(QStringLiteral("error-mark"), icon, QPointF(48, 60), themeColor, {}, {});
+    QVERIFY(recolored.isValid());
+    QCOMPARE(recolored.pageId, first.pageId);
+    QCOMPARE(recolored.color, themeColor);
+    atlas.populateTextureBatches(batches);
+    QCOMPARE(batches.size(), 1);
+    QCOMPARE(batches.first().generation, generation);
+    QCOMPARE(batches.first().vertices.size(), 6);
+    QCOMPARE(batches.first().vertices.first().u, firstVertex.u);
+    QCOMPARE(batches.first().vertices.first().v, firstVertex.v);
+    QCOMPARE(batches.first().vertices.first().x, 48.0f);
+    QCOMPARE(batches.first().vertices.first().r, float(themeColor.redF()));
+    QCOMPARE(batches.first().vertices.first().g, float(themeColor.greenF()));
+    QCOMPARE(batches.first().vertices.first().b, float(themeColor.blueF()));
+
+    atlas.clear();
+    atlas.beginFrame();
+    QVERIFY(
+        atlas.appendImage(QStringLiteral("error-mark"), icon, QPointF(48, 60), themeColor, {}, {})
+            .isValid());
+    atlas.populateTextureBatches(batches);
+    QCOMPARE(batches.size(), 1);
+    QVERIFY(batches.first().generation > generation);
+}
+
 void EditorRenderingTests::coverageAndAtlasRows() {
     QFont font(QStringLiteral("Arial"));
     font.setPixelSize(12);
