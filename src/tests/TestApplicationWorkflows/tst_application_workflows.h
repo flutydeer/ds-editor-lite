@@ -47,10 +47,10 @@ private slots:
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
-    void publicProjectLoadUsesThePreparedPlan();
+    void publicProjectLoadChecksPlansAndParserFailures();
     void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument_data();
     void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument();
-    void publicProjectLoadUsesThePreparedPlan_data();
+    void publicProjectLoadChecksPlansAndParserFailures_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 

@@ -459,36 +459,44 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
+void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures_data() {
     QTest::addColumn<QString>("sourceFormat");
     QTest::addColumn<bool>("opening");
     QTest::addColumn<QByteArray>("changeAfterAdmission");
-    QTest::newRow("import-native-dspx") << QStringLiteral("dspx") << false << QByteArray();
+    QTest::addColumn<bool>("corruptSource");
+    QTest::newRow("import-native-dspx") << QStringLiteral("dspx") << false << QByteArray() << false;
     QTest::newRow("import-external-libresvip")
-        << QStringLiteral("libresvip") << false << QByteArray();
-    QTest::newRow("open-native-dspx") << QStringLiteral("dspx") << true << QByteArray();
-    QTest::newRow("open-external-libresvip") << QStringLiteral("libresvip") << true << QByteArray();
-    QTest::newRow("import-midi") << QStringLiteral("midi") << false << QByteArray();
-    QTest::newRow("open-midi") << QStringLiteral("midi") << true << QByteArray();
-    QTest::newRow("cancel-queued-open") << QStringLiteral("dspx") << true << QByteArray("cancel");
+        << QStringLiteral("libresvip") << false << QByteArray() << false;
+    QTest::newRow("open-native-dspx") << QStringLiteral("dspx") << true << QByteArray() << false;
+    QTest::newRow("open-external-libresvip")
+        << QStringLiteral("libresvip") << true << QByteArray() << false;
+    QTest::newRow("import-midi") << QStringLiteral("midi") << false << QByteArray() << false;
+    QTest::newRow("open-midi") << QStringLiteral("midi") << true << QByteArray() << false;
+    QTest::newRow("cancel-queued-open")
+        << QStringLiteral("dspx") << true << QByteArray("cancel") << false;
     QTest::newRow("cancel-running-open")
-        << QStringLiteral("dspx") << true << QByteArray("cancel-running");
+        << QStringLiteral("dspx") << true << QByteArray("cancel-running") << false;
     QTest::newRow("cancel-running-import")
-        << QStringLiteral("dspx") << false << QByteArray("cancel-running");
+        << QStringLiteral("dspx") << false << QByteArray("cancel-running") << false;
     QTest::newRow("revoke-import-access")
-        << QStringLiteral("dspx") << false << QByteArray("revoke");
+        << QStringLiteral("dspx") << false << QByteArray("revoke") << false;
     QTest::newRow("replace-import-source")
-        << QStringLiteral("dspx") << false << QByteArray("replace-source");
+        << QStringLiteral("dspx") << false << QByteArray("replace-source") << false;
     QTest::newRow("edit-while-opening")
-        << QStringLiteral("dspx") << true << QByteArray("edit-document");
+        << QStringLiteral("dspx") << true << QByteArray("edit-document") << false;
     QTest::newRow("converter-fails-after-admission")
-        << QStringLiteral("libresvip") << false << QByteArray("converter-error");
+        << QStringLiteral("libresvip") << false << QByteArray("converter-error") << false;
+    QTest::newRow("corrupt-native-open-and-retry")
+        << QStringLiteral("dspx") << true << QByteArray() << true;
+    QTest::newRow("corrupt-midi-import-and-retry")
+        << QStringLiteral("midi") << false << QByteArray() << true;
 }
 
-void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
+void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     QFETCH(QString, sourceFormat);
     QFETCH(bool, opening);
     QFETCH(QByteArray, changeAfterAdmission);
+    QFETCH(bool, corruptSource);
     const bool externalConverter = sourceFormat == QStringLiteral("libresvip");
     const bool midi = sourceFormat == QStringLiteral("midi");
     const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
@@ -537,6 +545,11 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         converter = std::make_unique<DspxProjectConverter>();
     QString error;
     QVERIFY2(converter->save(path, &source, error), qPrintable(error));
+    if (corruptSource) {
+        QFile broken(path);
+        QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(broken.write("invalid project input"), qint64(21));
+    }
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
     const auto before = runtime().documentVersion();
@@ -550,16 +563,19 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         runtime(), access, fileGuard, admission,
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
-    const auto inspected =
-        registry.invoke(QStringLiteral("formats.inspect"),
-                        {
-                            {QStringLiteral("path"),    path                            },
-                            {QStringLiteral("purpose"),
-                             opening ? QStringLiteral("open") : QStringLiteral("import")}
-    });
-    QVERIFY2(inspected, qPrintable(inspected ? QString() : inspected.getError().message));
-    const auto digest = inspected.get().value(QStringLiteral("plan_digest")).toString();
-    QVERIFY(!digest.isEmpty());
+    QString digest;
+    if (!corruptSource) {
+        const auto inspected =
+            registry.invoke(QStringLiteral("formats.inspect"),
+                            {
+                                {QStringLiteral("path"),    path                            },
+                                {QStringLiteral("purpose"),
+                                 opening ? QStringLiteral("open") : QStringLiteral("import")}
+        });
+        QVERIFY2(inspected, qPrintable(inspected ? QString() : inspected.getError().message));
+        digest = inspected.get().value(QStringLiteral("plan_digest")).toString();
+        QVERIFY(!digest.isEmpty());
+    }
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QJsonObject arguments{
@@ -567,9 +583,10 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
          before.documentId.toString()                                                                                         },
         {QStringLiteral("expected_revision"),                                             static_cast<qint64>(before.revision)},
         {QStringLiteral("path"),                                                          path                                },
-        {QStringLiteral("options"),                                                       QJsonObject{}                       },
-        {QStringLiteral("plan_digest"),                                                   digest                              }
+        {QStringLiteral("options"),                                                       QJsonObject{}                       }
     };
+    if (!digest.isEmpty())
+        arguments.insert(QStringLiteral("plan_digest"), digest);
     if (opening)
         arguments.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
     const bool cancelRunning = changeAfterAdmission == "cancel-running";
@@ -615,6 +632,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     }
     const auto expectedRetainedVersion = runtime().documentVersion();
     const auto expectedRetainedModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto expectedRetainedSavePoint = historyManager->isOnSavePoint();
     const auto task = [&] {
         return runtime().tasks().getTask(runtime().documentVersion().documentId, id);
     };
@@ -624,7 +642,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
                    task().get().state == Automation::AutomationTaskState::Canceled),
         10000);
     auto terminal = task().get();
-    if (!changeAfterAdmission.isEmpty()) {
+    if (corruptSource || !changeAfterAdmission.isEmpty()) {
         QCOMPARE(terminal.state, changeAfterAdmission.startsWith("cancel")
                                      ? Automation::AutomationTaskState::Canceled
                                      : Automation::AutomationTaskState::Failed);
@@ -633,6 +651,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         QCOMPARE(runtime().documentVersion(), expectedRetainedVersion);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
         QCOMPARE(historyManager->canUndo(), changeAfterAdmission == "edit-document");
+        QCOMPARE(historyManager->isOnSavePoint(), expectedRetainedSavePoint);
         if (cancelRunning) {
             parsePause.resume();
             QTRY_VERIFY(!parsePause.worker);
@@ -640,9 +659,11 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
             QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
         }
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
-        if (changeAfterAdmission != "converter-error" && !cancelRunning)
+        if (!corruptSource && changeAfterAdmission != "converter-error" && !cancelRunning)
             return;
-        if (!cancelRunning) {
+        if (corruptSource) {
+            QVERIFY2(converter->save(path, &source, error), qPrintable(error));
+        } else if (!cancelRunning) {
             QVERIFY(
                 terminal.error->message.contains(QStringLiteral("Fixture conversion rejected")));
             qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
