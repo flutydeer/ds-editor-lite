@@ -1574,6 +1574,43 @@ namespace {
         expect(matchingVersions == QSet<QString>{singer.packageVersion().toString(),
                                                  sameIdNewerSinger.packageVersion().toString()},
                QStringLiteral("voices.list must expose complete references for same-ID versions"));
+        QVERIFY(voices);
+        const auto expectedVoices = voices->value(QStringLiteral("singers")).toArray();
+        const auto beforePaging = runtime.documentVersion();
+        const auto beforePagingModel = TestSupport::projectSnapshot(testRuntime.model());
+        const auto *beforePagingUndo = testRuntime.history()->nextUndoEntry();
+        QString cursor;
+        QString firstCursor;
+        for (qsizetype index = 0; index < expectedVoices.size(); ++index) {
+            QJsonObject arguments{
+                {QStringLiteral("limit"), 1}
+            };
+            if (!cursor.isEmpty())
+                arguments.insert(QStringLiteral("cursor"), cursor);
+            const auto page = invokeSchemaValid(registry, QStringLiteral("voices.list"), arguments,
+                                                QStringLiteral("paged voice catalog"));
+            QVERIFY(page);
+            QCOMPARE(page->value(QStringLiteral("singers")).toArray(),
+                     QJsonArray{expectedVoices.at(index)});
+            cursor = page->value(QStringLiteral("next_cursor")).toString();
+            QCOMPARE(cursor.isEmpty(), index + 1 == expectedVoices.size());
+            if (index == 0)
+                firstCursor = cursor;
+        }
+        QVERIFY(!firstCursor.isEmpty());
+        const auto changedScope = registry.invoke(
+            QStringLiteral("voices.list"),
+            QJsonObject{
+                {QStringLiteral("limit"),  1                                             },
+                {QStringLiteral("query"),  QStringLiteral("Localized Registry Singer V2")},
+                {QStringLiteral("cursor"), firstCursor                                   }
+        });
+        QVERIFY(!changedScope);
+        QCOMPARE(changedScope.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        QCOMPARE(changedScope.getError().fieldPath, QStringLiteral("cursor"));
+        QCOMPARE(runtime.documentVersion(), beforePaging);
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforePagingModel);
+        QCOMPARE(testRuntime.history()->nextUndoEntry(), beforePagingUndo);
         const auto localizedVoices = invokeSchemaValid(
             registry, QStringLiteral("voices.list"),
             QJsonObject{
