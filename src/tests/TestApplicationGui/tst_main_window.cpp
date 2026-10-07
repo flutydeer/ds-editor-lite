@@ -1218,12 +1218,15 @@ void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
 
 void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt_data() {
     QTest::addColumn<bool>("removesNote");
-    QTest::newRow("moved-note") << false;
-    QTest::newRow("removed-note") << true;
+    QTest::addColumn<bool>("wideSelection");
+    QTest::newRow("moved-note") << false << false;
+    QTest::newRow("removed-note") << true << false;
+    QTest::newRow("selection-exceeds-viewport") << false << true;
 }
 
 void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QFETCH(bool, removesNote);
+    QFETCH(bool, wideSelection);
     MainWindowFixture host;
     host.show();
     if (QTest::currentTestFailed())
@@ -1245,6 +1248,18 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QVERIFY(runtime.notes().insertNotes(commandContext(), clipId, {draft}));
     QCOMPARE(singingClip->notes().count(), 1);
     const auto noteId = (*singingClip->notes().begin())->id();
+    QList<Automation::NoteId> editedIds{Automation::NoteId(noteId)};
+    if (wideSelection) {
+        auto companion = draft;
+        companion.localStart = 2000;
+        companion.length = 1600;
+        companion.keyIndex = 58;
+        const auto inserted = runtime.notes().insertNotes(commandContext(), clipId, {companion});
+        QVERIFY(inserted);
+        QCOMPARE(inserted.get().affectedObjects.size(), 1);
+        QCOMPARE(singingClip->notes().count(), 2);
+        editedIds.append(Automation::NoteId(inserted.get().affectedObjects.first().value));
+    }
     auto &window = *host.window;
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
@@ -1263,8 +1278,7 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
         QVERIFY(
             runtime.notes().removeNotes(commandContext(), clipId, {Automation::NoteId(noteId)}));
     } else {
-        QVERIFY(runtime.notes().moveNotes(commandContext(), clipId, {Automation::NoteId(noteId)}, 0,
-                                          67));
+        QVERIFY(runtime.notes().moveNotes(commandContext(), clipId, editedIds, 0, 67));
     }
     const auto editedContent = TestSupport::projectSnapshot(*context->m_appModel);
     const auto hasEditedState = [&] {
@@ -1274,12 +1288,16 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     const auto *entry = historyManager->nextUndoEntry();
     QVERIFY(entry && entry->focusTransition());
     const auto focus = *entry->focusTransition();
+    if (wideSelection)
+        QVERIFY(window.setPianoRollScale(5.0, 8.0));
     QVERIFY(window.centerPianoRollAt(1920, 60));
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::ScrollRequired);
+    const auto viewportBeforeReveal = window.captureEditorViewState().pianoRoll;
     const auto beforeUndo = runtime.documentVersion();
     QSignalSpy navigation(undoRedoController, &UndoRedoController::focusNavigationRequested);
     auto *input = QApplication::focusWidget();
     QVERIFY(input);
+    QVERIFY(hasEditedState());
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
     QVERIFY(hasEditedState());
     QTRY_COMPARE(navigation.size(), 1);
@@ -1287,6 +1305,12 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), editedContent);
     QCOMPARE(historyManager->nextUndoEntry(), entry);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
+    if (wideSelection) {
+        const auto revealed = window.captureEditorViewState().pianoRoll;
+        QVERIFY(revealed.horizontalScale < viewportBeforeReveal.horizontalScale);
+        QVERIFY(revealed.verticalScale < viewportBeforeReveal.verticalScale);
+        QCOMPARE(singingClip->findNoteById(editedIds.last().value())->keyIndex(), 125);
+    }
     input = QApplication::focusWidget();
     QVERIFY(input && editor->isAncestorOf(input));
     QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
