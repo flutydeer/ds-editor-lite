@@ -20,6 +20,11 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Modules/FillLyric/Utils/SplitLyric.cpp
         ../../app/Utils/UiLanguageManager.cpp
 )
+if(MSVC)
+    # Source options are scoped to the directory that creates the target.
+    set_source_files_properties(../../app/Automation/Public/PublicAutomationRegistry.cpp
+        PROPERTIES COMPILE_OPTIONS "/bigobj")
+endif()
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network HttpServer)
 find_package(re2 CONFIG REQUIRED)
