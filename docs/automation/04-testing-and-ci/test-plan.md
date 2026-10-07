@@ -109,6 +109,8 @@ ApplicationWorkflows、AudioAssets、ApplicationGui、EditorInteraction 和 Nati
 
 CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Test 默认的五分钟 watchdog 在较长资源工作流完成内部失败处理前直接终止进程。任务自身的截止时间仍然有效。不通过延长推理等待来处理卡住的队列。
 
+完整 ApplicationGui 套件使用 300 秒总预算，覆盖共享 runner 上整套交互流程的累计耗时。发生超时时先检查具体失败、最后执行位置及持续进展，区分单个行为卡住与完整程序的累计预算不足。各用例的状态、任务和控件等待保留原截止时间，不通过额外重跑或延长这些等待掩盖问题。
+
 重启场景的源进程将 stdout/stderr 写入沙箱内文件，使脱离原 QProcess 生命周期的替代进程继承有效输出目标。仍检查新进程身份、参数、服务就绪和退出。
 
 ## 5. CI 引导与失败复验
