@@ -418,6 +418,23 @@ void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 
+    const auto seekY = ruler.height() - 6;
+    QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, point(960, seekY));
+    moveWithLeftButton(point(1200, seekY));
+    QCOMPARE(playbackController->position(), 1200.0);
+    QCOMPARE(playbackController->lastPosition(), 1200.0);
+    QCOMPARE(appStatus->loopSettings.get(), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    moveWithLeftButton(point(1440, seekY));
+    QTest::mouseRelease(&ruler, Qt::LeftButton, Qt::NoModifier, point(1440, seekY));
+    QCOMPARE(playbackController->position(), 1440.0);
+    QCOMPARE(playbackController->lastPosition(), 1440.0);
+    QCOMPARE(appStatus->loopSettings.get(), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+
     const LoopSettings moved(true, 960, 960);
     QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, point(960, 5));
     moveWithLeftButton(point(1440, 5));
