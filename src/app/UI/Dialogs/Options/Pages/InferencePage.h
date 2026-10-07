@@ -14,7 +14,6 @@ class SeekBarSpinboxGroup;
 class DoubleSeekBarSpinboxGroup;
 class OptionListCard;
 class OptionsCardItem;
-class QTreeView;
 class Button;
 class QLabel;
 
@@ -53,7 +52,6 @@ private:
     SeekBarSpinboxGroup *m_smoothSlider;
     ComboBox *m_cbSingerSessionCacheCapacity;
     ComboBox *m_cbSingerSessionIdleTimeout;
-    QTreeView *m_treeView;
     Button *m_btnOpenCacheFolder;
     QLabel *m_lblCacheStats;
     Button *m_btnScanCache;
