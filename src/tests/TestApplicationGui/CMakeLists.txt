@@ -15,6 +15,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_project_import.cpp
     tst_fill_lyric.cpp
     tst_note_dialogs.cpp
+    tst_note_feedback.cpp
     tst_dynamic_mix.cpp
     tst_speaker_mix.cpp
     tst_resources.cpp
