@@ -81,6 +81,7 @@ private slots:
     void editingParametersRestartsOnlyDependentInference_data();
     void editingParametersRestartsOnlyDependentInference();
     void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
+    void changingSamplingSettingsRestartsRunningInference_data();
     void changingSamplingSettingsRestartsRunningInference();
     void changingSpeakerMixRefreshesExistingInference();
     void playbackWindowPrioritizesAndSuspendsAcousticInference();

@@ -952,7 +952,14 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }
 
+void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference_data() {
+    QTest::addColumn<bool>("pauseDuration");
+    QTest::newRow("duration-worker") << true;
+    QTest::newRow("pitch-worker") << false;
+}
+
 void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference() {
+    QFETCH(bool, pauseDuration);
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
@@ -986,19 +993,28 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
     if (QTest::currentTestFailed())
         return;
     const QPointer<InferPiece> target(piece);
-    QPointer<InferPitchTask> originalTask;
+    QPointer<IInferTask> originalTask;
     bool captured = false;
     QList<std::pair<int, int>> submittedSettings;
     QStringList submittedSignatures;
+    QList<int> submittedTaskIds;
     connect(taskManager, &TaskManager::taskChanged, &observations,
             [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
-                auto *candidate = qobject_cast<InferPitchTask *>(task);
-                if (change != TaskManager::Added || !candidate || !target ||
-                    candidate->pieceId() != target->id())
+                if (change != TaskManager::Added || !target)
                     return;
-                const auto input = candidate->input();
-                submittedSettings.emplaceBack(input.steps, input.pitchSmoothKernelSize);
-                submittedSignatures.append(candidate->inferenceContext().inputSignature);
+                auto *pitchTask = qobject_cast<InferPitchTask *>(task);
+                if (pitchTask && pitchTask->pieceId() == target->id()) {
+                    const auto input = pitchTask->input();
+                    submittedSettings.emplaceBack(input.steps, input.pitchSmoothKernelSize);
+                    submittedSignatures.append(pitchTask->inferenceContext().inputSignature);
+                }
+                auto *candidate =
+                    pauseDuration
+                        ? static_cast<IInferTask *>(qobject_cast<InferDurationTask *>(task))
+                        : static_cast<IInferTask *>(pitchTask);
+                if (!candidate || candidate->pieceId() != target->id())
+                    return;
+                submittedTaskIds.append(candidate->id());
                 if (captured)
                     return;
                 captured = true;
@@ -1061,8 +1077,12 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
             inferenceSettled(clip),
         15000);
     QVERIFY(originalCanceled.load());
-    QVERIFY(submittedSignatures.size() > 1);
-    QVERIFY(submittedSignatures.last() != originalSignature);
+    QVERIFY(submittedTaskIds.size() > 1);
+    QVERIFY(submittedTaskIds.last() != submittedTaskIds.first());
+    if (!pauseDuration) {
+        QVERIFY(submittedSignatures.size() > 1);
+        QVERIFY(submittedSignatures.last() != originalSignature);
+    }
     QVERIFY(target && !target->originalPitch.isEmpty());
     QCOMPARE(note->id(), target->notes.first()->id());
     QCOMPARE(note->lyric(), lyric);
