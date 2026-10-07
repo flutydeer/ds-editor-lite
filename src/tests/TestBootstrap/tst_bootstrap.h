@@ -20,6 +20,7 @@ private slots:
     void automationBootstrap();
     void watcherLimit();
     void initialReadTimeout();
+    void coordinator_data();
     void coordinator();
     void forwardRequestReportsPeerFailureAndRecovers_data();
     void forwardRequestReportsPeerFailureAndRecovers();

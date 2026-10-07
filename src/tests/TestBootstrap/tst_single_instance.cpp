@@ -8,6 +8,7 @@
 #include "../TestSupport/TestAssertions.h"
 #include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalServer>
@@ -550,18 +551,34 @@ void BootstrapTests::initialReadTimeout() {
     primary.shutdown();
 }
 
+void BootstrapTests::coordinator_data() {
+    QTest::addColumn<bool>("blockedDataDirectory");
+    QTest::newRow("create-data-directory") << false;
+    QTest::newRow("recover-blocked-data-directory") << true;
+}
+
 void BootstrapTests::coordinator() {
+    QFETCH(bool, blockedDataDirectory);
     QTemporaryDir directory;
-    expect(directory.isValid(), "temporary instance directory must be available");
-    if (!directory.isValid())
-        return;
+    QVERIFY(directory.isValid());
 
     const auto serverName = uniqueServerName();
-    SingleInstanceCoordinator primary(directory.path(), serverName);
-    expect(primary.start() == SingleInstanceCoordinator::StartResult::Primary,
-           "first coordinator must become primary");
+    const auto dataPath = directory.filePath(QStringLiteral("application-data"));
+    SingleInstanceCoordinator primary(dataPath, serverName);
+    if (blockedDataDirectory) {
+        QFile obstruction(dataPath);
+        QVERIFY(obstruction.open(QIODevice::WriteOnly));
+        QCOMPARE(obstruction.write("owned test file"), qint64(15));
+        obstruction.close();
+        QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Error);
+        QVERIFY(!primary.errorString().isEmpty());
+        QVERIFY(primary.errorString().contains(dataPath));
+        QVERIFY(obstruction.remove());
+    }
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+    QVERIFY(QDir(dataPath).exists());
 
-    SingleInstanceCoordinator secondary(directory.path(), serverName);
+    SingleInstanceCoordinator secondary(dataPath, serverName);
     expect(secondary.start() == SingleInstanceCoordinator::StartResult::Secondary,
            "second coordinator must detect the primary");
 
@@ -633,7 +650,7 @@ void BootstrapTests::coordinator() {
     primary.resumeRequestDispatch();
 
     primary.shutdown();
-    SingleInstanceCoordinator replacement(directory.path(), serverName);
+    SingleInstanceCoordinator replacement(dataPath, serverName);
     expect(replacement.start() == SingleInstanceCoordinator::StartResult::Primary,
            "a new coordinator must take ownership after primary shutdown");
     replacement.shutdown();
