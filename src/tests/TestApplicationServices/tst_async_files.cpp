@@ -831,25 +831,40 @@ void ApplicationServicesTests::preparedMidiPublication() {
             .isEmpty());
 }
 
-void ApplicationServicesTests::audioExportRejectsUnsafeTargetsAndAllowsCorrection_data() {
+void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrection_data() {
     QTest::addColumn<QString>("problem");
     QTest::addColumn<Automation::AutomationErrorCode>("errorCode");
+    QTest::addColumn<QString>("configField");
     QTest::newRow("overwrite-needs-consent")
-        << QStringLiteral("overwrite") << Automation::AutomationErrorCode::OverwriteDenied;
+        << QStringLiteral("overwrite") << Automation::AutomationErrorCode::OverwriteDenied
+        << QString{};
     QTest::newRow("filename-escapes-export-directory")
-        << QStringLiteral("escape") << Automation::AutomationErrorCode::InvalidArgument;
+        << QStringLiteral("escape") << Automation::AutomationErrorCode::InvalidArgument
+        << QString{};
     QTest::newRow("export-directory-is-missing")
-        << QStringLiteral("directory") << Automation::AutomationErrorCode::FileNotFound;
+        << QStringLiteral("directory") << Automation::AutomationErrorCode::FileNotFound
+        << QString{};
     QTest::newRow("nested-output-directory-is-missing")
-        << QStringLiteral("nested") << Automation::AutomationErrorCode::FileNotFound;
+        << QStringLiteral("nested") << Automation::AutomationErrorCode::FileNotFound << QString{};
     QTest::newRow("output-is-a-directory")
-        << QStringLiteral("target") << Automation::AutomationErrorCode::InvalidArgument;
+        << QStringLiteral("target") << Automation::AutomationErrorCode::InvalidArgument
+        << QString{};
+    QTest::newRow("empty-export-filename")
+        << QStringLiteral("empty-name") << Automation::AutomationErrorCode::PathRequired
+        << QStringLiteral("config.file_name");
+    QTest::newRow("invalid-sampling-rate")
+        << QStringLiteral("sample-rate") << Automation::AutomationErrorCode::InvalidArgument
+        << QStringLiteral("config.sample_rate");
+    QTest::newRow("duplicate-export-sources")
+        << QStringLiteral("duplicate-sources") << Automation::AutomationErrorCode::InvalidArgument
+        << QStringLiteral("config.sources");
 }
 
-void ApplicationServicesTests::audioExportRejectsUnsafeTargetsAndAllowsCorrection() {
+void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrection() {
     using namespace Automation;
     QFETCH(QString, problem);
     QFETCH(AutomationErrorCode, errorCode);
+    QFETCH(QString, configField);
     RuntimeHarness harness;
     QVERIFY(harness.isReady());
     auto &runtime = harness.runtime();
@@ -869,11 +884,22 @@ void ApplicationServicesTests::audioExportRejectsUnsafeTargetsAndAllowsCorrectio
         config.fileDirectory = QDir(config.fileDirectory).filePath(QStringLiteral("missing"));
     } else if (problem == QStringLiteral("nested")) {
         config.fileName = QStringLiteral("missing/mix.wav");
+    } else if (problem == QStringLiteral("empty-name")) {
+        config.fileName.clear();
+    } else if (problem == QStringLiteral("sample-rate")) {
+        config.sampleRate = 0;
+    } else if (problem == QStringLiteral("duplicate-sources")) {
+        config.sourceOption = 2;
+        config.sources = {0, 0};
     } else {
         QVERIFY(QDir().mkdir(QDir(config.fileDirectory).filePath(config.fileName)));
     }
     const auto rejected = runtime.audioExports().start(harness.context(), config, {});
     QVERIFY(isError(rejected, errorCode, OperationIds::exports::audio::start));
+    if (!configField.isEmpty()) {
+        QCOMPARE(rejected.getError().fieldPath, configField);
+        QCOMPARE(state->createCount, 0);
+    }
     QCOMPARE(runtime.automationTasks().size(), tasksBefore);
     QCOMPARE(harness.audioScheduler.pendingCount(), 0);
     QCOMPARE(state->executeCount, 0);

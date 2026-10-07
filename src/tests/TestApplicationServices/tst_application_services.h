@@ -74,8 +74,8 @@ private slots:
     void preparedMidiPublication_data();
     void preparedMidiPublication();
     void audioExportAndTaskList();
-    void audioExportRejectsUnsafeTargetsAndAllowsCorrection_data();
-    void audioExportRejectsUnsafeTargetsAndAllowsCorrection();
+    void audioExportRejectsInvalidRequestsAndAllowsCorrection_data();
+    void audioExportRejectsInvalidRequestsAndAllowsCorrection();
     void audioExportStageFailuresReleaseResourcesAndAllowRetry_data();
     void audioExportStageFailuresReleaseResourcesAndAllowRetry();
     void extractionDomains();
