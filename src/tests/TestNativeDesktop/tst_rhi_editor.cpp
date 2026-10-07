@@ -2638,8 +2638,15 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     const auto viewport = editor.viewState();
     const auto onePixelTicks = (canvas->endTick() - canvas->startTick()) / canvas->width();
     QPointer<PianoRollRhiWidget> previousCanvas(canvas);
-    canvas->backendFailed(QStringLiteral("Rendering device lost"));
+    QSignalSpy failures(canvas, &EditorRhiWidget::backendFailed);
+    QTest::ignoreMessage(QtCriticalMsg, "[PianoRollRhi] QRhiWidget reported render failure");
+    canvas->renderFailed();
+    canvas->renderFailed();
+    QCOMPARE(failures.size(), 0);
     QTRY_VERIFY(previousCanvas.isNull());
+    QCOMPARE(failures.size(), 1);
+    QCOMPARE(failures.first().first().toString(),
+             QStringLiteral("QRhiWidget reported render failure"));
     auto *legacy = editor.findChild<PianoRollGraphicsView *>();
     QVERIFY(legacy);
     QTRY_VERIFY(legacy->isVisible());

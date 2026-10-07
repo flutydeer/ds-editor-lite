@@ -759,8 +759,15 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
             .at(0);
     };
     const auto sourceTrack = sourceContent();
-    canvas.backendFailed(QStringLiteral("Rendering device lost"));
+    QSignalSpy failures(&canvas, &EditorRhiWidget::backendFailed);
+    QTest::ignoreMessage(QtCriticalMsg, "[TracksRhi] QRhiWidget reported render failure");
+    canvas.renderFailed();
+    canvas.renderFailed();
+    QCOMPARE(failures.size(), 0);
     QTRY_VERIFY(fixture.canvas.isNull());
+    QCOMPARE(failures.size(), 1);
+    QCOMPARE(failures.first().first().toString(),
+             QStringLiteral("QRhiWidget reported render failure"));
     auto *legacy = editor->findChild<TracksGraphicsView *>();
     auto *list = editor->findChild<TrackListView *>();
     QVERIFY(legacy && list);
