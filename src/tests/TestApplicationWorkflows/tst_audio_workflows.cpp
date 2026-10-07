@@ -637,16 +637,38 @@ void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrac
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
 }
 
-void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {
+void ApplicationWorkflowTests::encodedAudioExportsProduceReadableFiles_data() {
     QTest::addColumn<int>("majorFormat");
     QTest::addColumn<QString>("extension");
-    QTest::newRow("vorbis") << int(talcs::AudioFormatIO::OGG) << QStringLiteral("ogg");
-    QTest::newRow("mp3") << int(talcs::AudioFormatIO::MPEG) << QStringLiteral("mp3");
+    QTest::addColumn<int>("fileType");
+    QTest::addColumn<int>("formatOption");
+    QTest::addColumn<int>("subtype");
+    QTest::addColumn<double>("quantizationStep");
+    QTest::newRow("vorbis") << int(talcs::AudioFormatIO::OGG) << QStringLiteral("ogg")
+                            << int(AudioExporterConfig::FT_OggVorbis) << -1 << 0 << 0.0;
+    QTest::newRow("mp3") << int(talcs::AudioFormatIO::MPEG) << QStringLiteral("mp3")
+                         << int(AudioExporterConfig::FT_Mp3) << -1 << 0 << 0.0;
+    QTest::newRow("wav-24-bit") << int(talcs::AudioFormatIO::WAV) << QStringLiteral("wav")
+                                << int(AudioExporterConfig::FT_Wav) << 1
+                                << int(talcs::AudioFormatIO::PCM_24) << 1.0 / 8388608.0;
+    QTest::newRow("wav-unsigned-8-bit") << int(talcs::AudioFormatIO::WAV) << QStringLiteral("wav")
+                                        << int(AudioExporterConfig::FT_Wav) << 3
+                                        << int(talcs::AudioFormatIO::PCM_U8) << 1.0 / 128.0;
+    QTest::newRow("flac-16-bit") << int(talcs::AudioFormatIO::FLAC) << QStringLiteral("flac")
+                                 << int(AudioExporterConfig::FT_Flac) << 1
+                                 << int(talcs::AudioFormatIO::PCM_16) << 1.0 / 32768.0;
+    QTest::newRow("flac-signed-8-bit") << int(talcs::AudioFormatIO::FLAC) << QStringLiteral("flac")
+                                       << int(AudioExporterConfig::FT_Flac) << 2
+                                       << int(talcs::AudioFormatIO::PCM_S8) << 1.0 / 128.0;
 }
 
-void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
+void ApplicationWorkflowTests::encodedAudioExportsProduceReadableFiles() {
     QFETCH(int, majorFormat);
     QFETCH(QString, extension);
+    QFETCH(int, fileType);
+    QFETCH(int, formatOption);
+    QFETCH(int, subtype);
+    QFETCH(double, quantizationStep);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     QVector<float> samples(48000);
@@ -674,21 +696,35 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
     const auto output = files.filePath(QStringLiteral("encoded.") + extension);
-    const auto accepted =
-        registry.invoke(QStringLiteral("exports.audio.start"),
-                        {
-                            {QStringLiteral("document_id"),      before.documentId.toString()},
-                            {QStringLiteral("path"),             output                      },
-                            {QStringLiteral("overwrite_policy"), QStringLiteral("reject")    },
-                            {QStringLiteral("options"),
-                             QJsonObject{{QStringLiteral("format"), extension},
-                                         {QStringLiteral("sample_rate"), 48000},
-                                         {QStringLiteral("channel_mode"), QStringLiteral("mono")},
-                                         {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
-                                         {QStringLiteral("source"), QStringLiteral("all")}}  }
-    });
-    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    const auto taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
+    Automation::TaskId taskId;
+    if (formatOption < 0) {
+        const auto accepted = registry.invoke(
+            QStringLiteral("exports.audio.start"),
+            {
+                {QStringLiteral("document_id"),      before.documentId.toString()},
+                {QStringLiteral("path"),             output                      },
+                {QStringLiteral("overwrite_policy"), QStringLiteral("reject")    },
+                {QStringLiteral("options"),
+                 QJsonObject{{QStringLiteral("format"), extension},
+                             {QStringLiteral("sample_rate"), 48000},
+                             {QStringLiteral("channel_mode"), QStringLiteral("mono")},
+                             {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
+                             {QStringLiteral("source"), QStringLiteral("all")}}  }
+        });
+        QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+        taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
+    } else {
+        Automation::AudioExportConfigDto config;
+        config.fileDirectory = files.path();
+        config.fileName = QStringLiteral("encoded.") + extension;
+        config.fileType = fileType;
+        config.formatOption = formatOption;
+        config.sampleRate = 48000;
+        config.mono = true;
+        const auto accepted = runtime().audioExports().start(commandContext(), config, {});
+        QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+        taskId = accepted.get().taskId;
+    }
     QVERIFY(!taskId.isNull());
     QTRY_VERIFY_WITH_TIMEOUT(exportFinished(runtime(), before.documentId, taskId), 10000);
     const auto task = runtime().tasks().getTask(before.documentId, taskId);
@@ -700,16 +736,29 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
     talcs::AudioFormatIO decoder(&file);
     QVERIFY2(decoder.open(talcs::AbstractAudioFormatIO::Read), qPrintable(decoder.errorString()));
     QCOMPARE(decoder.majorFormat(), static_cast<talcs::AudioFormatIO::MajorFormat>(majorFormat));
+    if (formatOption >= 0)
+        QCOMPARE(int(decoder.subtype()), subtype);
     QCOMPARE(decoder.sampleRate(), 48000.0);
     QCOMPARE(decoder.channelCount(), 1);
     const auto duration = double(decoder.length()) / decoder.sampleRate();
     QVERIFY(duration >= 0.95 && duration < 1.1);
+    const auto sourceSamples = samples;
+    if (formatOption >= 0)
+        QCOMPARE(decoder.length(), qint64(sourceSamples.size()));
     samples.resize(decoder.length());
     QCOMPARE(decoder.read(samples.data(), samples.size()), qint64(samples.size()));
     QVERIFY(std::all_of(samples.cbegin(), samples.cend(),
                         [](float sample) { return std::isfinite(sample); }));
     QVERIFY(std::any_of(samples.cbegin(), samples.cend(),
                         [](float sample) { return std::abs(sample) > 0.05f; }));
+    if (formatOption >= 0) {
+        double maximumError = 0;
+        for (int index = samples.size() / 4; index < samples.size() * 3 / 4; ++index)
+            maximumError = std::max(maximumError,
+                                    double(std::abs(samples.at(index) - sourceSamples.at(index))));
+        QVERIFY2(maximumError <= quantizationStep + 1e-5,
+                 qPrintable(QStringLiteral("Decoded signal error: %1").arg(maximumError)));
+    }
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
 }
