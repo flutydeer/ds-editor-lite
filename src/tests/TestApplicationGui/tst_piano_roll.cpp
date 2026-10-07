@@ -40,6 +40,7 @@
 #include <QScopeGuard>
 #include <QAbstractButton>
 #include <QTextDocument>
+#include <QMap>
 
 namespace {
     void replaceInlineText(QLineEdit *editor, const QString &text) {
@@ -619,8 +620,13 @@ void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
 
 void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels_data() {
     QTest::addColumn<bool>("cancel");
-    QTest::newRow("release-commits") << false;
-    QTest::newRow("escape-cancels") << true;
+    QTest::addColumn<int>("requestedKey");
+    QTest::addColumn<int>("boundaryKey");
+    QTest::addColumn<int>("expectedKey");
+    QTest::newRow("release-commits") << false << 64 << -1 << 64;
+    QTest::newRow("escape-cancels") << true << 64 << -1 << 64;
+    QTest::newRow("selected-group-at-upper-key-limit") << false << 64 << 127 << 62;
+    QTest::newRow("selected-group-at-lower-key-limit") << false << 60 << 0 << 62;
 }
 
 void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels() {
@@ -628,17 +634,36 @@ void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels() {
     if (QTest::currentTestFailed())
         return;
     QFETCH(bool, cancel);
+    QFETCH(int, requestedKey);
+    QFETCH(int, boundaryKey);
+    QFETCH(int, expectedKey);
     auto &runtime = *context->m_coreRuntime;
     const auto noteId = insertSelectedNote();
     QVERIFY(noteId >= 0);
+    int boundaryNoteId = -1;
+    if (boundaryKey >= 0) {
+        Automation::NoteDraftDto boundary;
+        boundary.localStart = 960;
+        boundary.length = 240;
+        boundary.keyIndex = boundaryKey;
+        boundary.lyric = QStringLiteral("boundary");
+        boundary.language = QStringLiteral("eng");
+        const auto inserted = runtime.notes().insertNotes(
+            commandContext(), Automation::ClipId(singingClip->id()), {boundary});
+        QVERIFY(inserted && inserted.get().affectedObjects.size() == 1);
+        boundaryNoteId = inserted.get().affectedObjects.first().value;
+        appStatus->selectedNotes = QList<int>{noteId, boundaryNoteId};
+        QVERIFY(sceneNote(boundaryNoteId) && sceneNote(boundaryNoteId)->isSelected());
+    }
     view->setEditMode(ClipEditorGlobal::Select);
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *item = sceneNote(noteId);
     QVERIFY(item);
     const auto originalPosition = item->scenePos();
     const auto press = pointFor(600, 62);
-    const auto release = pointFor(1080, 64);
+    const auto release = pointFor(1080, requestedKey);
     QVERIFY(view->viewport()->rect().contains(press));
     QVERIFY(view->viewport()->rect().contains(release));
     QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
@@ -646,17 +671,27 @@ void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels() {
                      QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
                      Qt::NoModifier);
     QApplication::sendEvent(view->viewport(), &move);
-    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
-    const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), boundaryKey >= 0 ? 2 : 1);
+    QMap<int, AppStatus::NoteEditPreview> previews;
+    for (const auto &preview : appStatus->pianoRollNoteEditPreview.get())
+        previews.insert(preview.id, preview);
+    QVERIFY(previews.contains(noteId));
+    const auto preview = previews.value(noteId);
     QCOMPARE(preview.rStart, 960);
     QCOMPARE(preview.length, 240);
-    QCOMPARE(preview.keyIndex, 64);
+    QCOMPARE(preview.keyIndex, expectedKey);
     QCOMPARE(item->startOffset(), 480);
-    QCOMPARE(item->keyOffset(), 2);
+    QCOMPARE(item->keyOffset(), expectedKey - 62);
+    if (boundaryKey >= 0) {
+        QVERIFY(previews.contains(boundaryNoteId));
+        QCOMPARE(previews.value(boundaryNoteId).rStart, 1440);
+        QCOMPARE(previews.value(boundaryNoteId).keyIndex, boundaryKey);
+    }
     QVERIFY(item->scenePos() != originalPosition);
     QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
     QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(editSessionManager->hasActiveTransaction());
 
@@ -674,28 +709,41 @@ void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels() {
     const auto *note = singingClip->findNoteById(noteId);
     QVERIFY(note);
     QCOMPARE(note->localStart(), cancel ? 480 : 960);
-    QCOMPARE(note->keyIndex(), cancel ? 62 : 64);
+    QCOMPARE(note->keyIndex(), cancel ? 62 : expectedKey);
+    if (boundaryKey >= 0) {
+        const auto *boundary = singingClip->findNoteById(boundaryNoteId);
+        QVERIFY(boundary);
+        QCOMPARE(boundary->localStart(), 1440);
+        QCOMPARE(boundary->keyIndex(), boundaryKey);
+        const auto *boundaryItem = sceneNote(boundaryNoteId);
+        QVERIFY(boundaryItem);
+        QCOMPARE(boundaryItem->keyOffset(), 0);
+    }
     QCOMPARE(item->rStart(), note->localStart());
     QCOMPARE(item->keyIndex(), note->keyIndex());
     if (cancel) {
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(item->scenePos(), originalPosition);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
         QVERIFY(!historyManager->canUndo());
         return;
     }
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto afterContents = TestSupport::projectSnapshot(*context->m_appModel);
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
     QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
     QVERIFY(sceneNote(noteId));
     QCOMPARE(sceneNote(noteId)->scenePos(), originalPosition);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
     QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 960);
-    QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 64);
+    QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), expectedKey);
     QVERIFY(sceneNote(noteId));
     QCOMPARE(sceneNote(noteId)->rStart(), 960);
-    QCOMPARE(sceneNote(noteId)->keyIndex(), 64);
+    QCOMPARE(sceneNote(noteId)->keyIndex(), expectedKey);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterContents);
 }
 
 int ApplicationGuiTests::insertSelectedNote() {

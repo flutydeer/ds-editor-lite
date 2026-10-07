@@ -175,6 +175,7 @@ private slots:
     void movingLyricsBackwardUsesTheSelectedWordRange();
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
     void pianoAuxiliaryViewsNavigateWithoutChangingTheDocument();
+    void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip_data();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void audioPageInputsPersistWithoutPlayback();

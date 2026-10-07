@@ -6,15 +6,19 @@
 #include "Global/ControllerGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
+#include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorContextMenuController.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
+#include "../TestSupport/WaveFixture.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -24,10 +28,20 @@
 #include <QMimeData>
 #include <QScopeGuard>
 #include <QTimer>
+#include <QTemporaryDir>
 #include <QWindow>
 #include <QtTest/QTest>
 
+void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommittedClip_data() {
+    QTest::addColumn<bool>("audio");
+    QTest::newRow("singing-clip") << false;
+    QTest::newRow("decoded-audio-clip") << true;
+}
+
 void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommittedClip() {
+    QFETCH(bool, audio);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -40,6 +54,16 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
         qScopeGuard([&] { QApplication::clipboard()->setMimeData(previousClipboard.release()); });
     const auto previousCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(previousCursor); });
+    const auto releaseAudio = qScopeGuard([&] {
+        if (!audio)
+            return;
+        QVERIFY(runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        if (QTest::currentTestFailed())
+            files.setAutoRemove(false);
+    });
     TrackEditorView editor;
     const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
     auto *canvas = editor.findChild<TracksGraphicsView *>();
@@ -61,7 +85,18 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     clip.properties.length = 960;
     clip.properties.clipLen = 960;
     clip.defaultLanguage = note.language;
-    clip.notes.append(note);
+    clip.properties.gain = 0.625;
+    if (audio) {
+        clip.type = Automation::ClipDraftDto::Type::Audio;
+        clip.audioPath = files.filePath(QStringLiteral("paste.wav"));
+        QVERIFY(TestSupport::writeWave(clip.audioPath, QVector<float>(48000, 0.125f)));
+        clip.hasRealTimeAnchor = true;
+        clip.properties.trimStartMs = 125;
+        clip.properties.playLengthMs = 750;
+        clip.properties.materialLengthMs = 1000;
+    } else {
+        clip.notes.append(note);
+    }
     Automation::TrackDraftDto sourceDraft;
     sourceDraft.name = QStringLiteral("Source");
     sourceDraft.clips.append(clip);
@@ -71,8 +106,17 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     QVERIFY(runtime.project().insertTrack(commandContext(), 1, destinationDraft));
     auto *sourceTrack = context->m_appModel->tracks().at(0);
     auto *destination = context->m_appModel->tracks().at(1);
-    const auto *source = dynamic_cast<SingingClip *>(*sourceTrack->clips().begin());
+    const auto *source = *sourceTrack->clips().begin();
     QVERIFY(source);
+    const auto *sourceAudio = qobject_cast<const AudioClip *>(source);
+    if (audio) {
+        QVERIFY(sourceAudio);
+        QTRY_COMPARE(sourceAudio->audioInfo().frames, 48000);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    } else {
+        QVERIFY(qobject_cast<const SingingClip *>(source));
+    }
+    const auto originalSourceStart = source->start();
     auto *sourceItem = editor.findClipItemById(source->id());
     QVERIFY(sourceItem);
     editor.resize(1200, 500);
@@ -86,6 +130,7 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     QCoreApplication::processEvents();
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
     const auto sourcePosition = canvas->mapFromScene(sourceItem->sceneBoundingRect().center());
     QVERIFY(canvas->viewport()->rect().contains(sourcePosition));
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, sourcePosition);
@@ -167,11 +212,19 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
             const auto *preview = previewItems().first();
             QCOMPARE(preview->trackIndex(), 1);
             QCOMPARE(preview->length(), source->length());
+            if (audio) {
+                const auto *audioPreview = dynamic_cast<const AudioClipView *>(preview);
+                QVERIFY(audioPreview);
+                QCOMPARE(audioPreview->path(), sourceAudio->path());
+                QVERIFY(audioPreview->contentLength() > 0);
+            }
+            QVERIFY(!preview->sceneBoundingRect().isEmpty());
             previewStart = preview->start();
             previewRect = preview->sceneBoundingRect();
             QCOMPARE(destination->clips().count(), 0);
             QCOMPARE(sourceTrack->clips().count(), 1);
             QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
             QVERIFY(!historyManager->canUndo());
             if (commit)
                 QTest::mouseClick(&menu, Qt::LeftButton, Qt::NoModifier, position);
@@ -191,13 +244,25 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
         return;
     QVERIFY(previewItems().isEmpty());
     QCOMPARE(destination->clips().count(), 1);
-    const auto *pasted = dynamic_cast<SingingClip *>(*destination->clips().begin());
+    const auto *pasted = *destination->clips().begin();
     QVERIFY(pasted);
     QCOMPARE(pasted->start(), previewStart);
     QCOMPARE(pasted->length(), source->length());
-    QCOMPARE(pasted->notes().count(), 1);
-    QCOMPARE((*pasted->notes().begin())->localStart(), note.localStart);
-    QCOMPARE((*pasted->notes().begin())->lyric(), note.lyric);
+    QCOMPARE(pasted->gain(), source->gain());
+    if (audio) {
+        const auto *pastedAudio = qobject_cast<const AudioClip *>(pasted);
+        QVERIFY(pastedAudio);
+        QCOMPARE(pastedAudio->path(), sourceAudio->path());
+        QCOMPARE(pastedAudio->trimStartMs(), sourceAudio->trimStartMs());
+        QCOMPARE(pastedAudio->playLengthMs(), sourceAudio->playLengthMs());
+        QCOMPARE(pastedAudio->materialLengthMs(), sourceAudio->materialLengthMs());
+    } else {
+        const auto *pastedSinging = qobject_cast<const SingingClip *>(pasted);
+        QVERIFY(pastedSinging);
+        QCOMPARE(pastedSinging->notes().count(), 1);
+        QCOMPARE((*pastedSinging->notes().begin())->localStart(), note.localStart);
+        QCOMPARE((*pastedSinging->notes().begin())->lyric(), note.lyric);
+    }
     const auto pastedId = pasted->id();
     const auto *pastedItem = editor.findClipItemById(pastedId);
     QVERIFY(pastedItem);
@@ -206,9 +271,16 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(destination->clips().count(), 0);
     QCOMPARE(sourceTrack->clips().count(), 1);
-    QCOMPARE(source->start(), clip.properties.start);
+    QCOMPARE(source->start(), originalSourceStart);
     QVERIFY(!editor.findClipItemById(pastedId));
     QVERIFY(previewItems().isEmpty());
     QVERIFY(!historyManager->canUndo());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 2);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QVERIFY(runtime.history().redo(commandContext()));
+    const auto *redone = editor.findClipItemById(pastedId);
+    QVERIFY(redone);
+    QCOMPARE(redone->sceneBoundingRect(), previewRect);
+    QCOMPARE(destination->clips().count(), 1);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 3);
 }
