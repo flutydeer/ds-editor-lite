@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <atomic>
 #include <utility>
+#include <thread>
 
 namespace {
     namespace Mcp = AutomationWire::Mcp;
@@ -989,12 +990,18 @@ void AutomationProtocolTests::handlerResponseLimits() {
     }
 }
 
+void AutomationProtocolTests::listenerLifecycle_data() {
+    QTest::addColumn<bool>("foreignThread");
+    QTest::newRow("owner-thread") << false;
+    QTest::newRow("foreign-thread") << true;
+}
+
 void AutomationProtocolTests::listenerLifecycle() {
+    QFETCH(bool, foreignThread);
     McpServerFixture fixture;
     QVERIFY2(fixture.start(), qPrintable(fixture.error));
     auto &server = fixture.server;
     auto &manager = fixture.manager;
-    const auto endpoint = fixture.endpoint();
     Automation::McpHttpServer conflictingServer(
         [](const Mcp::RequestEnvelope &, const QString &) { return QJsonObject{}; });
     QString conflictError;
@@ -1008,11 +1015,28 @@ void AutomationProtocolTests::listenerLifecycle() {
 
     expect(server.start(0, fixture.error),
            QStringLiteral("the MCP server must support a clean restart: %1").arg(fixture.error));
-    server.requestStop();
+    const auto restartPort = server.port();
+    if (foreignThread) {
+        std::thread requester([&] { server.requestStop(); });
+        requester.join();
+    } else {
+        server.requestStop();
+    }
     expect(waitForStop(server),
            QStringLiteral("asynchronous MCP shutdown must complete without blocking the GUI loop"));
     expect(!server.isListening() && !server.isStopping() && server.endpoint().isEmpty(),
            QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
+    QVERIFY2(server.start(restartPort, fixture.error), qPrintable(fixture.error));
+    QCOMPARE(server.port(), restartPort);
+    const auto requestId = QStringLiteral("ping-after-asynchronous-stop");
+    const auto ping = requestObject(QString::fromLatin1(Mcp::PingMethod), requestId);
+    const auto response =
+        send(manager, baseRequest(fixture.endpoint(), QString::fromLatin1(Mcp::PingMethod)),
+             QJsonDocument(ping).toJson(QJsonDocument::Compact));
+    QVERIFY(!response.timedOut);
+    QCOMPARE(response.status, 200);
+    QCOMPARE(bodyObject(response).value(QStringLiteral("id")).toString(), requestId);
+    QVERIFY(bodyObject(response).contains(QStringLiteral("result")));
 }
 
 void AutomationProtocolTests::responseSurvivesShutdown_data() {

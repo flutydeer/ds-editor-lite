@@ -51,6 +51,7 @@ private slots:
     void transportMetadataRouting();
     void jsonAndRequestLimits();
     void handlerResponseLimits();
+    void listenerLifecycle_data();
     void listenerLifecycle();
     void responseSurvivesShutdown_data();
     void responseSurvivesShutdown();
