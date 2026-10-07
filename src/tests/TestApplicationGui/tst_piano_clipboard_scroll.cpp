@@ -245,7 +245,14 @@ void ApplicationGuiTests::pianoContextMenuPastePreservesRelativeNotesAndManualWo
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote_data() {
+    QTest::addColumn<bool>("pressMouseButton");
+    QTest::newRow("right-mouse-selection") << true;
+    QTest::newRow("context-event-selection") << false;
+}
+
 void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote() {
+    QFETCH(bool, pressMouseButton);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -291,8 +298,12 @@ void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote() {
     historyManager->reset();
     const auto before = runtime.documentVersion();
     const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
-    QTest::mouseClick(canvas->viewport(), Qt::RightButton, Qt::NoModifier, position);
-    QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
+    if (pressMouseButton) {
+        QTest::mouseClick(canvas->viewport(), Qt::RightButton, Qt::NoModifier, position);
+        QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
+    } else {
+        QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.last()->id()});
+    }
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
     QVERIFY(!historyManager->canUndo());

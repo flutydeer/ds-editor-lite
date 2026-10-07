@@ -73,6 +73,7 @@ private slots:
     void parameterTransformHandlesControlTheTransitionRange();
     void inlineLyricsCommitNavigateAndCancel();
     void inlinePronunciationCommitsAndCancels();
+    void pronunciationMenuChangesOnlyTheClickedNote_data();
     void pronunciationMenuChangesOnlyTheClickedNote();
     void phonemeBoundaryDragCommitsAndUndoRestoresOffsets();
     void phonemeWaveformsLoadAndDiscardResultsAfterChangingClips();
