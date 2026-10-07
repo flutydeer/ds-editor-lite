@@ -1426,6 +1426,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         if (!file.commit()) {
             msg += QCoreApplication::translate("DspxProjectConverter", "Failed to commit file: %1")
                        .arg(filePath);
+            msg += QStringLiteral("\n%1").arg(file.errorString());
             return false;
         }
 
