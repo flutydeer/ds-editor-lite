@@ -989,15 +989,22 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion_data() {
     QTest::addColumn<bool>("leftEdge");
     QTest::addColumn<bool>("touch");
-    QTest::newRow("left-edge") << true << false;
-    QTest::newRow("right-edge") << false << false;
-    QTest::newRow("touch-left-handle") << true << true;
-    QTest::newRow("touch-right-handle") << false << true;
+    QTest::addColumn<bool>("joint");
+    QTest::addColumn<bool>("cancel");
+    QTest::newRow("left-edge") << true << false << false << false;
+    QTest::newRow("right-edge") << false << false << false << false;
+    QTest::newRow("touch-left-handle") << true << true << false << false;
+    QTest::newRow("touch-right-handle") << false << true << false << false;
+    QTest::newRow("joint-left") << true << false << true << false;
+    QTest::newRow("joint-right") << false << false << true << false;
+    QTest::newRow("joint-cancel") << false << false << true << true;
 }
 
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     QFETCH(bool, leftEdge);
     QFETCH(bool, touch);
+    QFETCH(bool, joint);
+    QFETCH(bool, cancel);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
@@ -1007,6 +1014,24 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     auto &canvas = *fixture.canvas;
     auto *note = fixture.clip->findNoteById(fixture.noteId);
     QVERIFY(note);
+    const Note *neighbor = nullptr;
+    if (joint) {
+        Automation::NoteDraftDto draft;
+        draft.localStart = leftEdge ? 0 : 960;
+        draft.length = 480;
+        draft.keyIndex = 64;
+        draft.lyric = QStringLiteral("li");
+        draft.language = QStringLiteral("eng");
+        const auto inserted = fixture.runtime().notes().insertNotes(
+            fixture.command(), Automation::ClipId(fixture.clip->id()), {draft});
+        QVERIFY(inserted && !inserted.get().affectedObjects.isEmpty());
+        neighbor = fixture.clip->findNoteById(inserted.get().affectedObjects.first().value);
+        QVERIFY(neighbor);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        historyManager->reset();
+    }
     auto *touchDevice = QTest::createTouchDevice();
     auto touchSequence = QTest::touchEvent(&canvas, touchDevice, false);
     const auto cancelPointer = qScopeGuard([&] {
@@ -1025,49 +1050,107 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     const auto inset = touch ? -5 : 2;
     const auto edgeOffset = QPoint(leftEdge ? inset : -inset, 0);
     const auto press = fixture.pointFor(leftEdge ? 480 : 960, 60) + edgeOffset;
-    // Left resizing snaps the pointer down, so finish inside the requested grid cell.
+    // Left resizing snaps down, so finish inside the requested grid cell.
     const auto release = fixture.pointFor(leftEdge ? 240 : 1200, 60) + QPoint(leftEdge ? 2 : -2, 0);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
     const auto before = fixture.runtime().documentVersion();
+    const auto beforeProject = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     if (touch) {
         touchSequence.press(0, press).commit();
         touchSequence.move(0, release).commit();
     } else {
-        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+        QTest::mousePress(&canvas, Qt::LeftButton, joint ? Qt::ShiftModifier : Qt::NoModifier,
+                          press);
         fixture.moveTo(release);
     }
-    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
-    const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), joint ? 2 : 1);
+    const auto previews = appStatus->pianoRollNoteEditPreview.get();
+    const auto previewFor = [&](int noteId) {
+        for (const auto &preview : previews)
+            if (preview.id == noteId)
+                return preview;
+        return AppStatus::NoteEditPreview{};
+    };
+    const auto preview = previewFor(fixture.noteId);
+    QCOMPARE(preview.id, fixture.noteId);
     QCOMPARE(preview.rStart, leftEdge ? 240 : 480);
     QCOMPARE(preview.length, 720);
+    if (neighbor) {
+        const auto neighborPreview = previewFor(neighbor->id());
+        QCOMPARE(neighborPreview.id, neighbor->id());
+        QCOMPARE(neighborPreview.rStart, leftEdge ? 0 : 1200);
+        QCOMPARE(neighborPreview.length, 240);
+        QCOMPARE(neighborPreview.keyIndex, 64);
+        QCOMPARE(neighbor->localStart(), leftEdge ? 0 : 960);
+        QCOMPARE(neighbor->length(), 480);
+    }
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->localStart(), 480);
     QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeProject);
+    if (cancel) {
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&canvas, &deactivate);
+    }
     if (touch)
         touchSequence.release(0, release).commit();
     else
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    if (cancel) {
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeProject);
+        QVERIFY(!historyManager->canUndo());
+        fixture.waitForFrame();
+        return;
+    }
     QCOMPARE(note->length(), 720);
     QCOMPARE(note->localStart(), leftEdge ? 240 : 480);
+    if (neighbor) {
+        QCOMPARE(neighbor->localStart(), leftEdge ? 0 : 1200);
+        QCOMPARE(neighbor->length(), 240);
+    }
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
-    QVERIFY(!editSessionManager->hasActiveTransaction());
+    const auto committedProject = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
     const auto extendedArea = fixture.pointFor(leftEdge ? 360 : 1080, 60);
+    const auto vacatedNeighborArea = fixture.pointFor(leftEdge ? 360 : 1080, 64);
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, extendedArea);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    if (neighbor) {
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, vacatedNeighborArea);
+        QVERIFY(appStatus->selectedNotes.get().isEmpty());
+    }
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeProject);
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->localStart(), 480);
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
+    if (neighbor) {
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, vacatedNeighborArea);
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{neighbor->id()});
+    }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, extendedArea);
     QVERIFY(appStatus->selectedNotes.get().isEmpty());
     QVERIFY(!historyManager->canUndo());
     QVERIFY(historyManager->canRedo());
+    if (joint) {
+        QVERIFY(fixture.runtime().history().redo(fixture.command()));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), committedProject);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, vacatedNeighborArea);
+        QVERIFY(appStatus->selectedNotes.get().isEmpty());
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, extendedArea);
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    }
 }
 
 void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data() {

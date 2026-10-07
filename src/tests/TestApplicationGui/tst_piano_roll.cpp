@@ -933,23 +933,44 @@ void ApplicationGuiTests::inlinePronunciationCommitsAndCancels() {
 void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary_data() {
     QTest::addColumn<bool>("leftEdge");
     QTest::addColumn<bool>("cancel");
-    QTest::newRow("extend-right") << false << false;
-    QTest::newRow("extend-left") << true << false;
-    QTest::newRow("cancel-left") << true << true;
+    QTest::addColumn<bool>("joint");
+    QTest::newRow("extend-right") << false << false << false;
+    QTest::newRow("extend-left") << true << false << false;
+    QTest::newRow("cancel-left") << true << true << false;
+    QTest::newRow("joint-right") << false << false << true;
+    QTest::newRow("joint-left") << true << false << true;
+    QTest::newRow("joint-cancel") << true << true << true;
 }
 
 void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
     QFETCH(bool, leftEdge);
     QFETCH(bool, cancel);
+    QFETCH(bool, joint);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
     const auto id = insertSelectedNote();
     QVERIFY(id >= 0);
+    auto &runtime = *context->m_coreRuntime;
+    const Note *neighbor = nullptr;
+    if (joint) {
+        Automation::NoteDraftDto draft;
+        draft.localStart = leftEdge ? 0 : 720;
+        draft.length = 480;
+        draft.keyIndex = 64;
+        draft.lyric = QStringLiteral("world");
+        draft.language = QStringLiteral("eng");
+        const auto inserted = runtime.notes().insertNotes(
+            commandContext(), Automation::ClipId(singingClip->id()), {draft});
+        QVERIFY(inserted && !inserted.get().affectedObjects.isEmpty());
+        neighbor = singingClip->findNoteById(inserted.get().affectedObjects.first().value);
+        QVERIFY(neighbor);
+        QVERIFY(sceneNote(neighbor->id()));
+    }
     view->setEditMode(ClipEditorGlobal::Select);
     historyManager->reset();
-    auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
+    const auto beforeProject = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *note = singingClip->findNoteById(id);
     const auto *item = sceneNote(id);
     QVERIFY(note);
@@ -961,7 +982,8 @@ void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
     const auto release = press + QPoint(qRound(leftEdge ? -delta : delta), 0);
     QVERIFY(view->viewport()->rect().contains(press));
     QVERIFY(view->viewport()->rect().contains(release));
-    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QTest::mousePress(view->viewport(), Qt::LeftButton, joint ? Qt::ShiftModifier : Qt::NoModifier,
+                      press);
     const auto releaseOnFailure = qScopeGuard([&] {
         if (editSessionManager->hasActiveTransaction()) {
             QTest::keyClick(view.get(), Qt::Key_Escape);
@@ -972,42 +994,82 @@ void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
                      QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
                      Qt::NoModifier);
     QApplication::sendEvent(view->viewport(), &move);
-    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
-    const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), joint ? 2 : 1);
+    const auto previews = appStatus->pianoRollNoteEditPreview.get();
+    const auto previewFor = [&](int noteId) {
+        for (const auto &preview : previews)
+            if (preview.id == noteId)
+                return preview;
+        return AppStatus::NoteEditPreview{};
+    };
+    const auto preview = previewFor(id);
     const auto expectedStart = leftEdge ? 240 : 480;
+    QCOMPARE(preview.id, id);
     QCOMPARE(preview.rStart, expectedStart);
     QCOMPARE(preview.length, 480);
     QCOMPARE(preview.keyIndex, 62);
+    if (neighbor) {
+        const auto neighborPreview = previewFor(neighbor->id());
+        QCOMPARE(neighborPreview.id, neighbor->id());
+        QCOMPARE(neighborPreview.rStart, leftEdge ? 0 : 960);
+        QCOMPARE(neighborPreview.length, 240);
+        QCOMPARE(neighborPreview.keyIndex, 64);
+        QCOMPARE(neighbor->localStart(), leftEdge ? 0 : 720);
+        QCOMPARE(neighbor->length(), 480);
+    }
     QCOMPARE(note->length(), 240);
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeProject);
     QVERIFY(!historyManager->canUndo());
     if (cancel)
         QTest::keyClick(view.get(), Qt::Key_Escape);
     QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
     if (cancel) {
         QCOMPARE(note->localStart(), 480);
         QCOMPARE(note->length(), 240);
         QCOMPARE(sceneNote(id)->length(), 240);
-        QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        if (neighbor) {
+            QCOMPARE(sceneNote(neighbor->id())->rStart(), leftEdge ? 0 : 720);
+            QCOMPARE(sceneNote(neighbor->id())->length(), 480);
+        }
         QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeProject);
         QVERIFY(!historyManager->canUndo());
         return;
     }
     QCOMPARE(note->localStart(), expectedStart);
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->keyIndex(), 62);
-    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
     QCOMPARE(sceneNote(id)->length(), 480);
+    if (neighbor) {
+        QCOMPARE(neighbor->localStart(), leftEdge ? 0 : 960);
+        QCOMPARE(neighbor->length(), 240);
+        QCOMPARE(sceneNote(neighbor->id())->rStart(), neighbor->localStart());
+        QCOMPARE(sceneNote(neighbor->id())->length(), neighbor->length());
+    }
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto committedProject = TestSupport::projectSnapshot(*context->m_appModel);
     historyManager->undo();
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeProject);
     QCOMPARE(note->localStart(), 480);
     QCOMPARE(note->length(), 240);
     QCOMPARE(sceneNote(id)->length(), 240);
+    if (neighbor) {
+        QCOMPARE(sceneNote(neighbor->id())->rStart(), leftEdge ? 0 : 720);
+        QCOMPARE(sceneNote(neighbor->id())->length(), 480);
+    }
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), committedProject);
     QCOMPARE(note->localStart(), expectedStart);
     QCOMPARE(note->length(), 480);
     QCOMPARE(sceneNote(id)->length(), 480);
+    if (neighbor) {
+        QCOMPARE(sceneNote(neighbor->id())->rStart(), leftEdge ? 0 : 960);
+        QCOMPARE(sceneNote(neighbor->id())->length(), 240);
+    }
 }
 
 QPoint ApplicationGuiTests::pointFor(int tick, int key) const {
