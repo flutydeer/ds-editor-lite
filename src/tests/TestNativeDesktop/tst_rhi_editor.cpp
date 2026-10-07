@@ -1110,18 +1110,52 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     QRect originalRegion;
     QRect movedRegion;
     if (platformRenderer) {
-        originalFrame = canvas.grabFramebuffer();
-        QVERIFY(!originalFrame.isNull());
-        const auto regionFor = [&](const QPoint &point) {
-            const QPoint pixel(
-                qRound(point.x() * double(originalFrame.width()) / canvas.width()),
-                qRound(point.y() * double(originalFrame.height()) / canvas.height()));
+        const auto regionFor = [&](const QImage &frame, const QPoint &point) {
+            const QPoint pixel(qRound(point.x() * double(frame.width()) / canvas.width()),
+                               qRound(point.y() * double(frame.height()) / canvas.height()));
             return QRect(pixel - QPoint(1, 1), QSize(3, 3));
         };
-        originalRegion = regionFor(fixture.pointFor(840, 60));
-        movedRegion = regionFor(fixture.pointFor(1320, 62));
+        const auto originalSize = canvas.size();
+        const auto originalView = canvas.viewState();
+        const auto originalModel = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+        const auto selected = appStatus->selectedNotes.get();
+        const auto beforeResize = canvas.grabFramebuffer();
+        QVERIFY(!beforeResize.isNull());
+        const auto beforeResizeNote =
+            beforeResize.copy(regionFor(beforeResize, fixture.pointFor(840, 60)));
+        canvas.resize(originalSize.width() - 180, originalSize.height() - 120);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        const auto resized = canvas.grabFramebuffer();
+        QVERIFY(!resized.isNull());
+        QCOMPARE(resized.size(), QSize(qRound(canvas.width() * canvas.devicePixelRatioF()),
+                                       qRound(canvas.height() * canvas.devicePixelRatioF())));
+        QVERIFY(resized.size() != beforeResize.size());
+        const auto resizedNoteRegion = regionFor(resized, fixture.pointFor(840, 60));
+        QVERIFY(resized.rect().contains(resizedNoteRegion));
+        QCOMPARE(resized.copy(resizedNoteRegion), beforeResizeNote);
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(720, 60));
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+        canvas.resize(originalSize);
+        QVERIFY(canvas.setViewScale(originalView.horizontalScale, originalView.verticalScale));
+        QVERIFY(canvas.centerAt(originalView.centerTick, originalView.centerKeyIndex));
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(appStatus->selectedNotes.get(), selected);
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), originalModel);
+        QVERIFY(!historyManager->canUndo());
+        originalFrame = canvas.grabFramebuffer();
+        QVERIFY(!originalFrame.isNull());
+        QCOMPARE(originalFrame.size(), beforeResize.size());
+        originalRegion = regionFor(originalFrame, fixture.pointFor(840, 60));
+        movedRegion = regionFor(originalFrame, fixture.pointFor(1320, 62));
         QVERIFY(originalFrame.rect().contains(originalRegion));
         QVERIFY(originalFrame.rect().contains(movedRegion));
+        QCOMPARE(originalFrame.copy(originalRegion), beforeResize.copy(originalRegion));
+        QCOMPARE(originalFrame.copy(movedRegion), beforeResize.copy(movedRegion));
     }
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     fixture.moveTo(release);
