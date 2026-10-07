@@ -92,77 +92,94 @@ void GuiComponentTests::validColorsAndSubstitution() {
              (QSet<QString>({QStringLiteral("surface.window"), QStringLiteral("icon.focus")})));
 }
 
+void GuiComponentTests::invalidDefinitions_data() {
+    QTest::addColumn<QByteArray>("json");
+    QTest::addColumn<QString>("expectedError");
+    QTest::newRow("unknown-alias")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"#000"},"tokens":{"surface.window":"{missing.color}"}})JSON")
+        << QStringLiteral("Unknown color alias");
+    QTest::newRow("alias-cycle")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"#000"},"tokens":{"surface.one":"{surface.two}","surface.two":"{surface.one}"}})JSON")
+        << QStringLiteral("alias cycle");
+    QTest::newRow("out-of-range-oklch")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"oklch(120% 0.1 20)"},"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("out of range");
+    QTest::newRow("cross-section-duplicate")
+        << QByteArray(
+               R"JSON({"palette":{"surface.window":"#000"},"tokens":{"surface.window":"#fff"}})JSON")
+        << QStringLiteral("both palette and tokens");
+    QTest::newRow("same-object-duplicate")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"#000","neutral.base":"#fff"},"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("Duplicate JSON key");
+    QTest::newRow("palette-alias")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"{neutral.other}"},"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("Unsupported color literal");
+    QTest::newRow("escaped-key-duplicate")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"#000","neutral.\u0062ase":"#fff"},"tokens":{"surface.window":"{neutral.base}"}})JSON")
+        << QStringLiteral("Duplicate JSON key");
+    QTest::newRow("palette-array")
+        << QByteArray(R"JSON({"palette":["#000","#fff"],"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("requires object fields");
+    QTest::newRow("empty-tokens")
+        << QByteArray(R"JSON({"palette":{"neutral.base":"#000"},"tokens":{}})JSON")
+        << QStringLiteral("must not be empty");
+    QTest::newRow("numeric-palette-value")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":0},"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("must be a color string");
+    QTest::newRow("non-string-token-value")
+        << QByteArray(
+               R"JSON({"palette":{"neutral.base":"#000"},"tokens":{"surface.window":false}})JSON")
+        << QStringLiteral("must be a color string or alias");
+    QTest::newRow("invalid-color-key")
+        << QByteArray(
+               R"JSON({"palette":{"neutral base":"#000"},"tokens":{"surface.window":"#000"}})JSON")
+        << QStringLiteral("Invalid color key");
+}
+
 void GuiComponentTests::invalidDefinitions() {
     ThemeEnvironment fixture;
+    QFETCH(QByteArray, json);
+    QFETCH(QString, expectedError);
+    QString error;
+    const auto colors = parse(json, error);
+    QVERIFY2(!colors, qPrintable(error));
+    QVERIFY2(error.contains(expectedError), qPrintable(error));
+}
 
-    struct Case {
-        QByteArray json;
-        QString expectedError;
-        const char *scenario;
-    };
-
-    const QList<Case> cases{
-        {
-         R"JSON({"palette":{"neutral.base":"#000"},"tokens":{"surface.window":"{missing.color}"}})JSON",
-         QStringLiteral("Unknown color alias"),
-         "unknown alias", },
-        {
-         R"JSON({"palette":{"neutral.base":"#000"},"tokens":{"surface.one":"{surface.two}","surface.two":"{surface.one}"}})JSON",
-         QStringLiteral("alias cycle"),
-         "alias cycle", },
-        {
-         R"JSON({"palette":{"neutral.base":"oklch(120% 0.1 20)"},"tokens":{"surface.window":"#000"}})JSON",
-         QStringLiteral("out of range"),
-         "out-of-range OKLCH", },
-        {
-         R"JSON({"palette":{"surface.window":"#000"},"tokens":{"surface.window":"#fff"}})JSON",                                                                                               QStringLiteral("both palette and tokens"),
-         "cross-section duplicate", },
-        {
-         R"JSON({"palette":{"neutral.base":"#000","neutral.base":"#fff"},"tokens":{"surface.window":"#000"}})JSON",
-         QStringLiteral("Duplicate JSON key"),
-         "same-object duplicate", },
-        {
-         R"JSON({"palette":{"neutral.base":"{neutral.other}"},"tokens":{"surface.window":"#000"}})JSON",
-         QStringLiteral("Unsupported color literal"),
-         "palette alias", },
-    };
-
-    for (const auto &testCase : cases) {
-        QString error;
-        const auto colors = parse(testCase.json, error);
-        QVERIFY2((!colors && error.contains(testCase.expectedError)),
-                 qPrintable(QString::fromUtf8(testCase.scenario) + QStringLiteral(": ") + error));
-    }
+void GuiComponentTests::invalidPlaceholders_data() {
+    QTest::addColumn<QString>("styleSheet");
+    QTest::addColumn<QString>("expectedError");
+    QTest::newRow("palette-reference") << QStringLiteral("QWidget { color: ${neutral.base}; }")
+                                       << QStringLiteral("references palette directly");
+    QTest::newRow("unknown-token") << QStringLiteral("QWidget { color: ${text.unknown}; }")
+                                   << QStringLiteral("Unknown QSS color token");
+    QTest::newRow("malformed-token")
+        << QStringLiteral("QWidget { color: ${surface.window; }") << QStringLiteral("Malformed");
+    QTest::newRow("unterminated-placeholder")
+        << QStringLiteral("QWidget { color: ${surface.window;") << QStringLiteral("Malformed");
 }
 
 void GuiComponentTests::invalidPlaceholders() {
     ThemeEnvironment fixture;
+    QFETCH(QString, styleSheet);
+    QFETCH(QString, expectedError);
     const QByteArray json = R"JSON({
         "palette": {"neutral.base": "#000"},
         "tokens": {"surface.window": "{neutral.base}"}
     })JSON";
     QString error;
     const auto colors = parse(json, error);
-    QVERIFY2((colors.has_value()), qPrintable(QStringLiteral("placeholder fixture should parse") +
-                                              QStringLiteral(": ") + error));
-
-    auto result = ThemeColorResolver::applyToStyleSheet(
-        QStringLiteral("QWidget { color: ${neutral.base}; }"), *colors, nullptr, &error);
-    QVERIFY2((!result && error.contains(QStringLiteral("references palette directly"))),
-             qPrintable(QStringLiteral("direct palette placeholder should fail") +
-                        QStringLiteral(": ") + error));
-
-    result = ThemeColorResolver::applyToStyleSheet(
-        QStringLiteral("QWidget { color: ${text.unknown}; }"), *colors, nullptr, &error);
-    QVERIFY2((!result && error.contains(QStringLiteral("Unknown QSS color token"))),
-             qPrintable(QStringLiteral("unknown token placeholder should fail") +
-                        QStringLiteral(": ") + error));
-
-    result = ThemeColorResolver::applyToStyleSheet(
-        QStringLiteral("QWidget { color: ${surface.window; }"), *colors, nullptr, &error);
-    QVERIFY2((!result && error.contains(QStringLiteral("Malformed"))),
-             qPrintable(QStringLiteral("malformed placeholder should fail") + QStringLiteral(": ") +
-                        error));
+    QVERIFY2(colors.has_value(), qPrintable(error));
+    const auto result = ThemeColorResolver::applyToStyleSheet(styleSheet, *colors, nullptr, &error);
+    QVERIFY2(!result, qPrintable(error));
+    QVERIFY2(error.contains(expectedError), qPrintable(error));
 }
 
 void GuiComponentTests::appearanceThemePreference() {

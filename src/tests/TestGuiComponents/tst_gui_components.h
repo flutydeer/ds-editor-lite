@@ -9,7 +9,9 @@ class GuiComponentTests final : public QObject {
 private slots:
     void initTestCase();
     void validColorsAndSubstitution();
+    void invalidDefinitions_data();
     void invalidDefinitions();
+    void invalidPlaceholders_data();
     void invalidPlaceholders();
     void appearanceThemePreference();
     void bundledStyleSheets();
