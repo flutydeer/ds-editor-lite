@@ -55,7 +55,9 @@ bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride ||
         event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease ||
         event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::MouseMove ||
-        event->type() == QEvent::Shortcut) {
+        event->type() == QEvent::Shortcut || event->type() == QEvent::TouchBegin ||
+        event->type() == QEvent::TouchUpdate || event->type() == QEvent::TouchEnd ||
+        event->type() == QEvent::TouchCancel) {
         auto detail =
             QStringLiteral("%1/%2 [%3] event=%4 spontaneous=%5")
                 .arg(object->parent()

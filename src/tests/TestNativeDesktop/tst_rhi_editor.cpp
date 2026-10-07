@@ -52,6 +52,8 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
+#include <QDir>
+#include <QFile>
 #include <QContextMenuEvent>
 #include <QCursor>
 #include <QEventLoop>
@@ -520,7 +522,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
         touch.press(0, position).commit();
         touch.move(0, position - QPoint(24, 0)).commit();
         touch.move(0, position - QPoint(48, 0)).commit();
-        QTRY_VERIFY(piano->startTick() > beforePan);
+        QTRY_VERIFY2(piano->startTick() > beforePan, qPrintable(recentInput.join('\n')));
         touch.release(0, position - QPoint(48, 0)).commit();
         verifyTimeline();
         if (QTest::currentTestFailed())
@@ -554,6 +556,60 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     verifyTimelines();
     if (QTest::currentTestFailed())
         return;
+    {
+        QTemporaryDir externalThemes;
+        QVERIFY(externalThemes.isValid());
+        const auto themeId = themes->currentThemeId();
+        const auto themeDirectory = externalThemes.filePath(themeId);
+        QVERIFY(QDir().mkpath(themeDirectory));
+        QFile manifest(QDir(themeDirectory).filePath(QStringLiteral("manifest.json")));
+        QVERIFY(manifest.open(QIODevice::WriteOnly));
+        QCOMPARE(manifest.write("{}"), qint64{2});
+        manifest.close();
+        const auto previousRoot = qgetenv("DS_EDITOR_THEME_DIR");
+        const auto restoreRoot = [&] {
+            if (previousRoot.isNull())
+                qunsetenv("DS_EDITOR_THEME_DIR");
+            else
+                qputenv("DS_EDITOR_THEME_DIR", previousRoot);
+        };
+        const auto restoreThemeRoot = qScopeGuard(restoreRoot);
+        QVERIFY(ThemeLoader::load(themeId));
+        QVERIFY(ThemeLoader::lastError().isEmpty());
+        const auto originalStyle = window.styleSheet();
+        const auto originalWhiteKey = piano->property("whiteKeyColor").value<QColor>();
+        const auto originalBackground = tracks->property("backgroundColor").value<QColor>();
+        QSignalSpy changed(themes, &ThemeManager::themeChanged);
+        qputenv("DS_EDITOR_THEME_DIR", externalThemes.path().toUtf8());
+        QTest::keyClick(&window, Qt::Key_F5, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_VERIFY(ThemeLoader::lastError().contains(themeDirectory));
+        QCOMPARE(changed.size(), 0);
+        QCOMPARE(themes->currentThemeId(), themeId);
+        QCOMPARE(window.styleSheet(), originalStyle);
+        QCOMPARE(piano->property("whiteKeyColor").value<QColor>(), originalWhiteKey);
+        QCOMPARE(tracks->property("backgroundColor").value<QColor>(), originalBackground);
+        verifyTimelines();
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+        QVERIFY(!historyManager->canUndo());
+        restoreRoot();
+        const auto pianoBeforeReload = pianoFrames.size();
+        const auto tracksBeforeReload = trackFrames.size();
+        QTest::keyClick(&window, Qt::Key_F5, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_COMPARE(changed.size(), 1);
+        QVERIFY(ThemeLoader::lastError().isEmpty());
+        QTRY_VERIFY(pianoFrames.size() > pianoBeforeReload &&
+                    trackFrames.size() > tracksBeforeReload);
+        QCOMPARE(themes->currentThemeId(), themeId);
+        QCOMPARE(window.styleSheet(), originalStyle);
+        QCOMPARE(piano->property("whiteKeyColor").value<QColor>(), originalWhiteKey);
+        QCOMPARE(tracks->property("backgroundColor").value<QColor>(), originalBackground);
+        verifyTimelines();
+        if (QTest::currentTestFailed())
+            return;
+    }
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QCOMPARE(appStatus->activeClipId.get(), clip->id());
