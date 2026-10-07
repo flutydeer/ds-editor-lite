@@ -91,120 +91,111 @@
 <context>
     <name>AppearancePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="93"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="96"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="94"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="97"/>
         <source>Color theme</source>
         <translation>颜色主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="88"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="91"/>
         <source>Light</source>
         <translation>浅色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="89"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="92"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="61"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="64"/>
         <source>Theme switch failed</source>
         <translation>主题切换失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="129"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="132"/>
         <source>Use native frame</source>
         <translation>使用原生边框</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="129"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="132"/>
         <source>App needs a restart to take effect</source>
         <translation>需要重启以生效</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="145"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="148"/>
         <source>Duration scale</source>
         <translation>时长缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="122"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="125"/>
         <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
         <translation>重启应用后设置会生效。要现在重启吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="87"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="90"/>
         <source>System</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="98"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="101"/>
         <source>Default</source>
         <translation>默认</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="116"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="119"/>
         <source>Font</source>
         <translation>字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="117"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="120"/>
         <source>Interface font</source>
         <translation>界面字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="128"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="131"/>
         <source>Window</source>
         <translation>窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="143"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="146"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="144"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="147"/>
         <source>Enable animations</source>
         <translation>启用动画</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="154"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="158"/>
         <source>Piano Roll</source>
         <translation>钢琴卷帘</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="155"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="159"/>
         <source>Show notes from other tracks</source>
         <translation>显示其他轨道的音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="156"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="160"/>
         <source>Displayed as thin bars for reference only</source>
         <translation>以矮条显示，仅供参考</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="158"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="161"/>
         <source>Show tempo track</source>
         <translation>显示曲速轨</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="159"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="162"/>
         <source>Show time signature track</source>
         <translation>显示拍号轨</translation>
     </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="151"/>
-        <source>Touch</source>
-        <translation>触摸</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="155"/>
-        <source>Enable Direct Manipulation</source>
-        <translation>启用 Direct Manipulation</translation>
-    </message></context>
+</context>
 <context>
     <name>Application</name>
     <message>
@@ -778,7 +769,7 @@
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="69"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1165"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1171"/>
         <source>File missing</source>
         <translation>文件缺失</translation>
     </message>
@@ -791,13 +782,13 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="346"/>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="726"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="351"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="755"/>
         <source>Inference failed</source>
         <translation>推理失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="393"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="422"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -1471,17 +1462,17 @@
 <context>
     <name>ClipController</name>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="343"/>
+        <location filename="../../Controller/ClipController.cpp" line="357"/>
         <source>%1 (%2)</source>
         <translation>%1（%2）</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="350"/>
+        <location filename="../../Controller/ClipController.cpp" line="364"/>
         <source>Reset phoneme durations</source>
         <translation>还原音素时长</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="351"/>
+        <location filename="../../Controller/ClipController.cpp" line="365"/>
         <source>To avoid phoneme overlap, %1 adjacent word(s) will also be reset:
 %2
 
@@ -1492,12 +1483,12 @@ Reset them?</source>
 是否还原？</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="356"/>
+        <location filename="../../Controller/ClipController.cpp" line="370"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="355"/>
+        <location filename="../../Controller/ClipController.cpp" line="369"/>
         <source>Reset</source>
         <translation>还原</translation>
     </message>
@@ -1661,7 +1652,7 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="60"/>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="281"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="288"/>
         <source>Please select a singing clip to edit</source>
         <translation>请选择一个歌声剪辑以编辑</translation>
     </message>
@@ -1702,112 +1693,139 @@ Right drag: Erase</source>
 <context>
     <name>DeveloperPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="66"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="70"/>
         <source>The embedded options dialog setting will take effect after restarting the app. Do you want to restart now?</source>
         <translation>内嵌选项对话框设置需要重启应用后生效。要立即重启应用吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="74"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="78"/>
         <source>Legacy (QGraphicsView)</source>
         <translation>旧版 (QGraphicsView)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="77"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="81"/>
         <source>Experimental (QRhiWidget)</source>
         <translation>实验性 (QRhiWidget)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="84"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="88"/>
         <source>The editor rendering backend will change after restarting the app. Do you want to restart now?</source>
         <translation>编辑器渲染后端将在重启应用后生效。是否现在重启？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="90"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="94"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="98"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="102"/>
+        <source>Open Folder...</source>
+        <translation>打开目录...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="106"/>
+        <source>App Data</source>
+        <translation>应用数据</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="107"/>
+        <source>Config File</source>
+        <translation>配置文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="108"/>
+        <source>Log Folder</source>
+        <translation>日志目录</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="109"/>
+        <source>Dump Folder</source>
+        <translation>转储目录</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="111"/>
         <source>Diagnostics</source>
         <translation>诊断</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="91"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="112"/>
         <source>Enable diagnostic output</source>
         <translation>启用诊断输出</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="92"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="113"/>
         <source>Print event loop performance statistics to debug output</source>
         <translation>将事件循环性能统计信息打印到调试输出</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="94"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="115"/>
         <source>Show log window</source>
         <translation>显示日志窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="95"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="116"/>
         <source>Open a standalone window that shows application logs with level, tag and text filters</source>
         <translation>打开独立窗口，以等级、标签和文本筛选方式显示应用日志</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="98"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="119"/>
         <source>Show timeline debug overlay</source>
         <translation>显示时间线调试叠加层</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="99"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="120"/>
         <source>Display piece boundaries and range overlays on the timeline</source>
         <translation>在时间线上显示分段边界与范围叠加层</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="101"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="122"/>
         <source>Show clip debug info</source>
         <translation>显示剪辑调试信息</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="102"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="123"/>
         <source>Display clip ID and detailed time info on track clips</source>
         <translation>在轨道剪辑上显示剪辑 ID 与详细时间信息</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="126"/>
         <source>Log touch events</source>
         <translation>记录触摸事件</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="106"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="127"/>
         <source>Record every touch event the editor receives, with point states and gesture phase. Filter the log window by the EditorTouchController tag</source>
         <translation>记录编辑器收到的每个触摸事件，含触点状态与手势阶段，可在日志窗口按 EditorTouchController 标签筛选</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="110"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="131"/>
         <source>Experimental</source>
         <translation>实验性</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="112"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="133"/>
         <source>Enable panel detach</source>
         <translation>启用面板分离</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="113"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="134"/>
         <source>Show the detach button on panel title bars to separate panels into standalone windows</source>
         <translation>在面板标题栏上显示分离按钮，将面板分离为独立窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="115"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="136"/>
         <source>Embedded options dialog</source>
         <translation>内嵌选项对话框</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="116"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="137"/>
         <source>Open the settings window inside the main window instead of a standalone dialog (experimental, applies after restart)</source>
         <translation>在主窗口内打开设置窗口，而不是独立对话框（实验性，重启后生效）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="119"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="140"/>
         <source>Editor rendering backend</source>
         <translation>编辑器渲染后端</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="120"/>
+        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="141"/>
         <source>Applies to the track editor and piano roll after restart</source>
         <translation>重启后应用于轨道编辑器和钢琴卷帘</translation>
     </message>
@@ -1882,7 +1900,7 @@ Right drag: Erase</source>
     <name>DocumentWorkflowController</name>
     <message>
         <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="200"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="267"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="269"/>
         <source>New Project</source>
         <translation>新工程</translation>
     </message>
@@ -2758,114 +2776,93 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>GeneralPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="73"/>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="77"/>
-        <source>Open Folder...</source>
-        <translation>打开目录...</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="82"/>
-        <source>Config File</source>
-        <translation>配置文件</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="83"/>
-        <source>Log Folder</source>
-        <translation>日志目录</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="118"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="114"/>
         <source>Package Search Paths (needs restart)</source>
         <translation>包搜索路径（需要重启）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="142"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="138"/>
         <source>Game Model Dir</source>
         <translation>GAME 模型目录</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="81"/>
-        <source>App Data</source>
-        <translation>应用数据</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="55"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="53"/>
         <source>Auto Detect</source>
         <translation>自动检测</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="69"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="67"/>
         <source>Application</source>
         <translation>应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="70"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="68"/>
         <source>UI Language</source>
         <translation>UI 语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="70"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="68"/>
         <source>Language used by the application interface</source>
         <translation>应用界面使用的语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="102"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="98"/>
         <source>Default Singing Language</source>
         <translation>默认演唱语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="103"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="99"/>
         <source>Default Lyric</source>
         <translation>默认歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="117"/>
         <source>ONNX Files (*.onnx);;All Files (*)</source>
         <translation>ONNX 文件 (*.onnx);;所有文件 (*)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="125"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="121"/>
         <source>Directories</source>
         <translation>目录</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="137"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="133"/>
         <source>Executable (*.exe)</source>
         <translation>可执行文件 (*.exe)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="141"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="137"/>
         <source>Model</source>
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="143"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="139"/>
         <source>Rmvpe Model Path</source>
         <translation>RMVPE 模型路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="144"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="140"/>
         <source>LibreSVIP Path</source>
         <translation>LibreSVIP 路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="101"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="97"/>
         <source>Singing</source>
         <translation>演唱</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="90"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="74"/>
         <source>Pen and Touch</source>
         <translation>笔和触控</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="92"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="76"/>
         <source>Draw parameters with finger</source>
         <translation>用手指绘制参数</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="93"/>
-        <source>When off, a finger on the parameter panel or the piano roll's pitch tools only scrolls the timeline. Pen and mouse are unaffected.</source>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="77"/>
+        <source>When off, a finger on the parameter panel or the piano roll&apos;s pitch tools only scrolls the timeline. Pen and mouse are unaffected.</source>
         <translation>关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴；笔和鼠标不受影响。</translation>
     </message>
 </context>
@@ -2890,59 +2887,24 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>处理中：%1</translation>
     </message>
     <message>
+        <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="89"/>
         <source>Language module is not ready</source>
         <translation>语言模块尚未就绪</translation>
     </message>
     <message>
+        <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="101"/>
         <source>Singer is not available</source>
         <translation>歌手不可用</translation>
     </message>
     <message>
+        <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="150"/>
         <source>Failed to load the phoneme module for language %1</source>
         <translation>语言 %1 的音素模块加载失败</translation>
     </message>
     <message>
-        <source>Failed to convert the pronunciation of \"%1\"</source>
+        <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="174"/>
+        <source>Failed to convert the pronunciation of &quot;%1&quot;</source>
         <translation>无法转换“%1”的发音</translation>
-    </message>
-    <message>
-        <source>No phonemes are available for the pronunciation of \"%1\"</source>
-        <translation type="vanished">“%1”的发音没有对应的音素</translation>
-    </message>
-</context>
-<context>
-    <name>PianoRollGraphicsViewHelper</name>
-    <message>
-        <source>Missing phonemes</source>
-        <translation>缺少音素</translation>
-    </message>
-    <message>
-        <source>Invalid phrase start</source>
-        <translation>乐句起始无效</translation>
-    </message>
-    <message>
-        <source>No phonemes assigned</source>
-        <translation>未分配到音素</translation>
-    </message>
-    <message>
-        <source>Overlapping note</source>
-        <translation>音符重叠</translation>
-    </message>
-    <message>
-        <source>No phonemes are available for this note. Check the lyric, the pronunciation, or the language settings</source>
-        <translation>该音符没有可用的音素，请检查歌词、发音或语言设置</translation>
-    </message>
-    <message>
-        <source>A phrase cannot start with a slur or syllabification note</source>
-        <translation>乐句不能以连音或音节分配符开头</translation>
-    </message>
-    <message>
-        <source>This syllabification note was not assigned any phonemes</source>
-        <translation>音节分配符未分配到音素</translation>
-    </message>
-    <message>
-        <source>This note overlaps another note and is ignored</source>
-        <translation>该音符与其他音符重叠，已被忽略</translation>
     </message>
 </context>
 <context>
@@ -3847,7 +3809,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="139"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="140"/>
         <source>All Supported Files (%1)</source>
         <translation>所有支持的文件 (%1)</translation>
     </message>
@@ -3855,323 +3817,329 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="143"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="144"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="183"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="184"/>
         <source>&amp;%L1 %2</source>
         <translation>&amp;%L1 %2</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="204"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="252"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="205"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="253"/>
         <source>MIDI File (*.mid *.midi)</source>
         <translation>MIDI 文件 (*.mid *.midi)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="251"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="252"/>
         <source>Save as MIDI File</source>
         <translation>另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="271"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="586"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="874"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="272"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="587"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="881"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="273"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="594"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="875"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="274"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="595"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="882"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="524"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="861"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="525"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="868"/>
         <source>&amp;New</source>
         <translation>新建(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="530"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="862"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="531"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="869"/>
         <source>&amp;Open...</source>
         <translation>打开(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="541"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="864"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="542"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="871"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="613"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="877"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="614"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="884"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="620"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="878"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="621"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="885"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="626"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="879"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="627"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="886"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="632"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="880"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="633"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="887"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="638"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="881"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="639"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="888"/>
         <source>Move an octave up</source>
         <translation>上移八度</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="643"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="882"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="644"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="889"/>
         <source>Move an octave down</source>
         <translation>下移八度</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="546"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="865"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="547"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="872"/>
         <source>Save &amp;as...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="154"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="155"/>
         <source>File does not exist: %1</source>
         <translation>文件不存在：%1</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="171"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="172"/>
         <source>(No Recent Projects)</source>
         <translation>（无最近工程）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="203"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="204"/>
         <source>Select MIDI Files</source>
         <translation>选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="220"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="221"/>
         <source>Select DiffScope Project File</source>
         <translation>选择 DiffScope 工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="220"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="221"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="241"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="242"/>
         <source>Select Project File</source>
         <translation>选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="242"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="243"/>
         <source>Singing Project Files (%1)</source>
         <translation>歌声工程文件 (%1)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="327"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="328"/>
         <source>Please select a singing clip first</source>
         <translation>请先选择一个歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="340"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="341"/>
         <source>Please add an audio file first</source>
         <translation>请先添加一个音频文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="536"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="863"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="537"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="870"/>
         <source>Clear Recent Projects</source>
         <translation>清除最近工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="552"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="568"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="866"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="870"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="553"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="569"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="873"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="877"/>
         <source>MIDI file...</source>
         <translation>MIDI 文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="556"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="867"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="557"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="874"/>
         <source>DiffScope project file...</source>
         <translation>DiffScope 工程文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="560"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="868"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="561"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="875"/>
         <source>Project file (LibreSVIP)...</source>
         <translation>工程文件 (LibreSVIP)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="564"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="869"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="565"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="876"/>
         <source>Audio file...</source>
         <translation>音频文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="572"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="871"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="573"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="878"/>
         <source>Manage packages...</source>
         <translation>管理包...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="579"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="872"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="580"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="879"/>
         <source>E&amp;xit</source>
         <translation>退出(&amp;X)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="606"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="876"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="607"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="883"/>
         <source>Select &amp;all</source>
         <translation>全选(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="648"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="884"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="649"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="891"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="656"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="885"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="657"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="892"/>
         <source>Search lyrics...</source>
         <translation>搜索歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="663"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="886"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="664"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="893"/>
         <source>Extract pitch parameter...</source>
         <translation>提取音高参数...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="666"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="883"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="667"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="890"/>
         <source>Quantize...</source>
         <translation>量化...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="705"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="899"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="706"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="907"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="709"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="900"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="710"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="908"/>
         <source>Recent Projects</source>
         <translation>最近工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="723"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="901"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="724"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="909"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="731"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="902"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="732"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="910"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="749"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="903"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="750"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="911"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="786"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="888"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="787"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="895"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="790"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="889"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="791"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="896"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="794"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="890"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="795"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="897"/>
         <source>&amp;MIDI...</source>
         <translation>&amp;MIDI...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="798"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="891"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="799"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="898"/>
         <source>A&amp;ppearance...</source>
         <translation>外观(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="807"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="892"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="808"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="899"/>
         <source>&amp;Inference...</source>
         <translation>推理(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="811"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="893"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="812"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="900"/>
         <source>A&amp;utomation...</source>
         <translation>自动化(&amp;U)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="815"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="894"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="816"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="901"/>
         <source>&amp;Developer Options...</source>
         <translation>开发者选项(&amp;D)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="820"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="904"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="821"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="912"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="835"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="895"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="836"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="902"/>
         <source>Check for updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="838"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="839"/>
         <source>You are already up to date</source>
         <translation>已是最新版本</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="839"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="896"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="840"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="903"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="851"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="852"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="905"/>
+        <source>Open Dump Folder...</source>
+        <translation>打开转储目录...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="857"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="913"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="846"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="897"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="847"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="904"/>
         <source>Open Log Folder...</source>
         <translation>打开日志目录...</translation>
     </message>
@@ -4179,109 +4147,109 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="407"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="420"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="377"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="390"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="113"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="115"/>
         <source>Failed to reload theme</source>
         <translation>重新加载主题失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="115"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="117"/>
         <source>Theme reloaded</source>
         <translation>主题已重新加载</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="129"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="131"/>
         <source>Execution provider %1 is unavailable and was reset to CPU.</source>
         <translation>执行提供程序 %1 不可用，已重置为 CPU。</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="216"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="218"/>
         <source>Press Undo again to apply</source>
         <translation>再次按下撤销以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="217"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="219"/>
         <source>Press Redo again to apply</source>
         <translation>再次按下重做以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="378"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="391"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="381"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="394"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="388"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="401"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="395"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="415"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="408"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="428"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="421"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="434"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="424"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="437"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="949"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="1002"/>
         <source>You have unsaved changes, please save first</source>
         <translation>你有未保存的更改，请先保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="406"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="419"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="411"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="413"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="424"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="426"/>
         <source>Package scan failed</source>
         <translation>包扫描失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="412"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="425"/>
         <source>Singer package metadata is not available. Open the project anyway?</source>
         <translation>歌手包元数据不可用。是否仍然打开工程？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="414"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="427"/>
         <source>Open Anyway</source>
         <translation>仍然打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="429"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="442"/>
         <source>Another document operation is already in progress</source>
         <translation>另一个文档操作正在进行中</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="918"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="971"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="919"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="972"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -4659,13 +4627,13 @@ type: %L1</source>
 <context>
     <name>MixConsoleView</name>
     <message>
-        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="27"/>
+        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="28"/>
         <source>Mix</source>
         <translation>混音</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="71"/>
-        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="262"/>
+        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="87"/>
+        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="278"/>
         <source>Master</source>
         <translation>主控</translation>
     </message>
@@ -4721,6 +4689,11 @@ type: %L1</source>
         <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="193"/>
         <source>Quantize notes</source>
         <translation>量化音符</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="200"/>
+        <source>Resize notes</source>
+        <translation>调整音符长度</translation>
     </message>
 </context>
 <context>
@@ -4831,67 +4804,67 @@ type: %L1</source>
 <context>
     <name>OverlayScrollBar</name>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="191"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="190"/>
         <source>Scroll here</source>
         <translation>滚动至此</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="193"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="192"/>
         <source>Left edge</source>
         <translation>左边缘</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="193"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="192"/>
         <source>Top</source>
         <translation>顶端</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="194"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="193"/>
         <source>Right edge</source>
         <translation>右边缘</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="194"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="193"/>
         <source>Bottom</source>
         <translation>底部</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="196"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="195"/>
         <source>Page left</source>
         <translation>向左翻页</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="196"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="195"/>
         <source>Page up</source>
         <translation>向上翻页</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="197"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="196"/>
         <source>Page right</source>
         <translation>向右翻页</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="197"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="196"/>
         <source>Page down</source>
         <translation>向下翻页</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="199"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="198"/>
         <source>Scroll left</source>
         <translation>向左滚动</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="199"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="198"/>
         <source>Scroll up</source>
         <translation>向上滚动</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="200"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="199"/>
         <source>Scroll right</source>
         <translation>向右滚动</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="200"/>
+        <location filename="../../../libs/GUI/Controls/OverlayScrollBar.cpp" line="199"/>
         <source>Scroll down</source>
         <translation>向下滚动</translation>
     </message>
@@ -4914,7 +4887,7 @@ type: %L1</source>
         <translation>卸载</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="88"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="91"/>
         <source>No Package Selected</source>
         <translation>未选择包</translation>
     </message>
@@ -4940,81 +4913,81 @@ type: %L1</source>
 <context>
     <name>PackageManagerDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="55"/>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="191"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="58"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="214"/>
         <source>Installed (%L1)</source>
         <translation>已安装（%L1）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="89"/>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="95"/>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="130"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="106"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="112"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="147"/>
         <source>Verify Package</source>
         <translation>验证包</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="96"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="113"/>
         <source>No issues found in package:
 %1</source>
         <translation>未发现包存在问题：
 %1</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="122"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="108"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="125"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="112"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="129"/>
         <source>Info</source>
         <translation>信息</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="138"/>
         <source>
   Actual: %1</source>
         <translation>
   实际值：%1</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="124"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="141"/>
         <source>
   Recommendation: %1</source>
         <translation>
   建议值：%1</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="131"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="148"/>
         <source>Package verification failed.</source>
         <translation>包验证失败。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="132"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="149"/>
         <source>Package verification completed with warnings.</source>
         <translation>包验证完成，但存在警告。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="171"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="194"/>
         <source>Package Manager</source>
         <translation>包管理器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="198"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="221"/>
         <source>&amp;Install...</source>
         <translation>安装(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="203"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="226"/>
         <source>Search...</source>
         <translation>搜索...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="290"/>
+        <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="341"/>
         <source>Select a package to view details</source>
         <translation>选择一个包以查看详情</translation>
     </message>
@@ -5055,17 +5028,17 @@ type: %L1</source>
 <context>
     <name>ParamEditorGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="638"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="678"/>
         <source>Linear</source>
         <translation>线性</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="645"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="685"/>
         <source>Hermite</source>
         <translation>Hermite</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="658"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="698"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -5100,69 +5073,69 @@ type: %L1</source>
 <context>
     <name>ParamEditorView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="435"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="437"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="443"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="445"/>
         <source>Enable Dynamic Mix</source>
         <translation>启用动态混合</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="363"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="365"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="371"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="373"/>
         <source>Stop using dynamic speaker mix?</source>
         <translation>停止使用动态声线混合？</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="364"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="372"/>
         <source>This will delete all dynamic mix keyframes and return this clip to fixed mix.</source>
         <translation>这将删除所有动态混合关键帧，并将此剪辑恢复为固定混合。</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="366"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="374"/>
         <source>停止使用动态混合</source>
         <translation>停止使用动态混合</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="367"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="375"/>
         <source>取消</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="420"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="428"/>
         <source>Dynamic mix is unavailable</source>
         <translation>动态混合不可用</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="421"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="429"/>
         <source>Choose a fixed speaker mix preset with at least two speakers before enabling dynamic mix.</source>
         <translation>在启用动态混合前，请选择至少包含两个声线的固定声线混合预设。</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="428"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="436"/>
         <source>Enable clip dynamic mix?</source>
         <translation>启用剪辑动态混合？</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="429"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="437"/>
         <source>This clip is following the track. Enabling dynamic mix will copy the current track speaker mix to this clip and stop following the track.</source>
         <translation>此剪辑正在跟随轨道。启用动态混合将把当前轨道声线混合复制到此剪辑，并停止跟随轨道。</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="431"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="439"/>
         <source>Copy and Enable Dynamic Mix</source>
         <translation>复制并启用动态混合</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="436"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="444"/>
         <source>Create the first keyframe from the current fixed speaker mix.</source>
         <translation>从当前固定声线混合创建第一个关键帧。</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="459"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="467"/>
         <source>The selected singer does not support this parameter.</source>
         <translation>当前选择的歌手不支持此参数</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="459"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="467"/>
         <source>Edit Anyway</source>
         <translation>仍然编辑</translation>
     </message>
@@ -5307,7 +5280,7 @@ type: %L1</source>
 <context>
     <name>PhonemeView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PhonemeView.cpp" line="168"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PhonemeView.cpp" line="169"/>
         <source>Zoom in to edit phonemes</source>
         <translation>放大以编辑音素</translation>
     </message>
@@ -5397,22 +5370,65 @@ type: %L1</source>
     </message>
 </context>
 <context>
+    <name>PianoRollGraphicsViewHelper</name>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="180"/>
+        <source>Missing phonemes</source>
+        <translation>缺少音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="182"/>
+        <source>Invalid phrase start</source>
+        <translation>乐句起始无效</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="185"/>
+        <source>No phonemes assigned</source>
+        <translation>未分配到音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="188"/>
+        <source>Overlapping note</source>
+        <translation>音符重叠</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="196"/>
+        <source>No phonemes are available for this note. Check the lyric, the pronunciation, or the language settings</source>
+        <translation>该音符没有可用的音素，请检查歌词、发音或语言设置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="201"/>
+        <source>A phrase cannot start with a slur or syllabification note</source>
+        <translation>乐句不能以连音或音节分配符开头</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="205"/>
+        <source>This syllabification note was not assigned any phonemes</source>
+        <translation>音节分配符未分配到音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="209"/>
+        <source>This note overlaps another note and is ignored</source>
+        <translation>该音符与其他音符重叠，已被忽略</translation>
+    </message>
+</context>
+<context>
     <name>PianoRollView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="65"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="438"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="87"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="526"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="80"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="452"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="101"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="527"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="86"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="453"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="106"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="528"/>
         <source>Time Sig.</source>
         <translation>拍号</translation>
     </message>
@@ -5453,7 +5469,7 @@ type: %L1</source>
 <context>
     <name>PlaybackController</name>
     <message>
-        <location filename="../../Controller/PlaybackController.cpp" line="97"/>
+        <location filename="../../Controller/PlaybackController.cpp" line="90"/>
         <source>Please release mouse button before playing</source>
         <translation>请先松开鼠标按钮再播放</translation>
     </message>
@@ -5595,16 +5611,6 @@ type: %L1</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="49"/>
-        <source>File is too large to read.</source>
-        <translation>文件过大无法读取。</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="57"/>
-        <source>Failed to open file.</source>
-        <translation>打开文件失败。</translation>
-    </message>
-    <message>
         <location filename="../../Modules/Extractors/ExtractorUtils.cpp" line="21"/>
         <source>Failed to probe audio file: </source>
         <translation>解析音频文件失败：</translation>
@@ -5647,19 +5653,24 @@ type: %L1</source>
 <context>
     <name>ReadMeCard</name>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="28"/>
+        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="26"/>
         <source>ReadMe</source>
         <translation>自述文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="33"/>
+        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="31"/>
         <source>No readme file.</source>
         <translation>无自述文件。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="37"/>
-        <source>Loading...</source>
-        <translation>加载中...</translation>
+        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="38"/>
+        <source>File is too large to read.</source>
+        <translation>文件过大无法读取。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="46"/>
+        <source>Failed to open file.</source>
+        <translation>打开文件失败。</translation>
     </message>
 </context>
 <context>
@@ -5965,12 +5976,12 @@ All current mix settings will be lost.</source>
 <context>
     <name>SpeakerMixEditorView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="172"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="171"/>
         <source>Bypassed</source>
         <translation>已旁通</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="320"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="326"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
@@ -6304,8 +6315,8 @@ All current mix settings will be lost.</source>
 <context>
     <name>TracksRhiWidget</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1340"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1432"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1346"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1438"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>

@@ -35,6 +35,7 @@
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/EditorShortcutUtils.h"
 #include "Utils/AppLogDirectory.h"
+#include "Utils/AppDumpDirectory.h"
 
 #include <QFile>
 #include <QFileDialog>
@@ -848,10 +849,16 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     connect(actionOpenLogFolder, &QAction::triggered, this,
             [] { AppLogDirectory::openLogDirectory(); });
 
+    actionOpenDumpFolder = new QAction(tr("Open Dump Folder..."), this);
+    setMenuIcon(actionOpenDumpFolder, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
+    connect(actionOpenDumpFolder, &QAction::triggered, this,
+            [] { AppDumpDirectory::openDumpDirectory(); });
+
     menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
     menuHelp->addAction(actionOpenLogFolder);
+    menuHelp->addAction(actionOpenDumpFolder);
     return menuHelp;
 }
 
@@ -895,6 +902,7 @@ void MainMenuViewPrivate::retranslateUi() {
     actionCheckForUpdates->setText(tr("Check for updates"));
     actionAbout->setText(tr("About..."));
     actionOpenLogFolder->setText(tr("Open Log Folder..."));
+    actionOpenDumpFolder->setText(tr("Open Dump Folder..."));
 
     menuFile->setTitle(tr("&File"));
     menuRecentProjects->setTitle(tr("Recent Projects"));

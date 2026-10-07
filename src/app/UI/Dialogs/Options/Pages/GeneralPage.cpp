@@ -3,7 +3,6 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
-#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/CardView.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/DirSelector.h>
@@ -14,16 +13,13 @@
 #include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
-#include "Utils/AppLogDirectory.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <QLabel>
 #include <QListView>
 #include <QVBoxLayout>
-#include <QDir>
 #include <QFileInfo>
 #include <QProcess>
-#include <QMCore/qmsystem.h>
 
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -71,18 +67,6 @@ QWidget *GeneralPage::createContentWidget() {
     const auto applicationCard = new OptionListCard(tr("Application"));
     applicationCard->addItem(tr("UI Language"), tr("Language used by the application interface"),
                              m_cbUiLanguage);
-
-    m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
-    connect(m_btnOpenConfigFolder, &Button::clicked, this,
-            [=] { QM::reveal(appOptions->configPath()); });
-
-    m_btnOpenLogFolder = new Button(tr("Open Folder..."), this);
-    connect(m_btnOpenLogFolder, &Button::clicked, this,
-            [] { AppLogDirectory::openLogDirectory(); });
-
-    const auto appDataCard = new OptionListCard(tr("App Data"));
-    appDataCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
-    appDataCard->addItem(tr("Log Folder"), m_btnOpenLogFolder);
 
     m_swFingerDrawParam = new SwitchButton(option->drawParamWithFinger);
     connect(m_swFingerDrawParam, &SwitchButton::toggled, this, &GeneralPage::modifyOption);
@@ -157,7 +141,6 @@ QWidget *GeneralPage::createContentWidget() {
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(applicationCard);
-    mainLayout->addWidget(appDataCard);
     mainLayout->addWidget(penTouchCard);
     mainLayout->addWidget(singingCard);
     mainLayout->addWidget(packagePathsCard);

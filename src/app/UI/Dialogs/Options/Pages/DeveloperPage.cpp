@@ -4,11 +4,15 @@
 #include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/CardView.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include "Utils/AppDumpDirectory.h"
+#include "Utils/AppLogDirectory.h"
 
+#include <QMCore/qmsystem.h>
 #include <QVBoxLayout>
 
 DeveloperPage::DeveloperPage(QWidget *parent) : IOptionPage(parent) {
@@ -87,6 +91,23 @@ QWidget *DeveloperPage::createContentWidget() {
         dialog->show();
     });
 
+    m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
+    connect(m_btnOpenConfigFolder, &Button::clicked, this,
+            [=] { QM::reveal(appOptions->configPath()); });
+
+    m_btnOpenLogFolder = new Button(tr("Open Folder..."), this);
+    connect(m_btnOpenLogFolder, &Button::clicked, this,
+            [] { AppLogDirectory::openLogDirectory(); });
+
+    m_btnOpenDumpFolder = new Button(tr("Open Folder..."), this);
+    connect(m_btnOpenDumpFolder, &Button::clicked, this,
+            [] { AppDumpDirectory::openDumpDirectory(); });
+
+    const auto appDataCard = new OptionListCard(tr("App Data"));
+    appDataCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
+    appDataCard->addItem(tr("Log Folder"), m_btnOpenLogFolder);
+    appDataCard->addItem(tr("Dump Folder"), m_btnOpenDumpFolder);
+
     const auto diagnosticsCard = new OptionListCard(tr("Diagnostics"));
     diagnosticsCard->addItem(tr("Enable diagnostic output"),
                              tr("Print event loop performance statistics to debug output"),
@@ -121,6 +142,7 @@ QWidget *DeveloperPage::createContentWidget() {
                               m_cbxEditorRenderBackend);
 
     const auto mainLayout = new QVBoxLayout();
+    mainLayout->addWidget(appDataCard, 0, Qt::AlignTop);
     mainLayout->addWidget(diagnosticsCard, 0, Qt::AlignTop);
     mainLayout->addWidget(experimentalCard, 0, Qt::AlignTop);
     mainLayout->addStretch();

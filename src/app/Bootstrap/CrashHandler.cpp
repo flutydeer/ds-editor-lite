@@ -1,7 +1,8 @@
 #include "CrashHandler.h"
 
+#include "Utils/AppDumpDirectory.h"
+
 #include <QApplication>
-#include <QStandardPaths>
 
 #ifdef LITE_ENABLE_BREAKPAD
 #  include <QBreakpadHandler.h>
@@ -14,8 +15,7 @@
 CrashHandler::CrashHandler() {
 #ifdef LITE_ENABLE_BREAKPAD
     m_handler = std::make_unique<QBreakpadHandler>();
-    m_handler->setDumpPath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-                           QStringLiteral("/Dumps"));
+    m_handler->setDumpPath(AppDumpDirectory::resolveDumpDirectory());
 
     QBreakpadHandler::UniqueExtraHandler = []() {
         ::MessageBoxW(nullptr, L"Crash detected", L"Error", MB_OK | MB_ICONERROR);
