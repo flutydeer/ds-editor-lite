@@ -92,16 +92,16 @@
 | 判定项 | 结果 | 证据 |
 | --- | --- | --- |
 | 内置门禁 | ✅ `100% tests passed, 0 tests failed out of 76`（另 5 个 voicebank/synthrt 用例本就 Skipped，与改动无关） | 本机留档（R68 门禁日志一份） |
-| 缺陷② `settings.query{compute_device}.gpus` | ✅ 真实枚举：`{"id":"GPU-52180708-446f-0603-f1a8-10800d707294","index":0,"name":"NVIDIA CMP 40HX"}` | 本机留档（第 1、2 轮各一份） |
-| 缺陷② `inference.get_capabilities` | ✅ 真实枚举（**载荷位于 `capabilities` 下**，而非顶层 `devices`）：`capabilities.devices[0] = {id: GPU-…, display_name: NVIDIA CMP 40HX, available: true}` | 本机留档（第 2 轮一份） |
+| 缺陷② `settings.query{compute_device}.gpus` | ✅ 真实枚举：`{"id":"GPU-<redacted>","index":0,"name":"NVIDIA <model>"}` | 本机留档（第 1、2 轮各一份） |
+| 缺陷② `inference.get_capabilities` | ✅ 真实枚举（**载荷位于 `capabilities` 下**，而非顶层 `devices`）：`capabilities.devices[0] = {id: GPU-…, display_name: NVIDIA <model>, available: true}` | 本机留档（第 2 轮一份） |
 | 缺陷① 清轨声后 | ✅ `发音=world(original)`、`音素=[]`，与对照臂（从未设过声库的音符）**同态** | 本机留档（第 1 轮一份） |
 | 缺陷① 清片段声后 | ✅ 同上（`available=false, inherits=false`） | 本机留档（第 1 轮一份） |
 | 缺陷① 恢复路径 | ✅ 重设轨声后 `available=true`、`发音=w er l d`、音素回来（清声→恢复往返成立） | 本机留档（第 2 轮一份） |
 | 缺陷① 落盘通道 | ✅ 日志证实执行了回退分支且结果被放行：`SingerInfo not resolved, skip pronunciation fetch` + `InferenceApplyGate decision: "Apply"`（方案中最大的风险，即结果被 Defer/Drop，未出现） | 本机留档（第 1 轮 stdout 一份） |
 | ② `gpu_id` 校验被激活（实测） | ✅ 真实 id+index+`validate_only` 通过。伪造 id 被拒 `code=invalid_argument, field_path=gpu_id, "Inference GPU is unavailable"`。`provider=CPU` 不做该项校验。全程 `validate_only`，appConfig 哈希前后一致 | 本机留档（第 3 轮一份） |
-| ② **DirectML 分支（补验）** | ✅ 将 `configured` 切换为 DirectML（`restart_required_fields=[execution_provider]`、`effective` 仍 CUDA）后：`gpus={"id":"1F0B10DE","index":1,"name":"NVIDIA CMP 40HX (RainCandy Technology)"}`（PCI 形态，与 `DmlGpuUtils` 同源）。真实 DML id 校验通过、伪造 `0000FFFF` 被拒 | 本机留档（第 4 轮一份） |
+| ② **DirectML 分支（补验）** | ✅ 将 `configured` 切换为 DirectML（`restart_required_fields=[execution_provider]`、`effective` 仍 CUDA）后：`gpus={"id":"<pci-id>","index":1,"name":"NVIDIA <model>"}`（PCI 形态，与 `DmlGpuUtils` 同源）。真实 DML id 校验通过、伪造 `0000FFFF` 被拒 | 本机留档（第 4 轮一份） |
 | 缓存边界（补验） | ✅ 同实例内 `settings.query` 第 1 次 134ms、第 2/3 次各 34ms，即首次枚举约 **100ms**，其后命中进程内缓存。三次结果一致 | 本机留档（第 4 轮一份） |
-| 测试限制 | ⚠️ 均在**本机 NVIDIA CMP 40HX** 上实测（CUDA 与 DirectML 两条枚举路径都已覆盖）。未在多卡/无卡机器上验证候选排序与 index 稳定性。`provider=CPU` 时按设计返回空候选 | — |
+| 测试限制 | ⚠️ 均在**本机 NVIDIA <model>** 上实测（CUDA 与 DirectML 两条枚举路径都已覆盖）。未在多卡/无卡机器上验证候选排序与 index 稳定性。`provider=CPU` 时按设计返回空候选 | — |
 
 ## 5.1 R69 补验：clip 语言告警、`field_path` 修正、三档转换探针
 

@@ -17,7 +17,6 @@
 #include "Utils/AppLogDirectory.h"
 
 #include <synthrt/Support/DisplayText.h>
-#include <synthrt/SVS/SingerContrib.h>
 
 #include <IcuWrapper/IcuWrapper.h>
 
