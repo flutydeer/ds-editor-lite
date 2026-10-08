@@ -11,6 +11,7 @@
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Utils/UiLanguageManager.h"
@@ -37,8 +38,8 @@ void GeneralPage::modifyOption() {
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
     settings.defaultLyrics = m_defaultLyrics;
-    settings.gameDirectory = m_fsGameDir->path();
-    settings.pitchModelPath = m_fsRmvpePath->path();
+    settings.noteAnalyzer = m_cbNoteAnalyzer->currentData().toString();
+    settings.pitchAnalyzer = m_cbPitchAnalyzer->currentData().toString();
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
     runtime->settings().updateGeneral({}, settings);
@@ -114,20 +115,36 @@ QWidget *GeneralPage::createContentWidget() {
     packagePathsCard->setTitle(tr("Package Search Paths (needs restart)"));
     packagePathsCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
+    // An analyzer is chosen from what is installed rather than pointed at on disk: it is a
+    // contribution of a package, so the list of them is something the editor knows and a person
+    // should not have to know. A reference the editor stored and can no longer find is kept in
+    // the list, marked, so that it shows as a choice that has gone rather than silently becoming
+    // whatever happens to be first.
+    const auto fillAnalyzers = [this](ComboBox *box, const QString &interfaceName,
+                                      const QString &chosen) {
+        box->setMinimumWidth(480);
+        box->addItem(tr("(none)"), QString());
+        for (const auto &entry : SynthrtEngine::instance().analyzers(interfaceName)) {
+            const auto reference = QString::fromStdString(entry.reference());
+            box->addItem(QString::fromStdString(entry.name.text()) + QStringLiteral(" (") +
+                             QString::fromStdString(entry.packageId) + QLatin1Char(')'),
+                         reference);
+        }
+        auto index = box->findData(chosen);
+        if (index < 0 && !chosen.isEmpty()) {
+            box->addItem(tr("%1 (not installed)").arg(chosen), chosen);
+            index = box->count() - 1;
+        }
+        box->setCurrentIndex(index < 0 ? 0 : index);
+        connect(box, &ComboBox::currentIndexChanged, this, &GeneralPage::modifyOption);
+    };
 
-    m_fsGameDir = new FileSelector;
-    m_fsGameDir->setMinimumWidth(480);
-    m_fsGameDir->setFilter(tr("Directories"));
-    m_fsGameDir->setDirMode(true);
-    m_fsGameDir->setPath(option->gameDir);
-    connect(m_fsGameDir, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
-    m_fsRmvpePath = new FileSelector;
-    m_fsRmvpePath->setMinimumWidth(480);
-    m_fsRmvpePath->setFilter(onnxFilesFilter);
-    m_fsRmvpePath->setFileDropExtensions({"onnx"});
-    m_fsRmvpePath->setPath(option->rmvpePath);
-    connect(m_fsRmvpePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
+    m_cbNoteAnalyzer = new ComboBox;
+    fillAnalyzers(m_cbNoteAnalyzer, lite::synthrt::noteContract(),
+                  option->noteAnalyzer);
+    m_cbPitchAnalyzer = new ComboBox;
+    fillAnalyzers(m_cbPitchAnalyzer, lite::synthrt::f0Contract(),
+                  option->pitchAnalyzer);
     m_fsLibreSVIPPath = new FileSelector;
     m_fsLibreSVIPPath->setMinimumWidth(480);
     m_fsLibreSVIPPath->setFilter(tr("Executable (*.exe)"));
@@ -135,8 +152,8 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_fsLibreSVIPPath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
-    modelCard->addItem(tr("Game Model Dir"), m_fsGameDir);
-    modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
+    modelCard->addItem(tr("Note Analyzer"), m_cbNoteAnalyzer);
+    modelCard->addItem(tr("Pitch Analyzer"), m_cbPitchAnalyzer);
     modelCard->addItem(tr("LibreSVIP Path"), m_fsLibreSVIPPath);
 
     const auto mainLayout = new QVBoxLayout;

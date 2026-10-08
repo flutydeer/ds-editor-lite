@@ -4,6 +4,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
@@ -14,8 +15,10 @@
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TrackColorSwatchWidget.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Utils/IconUtils.h>
@@ -35,6 +38,7 @@
 
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Views/Common/LanguageComboBox.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
@@ -100,6 +104,19 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     cbSinger->setWheelEventPolicy(WheelEventPolicy::Pass);
+    // A package the loader refused has no singer to offer, so it is listed by the menu itself
+    // rather than by setItems, which only ever sees the packages that loaded.
+    //
+    // Wired before the first setItems on purpose: a view built once the package scan is Ready is
+    // filled by that one call and is never populated again, so a tail wired up after it would
+    // never be written.
+    connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this, [this] {
+        SingerMenuUnavailablePackages::append(
+            cbSinger->mainMenu(), packageManager->installedPackages().failedPackages, [] {
+                PackageManagerDialog dialog;
+                dialog.exec();
+            });
+    });
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -143,7 +160,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
-
     cbLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Pass);
     cbLanguage->setObjectName("cbLanguage");
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
@@ -201,6 +217,18 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             refreshSingerComboPresentation();
     });
+    // After the engine fails in the routing layer of a language, wolf remembers the failure for
+    // this (singer, language) pair, and the following probe() reports Unavailable: the disabled set
+    // of the language combo box comes from probe(), so it has to be recomputed after a failure, to
+    // grey the item out at once and show the engine's original text. The queued connection moves
+    // the refresh out of the current call stack — the conversion may run on this very thread
+    // (FillLyric calls it directly). A per-word failure does not emit this signal (it does not
+    // write wolf's failure cache).
+    if (auto *engine = AppContext::instance<SynthrtEngine>()) {
+        connect(
+            engine, &SynthrtEngine::languageRouteFailed, this,
+            [this](const QString &) { refreshLanguageComboPresentation(); }, Qt::QueuedConnection);
+    }
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { updateTrackColor(); });
@@ -381,8 +409,15 @@ void TrackControlView::refreshLanguageComboPresentation() const {
         return;
 
     const auto singerInfo = m_track->singerInfo();
-    const auto language = cbLanguage->setLanguages(
-        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
+    // The disabled items merge two parts: languages that the host knows but the singer does not
+    // declare (no reason, so the fallback wording is used) + languages the singer declares but the
+    // engine reports as not convertible by G2P (the reason is copied from the engine verbatim).
+    // The semantics and criteria are in LanguageComboBox.h.
+    QHash<QString, QString> unavailableReasons;
+    const auto unavailable = LanguageComboBox::unavailableLanguages(singerInfo, unavailableReasons);
+    const auto language =
+        cbLanguage->setLanguages(singerInfo.languages(), m_track->defaultLanguage(),
+                                 singerInfo.defaultLanguage(), unavailable, unavailableReasons);
     if (language != m_track->defaultLanguage())
         trackController->changeTrackDefaultLanguage(m_track->id(), language);
 }

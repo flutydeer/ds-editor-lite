@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 class AppModel;
 
@@ -129,6 +130,9 @@ namespace Automation {
         struct PendingJobState;
         struct JobRecord;
 
+        /// Returns the audio export of \a documentId that is queued or running, if any.
+        [[nodiscard]] std::optional<TaskId> activeExport(const DocumentId &documentId) const;
+
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
                          AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
                          const std::shared_ptr<PendingJobState> &state, bool allowOverwrite);
@@ -137,7 +141,7 @@ namespace Automation {
         AutomationDispatcher &m_dispatcher;
         AutomationTaskManager &m_tasks;
         AudioExportRuntimeServices m_services;
-        QMutex m_jobsMutex;
+        mutable QMutex m_jobsMutex;
         QHash<TaskId, std::shared_ptr<JobRecord>> m_jobs;
     };
 

@@ -10,13 +10,12 @@
 #include "Modules/FillLyric/LangCommon.h"
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
-namespace srt::g2p {
-    class LanguageService;
-}
-
 namespace FillLyric {
     struct G2pResult {
         QString language;
+        /// Always empty on this line, and kept because the lyric model still carries the field.
+        /// The older line named which G2P module answered; here a language *is* the module, and
+        /// which one it is follows from the singer's own language map.
         QString g2pId;
         QString pronunciation;
         QStringList candidates;
@@ -24,17 +23,10 @@ namespace FillLyric {
 
     class G2pService {
     public:
-        /// `languageService` is preserved for API stability during B1b migration
-        /// (LyricTab/LyricDialog construct G2pService with SynthrtEngine::
-        /// languageService()). B1b-3 routes G2P conversion through
-        /// SynthrtEngine::session().convertG2p() which uses the LanguageService
-        /// injected via SessionResources; this parameter is no longer used
-        /// internally and will be removed together with the legacy SynthrtEngine
-        /// API in B1c.
-        G2pService(SingerIdentifier singer, const srt::g2p::LanguageService &languageService);
+        explicit G2pService(SingerIdentifier singer);
 
-        /// Each call invokes session().convertG2p per language; on failure
-        /// that language keeps the original lyric (ds-session.md §206).
+        /// One conversion per language; on failure that language keeps the original lyric
+        /// (ds-session.md §206).
         QList<G2pResult> convert(const QList<LangNote> &notes,
                                  const std::vector<std::string> &priorityLanguages = {}) const;
 

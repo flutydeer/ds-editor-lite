@@ -56,7 +56,8 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// Analyzer to run, identified as <package>:inference/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int singingClipStartTick = 0;
         double audioMaterialOriginMs = 0.0;
@@ -71,10 +72,18 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// Analyzer to run, identified as <package>:inference/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;
+        /// Position of the first sample of the audio material on the project timeline, and the
+        /// span of the material that the clip shows. The meaning is the same as in
+        /// PitchExtractionInput: the task reads the visible span of the file and places the result
+        /// relative to the origin.
+        double audioMaterialOriginMs = 0.0;
+        double audioVisibleStartMs = 0.0;
+        double audioVisibleEndMs = 0.0;
         QString defaultLanguage;
         QString defaultLyric;
         QString clientRef;
@@ -156,6 +165,10 @@ namespace Automation {
                                    ParameterAutomationFacade &parameters,
                                    ProjectAutomationFacade &project, NoteAutomationFacade &notes,
                                    ExtractionRuntimeServices services = {});
+        ~ExtractionAutomationFacade();
+
+        ExtractionAutomationFacade(const ExtractionAutomationFacade &) = delete;
+        ExtractionAutomationFacade &operator=(const ExtractionAutomationFacade &) = delete;
 
         AutomationResult<TaskAcceptedResult> startPitch(const CommandContext &context,
                                                         ClipId audioClipId, ClipId singingClipId,
@@ -175,6 +188,11 @@ namespace Automation {
         void discardDocumentGeneration(const DocumentId &documentId);
 
     private:
+        /// Expires when the facade is destroyed. Every callback that a job or the scheduler may
+        /// run later holds a weak reference and returns without effect once it has expired,
+        /// because a queued completion can arrive after the runtime has been torn down.
+        std::shared_ptr<int> m_lifetime = std::make_shared<int>(0);
+
         struct JobRecord {
             DocumentVersion baseDocument;
             std::shared_ptr<IExtractionJob> job;

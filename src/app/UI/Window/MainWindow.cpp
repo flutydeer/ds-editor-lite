@@ -133,6 +133,20 @@ MainWindow::MainWindow() {
     connect(appStatus, &AppStatus::unavailableExecutionProviderChanged, this,
             [showUnavailableProviderNotice](const QString &) { showUnavailableProviderNotice(); });
     showUnavailableProviderNotice();
+    // Inference engine startup is a hard failure, and its reason may be published before
+    // or after this window is built; report it once and consume it.
+    const auto showInferenceEngineErrorNotice = [this] {
+        const auto error = appStatus->inferenceEngineError.get();
+        if (error.isEmpty())
+            return;
+        appStatus->inferenceEngineError = QString();
+        Toast::show(tr("Failed to initialize the inference engine: %1").arg(error));
+    };
+    connect(appStatus, &AppStatus::inferenceEngineErrorChanged, this,
+            [showInferenceEngineErrorNotice](const QString &) {
+                showInferenceEngineErrorNotice();
+            });
+    showInferenceEngineErrorNotice();
     appController->setMainWindow(this);
     documentWorkflowController->setUi(this);
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,

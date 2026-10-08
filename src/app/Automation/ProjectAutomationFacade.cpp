@@ -581,7 +581,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 if (language.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
+                        QStringLiteral("language_id"), QStringLiteral("Language is empty")));
                 }
                 auto *track = resolved.get();
                 const bool changed = track->defaultLanguage() != language;
@@ -1501,21 +1501,48 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 if (language.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
+                        QStringLiteral("language_id"), QStringLiteral("Language is empty")));
                 }
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const bool changed = clip->defaultLanguage() != language;
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
-                if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                // A language that the voicebank does not declare is answered with a warning rather
+                // than a rejection: when notes follow the singer language, the conversion chain
+                // silently falls back to Copy, and this warning is the only hint that the default
+                // language will not be sung. The validate_only and unchanged branches carry the
+                // same warning, so that the three branches return the same result (the caller
+                // predicts the real write from it).
+                QStringList warnings;
+                QStringList declaredIds;
+                const auto declaredLanguages = clip->singerInfo().languages();
+                declaredIds.reserve(declaredLanguages.size());
+                for (const auto &info : declaredLanguages) {
+                    declaredIds.append(info.id());
+                }
+                if (!declaredIds.isEmpty() && !declaredIds.contains(language)) {
+                    warnings.append(QStringLiteral("The clip's default language \"%1\" is not "
+                                                   "declared by the singer. Declared: %2")
+                                        .arg(language, declaredIds.join(QStringLiteral(", "))));
+                }
+                if (validateOnly) {
+                    auto preview = m_committer.preview(session, changed, affected);
+                    preview.warnings.append(warnings);
+                    return AutomationResult<MutationResult>(std::move(preview));
+                }
+                if (!changed) {
+                    auto unchanged = m_committer.unchanged(session);
+                    unchanged.warnings.append(warnings);
+                    return AutomationResult<MutationResult>(std::move(unchanged));
+                }
                 auto actions = std::make_unique<DefaultLanguageActions>();
                 actions->setDefaultLanguage(clip, language);
-                return m_committer.commit(session, std::move(actions), affected);
+                auto committed = m_committer.commit(session, std::move(actions), affected);
+                if (committed) {
+                    committed.get().warnings.append(warnings);
+                }
+                return committed;
             });
     }
 

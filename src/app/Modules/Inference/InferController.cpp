@@ -745,7 +745,15 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
                        << invalidated.getError().message;
             return;
         }
-        ensureClipInferenceStarted(*clip);
+        if (clip->singerInfo().isEmpty()) {
+            // Voice-clearing path: without a singer ensureClipInferenceStarted returns right away,
+            // so the fallback branch of the language tasks is re-run instead, to clear the
+            // pronunciation and the phonemes derived from the singer (they must not survive voice
+            // clearing).
+            restartLanguageTasksAfterVoiceCleared(*clip);
+        } else {
+            ensureClipInferenceStarted(*clip);
+        }
         return;
     }
 
@@ -846,6 +854,25 @@ void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
             createAndRunGetPronTask(*guardedClip);
         else
             createAndRunGetPhoneTask(*guardedClip);
+    });
+}
+
+void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &clip) {
+    QPointer<SingingClip> guardedClip(&clip);
+    // The reason is the same as in ensureClipInferenceStarted: the model signal is emitted inside
+    // ActionSequence::execute(), so the document may only be modified after the committer has
+    // advanced the version.
+    QTimer::singleShot(0, this, [this, guardedClip] {
+        if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
+            return;
+
+        // Without a singer canStartClipInference blocks a normal inference start, so the
+        // pronunciation/phonemes from before the voice was cleared stay on the notes (both are
+        // derived from the singer and must be cleared together with it). The state produced by the
+        // fallback branch of the two language tasks is exactly the state a note without a voicebank
+        // should have: the pronunciation is the original word and the phonemes stay empty.
+        createAndRunGetPronTask(*guardedClip, true);
+        createAndRunGetPhoneTask(*guardedClip, true);
     });
 }
 
@@ -1141,8 +1168,9 @@ void InferControllerPrivate::clearPendingForClip(const int clipId, const QString
     }
 }
 
-void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip,
+                                                     const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     if (clip.notes().count() <= 0) {
@@ -1163,8 +1191,9 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     m_getPronTasks.add(task);
 }
 
-void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip,
+                                                      const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     const auto clipId = clip.id();
@@ -1191,6 +1220,12 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
+    // A deleted state machine does not exit its active state. The task started by that state
+    // would therefore remain current in its stage queue and block every task queued after it,
+    // including the task that the new state machine adds. The queue releases a cancelled task
+    // after the task has finished.
+    if (!duplicatePipelines.isEmpty())
+        cancelPieceRelatedTasks(piece.id());
     for (const auto pipeline : duplicatePipelines) {
         m_inferPipelines.removeOne(pipeline);
         pipeline->deleteLater();

@@ -4911,6 +4911,14 @@ type: %L1</source>
     </message>
 </context>
 <context>
+    <name>PackageDetailsContent</name>
+    <message>
+        <location filename="../../UI/Dialogs/PackageManager/PackageDetailsContent.cpp" line="43"/>
+        <source>Unavailable</source>
+        <translation>不可用</translation>
+    </message>
+</context>
+<context>
     <name>PackageManagerDialog</name>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="58"/>
@@ -5833,6 +5841,19 @@ type: %L1</source>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="255"/>
         <source>[Singing] </source>
         <translation>[歌声] </translation>
+    </message>
+</context>
+<context>
+    <name>SingerMenuUnavailablePackages</name>
+    <message>
+        <location filename="../../UI/Controls/SingerMenuUnavailablePackages.h" line="39"/>
+        <source>⚠ %1 — Unable to load</source>
+        <translation>⚠ %1 — 无法加载</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Controls/SingerMenuUnavailablePackages.h" line="46"/>
+        <source>Manage voicebanks...</source>
+        <translation>管理声库...</translation>
     </message>
 </context>
 <context>

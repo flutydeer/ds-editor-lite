@@ -17,6 +17,11 @@
 #include <atomic>
 
 namespace Automation {
+    namespace {
+        /// How often an export that waits for inference polls the inference status and triggers
+        /// the pending acoustic inference, in milliseconds.
+        constexpr int kInferencePollIntervalMs = 25;
+    }
 
     AudioExportConfigDto toAutomationDto(const Audio::AudioExporterConfig &config) {
         return {
@@ -114,7 +119,7 @@ namespace Automation {
                         m_audioContext->exportInferenceProgress(sourceTracks));
                 triggerPendingInference();
                 QEventLoop loop;
-                QTimer::singleShot(25, &loop, &QEventLoop::quit);
+                QTimer::singleShot(kInferencePollIntervalMs, &loop, &QEventLoop::quit);
                 loop.exec();
                 if (!m_audioContext) {
                     return {.state = AudioExportBackendState::Failed,

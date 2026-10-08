@@ -1,232 +1,76 @@
 #include "ExtractPitchTask.h"
 
-#include "ExtractorUtils.h"
+#include <cmath>
 
-#include "AppContext.h"
-#include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/StringUtils.h>
-#include <lite/Support/Linq.h>
-#include <lite/Support/MathUtils.h>
+#include <QtMath>
 
-#include <synthrt/Core/Plugin/PluginFactory.h>
-#include <synthrt/Extract/PitchExtractorPlugin.h>
+#include <otter/Api/F0/1/F0ApiL1.h>
 
-#include <QDebug>
-#include <QMutexLocker>
-#include <QScopeGuard>
-#include <utility>
+#include "Modules/Inference/Models/InferParamCurve.h"
+#include "Modules/Inference/Utils/PitchSampling.h"
+
+namespace F0 = otter::Api::F0::L1;
 
 ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
     status.title = tr("Extract Pitch");
-    status.message = tr("Pending infer: %1")
-                         .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
-                                                                : m_input.displayAudioPath);
+    status.message = tr("Pending infer: %1").arg(displayPath());
     setStatus(status);
 }
 
 void ExtractPitchTask::runTask() {
-    const auto terminateTask = [this] {
-        m_errorCode = ErrorCode::Terminated;
-        m_errorMessage = tr("Task terminated.");
-    };
-
-    // 1. Load model in background thread (avoid blocking UI)
-    auto newStatus = status();
-    newStatus.message = tr("Loading model, please wait...");
-    newStatus.isIndetermine = true;
-    setStatus(newStatus);
-
-    auto *synthrtEngine = AppContext::instance<SynthrtEngine>();
-    auto runtimeLease = synthrtEngine ? synthrtEngine->acquirePitchExtractionOperation()
-                                      : SynthrtEngine::RuntimeOperationLease{};
-    if (!runtimeLease) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("Pitch extraction is not available");
-        qCritical().noquote() << errorMessage();
-        return;
-    }
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    const auto modelPath = StringUtils::qstr_to_path(m_input.modelPath);
-
-    if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid RMVPE model path: ") + m_input.modelPath;
-        qCritical().noquote() << errorMessage();
-        return;
-    }
-
-    // Obtain the rmvpe PitchExtractor plugin and create an extractor instance.
-    auto &runtime = runtimeLease.runtime();
-    auto *plugins = runtime.services().get<srt::core::PluginFactory>();
-    if (!plugins) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("PluginFactory is not available");
-        qCritical().noquote() << errorMessage();
-        return;
-    }
-
-    auto *rmvpePlugin = plugins->plugin<srt::extract::PitchExtractorPlugin>("rmvpe");
-    if (!rmvpePlugin) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("RMVPE PitchExtractor plugin not found");
-        qCritical().noquote() << errorMessage();
-        return;
-    }
-
-    auto extractorExp = rmvpePlugin->createExtractor(&runtime);
-    if (!extractorExp) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(extractorExp.error().message());
-        m_errorMessage = tr("Failed to create RMVPE extractor: ") + reason;
-        qCritical().noquote() << errorMessage();
-        return;
-    }
-    auto extractor = extractorExp.take();
-    {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor = extractor;
-    }
-    const auto clearExtractor = qScopeGuard([this] {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
-    });
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    if (auto exp = extractor->open(modelPath); !exp) {
-        if (isTerminateRequested()) {
-            terminateTask();
-            return;
-        }
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(exp.error().message());
-        m_errorMessage = tr("Failed to create RMVPE session: ") + reason;
-        qCritical().noquote() << errorMessage();
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
-        return;
-    }
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    // 2. Run inference
-    newStatus = status();
-    newStatus.message = tr("Running inference: %1")
-                            .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
-                                                                   : m_input.displayAudioPath);
-    newStatus.isIndetermine = false;
-    newStatus.maximum = 100;
-    newStatus.progress = 0;
-    setStatus(newStatus);
-
-    QString decodeError;
-    auto audio = ExtractorUtils::decodeAudio(
-        m_input.audioPath, [this] { return isTerminateRequested(); }, decodeError);
-    if (!audio) {
-        if (isTerminateRequested()) {
-            terminateTask();
-            return;
-        }
-        m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage = decodeError;
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    // Extract pitch (the extractor resamples internally to the model's required format).
-    auto resultExp =
-        extractor->extract(audio->buffer, audio->sampleRate, [this](const int progress) {
-            auto progressStatus = status();
-            progressStatus.progress = progress;
-            setStatus(progressStatus);
-        });
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    if (resultExp) {
-        m_errorCode = ErrorCode::Success;
-        m_errorMessage = tr("Successfully extracted pitch.");
-        auto pitchResult = resultExp.take();
-        for (const auto &frame : pitchResult.frames) {
-            if (isTerminateRequested()) {
-                terminateTask();
-                result.clear();
-                return;
-            }
-            const auto midi = freqToMidi(frame.f0);
+    runAnalysis<F0::F0Executive, F0::F0Schema>(
+        tr("Pitch"),
+        [](F0::F0Executive &f0, const Span &span, const auto &progress) {
+            F0::F0StartInput input;
+            input.audio.sampleRate = span.sampleRate;
+            input.audio.channelCount = 1;
+            input.audio.samples.assign(span.samples.begin() + span.begin,
+                                       span.samples.begin() + span.end);
+            input.audio.startTime = span.startTime;
+            input.progress = progress;
+            return f0.start(input);
+        },
+        [this](const F0::F0Result &curve) {
+            // The analyzer reports which frames are voiced. If interpolateUnvoiced is enabled, an
+            // unvoiced frame contains an interpolated frequency rather than zero, and treating it
+            // as pitch would produce a curve where the singer was silent. If the analyzer reports
+            // no voicing, a zero frequency indicates an unvoiced frame.
+            const bool hasVoicing = curve.voiced.size() == curve.f0.size();
             QList<double> values;
-            for (const auto &value : midi)
-                values.append(value);
-            auto processed = processOutput(values, frame.offset);
-            if (isTerminateRequested()) {
-                terminateTask();
-                result.clear();
-                return;
+            values.reserve(static_cast<qsizetype>(curve.f0.size()));
+            for (std::size_t frame = 0; frame < curve.f0.size(); ++frame) {
+                const bool voiced = hasVoicing ? curve.voiced[frame] != 0 : curve.f0[frame] > 0;
+                values.append(voiced ? freqToMidi(curve.f0[frame]) : 0.0);
             }
-            if (!processed.values.isEmpty())
-                result.append(std::move(processed));
-        }
-    } else {
-        m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage =
-            tr("RMVPE model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
-        qCritical().noquote() << "Error:" << errorMessage();
+            auto placed =
+                placeOnTimeline(values, curve.startTime * 1000.0, curve.interval * 1000.0);
+            if (!placed.values.isEmpty()) {
+                result.append(std::move(placed));
+            }
+        });
+    if (!success()) {
+        result.clear();
     }
 }
 
-void ExtractPitchTask::terminate() {
-    ExtractTask::terminate();
-
-    srt::core::NO<srt::extract::PitchExtractor> extractor;
-    {
-        QMutexLocker locker(&m_extractorMutex);
-        extractor = m_extractor;
-    }
-    if (extractor) {
-        extractor->terminate();
-    }
+double ExtractPitchTask::freqToMidi(const double frequency) {
+    // Zero indicates a frame without pitch and is preserved, because consumers of the curve treat
+    // zero as an unvoiced frame rather than as a note.
+    return frequency > 0 ? 69 + 12 * std::log2(frequency / 440.0) : 0;
 }
 
-std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &frequencies) {
-    std::vector<float> midiPitches;
-
-    for (const float f : frequencies) {
-        if (f > 0) {
-            float midiPitch = 69 + 12 * std::log2(f / 440.0f);
-            midiPitches.push_back(midiPitch);
-        } else {
-            midiPitches.push_back(0);
-        }
-    }
-
-    return midiPitches;
-}
-
-ExtractPitchTask::ResultSegment ExtractPitchTask::processOutput(const QList<double> &values,
-                                                                const double frameOffsetMs) const {
+ExtractPitchTask::ResultSegment ExtractPitchTask::placeOnTimeline(const QList<double> &values,
+                                                                  const double startMs,
+                                                                  const double intervalMs) const {
     ResultSegment result;
-    if (values.isEmpty())
+    if (values.isEmpty() || intervalMs <= 0)
         return result;
 
-    constexpr double intervalMs = 10.0;
     QList<double> sourcePositions;
     sourcePositions.reserve(values.size());
     for (qsizetype i = 0; i < values.size(); ++i) {
-        sourcePositions.append(m_input.audioMaterialOriginMs + frameOffsetMs + i * intervalMs);
+        sourcePositions.append(m_input.audioMaterialOriginMs + startMs + i * intervalMs);
     }
 
     const double overlapStartMs = qMax(sourcePositions.first(), m_input.audioVisibleStartMs);
@@ -234,20 +78,26 @@ ExtractPitchTask::ResultSegment ExtractPitchTask::processOutput(const QList<doub
     if (overlapEndMs < overlapStartMs)
         return result;
 
+    // Every point is converted through the timeline rather than by applying a single tempo to the
+    // whole span. If the tempo changes, a single conversion causes a drift that grows with the
+    // take length and misaligns the curve with the corresponding notes.
     const double firstGlobalTick = m_input.timeline.msToTick(overlapStartMs);
     const double lastGlobalTick = m_input.timeline.msToTick(overlapEndMs);
-    const int firstLocalGrid = qCeil((firstGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
-    const int lastLocalGrid = qFloor((lastGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
+    constexpr int step = kParamCurveStepTicks;
+    const int firstLocalGrid =
+        qCeil((firstGlobalTick - m_input.singingClipStartTick) / static_cast<double>(step)) * step;
+    const int lastLocalGrid =
+        qFloor((lastGlobalTick - m_input.singingClipStartTick) / static_cast<double>(step)) * step;
     if (lastLocalGrid < firstLocalGrid)
         return result;
 
     QList<double> targetPositions;
-    targetPositions.reserve((lastLocalGrid - firstLocalGrid) / 5 + 1);
-    for (int localTick = firstLocalGrid; localTick <= lastLocalGrid; localTick += 5) {
+    targetPositions.reserve((lastLocalGrid - firstLocalGrid) / step + 1);
+    for (int localTick = firstLocalGrid; localTick <= lastLocalGrid; localTick += step) {
         targetPositions.append(m_input.timeline.tickToMs(m_input.singingClipStartTick + localTick));
     }
 
     result.globalStartTick = m_input.singingClipStartTick + firstLocalGrid;
-    result.values = MathUtils::resample(values, sourcePositions, targetPositions);
+    result.values = PitchSampling::resample(values, sourcePositions, targetPositions);
     return result;
 }

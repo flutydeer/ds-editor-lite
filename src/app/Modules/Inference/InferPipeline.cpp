@@ -1,5 +1,7 @@
 #include "InferPipeline.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "States/InferDurationState.h"
 #include "States/UpdateDurationState.h"
 #include "States/AwaitingEditSessionApplyState.h"
@@ -20,7 +22,7 @@
 #include <QFinalState>
 
 InferPipeline::InferPipeline(InferPiece &piece) : QObject(&piece), m_piece(piece) {
-    qDebug() << "InferPipeline created: pieceId =" << m_piece.id();
+    qCDebug(logInferState) << "InferPipeline created: pieceId =" << m_piece.id();
     initStates();
     initTransitions();
 
@@ -28,7 +30,7 @@ InferPipeline::InferPipeline(InferPiece &piece) : QObject(&piece), m_piece(piece
 }
 
 InferPipeline::~InferPipeline() {
-    qDebug() << "InferPipeline destroyed: pieceId =" << m_piece.id();
+    qCDebug(logInferState) << "InferPipeline destroyed: pieceId =" << m_piece.id();
 }
 
 int InferPipeline::pieceId() const {

@@ -5,6 +5,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
+#include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
@@ -20,11 +21,14 @@
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Utils/QuantizeOptions.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QButtonGroup>
 #include <QDialog>
@@ -78,6 +82,19 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 
     d->m_cbSinger->setShowInheritItem(true);
+    // A package the loader refused has no singer to offer, so it is listed by the menu itself
+    // rather than by setItems, which only ever sees the packages that loaded.
+    //
+    // Wired before the first setItems on purpose: the menu this view ends up showing is the one
+    // filled here, or the one filled when the package scan turns Ready, and the tail has to be
+    // listening for both.
+    connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d, [d] {
+        SingerMenuUnavailablePackages::append(
+            d->m_cbSinger->mainMenu(), packageManager->installedPackages().failedPackages, [] {
+                PackageManagerDialog dialog;
+                dialog.exec();
+            });
+    });
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -102,12 +119,23 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::onSingerEdited);
     connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d,
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
-
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
     connect(appOptions, &AppOptions::optionsChanged, d, [d](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             d->refreshSingerComboPresentation();
     });
+    // After the engine fails in the routing layer of a language, wolf remembers the failure for
+    // this (singer, language) pair, and the following probe() reports Unavailable: the disabled set
+    // of the language combo box comes from probe(), so it has to be recomputed after a failure, to
+    // grey the item out at once and show the engine's original text. The queued connection moves
+    // the refresh out of the current call stack — the conversion may run on this very thread
+    // (FillLyric calls it directly). A per-word failure does not emit this signal (it does not
+    // write wolf's failure cache).
+    if (auto *engine = AppContext::instance<SynthrtEngine>()) {
+        connect(
+            engine, &SynthrtEngine::languageRouteFailed, d,
+            [d](const QString &) { d->refreshLanguageComboPresentation(); }, Qt::QueuedConnection);
+    }
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Handle);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
@@ -556,8 +584,16 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
         return;
 
     const auto singerInfo = m_singingClip->singerInfo();
-    const auto language = m_cbClipLanguage->setLanguages(
-        singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
+    // The disabled items merge two parts: languages that the host knows but the singer does not
+    // declare (no reason, so the fallback wording is used) + languages the singer declares but the
+    // engine reports as not convertible by G2P (the reason is copied from the engine verbatim).
+    // The semantics and criteria are in LanguageComboBox.h.
+    QHash<QString, QString> unavailableReasons;
+    const auto unavailable = LanguageComboBox::unavailableLanguages(singerInfo, unavailableReasons);
+    const auto language =
+        m_cbClipLanguage->setLanguages(singerInfo.languages(), m_singingClip->defaultLanguage(),
+                                       singerInfo.defaultLanguage(), unavailable,
+                                       unavailableReasons);
     // latch singer default language only when singer is resolved; do not write back without a
     // singer
     if (singerInfo.resolutionState() == ResolutionState::Resolved &&

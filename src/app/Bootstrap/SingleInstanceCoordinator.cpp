@@ -1,5 +1,7 @@
 #include "SingleInstanceCoordinator.h"
 
+#include "ProcessProbe.h"
+
 #include "SingleInstanceIdentity.h"
 
 #include <QCoreApplication>
@@ -10,6 +12,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLockFile>
+#include <QSysInfo>
 #include <QPointer>
 #include <QQueue>
 #include <QSet>
@@ -24,6 +27,11 @@
 namespace {
     constexpr int connectionTimeoutMs = 3000;
     constexpr int connectionAttemptMs = 100;
+    // A served connection is closed only after it has been quiet for this long. The peer's own
+    // write completion and its read of the response land after ours, and Windows reports that
+    // pending I/O as failed the moment the pipe goes away, so closing the very instant the
+    // response drains turns a request that was delivered and served into a reported send failure.
+    constexpr int responseLingerMs = 100;
 
     QString executablePath() {
         const QFileInfo executable(QCoreApplication::applicationFilePath());
@@ -132,6 +140,7 @@ private:
         qsizetype pendingWriteBytes = 0;
         qint64 activeWriteBytes = 0;
         QTimer *initialReadTimer = nullptr;
+        QTimer *lingerTimer = nullptr;
         bool initialized = false;
         bool closeWhenDrained = false;
     };
@@ -144,7 +153,8 @@ private:
     void acceptConnections() {
         while (m_server->hasPendingConnections()) {
             auto *socket = m_server->nextPendingConnection();
-            if (m_connections.size() >= SingleInstanceProtocol::maxConnectionCount) {
+            if (m_connections.size() >= SingleInstanceProtocol::maxConnectionCount &&
+                !releaseLingeringConnection()) {
                 socket->disconnectFromServer();
                 socket->deleteLater();
                 continue;
@@ -153,8 +163,12 @@ private:
             auto *initialReadTimer = new QTimer(socket);
             initialReadTimer->setSingleShot(true);
             initialReadTimer->setInterval(SingleInstanceProtocol::initialReadTimeoutMs);
+            auto *lingerTimer = new QTimer(socket);
+            lingerTimer->setSingleShot(true);
+            lingerTimer->setInterval(responseLingerMs);
             ConnectionState state;
             state.initialReadTimer = initialReadTimer;
+            state.lingerTimer = lingerTimer;
             m_connections.insert(socket, std::move(state));
             connect(socket, &QLocalSocket::readyRead, socket,
                     [this, socket] { readRequests(socket); });
@@ -170,8 +184,27 @@ private:
                 if (it != m_connections.constEnd() && !it->initialized)
                     dropConnection(socket);
             });
+            connect(lingerTimer, &QTimer::timeout, socket, [this, socket] {
+                if (m_connections.contains(socket))
+                    socket->disconnectFromServer();
+            });
             initialReadTimer->start();
         }
+    }
+
+    // A connection that has already been served and is only waiting out its linger gives up its
+    // slot before a newcomer is turned away: the linger is a courtesy to the peer that has its
+    // response, while the newcomer has nothing yet.
+    bool releaseLingeringConnection() {
+        for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+            if (!it->lingerTimer || !it->lingerTimer->isActive())
+                continue;
+            auto *socket = it.key();
+            it->lingerTimer->stop();
+            dropConnection(socket);
+            return true;
+        }
+        return false;
     }
 
     void readRequests(QLocalSocket *socket) {
@@ -284,6 +317,8 @@ private:
         it->pendingWriteBytes += message.size();
         it->writeQueue.enqueue(std::move(message));
         it->closeWhenDrained = it->closeWhenDrained || closeWhenDrained;
+        if (it->lingerTimer)
+            it->lingerTimer->stop();
         pumpWrites(socket);
     }
 
@@ -292,8 +327,10 @@ private:
         if (it == m_connections.end() || it->activeWriteBytes > 0)
             return;
         if (it->writeQueue.isEmpty()) {
-            if (it->closeWhenDrained)
-                socket->disconnectFromServer();
+            // The response is out; the peer is left a moment to finish with the connection
+            // before the pipe is closed under it.
+            if (it->closeWhenDrained && it->lingerTimer && !it->lingerTimer->isActive())
+                it->lingerTimer->start();
             return;
         }
 
@@ -360,12 +397,33 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
     }
 
     m_lockFile = std::make_unique<QLockFile>(SingleInstanceIdentity::lockFilePath(m_dataDirectory));
+    // Qt's own staleness is a clock, and a long running editor must never lose its lock to one,
+    // so it is off. What decides instead is the process the lock names.
     m_lockFile->setStaleLockTime(0);
     if (!m_lockFile->tryLock(0)) {
-        if (m_lockFile->error() == QLockFile::LockFailedError)
-            return StartResult::Secondary;
-        m_error = tr("Failed to access the single-instance lock file");
-        return StartResult::Error;
+        if (m_lockFile->error() != QLockFile::LockFailedError) {
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
+        // A holder that died without unlocking left its lock behind; it is nobody's now.
+        qint64 holder = 0;
+        QString host;
+        QString application;
+        if (m_lockFile->getLockInfo(&holder, &host, &application) &&
+            (host.isEmpty() || host == QSysInfo::machineHostName()) &&
+            !ProcessProbe::isAlive(holder)) {
+            m_lockFile->removeStaleLockFile();
+        }
+        // A holder on its way out keeps the lock until its last step, and a launch that lands in
+        // that moment, a restart's successor or a host started right after the previous one was
+        // told to exit, is not a second instance. Bounded, so that a real second instance still
+        // forwards its request promptly.
+        if (!m_lockFile->tryLock(750)) {
+            if (m_lockFile->error() == QLockFile::LockFailedError)
+                return StartResult::Secondary;
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
     }
 
     m_ipcThread = new QThread;

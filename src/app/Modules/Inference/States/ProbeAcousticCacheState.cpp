@@ -1,5 +1,7 @@
 #include "ProbeAcousticCacheState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "Controller/PlaybackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferController.h"
@@ -17,7 +19,7 @@ ProbeAcousticCacheState::ProbeAcousticCacheState(InferPipeline &pipeline, QState
 }
 
 void ProbeAcousticCacheState::onEntry(QEvent *event) {
-    qDebug() << "ProbeAcousticCacheState::onEntry";
+    qCDebug(logInferState) << "ProbeAcousticCacheState::onEntry";
     QState::onEntry(event);
 
     cancelCurrentTask();
@@ -47,14 +49,14 @@ void ProbeAcousticCacheState::onEntry(QEvent *event) {
 }
 
 void ProbeAcousticCacheState::onExit(QEvent *event) {
-    qDebug() << "ProbeAcousticCacheState::onExit";
+    qCDebug(logInferState) << "ProbeAcousticCacheState::onExit";
     cancelCurrentTask();
     QState::onExit(event);
 }
 
 void ProbeAcousticCacheState::handleTaskFinished(InferAcousticCacheProbeTask &task) {
     if (!m_currentTask || m_currentTask != &task) {
-        qDebug() << "Ignoring acoustic cache probe that is no longer current";
+        qCDebug(logInferState) << "Ignoring acoustic cache probe that is no longer current";
         return;
     }
 

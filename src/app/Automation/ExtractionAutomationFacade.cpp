@@ -112,6 +112,15 @@ namespace Automation {
           m_project(project), m_notes(notes), m_services(std::move(services)) {
     }
 
+    ExtractionAutomationFacade::~ExtractionAutomationFacade() {
+        // The jobs outlive the facade if a finished task is still queued. The jobs are therefore
+        // cancelled, and the expiry of m_lifetime below turns their late callbacks into no-ops.
+        m_lifetime.reset();
+        for (auto &record : m_jobs)
+            record.job->cancel();
+        m_jobs.clear();
+    }
+
     AutomationResult<TaskAcceptedResult>
         ExtractionAutomationFacade::startPitch(const CommandContext &context,
                                                const ClipId audioClipId, const ClipId singingClipId,
@@ -215,9 +224,12 @@ namespace Automation {
                         });
                     Q_ASSERT(bound);
                 }
-                auto execute = [this, taskId = task.taskId, base = session.version(),
+                auto execute = [this, alive = std::weak_ptr<int>(m_lifetime),
+                                taskId = task.taskId, base = session.version(),
                                 input = std::move(prepared.get().input), job = std::move(job),
                                 observer = std::move(observer)]() mutable {
+                    if (alive.expired())
+                        return;
                     executePitchTask(taskId, base, std::move(input), std::move(job),
                                      std::move(observer));
                 };
@@ -253,13 +265,28 @@ namespace Automation {
                 }
 
                 const auto *audio = static_cast<const AudioClip *>(resolvedAudio.get().clip);
+                const auto &timeline = session.model()->timeline();
+                // The same span as in the pitch path. Without it, the task would read the file
+                // from its first sample and place the notes as if the clip started at zero.
+                const int visibleStartTick = audio->start() + audio->clipStart();
+                const double visibleStartMs = timeline.tickToMs(visibleStartTick);
+                const double trimStartMs = audio->hasRealTimeAnchor()
+                                               ? audio->trimStartMs()
+                                               : visibleStartMs - timeline.tickToMs(audio->start());
+                const double visibleLengthMs =
+                    audio->hasRealTimeAnchor()
+                        ? audio->playLengthMs()
+                        : timeline.tickToMs(visibleStartTick + audio->clipLen()) - visibleStartMs;
                 MidiExtractionInput input;
                 input.audioClipId = audioClipId;
                 input.audioPath = audio->path();
                 input.sourceAsset = audioAssetSnapshotDto(*audio);
-                input.timeline = session.model()->timeline();
+                input.timeline = timeline;
                 input.audioClipStartTick = audio->start();
                 input.audioClipLengthTick = audio->length();
+                input.audioMaterialOriginMs = visibleStartMs - trimStartMs;
+                input.audioVisibleStartMs = visibleStartMs;
+                input.audioVisibleEndMs = visibleStartMs + visibleLengthMs;
                 input.modelId = options.modelId;
                 input.defaultLanguage = options.defaultLanguage;
                 input.defaultLyric = options.defaultLyric;
@@ -346,9 +373,12 @@ namespace Automation {
                         });
                     Q_ASSERT(bound);
                 }
-                auto execute = [this, taskId = task.taskId, base = session.version(),
+                auto execute = [this, alive = std::weak_ptr<int>(m_lifetime),
+                                taskId = task.taskId, base = session.version(),
                                 input = std::move(prepared.get().input), job = std::move(job),
                                 observer = std::move(observer)]() mutable {
+                    if (alive.expired())
+                        return;
                     executeMidiTask(taskId, base, std::move(input), std::move(job),
                                     std::move(observer));
                 };
@@ -370,19 +400,32 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
-        if (!m_tasks.markRunning(taskId))
+        if (!m_tasks.markRunning(taskId)) {
+            // The failure path must be finished off, otherwise the observer never sees finished:
+            // markRunning returns false when the record does not exist or its state is no longer
+            // Queued (for example when a give-up request arrives after the guard and before this
+            // point), so, in the same shape as the abandoned branch above, it lands in the terminal
+            // state and dispatches the notification.
+            m_tasks.cancel(taskId);
+            notifyFinished(taskId, baseDocument.documentId, observer);
             return;
+        }
         ExtractionJobCallbacks callbacks;
-        callbacks.progress = [this, taskId](AutomationTaskProgress progress,
-                                            const QString &message) {
-            m_tasks.updateProgress(taskId, std::move(progress), message);
+        const std::weak_ptr<int> alive = m_lifetime;
+        callbacks.progress = [this, alive, taskId](AutomationTaskProgress progress,
+                                                   const QString &message) {
+            if (!alive.expired())
+                m_tasks.updateProgress(taskId, std::move(progress), message);
         };
-        callbacks.cancelRequested = [this, documentId = baseDocument.documentId, taskId] {
-            m_tasks.requestCancel(documentId, taskId);
+        callbacks.cancelRequested = [this, alive, documentId = baseDocument.documentId, taskId] {
+            if (!alive.expired())
+                m_tasks.requestCancel(documentId, taskId);
         };
         job->start(std::move(callbacks),
-                   [this, taskId, baseDocument, input = std::move(input),
+                   [this, alive, taskId, baseDocument, input = std::move(input),
                     observer = std::move(observer)](PitchExtractionBackendResult result) mutable {
+                       if (alive.expired())
+                           return;
                        completePitchTask(taskId, baseDocument, input, std::move(result), observer);
                    });
     }
@@ -397,19 +440,32 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
-        if (!m_tasks.markRunning(taskId))
+        if (!m_tasks.markRunning(taskId)) {
+            // The failure path must be finished off, otherwise the observer never sees finished:
+            // markRunning returns false when the record does not exist or its state is no longer
+            // Queued (for example when a give-up request arrives after the guard and before this
+            // point), so, in the same shape as the abandoned branch above, it lands in the terminal
+            // state and dispatches the notification.
+            m_tasks.cancel(taskId);
+            notifyFinished(taskId, baseDocument.documentId, observer);
             return;
+        }
         ExtractionJobCallbacks callbacks;
-        callbacks.progress = [this, taskId](AutomationTaskProgress progress,
-                                            const QString &message) {
-            m_tasks.updateProgress(taskId, std::move(progress), message);
+        const std::weak_ptr<int> alive = m_lifetime;
+        callbacks.progress = [this, alive, taskId](AutomationTaskProgress progress,
+                                                   const QString &message) {
+            if (!alive.expired())
+                m_tasks.updateProgress(taskId, std::move(progress), message);
         };
-        callbacks.cancelRequested = [this, documentId = baseDocument.documentId, taskId] {
-            m_tasks.requestCancel(documentId, taskId);
+        callbacks.cancelRequested = [this, alive, documentId = baseDocument.documentId, taskId] {
+            if (!alive.expired())
+                m_tasks.requestCancel(documentId, taskId);
         };
         job->start(std::move(callbacks),
-                   [this, taskId, baseDocument, input = std::move(input),
+                   [this, alive, taskId, baseDocument, input = std::move(input),
                     observer = std::move(observer)](MidiExtractionBackendResult result) mutable {
+                       if (alive.expired())
+                           return;
                        completeMidiTask(taskId, baseDocument, input, std::move(result), observer);
                    });
     }
@@ -504,7 +560,10 @@ namespace Automation {
         QList<NoteDraftDto> extractedNotes;
         int createdNoteIndex = 0;
         for (const auto &note : result.notes) {
-            if (note.localStart < 0 ||
+            // A zero-length note would reach the interval tree of the project model as an empty
+            // interval, which the tree rejects by throwing. Such notes are therefore filtered here
+            // regardless of the backend result.
+            if (note.localStart < 0 || note.length <= 0 ||
                 (input.minimumNoteLength && note.length < *input.minimumNoteLength))
                 continue;
             extractedNotes.append({
