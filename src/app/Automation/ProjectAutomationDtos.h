@@ -208,6 +208,9 @@ namespace Automation {
     [[nodiscard]] QByteArray fingerprint(const DocumentDraftDto &draft);
     [[nodiscard]] QByteArray fingerprint(const BatchImportDraftDto &draft);
 
+    [[nodiscard]] bool validAnchorNodes(ParamInfo::Name name,
+                                        const QList<AnchorNodeDraftDto> &nodes, int sourceStart,
+                                        int sourceEnd);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft);

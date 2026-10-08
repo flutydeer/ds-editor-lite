@@ -233,17 +233,7 @@ namespace Automation {
                        curve.localStart >= sourceStart && end <= sourceEnd &&
                        std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
             }
-            if (curve.nodes.size() < 2)
-                return false;
-            auto previous = std::numeric_limits<int>::min();
-            for (const auto &node : curve.nodes) {
-                if (node.position < sourceStart || node.position > sourceEnd ||
-                    node.position <= previous || !validValue(node.value)) {
-                    return false;
-                }
-                previous = node.position;
-            }
-            return true;
+            return validAnchorNodes(name, curve.nodes, sourceStart, sourceEnd);
         }
 
         bool validTransferPayload(const NoteTransferPayload &payload) {

@@ -3,6 +3,7 @@
 #include <QJsonObject>
 
 #include <optional>
+#include <limits>
 
 namespace {
     QJsonObject serializeCurve(const Automation::CurveDraftDto &curve) {
@@ -32,7 +33,8 @@ namespace {
         return result;
     }
 
-    std::optional<Automation::CurveDraftDto> deserializeCurve(const QJsonObject &object) {
+    std::optional<Automation::CurveDraftDto> deserializeCurve(const ParamInfo::Name name,
+                                                              const QJsonObject &object) {
         Automation::CurveDraftDto result;
         const auto type = object.value(QStringLiteral("type")).toString();
         result.localStart = object.value(QStringLiteral("local_start")).toInt();
@@ -52,16 +54,15 @@ namespace {
         for (const auto value : object.value(QStringLiteral("nodes")).toArray()) {
             const auto node = value.toObject();
             const auto interpolation = node.value(QStringLiteral("interpolation")).toInt();
-            if (interpolation < AnchorNode::Linear || interpolation > AnchorNode::None)
-                return std::nullopt;
             result.nodes.append({
                 .position = node.value(QStringLiteral("position")).toInt(),
                 .value = node.value(QStringLiteral("value")).toInt(),
                 .interpolation = static_cast<AnchorNode::InterpMode>(interpolation),
             });
         }
-        if (result.nodes.size() < 2)
+        if (!Automation::validAnchorNodes(name, result.nodes, 0, std::numeric_limits<int>::max())) {
             return std::nullopt;
+        }
         return result;
     }
 }
@@ -98,7 +99,7 @@ namespace ClipboardDataModel {
             };
             for (const auto curveValue :
                  parameterObject.value(QStringLiteral("curves")).toArray()) {
-                auto curve = deserializeCurve(curveValue.toObject());
+                auto curve = deserializeCurve(parameter.name, curveValue.toObject());
                 if (curve)
                     parameter.curves.append(std::move(*curve));
             }

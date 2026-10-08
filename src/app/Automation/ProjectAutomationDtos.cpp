@@ -714,6 +714,24 @@ namespace Automation {
         return hash.result();
     }
 
+    bool validAnchorNodes(const ParamInfo::Name name, const QList<AnchorNodeDraftDto> &nodes,
+                          const int sourceStart, const int sourceEnd) {
+        if (nodes.size() < 2)
+            return false;
+        const auto spec = ParamInfo::valueSpec(name);
+        auto previous = std::numeric_limits<int>::min();
+        for (const auto &node : nodes) {
+            if (node.position < sourceStart || node.position > sourceEnd ||
+                node.position <= previous || node.value < spec.minimum ||
+                node.value > spec.maximum || (node.value - spec.minimum) % spec.step != 0 ||
+                node.interpolation < AnchorNode::Linear || node.interpolation > AnchorNode::None) {
+                return false;
+            }
+            previous = node.position;
+        }
+        return true;
+    }
+
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
         const auto localEnd = static_cast<qint64>(properties.clipStart) + properties.clipLen;
@@ -776,6 +794,11 @@ namespace Automation {
                             QStringLiteral("clip.parameters.curves.values"),
                             QStringLiteral("Draw curve range exceeds the supported timeline"));
                     }
+                } else if (!validAnchorNodes(parameter.name, curve.nodes, 0,
+                                             std::numeric_limits<int>::max())) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("clip.parameters.curves.nodes"),
+                        QStringLiteral("Anchor positions, values, or interpolation are invalid"));
                 }
             }
         }

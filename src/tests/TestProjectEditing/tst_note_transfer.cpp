@@ -3,6 +3,7 @@
 #include "Automation/NoteTransfer.h"
 #include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
+#include "Model/ClipboardDataModel/ParameterCurvesJson.h"
 #include "TestRuntime.h"
 
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -18,6 +19,7 @@
 
 #include <limits>
 #include <optional>
+#include <utility>
 
 namespace {
     using Automation::ClipId;
@@ -560,14 +562,18 @@ void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits() {
 void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::addColumn<int>("layer");
     QTest::addColumn<bool>("hasNotes");
-    QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true;
-    QTest::newRow("original-curves-without-notes") << int(Param::Original) << false;
-    QTest::newRow("envelope-curves") << int(Param::Envelope) << true;
+    QTest::addColumn<QString>("fault");
+    QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true << QString{};
+    QTest::newRow("original-curves-without-notes") << int(Param::Original) << false << QString{};
+    QTest::newRow("envelope-curves") << int(Param::Envelope) << true << QString{};
+    for (const auto &fault : {"duplicate-positions", "reversed-positions", "out-of-range-value"})
+        QTest::newRow(fault) << int(Param::Edited) << true << QString::fromLatin1(fault);
 }
 
 void ProjectEditingTests::wholeClipParameterRoundTrip() {
     QFETCH(int, layer);
     QFETCH(bool, hasNotes);
+    QFETCH(QString, fault);
     auto draft = clipDraft(QStringLiteral("Whole phrase"));
     if (hasNotes)
         draft.notes = {noteDraft(240, 120, 64, QStringLiteral("phrase"))};
@@ -586,7 +592,40 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     const auto source = Automation::buildClip(draft, nullptr, Timeline{});
     const ClipsInfo copied{{source.get()}, {0}};
     const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
-    const auto decoded = ClipsInfo::deserializeFromJson(QJsonDocument::fromJson(bytes).object());
+    auto payload = QJsonDocument::fromJson(bytes).object();
+    if (!fault.isEmpty()) {
+        auto &nodes = draft.params.first().curves.last().nodes;
+        if (fault == QStringLiteral("duplicate-positions"))
+            nodes.last().position = nodes.first().position;
+        else if (fault == QStringLiteral("reversed-positions"))
+            std::swap(nodes.first(), nodes.last());
+        else
+            nodes.first().value = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+        const auto track = insertTrack(runtime, QStringLiteral("Destination"));
+        QVERIFY(track.isValid());
+        fixture.history()->reset();
+        const auto before = runtime.documentVersion();
+        const auto rejected =
+            runtime.project().insertClips(commandContext(runtime), {
+                                                                       {track, draft}
+        });
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        QCOMPARE(rejected.getError().fieldPath, QStringLiteral("clip.parameters.curves.nodes"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(fixture.model().tracks().first()->clips().count(), 0);
+        QVERIFY(!fixture.history()->canUndo());
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        clip.insert(QStringLiteral("parameters"),
+                    ClipboardDataModel::serializeParameters(draft.params));
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+        draft.params.first().curves.removeLast();
+    }
+    const auto decoded = ClipsInfo::deserializeFromJson(payload);
     const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
     QCOMPARE(decoded.clips.size(), 1);
     const auto restored = Automation::clipDraftDto(*decoded.clips.first());
