@@ -1747,28 +1747,46 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
 
 void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically_data() {
     QTest::addColumn<bool>("penEraser");
-    QTest::newRow("mouse") << false;
-    QTest::newRow("pen-eraser-under-draw-tool") << true;
+    QTest::addColumn<bool>("edgeScroll");
+    QTest::newRow("mouse") << false << false;
+    QTest::newRow("pen-eraser-under-draw-tool") << true << false;
+    QTest::newRow("mouse-edge-scroll") << false << true;
 }
 
 void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     QFETCH(bool, penEraser);
+    QFETCH(bool, edgeScroll);
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(edgeScroll ? 38400 : 3840);
     if (QTest::currentTestFailed())
         return;
     fixture.addSecondNote();
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
+    const auto secondCenterTick =
+        edgeScroll ? static_cast<int>(std::ceil(canvas.endTick())) + 360 : 1440;
+    if (edgeScroll) {
+        QVERIFY(fixture.runtime().notes().moveNotes(
+            fixture.command(), Automation::ClipId(fixture.clip->id()),
+            {Automation::NoteId(fixture.secondNoteId)}, secondCenterTick - 1440, 0));
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!canvas.rect().contains(fixture.pointFor(secondCenterTick, 62)));
+        historyManager->reset();
+    }
     canvas.setEditMode(penEraser ? ClipEditorGlobal::DrawNote : ClipEditorGlobal::EraseNote);
     const auto first = fixture.pointFor(720, 60);
-    const auto second = fixture.pointFor(1440, 62);
+    auto second = fixture.pointFor(1440, 62);
+    if (edgeScroll)
+        second.setX(canvas.width() - 2);
     QVERIFY(canvas.rect().contains(first) && canvas.rect().contains(second));
     const QList<int> erased{fixture.noteId, fixture.secondNoteId};
     const auto before = fixture.runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const QPointingDevice pen(
         QStringLiteral("Fixture note eraser"), 1004, QInputDevice::DeviceType::Stylus,
         QPointingDevice::PointerType::Eraser,
@@ -1776,8 +1794,19 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     const auto cancelPointer = qScopeGuard([&] {
         QEvent deactivate(QEvent::WindowDeactivate);
         QApplication::sendEvent(&canvas, &deactivate);
+        if (edgeScroll)
+            QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, second);
     });
     const auto press = [&] {
+        if (edgeScroll) {
+            QVERIFY(canvas.centerAt(1920, 60));
+            fixture.waitForFrame();
+            if (QTest::currentTestFailed())
+                return;
+            QTest::mousePress(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, first);
+            QVERIFY(QGuiApplication::mouseButtons().testFlag(Qt::LeftButton));
+            return;
+        }
         if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletPress, first, 0.7,
                                                  Qt::LeftButton, Qt::LeftButton));
@@ -1785,6 +1814,14 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
             QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
     };
     const auto move = [&] {
+        if (edgeScroll) {
+            const auto startTick = canvas.startTick();
+            QCursor::setPos(canvas.mapToGlobal(second));
+            QTest::mouseMove(canvas.windowHandle(), second);
+            QTRY_VERIFY(canvas.startTick() > startTick);
+            QTRY_VERIFY(appStatus->pianoRollNoteErasePreview.get().contains(fixture.secondNoteId));
+            return;
+        }
         if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletMove, second, 0.7,
                                                  Qt::NoButton, Qt::LeftButton));
@@ -1792,6 +1829,13 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
             fixture.moveTo(second);
     };
     const auto release = [&] {
+        if (edgeScroll) {
+            QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, second);
+            const auto stoppedTick = canvas.startTick();
+            QTest::qWait(80);
+            QCOMPARE(canvas.startTick(), stoppedTick);
+            return;
+        }
         if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletRelease, second, 0,
                                                  Qt::LeftButton, Qt::NoButton));
@@ -1812,6 +1856,7 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.clip->notes().count(), 2);
     QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 
     press();
@@ -1830,13 +1875,27 @@ void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
     QCOMPARE(fixture.clip->notes().count(), 2);
     QVERIFY(fixture.clip->findNoteById(fixture.noteId));
     QVERIFY(fixture.clip->findNoteById(fixture.secondNoteId));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
     canvas.setEditMode(ClipEditorGlobal::Select);
+    if (edgeScroll) {
+        QVERIFY(canvas.centerAt(1920, 60));
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+    }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, first);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    if (edgeScroll) {
+        QVERIFY(canvas.centerAt(secondCenterTick, 62));
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        second = fixture.pointFor(secondCenterTick, 62);
+    }
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, second);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.secondNoteId});
 }
@@ -2624,7 +2683,8 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     };
     const auto before = runtime.documentVersion();
     historyManager->reset();
-    const auto runMenu = [&](QPoint position, const QString &text, bool paste, bool commit) {
+    const auto runMenu = [&](QPoint position, const QString &text, bool paste, bool commit,
+                             bool mixedInterpolation = false) {
         bool entered = false;
         QTimer respond;
         respond.setSingleShot(true);
@@ -2639,6 +2699,18 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
                     action = item;
             }
             QVERIFY(action && action->isEnabled());
+            if (mixedInterpolation) {
+                const auto items = menu->actions();
+                for (const auto &label : {PianoRollContextMenuController::tr("Linear"),
+                                          PianoRollContextMenuController::tr("Hermite")}) {
+                    const auto entry =
+                        std::find_if(items.cbegin(), items.cend(),
+                                     [&](const auto *item) { return item->text() == label; });
+                    QVERIFY(entry != items.cend());
+                    QVERIFY((*entry)->isEnabled());
+                    QVERIFY(!(*entry)->isChecked());
+                }
+            }
             const auto target = menu->actionGeometry(action).center();
             if (paste) {
                 const auto frame = frames.size();
@@ -2726,6 +2798,27 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     QCOMPARE(anchorNodes().at(0)->interpMode(), AnchorNode::Hermite);
     QCOMPARE(anchorNodes().at(1)->interpMode(), AnchorNode::Linear);
     QCOMPARE(anchorNodes().at(2)->interpMode(), AnchorNode::None);
+    const auto beforeMixedMenu = TestSupport::projectSnapshot(*fixture.context->m_appModel);
+    const auto mixedVersion = runtime.documentVersion();
+    const auto *linearEntry = historyManager->nextUndoEntry();
+    QTest::keyClick(canvas, Qt::Key_Escape);
+    const auto selectStart = point(360, 64);
+    const auto selectEnd = point(1200, 59);
+    QTest::mousePress(canvas, Qt::LeftButton, Qt::NoModifier, selectStart);
+    QTest::mouseMove(canvas, selectEnd);
+    QTest::mouseRelease(canvas, Qt::LeftButton, Qt::NoModifier, selectEnd);
+    QCOMPARE(runtime.documentVersion(), mixedVersion);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeMixedMenu);
+    runMenu(point(960, 61), PianoRollContextMenuController::tr("Hermite"), false, true, true);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(anchorNodes().at(0)->interpMode(), AnchorNode::Hermite);
+    QCOMPARE(anchorNodes().at(1)->interpMode(), AnchorNode::Hermite);
+    QCOMPARE(anchorNodes().at(2)->interpMode(), AnchorNode::None);
+    QCOMPARE(runtime.documentVersion().revision, mixedVersion.revision + 1);
+    QVERIFY(runtime.history().undo(command()));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeMixedMenu);
+    QCOMPARE(historyManager->nextUndoEntry(), linearEntry);
     runMenu(point(960, 61), PianoRollContextMenuController::tr("&Delete"), false, true);
     if (QTest::currentTestFailed())
         return;
