@@ -66,6 +66,7 @@ private slots:
     void rhiAnchorSelectionMovesTheGroupAtomically();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView_data();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
+    void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel_data();
     void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel();
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();

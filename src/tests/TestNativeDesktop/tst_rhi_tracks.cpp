@@ -294,12 +294,31 @@ void NativeDesktopTests::rhiTrackNavigationKeepsTheCanvasAndTrackListAligned() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel_data() {
+    QTest::addColumn<bool>("atProjectTail");
+    QTest::newRow("inside-project") << false;
+    QTest::newRow("past-project-tail") << true;
+}
+
 void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
+    QFETCH(bool, atProjectTail);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     TrackFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
     auto &canvas = *fixture.canvas;
+    const auto projectTail = appStatus->projectEditableLength.get();
+    if (atProjectTail) {
+        const auto start = projectTail - 3840 - fixture.clip()->length();
+        QVERIFY(fixture.runtime().project().moveClips(
+            fixture.command(), {
+                                   {Automation::ClipId(fixture.clipId),
+                                    Automation::TrackId(fixture.firstTrackId), start}
+        }));
+        QVERIFY(canvas.setViewScale(1.0, 1.0));
+        QVERIFY(canvas.centerAt(projectTail, 0.5));
+        historyManager->reset();
+    }
     QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
     QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
     canvas.update();
@@ -309,7 +328,7 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(oldCursor); });
     const auto before = fixture.runtime().documentVersion();
     const auto model = TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
-    const auto press = fixture.point(960, 0);
+    const auto press = fixture.point(fixture.clip()->start() + 480, 0);
     const auto edge = QPoint(canvas.width() - 2, press.y());
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.windowHandle());
@@ -322,12 +341,16 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     const auto afterMove = canvas.startTick();
     const auto previewFrame = frames.size();
     QTRY_VERIFY_WITH_TIMEOUT(canvas.startTick() > afterMove + 60, 3000);
+    if (atProjectTail)
+        QTRY_VERIFY_WITH_TIMEOUT(canvas.endTick() > projectTail + 60, 3000);
     QTRY_VERIFY(frames.size() > previewFrame);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), model);
     QTest::keyClick(&canvas, Qt::Key_Escape);
     QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge);
     QVERIFY(!editSessionManager->hasActiveTransaction());
+    if (atProjectTail)
+        QVERIFY(canvas.endTick() <= projectTail + 1.0);
     const auto stoppedAt = canvas.startTick();
     QTest::qWait(80);
     QCOMPARE(canvas.startTick(), stoppedAt);

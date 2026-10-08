@@ -38,6 +38,7 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QScrollBar>
 #include <QTimer>
 #include <QTouchEvent>
 #include <QWindow>
@@ -231,18 +232,21 @@ void EditorInteractionTests::trackListDragReordersOrCancels_data() {
     QTest::addColumn<int>("from");
     QTest::addColumn<bool>("cancel");
     QTest::addColumn<bool>("touch");
-    QTest::newRow("first-to-last") << 0 << false << false;
-    QTest::newRow("last-to-first") << 2 << false << false;
-    QTest::newRow("escape-preserves-order") << 0 << true << false;
-    QTest::newRow("touch-first-to-last") << 0 << false << true;
-    QTest::newRow("touch-last-to-first") << 2 << false << true;
-    QTest::newRow("system-cancel-preserves-order-and-allows-retry") << 0 << true << true;
+    QTest::addColumn<bool>("scrollToEdge");
+    QTest::newRow("first-to-last") << 0 << false << false << false;
+    QTest::newRow("last-to-first") << 2 << false << false << false;
+    QTest::newRow("escape-preserves-order") << 0 << true << false << false;
+    QTest::newRow("touch-first-to-last") << 0 << false << true << false;
+    QTest::newRow("touch-last-to-first") << 2 << false << true << false;
+    QTest::newRow("system-cancel-preserves-order-and-allows-retry") << 0 << true << true << false;
+    QTest::newRow("touch-edge-scroll-to-last") << 0 << false << true << true;
 }
 
 void EditorInteractionTests::trackListDragReordersOrCancels() {
     QFETCH(int, from);
     QFETCH(bool, cancel);
     QFETCH(bool, touch);
+    QFETCH(bool, scrollToEdge);
     GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &context = fixture.context;
@@ -255,8 +259,11 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
     TrackEditorView editor;
     const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
-    const QStringList names{QStringLiteral("First"), QStringLiteral("Second"),
-                            QStringLiteral("Third")};
+    QStringList names{QStringLiteral("First"), QStringLiteral("Second"), QStringLiteral("Third")};
+    if (scrollToEdge) {
+        for (int index = 3; index < 12; ++index)
+            names.append(QStringLiteral("Track %1").arg(index + 1));
+    }
     for (int index = 0; index < names.size(); ++index) {
         Automation::ClipDraftDto clip;
         clip.properties.name = names.at(index);
@@ -294,9 +301,11 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     QVERIFY(!handle->rect().isEmpty());
     QVERIFY(sourceControl->isInDragArea(handle->mapTo(sourceControl, handle->rect().center())));
     const auto source = handle->mapTo(list->viewport(), handle->rect().center());
-    const auto targetRect = list->visualItemRect(list->item(from == 0 ? 2 : 0));
-    const QPoint destination(source.x(),
-                             from == 0 ? targetRect.bottom() - 2 : targetRect.top() + 2);
+    const int to = scrollToEdge ? static_cast<int>(names.size()) - 1 : (from == 0 ? 2 : 0);
+    const auto targetRect = list->visualItemRect(list->item(to));
+    const QPoint destination(source.x(), scrollToEdge ? list->viewport()->height() - 2
+                                         : from == 0  ? targetRect.bottom() - 2
+                                                      : targetRect.top() + 2);
     const auto verifyPreview = [&] {
         QCOMPARE(trackIds(), original);
         QCOMPARE(runtime.documentVersion(), before);
@@ -326,6 +335,10 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
         sequence.press(touchId, start).commit(false);
         pressed = true;
         sequence.move(touchId, finish).commit(false);
+        if (scrollToEdge) {
+            QVERIFY(list->verticalScrollBar()->maximum() > 0);
+            QTRY_COMPARE(list->verticalScrollBar()->value(), list->verticalScrollBar()->maximum());
+        }
         verifyPreview();
         if (QTest::currentTestFailed())
             return;
@@ -340,8 +353,8 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     drag(cancel);
     if (QTest::currentTestFailed())
         return;
-    const auto reordered = from == 0 ? QList<int>{original.at(1), original.at(2), original.at(0)}
-                                     : QList<int>{original.at(2), original.at(0), original.at(1)};
+    auto reordered = original;
+    reordered.move(from, to);
     auto expected = cancel ? original : reordered;
     QCOMPARE(trackIds(), expected);
     const auto verifyPresentation = [&] {
@@ -376,7 +389,14 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
         verifyPresentation();
     }
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-    QTRY_COMPARE(list->currentRow(), from == 0 ? 2 : 0);
+    QTRY_COMPARE(list->currentRow(), to);
+    if (scrollToEdge) {
+        QCoreApplication::processEvents();
+        // Leave the limit so a stale drag timer cannot be hidden by scroll clamping.
+        list->verticalScrollBar()->setValue(0);
+        QTest::qWait(50);
+        QCOMPARE(list->verticalScrollBar()->value(), 0);
+    }
     historyManager->undo();
     QCOMPARE(trackIds(), original);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalProject);
