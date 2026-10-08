@@ -18,6 +18,7 @@
 #include <QtTest>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 
 using namespace Automation;
@@ -60,23 +61,27 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy_data() {
     QTest::addColumn<bool>("bestEffort");
     QTest::addColumn<bool>("includeValid");
     QTest::addColumn<bool>("removeSourceAfterAdmission");
-    QTest::newRow("atomic-preserves-project") << false << true << false;
-    QTest::newRow("best-effort-imports-decoded-audio") << true << true << false;
-    QTest::newRow("best-effort-no-decodable-audio") << true << false << false;
-    QTest::newRow("atomic-source-removed-after-admission") << false << true << true;
-    QTest::newRow("best-effort-source-removed-after-admission") << true << true << true;
+    QTest::addColumn<bool>("decodedRangeOverflow");
+    QTest::newRow("atomic-preserves-project") << false << true << false << false;
+    QTest::newRow("best-effort-imports-decoded-audio") << true << true << false << false;
+    QTest::newRow("best-effort-no-decodable-audio") << true << false << false << false;
+    QTest::newRow("atomic-source-removed-after-admission") << false << true << true << false;
+    QTest::newRow("best-effort-source-removed-after-admission") << true << true << true << false;
+    QTest::newRow("atomic-decoded-range-out-of-bounds") << false << true << false << true;
+    QTest::newRow("best-effort-decoded-range-out-of-bounds") << true << true << false << true;
 }
 
 void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QFETCH(bool, bestEffort);
     QFETCH(bool, includeValid);
     QFETCH(bool, removeSourceAfterAdmission);
+    QFETCH(bool, decodedRangeOverflow);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto validPath = files.filePath(QStringLiteral("phrase.wav"));
     const auto invalidPath = files.filePath(QStringLiteral("damaged.wav"));
     QVERIFY(writeAudio(validPath));
-    if (removeSourceAfterAdmission) {
+    if (removeSourceAfterAdmission || decodedRangeOverflow) {
         QVERIFY(writeAudio(invalidPath));
     } else {
         QFile invalid(invalidPath);
@@ -107,10 +112,10 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         });
     }
     items.append(QJsonObject{
-        {"track_id", trackId.value()},
-        {"path",     invalidPath    },
-        {"name",     "invalid-audio"},
-        {"start",    960            }
+        {"track_id", trackId.value()                                             },
+        {"path",     invalidPath                                                 },
+        {"name",     "invalid-audio"                                             },
+        {"start",    decodedRangeOverflow ? std::numeric_limits<int>::max() : 960}
     });
     std::unique_ptr<TestSupport::ThreadPoolBarrier> workers;
     if (removeSourceAfterAdmission) {
@@ -118,7 +123,7 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         workers = std::make_unique<TestSupport::ThreadPoolBarrier>();
         QTRY_VERIFY_WITH_TIMEOUT(workers->ready(), 5000);
     }
-    const QJsonObject arguments{
+    QJsonObject arguments{
         {"document_id",       before.documentId.toString()                      },
         {"expected_revision", static_cast<qint64>(before.revision)              },
         {"items",             items                                             },
@@ -147,15 +152,29 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     if (!bestEffort || !includeValid) {
         QCOMPARE(task.get().state, AutomationTaskState::Failed);
         QVERIFY(task.get().error);
-        QCOMPARE(task.get().error->code, AutomationErrorCode::IoError);
+        QCOMPARE(task.get().error->code, decodedRangeOverflow ? AutomationErrorCode::InvalidArgument
+                                                              : AutomationErrorCode::IoError);
         if (includeValid)
-            QCOMPARE(task.get().error->fieldPath, QStringLiteral("items[1].path"));
+            QCOMPARE(task.get().error->fieldPath, decodedRangeOverflow
+                                                      ? QStringLiteral("items[1].start")
+                                                      : QStringLiteral("items[1].path"));
+        if (decodedRangeOverflow)
+            QVERIFY(task.get().error->taskId == taskId);
         QVERIFY(!task.get().mutation);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
-        QVERIFY(writeAudio(invalidPath));
+        if (decodedRangeOverflow) {
+            auto corrected = items.last().toObject();
+            corrected.insert(QStringLiteral("start"), 960);
+            items.replace(items.size() - 1, corrected);
+            arguments.insert(QStringLiteral("items"), items);
+            arguments.insert(QStringLiteral("idempotency_key"),
+                             QUuid::createUuid().toString(QUuid::WithoutBraces));
+        } else {
+            QVERIFY(writeAudio(invalidPath));
+        }
         const auto retried = invoke();
         QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
         completedTaskId =
