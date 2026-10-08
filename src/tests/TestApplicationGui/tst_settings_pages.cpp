@@ -1075,6 +1075,23 @@ void ApplicationGuiTests::gpuDetectionFiltersDevicesAndDiscardsStaleReplies() {
     const auto version = runtime.documentVersion();
     const auto document = TestSupport::projectSnapshot(*context->m_appModel);
     const auto effective = ExecutionProviderUtils::effective();
+    const auto publicBefore =
+        runtime.settings().queryPublicSettings({QStringLiteral("compute_device")});
+    QVERIFY(publicBefore && publicBefore.get().computeDevice);
+    const auto effectiveDevice = publicBefore.get().computeDevice->effective;
+    const auto verifyDeferredDevice = [&](const GpuInfo &gpu) {
+        const auto current =
+            runtime.settings().queryPublicSettings({QStringLiteral("compute_device")});
+        QVERIFY(current && current.get().computeDevice);
+        const auto &device = *current.get().computeDevice;
+        QCOMPARE(device.configured.executionProvider, gpuProvider);
+        QCOMPARE(device.configured.gpuIndex, gpu.index);
+        QCOMPARE(device.configured.gpuId, gpu.deviceId);
+        QCOMPARE(device.effective, effectiveDevice);
+        QVERIFY(device.restartRequiredFields.contains(QStringLiteral("execution_provider")));
+        QVERIFY(device.restartRequiredFields.contains(QStringLiteral("gpu_index")));
+        QVERIFY(device.restartRequiredFields.contains(QStringLiteral("gpu_id")));
+    };
     const auto *undo = historyManager->nextUndoEntry();
     const auto low = GpuInfo{3, QStringLiteral("Low-memory test device"),
                              QStringLiteral("55556666"), 512ULL * 1024 * 1024};
@@ -1163,6 +1180,9 @@ void ApplicationGuiTests::gpuDetectionFiltersDevicesAndDiscardsStaleReplies() {
             return;
         QCOMPARE(appOptions->inference()->selectedGpuId, alternate.deviceId);
         QCOMPARE(appOptions->inference()->selectedGpuIndex, alternate.index);
+        verifyDeferredDevice(alternate);
+        if (QTest::currentTestFailed())
+            return;
         AppOptions persisted;
         QCOMPARE(persisted.inference()->selectedGpuId, alternate.deviceId);
         QCOMPARE(persisted.inference()->selectedGpuIndex, alternate.index);
@@ -1192,6 +1212,21 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
     const auto autoStart = !original.autoStartInference;
     const auto cpuVocoder = !original.runVocoderOnCpu;
     const auto effective = ExecutionProviderUtils::effective();
+    const auto publicBefore = runtime.settings().queryPublicSettings({QStringLiteral("render")});
+    QVERIFY(publicBefore && publicBefore.get().render);
+    const auto effectiveRender = publicBefore.get().render->effective;
+    const auto verifyDeferredRender = [&] {
+        const auto current = runtime.settings().queryPublicSettings({QStringLiteral("render")});
+        QVERIFY(current && current.get().render);
+        const auto &render = *current.get().render;
+        QCOMPARE(render.configured.samplingSteps, steps);
+        QCOMPARE(render.effective.samplingSteps, steps);
+        QCOMPARE(render.configured.autoStartInference, autoStart);
+        QCOMPARE(render.effective.autoStartInference, autoStart);
+        QCOMPARE(render.configured.runVocoderOnCpu, cpuVocoder);
+        QCOMPARE(render.effective.runVocoderOnCpu, effectiveRender.runVocoderOnCpu);
+        QCOMPARE(render.restartRequiredFields, QStringList{QStringLiteral("run_vocoder_on_cpu")});
+    };
 
     {
         AppOptionsDialog panel;
@@ -1227,6 +1262,9 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         QCOMPARE(changed.get().inference.samplingSteps, steps);
         QCOMPARE(changed.get().inference.autoStartInference, autoStart);
         QCOMPARE(changed.get().inference.runVocoderOnCpu, cpuVocoder);
+        verifyDeferredRender();
+        if (QTest::currentTestFailed())
+            return;
         QJsonObject saved;
         readSavedOptions(saved);
         if (QTest::currentTestFailed())
@@ -1251,6 +1289,9 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
     QCOMPARE(QLocale().toInt(sampling->currentText()), steps);
     QCOMPARE(automatic->value(), autoStart);
     QCOMPARE(vocoder->value(), cpuVocoder);
+    verifyDeferredRender();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(ExecutionProviderUtils::effective(), effective);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
