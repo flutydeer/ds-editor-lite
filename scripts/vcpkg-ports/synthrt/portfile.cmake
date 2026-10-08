@@ -12,7 +12,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/synthrt.git
-    REF 7ea424a056aa776b6cfb55890096629a04e62e22
+    REF 0e9766235b97c7af65b2030d33fe922abaa73c4f
     HEAD_REF spec2.4-uptake
 )
 
