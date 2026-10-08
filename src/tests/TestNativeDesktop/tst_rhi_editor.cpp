@@ -1999,10 +1999,12 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
 void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit_data() {
     QTest::addColumn<EditorViewGlobal::PianoRollEditMode>("mode");
     QTest::addColumn<bool>("penEraser");
-    QTest::newRow("draw") << EditorViewGlobal::DrawPitch << false;
-    QTest::newRow("trace-original") << EditorViewGlobal::TracePitch << false;
-    QTest::newRow("erase") << EditorViewGlobal::ErasePitch << false;
-    QTest::newRow("pen-eraser-under-draw-tool") << EditorViewGlobal::DrawPitch << true;
+    QTest::addColumn<bool>("finger");
+    QTest::newRow("draw") << EditorViewGlobal::DrawPitch << false << false;
+    QTest::newRow("trace-original") << EditorViewGlobal::TracePitch << false << false;
+    QTest::newRow("erase") << EditorViewGlobal::ErasePitch << false << false;
+    QTest::newRow("pen-eraser-under-draw-tool") << EditorViewGlobal::DrawPitch << true << false;
+    QTest::newRow("finger-draw-and-system-cancel") << EditorViewGlobal::DrawPitch << false << true;
 }
 
 void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
@@ -2010,6 +2012,7 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         QSKIP("RHI widgets require a native window backend");
     QFETCH(EditorViewGlobal::PianoRollEditMode, mode);
     QFETCH(bool, penEraser);
+    QFETCH(bool, finger);
     ExistingRhiNoteFixture fixture;
     fixture.initialize();
     if (QTest::currentTestFailed())
@@ -2048,26 +2051,42 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         QStringLiteral("Fixture pitch eraser"), 1003, QInputDevice::DeviceType::Stylus,
         QPointingDevice::PointerType::Eraser,
         QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    auto *touchDevice = QTest::createTouchDevice();
+    auto touchSequence = QTest::touchEvent(&canvas, touchDevice, false);
+    const auto fingerEditing = appOptions->general()->drawParamWithFinger;
+    if (finger)
+        appOptions->general()->drawParamWithFinger = true;
     const auto cancelPointer = qScopeGuard([&] {
+        if (finger) {
+            QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+            QApplication::sendEvent(&canvas, &cancel);
+        }
         QEvent deactivate(QEvent::WindowDeactivate);
         QApplication::sendEvent(&canvas, &deactivate);
+        appOptions->general()->drawParamWithFinger = fingerEditing;
     });
     const auto press = [&] {
-        if (penEraser)
+        if (finger)
+            touchSequence.press(0, start).commit();
+        else if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletPress, start, 0.7,
                                                  Qt::LeftButton, Qt::LeftButton));
         else
             QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
     };
     const auto move = [&] {
-        if (penEraser)
+        if (finger)
+            touchSequence.move(0, finish).commit();
+        else if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletMove, finish, 0.7,
                                                  Qt::NoButton, Qt::LeftButton));
         else
             fixture.moveTo(finish);
     };
     const auto release = [&] {
-        if (penEraser)
+        if (finger)
+            touchSequence.release(0, finish).commit();
+        else if (penEraser)
             QVERIFY(TestSupport::sendTabletEvent(canvas, pen, QEvent::TabletRelease, finish, 0,
                                                  Qt::LeftButton, Qt::NoButton));
         else
@@ -2081,7 +2100,13 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
-    QTest::keyClick(&canvas, Qt::Key_Escape);
+    if (finger) {
+        QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+        cancel.setAccepted(false);
+        QApplication::sendEvent(&canvas, &cancel);
+    } else {
+        QTest::keyClick(&canvas, Qt::Key_Escape);
+    }
     release();
     QVERIFY(!editSessionManager->hasActiveTransaction());
     unchanged();
