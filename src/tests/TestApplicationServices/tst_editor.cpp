@@ -334,6 +334,31 @@ void ApplicationServicesTests::editorSelectionAndSnapshots() {
                  QStringLiteral("state query must remain available when no view snapshot exists")));
     harness.editorViewAvailable = true;
 
+    const auto applyBeforeClear = harness.editorStableApplyCalls;
+    const auto *undoBeforeClear = HistoryManager::instance()->nextUndoEntry();
+    const auto clearPreview = runtime.facade().clearTrackPanelSelection(
+        guiDocumentContext(runtime, true), true, true, false);
+    QVERIFY(clearPreview && clearPreview.get().changed && clearPreview.get().validatedOnly);
+    QCOMPARE(harness.editorStable.selectedTrackIndex, 0);
+    QCOMPARE(harness.editorStable.selectedClipIds, QList<int>{objects->clipId.value()});
+    QCOMPARE(harness.editorStableApplyCalls, applyBeforeClear);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeClear);
+    const auto cleared = runtime.facade().clearTrackPanelSelection(context, true, true, false);
+    QVERIFY(cleared && cleared.get().changed && !cleared.get().validatedOnly);
+    QCOMPARE(harness.editorStable.selectedTrackIndex, -1);
+    QVERIFY(harness.editorStable.selectedClipIds.isEmpty());
+    QCOMPARE(harness.editorStable.activeClipId, objects->clipId.value());
+    QCOMPARE(harness.editorStable.selectedNoteIds, QList<int>{objects->noteId.value()});
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeClear);
+    const auto applyAfterClear = harness.editorStableApplyCalls;
+    const auto clearNoOp = runtime.facade().clearTrackPanelSelection(context, true, true, false);
+    QVERIFY(clearNoOp && !clearNoOp.get().changed);
+    QCOMPARE(harness.editorStableApplyCalls, applyAfterClear);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeClear);
+
     const auto wrongDocument = runtime.facade().getEditorState(Automation::DocumentId::create(),
                                                                Automation::WindowId::create());
     const auto wrongWindow =
