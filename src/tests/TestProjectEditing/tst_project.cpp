@@ -2686,75 +2686,90 @@ void ProjectEditingTests::parameterEditing() {
              runtime.documentVersion() == base),
             qPrintable(QStringLiteral("draw range overflow must fail without mutation")));
     };
+}
 
-    {
-        // Automation::OperationIds::parameters::trace /
-        // QStringLiteral("preserve-gaps-and-anchors")
+void ProjectEditingTests::traceOriginalParameterPreservesGapsAndAnchors() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Voice"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Voice Clip"));
+    testRuntime.history()->reset();
 
-        const auto created = runtime.parameters().createAnchorCurve(
-            commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
-            QStringLiteral("huge-anchor"),
-            {
-                {0,                               6000, AnchorNode::Linear},
-                {std::numeric_limits<int>::max(), 6000, AnchorNode::Linear},
-        });
-        QVERIFY2((created && created.get().changed),
-                 qPrintable(QStringLiteral("the trace bound fixture must create its anchor")));
-        const auto base = runtime.documentVersion();
-        const auto traced = runtime.parameters().traceParameter(commandContext(runtime), clipId,
-                                                                ParamInfo::Pitch, 0, 5);
-        QVERIFY2((traced && !traced.get().changed && runtime.documentVersion() == base),
-                 qPrintable(QStringLiteral("trace without original data must preserve anchors")));
+    const auto created = runtime.parameters().createAnchorCurve(
+        commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+        QStringLiteral("huge-anchor"),
+        {
+            {0,                               6000, AnchorNode::Linear},
+            {std::numeric_limits<int>::max(), 6000, AnchorNode::Linear},
+    });
+    QVERIFY2((created && created.get().changed),
+             qPrintable(QStringLiteral("the trace bound fixture must create its anchor")));
+    const auto base = runtime.documentVersion();
+    const auto traced = runtime.parameters().traceParameter(commandContext(runtime), clipId,
+                                                            ParamInfo::Pitch, 0, 5);
+    QVERIFY2((traced && !traced.get().changed && runtime.documentVersion() == base),
+             qPrintable(QStringLiteral("trace without original data must preserve anchors")));
 
-        auto before = runtime.parameters()
-                          .getParameter(base.documentId, clipId, ParamInfo::Pitch, Param::Edited)
-                          .get()
-                          .curves;
-        Automation::CurveDraftDto draw;
-        draw.type = Automation::CurveDraftDto::Type::Draw;
-        draw.localStart = 0;
-        draw.step = 5;
-        draw.values = QList<int>(8, 6000);
-        before.prepend(draw);
-        runtime.parameters().replaceParameter(commandContext(runtime), clipId, ParamInfo::Pitch,
-                                              Param::Edited, before);
-        auto first = draw;
-        first.values = {6100, 6110};
-        auto second = first;
-        second.localStart = 20;
-        second.values = {6200, 6210};
-        runtime.parameters().replaceParameter(commandContext(runtime), clipId, ParamInfo::Pitch,
-                                              Param::Original, {first, second});
-        const auto beforeTrace = runtime.documentVersion();
-        const auto applied = runtime.parameters().traceParameter(commandContext(runtime), clipId,
-                                                                 ParamInfo::Pitch, 0, 30);
-        const auto snapshot = [&] {
-            return runtime.parameters()
-                .getParameter(runtime.documentVersion().documentId, clipId, ParamInfo::Pitch,
-                              Param::Edited)
-                .get()
-                .curves;
-        };
-        const auto after = snapshot();
-        QVERIFY2(
-            (applied && applied.get().changed &&
-             applied.get().current.revision == beforeTrace.revision + 1 && after.size() == 2 &&
-             after.first().values == QList<int>{6100, 6110, 6000, 6000, 6200, 6210, 6000, 6000} &&
-             after.last().id == before.last().id && after.last().nodes.size() == 2 &&
-             after.last().nodes.last().position == std::numeric_limits<int>::max()),
-            qPrintable(QStringLiteral("trace must preserve holes, outside samples and anchors")));
-        const auto undo = runtime.history().undo(commandContext(runtime));
-        QVERIFY2((undo && snapshot().first().values == draw.values),
-                 qPrintable(QStringLiteral("one undo must restore the complete trace edit")));
-        const auto redo = runtime.history().redo(commandContext(runtime));
-        QVERIFY2((redo && snapshot().first().values == after.first().values &&
-                  snapshot().last().id == after.last().id),
-                 qPrintable(QStringLiteral("one redo must restore the traced curves")));
-        const auto noOp = runtime.parameters().traceParameter(commandContext(runtime), clipId,
-                                                              ParamInfo::Pitch, 0, 30);
-        QVERIFY2((noOp && !noOp.get().changed),
-                 qPrintable(QStringLiteral("repeating trace must not add an undo step")));
+    auto before = runtime.parameters()
+                      .getParameter(base.documentId, clipId, ParamInfo::Pitch, Param::Edited)
+                      .get()
+                      .curves;
+    Automation::CurveDraftDto draw;
+    draw.type = Automation::CurveDraftDto::Type::Draw;
+    draw.localStart = 0;
+    draw.step = 5;
+    draw.values = QList<int>(8, 6000);
+    before.prepend(draw);
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(runtime), clipId, ParamInfo::Pitch,
+                                                  Param::Edited, before));
+    auto first = draw;
+    first.values = {6100, 6110};
+    auto second = first;
+    second.localStart = 20;
+    second.values = {6200, 6210};
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(runtime), clipId, ParamInfo::Pitch,
+                                                  Param::Original, {first, second}));
+    const auto beforeTrace = runtime.documentVersion();
+    const auto beforeTraceModel = TestSupport::projectSnapshot(testRuntime.model());
+    const auto *beforeTraceUndo = testRuntime.history()->nextUndoEntry();
+    const auto preview = runtime.parameters().traceParameter(commandContext(runtime, true), clipId,
+                                                             ParamInfo::Pitch, 0, 30);
+    QVERIFY(preview);
+    QVERIFY(preview.get().changed);
+    QVERIFY(preview.get().validatedOnly);
+    QCOMPARE(runtime.documentVersion(), beforeTrace);
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeTraceModel);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), beforeTraceUndo);
+    const auto applied = runtime.parameters().traceParameter(commandContext(runtime), clipId,
+                                                             ParamInfo::Pitch, 0, 30);
+    const auto snapshot = [&] {
+        return runtime.parameters()
+            .getParameter(runtime.documentVersion().documentId, clipId, ParamInfo::Pitch,
+                          Param::Edited)
+            .get()
+            .curves;
     };
+    const auto after = snapshot();
+    const auto afterTraceModel = TestSupport::projectSnapshot(testRuntime.model());
+    QVERIFY2((applied && applied.get().changed &&
+              applied.get().current.revision == beforeTrace.revision + 1 && after.size() == 2 &&
+              after.first().values == QList<int>{6100, 6110, 6000, 6000, 6200, 6210, 6000, 6000} &&
+              after.last().id == before.last().id && after.last().nodes.size() == 2 &&
+              after.last().nodes.last().position == std::numeric_limits<int>::max()),
+             qPrintable(QStringLiteral("trace must preserve holes, outside samples and anchors")));
+    const auto undo = runtime.history().undo(commandContext(runtime));
+    QVERIFY2((undo && snapshot().first().values == draw.values),
+             qPrintable(QStringLiteral("one undo must restore the complete trace edit")));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeTraceModel);
+    const auto redo = runtime.history().redo(commandContext(runtime));
+    QVERIFY2((redo && snapshot().first().values == after.first().values &&
+              snapshot().last().id == after.last().id),
+             qPrintable(QStringLiteral("one redo must restore the traced curves")));
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), afterTraceModel);
+    const auto noOp = runtime.parameters().traceParameter(commandContext(runtime), clipId,
+                                                          ParamInfo::Pitch, 0, 30);
+    QVERIFY2((noOp && !noOp.get().changed),
+             qPrintable(QStringLiteral("repeating trace must not add an undo step")));
 }
 
 void ProjectEditingTests::drawAndErasePreserveOtherParameterCurves_data() {

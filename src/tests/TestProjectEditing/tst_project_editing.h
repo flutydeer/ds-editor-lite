@@ -41,6 +41,7 @@ private slots:
     void curveTransforms_data();
     void curveTransforms();
     void parameterEditing();
+    void traceOriginalParameterPreservesGapsAndAnchors();
     void drawAndErasePreserveOtherParameterCurves_data();
     void drawAndErasePreserveOtherParameterCurves();
     void nonAdjacentAnchorMergePreservesDocument();
