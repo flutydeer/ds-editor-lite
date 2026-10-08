@@ -496,9 +496,11 @@ class ConvertVoicebankWordInputsTest(VoicebankFixture):
     """Tests for the word level inputs of a predictor, which only Duration can receive.
 
     A 2.3 voicebank records the granularity of its encoder as `predict_dur` and nothing about the
-    inputs of its predictor: the common model of that era reads no word input at all, while a
-    predictor that splits the frame budget of every word reads both word tensors. The declaration
-    therefore has to be derived from the model.
+    inputs of its predictor. The architecture of the predictor decides them (DiffSinger#343): the
+    attention predictor allocates the frame budget of every word to its phonemes and reads both word
+    tensors, while the convolutional predictors of the current exports predict absolute durations
+    and read none of them, which a model declares as `abs`. The declaration therefore has to be
+    derived from the model, and a value that a source package already carries has to agree with it.
     """
 
     def write_module(self, kind: str, contract: str, model_inputs):
@@ -543,26 +545,28 @@ class ConvertVoicebankWordInputsTest(VoicebankFixture):
         self.assertEqual(configuration["dur_type"], "rel")
         self.assertIn("declared dur_type=rel", text)
 
-    def test_declares_the_word_division_alone(self):
-        # A predictor that needs only the division, for example to add the position of a phoneme
-        # inside its word, takes no budget: `abs` declares the division and predicts absolute
-        # phoneme durations.
-        code, text, configuration = self.convert_duration(
-            ["encoder_out", "x_masks", "ph_midi", "word_div"])
-        self.assertEqual(code, 0, text)
-        self.assertEqual(configuration["dur_type"], "abs")
-        self.assertNotIn("word_dur", configuration)
+    def test_reports_a_division_without_the_budget(self):
+        # `abs` is the value of a predictor that reads no word level input, and `rel` is the value of
+        # one that reads the budget through the division, so a predictor that reads the division without
+        # the budget matches neither: declaring `abs` for it would name no input where the model expects
+        # one, and `rel` would name one that the model does not expect.
+        code, text, _ = self.convert_duration(["encoder_out", "x_masks", "ph_midi", "word_div"])
+        self.assertEqual(code, 1, text)
+        self.assertIn("no dur_type value describes it", text)
+        self.assertIn('no dur_type value describes it: "rel" reads word_div and word_dur together, '
+                      'and "abs" reads no word level input', text)
 
-    def test_leaves_a_predictor_without_word_inputs_unchanged(self):
-        # The usual 2.3 shape: a word encoder whose predictor reads no word input at all. No key
-        # is written, so the conversion of such a package does not change. `linguisticMode` stays
-        # absent as well, because the Duration interpreter always prepares the word encoder.
+    def test_declares_a_predictor_without_word_inputs_as_absolute(self):
+        # The usual 2.3 shape: a word encoder whose predictor reads no word input at all. The value is
+        # written rather than omitted, because the architecture of the model decides the field, and the
+        # architecture of this predictor is the one that `abs` names. `linguisticMode` stays absent,
+        # because the Duration interpreter always prepares the word encoder.
         code, text, configuration = self.convert_duration(
             ["encoder_out", "x_masks", "ph_midi", "spk_embed"])
         self.assertEqual(code, 0, text)
-        for absent in ("dur_type", "linguisticMode"):
-            self.assertNotIn(absent, configuration)
-        self.assertNotIn("word level inputs", text)
+        self.assertEqual(configuration["dur_type"], "abs")
+        self.assertIn("declared dur_type=abs", text)
+        self.assertNotIn("linguisticMode", configuration)
 
     def test_reports_a_budget_without_the_division(self):
         # The interpreter reads the budget of a word through the division, so this shape of
@@ -571,6 +575,38 @@ class ConvertVoicebankWordInputsTest(VoicebankFixture):
         code, text, _ = self.convert_duration(["encoder_out", "ph_midi", "word_dur"])
         self.assertEqual(code, 1, text)
         self.assertIn("no dur_type value describes it", text)
+
+    def test_reports_a_declared_value_that_disagrees_with_the_model(self):
+        # The model decides the field, so a value that the source package already carries is not the
+        # authority. `rel` here would name the two word tensors to a predictor that reads neither, and
+        # the session rejects an unexpected input, so the disagreement is reported instead of being
+        # carried over unchanged or silently overwritten.
+        module = self.write_module("duration", "ai.svs.DurationInference",
+                                   ["encoder_out", "x_masks", "ph_midi", "spk_embed"])
+        config = read_json(module / "config.json")
+        config["configuration"]["dur_type"] = "rel"
+        write_json(module / "config.json", config)
+        output = self.destination("out")
+        code, text = self.run_script(self.package, "--output", output)
+        self.assertEqual(code, 1, text)
+        self.assertIn("the declaration carries dur_type='rel', but the predictor reads no word level "
+                      "input, which is dur_type='abs'", text)
+
+    def test_keeps_a_declared_value_that_agrees_with_the_model(self):
+        # The check is a disagreement check, not a presence check: a package that already names the
+        # architecture of its model converts like any other, and its field is confirmed by the model
+        # rather than reported.
+        module = self.write_module("duration", "ai.svs.DurationInference",
+                                   ["encoder_out", "x_masks", "ph_midi", "spk_embed"])
+        config = read_json(module / "config.json")
+        config["configuration"]["dur_type"] = "abs"
+        write_json(module / "config.json", config)
+        output = self.destination("out")
+        code, text = self.run_script(self.package, "--output", output)
+        self.assertEqual(code, 0, text)
+        self.assertIn("declared dur_type=abs", text)
+        declaration = read_json(output / "inferences" / "duration" / "config.json")
+        self.assertEqual(declaration["configuration"]["dur_type"], "abs")
 
     def test_reports_a_word_input_that_another_role_cannot_supply(self):
         # The Pitch and Variance tasks build their predictor input without word tensors, so a model

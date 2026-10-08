@@ -4,6 +4,28 @@
 >
 > **上游词汇对照（2026-10-08 追加，来自 DiffSinger `feat/attn-dp-mulaw`）**：这两个取值正对应上游 #339（`ebc6638`）的两种架构形态——`abs` 是「predicts **absolute phoneme durations**」，只消费 `word_div`（用于词内位置）；`rel` 是「**word-level frame allocation**」，把每个词的音素变成在该词帧预算上的分布、输出整数帧数且每词之和恰等于该词预算，因此额外消费 `word_dur`。上游 #340（`1364e59`）的立意与本次一致：「**the architecture itself decides what the model consumes**」，消费者只读类别声明的 `needs_word_div` / `needs_word_dur`（`modules/fastspeech/variance_encoder.py:68-69`、`deployment/exporters/variance_exporter.py:272-273`、图内 `deployment/modules/fastspeech2.py:223,230`）。`dur_type` 就是把这两个声明位在运行时合并成一个文字字段，使非法组合（要 `word_dur` 不要 `word_div`）无法表达。
 
+> **2026-10-08 更正（本节优先，晚于本页以上全部同日记述）**：本页 §2 起采取的 `abs` 口径——**只声明
+> `word_div`、用它定位音素所属的词**——是**推断错误**（即 §7 自认的那条【推断】）。权威定义见
+> openvpi/DiffSinger **#343**：`dur_type` 只有两个取值，且由 duration 预测器的**架构**决定——`"rel"` 是 attn 预测器，
+> 声明并消费 `word_div` 与 `word_dur` **两者**；`"abs"` 是其它架构（fs2 / resnet 等卷积），**零词级输入**
+> （不声明、不消费 `word_div`，也不消费 `word_dur`）。上游对**每个** duration 模型都写该键
+> （`'rel' if dur_arch == 'attn' else 'abs'`），**不存在"只声明 `word_div`"这一档**——旧口径把它叫 `abs`，属
+> **同名反义**。按指示**不考虑兼容旧的 2.4 声库**：不保留 `{word_div} → "abs"` 映射，也不为旧包放宽。
+>
+> 受本次更正影响的旧结论（**只在本块标注，原文一律不删**）：① §0 决策台账 **D-1(a)** 中「`abs` = 消费划分但输出
+> 绝对帧」；② §4 方案 A 的「`abs` ⇒ 只声明 `word_div`」；③ §5 第 2 条「只有 `word_div` ⇒ `abs`」；④ §7 那条
+> 【推断】；⑤ §8「覆盖边界」以「本机没有只声明 `word_div` 的歌手包」为前提的取证说明（该形状现已非法，不再是待补
+> 证据）；⑥ 本页顶部「上游词汇对照」块引 #339 处把 `abs` 描述成「只消费 `word_div`（用于词内位置）」。#339/#340
+> 的 `needs_word_div` / `needs_word_dur` 两个声明位被 #343 合并成一个字段并重定义了 `abs`，故该块对 `rel` 的描述
+> 仍成立，对 `abs` 的描述作废。
+>
+> 本次据此落地（lite 侧，2026-10-08）：转换器改为按 `{word_div, word_dur} → "rel"`、`∅ → "abs"` 查表并**对每个
+> duration 模型都写出该键**，`{word_div}` 单独出现与 `{word_dur}` 单独出现都报错，另新增「源包已有的 `dur_type`
+> 与模型推断不一致即报错」的防毒校验。用例与 `packaging-voicebank-essentials.md:36-45` 同步改。
+> **旁证（本机观测，属未提交状态，非稳定事实）**：synthrt 检出的工作树里 `DurationApiL1.h` 已把 `Abs` 改注为
+> 「Declares no word level input」、`DurationTask.cpp` 里 `None` 与 `Abs` 共用「不喂词级输入」分支，与本定义一致。
+> 而端口 pin 的 `7ea424a` **仍是旧语义**（`Abs` = 声明 `word_div`），该对齐改动当时尚未提交。
+
 > 状态：**进行中**（2026-10-08）。本文是调研与方案稿，**未改任何代码**。按你的指示先出报告，确认后再动手。
 > 范围边界：只针对「duration predictor 怎么声明词级输入」这一件事，不动同一张配置表里的其它字段。
 > 本机两仓：lite = 本仓，synthrt = 本机检出（当前检出在 `spec2.4-uptake` @ `7ea424a`。该分支于 2026-10-08 由 `onnxruntime-builds-uptake` 改名而来，与 wolf、otter 的远端分支及 lite 本地分支统一为 `spec2.4-uptake` 这一联合名字，下文出现的旧名均指改名前的同一分支）。
