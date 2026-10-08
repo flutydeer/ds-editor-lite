@@ -584,6 +584,7 @@ void AutomationProtocolTests::publicNotePhraseEditsPreserveUnselectedNotesAndHis
     auto draft = lyricTrack();
     draft.clips.first().notes[0].length = 317;
     draft.clips.first().notes[1].length = 317;
+    draft.clips.first().notes[0].pronunciation.original = QStringLiteral("automatic");
     QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, draft));
     const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
     QVERIFY(project);
@@ -711,6 +712,27 @@ void AutomationProtocolTests::publicNotePhraseEditsPreserveUnselectedNotesAndHis
         QCOMPARE(retained.data.lyric, original.data.lyric);
         QCOMPARE(retained.data.language, original.data.language);
     }
+
+    QCOMPARE(apply(QStringLiteral("notes.set_pronunciation"),
+                   {
+                       {QStringLiteral("clip_id"),       clipId.value()          },
+                       {QStringLiteral("note_id"),       firstId.value()         },
+                       {QStringLiteral("source"),        QStringLiteral("edited")},
+                       {QStringLiteral("pronunciation"), QStringLiteral("custom")}
+    }),
+             QString{});
+    const auto pronounced = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(pronounced);
+    QCOMPARE(pronounced.get().first().data.pronunciation.original, QStringLiteral("automatic"));
+    QCOMPARE(pronounced.get().first().data.pronunciation.edited, QStringLiteral("custom"));
+    QCOMPARE(apply(QStringLiteral("notes.reset_pronunciation"),
+                   {
+                       {QStringLiteral("clip_id"), clipId.value() },
+                       {QStringLiteral("note_id"), firstId.value()}
+    }),
+             QString{});
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()),
+             checkpoints.at(checkpoints.size() - 3));
 
     QCOMPARE(apply(QStringLiteral("notes.duplicate"),
                    {
@@ -848,6 +870,29 @@ void AutomationProtocolTests::publicTimelineEditsPreserveThePhraseAndUndo() {
     const auto restored = query();
     QVERIFY(restored);
     QCOMPARE(restored.get().value(QStringLiteral("snapshot")).toObject(), initialTimeline);
+    const auto masterArguments = [&] {
+        return QJsonObject{
+            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()}
+        };
+    };
+    const auto originalMaster = registry.invoke(QStringLiteral("master.get"), masterArguments());
+    QVERIFY(originalMaster);
+    QCOMPARE(apply(QStringLiteral("master.set_mute"),
+                   {
+                       {QStringLiteral("mute"), true}
+    }),
+             QString{});
+    QCOMPARE(apply(QStringLiteral("master.set_solo"),
+                   {
+                       {QStringLiteral("solo"), true}
+    }),
+             QString{});
+    const auto mutedSolo = registry.invoke(QStringLiteral("master.get"), masterArguments());
+    QVERIFY(mutedSolo);
+    auto expectedMaster = originalMaster.get().value(QStringLiteral("snapshot")).toObject();
+    expectedMaster.insert(QStringLiteral("mute"), true);
+    expectedMaster.insert(QStringLiteral("solo"), true);
+    QCOMPARE(mutedSolo.get().value(QStringLiteral("snapshot")).toObject(), expectedMaster);
     const auto retained = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
     QVERIFY(retained);
     QCOMPARE(retained.get().size(), originalNotes.get().size());

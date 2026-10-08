@@ -1956,6 +1956,17 @@ namespace {
                      .value(QStringLiteral("keyframes"))
                      .toArray(),
                  keyframes);
+        QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.remove"),
+                        {
+                            {QStringLiteral("clip_id"),      voiceClipId.value()   },
+                            {QStringLiteral("keyframe_ids"), QJsonArray{keyframeId}}
+        }));
+        QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value())
+                     .value(QStringLiteral("keyframes"))
+                     .toArray(),
+                 QJsonArray{keyframes.first()});
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforeQuery);
         QVERIFY(editMix(QStringLiteral("speaker_mix.set_dynamic_bypass"),
                         {
                             {QStringLiteral("clip_id"),  voiceClipId.value()},
@@ -2031,6 +2042,32 @@ namespace {
             QVERIFY(runtime.history().undo(context()));
             QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
         }
+
+        QVERIFY(editMix(QStringLiteral("clips.clear_voice"),
+                        {
+                            {QStringLiteral("clip_id"), voiceClipId.value()}
+        }));
+        const auto clearedClip = queryClipVoice();
+        QVERIFY(!clearedClip.value(QStringLiteral("inherits_track")).toBool());
+        QVERIFY(clearedClip.value(QStringLiteral("effective_voice")).isNull());
+        QCOMPARE(
+            speakerMixSnapshot(registry, runtime, QStringLiteral("track"), fixture.trackId.value()),
+            trackBeforeDisable);
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
+
+        QVERIFY(editMix(QStringLiteral("tracks.clear_voice"),
+                        {
+                            {QStringLiteral("track_id"), fixture.trackId.value()}
+        }));
+        const auto clearedTrack =
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
+                                 QStringLiteral("track_id"), fixture.trackId.value());
+        QVERIFY(clearedTrack.value(QStringLiteral("effective_voice")).isNull());
+        QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value()),
+                 bypassed);
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeDisable);
     }
 
     void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,
