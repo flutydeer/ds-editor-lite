@@ -175,6 +175,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     QVERIFY2(deviceContext->device()->isOpen(), qPrintable(deviceContext->device()->errorString()));
     const auto originalBufferSize = deviceContext->adoptedBufferSize();
     const auto originalSampleRate = deviceContext->adoptedSampleRate();
+    const auto originalDriverName = driver->name();
     const auto originalDeviceName = deviceContext->device()->name();
     const auto originalPlayheadBehavior = AudioSettings::playheadBehavior();
     auto &runtime = *fixture.context->m_coreRuntime;
@@ -184,6 +185,8 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     };
     const auto restore = qScopeGuard([&] {
         runtime.playback().stop(command());
+        if (!deviceContext->driver() || deviceContext->driver()->name() != originalDriverName)
+            QVERIFY(output->setDriver(originalDriverName));
         if (deviceContext->device() && deviceContext->device()->name() != originalDeviceName)
             QVERIFY(output->setDevice(originalDeviceName));
         output->setAdoptedBufferSize(originalBufferSize);
@@ -198,16 +201,22 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     const auto beforeSettings = runtime.documentVersion();
     const auto modelBeforeSettings = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     {
+        QVERIFY(!output->setDriver(QStringLiteral("unavailable-test-backend")));
+        QVERIFY(!deviceContext->driver() && !deviceContext->device());
         AudioPage page;
         page.resize(900, 700);
         page.show();
         page.activateWindow();
         QTRY_VERIFY(page.isActiveWindow());
+        auto *drivers = page.findChild<ComboBox *>("audioDriver");
         auto *devices = page.findChild<ComboBox *>("audioDevice");
         auto *buffers = page.findChild<ComboBox *>("audioBufferSize");
         auto *rates = page.findChild<ComboBox *>("audioSampleRate");
-        QVERIFY(devices && buffers && rates);
-        QCOMPARE(devices->currentData().toString(), originalDeviceName);
+        auto *testDevice = page.findChild<QPushButton *>("audioDeviceTest");
+        QVERIFY(drivers && devices && buffers && rates && testDevice);
+        QVERIFY(drivers->currentData().isNull());
+        QVERIFY(!devices->isEnabled() && !buffers->isEnabled() && !rates->isEnabled());
+        QVERIFY(!testDevice->isEnabled());
         const auto select = [&](ComboBox *combo, const QVariant &value) {
             const auto index = combo->findData(value);
             QVERIFY(index >= 0);
@@ -222,8 +231,27 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
             QTRY_VERIFY(!view->isVisible());
             QCOMPARE(combo->currentIndex(), index);
         };
+        select(drivers, originalDriverName);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(deviceContext->driver() && deviceContext->device());
+        QCOMPARE(deviceContext->driver()->name(), originalDriverName);
+        QVERIFY(deviceContext->device()->isOpen());
+        QVERIFY(devices->isEnabled() && testDevice->isEnabled());
+        QVERIFY(drivers->findData(QVariant{}) < 0);
+        if (deviceContext->device()->name() != originalDeviceName) {
+            select(devices, originalDeviceName);
+            if (QTest::currentTestFailed())
+                return;
+        }
+        QCOMPARE(devices->currentData().toString(), originalDeviceName);
+        AppOptions recovered;
+        QCOMPARE(recovered.audio()->obj.value(QStringLiteral("driverName")).toString(),
+                 originalDriverName);
+        QCOMPARE(recovered.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+                 originalDeviceName);
         // Use the default device's two aliases without switching to another physical output.
-        const auto defaultDevice = driver->defaultDevice();
+        const auto defaultDevice = deviceContext->driver()->defaultDevice();
         if (!defaultDevice.isEmpty() &&
             (originalDeviceName.isEmpty() || originalDeviceName == defaultDevice)) {
             const auto selectedName = originalDeviceName.isEmpty() ? defaultDevice : QString{};
