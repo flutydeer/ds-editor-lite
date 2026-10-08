@@ -1011,16 +1011,22 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
 
 void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges_data() {
     QTest::addColumn<bool>("removeTarget");
-    QTest::newRow("cancel-running") << false;
-    QTest::newRow("remove-running-target") << true;
+    QTest::addColumn<bool>("retryWithVoice");
+    QTest::newRow("cancel-running") << false << false;
+    QTest::newRow("remove-running-target") << true << false;
+    QTest::newRow("cancel-running-then-retry") << false << true;
 }
 
 void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges() {
     QFETCH(bool, removeTarget);
+    QFETCH(bool, retryWithVoice);
     auto packageStatus = appStatus->packageModuleStatus.get();
     const auto restorePackageStatus =
         qScopeGuard([&packageStatus] { appStatus->packageModuleStatus = packageStatus; });
-    prepareInferenceTarget(packageStatus);
+    if (retryWithVoice)
+        prepareVoicebankTarget();
+    else
+        prepareInferenceTarget(packageStatus);
     if (QTest::currentTestFailed())
         return;
     const auto targetPieceId = piece->id();
@@ -1109,8 +1115,9 @@ void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges(
         QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Running);
         QVERIFY(runtime().history().redo(commandContext()));
         QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Running);
-        const auto canceled = runtime().automationTasks().requestCancel(
-            accepted.get().document.documentId, accepted.get().taskId);
+        auto cancelContext = commandContext();
+        cancelContext.source = Automation::InvocationSource::PublicJsonRpc;
+        const auto canceled = runtime().tasks().cancelTask(cancelContext, accepted.get().taskId);
         QVERIFY(canceled);
     }
     const auto afterChange = runtime().documentVersion();
@@ -1130,6 +1137,23 @@ void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges(
     QCOMPARE(runtime().documentVersion(), afterChange);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterContent);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), afterUndo);
+    if (retryWithVoice) {
+        request.command = commandContext();
+        request.command.source = Automation::InvocationSource::PublicJsonRpc;
+        const auto retry = services.startInference(request);
+        QVERIFY2(retry, qPrintable(retry ? QString{} : retry.getError().message));
+        QVERIFY(retry.get().taskId != accepted.get().taskId);
+        const auto retryState = [&] {
+            const auto task =
+                runtime().tasks().getTask(retry.get().document.documentId, retry.get().taskId);
+            return task ? task.get().state : Automation::AutomationTaskState::Failed;
+        };
+        QTRY_COMPARE_WITH_TIMEOUT(retryState(), Automation::AutomationTaskState::Succeeded, 15000);
+        QVERIFY(inferenceSettled(clip));
+        QCOMPARE(clip->pieces().first()->state.get(), QStringLiteral("Ready"));
+        QCOMPARE(snapshot().get().state, Automation::AutomationTaskState::Canceled);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), afterUndo);
+    }
 }
 
 void ApplicationWorkflowTests::cleanup() {
