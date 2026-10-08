@@ -30,6 +30,17 @@ add_subdirectory(TestHeadlessProcessIntegration)
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)
+add_subdirectory(TestAudioSlicer)
+# No conversion, catalog, bridge or engine test targets exist. The conversion and catalog targets
+# were planned as a subset of TestVoicebankAudit; the bridge and engine tests staged their fixture
+# only if WOLF_FIXTURE_DIR was set, and no script in this repository sets it, so those planned tests
+# never ran. TestVoicebankLanguages below is unrelated to that note: it drives
+# scripts/convert-voicebank.py and asserts the three language binding rules, which
+# TestVoicebankAudit does not cover because it audits an already converted package.
+add_subdirectory(TestVoicebankLanguages)
+add_subdirectory(TestVoicebankAudit)
+add_subdirectory(TestAnalyzerPackages)
+add_subdirectory(TestOtterExtraction)
 add_subdirectory(TestSpeakerMix)
 add_subdirectory(TestDocumentWorkflow)
 add_subdirectory(TestDocumentScopedStateReset)

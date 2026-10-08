@@ -6,9 +6,10 @@
 #include <QHashFunctions>
 #include <QDebug>
 #include <functional> // std::hash
+#include <string>
 #include <tuple>      // std::tie
+#include <utility>    // std::pair
 
-#include <diffsinger/Bank/SingerRef.h>
 
 struct SingerIdentifier {
     QString singerId;
@@ -45,16 +46,12 @@ struct SingerIdentifier {
         return singerId.isEmpty() && packageId.isEmpty() && packageVersion.isNull();
     }
 
-    /// Implicit conversion to synthrt's SingerRef.
-    /// Field mapping: packageId -> std::string, singerId -> std::string,
-    /// packageVersion.toString() -> std::string version (normalized).
-    /// Allows direct call: session.ensureModelSet(identifier)
-    operator ds::bank::SingerRef() const {
-        return {
-            packageId.toStdString(),
-            singerId.toStdString(),
-            packageVersion.toString().toStdString(),
-        };
+    /// The package and contribution ids this names, as the framework spells them.
+    ///
+    /// The version is deliberately not part of it. The framework carries one, and two versions of
+    /// one voicebank are not both loaded here; the day that changes, this is where it starts.
+    inline std::pair<std::string, std::string> contribution() const {
+        return {packageId.toStdString(), singerId.toStdString()};
     }
 };
 

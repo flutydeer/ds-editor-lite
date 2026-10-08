@@ -32,26 +32,65 @@ public:
 
     template <typename Factory>
     std::shared_ptr<Handle> acquire(const SingerIdentifier &identifier, Factory &&factory) {
-        const auto now = Clock::now();
-        std::shared_ptr<Handle> displaced;
-        std::shared_ptr<Handle> result;
-        {
-            std::lock_guard lock(m_mutex);
-            if (auto it = m_entries.find(identifier); it != m_entries.end()) {
+        // This vector outlives both locked sections, so that a displaced handle is destroyed after
+        // the mutex is released. Closing the models that the handle owns must not happen under a
+        // lock on which every other caller of this cache waits.
+        std::vector<std::shared_ptr<Handle>> displaced;
+
+        // Returns the handle of a live entry and is called under the lock by both passes below.
+        // Reuse updates the timestamp, so that a second caller shares the handle of the first caller
+        // rather than building a new handle. Only a retained singer is promoted to resident, which is
+        // the same rule that the insertion path below applies. A stale entry is removed, and its
+        // resident handle is moved to `displaced`.
+        const auto reuse = [this, &displaced](const SingerIdentifier &wanted) {
+            std::shared_ptr<Handle> found;
+            if (auto it = m_entries.find(wanted); it != m_entries.end()) {
                 auto existing = it->resident ? it->resident : it->live.lock();
                 if (existing && !existing->isStale()) {
-                    it->resident = existing;
-                    it->lastUsed = now;
+                    it->resident = m_retainedIdentifiers.contains(wanted) ? existing : nullptr;
+                    it->lastUsed = Clock::now();
                     return existing;
                 }
-                displaced = std::move(it->resident);
+                displaced.push_back(std::move(it->resident));
                 m_entries.erase(it);
             }
+            return found;
+        };
 
-            result = std::forward<Factory>(factory)();
-            if (result && m_retainedIdentifiers.contains(identifier)) {
-                m_entries.insert(identifier, Entry{result, result, now});
+        {
+            std::lock_guard lock(m_mutex);
+            if (auto existing = reuse(identifier)) {
+                return existing;
             }
+        }
+
+        // The handle is built without holding the mutex. A handle opens the five models of the
+        // singer, which takes seconds. A build under the lock would block the retention sweep, the
+        // eviction timer and the shutdown that clears the cache, and the shutdown runs on the GUI
+        // thread at exit.
+        //
+        // Two callers may therefore build concurrently. The handle of the second caller to finish
+        // is dropped below, and both callers continue with the first handle, which preserves one
+        // lease per singer. No expensive object is built twice, because the engine returns the same
+        // pipeline to every caller for a given singer and the handle is a lease over that pipeline.
+        auto result = std::forward<Factory>(factory)();
+        if (!result) {
+            return result;
+        }
+
+        {
+            std::lock_guard lock(m_mutex);
+            if (auto existing = reuse(identifier)) {
+                return existing;
+            }
+            // The entry is recorded whether or not the singer is retained. Two callers that request
+            // a singer without retention must still share one lease, because the pipeline behind
+            // the lease is a single object and the destruction of the first lease would release it
+            // from the other caller. Only a retained singer receives a resident reference that
+            // outlives its callers.
+            const bool retained = m_retainedIdentifiers.contains(identifier);
+            m_entries.insert(identifier,
+                             Entry{retained ? result : nullptr, result, Clock::now()});
         }
         return result;
     }
@@ -70,7 +109,13 @@ public:
                     result.handles.push_back(std::move(it->resident));
                     ++result.released;
                 }
-                it = m_entries.erase(it);
+                // An entry whose lease is still held remains in the map, so that the next caller
+                // shares the lease instead of building a second pipeline for the same singer.
+                if (it->live.expired()) {
+                    it = m_entries.erase(it);
+                } else {
+                    ++it;
+                }
             }
         }
         return result;

@@ -47,6 +47,23 @@ public:
     QString path() const;
     QList<SingerInfo> singers() const;
 
+    /// Returns the reason why this package could not be opened, or an empty string if the package
+    /// loaded.
+    ///
+    /// A package that fails to open is still listed, so that a user who installed it sees the
+    /// reason for the failure instead of a missing entry. The text is the loader's diagnostic,
+    /// passed through unchanged, because only the loader has the details of the rejection.
+    [[nodiscard]] QString unavailableReason() const;
+    [[nodiscard]] bool isUnavailable() const;
+
+    /// Returns whether a package that the loader rejected is listed, based on the rejection
+    /// \a reason.
+    ///
+    /// A rejection without a reason is not listed anywhere, because a row without a reason
+    /// provides no explanation. This function is the single point of that decision, so the package
+    /// manager and the singer menus always list the same failures.
+    [[nodiscard]] static bool isFailureReportable(const QString &reason);
+
     void setId(const QString &id);
     void setVersion(const QVersionNumber &version);
     void setVendor(const QString &vendor);
@@ -57,8 +74,17 @@ public:
     void setLocalizedLicense(const QMap<QString, QString> &names);
     void setPath(const QString &path);
     void setSingers(const QList<SingerInfo> &singers);
+    void setUnavailableReason(const QString &reason);
 
     void addSinger(const SingerInfo &singer);
+
+    /// Returns the listing of a package that failed to open, built from its directory \a path
+    /// and the loader's \a reason.
+    ///
+    /// The identifier cannot be read from a package that failed to load. The directory name, from
+    /// which the packaging tools derive the package name, therefore serves as the title, and the
+    /// path identifies the package.
+    static PackageInfo unavailable(const QString &path, const QString &reason);
 
     bool isEmpty() const;
 
@@ -94,6 +120,7 @@ public:
     QString readme;
     QString url;
     QString path;
+    QString unavailableReason;
     QList<SingerInfo> singers;
 
     bool operator==(const PackageInfoData &other) const;

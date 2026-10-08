@@ -2,6 +2,8 @@
 
 #include "GeneralOption.h"
 
+#include <lite/SynthrtEngine/AnalyzerReference.h>
+
 namespace {
     constexpr int maxRecentProjectFiles = 10;
 
@@ -78,10 +80,17 @@ void GeneralOption::load(const QJsonObject &object) {
 
     load_drawParamWithFinger(object);
 
-    if (object.contains(gameDirKey))
-        gameDir = object[gameDirKey].toString();
-    if (object.contains(rmvpePathKey))
-        rmvpePath = object[rmvpePathKey].toString();
+    // A reference saved in the legacy analysis category identifies the same package and
+    // contribution, and is therefore upgraded rather than discarded. The next save writes the
+    // upgraded form.
+    const auto analyzer = [&object](const QString &key) {
+        return QString::fromStdString(lite::synthrt::AnalyzerReference::upgrade(
+            object[key].toString().toStdString()));
+    };
+    if (object.contains(noteAnalyzerKey))
+        noteAnalyzer = analyzer(noteAnalyzerKey);
+    if (object.contains(pitchAnalyzerKey))
+        pitchAnalyzer = analyzer(pitchAnalyzerKey);
     if (object.contains(libreSVIPPathKey))
         libreSVIPPath = object[libreSVIPPathKey].toString();
 }
@@ -99,15 +108,14 @@ void GeneralOption::save(QJsonObject &object) {
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
         serialize_drawParamWithFinger(),
-        serialize_gameDir(),
-        serialize_rmvpePath(),
+        serialize_noteAnalyzer(),
+        serialize_pitchAnalyzer(),
         serialize_libreSVIPPath()
     };
 }
 
 void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
-    // Q_EMIT packageSearchPathsChanged();
 }
 
 QString GeneralOption::defaultLyricForLanguage(const QString &language) const {

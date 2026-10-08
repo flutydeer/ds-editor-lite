@@ -70,8 +70,15 @@ public:
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 
-    void createAndRunGetPronTask(const SingingClip &clip);
-    void createAndRunGetPhoneTask(const SingingClip &clip);
+    // allowUnvoicedFallback: also runs without a singer. Both language tasks have the fallback
+    // semantics "the singer is unresolved => the pronunciation is the original word and the
+    // phonemes stay empty" (GetPronunciationTask / GetPhonemeNameTask), and after voice clearing
+    // the pronunciation and phonemes must be cleared together, so the fallback branch is re-run
+    // here. Only the voice-clearing path may pass true, so that an ordinary edit path does not
+    // overwrite pronunciation/phonemes that the user entered by hand on a note without a voicebank.
+    void createAndRunGetPronTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void createAndRunGetPhoneTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void restartLanguageTasksAfterVoiceCleared(SingingClip &clip);
 
     void createPipeline(InferPiece &piece);
     void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);

@@ -40,6 +40,16 @@ $env:VC_REDIST_X64 = "D:\SDK\VC_redist\VC_redist.x64.exe"
 `-NoBuild` 复用已有 staging，仅重新生成安装包。`-SkipVcpkgInstall` 跳过 vcpkg
 依赖同步，只有在本地依赖已经与 manifest 一致时才应使用。
 
+`-WolfLangPackages` 指定随包展开的 wolf 语言包目录（每个包一个子目录，各含
+`desc.json`）。缺省时脚本不传 `-D`，由 CMake 依次尝试 `WOLF_LANG_PACKAGES_SOURCE`
+环境变量与已安装的 `wolf-lang-packages` 包；同级 wolf 检出的 `..\wolf\build\lang-packages`
+仅在 `LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK=ON` 时使用。传值时以该值作为
+`LITE_WOLF_LANG_PACKAGES`。便携版脚本 `build-portable.ps1` 支持同一参数。
+
+该参数只决定是否传入 `-D`，不清理 CMake 缓存：同一 `binaryDir`（如
+`build\PackageDmlRelease`）缓存过 `LITE_WOLF_LANG_PACKAGES` 后，缺省运行仍沿用缓存值。
+恢复按约定解析时，须删除缓存，或以 `-DLITE_WOLF_LANG_PACKAGES=` 重新配置该构建目录。
+
 产物位置：
 
 ```text
@@ -58,7 +68,9 @@ C:\Program Files\OpenVPI\DS Editor Lite
 2. 从 `scripts\vcpkg-manifest` 安装默认 DML 依赖。
 3. 配置并构建 `package-dml-release` CMake preset。
 4. 通过 CMake install 写入 `dist\stage\dml`。
-5. 校验 Qt 插件、应用资源、FillLyric 配置、synthrt 插件和 G2P 数据。
+5. 校验 staging 的固定路径清单：`bin` 下的可执行文件、`plugins`（含 `platforms`、
+   `dsinfer`、`wolf`、`otter`）、`Resources`、`configs`、`wolf\packages`；随后比对
+   `bin` 与构建输出 `out\bin` 的 DLL 名，缺少任一项即报错。
 6. 仅将 staging 的 `bin` 目录交给 Inno Setup 7，排除头文件、导入库和 CMake 包文件。
 7. 输出安装包路径和 SHA-256。
 
@@ -90,7 +102,7 @@ C:\Program Files\OpenVPI\DS Editor Lite
   各 vcpkg 依赖的 PDB（此逻辑刻意留在打包脚本里，不进 CMake，保持构建系统
   不感知 vcpkg）。
 - zip 会校验 DsEditorLite.exe 与至少一个 PDB 存在，否则报错退出。
-- 文件名为 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-portable.zip`（时间戳，**不含版本号**）。
+- 文件名为 `DsEditorLite-<yyyyMMdd-HHmmss>-win-x64-dml-portable.zip`（UTC 时间戳、秒级，**不含版本号**）。
 - 建议用 **pwsh**（PowerShell 7）运行；从 git-bash 调 Windows PowerShell 5.1
   会出现 `Get-FileHash is not recognized` 环境问题。
 - 产物目录：`dist\portable\`，脚本输出路径、大小与 SHA-256。
@@ -125,7 +137,8 @@ CUDA 包时，才在任一脚本上追加 `-EnableCuda`：
   的 vcpkg install 会追加 `--x-feature=cuda12`（build-portable.ps1 不跑
   vcpkg，需先用 `update-vcpkg-win.bat cuda12` 把 installed 树同步成 cuda12）；
   configure 追加 `-D LITE_ENABLE_CUDA=ON`；staging 校验断言 staging 内容与
-  flavor 一致（多出或缺失 `runtimes/onnx/cuda` 都会报错，带修复指引）。
+  flavor 一致（多出或缺失 `bin\plugins\dsinfer\inferencedrivers\onnx\runtime\cuda`
+  都会报错，带修复指引）。
 - 产物命名区分 flavor：`DsEditorLite-<version>-win-x64-cuda-internal.exe`、
   `DsEditorLite-<timestamp>-win-x64-cuda-portable.zip`；AppId 与产品元数据
   与 DML 包共用，不随 flavor 变化。

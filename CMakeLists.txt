@@ -75,6 +75,47 @@ if(LITE_BUILD_TESTS)
 endif()
 
 # ----------------------------------
+# The main line's dependency root
+# ----------------------------------
+# The editor builds against the main line of synthrt together with wolf and otter. No public
+# registry provides these three packages: the ports in scripts/vcpkg-ports provide them, and only
+# scripts/vcpkg-manifest/vcpkg.json requests them. A dependency tree installed from another
+# manifest lacks them, and find_package would then fail in a subdirectory with the generic vcpkg
+# advice to extend CMAKE_PREFIX_PATH, which does not address the cause. The three packages are
+# therefore checked once at this point, and a missing package produces a diagnostic that names the
+# required installation.
+foreach(_lite_required IN ITEMS synthrt wolf otter)
+    find_package(${_lite_required} CONFIG QUIET)
+    if(NOT ${_lite_required}_FOUND)
+        list(APPEND _lite_missing_packages ${_lite_required})
+    endif()
+endforeach()
+if(_lite_missing_packages)
+    string(REPLACE ";" ", " _lite_missing_text "${_lite_missing_packages}")
+    message(FATAL_ERROR
+        "The editor requires the main line of synthrt together with wolf and otter, and the "
+        "dependency tree in use lacks: ${_lite_missing_text}.\n"
+        "\n"
+        "The ports in scripts/vcpkg-ports provide these packages, and only "
+        "scripts/vcpkg-manifest/vcpkg.json requests them. Install that manifest into the tree "
+        "that the presets specify and configure against that tree:\n"
+        "\n"
+        "  CMAKE_PREFIX_PATH=<Qt> VCPKG_KEEP_ENV_VARS=CMAKE_PREFIX_PATH \\\n"
+        "  vcpkg install --x-manifest-root=scripts/vcpkg-manifest \\\n"
+        "                --x-install-root=vcpkg/installed\n"
+        "\n"
+        "  cmake -S . -B <build dir> -DVCPKG_INSTALLED_DIR=\${CMAKE_SOURCE_DIR}/vcpkg/installed"
+        " -DVCPKG_MANIFEST_MODE=OFF ...\n"
+        "\n"
+        "The installation requires Qt on CMAKE_PREFIX_PATH because qbreakpad depends on it. A "
+        "build directory configured against a tree of the synthrt refactor line cannot be reused, "
+        "because the two lines use different package layouts: the refactor line installs srt-* "
+        "packages, and the main line installs plugins under plugins/<library>. A tree that still "
+        "contains packages of the refactor line must be reinstalled from this manifest. "
+        "docs/plans/synthrt-main-migration.md describes the migration.")
+endif()
+
+# ----------------------------------
 # Add source modules
 # ----------------------------------
 add_subdirectory(src)

@@ -20,14 +20,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX QT_MESSAGELOGCONTEXT
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 find_package(synthrt CONFIG REQUIRED)
-find_package(dsinfer CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
         lite::MusicBase
         lite::SynthrtEngine
-        srt::synthrt
-        srt::diffsinger
+        synthrt::synthrt
         dsinfer::dsinfer
 )
 

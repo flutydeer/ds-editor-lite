@@ -3,6 +3,8 @@ project(TestParamResample)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
+        ../../app/Modules/Inference/Models/InferInputBase.cpp
+        ../../app/Modules/Inference/Utils/PitchSampling.cpp
         ../../app/Modules/Inference/Utils/PitchRouting.cpp
 )
 
@@ -17,6 +19,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
         lite::MusicBase
+        lite::ProjectModel
         lite::Support
 )
 

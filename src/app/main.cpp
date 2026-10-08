@@ -1,3 +1,5 @@
+#include <csignal>
+
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/Mcp/EditorMcpController.h"
@@ -38,6 +40,14 @@ int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
 
+#if !defined(Q_OS_WIN)
+    // A restarted instance inherits its predecessor's standard streams. When those are pipes held
+    // by whoever started the predecessor, they close the moment it exits, and the first console
+    // log line the successor writes would kill it with SIGPIPE. Writes to a closed pipe then fail
+    // with EPIPE and are ignored by the logger, which is what a host process wants; sockets were
+    // never affected, since Qt sends on them without the signal.
+    signal(SIGPIPE, SIG_IGN);
+#endif
     const auto hostMode = StartupArguments::preparseHostMode(argc, argv);
     AppEnvironment::preInit(hostMode);
     std::unique_ptr<QCoreApplication> application;
@@ -86,6 +96,7 @@ int main(int argc, char *argv[]) {
     };
 
     int result = EXIT_FAILURE;
+    Restarter::waitForPredecessor();
     SingleInstanceCoordinator coordinator(hostMode);
     switch (coordinator.start()) {
         case SingleInstanceCoordinator::StartResult::Secondary: {
