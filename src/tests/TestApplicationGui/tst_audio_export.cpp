@@ -530,15 +530,18 @@ void ApplicationGuiTests::canceledExportConfigurationDoesNotPersist() {
 void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome_data() {
     QTest::addColumn<bool>("clipping");
     QTest::addColumn<QString>("outcome");
-    QTest::newRow("clean") << false << QStringLiteral("success");
-    QTest::newRow("clipping-warning") << true << QStringLiteral("success");
-    QTest::newRow("cancel-rendering") << false << QStringLiteral("cancel");
-    QTest::newRow("publication-blocked") << false << QStringLiteral("failure");
+    QTest::addColumn<bool>("closeWindow");
+    QTest::newRow("clean") << false << QStringLiteral("success") << true;
+    QTest::newRow("clipping-warning") << true << QStringLiteral("success") << false;
+    QTest::newRow("cancel-rendering") << false << QStringLiteral("cancel") << false;
+    QTest::newRow("close-during-rendering") << false << QStringLiteral("cancel") << true;
+    QTest::newRow("publication-blocked") << false << QStringLiteral("failure") << false;
 }
 
 void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QFETCH(bool, clipping);
     QFETCH(QString, outcome);
+    QFETCH(bool, closeWindow);
     using Audio::Internal::AudioExportProgressDialog;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -680,7 +683,12 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
             QPointer<QPushButton> cancel =
                 exportButton(progress, AudioExportProgressDialog::tr("Cancel"));
             QVERIFY(cancel && cancel->isEnabled());
-            QTest::mouseClick(cancel, Qt::LeftButton, Qt::NoModifier, QPoint(), 0);
+            if (closeWindow) {
+                progress->close();
+                QVERIFY(progress && progress->isVisible());
+            } else {
+                QTest::mouseClick(cancel, Qt::LeftButton, Qt::NoModifier, QPoint(), 0);
+            }
             QVERIFY(!cancel || !cancel->isEnabled());
         } else {
             // Occupy the destination after rendering starts; publication must preserve it.
@@ -802,7 +810,10 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QVERIFY(QFileInfo(outputPath).isFile());
     QVERIFY(QFileInfo(outputPath).size() > 44);
     verifyTaskCleanup(Automation::AutomationTaskState::Succeeded);
-    QTest::mouseClick(close, Qt::LeftButton);
+    if (closeWindow)
+        progress->close();
+    else
+        QTest::mouseClick(close, Qt::LeftButton);
     QCOMPARE(dismissed.size(), 1);
     QCOMPARE(accepted.size(), 1);
     QTRY_VERIFY(progress.isNull());

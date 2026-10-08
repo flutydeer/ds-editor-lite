@@ -406,6 +406,7 @@ void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest() {
 void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit_data() {
     QTest::addColumn<QString>("action");
     QTest::newRow("cancel-progress-dialog") << QStringLiteral("cancel");
+    QTest::newRow("close-progress-dialog") << QStringLiteral("close");
     QTest::newRow("cancel-exit-after-stopping-load") << QStringLiteral("exit-cancel");
     QTest::newRow("approve-exit-after-stopping-load") << QStringLiteral("exit-discard");
     QTest::newRow("revalidate-after-an-intervening-edit") << QStringLiteral("edit");
@@ -482,7 +483,9 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(approved.isEmpty());
 
-    if (action == QStringLiteral("cancel")) {
+    const bool cancelFromProgress =
+        action == QStringLiteral("cancel") || action == QStringLiteral("close");
+    if (cancelFromProgress) {
         QPointer<ProgressDialog> progress;
         QTRY_VERIFY(([&] {
             for (auto *window : QApplication::topLevelWidgets()) {
@@ -500,7 +503,10 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
                 cancel = button;
         }
         QVERIFY(cancel && cancel->isEnabled());
-        QTest::mouseClick(cancel, Qt::LeftButton);
+        if (action == QStringLiteral("close"))
+            progress->close();
+        else
+            QTest::mouseClick(cancel, Qt::LeftButton);
         QTRY_VERIFY(progress.isNull());
     } else if (action == QStringLiteral("edit")) {
         QVERIFY(runtime.project().renameTrack(
@@ -522,7 +528,7 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
     QCOMPARE(revalidated.count(), action == QStringLiteral("edit") ? 1 : 0);
     if (!approved.isEmpty())
         QCOMPARE(approved.first().first().value<TerminationMode>(), TerminationMode::Exit);
-    QCOMPARE(prompt.decisionCalls, action == QStringLiteral("cancel") ? 1 : 2);
+    QCOMPARE(prompt.decisionCalls, cancelFromProgress ? 1 : 2);
     QVERIFY(prompt.errors.isEmpty());
     QCOMPARE(runtime.documentVersion(), expectedVersion);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedModel);
