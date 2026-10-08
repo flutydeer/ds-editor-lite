@@ -681,14 +681,17 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_d
     QTest::newRow("cancel-then-gender") << ParamInfo::Gender << 500 << true;
 }
 
-void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport_data() {
-    QTest::addColumn<bool>("replaceDocument");
-    QTest::newRow("cancel-export") << false;
-    QTest::newRow("replace-document") << true;
+void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry_data() {
+    QTest::addColumn<QString>("interruption");
+    QTest::newRow("cancel-export") << QStringLiteral("cancel");
+    QTest::newRow("replace-document") << QStringLiteral("replace-document");
+    QTest::newRow("remove-source-track") << QStringLiteral("remove-source-track");
 }
 
-void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport() {
-    QFETCH(bool, replaceDocument);
+void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
+    QFETCH(QString, interruption);
+    const bool replaceDocument = interruption == QStringLiteral("replace-document");
+    const bool removeSourceTrack = interruption == QStringLiteral("remove-source-track");
     QTemporaryDir materials;
     QVERIFY(materials.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
@@ -705,6 +708,9 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
     QCOMPARE(piece->state.get(), QStringLiteral("Acoustic.Awaiting"));
     const auto previousDocument = runtime().documentVersion().documentId;
     const auto *previousUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto previousContent = TestSupport::projectSnapshot(*context->m_appModel);
+    auto interruptedVersion = runtime().documentVersion();
+    auto interruptedContent = previousContent;
     auto replacement = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     replacement.timeline = context->m_appModel->timeline();
     for (const auto *track : context->m_appModel->tracks())
@@ -737,6 +743,10 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
         canceledDuringInference = true;
         if (replaceDocument) {
             QVERIFY(runtime().documents().commitNewDocument(commandContext(), replacement));
+        } else if (removeSourceTrack) {
+            QVERIFY(runtime().project().removeTracks(commandContext(), {trackId}));
+            interruptedVersion = runtime().documentVersion();
+            interruptedContent = TestSupport::projectSnapshot(*context->m_appModel);
         } else {
             QVERIFY(runtime().tasks().cancelTask(commandContext(), exportId));
         }
@@ -754,6 +764,19 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
         QTRY_VERIFY_WITH_TIMEOUT(runtime().documentVersion().documentId != previousDocument, 15000);
         QVERIFY(!runtime().tasks().getTask(previousDocument, exportId));
         QVERIFY(!HistoryManager::instance()->canUndo());
+    } else if (removeSourceTrack) {
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Failed, 15000);
+        const auto failed = runtime().tasks().getTask(previousDocument, exportId);
+        QVERIFY(failed && failed.get().error);
+        QCOMPARE(failed.get().error->code, Automation::AutomationErrorCode::IoError);
+        QCOMPARE(failed.get().error->taskId, exportId);
+        QVERIFY(!failed.get().error->message.isEmpty());
+        QCOMPARE(runtime().documentVersion(), interruptedVersion);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), interruptedContent);
+        QVERIFY(runtime().history().undo(commandContext()));
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), previousContent);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), previousUndo);
+        QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     } else {
         QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Canceled,
                                   15000);

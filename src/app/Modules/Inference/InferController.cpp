@@ -546,6 +546,17 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
                 return;
             }
             ensureClipInferenceStarted(*clip);
+        } else {
+            // Undo retains the pieces, but removal destroys their pipelines.
+            for (const auto piece : clip->pieces()) {
+                const bool missingPipeline =
+                    std::none_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                                 [piece](const InferPipeline *pipeline) {
+                                     return pipeline->pieceId() == piece->id();
+                                 });
+                if (missingPipeline)
+                    createPipeline(*piece);
+            }
         }
         return;
     }
