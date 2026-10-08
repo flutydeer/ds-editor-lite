@@ -40,18 +40,11 @@ namespace {
         return file.write(data) == data.size();
     }
 
-    [[nodiscard]] bool runResolveTask(ResolveAudioPathTask &task) {
+    [[nodiscard]] bool runTask(Task &task) {
         QThreadPool pool;
         pool.setMaxThreadCount(1);
         pool.start(&task);
-        return pool.waitForDone(5000);
-    }
-
-    [[nodiscard]] bool runHashTask(ComputeAudioHashTask &task) {
-        QThreadPool pool;
-        pool.setMaxThreadCount(1);
-        pool.start(&task);
-        return pool.waitForDone(5000);
+        return pool.waitForDone(5000) && QTest::qWaitFor([&task] { return task.stopped(); }, 5000);
     }
 
     class CurrentDirectoryGuard final {
@@ -231,7 +224,7 @@ void AudioAssetsTests::hashSnapshot() {
     ComputeAudioHashTask blockedSnapshot;
     blockedSnapshot.path = source;
     blockedSnapshot.snapshotPath = snapshot;
-    QVERIFY(runHashTask(blockedSnapshot));
+    QVERIFY(runTask(blockedSnapshot));
     QVERIFY(!blockedSnapshot.success);
     QVERIFY(blockedSnapshot.resultSha512.isEmpty());
     QVERIFY(QFileInfo(snapshot).isDir());
@@ -244,7 +237,7 @@ void AudioAssetsTests::hashSnapshot() {
     ComputeAudioHashTask task;
     task.path = source;
     task.snapshotPath = snapshot;
-    QVERIFY2((runHashTask(task)), "the hash-and-snapshot task must finish");
+    QVERIFY2((runTask(task)), "the hash-and-snapshot task must finish");
     QVERIFY2((writeFixture(root, QStringLiteral("snapshot-source.wav"),
                            QByteArray("audio-snapshot-replacement"))),
              "the source must remain independently writable after snapshotting");
@@ -253,7 +246,7 @@ void AudioAssetsTests::hashSnapshot() {
     const auto snapshotBytes = snapshotFile.readAll();
     ComputeAudioHashTask liveVerification;
     liveVerification.path = source;
-    QVERIFY2((runHashTask(liveVerification)), "the replaced live source must remain hashable");
+    QVERIFY2((runTask(liveVerification)), "the replaced live source must remain hashable");
     QVERIFY2((task.success && snapshotBytes == original &&
               task.resultSha512 == sha512(snapshotBytes) && liveVerification.success &&
               liveVerification.resultSha512 != task.resultSha512),
@@ -280,7 +273,7 @@ void AudioAssetsTests::hitRelative() {
     task.relativeDir = QStringLiteral("assets");
     task.fileName = fileName;
     task.expectedSha512 = sha512(content);
-    QVERIFY2((runResolveTask(task)), "the relative-path task must finish");
+    QVERIFY2((runTask(task)), "the relative-path task must finish");
     QVERIFY2((task.started() && task.stopped()), "the task lifecycle must reach the stopped state");
     QVERIFY2(
         (task.result == ResolveAudioPathTask::Result::HitRelative &&
@@ -304,7 +297,7 @@ void AudioAssetsTests::hitSibling() {
     task.relativeDir = QStringLiteral("missing-media");
     task.fileName = fileName;
     task.expectedSha512 = sha512(content);
-    QVERIFY2((runResolveTask(task)), "the sibling-path task must finish");
+    QVERIFY2((runTask(task)), "the sibling-path task must finish");
     QVERIFY2((task.result == ResolveAudioPathTask::Result::HitSibling &&
               QDir::cleanPath(task.resolvedPath) ==
                   QDir::cleanPath(QDir(projectDir).filePath(fileName))),
@@ -326,7 +319,7 @@ void AudioAssetsTests::hitUnconfirmed() {
     task.projectDir = projectDir;
     task.relativeDir = QStringLiteral("media");
     task.fileName = fileName;
-    QVERIFY2((runResolveTask(task)), "the no-hash task must finish");
+    QVERIFY2((runTask(task)), "the no-hash task must finish");
     QVERIFY2(
         (task.result == ResolveAudioPathTask::Result::HitUnconfirmed &&
          QDir::cleanPath(task.resolvedPath) == QDir::cleanPath(QDir(assetDir).filePath(fileName))),
@@ -351,7 +344,7 @@ void AudioAssetsTests::hashMismatch() {
     task.relativeDir = QStringLiteral("assets");
     task.fileName = fileName;
     task.expectedSha512 = sha512(QByteArray("expected-audio-payload"));
-    QVERIFY2((runResolveTask(task)), "the hash-mismatch task must finish");
+    QVERIFY2((runTask(task)), "the hash-mismatch task must finish");
     QVERIFY2((task.result == ResolveAudioPathTask::Result::Miss && task.resolvedPath.isEmpty()),
              "hash mismatches must not produce a resolved path");
 }
@@ -375,7 +368,7 @@ void AudioAssetsTests::currentDirectoryDecoy() {
     task.projectDir = projectDir;
     task.fileName = fileName;
     task.expectedSha512 = sha512(decoyContent);
-    QVERIFY2((runResolveTask(task)), "the current-directory decoy task must finish");
+    QVERIFY2((runTask(task)), "the current-directory decoy task must finish");
     QVERIFY2((task.result == ResolveAudioPathTask::Result::Miss && task.resolvedPath.isEmpty()),
              "a matching file outside the project directory must not be selected");
 }
@@ -393,7 +386,7 @@ void AudioAssetsTests::directoryCandidateRejected() {
     ResolveAudioPathTask task;
     task.projectDir = projectDir;
     task.fileName = fileName;
-    QVERIFY2((runResolveTask(task)), "the directory candidate task must finish");
+    QVERIFY2((runTask(task)), "the directory candidate task must finish");
     QVERIFY2((task.result == ResolveAudioPathTask::Result::Miss && task.resolvedPath.isEmpty()),
              "a directory must never become an unconfirmed audio match");
 }
