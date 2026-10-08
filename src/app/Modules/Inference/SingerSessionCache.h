@@ -38,15 +38,16 @@ public:
         std::vector<std::shared_ptr<Handle>> displaced;
 
         // Returns the handle of a live entry and is called under the lock by both passes below.
-        // Reuse promotes the entry to resident and updates its timestamp, so that a second caller
-        // shares the handle of the first caller rather than building a new handle. A stale entry
-        // is removed, and its resident handle is moved to `displaced`.
+        // Reuse updates the timestamp, so that a second caller shares the handle of the first caller
+        // rather than building a new handle. Only a retained singer is promoted to resident, which is
+        // the same rule that the insertion path below applies. A stale entry is removed, and its
+        // resident handle is moved to `displaced`.
         const auto reuse = [this, &displaced](const SingerIdentifier &wanted) {
             std::shared_ptr<Handle> found;
             if (auto it = m_entries.find(wanted); it != m_entries.end()) {
                 auto existing = it->resident ? it->resident : it->live.lock();
                 if (existing && !existing->isStale()) {
-                    it->resident = existing;
+                    it->resident = m_retainedIdentifiers.contains(wanted) ? existing : nullptr;
                     it->lastUsed = Clock::now();
                     return existing;
                 }
