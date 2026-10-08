@@ -4,6 +4,8 @@
 #include "Modules/Audio/AudioExporter.h"
 #include "Modules/Audio/AudioSettings.h"
 #include "Controller/PlaybackController.h"
+#include "Controller/Tasks/DecodeAudioTask.h"
+#include "Modules/Import/AudioFilePreparer.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
@@ -785,6 +787,15 @@ void ApplicationWorkflowTests::encodedAudioExportsProduceReadableFiles() {
         QVERIFY2(maximumError <= quantizationStep + 1e-5,
                  qPrintable(QStringLiteral("Decoded signal error: %1").arg(maximumError)));
     }
+    std::unique_ptr<DecodeAudioTask> waveform(AudioFilePreparer::createPrepareTask(output));
+    QVERIFY(waveform && waveform->io);
+    static_cast<QRunnable *>(waveform.get())->run();
+    QVERIFY2(waveform->success, qPrintable(waveform->errorMessage));
+    const auto audioInfo = waveform->result();
+    QCOMPARE(audioInfo.frames, qint64(samples.size()));
+    QCOMPARE(audioInfo.sampleRate, 48000);
+    QCOMPARE(audioInfo.channels, 1);
+    QVERIFY(!audioInfo.peakCache.isEmpty() && !audioInfo.peakCacheMipmap.isEmpty());
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
 }

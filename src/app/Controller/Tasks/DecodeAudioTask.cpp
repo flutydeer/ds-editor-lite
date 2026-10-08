@@ -57,6 +57,7 @@ void DecodeAudioTask::runTask() {
     std::vector<float> buffer(m_chunkSize * m_channels);
     const auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
+    qint64 decodedFrames = 0;
     while (true) {
         if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
@@ -67,9 +68,17 @@ void DecodeAudioTask::runTask() {
             return;
         }
         const auto framesRead = io->read(buffer.data(), m_chunkSize);
-        if (framesRead <= 0) {
+        if (framesRead < 0 || (framesRead == 0 && decodedFrames < m_frames)) {
+            success = false;
+            errorMessage = QCoreApplication::translate("DecodeAudioTask", "Incomplete audio data");
+            m_peakCache.clear();
+            m_peakCacheMipmap.clear();
+            return;
+        }
+        if (framesRead == 0) {
             break;
         }
+        decodedFrames += framesRead;
         double sampleMax = 0;
         double sampleMin = 0;
         for (qint64 i = 0; i < framesRead; i++) {

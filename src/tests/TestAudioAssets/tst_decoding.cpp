@@ -727,12 +727,16 @@ void AudioAssetsTests::unlinkingAudioSourcePreservesOpenDecodeUntilReload() {
 
 void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen_data() {
     QTest::addColumn<bool>("removeSource");
-    QTest::newRow("decoder-unavailable") << false;
-    QTest::newRow("file-disappeared-before-decode") << true;
+    QTest::addColumn<QString>("backendFailure");
+    QTest::newRow("decoder-unavailable") << false << QStringLiteral("open");
+    QTest::newRow("file-disappeared-before-decode") << true << QStringLiteral("open");
+    QTest::newRow("decoder-read-error") << false << QStringLiteral("read-error");
+    QTest::newRow("decoder-incomplete-data") << false << QStringLiteral("early-end");
 }
 
 void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen() {
     QFETCH(bool, removeSource);
+    QFETCH(QString, backendFailure);
     Fixture fixture;
     QVERIFY(fixture.directory.isValid());
     const auto path = fixture.directory.filePath(QStringLiteral("unavailable-backend.wav"));
@@ -749,7 +753,11 @@ void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen()
                 taskId = candidate->automationTaskId;
                 decoding = candidate;
                 delete candidate->io;
-                candidate->io = new TestSupport::UnavailableAudioBackend;
+                candidate->io = backendFailure == QStringLiteral("open")
+                                    ? static_cast<talcs::AbstractAudioFormatIO *>(
+                                          new TestSupport::UnavailableAudioBackend)
+                                    : new TestSupport::IncompleteAudioBackend(
+                                          backendFailure == QStringLiteral("read-error") ? -1 : 0);
                 if (removeSource)
                     removed = QFile::remove(path);
             });
@@ -763,8 +771,9 @@ void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen()
 #endif
     QVERIFY(!removeSource || removed);
     const auto failed = fixture.runtime().tasks().getTask(before.documentId, taskId);
-    QVERIFY(failed && failed.get().error);
+    QVERIFY(failed);
     QCOMPARE(failed.get().state, AutomationTaskState::Failed);
+    QVERIFY(failed.get().error);
     QCOMPARE(failed.get().error->code,
              removeSource ? AutomationErrorCode::FileNotFound : AutomationErrorCode::IoError);
     auto *clip = fixture.firstAudioClip();
