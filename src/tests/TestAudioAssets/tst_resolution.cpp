@@ -227,6 +227,20 @@ void AudioAssetsTests::hashSnapshot() {
     QVERIFY2((writeFixture(root, QStringLiteral("snapshot-source.wav"), original)),
              "the snapshot source must be created");
 
+    QVERIFY(QDir().mkdir(snapshot));
+    ComputeAudioHashTask blockedSnapshot;
+    blockedSnapshot.path = source;
+    blockedSnapshot.snapshotPath = snapshot;
+    QVERIFY(runHashTask(blockedSnapshot));
+    QVERIFY(!blockedSnapshot.success);
+    QVERIFY(blockedSnapshot.resultSha512.isEmpty());
+    QVERIFY(QFileInfo(snapshot).isDir());
+    QFile unchangedSource(source);
+    QVERIFY(unchangedSource.open(QIODevice::ReadOnly));
+    QCOMPARE(unchangedSource.readAll(), original);
+    unchangedSource.close();
+    QVERIFY(QDir().rmdir(snapshot));
+
     ComputeAudioHashTask task;
     task.path = source;
     task.snapshotPath = snapshot;
