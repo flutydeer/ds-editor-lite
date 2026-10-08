@@ -247,30 +247,38 @@ private slots:
         QTest::addColumn<QString>("speakerId");
         QTest::addColumn<QString>("damagedStage");
         QTest::addColumn<QString>("providerId");
+        QTest::addColumn<bool>("runtimeFailure");
         if (TestSupport::usingBundledVoicebank()) {
             QTest::newRow("mandarin-clear")
                 << QStringLiteral("cmn") << QStringLiteral("啦") << QStringLiteral("clear")
-                << QString() << QStringLiteral("CPU");
+                << QString() << QStringLiteral("CPU") << false;
             QTest::newRow("english-soft")
                 << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft")
-                << QString() << QStringLiteral("CPU");
+                << QString() << QStringLiteral("CPU") << false;
         } else {
             QTest::newRow("configured-voicebank")
                 << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString()
-                << QString() << QStringLiteral("CPU");
+                << QString() << QStringLiteral("CPU") << false;
         }
         QTest::newRow("repaired-acoustic-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("acoustic") << QStringLiteral("CPU");
+            << QStringLiteral("acoustic") << QStringLiteral("CPU") << false;
         QTest::newRow("repaired-vocoder-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("vocoder") << QStringLiteral("CPU");
+            << QStringLiteral("vocoder") << QStringLiteral("CPU") << false;
+        for (const auto &stage :
+             {QStringLiteral("duration"), QStringLiteral("pitch"), QStringLiteral("variance"),
+              QStringLiteral("acoustic"), QStringLiteral("vocoder")}) {
+            QTest::newRow(qPrintable(QStringLiteral("running-%1-model-recovers").arg(stage)))
+                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << stage
+                << QStringLiteral("CPU") << true;
+        }
         QTest::newRow("directml-device")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
-            << QStringLiteral("DirectML");
+            << QStringLiteral("DirectML") << false;
         QTest::newRow("cuda-device")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
-            << QStringLiteral("CUDA");
+            << QStringLiteral("CUDA") << false;
     }
 
     void voicebankInferenceAndWaveExport() {
@@ -279,6 +287,7 @@ private slots:
         QFETCH(QString, speakerId);
         QFETCH(QString, damagedStage);
         QFETCH(QString, providerId);
+        QFETCH(bool, runtimeFailure);
         const bool repairModel = !damagedStage.isEmpty();
         const bool gpuProvider = providerId != QStringLiteral("CPU");
         const bool bundledVoicebank =
@@ -306,6 +315,24 @@ private slots:
                                   std::filesystem::u8path(copy.toUtf8().constData()),
                                   std::filesystem::copy_options::recursive, error);
             QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
+            if (runtimeFailure) {
+                // G2P contexts must be registered before language models are initialized.
+                const auto healthyRoot = fixture.filePath(QStringLiteral("healthy-voicebank"));
+                std::filesystem::copy(std::filesystem::u8path(voicebankRoot.toUtf8().constData()),
+                                      std::filesystem::u8path(healthyRoot.toUtf8().constData()),
+                                      std::filesystem::copy_options::recursive, error);
+                QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
+                QFile descriptor(QDir(healthyRoot).filePath(QStringLiteral("desc.json")));
+                QVERIFY(descriptor.open(QIODevice::ReadOnly));
+                auto metadata = QJsonDocument::fromJson(descriptor.readAll()).object();
+                QVERIFY(!metadata.isEmpty());
+                descriptor.close();
+                metadata.insert(QStringLiteral("id"), QStringLiteral("ci-fixture-repaired"));
+                metadata.insert(QStringLiteral("version"), QStringLiteral("1.0.1"));
+                QVERIFY(descriptor.open(QIODevice::WriteOnly | QIODevice::Truncate));
+                const auto encoded = QJsonDocument(metadata).toJson();
+                QCOMPARE(descriptor.write(encoded), encoded.size());
+            }
             voicebankRoot = copy;
             damagedModelPath =
                 QDir(copy).filePath(QStringLiteral("inferences/%1/%1.onnx").arg(damagedStage));
@@ -314,13 +341,22 @@ private slots:
             originalModel = model.readAll();
             QVERIFY(!originalModel.isEmpty());
             model.close();
+            QByteArray damagedModel("invalid ONNX");
+            if (runtimeFailure) {
+                QFile fault(
+                    QDir(copy).filePath(QStringLiteral("test-errors/%1.onnx").arg(damagedStage)));
+                QVERIFY(fault.open(QIODevice::ReadOnly));
+                damagedModel = fault.readAll();
+                QVERIFY(!damagedModel.isEmpty());
+            }
             QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
-            QCOMPARE(model.write("invalid ONNX"), qint64(12));
+            QCOMPARE(model.write(damagedModel), damagedModel.size());
         }
         QVERIFY(QDir().mkpath(fixture.filePath(QStringLiteral("cache"))));
         QVERIFY(fixture.writeConfig({
             {QStringLiteral("general"),
-             QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{voicebankRoot}}} },
+             QJsonObject{{QStringLiteral("packageSearchPaths"),
+                          QJsonArray{runtimeFailure ? fixture.path() : voicebankRoot}}}     },
             {QStringLiteral("inference"),
              QJsonObject{
                  {QStringLiteral("executionProvider"), providerId},
@@ -409,6 +445,9 @@ private slots:
                      qPrintable(client.error));
             for (const auto &value : result.value(QStringLiteral("singers")).toArray()) {
                 const auto singer = value.toObject();
+                if (runtimeFailure &&
+                    singer.value(QStringLiteral("package_id")) != QStringLiteral("ci-fixture"))
+                    continue;
                 if (requestedSinger.isEmpty() ||
                     singer.value(QStringLiteral("singer_id")).toString() == requestedSinger)
                     candidates.append(singer);
@@ -419,7 +458,7 @@ private slots:
                  "Voicebank root must expose one matching singer; set DSEL_TEST_SINGER_ID or "
                  "provide a root containing only that package/version");
         const auto selected = candidates.first();
-        const QJsonObject singer{
+        QJsonObject singer{
             {QStringLiteral("package_id"),      selected.value(QStringLiteral("package_id"))     },
             {QStringLiteral("package_version"), selected.value(QStringLiteral("package_version"))},
             {QStringLiteral("singer_id"),       selected.value(QStringLiteral("singer_id"))      }
@@ -560,7 +599,7 @@ private slots:
             return provider.value(QStringLiteral("id")).toString() == providerId &&
                    provider.value(QStringLiteral("available")).toBool();
         }));
-        const auto verifyAcousticStatus = [&](const QString &expectedState) {
+        const auto verifyStageStatus = [&](const QString &stageId, const QString &expectedState) {
             QJsonObject status;
             QVERIFY2(client.call(QStringLiteral("inference.get_status"),
                                  {
@@ -569,21 +608,21 @@ private slots:
             },
                                  status),
                      qPrintable(client.error));
-            QJsonObject acoustic;
+            QJsonObject actualStage;
             for (const auto &value : status.value(QStringLiteral("status"))
                                          .toObject()
                                          .value(QStringLiteral("stages"))
                                          .toArray()) {
                 const auto stage = value.toObject();
-                if (stage.value(QStringLiteral("stage")) == QStringLiteral("acoustic")) {
-                    acoustic = stage;
+                if (stage.value(QStringLiteral("stage")) == stageId) {
+                    actualStage = stage;
                     break;
                 }
             }
-            QVERIFY(!acoustic.isEmpty());
-            QCOMPARE(acoustic.value(QStringLiteral("state")).toString(), expectedState);
-            QVERIFY(acoustic.value(QStringLiteral("task_id")).isNull());
-            QCOMPARE(acoustic.value(QStringLiteral("reason")).toString().isEmpty(),
+            QVERIFY(!actualStage.isEmpty());
+            QCOMPARE(actualStage.value(QStringLiteral("state")).toString(), expectedState);
+            QVERIFY(actualStage.value(QStringLiteral("task_id")).isNull());
+            QCOMPARE(actualStage.value(QStringLiteral("reason")).toString().isEmpty(),
                      expectedState == QStringLiteral("ready"));
         };
         QVERIFY2(client.mutate(QStringLiteral("inference.start"),
@@ -597,15 +636,32 @@ private slots:
         if (repairModel) {
             QVERIFY2(client.waitForTask(result, false, 30000, QStringLiteral("failed")),
                      qPrintable(client.error));
-            verifyAcousticStatus(QStringLiteral("failed"));
+            const auto failedStage = damagedStage == QStringLiteral("vocoder")
+                                         ? QStringLiteral("acoustic")
+                                         : damagedStage;
+            verifyStageStatus(failedStage, QStringLiteral("failed"));
             if (QTest::currentTestFailed())
                 return;
             const QDir cache(fixture.filePath(QStringLiteral("cache")));
             QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files).isEmpty());
-            QFile model(damagedModelPath);
-            QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
-            QCOMPARE(model.write(originalModel), originalModel.size());
-            model.close();
+            if (runtimeFailure) {
+                singer.insert(QStringLiteral("package_id"), QStringLiteral("ci-fixture-repaired"));
+                singer.insert(QStringLiteral("package_version"), QStringLiteral("1.0.1"));
+                QVERIFY2(client.mutate(QStringLiteral("tracks.set_voice"),
+                                       {
+                                           {QStringLiteral("track_id"), trackId              },
+                                           {QStringLiteral("voice"),
+                                            QJsonObject{{QStringLiteral("singer"), singer},
+                                                        {QStringLiteral("speaker"), speaker}}}
+                },
+                                       result),
+                         qPrintable(client.error));
+                QVERIFY2(client.waitForInferenceModel(scope), qPrintable(client.error));
+            } else {
+                QFile model(damagedModelPath);
+                QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
+                QCOMPARE(model.write(originalModel), originalModel.size());
+            }
             QVERIFY2(client.mutate(QStringLiteral("inference.start"),
                                    {
                                        {QStringLiteral("scope"),   scope                        },
@@ -617,7 +673,9 @@ private slots:
         }
         QVERIFY2(client.waitForTask(result, false, 300000), qPrintable(client.error));
         if (repairModel) {
-            verifyAcousticStatus(QStringLiteral("ready"));
+            verifyStageStatus(damagedStage == QStringLiteral("vocoder") ? QStringLiteral("acoustic")
+                                                                        : damagedStage,
+                              QStringLiteral("ready"));
             if (QTest::currentTestFailed())
                 return;
         }
