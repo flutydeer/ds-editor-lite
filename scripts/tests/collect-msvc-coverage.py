@@ -63,12 +63,13 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     collector = args.collector or find_collector()
+    extra = args.ctest_args[1:] if args.ctest_args[:1] == ["--"] else args.ctest_args
 
     config = ET.Element("Configuration")
     coverage = ET.SubElement(config, "CodeCoverage")
     modules = ET.SubElement(coverage, "ModulePaths")
     include = ET.SubElement(modules, "Include")
-    executables = test_executables(args.ctest, build, repo)
+    executables = test_executables(args.ctest, build, repo, extra)
     # CTest commands also identify the Editor/Connector children. Obsolete build outputs are excluded.
     for executable in sorted(executables):
         ET.SubElement(include, "ModulePath").text = "^" + path_pattern(executable) + "$"
@@ -86,7 +87,6 @@ def main():
         ET.SubElement(coverage, key).text = value
     settings = output / "coverage.config"
     ET.ElementTree(config).write(settings, encoding="utf-8", xml_declaration=True)
-    extra = args.ctest_args[1:] if args.ctest_args[:1] == ["--"] else args.ctest_args
     command = [collector, "collect", "--settings", str(settings), "--output",
                str(output / "result.coverage"), "--log-file", str(output / "collector.log"),
                "--log-level", "Info",

@@ -56,12 +56,12 @@ def main():
     profile_dir.mkdir()
     llvm_cov = args.llvm_cov or find_tool("llvm-cov")
     llvm_profdata = args.llvm_profdata or find_tool("llvm-profdata")
-    executables = test_executables(args.ctest, build, repo)
+    extra = args.ctest_args[1:] if args.ctest_args[:1] == ["--"] else args.ctest_args
+    executables = test_executables(args.ctest, build, repo, extra)
     (output / "objects.txt").write_text(
         "".join(str(path) + "\n" for path in executables), encoding="utf-8")
     environment = os.environ.copy()
     environment["LLVM_PROFILE_FILE"] = str(profile_dir / "%p-%m.profraw")
-    extra = args.ctest_args[1:] if args.ctest_args[:1] == ["--"] else args.ctest_args
     command = [args.ctest, "--test-dir", str(build), "--parallel", "2", "--output-on-failure",
                "--no-tests=error", "--output-junit", str(output / "junit.xml"), *extra]
     started_ns = time.time_ns()

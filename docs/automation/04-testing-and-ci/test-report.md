@@ -346,7 +346,7 @@ ApplicationWorkflows 和 ApplicationGui 与资源程序共用该默认包。读�
 
 ZIP 纳入 CMake 的重新配置依赖，复用构建目录时更新资源会触发重新解压。解压前仅清理专属的生成声库子目录，避免保留 ZIP 中已删除的内容，也不清理旁边的其他资源。独立 CMake 流程已验证仅执行 build 即可触发资源更新、清除陈旧条目并保留相邻文件。
 
-`DSEL_TEST_VOICEBANK_ROOT` 可显式覆盖为本机真实声库，同时提供歌手、语言和歌词。配置失效时直接失败，不回退默认包。Windows 已有 Qixuan 真实模型执行证据：关闭自动推理后经 Native 手动请求、CPU 声码器及 WAV 导出，并以 libsndfile 检查采样率、声道、有限非零 PCM 和正常退出。真实模型及其本机路径不提交仓库。内置模型与真实模型的结果分别记录。CPU 成功不能替代 GPU、设备播放或主观听感，GAME/RMVPE 不在本期扩展范围。
+`DSEL_TEST_VOICEBANK_ROOT` 可显式覆盖为本机真实声库，同时提供歌手、语言和歌词。配置失效时直接失败，不回退默认包。Windows 已有 Qixuan 真实模型执行证据：关闭自动推理后经 Native 手动请求、CPU 声码器及 WAV 导出，并以 libsndfile 检查采样率、声道、有限非零 PCM 和正常退出。已安装的多声线真实声库也通过现有 CPU 推理、导出场景及完整 ModelResources 集合，故障与 GPU 数据行继续使用内置隔离资源。真实模型及其本机路径不提交仓库。内置模型与真实模型的结果分别记录。CPU 成功不能替代 GPU、设备播放或主观听感，GAME/RMVPE 不在本期扩展范围。
 
 NativeDesktop 新增输出设备与 MIDI 条件用例。输出设备自动探测或由 `DSEL_TEST_AUDIO_DRIVER` / `DSEL_TEST_AUDIO_DEVICE` 指定，静音素材用于验证配置落盘及真实播放回调。MIDI 由 `DSEL_TEST_MIDI_INPUT` / `DSEL_TEST_MIDI_OUTPUT` 指定专用回环，验证真实消息输入及生产合成器输出。无可用输出设备或未配置回环时逐例 QSKIP。已枚举设备或显式配置后的初始化、打开和执行失败为 FAIL。条件用例存在不代表设备环境已验证，执行情况由 Qt Test 逐例结果记录。
 
@@ -412,7 +412,7 @@ Linux CI 使用 GCC/gcov 和 gcovr 对已编译的项目生产源码采样，在
 
 行统计启用 gcovr `merge-lines`，避免把不同模板实例的同一源码行重复计为多行。已用同一份既有原始数据核对 gcovr 合并结果与文件/行号去重结果一致。该口径修正与新增测试命中分别记账。完整报告不为了逻辑覆盖目标额外排除仍有效的 GUI 或业务文件。
 
-按需本地或专项采样时，Windows 使用独立 `coverage` 构建及 Visual Studio 原生静态插桩，包含测试启动的 Editor/Connector。macOS 使用 Clang/LLVM 源码插桩，按进程和模块写出 profile，生成 LCOV、HTML、逐文件 CSV 及原生分支汇总。这两种采集器继续保留，不属于最终 Windows/macOS CI 的规定步骤。采集器从 CTest 元数据发现当前可执行程序，排除重组前遗留文件。按生产源码文件和行号合并各程序/模块命中，不重复计算副本。Microsoft 导出格式中的占位分支比例不作为分支覆盖率。
+按需本地或专项采样时，Windows 使用独立 `coverage` 构建及 Visual Studio 原生静态插桩，包含测试启动的 Editor/Connector。macOS 使用 Clang/LLVM 源码插桩，按进程和模块写出 profile，生成 LCOV、HTML、逐文件 CSV 及原生分支汇总。这两种采集器继续保留，不属于最终 Windows/macOS CI 的规定步骤。采集器从 CTest 元数据发现当前可执行程序，发现与执行共用相同筛选参数，排除重组前遗留文件和本次未选择的程序。实际资源套件筛选保留了 Editor 子进程，未纳入原生桌面程序，未筛选的发现仍保留完整集合。按生产源码文件和行号合并各程序/模块命中，不重复计算副本。Microsoft 导出格式中的占位分支比例不作为分支覆盖率。
 
 Linux CI 测试与覆盖采样包含内置声库，Windows/macOS 普通测试同样执行内置资源流程。本地专项采样记录各自的资源条件，Windows 已有真实声库采样单独保留。不同编译器、平台和资源集合的百分比不直接比较。删除已经没有产品接线的旧设置页及 TrackSynthesizer 所引起的分母变化，不计为新增行为命中。
 

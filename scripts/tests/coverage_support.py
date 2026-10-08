@@ -17,9 +17,9 @@ def production_path(filename, repo):
     return relative if relative.parts[1] in ("app", "connector", "libs", "tools") else None
 
 
-def test_executables(ctest, build, repo):
+def test_executables(ctest, build, repo, ctest_arguments=()):
     discovered = subprocess.check_output(
-        [ctest, "--test-dir", str(build), "--show-only=json-v1"],
+        [ctest, "--test-dir", str(build), *ctest_arguments, "--show-only=json-v1"],
         cwd=repo, encoding="utf-8")
     executables = set()
     for test in json.loads(discovered)["tests"]:
