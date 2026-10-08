@@ -19,8 +19,10 @@ namespace Automation {
         QMap<QString, QString> defaultLyrics;
         QStringList packageSearchPaths;
         QStringList recentProjectFiles;
-        QString gameDirectory;
-        QString pitchModelPath;
+        /// Selected analyzers, each identified as <package>:inference/<contribution>. GeneralOption
+        /// documents why these are references rather than paths.
+        QString noteAnalyzer;
+        QString pitchAnalyzer;
         QString libreSvipPath;
         bool drawParamWithFinger = false;
 

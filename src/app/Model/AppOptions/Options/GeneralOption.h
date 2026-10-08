@@ -1,8 +1,6 @@
 #ifndef GENERALOPTION_H
 #define GENERALOPTION_H
 
-// #include <QVersionNumber>
-
 #include <QJsonValue>
 #include <QMap>
 
@@ -36,8 +34,19 @@ public:
     // the piano roll) scrolls the timeline instead, and the tool belongs to the
     // pen and the mouse. The speaker mix editor is not covered.
     LITE_OPTION_ITEM(bool, drawParamWithFinger, false)
-    LITE_OPTION_ITEM(QString, gameDir, QString())
-    LITE_OPTION_ITEM(QString, rmvpePath, QString())
+    /// Reference to the selected analyzer, in the form of an installed contribution:
+    /// <package>:inference/<contribution>. A reference in the legacy
+    /// <package>:analysis/<contribution> form is upgraded when the options are loaded.
+    ///
+    /// The option stores a reference rather than a path because an analyzer is a contribution of
+    /// an installed package, not a separately downloaded file. A path would also become invalid if
+    /// the package is reinstalled at another location.
+    ///
+    /// Empty until the user selects an analyzer. The legacy keys stored filesystem paths and are
+    /// not read, because a path identifies neither the package nor the contract of the analyzer,
+    /// and therefore cannot be migrated to a reference.
+    LITE_OPTION_ITEM(QString, noteAnalyzer, QString())
+    LITE_OPTION_ITEM(QString, pitchAnalyzer, QString())
     LITE_OPTION_ITEM(QString, libreSVIPPath, QString())
 
 

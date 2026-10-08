@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
+#include <dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
 
 #ifndef M_PI
 #  define M_PI 3.14159265358979323846
@@ -48,7 +48,7 @@ void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     }
 }
 
-BasePitchCurve::BasePitchCurve(const std::vector<srt::svs::Api::Common::L1::InputWordInfo> &word) {
+BasePitchCurve::BasePitchCurve(const std::vector<ds::Api::Common::L1::InputWordInfo> &word) {
     std::vector<InputNote> notes;
     for (const auto &[phones, wordNotes] : word) {
         static_cast<void>(phones);

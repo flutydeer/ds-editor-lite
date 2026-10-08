@@ -1,6 +1,7 @@
 #include "SpeakerMixPreset.h"
 
 #include <QJsonArray>
+#include <QTimeZone>
 
 using namespace SpeakerMixModel;
 
@@ -32,6 +33,17 @@ namespace {
 
     SpeakerMixSource decodeSource(const QJsonObject &obj) {
         return {SpeakerInfo(obj["id"].toString(), obj["name"].toString())};
+    }
+
+    // Same rule as the automation adapter's own preset decoding: toJson() writes UTC ISO strings,
+    // but Qt reads an offset-less string back as local time (QDateTime::fromString()'s ISO branch
+    // starts from QTimeZone::LocalTime), so such a value would depend on the reading machine's
+    // time zone. A missing offset means UTC.
+    QDateTime parsePresetTimestamp(const QString &value) {
+        auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
+        if (time.isValid() && time.timeSpec() == Qt::LocalTime)
+            time.setTimeZone(QTimeZone::UTC);
+        return time;
     }
 
 } // namespace
@@ -66,8 +78,8 @@ SpeakerMixPreset SpeakerMixPreset::fromJson(const QJsonObject &obj) {
     preset.singerId = obj["singerId"].toString();
     preset.packageVersion = QVersionNumber::fromString(obj["packageVersion"].toString());
     preset.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
-    preset.createdAt = QDateTime::fromString(obj["createdAt"].toString(), Qt::ISODateWithMs);
-    preset.updatedAt = QDateTime::fromString(obj["updatedAt"].toString(), Qt::ISODateWithMs);
+    preset.createdAt = parsePresetTimestamp(obj["createdAt"].toString());
+    preset.updatedAt = parsePresetTimestamp(obj["updatedAt"].toString());
 
     const auto sourceArray = obj["sources"].toArray();
     for (const auto &value : sourceArray) {

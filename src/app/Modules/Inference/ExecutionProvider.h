@@ -5,13 +5,17 @@
 
 #include <optional>
 
+#include <lite/SynthrtEngine/ExecutionBackend.h>
+
 // Single source of truth for the ONNX Runtime execution provider: how it is
 // spelled in appConfig.json, whether this build ships it, whether this machine
 // can run it, and which provider the inference engine actually ended up using.
-enum class ExecutionProvider { Cpu, DirectML, Cuda };
+// The enumeration and its spelling are those of the engine (lite::synthrt::Backend),
+// so that the settings and the engine always identify the same provider.
+using ExecutionProvider = lite::synthrt::Backend;
 
 namespace ExecutionProviderUtils {
-    // Persistence spelling: "CPU" / "DirectML" / "CUDA".
+    // Persistence spelling: "CPU" / "DirectML" / "CUDA" / "CoreML".
     QString toString(ExecutionProvider provider) noexcept;
     std::optional<ExecutionProvider> fromString(const QString &value) noexcept;
 

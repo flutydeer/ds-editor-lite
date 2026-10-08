@@ -485,6 +485,9 @@ namespace Automation {
                 .effective = settings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
+            // The fallback snapshot taken while the service is unavailable performs no GPU probe:
+            // the real candidates come from the regular snapshot of AppOptionsAutomationAdapter,
+            // which returns only the configured GPU here.
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!settings.inference.selectedGpuId.isEmpty()) {
                 gpuCandidates.append({

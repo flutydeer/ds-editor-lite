@@ -50,8 +50,7 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     m_lyricPreviewVisible = lyricExtVisible;
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes, std::move(singer), SynthrtEngine::instance().languageService(),
-        priorityLanguages,
+        m_langNotes, std::move(singer), priorityLanguages,
         {appOptions->fillLyric()->baseVisible, lyricExtVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,

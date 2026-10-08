@@ -90,10 +90,6 @@ private:
     Q_SIGNAL void timelineChanged();
 
     // Inference Options
-    Q_SIGNAL void pitchStepsChanged();
-    Q_SIGNAL void varianceStepsChanged();
-    Q_SIGNAL void acousticStepsChanged();
-    Q_SIGNAL void acousticDepthChanged();
     Q_SIGNAL void lazyInferAcousticTurnedOff();
     Q_SIGNAL void inferenceOptionsChanged();
 
@@ -101,7 +97,6 @@ private:
     Q_SIGNAL void pieceRemoved();
     Q_SIGNAL void playbackStarted();
     Q_SIGNAL void playbackSuspended();
-    Q_SIGNAL void appModelUnlocked();
 
     void initStates();
     void initTransitions();

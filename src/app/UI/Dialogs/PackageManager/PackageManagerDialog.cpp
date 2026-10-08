@@ -209,6 +209,19 @@ void PackageManagerDialog::loadPackageList() {
     QList<PackageInfo> packages;
     for (const auto &package : packageResult.get())
         packages.append(fromAutomationDto(package));
+
+    // A package that would not open is listed after the ones that did, marked unavailable and
+    // carrying the loader's own reason: someone who installed a voicebank and cannot see it needs
+    // to be told why rather than shown nothing. Without a reason to show it is not listed at all,
+    // because an unnamed row would explain nothing.
+    const auto failureResult = runtime->packages().getInstalledPackageFailures();
+    if (failureResult) {
+        for (const auto &failure : failureResult.get()) {
+            if (PackageInfo::isFailureReportable(failure.reason))
+                packages.append(PackageInfo::unavailable(failure.path, failure.reason));
+        }
+    }
+
     if (packages.isEmpty()) {
         listView->setModel(nullptr);
         lbPackageCount->setText(tr("Installed (%L1)").arg(0));
