@@ -197,7 +197,7 @@ namespace DsConnector {
 
     void UpstreamMcpClient::clearEndpoint(const QString &reason) {
         abortAll(reason);
-        m_endpoint = {};
+        m_endpoint = QUrl();
         m_sessionId.clear();
     }
 
