@@ -1141,13 +1141,34 @@ void AutomationProtocolTests::nativeRequestValidation() {
     expect(nativeGet.status == 405,
            QStringLiteral("the Native endpoint must reject non-POST methods"));
 
-    auto rejectedAcceptRequest = nativeRequest(QUrl(dualProtocolServer.nativeEndpoint()));
-    rejectedAcceptRequest.setRawHeader("Accept", "*/*;q=1, application/json;q=0");
-    const auto rejectedNativeAccept =
-        send(manager, std::move(rejectedAcceptRequest),
-             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
-    expect(rejectedNativeAccept.status == 406,
-           QStringLiteral("an exact application/json q=0 must override wildcard acceptance"));
+    struct AcceptCase {
+        QByteArray header;
+        int status;
+    };
+
+    const QList<AcceptCase> acceptCases{
+        {"application/*",                   200},
+        {"text/plain, application/*;q=0.5", 200},
+        {"*/*;q=1, application/json;q=0",   406},
+        {"*/*;q=1, application/*;q=0",      406},
+    };
+    for (const auto &accept : acceptCases) {
+        auto request = nativeRequest(QUrl(dualProtocolServer.nativeEndpoint()));
+        request.setRawHeader("Accept", accept.header);
+        const auto response = send(manager, std::move(request),
+                                   QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+        QVERIFY2(response.status == accept.status,
+                 qPrintable(QStringLiteral("Accept %1 returned HTTP %2")
+                                .arg(QString::fromLatin1(accept.header))
+                                .arg(response.status)));
+        if (accept.status == 200) {
+            const auto object = bodyObject(response);
+            QCOMPARE(object.value(QStringLiteral("id")), nativeCall.value(QStringLiteral("id")));
+            QCOMPARE(
+                object.value(QStringLiteral("result")).toObject().value(QStringLiteral("params")),
+                nativeCall.value(QStringLiteral("params")));
+        }
+    }
 
     auto rejectedNativeContentType = nativeRequest(QUrl(dualProtocolServer.nativeEndpoint()));
     rejectedNativeContentType.setRawHeader("Content-Type", "text/plain");
