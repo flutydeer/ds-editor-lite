@@ -249,6 +249,23 @@ namespace {
                "word construction waits for phoneme offsets to match phoneme names");
     }
 
+    void testReservedPhonemesMakeRests() {
+        Note breath;
+        configureNote(breath, 0, "AP");
+        Note declared;
+        configureNote(declared, 480, "br");
+        expect(InferInputNote(breath).isRest,
+               "a forced reserved phoneme makes a rest without a singer");
+        expect(!InferInputNote(declared).isRest,
+               "a phoneme not declared by the singer configuration is sung as a lyric");
+        const auto reserved = ReservedPhonemes::forced() + QSet<QString>{QStringLiteral("br")};
+        expect(InferInputNote(declared, reserved).isRest,
+               "a reserved phoneme declared by the singer configuration makes a rest");
+        const auto merged = lite::synthrt::withForcedReservedPhonemes({"br", "AP"});
+        expect(merged == std::vector<std::string>({"SP", "AP", "br"}),
+               "the forced reserved phonemes come first and the union holds each phoneme once");
+    }
+
     void testEditingEligibility() {
         Note word;
         configureNote(word, 0, "word");
@@ -567,6 +584,7 @@ int main(int argc, char *argv[]) {
     testStorageAndInferenceRoundTrip();
     testBuildWordsRejectsPendingOffsets();
     testDetachedSyllabificationNotesStayOrphaned();
+    testReservedPhonemesMakeRests();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
     testTempoAwareWordState();

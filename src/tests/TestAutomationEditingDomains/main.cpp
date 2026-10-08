@@ -392,7 +392,7 @@ namespace {
                 const auto empty = runtime.project().setTrackDefaultLanguage(
                     commandContext(runtime), third, QStringLiteral("  "));
                 suite.expect(isError(empty, AutomationErrorCode::InvalidArgument,
-                                     QStringLiteral("language")),
+                                     QStringLiteral("language_id")),
                              QStringLiteral("blank language must be rejected"));
                 const auto changed = runtime.project().setTrackDefaultLanguage(
                     commandContext(runtime), third, QStringLiteral("zh-汉字"));
@@ -836,7 +836,7 @@ namespace {
                       const auto blank = runtime.project().setSingingClipDefaultLanguage(
                           commandContext(runtime), clip, QStringLiteral(""));
                       suite.expect(isError(blank, AutomationErrorCode::InvalidArgument,
-                                           QStringLiteral("language")),
+                                           QStringLiteral("language_id")),
                                    QStringLiteral("empty clip language must be rejected"));
                       const auto base = runtime.documentVersion();
                       const auto changed = runtime.project().setSingingClipDefaultLanguage(

@@ -1,3 +1,5 @@
+#include <cerrno>
+#include <csignal>
 #include <Bootstrap/SingleInstanceCoordinator.h>
 #include <Bootstrap/SingleInstanceIdentity.h>
 #include <BootstrapWatcher.h>
@@ -444,8 +446,11 @@ namespace {
         return true;
     }
 
-    bool processIsRunning(qint64) {
-        return false;
+    bool processIsRunning(const qint64 processId) {
+        // A process that has exited but not been reaped still answers, which is the
+        // conservative reading: what the test waits for is the lock and the listeners to be
+        // released, and those go before the process does.
+        return processId > 0 && (kill(static_cast<pid_t>(processId), 0) == 0 || errno == EPERM);
     }
 
     qint64 findOwnedProcess(const QString &, const QString &, const QStringList &, qint64) {
@@ -508,7 +513,14 @@ namespace {
             return fail(QStringLiteral("Could not create the isolated audio fixture"));
 
         auto environment = QProcessEnvironment::systemEnvironment();
+        // Where the editor keeps its data, which is what its single-instance service name is
+        // derived from. The variable that says so differs by platform, and only the Windows one
+        // was set -- so everywhere else the launched editor used the real user data directory,
+        // listened under a name derived from it, and the watcher below looked for it under the
+        // isolated one and concluded no editor was running.
         environment.insert(QStringLiteral("APPDATA"), appDataRoot);
+        environment.insert(QStringLiteral("XDG_DATA_HOME"), appDataRoot);
+        environment.insert(QStringLiteral("XDG_CONFIG_HOME"), appDataRoot);
         environment.insert(QStringLiteral("LOCALAPPDATA"), localDataRoot);
         environment.insert(QStringLiteral("QT_QPA_PLATFORM"),
                            QStringLiteral("phase3-deliberately-invalid-platform"));

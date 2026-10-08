@@ -9,6 +9,7 @@ class QMouseEvent;
 class QPaintEvent;
 class QPainter;
 class QRectF;
+class CascaderPopup;
 
 // A single tree node handed to Cascader. Mirrors Element Plus's data shape
 // (value + label + children) so callers can reuse their existing tree structs

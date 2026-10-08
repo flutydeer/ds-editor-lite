@@ -147,6 +147,21 @@ namespace {
         int refreshStarts = 0;
         bool settingsApplySucceeds = true;
 
+        // Package load failures in the form reported by the loader: a package with an unresolvable
+        // dependency and a package with an unsupported manifest version. The reason texts are
+        // copied verbatim from the loader.
+        QList<Automation::PackageRefreshFailureDto> packageFailures{
+            {
+             .path = QStringLiteral("C:/allowed/0913_wolf_club@1.0.0"),
+             .reason = QStringLiteral("failed to resolve dependency of 0913_wolf_club: no "
+                                      "installed Package satisfies dependency wolf/lang-ja"),
+             },
+            {
+             .path = QStringLiteral("C:/allowed/legacy-voice"),
+             .reason = QStringLiteral("Package manifest version is unsupported"),
+             },
+        };
+
         template <typename T, typename Member>
         std::function<bool(const T &)> apply(Member member) {
             return [this, member](const T &value) {
@@ -207,6 +222,7 @@ namespace {
         Automation::PackageRuntimeServices packageServices() {
             Automation::PackageRuntimeServices services;
             services.installedPackages = [this] { return packages; };
+            services.installedPackageFailures = [this] { return packageFailures; };
             services.refreshPackages = [this](Automation::PackageRefreshCommitGate commitGate,
                                               Automation::PackageRefreshCompletion completion) {
                 ++refreshStarts;
@@ -423,6 +439,20 @@ namespace {
         check(packages && packages.get().size() == 2 && packages.get().first().path.isEmpty() &&
                   !packages.get().last().path.isEmpty(),
               QStringLiteral("packages.list must omit paths outside allowed read roots"));
+
+        // Load failures shown to the user. Each failure must carry the unmodified loader reason and
+        // must stay separate from the installed package listing above, because a package that
+        // failed to load is not usable.
+        const auto failures = runtime.packages().getInstalledPackageFailures();
+        check(failures && failures.get() == harness.packageFailures,
+              QStringLiteral("load failures must be reported with the unmodified loader reason"));
+        check(failures && failures.get().size() == 2 &&
+                  failures.get().first().reason.contains(
+                      QStringLiteral("wolf/lang-ja")),
+              QStringLiteral("an unresolvable dependency must be reported as such"));
+        check(failures && failures.get().last().reason ==
+                              QStringLiteral("Package manifest version is unsupported"),
+              QStringLiteral("a refused manifest version must be reported as such"));
         const auto described =
             runtime.packages().describePackage(QStringLiteral("voice.package"), projection);
         check(described && described.get().version == QVersionNumber(2, 0),

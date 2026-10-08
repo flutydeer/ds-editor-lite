@@ -66,8 +66,10 @@ namespace {
                               QStringLiteral("an unknown provider must fall back to CPU"));
         }
 
-        const QList<ExecutionProvider> allProviders{
-            ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda};
+        const QList<ExecutionProvider> allProviders{ExecutionProvider::Cpu,
+                                                    ExecutionProvider::DirectML,
+                                                    ExecutionProvider::Cuda,
+                                                    ExecutionProvider::CoreML};
         for (const auto provider : allProviders) {
             const auto parsed =
                 ExecutionProviderUtils::fromString(ExecutionProviderUtils::toString(provider));
@@ -76,6 +78,18 @@ namespace {
         }
         success &= expect(!ExecutionProviderUtils::fromString(QStringLiteral("gpu")).has_value(),
                           QStringLiteral("an unknown provider string must not decode"));
+
+        // The engine and the settings use the same provider names. CoreML is a known provider
+        // that no build supports; therefore it resolves to the CPU with a reason instead of being
+        // treated as an unknown name.
+        success &= expect(lite::synthrt::backendFromName("CoreML") == ExecutionProvider::CoreML &&
+                              lite::synthrt::backendFromName("gpu") == ExecutionProvider::Cpu,
+                          QStringLiteral("the engine must accept the settings provider names"));
+        const auto coreMl = ExecutionProviderUtils::resolve(QStringLiteral("CoreML"), withGpu);
+        success &= expect(coreMl.provider == ExecutionProvider::Cpu && coreMl.changed &&
+                              coreMl.reason.contains(QStringLiteral("not available")),
+                          QStringLiteral("CoreML must fall back to CPU because the build does "
+                                         "not provide it"));
 
         ExecutionProviderUtils::setEffective(ExecutionProvider::DirectML);
         success &=

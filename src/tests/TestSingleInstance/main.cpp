@@ -21,10 +21,14 @@
 #include <vector>
 
 namespace {
-    bool expect(const bool condition, const char *message) {
+    bool expect(const bool condition, const char *message, const QString &detail = {}) {
         if (condition)
             return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
+        QTextStream out(stderr);
+        out << "FAILED: " << message;
+        if (!detail.isEmpty())
+            out << " | " << detail;
+        out << Qt::endl;
         return false;
     }
 
@@ -88,12 +92,15 @@ namespace {
         bool receive(QByteArray &payload, QString &error, const int timeoutMs = 1000) {
             QElapsedTimer timer;
             timer.start();
+            m_lastError.clear();
             while (timer.elapsed() < timeoutMs) {
                 error.clear();
                 if (SingleInstanceProtocol::takeFrame(buffer, payload, error))
                     return true;
-                if (!error.isEmpty())
+                if (!error.isEmpty()) {
+                    m_lastError = error;
                     return false;
+                }
                 if (socket.bytesAvailable()) {
                     buffer.append(socket.readAll());
                     continue;
@@ -107,6 +114,7 @@ namespace {
                 }
             }
             error = QStringLiteral("Timed out waiting for a framed response");
+            m_lastError = error;
             return false;
         }
 
@@ -125,10 +133,23 @@ namespace {
             return socket.state() == QLocalSocket::UnconnectedState;
         }
 
+        // Diagnostics for a failing expectation: every failure mode of this client is at the
+        // socket level, so the socket's own state and error string are what has to be visible.
+        QString diagnostics() const {
+            QString text = QStringLiteral("socket state=") +
+                           QString::number(static_cast<int>(socket.state())) +
+                           QStringLiteral(" error='") + socket.errorString() +
+                           QStringLiteral("' pending=") + QString::number(socket.bytesToWrite());
+            if (!m_lastError.isEmpty())
+                text += QStringLiteral(" receive='") + m_lastError + QLatin1Char('\'');
+            return text;
+        }
+
         QLocalSocket socket;
 
     private:
         QByteArray buffer;
+        QString m_lastError;
     };
 
     QString uniqueServerName() {
@@ -324,14 +345,16 @@ namespace {
         FramedClient discoverClient;
         const auto discoverRequest = automationRequest(SingleInstanceCommand::AutomationDiscover);
         ok &= expect(discoverClient.connectTo(serverName) && discoverClient.send(discoverRequest),
-                     "discover client must connect and send its request");
+                     "discover client must connect and send its request",
+                     discoverClient.diagnostics());
         SingleInstanceAutomationSnapshot discovered;
         ok &= expect(discoverClient.receiveSnapshot(discovered) &&
                          discovered.requestId == discoverRequest.requestId &&
                          discovered.result.editorInstanceId == initial.editorInstanceId &&
                          discovered.result.state == SingleInstanceAutomationState::EditorStarting &&
                          discovered.primaryProcessId == QCoreApplication::applicationPid(),
-                     "discover must return the current complete snapshot");
+                     "discover must return the current complete snapshot",
+                     discoverClient.diagnostics());
         ok &= expect(discoverClient.waitForDisconnect(),
                      "discover connection must close after one snapshot");
 
@@ -544,7 +567,8 @@ namespace {
         ok &= expect(replacement.connectTo(serverName) && replacement.send(replacementRequest) &&
                          replacement.receiveSnapshot(snapshot) &&
                          snapshot.requestId == replacementRequest.requestId,
-                     "timed-out bootstrap clients must release capacity for valid requests");
+                     "timed-out bootstrap clients must release capacity for valid requests",
+                     replacement.diagnostics());
 
         primary.shutdown();
         return ok;
@@ -568,7 +592,7 @@ namespace {
         const auto firstRequest = openRequest({QDir(directory.path()).filePath("first.dspx")});
         QString error;
         ok &= expect(secondary.forwardRequest(firstRequest, error),
-                     "secondary request must be acknowledged");
+                     "secondary request must be acknowledged", error);
 
         QList<SingleInstanceRequest> received;
         primary.setRequestHandler(
@@ -582,7 +606,7 @@ namespace {
         const auto secondRequest = openRequest({QDir(directory.path()).filePath("second.dspx")});
         error.clear();
         ok &= expect(secondary.forwardRequest(secondRequest, error),
-                     "request after handler setup must be acknowledged");
+                     "request after handler setup must be acknowledged", error);
         primary.pauseRequestDispatchAndFlush();
         ok &= expect(received.size() == 2 && received.last().requestId == secondRequest.requestId,
                      "acknowledged request after handler setup must be flushed deterministically");
@@ -616,7 +640,7 @@ namespace {
         activateRequest.command = SingleInstanceCommand::Activate;
         error.clear();
         ok &= expect(secondary.forwardRequest(activateRequest, error),
-                     "legacy activate request must remain supported");
+                     "legacy activate request must remain supported", error);
         primary.pauseRequestDispatchAndFlush();
         ok &= expect(received.size() == 4 &&
                          received.last().requestId == activateRequest.requestId &&
