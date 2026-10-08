@@ -58,6 +58,7 @@ private slots:
     void draggingExistingNoteCommitsOrCancels();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
+    void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
@@ -105,6 +106,7 @@ private slots:
     void interactiveProjectImportRespectsSelectionAndCancellation();
     void midiChannelSelectionRebuildsTracksBeforeImport_data();
     void midiChannelSelectionRebuildsTracksBeforeImport();
+    void droppingAudioFilesCommitsOneBatchToTheSelectedTracks_data();
     void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
     void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
     void droppingMidiAndAudioFilesUsesOneBatchDecision();

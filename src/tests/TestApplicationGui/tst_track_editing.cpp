@@ -25,11 +25,19 @@
 #include <QMouseEvent>
 #include <QPixmap>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QtTest/QTest>
 
 #include <tuple>
 
+void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data() {
+    QTest::addColumn<bool>("atProjectTail");
+    QTest::newRow("inside-project") << false;
+    QTest::newRow("past-project-tail") << true;
+}
+
 void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish() {
+    QFETCH(bool, atProjectTail);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -38,7 +46,7 @@ void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFin
     Automation::TrackDraftDto trackDraft;
     Automation::ClipDraftDto clipDraft;
     clipDraft.type = Automation::ClipDraftDto::Type::Singing;
-    clipDraft.properties.start = 480;
+    clipDraft.properties.start = atProjectTail ? appStatus->projectEditableLength.get() - 960 : 480;
     clipDraft.properties.length = 480;
     clipDraft.properties.clipLen = 480;
     trackDraft.clips.append(clipDraft);
@@ -53,9 +61,10 @@ void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFin
     QTRY_VERIFY(editor.isActiveWindow());
     QVERIFY(editor.windowHandle());
     canvas->setAnimationEnabled(false);
-    QVERIFY(canvas->setViewportScale(3.0, 1.0));
+    QVERIFY(canvas->setViewportScale(atProjectTail ? 1.0 : 3.0, 1.0));
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto originalTail = appStatus->projectEditableLength.get();
     const auto previousCursor = QCursor::pos();
     QPoint edge;
     bool pressed = false;
@@ -69,6 +78,8 @@ void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFin
     });
     for (const bool cancel : {true, false}) {
         canvas->setViewportStartTick(0);
+        if (atProjectTail)
+            canvas->setHorizontalBarValue(canvas->horizontalScrollBar()->maximum());
         QCoreApplication::processEvents();
         auto *item = editor.findClipItemById(clipId);
         QVERIFY(item);
@@ -90,6 +101,8 @@ void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFin
         const auto firstVisibleTick = canvas->startTick();
         // The timer must advance both the viewport and the preview without another move event.
         QTRY_VERIFY(canvas->startTick() > firstVisibleTick && item->start() > firstPreview);
+        if (atProjectTail)
+            QTRY_VERIFY(item->start() > originalTail);
         const auto lastPreview = item->start();
         QCOMPARE(item->clipLen(), clipDraft.properties.clipLen);
         QCOMPARE(clip->start(), clipDraft.properties.start);

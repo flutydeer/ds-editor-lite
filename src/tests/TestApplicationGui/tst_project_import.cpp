@@ -33,6 +33,7 @@
 #include <QCheckBox>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
+#include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QFile>
 #include <QFileInfo>
@@ -458,9 +459,18 @@ void ApplicationGuiTests::midiChannelSelectionRebuildsTracksBeforeImport() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks_data() {
+    QTest::addColumn<bool>("appendTracks");
+    QTest::newRow("existing-track-and-overflow") << false;
+    QTest::newRow("append-after-existing-track") << true;
+}
+
 void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks() {
-    QTemporaryDir directory;
+    QFETCH(bool, appendTracks);
+    QTemporaryDir directory(dataRoot.filePath(QStringLiteral("audio-drop-XXXXXX")));
     QVERIFY(directory.isValid());
+    // The application fixture releases cached source handles before removing its data root.
+    directory.setAutoRemove(false);
     const QStringList paths{directory.filePath(QStringLiteral("first.wav")),
                             directory.filePath(QStringLiteral("second.wav"))};
     for (const auto &path : paths) {
@@ -504,35 +514,55 @@ void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks()
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*appModel);
+    const auto destinationIndex = appendTracks ? 1 : 0;
     constexpr int dropTick = 960;
-    const auto position = canvas->mapFromScene(
-        QPointF(canvas->sceneXForTick(dropTick), TracksEditorGlobal::trackHeight / 2));
+    const auto position =
+        canvas->mapFromScene(QPointF(canvas->sceneXForTick(dropTick),
+                                     TracksEditorGlobal::trackHeight * (destinationIndex + 0.5)));
     QVERIFY(canvas->viewport()->rect().contains(position));
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(paths[0]), QUrl::fromLocalFile(paths[1])});
 
-    QDragEnterEvent preview(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    const auto initialPosition = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(480), TracksEditorGlobal::trackHeight / 2));
+    QVERIFY(canvas->viewport()->rect().contains(initialPosition));
+    const auto cleanPreview = canvas->viewport()->grab().toImage();
+    QDragEnterEvent preview(initialPosition, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(canvas->viewport(), &preview);
     QVERIFY(preview.isAccepted());
+    const auto firstPreview = canvas->viewport()->grab().toImage();
+    QVERIFY(firstPreview != cleanPreview);
+    QDragMoveEvent move(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QVERIFY(move.isAccepted());
+    QVERIFY(canvas->viewport()->grab().toImage() != firstPreview);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), original);
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(existingTrack->clips().count(), 0);
     QDragLeaveEvent leave;
     QApplication::sendEvent(canvas->viewport(), &leave);
     QVERIFY(leave.isAccepted());
+    QCOMPARE(canvas->viewport()->grab().toImage(), cleanPreview);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), original);
     QVERIFY(!historyManager->canUndo());
 
-    QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QDragEnterEvent enter(initialPosition, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(canvas->viewport(), &enter);
     QVERIFY(enter.isAccepted());
+    QDragMoveEvent finalMove(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &finalMove);
+    QVERIFY(finalMove.isAccepted());
     QDropEvent drop(QPointF(position), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(canvas->viewport(), &drop);
     QVERIFY(drop.isAccepted());
-    QTRY_COMPARE(appModel->tracks().size(), 2);
+    QTRY_COMPARE(appModel->tracks().size(), destinationIndex + paths.size());
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     QCOMPARE(appModel->tracks().first()->id(), existingId);
     QCOMPARE(appModel->tracks().last()->name(), QStringLiteral("second"));
+    QCOMPARE(existingTrack->clips().count(), appendTracks ? 0 : 1);
     for (qsizetype index = 0; index < paths.size(); ++index) {
-        const auto *track = appModel->tracks().at(index);
+        const auto *track = appModel->tracks().at(destinationIndex + index);
         QCOMPARE(track->clips().count(), 1);
         const auto *clip = dynamic_cast<const AudioClip *>(*track->clips().begin());
         QVERIFY(clip);
@@ -554,8 +584,11 @@ void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks()
     QCOMPARE(appModel->tracks().first()->clips().count(), 0);
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
-    QCOMPARE(appModel->tracks().size(), 2);
-    for (const auto *track : appModel->tracks()) {
+    QCOMPARE(appModel->tracks().size(), destinationIndex + paths.size());
+    QCOMPARE(appModel->tracks().first()->id(), existingId);
+    QCOMPARE(appModel->tracks().first()->clips().count(), appendTracks ? 0 : 1);
+    for (qsizetype index = 0; index < paths.size(); ++index) {
+        const auto *track = appModel->tracks().at(destinationIndex + index);
         QCOMPARE(track->clips().count(), 1);
         const auto *clip = *track->clips().begin();
         QVERIFY(editor.findClipItemById(clip->id()));
