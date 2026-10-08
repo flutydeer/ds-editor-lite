@@ -12,6 +12,7 @@
 
 #include <lite/GUI/Controls/ToolTip.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
@@ -160,4 +161,67 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
         QTRY_COMPARE(indicatorColor(), failedIndicator);
     }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), overlappingProject);
+}
+
+void ApplicationGuiTests::timelineContextSwitchKeepsCurrentInferenceFeedback() {
+    class ObservedTimeline final : public TimelineView {
+    public:
+        int paintCount = 0;
+
+    protected:
+        void paintEvent(QPaintEvent *event) override {
+            TimelineView::paintEvent(event);
+            ++paintCount;
+        }
+    };
+
+    const auto createClip = [&] {
+        auto *note = new Note;
+        note->setLocalStart(480);
+        note->setLength(480);
+        note->setLyric(QStringLiteral("a"));
+        PhonemeName vowel;
+        vowel.language = QStringLiteral("eng");
+        vowel.name = QStringLiteral("a");
+        vowel.isOnset = true;
+        note->setPhonemeNameSeq(Note::Original, {vowel});
+        auto clip = std::make_unique<SingingClip>(QList{note});
+        clip->setLength(1440);
+        clip->reSegment(context->m_appModel->timeline());
+        return clip;
+    };
+    auto previous = createClip();
+    auto current = createClip();
+    QCOMPARE(previous->pieces().size(), 1);
+    QCOMPARE(current->pieces().size(), 1);
+    const auto document = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto version = context->m_coreRuntime->documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    auto *piece = current->pieces().first();
+    piece->acousticInferStatus = Running;
+    ObservedTimeline timeline;
+    timeline.resize(900, 40);
+    timeline.setTimeRange(0, 1440);
+    timeline.setDataContext(previous.get());
+    timeline.setDataContext(current.get());
+    timeline.show();
+    QTRY_VERIFY(timeline.paintCount > 0);
+
+    previous->removeAllPieces();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::UpdateRequest);
+    QCoreApplication::processEvents();
+    const auto beforeCompletion = timeline.paintCount;
+    piece->acousticInferStatus = Success;
+    QTRY_VERIFY(timeline.paintCount > beforeCompletion);
+    const auto success = timeline.property("pieceSuccessColor").value<QColor>();
+    QTRY_COMPARE(timeline.grab().toImage().pixelColor(timeline.width() / 2, timeline.height() - 1),
+                 success);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::UpdateRequest);
+    QCoreApplication::processEvents();
+    const auto settled = timeline.paintCount;
+    QTest::qWait(50);
+    QCOMPARE(timeline.paintCount, settled);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), document);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), version);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
 }

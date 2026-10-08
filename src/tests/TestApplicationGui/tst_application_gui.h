@@ -79,6 +79,7 @@ private slots:
     void phonemeWaveformsLoadAndDiscardResultsAfterChangingClips();
     void inferenceErrorBadgesExplainOverlapsAndFollowUndo_data();
     void inferenceErrorBadgesExplainOverlapsAndFollowUndo();
+    void timelineContextSwitchKeepsCurrentInferenceFeedback();
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
