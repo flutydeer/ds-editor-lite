@@ -14,7 +14,7 @@ namespace lite::Support {
     /// exact map key. Returns \p defaultText when nothing matches.
     ///
     /// Matching policy is a frontend concern by design (ds-spec 2.4):
-    /// srt::core::DisplayText itself only stores keys opaquely and serves
+    /// srt::DisplayText itself only stores keys opaquely and serves
     /// exact, case-sensitive lookups.
     [[nodiscard]] QString lookupLocalizedText(const QMap<QString, QString> &localized,
                                               const QString &defaultText,
