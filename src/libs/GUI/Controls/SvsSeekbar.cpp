@@ -433,8 +433,7 @@ namespace SVS {
                 break;
             case Qt::Key_Return:
             case Qt::Key_Space:
-                if (event->isAutoRepeat())
-                    d->setValue(d->defaultValue);
+                d->setValue(d->defaultValue);
                 break;
             default:
                 event->ignore();

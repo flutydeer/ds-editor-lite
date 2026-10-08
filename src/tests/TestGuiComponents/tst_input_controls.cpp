@@ -268,6 +268,16 @@ void GuiComponentTests::seekBarKeyboardStepsClampAndDoubleClickResets() {
     QCOMPARE(slider.value(), -10.0);
     QCOMPARE(changed.count(), atMinimum);
     QVERIFY(moved.isEmpty());
+    for (const auto key : {Qt::Key_Return, Qt::Key_Space}) {
+        slider.setValue(6);
+        const auto beforeKeyReset = changed.count();
+        QTest::keyClick(&slider, key);
+        QCOMPARE(slider.value(), 2.0);
+        QCOMPARE(changed.count(), beforeKeyReset + 1);
+        QTest::keyClick(&slider, key);
+        QCOMPARE(changed.count(), beforeKeyReset + 1);
+    }
+    QVERIFY(moved.isEmpty());
     slider.setValue(0);
     const auto beforeReset = changed.count();
     const QPoint center(110, 10);
