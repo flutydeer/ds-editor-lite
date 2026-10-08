@@ -1,5 +1,7 @@
 #include "AsyncFileDomainSupport.h"
 
+#include <lite/ProjectModel/AppModel/Track.h>
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -980,6 +982,33 @@ namespace {
 
         suite.run(
             Automation::OperationIds::exports::audio::start,
+            QStringLiteral("one-export-per-document"), [&] {
+                auto state = harness.audioExportState();
+                state->backendState = Automation::AudioExportBackendState::Succeeded;
+                const auto first = runtime.audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("first.wav")), {});
+                const auto second = runtime.audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("second.wav")), {});
+                suite.expect(first &&
+                                 isError(second, Automation::AutomationErrorCode::Busy,
+                                         Automation::OperationIds::exports::audio::start) &&
+                                 second.getError().taskId == first.get().taskId &&
+                                 harness.audioScheduler.pendingCount() == 1,
+                             QStringLiteral("a second export of one document must be refused "
+                                            "while the first is queued"));
+                if (first)
+                    harness.audioScheduler.runNext();
+                const auto third = runtime.audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("third.wav")), {});
+                suite.expect(third && harness.audioScheduler.pendingCount() == 1,
+                             QStringLiteral("an export must be accepted after the previous "
+                                            "export has finished"));
+                if (third)
+                    harness.audioScheduler.runNext();
+            });
+
+        suite.run(
+            Automation::OperationIds::exports::audio::start,
             QStringLiteral("deferred-publication-after-final-authorization"), [&] {
                 auto state = harness.audioExportState();
                 state->backendState = Automation::AudioExportBackendState::Succeeded;
@@ -1187,9 +1216,12 @@ namespace {
                           runtime.extractions().startMidi(harness.context(), harness.audioClipId());
                       const auto state = harness.midiStates.last();
                       const auto ran = harness.extractionScheduler.runNext();
+                      // The second note has zero length. The interval tree of the project model
+                      // rejects an empty interval; therefore the extraction must drop the note.
                       state->complete({
                           .state = Automation::ExtractionBackendState::Succeeded,
-                          .notes = {{.keyIndex = 62, .localStart = 10, .length = 240}},
+                          .notes = {{.keyIndex = 62, .localStart = 10, .length = 240},
+                                    {.keyIndex = 64, .localStart = 300, .length = 0}},
                       });
                       const auto terminal =
                           accepted
@@ -1202,6 +1234,16 @@ namespace {
                                        runtime.documentVersion().revision == base.revision + 1 &&
                                        harness.model().tracks().size() == tracksBefore + 1,
                                    QStringLiteral("MIDI extraction must atomically add one track"));
+                      const auto *createdTrack = harness.model().tracks().last();
+                      const auto createdClips =
+                          createdTrack ? createdTrack->clips().toList() : QList<Clip *>();
+                      const auto *createdClip =
+                          createdClips.isEmpty()
+                              ? nullptr
+                              : dynamic_cast<const SingingClip *>(createdClips.first());
+                      suite.expect(createdClip && createdClip->notes().toList().size() == 1,
+                                   QStringLiteral("MIDI extraction must drop a zero-length "
+                                                  "note"));
 
                       Automation::MidiExtractionOptionsDto overflowingMerge;
                       overflowingMerge.destinationMode = QStringLiteral("merge_into_clip");

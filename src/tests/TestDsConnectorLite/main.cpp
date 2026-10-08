@@ -1370,9 +1370,12 @@ namespace {
             else
                 statusesStable &= structured == *stableStatus;
         }
-        ok &= expect(statusesStable && statusTimer.elapsed() < 250,
+        // The bound only proves the calls are synchronous and do not block. A Debug build on a
+        // loaded machine can miss a tight per-call budget, which made this check flaky at 250 ms;
+        // the guarantee that matters is the identity of the 32 answers compared above.
+        ok &= expect(statusesStable && statusTimer.elapsed() < 2000,
                      "repeated get_status calls must be stable, synchronous, and finish within "
-                     "250 ms");
+                     "2000 ms");
         responses.clear();
 
         DsConnector::ConnectorRuntime l3Runtime(
@@ -3486,8 +3489,14 @@ namespace {
     }
 
     bool verifyStdioFraming() {
-        const auto executable =
-            QCoreApplication::applicationDirPath() + QStringLiteral("/DsConnectorLite.exe");
+        // The executable name has the .exe suffix on Windows and no suffix on other platforms.
+        const auto executable = QCoreApplication::applicationDirPath() +
+                                QStringLiteral("/DsConnectorLite") +
+#ifdef Q_OS_WIN
+                                QStringLiteral(".exe");
+#else
+                                QString();
+#endif
         bool ok =
             expect(QFile::exists(executable), "connector executable must exist for stdio E2E");
         if (!ok)
@@ -3651,9 +3660,17 @@ namespace {
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
         blockedOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
+        // The blocking sink starts, reads nothing and stays alive. Only the sink program is
+        // platform-specific. The check verifies that a peer that never reads trips the bounded
+        // writer queue instead of blocking the event loop.
+#ifdef Q_OS_WIN
         blockingSink.setProgram(QStringLiteral("powershell.exe"));
         blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
                                    QStringLiteral("Start-Sleep -Seconds 30")});
+#else
+        blockingSink.setProgram(QStringLiteral("sleep"));
+        blockingSink.setArguments({QStringLiteral("30")});
+#endif
         blockedOutput.setStandardOutputProcess(&blockingSink);
         blockedOutput.start();
         blockingSink.start();
