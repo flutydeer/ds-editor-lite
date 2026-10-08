@@ -148,23 +148,26 @@ PHONEME_ENCODER_INPUTS = {"ph_dur"}
 LINGUISTIC_MODE_DEFAULTS = {"variance": "phoneme", "pitch": "phoneme"}
 
 # Input names that only a Duration predictor can receive: the division of a lyric into words, and
-# the frame budget of every word. A predictor of the word level architecture splits the frame budget
-# of every word, or adds the position of a phoneme inside its word, and reads them as two further
-# inputs beside the encoder state. Duration is the only role whose predictor can receive them: its
+# the frame budget of every word. A predictor of the attention architecture allocates the frame
+# budget of every word to the phonemes of that word, and reads them as two further inputs beside the
+# encoder state. Duration is the only role whose predictor can receive them: its
 # task hands the tensors over for a `dur_type` that names them (`DurationTask.cpp`:268-290),
 # copying them from the input set that it built for the encoder rather than from its outputs
 # (`DurationTask.cpp`:102-112), and Pitch and Variance build their predictor input without one, so a
 # model of either role that declares such an input cannot render.
 WORD_PREDICTOR_INPUTS = {"word_div", "word_dur"}
 
-# The `dur_type` values of a Duration predictor, keyed by the word level inputs that each value
-# declares. `abs` declares the division alone: the predictor predicts absolute phoneme durations and
-# locates the word of a phoneme with the division. `rel` declares the budget beside the division:
-# the predictor splits the frame budget of every word instead of predicting absolute durations. A
-# predictor that reads no word level input declares no value, because the absent field is the third
-# shape.
+# The `dur_type` values of a Duration predictor, keyed by the word level inputs that the model
+# declares. The architecture of the predictor decides the value (DiffSinger#343): `rel` is the
+# attention predictor, which allocates the frame budget of every word to the phonemes of that word
+# and reads the division beside the budget, while `abs` is every other architecture (fs2, resnet and
+# the other convolutions), which predicts absolute phoneme durations without the word structure of
+# the score and reads no word level input at all. There is no third value and no third shape: a
+# division without a budget is neither. `abs` reads no word level input, and `rel` reads the budget
+# through the division, so a predictor that declares the division alone matches no value and is
+# reported.
 WORD_PREDICTOR_DUR_TYPES = {
-    frozenset({"word_div"}): "abs",
+    frozenset(): "abs",
     frozenset({"word_div", "word_dur"}): "rel",
 }
 
@@ -869,6 +872,16 @@ def dsconfig_linguistic_mode(directory: Path):
     return None
 
 
+def matches_dur_type(value, dur_type: str) -> bool:
+    """Returns whether the `dur_type` that a source declaration carries names *dur_type*.
+
+    The field is read as a string and compared without case (`Parser_impl.h`:341-355), so a spelling
+    that differs only in case or in surrounding space names the same inputs and is not a
+    disagreement. A value of any other type cannot name them.
+    """
+    return isinstance(value, str) and value.strip().lower() == dur_type
+
+
 def declarations_from_model(directory: Path, configuration: dict, kind: str,
                             report: Report) -> dict:
     """Returns the declaration keys that the exported models of a role require.
@@ -883,15 +896,22 @@ def declarations_from_model(directory: Path, configuration: dict, kind: str,
     from the default. The dsconfig.yaml beside the model is the second opinion, and a disagreement
     is reported there, because that file is the more likely one to be outdated.
 
-    `dur_type` declares the word level inputs of a Duration predictor, which reads the division of a
-    lyric into words, and usually the budget of every word, beside the encoder state. The Duration
-    task hands those tensors over only for a value that names them, copying them from the input set
-    it built for the encoder rather than from its outputs (`DurationTask.cpp`:102-112,268-290),
-    which is why `linguisticMode` cannot express them: it selects how the encoder is fed, and
-    Duration always prepares the word encoder. The two values that exist are `abs`, which declares
-    the division alone, and `rel`, which declares the budget beside it. A predictor that reads no
-    word level input matches neither, because the absent field is the third shape, and a budget
-    without the division matches no value at all.
+    `dur_type` declares the word level inputs of a Duration predictor, and the architecture of the
+    predictor decides which value it is (DiffSinger#343): `rel` is the attention predictor, which
+    allocates the frame budget of every word to the phonemes of that word, so it reads the division
+    beside the budget, while `abs` is every other architecture (fs2, resnet and the other
+    convolutions), which predicts absolute phoneme durations without the word structure of the score
+    and reads no word level input. The value is therefore written for every Duration predictor whose
+    inputs can be read, `abs` included, because naming the architecture of the model is what the
+    field is for. The Duration task hands the two tensors over only for a value that names them,
+    copying them from the input set it built for the encoder rather than from its outputs
+    (`DurationTask.cpp`:102-112,268-290), which is why `linguisticMode` cannot express them: it
+    selects how the encoder is fed, and Duration always prepares the word encoder. A predictor that
+    declares one of the two names alone matches neither value, because a division read without a
+    budget is not `abs` and the budget is read through the division, so its shape is reported. A
+    `dur_type` that the source package already carries is checked against the model as well: a value
+    that disagrees is reported instead of being kept or overwritten, because the session rejects
+    both an input that the model does not expect and an expected one that is missing.
 
     Returns an empty map when neither key applies, and reports what the models decide, including
     the cases in which nothing can be written: a Duration predictor whose names cannot be read
@@ -940,15 +960,28 @@ def declarations_from_model(directory: Path, configuration: dict, kind: str,
     declared = WORD_PREDICTOR_INPUTS & set(names)
     if kind == DURATION_KIND:
         dur_type = WORD_PREDICTOR_DUR_TYPES.get(frozenset(declared))
-        if dur_type is not None:
-            declarations["dur_type"] = dur_type
-        elif declared:
-            # The budget of a word is read through the division, so this shape matches no value:
-            # declaring the division instead would name an input that the model does not expect, so
-            # the predictor is reported rather than declared.
-            report.error(f"{directory.name}: the predictor takes word_dur without word_div, so no "
-                         f"dur_type value describes it, and the interpreter reads the budget of a "
-                         f"word through the division")
+        if dur_type is None:
+            # Every value describes either both word inputs or none of them, so this shape is one of
+            # the two that no value describes: the budget alone cannot be read, because the
+            # interpreter locates the word of a phoneme through the division, and the division alone
+            # is not `abs`, which reads no word level input. Declaring anything here would name
+            # inputs that the model does not expect, so the shape is reported.
+            shape = " and ".join(f'"{name}"' for name in sorted(declared))
+            report.error(f"{directory.name}: the predictor takes {shape} without the other word "
+                         f"level input, so no dur_type value describes it: \"rel\" reads word_div "
+                         f"and word_dur together, and \"abs\" reads no word level input")
+        else:
+            existing = configuration.get("dur_type")
+            if "dur_type" in configuration and not matches_dur_type(existing, dur_type):
+                # A source package that already loads is not left alone: the model decides the
+                # field, and a value that disagrees with it names inputs that the model does not
+                # expect, or omits ones that it does. Carrying it over would keep the package
+                # broken, and overwriting it silently would hide that the package was wrong.
+                reads = "word_div and word_dur" if declared else "no word level input"
+                report.error(f"{directory.name}: the declaration carries dur_type={existing!r}, "
+                             f"but the predictor reads {reads}, which is dur_type={dur_type!r}")
+            else:
+                declarations["dur_type"] = dur_type
     elif declared:
         report.warn(f"{directory.name}: the {kind} predictor takes {', '.join(sorted(declared))}, "
                     f"which its task cannot supply, so the model cannot render")
@@ -1086,8 +1119,10 @@ def convert_declaration(path: Path, report: Report):
     # Declarations that no 2.3 file carries, and that the models therefore decide: the granularity
     # of the encoder, and the word level inputs of a Duration predictor. Naming a key that a model
     # does not need is as wrong as omitting one that it does, because the session rejects both an
-    # unexpected and a missing input, so every key is derived from a model, and a package that
-    # already loads is left unchanged.
+    # unexpected and a missing input, so every key is derived from a model, and a package whose
+    # declaration already agrees with its model is left unchanged. A value that the source package
+    # already carries is therefore not kept when it disagrees with the model: that disagreement is
+    # reported by `declarations_from_model`, and the conversion stops.
     declarations = declarations_from_model(path.parent, configuration, kind, report)
     if declarations:
         configuration.update(declarations)

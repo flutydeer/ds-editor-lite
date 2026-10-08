@@ -33,14 +33,16 @@
   （[tools/pack-voicebank-zip.py](tools/pack-voicebank-zip.py)）。
 - 放对搜索根：成品直接放本机声库搜索根下（该目录不入库），编辑器即能识别（本仓成品就是这样验证的）。
 - 交付前自证：解包成员数、`SHA256` 与字节数逐条比对，打包脚本写完 zip 后自动跑这项校验。
-- **词级 duration predictor 必须声明词级输入**：predictor 若声明 `word_div`/`word_dur`，包里必须写
-  `dur_type`，取值 `"abs"` 或 `"rel"`，只有 `"rel"` 才需要 `word_div` 与 `word_dur` 两个输入，
-  省略表示不声明任何词级输入，取值非法会被解释器拒绝。转换器
-  [../../scripts/convert-voicebank.py](../../scripts/convert-voicebank.py) 按 **predictor 的 onnx 输入名**补这个字段
+- **词级 duration predictor 必须声明词级输入，`dur_type` 的取值由 predictor 架构决定**（openvpi/DiffSinger#343）：
+  `"rel"` 是 attn 预测器，声明并消费 `word_div` 与 `word_dur` **两者**。`"abs"` 是其它架构（fs2 / resnet 等卷积），
+  **零词级输入**，既不声明也不消费 `word_div`。上游对**每个** duration 模型都写该键，**不存在"只声明 `word_div`"
+  这一档**，`{word_div}` 单独出现属非法形状（同理 `{word_dur}` 单独出现），转换器两种都报错。源包里已存在的
+  `dur_type` 与模型推断不一致时同样报错，取值非法会被解释器拒绝。转换器
+  [../../scripts/convert-voicebank.py](../../scripts/convert-voicebank.py) 按 **predictor 的 onnx 输入名**写这个字段
   （`declarations_from_model`），判据只能是模型：2.3 的 `predict_dur` 描述的是 encoder，
-  而 word encoder 的 predictor 通常只吃 `encoder_out`（本机 4 份真实包都是这种形状）。缺字段的表现是
-  **装上以后不能合**：运行期报 `missing input names: "word_div", "word_dur"`（2026-10-07 实测，
-  `1007_wolf_club`）。语义上这两张量就是 encoder 收到的那两张（`int64 [1, n_words]`，
+  而 word encoder 的 predictor 通常只吃 `encoder_out`（本机 4 份真实包都是这种形状，按 #343 它们都写 `abs`）。
+  `rel` 形状的包缺这个字段的表现是 **装上以后不能合**：运行期报 `missing input names: "word_div", "word_dur"`
+  （2026-10-07 实测，`1007_wolf_club`）。语义上这两张量就是 encoder 收到的那两张（`int64 [1, n_words]`，
   逐字段一致），所以声明之后两个模型不可能对词切分或词内预算各说各话。
 
 ## 3. 依赖声明要点（声库 → wolf 语言包）
