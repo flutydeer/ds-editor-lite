@@ -568,6 +568,8 @@ MIDI 导入的拍号校验复用 `Timeline::isTimeSignatureProjectionValid`，�
 
 独立设置页共用 `OptionsPanelFixture` 打开实际侧栏条目，并补齐产品容器提供的主题样式根。通用设置与音频/MIDI 设置复用同一准备路径，原有键鼠输入、保存及重开检查在实际 QSS 下执行。滑块另外检查明暗主题切换后颜色同步且控制值保留。
 
+主窗口设置工作流以嵌入和独立窗口两行共用实际菜单、选项修改、后台撤销快捷键隔离及关闭后的编辑恢复。独立窗口经过生产 Dialog 包装和模态事件循环，关闭后对象释放，重开保留设置。offscreen 不提供窗口管理器的所属窗口重新激活，用例在该插件下显式激活原窗口，再检查 Qt 保留的原焦点。原生窗口仍检查正常焦点恢复，生产实现未因此改动。
+
 ## 5. CI 与覆盖率采集
 
 CI 使用 Linux x64、Windows x64 和 macOS arm64 矩阵，runner 均采用 latest。每个平台分段完成环境、依赖、配置、完整构建、测试和产物收集。Linux 使用 `coverage` preset 和 `build/Coverage`，测试后由独立 Coverage 步骤生成报告。Windows/macOS 使用普通 Debug `tests` preset 和 `build/Tests`，不运行覆盖率采集器。面向 `main` 的 PR 更新及 `main` 推送触发验证。Qt、vcpkg 和依赖版本由 workflow、manifest 及 overlay 声明。统一依赖引导脚本按 triplet 执行，Windows 构建复用项目 DevShell wrapper。各平台独立保留结果，构建或测试失败均传播失败退出码并收集诊断材料。普通 GUI 使用 offscreen，原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。

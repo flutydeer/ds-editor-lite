@@ -95,7 +95,7 @@ Windows wrapper 将本地结果写到 `build/test-results`。直接 CTest 可加
 
 `TestApplicationGui` 共用应用与数据隔离环境，钢琴窗、轨道、参数曲线、导出配置、外观设置和声线混合分别在所属源文件中建立实际控件。设置输入等待窗口激活与编辑焦点，再通过真实事件提交并读取持久化结果。取消按对应对话框契约检查，不假定即时设置具有回滚行为。按测试程序或 slot 定向执行即可，不另设 GUI 通用 runner。组件级套件与应用共用 `EditorGuiCore` 的生产实现及资源，原生桌面条件和实验后端范围见[测试大纲](test-outline.md)。
 
-主窗口面板、嵌入设置、日志和 Tagger 用例同属 ApplicationGui，使用真实控件及通知总线，结束后恢复配置、规则和窗口接线。`newDocumentHonorsTheSaveDecision` 虽复用该程序的 AppContext，职责属于文件工作流：只替换保存提示及路径选择的外部回答，保留生产 DocumentWorkflowController、状态机和保存器。不据此声明真实保存对话框已被操作。
+主窗口面板、嵌入及独立设置、日志和 Tagger 用例同属 ApplicationGui，使用真实控件及通知总线，结束后恢复配置、规则和窗口接线。独立设置在 offscreen 下显式重新激活所属窗口，再检查保留的焦点，原生窗口检查正常恢复。`newDocumentHonorsTheSaveDecision` 虽复用该程序的 AppContext，职责属于文件工作流：只替换保存提示及路径选择的外部回答，保留生产 DocumentWorkflowController、状态机和保存器。不据此声明真实保存对话框已被操作。
 
 完整窗口用例先完成窗口初始化，再准备受测工程。通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
 

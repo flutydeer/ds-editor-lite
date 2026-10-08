@@ -2163,13 +2163,21 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::embeddedSettingsSuspendAndRestoreBackgroundInteraction() {
+void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {
+    QTest::addColumn<bool>("embedded");
+    QTest::newRow("embedded") << true;
+    QTest::newRow("standalone") << false;
+}
+
+void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction() {
+    QFETCH(bool, embedded);
     auto &runtime = *context->m_coreRuntime;
     const auto options = runtime.settings().getSettings();
     QVERIFY(options);
     const auto restoreOptions =
         qScopeGuard([&] { runtime.settings().updateAppearance({}, options.get().appearance); });
     MainWindowFixture host;
+    appOptions->developer()->enableEmbeddedOptionsDialog = embedded;
     host.show();
     if (QTest::currentTestFailed())
         return;
@@ -2206,38 +2214,91 @@ void ApplicationGuiTests::embeddedSettingsSuspendAndRestoreBackgroundInteraction
     const auto before = runtime.documentVersion();
     const auto *historyEntry = historyManager->nextUndoEntry();
     QVERIFY(historyEntry);
-    openAppearanceFromMenu(window);
-    if (QTest::currentTestFailed())
-        return;
-    auto *modal = window.findChild<EmbeddedModalHost *>();
-    auto *panel = window.findChild<AppOptionsDialog *>();
-    QVERIFY(modal);
-    QVERIFY(panel);
-    QTRY_VERIFY(modal->isOpen() && panel->isVisible());
-    QVERIFY(!window.focusEditorRegion(EditorViewGlobal::Region::TrackPanel));
-    auto *animation = panel->findChild<SwitchButton *>("appearanceAnimationEnabled");
-    QVERIFY(animation);
-    QTRY_VERIFY(animation->isVisible());
-    QTest::mouseClick(animation, Qt::LeftButton);
-    QCOMPARE(animation->value(), !options.get().appearance.animationEnabled);
-    QCOMPARE(appOptions->appearance()->animationEnabled, animation->value());
-    QTest::keySequence(panel, undo->shortcut());
-    QVERIFY(undoRequested.isEmpty());
-    QVERIFY(singingClip->findNoteById(noteId));
-    QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
-    QTest::keyClick(panel, Qt::Key_Escape);
-    QTRY_VERIFY(!modal->isOpen());
-    QTRY_COMPARE(QApplication::focusWidget(), previousFocus.data());
-    openAppearanceFromMenu(window);
-    if (QTest::currentTestFailed())
-        return;
-    QTRY_VERIFY(modal->isOpen() && panel->isVisible());
-    QCOMPARE(animation->value(), !options.get().appearance.animationEnabled);
-    auto *frame = modal->findChild<QWidget *>("EmbeddedModalPanel");
-    QVERIFY(frame);
-    QVERIFY(!frame->geometry().contains(QPoint(2, 2)));
-    QTest::mouseClick(modal, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
-    QTRY_VERIFY(!modal->isOpen());
+    const auto exercisePanel = [&](AppOptionsDialog *panel, bool change) {
+        QVERIFY(panel);
+        auto *animation = panel->findChild<SwitchButton *>("appearanceAnimationEnabled");
+        QVERIFY(animation);
+        QTRY_VERIFY(animation->isVisible());
+        if (change)
+            QTest::mouseClick(animation, Qt::LeftButton);
+        QCOMPARE(animation->value(), !options.get().appearance.animationEnabled);
+        QCOMPARE(appOptions->appearance()->animationEnabled, animation->value());
+        QTest::keySequence(panel, undo->shortcut());
+        QVERIFY(undoRequested.isEmpty());
+        QVERIFY(singingClip->findNoteById(noteId));
+        QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+    };
+    if (embedded) {
+        openAppearanceFromMenu(window);
+        if (QTest::currentTestFailed())
+            return;
+        auto *modal = window.findChild<EmbeddedModalHost *>();
+        auto *panel = window.findChild<AppOptionsDialog *>();
+        QVERIFY(modal && panel);
+        QTRY_VERIFY(modal->isOpen() && panel->isVisible());
+        QVERIFY(!window.focusEditorRegion(EditorViewGlobal::Region::TrackPanel));
+        exercisePanel(panel, true);
+        if (QTest::currentTestFailed())
+            return;
+        QTest::keyClick(panel, Qt::Key_Escape);
+        QTRY_VERIFY(!modal->isOpen());
+        QTRY_COMPARE(QApplication::focusWidget(), previousFocus.data());
+        openAppearanceFromMenu(window);
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_VERIFY(modal->isOpen() && panel->isVisible());
+        exercisePanel(panel, false);
+        if (QTest::currentTestFailed())
+            return;
+        auto *frame = modal->findChild<QWidget *>("EmbeddedModalPanel");
+        QVERIFY(frame);
+        QVERIFY(!frame->geometry().contains(QPoint(2, 2)));
+        QTest::mouseClick(modal, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QTRY_VERIFY(!modal->isOpen());
+    } else {
+        for (const bool change : {true, false}) {
+            bool handled = false;
+            QPointer<Dialog> observed;
+            QTimer answer;
+            QObject::connect(&answer, &QTimer::timeout, &window, [&] {
+                auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+                if (!dialog)
+                    return;
+                auto *panel = dialog->findChild<AppOptionsDialog *>();
+                if (!panel)
+                    return;
+                answer.stop();
+                handled = true;
+                observed = dialog;
+                const auto closeOnFailure = qScopeGuard([&] {
+                    if (observed)
+                        observed->reject();
+                });
+                exercisePanel(panel, change);
+                if (QTest::currentTestFailed())
+                    return;
+                QTest::keyClick(panel, Qt::Key_Escape);
+            });
+            QTimer deadline;
+            deadline.setSingleShot(true);
+            QObject::connect(&deadline, &QTimer::timeout, &window, [] {
+                if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                    dialog->reject();
+            });
+            answer.start(10);
+            deadline.start(10000);
+            openAppearanceFromMenu(window);
+            answer.stop();
+            deadline.stop();
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY2(handled, "The standalone options dialog did not become available");
+            QTRY_VERIFY(observed.isNull());
+            // Offscreen has no window manager to reactivate the owner after a modal closes.
+            if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+                window.activateWindow();
+        }
+    }
     QTRY_COMPARE(QApplication::focusWidget(), previousFocus.data());
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
