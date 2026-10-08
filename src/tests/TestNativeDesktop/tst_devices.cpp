@@ -303,6 +303,52 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     QCOMPARE(runtime.documentVersion(), beforeSettings);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
 
+    const auto currentDeviceName = deviceContext->device()->name();
+    const auto currentBufferSize = deviceContext->adoptedBufferSize();
+    const auto currentSampleRate = deviceContext->adoptedSampleRate();
+    const auto *settingsUndo = historyManager->nextUndoEntry();
+    const Automation::AudioDeviceSettingsPatchDto patch{
+        .driverName = originalDriverName,
+        .deviceName = originalDeviceName,
+        .bufferSize = originalBufferSize,
+        .sampleRate = originalSampleRate,
+    };
+    const auto preview = runtime.settings().updateAudioDevice(
+        {.validateOnly = true, .source = Automation::InvocationSource::PublicJsonRpc}, patch);
+    QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+    QVERIFY(preview.get().validatedOnly);
+    QCOMPARE(deviceContext->device()->name(), currentDeviceName);
+    QCOMPARE(deviceContext->adoptedBufferSize(), currentBufferSize);
+    QCOMPARE(deviceContext->adoptedSampleRate(), currentSampleRate);
+    const auto applied = runtime.settings().updateAudioDevice(
+        {.source = Automation::InvocationSource::PublicJsonRpc}, patch);
+    QVERIFY2(applied, qPrintable(applied ? QString{} : applied.getError().message));
+    QVERIFY(!applied.get().validatedOnly);
+    QVERIFY(deviceContext->device()->isOpen());
+    QCOMPARE(deviceContext->driver()->name(), originalDriverName);
+    QCOMPARE(deviceContext->device()->name(), originalDeviceName);
+    QCOMPARE(deviceContext->adoptedBufferSize(), originalBufferSize);
+    QCOMPARE(deviceContext->adoptedSampleRate(), originalSampleRate);
+    const auto queried = runtime.settings().queryPublicSettings({QStringLiteral("audio_device")});
+    QVERIFY(queried && queried.get().audioDevice);
+    const auto &publicDevice = *queried.get().audioDevice;
+    QCOMPARE(publicDevice.configured.driverName, publicDevice.effective.driverName);
+    QCOMPARE(publicDevice.configured.deviceName, publicDevice.effective.deviceName);
+    QCOMPARE(publicDevice.configured.bufferSize, publicDevice.effective.bufferSize);
+    QCOMPARE(publicDevice.configured.sampleRate, publicDevice.effective.sampleRate);
+    AppOptions persisted;
+    QCOMPARE(persisted.audio()->obj.value(QStringLiteral("driverName")).toString(),
+             originalDriverName);
+    QCOMPARE(persisted.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+             originalDeviceName);
+    QCOMPARE(persisted.audio()->obj.value(QStringLiteral("adoptedBufferSize")).toInteger(),
+             originalBufferSize);
+    QCOMPARE(persisted.audio()->obj.value(QStringLiteral("adoptedSampleRate")).toDouble(),
+             originalSampleRate);
+    QCOMPARE(runtime.documentVersion(), beforeSettings);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
+    QCOMPARE(historyManager->nextUndoEntry(), settingsUndo);
+
     auto *controls = mainWindow.window->findChild<PlaybackView *>();
     QVERIFY(controls);
     auto *play = controls->findChild<QPushButton *>("btnPlay");
