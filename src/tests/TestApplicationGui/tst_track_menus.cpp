@@ -14,6 +14,7 @@
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "../TestSupport/AudioBackendFixture.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -43,6 +44,8 @@
 #include <QWindow>
 #include <QLabel>
 #include <QtTest/QTest>
+
+#include <functional>
 
 namespace {
     TrackControlView *trackControls(TrackEditorView &editor, int id) {
@@ -101,6 +104,61 @@ namespace {
         QVERIFY(canvas->setViewportScale(2, 1));
         canvas->setViewportStartTick(0);
         QCoreApplication::processEvents();
+    }
+
+    void chooseTrackAudioFile(QWidget *surface, const QPoint &position, const QString &menuText,
+                              const QString &path, const bool accept,
+                              const std::function<void()> &verifyPending) {
+        const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restoreDialogs = qScopeGuard([&] {
+            QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled);
+        });
+        QTimer chooseFile;
+        chooseFile.setInterval(10);
+        QElapsedTimer waiting;
+        bool choseFile = false;
+        QObject::connect(&chooseFile, &QTimer::timeout, surface, [&] {
+            QPointer<QFileDialog> picker =
+                qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            if (!picker) {
+                if (waiting.hasExpired(5000)) {
+                    chooseFile.stop();
+                    QFAIL("The audio file picker did not become active");
+                }
+                return;
+            }
+            chooseFile.stop();
+            const auto closeOnFailure = qScopeGuard([&] {
+                if (picker && QTest::currentTestFailed())
+                    picker->reject();
+            });
+            auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+            QVERIFY(name);
+            QTest::mouseClick(name, Qt::LeftButton);
+            QTRY_VERIFY(name->hasFocus());
+            QTest::keySequence(name, QKeySequence::SelectAll);
+            QApplication::clipboard()->setText(QDir::toNativeSeparators(path));
+            QTest::keySequence(name, QKeySequence::Paste);
+            verifyPending();
+            if (QTest::currentTestFailed())
+                return;
+            if (accept) {
+                auto *buttons = picker->findChild<QDialogButtonBox *>();
+                QVERIFY(buttons);
+                auto *open = buttons->button(QDialogButtonBox::Open);
+                QVERIFY(open && open->isEnabled());
+                QTest::mouseClick(open, Qt::LeftButton);
+            } else {
+                QTest::keyClick(name, Qt::Key_Escape);
+            }
+            choseFile = true;
+        });
+        waiting.start();
+        chooseFile.start();
+        chooseTrackMenu(surface, position, menuText);
+        chooseFile.stop();
+        QVERIFY(choseFile);
     }
 }
 
@@ -199,8 +257,10 @@ void ApplicationGuiTests::trackAudioMenuPreparesClipOrCancels_data() {
 void ApplicationGuiTests::trackAudioMenuPreparesClipOrCancels() {
     QFETCH(bool, accept);
     QFETCH(bool, failFirstDecode);
-    QTemporaryDir directory;
+    QTemporaryDir directory(dataRoot.filePath(QStringLiteral("track-audio-XXXXXX")));
     QVERIFY(directory.isValid());
+    // The application owns these files until cached audio handles are released.
+    directory.setAutoRemove(false);
     const auto path = directory.filePath(QStringLiteral("短音.wav"));
     const auto error = createWaveFixture(path);
     QVERIFY2(error.isEmpty(), qPrintable(error));
@@ -220,59 +280,16 @@ void ApplicationGuiTests::trackAudioMenuPreparesClipOrCancels() {
     historyManager->reset();
     const auto before = runtime.documentVersion();
     const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
-    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
-    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
-    const auto restoreDialogs = qScopeGuard(
-        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
     constexpr int start = 960;
     const auto chooseAudioFile = [&] {
-        QTimer chooseFile;
-        chooseFile.setInterval(10);
-        QElapsedTimer waiting;
-        bool choseFile = false;
-        connect(&chooseFile, &QTimer::timeout, &editor, [&] {
-            QPointer<QFileDialog> picker =
-                qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
-            if (!picker) {
-                if (waiting.hasExpired(5000)) {
-                    chooseFile.stop();
-                    QFAIL("The audio file picker did not become active");
-                }
-                return;
-            }
-            chooseFile.stop();
-            const auto closeOnFailure = qScopeGuard([&] {
-                if (picker && QTest::currentTestFailed())
-                    picker->reject();
-            });
-            auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
-            QVERIFY(name);
-            QTest::mouseClick(name, Qt::LeftButton);
-            QTRY_VERIFY(name->hasFocus());
-            QTest::keySequence(name, QKeySequence::SelectAll);
-            QApplication::clipboard()->setText(QDir::toNativeSeparators(path));
-            QTest::keySequence(name, QKeySequence::Paste);
-            QCOMPARE(track->clips().count(), 0);
-            QCOMPARE(runtime.documentVersion(), before);
-            if (accept) {
-                auto *buttons = picker->findChild<QDialogButtonBox *>();
-                QVERIFY(buttons);
-                auto *open = buttons->button(QDialogButtonBox::Open);
-                QVERIFY(open && open->isEnabled());
-                QTest::mouseClick(open, Qt::LeftButton);
-            } else {
-                QTest::keyClick(name, Qt::Key_Escape);
-            }
-            choseFile = true;
-        });
         const auto position = canvas->mapFromScene(
             QPointF(canvas->sceneXForTick(start), TracksEditorGlobal::trackHeight * 0.5));
-        waiting.start();
-        chooseFile.start();
-        chooseTrackMenu(canvas->viewport(), position,
-                        TrackEditorContextMenuController::tr("Insert audio clip..."));
-        chooseFile.stop();
-        QVERIFY(choseFile);
+        chooseTrackAudioFile(canvas->viewport(), position,
+                             TrackEditorContextMenuController::tr("Insert audio clip..."), path,
+                             accept, [&] {
+                                 QCOMPARE(track->clips().count(), 0);
+                                 QCOMPARE(runtime.documentVersion(), before);
+                             });
     };
 
     QObject observations;
@@ -347,5 +364,90 @@ void ApplicationGuiTests::trackAudioMenuPreparesClipOrCancels() {
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
     QTRY_COMPARE(track->clips().count(), 1);
+    QVERIFY(editor.findClipItemById(id));
+}
+
+void ApplicationGuiTests::trackAudioRelinkKeepsClipIdentityAndCanBeCanceled() {
+    QTemporaryDir directory(dataRoot.filePath(QStringLiteral("track-relink-XXXXXX")));
+    QVERIFY(directory.isValid());
+    directory.setAutoRemove(false);
+    const auto originalPath = directory.filePath(QStringLiteral("original.wav"));
+    const auto replacementPath = directory.filePath(QStringLiteral("replacement.wav"));
+    QVERIFY(TestSupport::writeWave(originalPath, QVector<float>(1600, 0.2f), 1, 8000));
+    const auto error = createWaveFixture(replacementPath);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    TrackEditorView editor;
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    Automation::TrackDraftDto trackDraft;
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Audio;
+    clipDraft.properties.name = QStringLiteral("Original audio");
+    clipDraft.properties.start = 960;
+    clipDraft.properties.length = 480;
+    clipDraft.properties.clipLen = 480;
+    clipDraft.audioPath = originalPath;
+    trackDraft.clips.append(clipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    auto *track = context->m_appModel->tracks().first();
+    auto *audio = qobject_cast<AudioClip *>(*track->clips().begin());
+    QVERIFY(audio);
+    const auto id = audio->id();
+    QTRY_COMPARE(audio->audioInfo().frames, 1600);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    showTrackEditor(editor, canvas);
+    if (QTest::currentTestFailed())
+        return;
+    auto *item = editor.findClipItemById(id);
+    QVERIFY(item);
+    const auto position = canvas->mapFromScene(item->sceneBoundingRect().center());
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto verifyPending = [&] {
+        QCOMPARE(audio->path(), originalPath);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+        QVERIFY(!historyManager->canUndo());
+    };
+    chooseTrackAudioFile(canvas->viewport(), position,
+                         TrackEditorContextMenuController::tr("Relink Audio File..."),
+                         replacementPath, false, verifyPending);
+    if (QTest::currentTestFailed())
+        return;
+    verifyPending();
+    QVERIFY(taskManager->tasks().isEmpty());
+    chooseTrackAudioFile(canvas->viewport(), position,
+                         TrackEditorContextMenuController::tr("Relink Audio File..."),
+                         replacementPath, true, verifyPending);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE(audio->audioInfo().frames, 800);
+    QTRY_VERIFY(!audio->pathInfo().sha512.isEmpty() && taskManager->tasks().isEmpty());
+    QCOMPARE(audio->path(), replacementPath);
+    QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(audio->audioInfo().sampleRate, 8000);
+    QVERIFY(!audio->audioInfo().peakCache.isEmpty());
+    QCOMPARE(audio->id(), id);
+    QCOMPARE(audio->name(), QStringLiteral("Original audio"));
+    QCOMPARE(audio->start(), 960);
+    QCOMPARE(audio->length(), 480);
+    QCOMPARE(audio->clipLen(), 480);
+    QCOMPARE(track->clips().count(), 1);
+    const auto relocated = TestSupport::projectSnapshot(*context->m_appModel);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QTRY_COMPARE(audio->audioInfo().frames, 1600);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QCOMPARE(audio->path(), originalPath);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QTRY_COMPARE(audio->audioInfo().frames, 800);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QCOMPARE(audio->id(), id);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), relocated);
     QVERIFY(editor.findClipItemById(id));
 }

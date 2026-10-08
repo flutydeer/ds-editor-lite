@@ -216,6 +216,7 @@ private slots:
     void trackMenusCreateCutAndDeleteWithUndo();
     void trackAudioMenuPreparesClipOrCancels_data();
     void trackAudioMenuPreparesClipOrCancels();
+    void trackAudioRelinkKeepsClipIdentityAndCanBeCanceled();
     void cleanup();
     void cleanupTestCase();
 

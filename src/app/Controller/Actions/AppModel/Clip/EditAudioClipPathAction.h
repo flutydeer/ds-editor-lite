@@ -22,8 +22,8 @@ public:
     void undo() override;
 
 private:
-    void apply(const QString &path, const AudioPathInfo &pathInfo,
-               const QJsonObject &formatData) const;
+    void apply(const QString &path, const AudioPathInfo &pathInfo, const QJsonObject &formatData,
+               bool hasFormatData) const;
 
     AudioClip *m_clip = nullptr;
     QString m_oldPath;
@@ -32,6 +32,7 @@ private:
     AudioPathInfo m_newPathInfo;
     QJsonObject m_oldFormatData;
     QJsonObject m_newFormatData;
+    bool m_hadFormatData = false;
     AudioClip::PathStatus m_oldStatus = AudioClip::PathStatus::Normal;
 };
 
