@@ -480,27 +480,45 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence_data() {
+    QTest::addColumn<bool>("tagger");
+    QTest::newRow("splitter") << false;
+    QTest::newRow("tagger") << true;
+}
+
 void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence() {
+    QFETCH(bool, tagger);
     auto &settings = runtime().settings();
     Automation::LyricRuleDraftDto draft;
-    draft.kind = Automation::LyricRuleKind::Tagger;
-    draft.name = QStringLiteral("Fixture language override");
-    draft.language = QStringLiteral("cmn");
+    draft.kind = tagger ? Automation::LyricRuleKind::Tagger : Automation::LyricRuleKind::Splitter;
+    draft.name = QStringLiteral("Fixture lyric override");
     draft.position = 0;
-    draft.entries = {
-        {.type = QStringLiteral("array"),
-         .value = {QStringLiteral("fixtureword")},
-         .tag = QStringLiteral("word")}
-    };
+    if (tagger) {
+        draft.language = QStringLiteral("cmn");
+        draft.entries = {
+            {.type = QStringLiteral("array"),
+             .value = {QStringLiteral("fixtureword")},
+             .tag = QStringLiteral("word")}
+        };
+    } else {
+        draft.regexes = {QStringLiteral("(fixture)")};
+    }
     const auto created = settings.createLyricRule({}, draft);
     QVERIFY2(created, qPrintable(created ? QString{} : created.getError().message));
     const auto id = created.get().rule.ruleId;
     const auto cleanup = qScopeGuard([&] { settings.deleteLyricRule({}, id); });
     const auto preview = settings.testLyricRules(QStringLiteral("fixtureword"));
     QVERIFY(preview);
-    QCOMPARE(preview.get().taggedTokens.size(), 1);
-    QCOMPARE(preview.get().taggedTokens.first().lyric, QStringLiteral("fixtureword"));
-    QCOMPARE(preview.get().taggedTokens.first().language, QStringLiteral("cmn"));
+    const QStringList words = tagger
+                                  ? QStringList{QStringLiteral("fixtureword")}
+                                  : QStringList{QStringLiteral("fixture"), QStringLiteral("word")};
+    QCOMPARE(preview.get().splitTokens, words);
+    QCOMPARE(preview.get().taggedTokens.size(), words.size());
+    for (qsizetype index = 0; index < words.size(); ++index) {
+        QCOMPARE(preview.get().taggedTokens.at(index).lyric, words.at(index));
+        QCOMPARE(preview.get().taggedTokens.at(index).language,
+                 tagger ? QStringLiteral("cmn") : QStringLiteral("eng"));
+    }
 
     const auto before = runtime().documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
@@ -508,8 +526,11 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     const auto beforeRules = settings.listLyricRules();
     QVERIFY(beforeSettings);
     QVERIFY(beforeRules);
-    const Automation::LyricRulePatchDto patch{.name = QStringLiteral("Renamed rule"),
-                                              .language = QStringLiteral("jpn")};
+    Automation::LyricRulePatchDto patch{.name = QStringLiteral("Renamed rule")};
+    if (tagger)
+        patch.language = QStringLiteral("jpn");
+    else
+        patch.regexes = QStringList{QStringLiteral("(fixtureword)")};
     const auto config = appOptions->configPath();
     const auto backup = config + QStringLiteral(".lyric-save-failure-backup");
     QVERIFY(QFile::rename(config, backup));
@@ -532,8 +553,7 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QCOMPARE(retainedRules.get(), beforeRules.get());
     const auto retainedPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
     QVERIFY(retainedPreview);
-    QCOMPARE(retainedPreview.get().taggedTokens.size(), 1);
-    QCOMPARE(retainedPreview.get().taggedTokens.first().language, QStringLiteral("cmn"));
+    QCOMPARE(retainedPreview.get(), preview.get());
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     QVERIFY(QDir().rmdir(config));
@@ -542,8 +562,11 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QVERIFY(settings.updateLyricRule({}, id, patch));
     const auto retriedPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
     QVERIFY(retriedPreview);
+    QCOMPARE(retriedPreview.get().splitTokens, QStringList{QStringLiteral("fixtureword")});
     QCOMPARE(retriedPreview.get().taggedTokens.size(), 1);
-    QCOMPARE(retriedPreview.get().taggedTokens.first().language, QStringLiteral("jpn"));
+    QCOMPARE(retriedPreview.get().taggedTokens.first().lyric, QStringLiteral("fixtureword"));
+    QCOMPARE(retriedPreview.get().taggedTokens.first().language,
+             tagger ? QStringLiteral("jpn") : QStringLiteral("eng"));
     QVERIFY(settings.setLyricRuleEnabled({}, id, false));
     const auto disabledPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
     QVERIFY(disabledPreview);
@@ -555,7 +578,11 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
                                  [&](const auto &rule) { return rule.ruleId == id; });
     QVERIFY(it != rules.cend());
     QCOMPARE(it->name, QStringLiteral("Renamed rule"));
-    QCOMPARE(it->language, QStringLiteral("jpn"));
+    QCOMPARE(it->kind, draft.kind);
+    if (tagger)
+        QCOMPARE(it->language, QStringLiteral("jpn"));
+    else
+        QCOMPARE(it->regexes, *patch.regexes);
     QVERIFY(!it->enabled);
     QVERIFY(settings.deleteLyricRule({}, id));
     const auto remaining = settings.listLyricRules();

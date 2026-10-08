@@ -39,6 +39,7 @@ private slots:
     void speakerMixPresetPersistsThroughTheProductionStore();
     void publicSpeakerMixPresetsResolveAndPreserveAppliedVoices();
 
+    void lyricRulesUseTheProductionRuntimeAndPersistence_data();
     void lyricRulesUseTheProductionRuntimeAndPersistence();
 
     void projectBatchImportUsesRealLoaders_data();
