@@ -710,10 +710,6 @@ bool MainWindow::setParameterValueViewport(const double centerRatio, const doubl
     return true;
 }
 
-void MainWindow::refreshActiveClipTrackPresentation() {
-    m_bottomPanelView->clipEditorView()->refreshActiveClipTrackPresentation();
-}
-
 void MainWindow::previewActiveClipTrackColor(const int colorIndex) {
     m_bottomPanelView->clipEditorView()->previewActiveClipTrackColor(colorIndex);
 }

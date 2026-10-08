@@ -31,7 +31,6 @@ LITE_INTERFACE IEditorView {
     I_METHOD(bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode));
     I_METHOD(bool setParameterValueViewport(double centerRatio, double verticalScale));
 
-    I_METHOD(void refreshActiveClipTrackPresentation());
     I_METHOD(void previewActiveClipTrackColor(int colorIndex));
     I_METHOD(HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const);
     I_METHOD(bool revealFocus(const HistoryFocus &focus));

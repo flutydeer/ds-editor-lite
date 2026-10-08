@@ -7,6 +7,9 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "TestSupport/WaveFixture.h"
+#include "TestSupport/MainWindowFixture.h"
+#include "Global/TracksEditorGlobal.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
@@ -483,4 +486,104 @@ void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
     historyManager->undo();
     QCOMPARE(appStatus->loopSettings.get(), original);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::activeClipMoveRebindsThePianoTrackColor() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    TestSupport::MainWindowFixture host;
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    clipDraft.properties.start = 480;
+    clipDraft.properties.length = 1920;
+    clipDraft.properties.clipLen = 1920;
+    Automation::TrackDraftDto sourceDraft;
+    sourceDraft.name = QStringLiteral("Source track");
+    sourceDraft.resolveColorIndex = false;
+    sourceDraft.colorIndex = 1;
+    sourceDraft.clips.append(clipDraft);
+    Automation::TrackDraftDto targetDraft;
+    targetDraft.name = QStringLiteral("Target track");
+    targetDraft.resolveColorIndex = false;
+    targetDraft.colorIndex = 2;
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, sourceDraft));
+    QVERIFY(runtime.project().insertTrack(commandContext(), 1, targetDraft));
+    auto *source = context->m_appModel->tracks().at(0);
+    auto *target = context->m_appModel->tracks().at(1);
+    auto *clip = *source->clips().begin();
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto *editor = host.window->findChild<TrackEditorView *>();
+    auto *canvas = host.window->findChild<TracksGraphicsView *>();
+    auto *keyboard = host.window->findChild<PianoKeyboardView *>();
+    QVERIFY(editor && canvas && keyboard);
+    canvas->setAnimationEnabled(false);
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    auto *item = editor->findClipItemById(clip->id());
+    QVERIFY(item);
+    const auto press = canvas->mapFromScene(item->sceneBoundingRect().center());
+    const auto release = canvas->mapFromScene(item->sceneBoundingRect().center() +
+                                              QPointF(0, TracksEditorGlobal::trackHeight));
+    QVERIFY(canvas->viewport()->rect().contains(press));
+    QVERIFY(canvas->viewport()->rect().contains(release));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->activeClipId.get(), clip->id());
+    QTRY_VERIFY(keyboard->isVisible());
+    const auto keyboardImage = [&] {
+        const auto point = keyboard->rect().center();
+        QMouseEvent hover(QEvent::MouseMove, QPointF(point), QPointF(keyboard->mapToGlobal(point)),
+                          Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(keyboard, &hover);
+        return keyboard->grab().toImage();
+    };
+    const auto originalKeyboard = keyboardImage();
+    historyManager->reset();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto version = runtime.documentVersion();
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            canvas->discardAction();
+            QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(source->clips().count(), 0);
+    QCOMPARE(target->clips().count(), 1);
+    QCOMPARE(*target->clips().begin(), clip);
+    QCOMPARE(runtime.documentVersion().revision, version.revision + 1);
+    const auto movedKeyboard = keyboardImage();
+    QVERIFY(movedKeyboard != originalKeyboard);
+    QVERIFY(
+        runtime.project().setTrackColor(commandContext(), Automation::TrackId(source->id()), 3));
+    QCOMPARE(keyboardImage(), movedKeyboard);
+    QVERIFY(
+        runtime.project().setTrackColor(commandContext(), Automation::TrackId(target->id()), 4));
+    const auto recoloredKeyboard = keyboardImage();
+    QVERIFY(recoloredKeyboard != movedKeyboard);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(keyboardImage(), movedKeyboard);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+    QCOMPARE(keyboardImage(), originalKeyboard);
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(keyboardImage(), movedKeyboard);
+    QCOMPARE(target->clips().count(), 1);
+    QCOMPARE(*target->clips().begin(), clip);
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(keyboardImage(), movedKeyboard);
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(keyboardImage(), recoloredKeyboard);
 }

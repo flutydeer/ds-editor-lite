@@ -251,10 +251,8 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
     std::optional<Automation::TrackId> targetTrackId;
     if (newTrackIndex >= 0 && newTrackIndex < appModel->tracks().size())
         targetTrackId = Automation::TrackId(appModel->tracks().at(newTrackIndex)->id());
-    const auto result = runtime->project().setClipProperties(
+    (void)runtime->project().setClipProperties(
         commandContext(*runtime), clipPropertiesDto(args), targetTrackId);
-    if (result && result.get().changed && targetTrackId && appStatus->activeClipId == args.id)
-        editorViewController->refreshActiveClipTrackPresentation();
 }
 
 void TrackController::onRemoveClips(const QList<int> &clipsId) {

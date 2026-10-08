@@ -47,7 +47,6 @@ namespace {
         int restoreCount = 0;
         int resetCount = 0;
         int visibilityCallCount = 0;
-        int refreshCount = 0;
         int previewCount = 0;
         int previewColorIndex = -1;
         HistoryFocusVisibility nextFocusVisibility = HistoryFocusVisibility::Visible;
@@ -219,10 +218,6 @@ namespace {
             return true;
         }
 
-        void refreshActiveClipTrackPresentation() override {
-            ++refreshCount;
-        }
-
         void previewActiveClipTrackColor(const int colorIndex) override {
             ++previewCount;
             previewColorIndex = colorIndex;
@@ -392,7 +387,6 @@ void EditorInteractionTests::noView() {
            "piano-roll scaling without a bound view must fail");
     expect(!controller->setPianoRollEditMode(EditorViewGlobal::Select),
            "tool switching without a bound view must fail");
-    controller->refreshActiveClipTrackPresentation();
     controller->previewActiveClipTrackColor(3);
     HistoryFocus focus;
     expect(controller->focusVisibility(focus) == HistoryFocusVisibility::Unavailable,
@@ -529,7 +523,6 @@ void EditorInteractionTests::forwardingAndSnapshots() {
     expect(controller->setPianoRollScale(1.25, 2.25), "piano-roll scaling must be forwarded");
     expect(controller->setPianoRollEditMode(EditorViewGlobal::ModulatePitch),
            "tool switching must be forwarded");
-    controller->refreshActiveClipTrackPresentation();
     controller->previewActiveClipTrackColor(7);
     HistoryFocus focus;
     focus.objectIds = {42};
@@ -554,8 +547,8 @@ void EditorInteractionTests::forwardingAndSnapshots() {
                view.state.pianoRoll.verticalScale == 2.25 &&
                view.state.pianoRoll.editMode == EditorViewGlobal::ModulatePitch,
            "piano-roll scale and tool must reach the view");
-    expect(view.refreshCount == 1 && view.previewCount == 1 && view.previewColorIndex == 7,
-           "track presentation operations must be forwarded");
+    expect(view.previewCount == 1 && view.previewColorIndex == 7,
+           "track color previews must be forwarded");
     expect(view.focusVisibilityCount == 1 && view.revealFocusCount == 1 &&
                view.finalizeFocusCount == 1 && view.clearFocusPreviewCount == 1,
            "history focus operations must be forwarded");
