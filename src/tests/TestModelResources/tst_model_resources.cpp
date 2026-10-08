@@ -289,6 +289,8 @@ private slots:
         QFETCH(QString, providerId);
         QFETCH(bool, runtimeFailure);
         const bool repairModel = !damagedStage.isEmpty();
+        const bool checksFailedExport =
+            runtimeFailure && damagedStage == QStringLiteral("acoustic");
         const bool gpuProvider = providerId != QStringLiteral("CPU");
         const bool bundledVoicebank =
             repairModel || gpuProvider || TestSupport::usingBundledVoicebank();
@@ -625,6 +627,20 @@ private slots:
             QCOMPARE(actualStage.value(QStringLiteral("reason")).toString().isEmpty(),
                      expectedState == QStringLiteral("ready"));
         };
+        const auto output = fixture.filePath(QStringLiteral("render.wav"));
+        QJsonObject exportArguments{
+            {QStringLiteral("document_id"), client.documentId},
+            {QStringLiteral("path"),        output           },
+            {QStringLiteral("options"),
+             QJsonObject{
+                 {QStringLiteral("format"), QStringLiteral("wav")},
+                 {QStringLiteral("sample_rate"), 44100},
+                 {QStringLiteral("channel_mode"), QStringLiteral("mono")},
+                 {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
+                 {QStringLiteral("source"), QStringLiteral("all")},
+             }                                               },
+        };
+
         QVERIFY2(client.mutate(QStringLiteral("inference.start"),
                                {
                                    {QStringLiteral("scope"),   scope                        },
@@ -644,6 +660,55 @@ private slots:
                 return;
             const QDir cache(fixture.filePath(QStringLiteral("cache")));
             QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files).isEmpty());
+            if (checksFailedExport) {
+                const QByteArray originalExport("Keep the previous export");
+                QFile existing(output);
+                QVERIFY(existing.open(QIODevice::WriteOnly));
+                QCOMPARE(existing.write(originalExport), originalExport.size());
+                existing.close();
+                QJsonObject documentBeforeExport;
+                QVERIFY2(client.call(QStringLiteral("documents.get"),
+                                     {
+                                         {QStringLiteral("document_id"), client.documentId}
+                },
+                                     documentBeforeExport),
+                         qPrintable(client.error));
+                auto failedExportArguments = exportArguments;
+                failedExportArguments.insert(QStringLiteral("overwrite_policy"),
+                                             QStringLiteral("overwrite"));
+                QVERIFY2(client.call(QStringLiteral("exports.audio.start"), failedExportArguments,
+                                     result),
+                         qPrintable(client.error));
+                const auto failedExportId = result.value(QStringLiteral("task_id"));
+                QVERIFY2(client.waitForTask(result, false, 30000, QStringLiteral("failed")),
+                         qPrintable(client.error));
+                QVERIFY2(client.call(QStringLiteral("tasks.get"),
+                                     {
+                                         {QStringLiteral("task_id"),     failedExportId            },
+                                         {QStringLiteral("scope"),       QStringLiteral("document")},
+                                         {QStringLiteral("document_id"), client.documentId         }
+                },
+                                     result),
+                         qPrintable(client.error));
+                const auto exportError = result.value(QStringLiteral("error")).toObject();
+                QCOMPARE(exportError.value(QStringLiteral("code")).toString(),
+                         QStringLiteral("io_error"));
+                QVERIFY(!exportError.value(QStringLiteral("message")).toString().isEmpty());
+                QVERIFY(existing.open(QIODevice::ReadOnly));
+                QCOMPARE(existing.readAll(), originalExport);
+                existing.close();
+                QJsonObject documentAfterExport;
+                QVERIFY2(client.call(QStringLiteral("documents.get"),
+                                     {
+                                         {QStringLiteral("document_id"), client.documentId}
+                },
+                                     documentAfterExport),
+                         qPrintable(client.error));
+                QCOMPARE(documentAfterExport, documentBeforeExport);
+                QVERIFY(QDir(fixture.path())
+                            .entryList({QStringLiteral("*.exporting")}, QDir::Files | QDir::Hidden)
+                            .isEmpty());
+            }
             if (runtimeFailure) {
                 singer.insert(QStringLiteral("package_id"), QStringLiteral("ci-fixture-repaired"));
                 singer.insert(QStringLiteral("package_version"), QStringLiteral("1.0.1"));
@@ -680,28 +745,26 @@ private slots:
                 return;
         }
 
-        const auto output = fixture.filePath(QStringLiteral("render.wav"));
-        QJsonObject exportArguments{
-            {QStringLiteral("document_id"), client.documentId},
-            {QStringLiteral("path"),        output           },
-            {QStringLiteral("options"),
-             QJsonObject{
-                 {QStringLiteral("format"), QStringLiteral("wav")},
-                 {QStringLiteral("sample_rate"), 44100},
-                 {QStringLiteral("channel_mode"), QStringLiteral("mono")},
-                 {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
-                 {QStringLiteral("source"), QStringLiteral("all")},
-             }                                               },
-        };
         QVERIFY2(client.call(QStringLiteral("exports.audio.preview"), exportArguments, result),
                  qPrintable(client.error));
+        bool reportsOverwrite = false;
         for (const auto &value : result.value(QStringLiteral("plan"))
                                      .toObject()
                                      .value(QStringLiteral("diagnostics"))
-                                     .toArray())
-            QVERIFY2(!value.toObject().value(QStringLiteral("blocking")).toBool(),
-                     qPrintable(QString::fromUtf8(QJsonDocument(value.toObject()).toJson())));
-        exportArguments.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+                                     .toArray()) {
+            const auto diagnostic = value.toObject();
+            if (diagnostic.value(QStringLiteral("code")) == QStringLiteral("will_overwrite")) {
+                reportsOverwrite = true;
+                QCOMPARE(diagnostic.value(QStringLiteral("blocking")).toBool(), checksFailedExport);
+            } else {
+                QVERIFY2(!diagnostic.value(QStringLiteral("blocking")).toBool(),
+                         qPrintable(QString::fromUtf8(QJsonDocument(diagnostic).toJson())));
+            }
+        }
+        QCOMPARE(reportsOverwrite, checksFailedExport);
+        exportArguments.insert(QStringLiteral("overwrite_policy"), checksFailedExport
+                                                                       ? QStringLiteral("overwrite")
+                                                                       : QStringLiteral("reject"));
         QVERIFY2(client.call(QStringLiteral("exports.audio.start"), exportArguments, result),
                  qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, false, 120000), qPrintable(client.error));
