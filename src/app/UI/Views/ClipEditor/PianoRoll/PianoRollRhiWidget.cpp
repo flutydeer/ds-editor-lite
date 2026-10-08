@@ -354,6 +354,10 @@ public:
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
                 hideHoverToolTips();
+                if (inlineEditor && inlineEditor->isEditing() &&
+                    !clip->findNoteById(inlineEditingNoteId)) {
+                    inlineEditor->dismiss(true);
+                }
                 if (pitchTransformEnabled()) {
                     cancelPitchTransform();
                     pitchTransformContext.invalidate();

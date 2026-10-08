@@ -24,6 +24,7 @@
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
+#include "UI/Views/TrackEditor/InfoLane/InfoLaneView.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
@@ -724,12 +725,18 @@ void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     const auto backend = appOptions->developer()->editorRenderBackend;
+    const auto tempoLaneVisible = appOptions->appearance()->showTempoLane;
+    const auto signatureLaneVisible = appOptions->appearance()->showTimeSignatureLane;
     const auto restore = qScopeGuard([&] {
         appOptions->developer()->editorRenderBackend = backend;
+        appOptions->appearance()->showTempoLane = tempoLaneVisible;
+        appOptions->appearance()->showTimeSignatureLane = signatureLaneVisible;
         clipController->setClip(nullptr);
     });
     appOptions->developer()->editorRenderBackend =
         DeveloperOption::EditorRenderBackend::RhiExperimental;
+    appOptions->appearance()->showTempoLane = true;
+    appOptions->appearance()->showTimeSignatureLane = true;
     PianoRollView editor;
     auto *canvas = editor.findChild<PianoRollRhiWidget *>();
     auto *keyboard = editor.findChild<PianoKeyboardView *>();
@@ -786,6 +793,18 @@ void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     const auto centerKey = canvas->centerKeyIndex();
     wheel(*canvas);
     QTRY_VERIFY(canvas->centerKeyIndex() != centerKey);
+    const auto lanes = editor.findChildren<InfoLaneView *>();
+    QVERIFY(!lanes.isEmpty());
+    for (auto *lane : lanes) {
+        QVERIFY(lane->isVisible());
+        const auto previousKey = canvas->centerKeyIndex();
+        const auto previousTick = canvas->startTick();
+        const QPointF previousScale(canvas->scaleX(), canvas->scaleY());
+        wheel(*lane);
+        QTRY_VERIFY(canvas->centerKeyIndex() != previousKey);
+        QCOMPARE(canvas->startTick(), previousTick);
+        QCOMPARE(QPointF(canvas->scaleX(), canvas->scaleY()), previousScale);
+    }
     const auto bars = canvas->findChildren<OverlayScrollBar *>();
     for (const auto orientation : {Qt::Horizontal, Qt::Vertical}) {
         const auto found = std::find_if(bars.begin(), bars.end(), [&](const auto *bar) {
@@ -1970,6 +1989,71 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     QCOMPARE(second->lyric(), QStringLiteral("li"));
     historyManager->undo();
     QCOMPARE(first->lyric(), QStringLiteral("la"));
+    QVERIFY(!historyManager->canUndo());
+
+    {
+        const auto defaults = appOptions->general()->defaultLyrics;
+        const auto restoreDefaults =
+            qScopeGuard([&] { appOptions->general()->defaultLyrics = defaults; });
+        appOptions->general()->defaultLyrics[QStringLiteral("eng")] = QStringLiteral("ah");
+        const auto beforeEmpty = fixture.runtime().documentVersion();
+        const auto contentBeforeEmpty =
+            TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+        beginEditing(fixture.pointFor(720, 60), QStringLiteral("Lyric"));
+        if (QTest::currentTestFailed())
+            return;
+        QTest::keySequence(edit, QKeySequence::SelectAll);
+        QTest::keyClick(edit, Qt::Key_Backspace);
+        QVERIFY(edit->text().isEmpty());
+        QTest::keyClick(edit, Qt::Key_Return);
+        QTRY_VERIFY(!edit->isVisible());
+        QCOMPARE(first->lyric(), QStringLiteral("ah"));
+        QCOMPARE(second->lyric(), QStringLiteral("li"));
+        QCOMPARE(fixture.runtime().documentVersion().revision, beforeEmpty.revision + 1);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        historyManager->undo();
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel),
+                 contentBeforeEmpty);
+        QVERIFY(!historyManager->canUndo());
+    }
+
+    const auto contentBeforeRemoval =
+        TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    beginEditing(fixture.pointFor(720, 60), QStringLiteral("Lyric"));
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keySequence(edit, QKeySequence::SelectAll);
+    QTest::keyClicks(edit, "discarded after deleting the note");
+    const auto pendingText = edit->text();
+    QVERIFY(fixture.runtime().notes().setPronunciation(
+        fixture.command(), Automation::ClipId(fixture.clip->id()), Automation::NoteId(second->id()),
+        true, QStringLiteral("lu")));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(edit->isVisible());
+    QCOMPARE(edit->text(), pendingText);
+    QCOMPARE(first->lyric(), QStringLiteral("la"));
+    historyManager->undo();
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), contentBeforeRemoval);
+    QVERIFY(edit->isVisible());
+    QCOMPARE(edit->text(), pendingText);
+    const auto beforeRemoval = fixture.runtime().documentVersion();
+    QVERIFY(fixture.runtime().notes().removeNotes(fixture.command(),
+                                                  Automation::ClipId(fixture.clip->id()),
+                                                  {Automation::NoteId(first->id())}));
+    const auto afterRemoval = fixture.runtime().documentVersion();
+    QCOMPARE(afterRemoval.revision, beforeRemoval.revision + 1);
+    const auto removedContent = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    QTRY_VERIFY(!edit->isVisible());
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.runtime().documentVersion(), afterRemoval);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), removedContent);
+    historyManager->undo();
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), contentBeforeRemoval);
+    QCOMPARE(fixture.clip->findNoteById(fixture.noteId), first);
     QVERIFY(!historyManager->canUndo());
 
     const auto pronunciationPosition =
