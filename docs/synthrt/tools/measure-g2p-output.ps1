@@ -166,12 +166,19 @@ try {
         $rows += [pscustomobject]@{ lyric = $note.lyric; phonemes = $symbols; note_id = $note.note_id }
         Write-Output ($note.lyric + "`t" + $symbols)
     }
-    if ($Out) { $rows | ForEach-Object { $_.lyric + "`t" + $_.phonemes } | Set-Content -Path $Out -Encoding UTF8 }
+    if ($Out) {
+        # Keep the artifact inside the run directory: a relative -Out used to be resolved against
+        # the caller's working directory, which littered the repository root.
+        $outPath = if ([System.IO.Path]::IsPathRooted($Out)) { $Out } else { Join-Path $OutRoot $Out }
+        $rows | ForEach-Object { $_.lyric + "`t" + $_.phonemes } | Set-Content -Path $outPath -Encoding UTF8
+    }
     if ($Json) {
+        # Same rule as -Out: a relative -Json belongs to the run directory, never to the caller.
+        $jsonPath = if ([System.IO.Path]::IsPathRooted($Json)) { $Json } else { Join-Path $OutRoot $Json }
         [ordered]@{ words = $tokens; language = $Language; speaker = $Speaker; note_ticks = $NoteTicks
             singer = @{ package_id = $SingerPackage; package_version = $SingerPackageVersion
                 singer_id = $SingerId }; notes = $rows } |
-            ConvertTo-Json -Depth 8 | Set-Content -Path $Json -Encoding UTF8
+            ConvertTo-Json -Depth 8 | Set-Content -Path $jsonPath -Encoding UTF8
     }
 } finally {
     if (-not $KeepInstance) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }

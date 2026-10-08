@@ -11,7 +11,9 @@
 
 > **2026-10-08 迁移轮更新（本节优先）**：本台账的基线已从 `synthrt/inferutil-binary-read` 换到迁移分支
 > **`synthrt/spec2.4-uptake`**——它以当时的 `origin/main`（`33dadf958`）为基点，用 `git merge --squash`
-> 把旧分支的并集算成**一条线性提交**（历史里没有 merge 记录），唯一冲突 `InferencePage.cpp` 以 main 版为准
+> 把旧分支的并集算进来，随后按主题拆成 **7 条提交**（全部无 merge 记录：端口与 manifest / 构建与打包 /
+> 转换脚本 / 文档 / 引擎库 / 编辑器应用 / 测试；拆分前后做了树一致性核对，内容零变化），唯一冲突
+> `InferencePage.cpp` 以 main 版为准
 > （main 已把歌手名本地化下沉到引擎层的 `localizedNames()`）。三个上游远端分支已统一改名为 `spec2.4-uptake`
 > （synthrt 原名 `onnxruntime-builds-uptake`、wolf 原名 `linguistic-level-1-v2`、otter 原名 `analysis-level-1`。
 > otter 的旧名是该仓**默认分支**，GitHub 拒绝删除，故 otter 现存双名指向同一提交），三个端口的
@@ -19,6 +21,20 @@
 > 因此本文中凡出现"暂不做上游化、不切 main"或把端口 `HEAD_REF` 记作旧名的句子，**一律已被本轮决策取代**。
 > 另：新 main 自身的代码是照 refactor 线 synthrt 写的，而本分支 pin 的是主线，两线 API 不一致带来的
 > 编译适配属于本轮工作（已定位并处理）。
+>
+> **2026-10-08 补记（otter 命名收尾）**：otter 的默认分支已由 `analysis-level-1` 改名为 `main`，旧名不再存在，
+> 该远端现只有 `main` 与 `spec2.4-uptake` 两个分支且指向同一提交。上面"otter 现存双名"一句按此更正。
+>
+> **2026-10-08 补记（无本地资源复现实测）**：在全新目录克隆本仓（子模块走公开地址）、用当天新克隆的 vcpkg
+> 与全新下载缓存（`VCPKG_DOWNLOADS` 指向新目录）跑完整 install/configure/build，实测到三条环境前提与一条旧断言的更正：
+> ① presets 的 `CMAKE_TOOLCHAIN_FILE` 与 `VCPKG_INSTALLED_DIR` 都指向**仓库根的 `vcpkg/`**，该目录不入库，
+> 开发者须自行准备一个含 `ports/` 的 vcpkg 检出；
+> ② **克隆后必须校验子模块工作树完整**——`scripts/vcpkg` 若只检出 `.git` 而缺 `ports/`，manifest 的 overlay 检查会直接失败并报
+> `Overlay path … must be an existing directory`（本次实测踩到，`git checkout -f HEAD` 即恢复）；
+> ③ 构建需要能访问 nuget.org——`onnxruntime-builds` 端口会拉取 `Microsoft.AI.DirectML` 包，直连下载被截断时该端口即 `BUILD_FAILED`；
+> ④ 本次实测中 `synthrt` 与 `otter` 两个端口仅凭登记的分支名与提交就从 GitHub 精确取源（`synthrt` → `7ea424a`、`otter` → `e770ab9`）并就地构建，
+> 因此本文早前"未推送的 overlay 提交无法被他人安装"的说法对当前形态已不成立——它的成立前提是提交尚未推送到上游远端。
+> 实测收口：同一环境下 28/28 依赖装完（`===VCPKG-OK===`），697 个编译目标 `error C` 0 行（`===BUILD-OK===`），随后用该二进制对仓库自带工具打出的 2.4 声库 zip 做冷启动合成，走完 `linguistic → variance → model → vocoder` 且 `Use cached` 计数为 0。
 >
 > **本轮新增的已知降级（2026-10-08，集中在 `DeveloperPage.cpp` 的引擎状态视图）**：
 > ① 歌手 **api level** 不再展示——`SynthrtEngine` 的 `SingerEntry` 快照不带该字段，为它去 walk
