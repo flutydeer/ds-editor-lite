@@ -77,6 +77,8 @@
 #include <QtTest/QTest>
 #include <rhi/qrhi.h>
 #include <rhi/qrhi_platform.h>
+#include <QtGui/private/qhighdpiscaling_p.h>
+#include <qpa/qwindowsysteminterface.h>
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MACOS)
 #include <QOffscreenSurface>
 #endif
@@ -132,6 +134,22 @@ namespace {
             QRhi::create(QRhi::OpenGLES2, &params, QRhi::SuppressSmokeTestWarnings));
 #endif
         return bool(device);
+    }
+
+    auto preferSoftwareRhi(bool enabled) {
+        const auto previous = qgetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
+#ifdef Q_OS_WIN
+        if (enabled)
+            qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", "1");
+#else
+        Q_UNUSED(enabled)
+#endif
+        return qScopeGuard([previous] {
+            if (previous.isNull())
+                qunsetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
+            else
+                qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", previous);
+        });
     }
 
     struct ExistingRhiNoteFixture {
@@ -321,13 +339,40 @@ namespace {
     };
 }
 
+void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits_data() {
+    QTest::addColumn<bool>("scaleDisplay");
+    QTest::newRow("reference-editing") << false;
+    QTest::newRow("scaled-native-renderer") << true;
+}
+
 void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
+    QFETCH(bool, scaleDisplay);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
+    if (scaleDisplay && !platformRhiAvailable())
+        QSKIP("No graphics backend is available for framebuffer validation");
+    const auto restoreSoftware = preferSoftwareRhi(scaleDisplay);
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(3840, scaleDisplay ? platformRhiApi() : QRhiWidget::Api::Null);
     if (QTest::currentTestFailed())
         return;
+    auto *screen = fixture.canvas->screen();
+    const auto originalFactor =
+        QHighDpiScaling::factor(screen) / QHighDpiScaling::factor(static_cast<QScreen *>(nullptr));
+    const auto originalDpr = fixture.canvas->devicePixelRatioF();
+    const auto originalFrameSize =
+        scaleDisplay ? fixture.canvas->grabFramebuffer().size() : QSize{};
+    const auto setDisplayFactor = [&](qreal factor) {
+        QHighDpiScaling::setScreenFactor(screen, factor);
+        QWindowSystemInterface::handleWindowDevicePixelRatioChanged<
+            QWindowSystemInterface::SynchronousDelivery>(fixture.canvas->windowHandle());
+    };
+    const auto restoreScale = qScopeGuard([&] {
+        if (scaleDisplay) {
+            setDisplayFactor(originalFactor);
+            QCoreApplication::processEvents();
+        }
+    });
     auto &runtime = fixture.runtime();
     const auto settings = runtime.settings().getSettings();
     QVERIFY(settings);
@@ -373,6 +418,20 @@ void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
+    if (scaleDisplay) {
+        QVERIFY(!originalFrameSize.isEmpty());
+        setDisplayFactor(originalFactor * 1.25);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_VERIFY(qFuzzyCompare(fixture.canvas->devicePixelRatioF(), originalDpr * 1.25));
+        const auto scaledFrame = fixture.canvas->grabFramebuffer();
+        QVERIFY(!scaledFrame.isNull());
+        QVERIFY(scaledFrame.size() != originalFrameSize);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
+        QVERIFY(!historyManager->canUndo());
+    }
     fixture.canvas->setEditMode(ClipEditorGlobal::DrawNote);
     const auto position = fixture.pointFor(2040, 60);
     QVERIFY(fixture.canvas->rect().contains(position));
@@ -397,6 +456,15 @@ void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
     fixture.waitForFrame();
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
+    if (scaleDisplay) {
+        setDisplayFactor(originalFactor);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_VERIFY(qFuzzyCompare(fixture.canvas->devicePixelRatioF(), originalDpr));
+        QCOMPARE(fixture.canvas->grabFramebuffer().size(), originalFrameSize);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), model);
+    }
 }
 
 void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument() {
@@ -1070,19 +1138,9 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     QFETCH(bool, platformRenderer);
-    const auto previousSoftware = qgetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
-    const auto restoreSoftware = qScopeGuard([&] {
-        if (previousSoftware.isNull())
-            qunsetenv("QSG_RHI_PREFER_SOFTWARE_RENDERER");
-        else
-            qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", previousSoftware);
-    });
+    const auto restoreSoftware = preferSoftwareRhi(platformRenderer);
     if (platformRenderer && !platformRhiAvailable())
         QSKIP("No graphics backend is available for framebuffer validation");
-#ifdef Q_OS_WIN
-    if (platformRenderer)
-        qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", "1");
-#endif
     ExistingRhiNoteFixture fixture;
     fixture.initialize(3840, platformRenderer ? platformRhiApi() : QRhiWidget::Api::Null);
     if (QTest::currentTestFailed())

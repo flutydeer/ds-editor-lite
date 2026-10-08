@@ -36,6 +36,7 @@ private slots:
     void progressAndTapTempoLevels();
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
+    void rhiGhostReferencesUpdateFramesWithoutOwningEdits_data();
     void rhiGhostReferencesUpdateFramesWithoutOwningEdits();
     void rhiThemeAndDockingPreserveBothEditorsAndTheirDocument();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data();
