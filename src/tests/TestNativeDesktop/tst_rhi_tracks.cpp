@@ -15,6 +15,7 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/Common/EditorTouchGesture.h"
 
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
@@ -598,12 +599,18 @@ void NativeDesktopTests::rhiClipResizeCommitsOrCancels() {
 
 void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor_data() {
     QTest::addColumn<bool>("audioSource");
-    QTest::newRow("singing-clip") << false;
-    QTest::newRow("audio-clip") << true;
+    QTest::addColumn<bool>("edgeScroll");
+    QTest::addColumn<bool>("touchSelection");
+    QTest::newRow("singing-clip") << false << false << false;
+    QTest::newRow("audio-clip") << true << false << false;
+    QTest::newRow("selection-scrolls-to-an-offscreen-clip") << false << true << false;
+    QTest::newRow("touch-edge-selection-can-be-canceled") << false << true << true;
 }
 
 void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QFETCH(bool, audioSource);
+    QFETCH(bool, edgeScroll);
+    QFETCH(bool, touchSelection);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     TrackFixture fixture;
@@ -628,6 +635,23 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QTRY_VERIFY(!frames.isEmpty());
     QVERIFY(failed.isEmpty());
     QTRY_VERIFY(fixture.host->isActiveWindow());
+    int offscreenClipId = -1;
+    if (edgeScroll) {
+        Automation::ClipDraftDto draft;
+        draft.clientRef = QStringLiteral("offscreen-clip");
+        draft.properties.name = QStringLiteral("Beyond the initial viewport");
+        draft.properties.start = static_cast<int>(std::ceil(canvas.endTick())) + 480;
+        draft.properties.length = 960;
+        draft.properties.clipLen = 960;
+        const auto inserted = fixture.runtime().project().insertClips(
+            fixture.command(), {
+                                   {Automation::TrackId(fixture.firstTrackId), draft}
+        });
+        QVERIFY(inserted);
+        QCOMPARE(inserted.get().createdObjects.size(), 1);
+        offscreenClipId = inserted.get().createdObjects.first().object.value;
+        historyManager->reset();
+    }
     const auto before = fixture.runtime().documentVersion();
     auto *destination = fixture.application.context->m_appModel->tracks().last();
     TrackEditorMenuContext requested;
@@ -726,13 +750,76 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
     QVERIFY(canvas.centerAt(1920, 0.5));
     const auto selectFrom = fixture.point(240, 0);
-    const auto selectTo = fixture.point(3300, 1);
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, selectFrom);
-    moveWithButton(canvas, selectTo);
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, selectTo);
+    const auto selectTo = edgeScroll ? QPoint(canvas.width() - 2, fixture.point(3300, 1).y())
+                                     : fixture.point(3300, 1);
+    const auto beforeSelection = fixture.runtime().documentVersion();
+    const auto selectionContent =
+        TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+    auto *inputWindow = canvas.window()->windowHandle();
+    QVERIFY(inputWindow);
+    const auto inputPosition = [&](const QPoint &position) {
+        return inputWindow->mapFromGlobal(canvas.mapToGlobal(position));
+    };
+    auto *touchDevice = QTest::createTouchDevice();
+    auto sequence = QTest::touchEvent(inputWindow, touchDevice, false);
+    bool selecting = false;
+    const auto finishSelection = qScopeGuard([&] {
+        if (!selecting)
+            return;
+        if (touchSelection) {
+            QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+            QApplication::sendEvent(&canvas, &cancel);
+            sequence.release(0, inputPosition(selectTo)).commit();
+        } else {
+            QTest::mouseRelease(inputWindow, Qt::LeftButton, Qt::NoModifier,
+                                inputPosition(selectTo));
+        }
+    });
+    if (touchSelection) {
+        sequence.press(0, inputPosition(selectFrom)).commit();
+        selecting = true;
+        QTest::qWait(static_cast<int>(EditorTouchGesture::Config{}.longPressMs) + 50);
+    } else if (edgeScroll) {
+        QTest::mousePress(inputWindow, Qt::LeftButton, Qt::NoModifier, inputPosition(selectFrom));
+    } else {
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, selectFrom);
+    }
+    selecting = true;
+    if (touchSelection)
+        sequence.move(0, inputPosition(selectTo)).commit();
+    else
+        moveWithButton(canvas, selectTo);
+    if (edgeScroll) {
+        const auto initialOffset = canvas.startTick();
+        QVERIFY(!appStatus->selectedClips.get().contains(offscreenClipId));
+        QTRY_VERIFY_WITH_TIMEOUT(appStatus->selectedClips.get().contains(offscreenClipId), 3000);
+        QVERIFY(canvas.startTick() > initialOffset);
+    }
+    QCOMPARE(fixture.runtime().documentVersion(), beforeSelection);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel),
+             selectionContent);
+    if (touchSelection) {
+        QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+        cancel.setAccepted(false);
+        QApplication::sendEvent(&canvas, &cancel);
+        QVERIFY(cancel.isAccepted());
+        sequence.release(0, inputPosition(selectTo)).commit();
+    } else if (edgeScroll) {
+        QTest::mouseRelease(inputWindow, Qt::LeftButton, Qt::NoModifier, inputPosition(selectTo));
+    } else {
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, selectTo);
+    }
+    selecting = false;
     const auto selection = appStatus->selectedClips.get();
-    QCOMPARE(selection.size(), 2);
+    QCOMPARE(selection.size(), edgeScroll ? 3 : 2);
     QVERIFY(selection.contains(fixture.clipId) && selection.contains(pastedId));
+    if (edgeScroll) {
+        const auto stoppedAt = canvas.startTick();
+        QTest::qWait(80);
+        QCOMPARE(canvas.startTick(), stoppedAt);
+        QVERIFY(selection.contains(offscreenClipId));
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+    }
     QCOMPARE(historyManager->nextUndoEntry(), pasteUndo);
     const auto beforeUndoFrame = frames.size();
     historyManager->undo();
