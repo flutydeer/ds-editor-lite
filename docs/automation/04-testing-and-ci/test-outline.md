@@ -146,7 +146,7 @@ RHI 回退场景通过 Qt 渲染失败通知进入生产处理，重复通知合
 
 | 程序 | 包含的测试内容 | 主要类别 / 条件 |
 |---|---|---|
-| TestFoundation | Expected、自有基础数据语义、本地化文本选择 | unit。通用 |
+| TestFoundation | Expected、自有基础数据语义、本地化文本选择、日志及单例注册、worker 取消与队列接续 | unit。通用 |
 | TestMusicTime | tempo/拍号与音乐时间换算、音频时间锚点 | unit。通用 |
 | TestParameters | 重采样、插值支持、曲线轨迹与变换、锚点编辑、音高显示策略 | unit/domain。通用 |
 | TestLyrics | 歌词拆分与规则、音节、文字/发音/音素属性级联 | unit/domain。通用 |

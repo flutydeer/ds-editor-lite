@@ -12,6 +12,7 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/Tasking/Task.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
@@ -46,6 +47,16 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
                            }) &&
                taskManager->tasks().isEmpty();
     };
+    const auto reportInferenceFailure = qScopeGuard([&] {
+        if (!QTest::currentTestFailed())
+            return;
+        for (const auto *piece : singingClip->pieces())
+            qWarning() << "Unsettled inference piece:" << piece->id() << piece->state.get();
+        for (const auto *task : taskManager->tasks())
+            qWarning() << "Pending task:" << task->metaObject()->className() << task->id()
+                       << "started:" << task->started() << "stopped:" << task->stopped()
+                       << "terminated:" << task->terminated();
+    });
     QCoreApplication::processEvents();
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
 

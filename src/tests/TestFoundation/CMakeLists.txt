@@ -7,7 +7,8 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_localized_text.cpp
     tst_logging.cpp
     tst_singleton_registry.cpp
+    tst_task_queue.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
-target_link_libraries(${PROJECT_NAME} PRIVATE lite::ADT lite::Support lite::Core)
+target_link_libraries(${PROJECT_NAME} PRIVATE lite::ADT lite::Support lite::Core lite::Tasking)
 lite_register_test(${PROJECT_NAME} CATEGORY unit)
