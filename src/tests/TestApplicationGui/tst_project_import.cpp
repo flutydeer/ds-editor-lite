@@ -6,6 +6,8 @@
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Model/AppOptions/Options/GeneralOption.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
 #include "Modules/ProjectConverters/MidiConfigPage.h"
 #include "Modules/ProjectConverters/MidiBatchImportDialog.h"
@@ -196,16 +198,38 @@ namespace {
 
 void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellation_data() {
     QTest::addColumn<bool>("midi");
-    QTest::newRow("midi") << true;
-    QTest::newRow("dspx") << false;
+    QTest::addColumn<bool>("externalConversion");
+    QTest::newRow("midi") << true << false;
+    QTest::newRow("dspx") << false << false;
+    QTest::newRow("libresvip") << false << true;
 }
 
 void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellation() {
     QFETCH(bool, midi);
+    QFETCH(bool, externalConversion);
+    const auto previousConverter = appOptions->general()->libreSVIPPath;
+    const auto previousResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
+    const bool resultWasSet = qEnvironmentVariableIsSet("DSEL_TEST_LIBRESVIP_RESULT");
+    const auto restoreConverter = qScopeGuard([&] {
+        if (!externalConversion)
+            return;
+        appOptions->general()->libreSVIPPath = previousConverter;
+        if (resultWasSet)
+            qputenv("DSEL_TEST_LIBRESVIP_RESULT", previousResult);
+        else
+            qunsetenv("DSEL_TEST_LIBRESVIP_RESULT");
+    });
+    if (externalConversion) {
+        const auto executable = QString::fromUtf8(LITE_TEST_CONVERTER_FIXTURE);
+        QVERIFY2(QFileInfo(executable).isFile(), qPrintable(executable));
+        appOptions->general()->libreSVIPPath = executable;
+        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+    }
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    const auto path = directory.filePath(midi ? QStringLiteral("selection.mid")
-                                              : QStringLiteral("selection.dspx"));
+    const auto path = directory.filePath(midi                 ? QStringLiteral("selection.mid")
+                                         : externalConversion ? QStringLiteral("selection.svp")
+                                                              : QStringLiteral("selection.dspx"));
     createImportFile(path, midi);
     if (QTest::currentTestFailed())
         return;
@@ -236,7 +260,9 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     QVERIFY(importMenu);
     QAction *importAction = nullptr;
     const auto label = QCoreApplication::translate(
-        "MainMenuViewPrivate", midi ? "MIDI file..." : "DiffScope project file...");
+        "MainMenuViewPrivate", midi                 ? "MIDI file..."
+                               : externalConversion ? "Project file (LibreSVIP)..."
+                                                    : "DiffScope project file...");
     for (auto *action : importMenu->actions()) {
         if (action->text() == label)
             importAction = action;
