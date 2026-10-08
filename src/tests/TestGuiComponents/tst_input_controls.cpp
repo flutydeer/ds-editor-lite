@@ -210,6 +210,12 @@ void GuiComponentTests::seekBarTrackingControlsWhenDraggedValuesCommit() {
         if (slider.isSliderDown())
             QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, release);
     });
+    QTest::mouseClick(&slider, Qt::RightButton, Qt::NoModifier, release);
+    QCOMPARE(slider.value(), 50.0);
+    QCOMPARE(slider.sliderPosition(), 50.0);
+    QVERIFY(!slider.isSliderDown());
+    QVERIFY(moved.isEmpty());
+    QVERIFY(changed.isEmpty());
     QTest::mousePress(&slider, Qt::LeftButton, Qt::NoModifier, press);
     QVERIFY(slider.isSliderDown());
     moveWithLeftButton(slider, release);
@@ -283,6 +289,11 @@ void GuiComponentTests::seekBarKeyboardStepsClampAndDoubleClickResets() {
     const QPoint center(110, 10);
     QCursor::setPos(slider.mapToGlobal(center));
     QCoreApplication::processEvents();
+    QTest::mouseDClick(&slider, Qt::RightButton, Qt::NoModifier, center);
+    QTest::mouseRelease(&slider, Qt::RightButton, Qt::NoModifier, center);
+    QCOMPARE(slider.value(), 0.0);
+    QCOMPARE(changed.count(), beforeReset);
+    QVERIFY(!slider.isSliderDown());
     // The QWidget overload sends only the double-click event, so supply the first click.
     QTest::mouseClick(&slider, Qt::LeftButton, Qt::NoModifier, center);
     QCOMPARE(slider.value(), 0.0);
