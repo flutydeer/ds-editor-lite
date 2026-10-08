@@ -206,16 +206,19 @@ void PackageManager::initialize(const QStringList &searchPaths) {
     std::call_once(m_initialized, [this, searchPaths]() {
         Q_EMIT moduleStatusChanged(ModuleStatus::Loading);
         auto task = new GetInstalledPackagesTask(searchPaths);
-        connect(task, &GetInstalledPackagesTask::finished, this, [this, task]() {
-            taskManager->removeTask(task);
-            if (task->result) {
-                Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
-            } else {
-                qCritical() << "Package scan failed:" << task->result.getError().message;
-                Q_EMIT moduleStatusChanged(ModuleStatus::Error);
-            }
-            delete task;
-        });
+        connect(
+            task, &GetInstalledPackagesTask::finished, this,
+            [this, task]() {
+                taskManager->removeTask(task);
+                if (task->result) {
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
+                } else {
+                    qCritical() << "Package scan failed:" << task->result.getError().message;
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Error);
+                }
+                delete task;
+            },
+            Qt::QueuedConnection);
         taskManager->addAndStartTask(task);
     });
 }

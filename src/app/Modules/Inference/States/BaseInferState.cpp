@@ -67,7 +67,9 @@ void BaseInferState::onRunningInferenceStateEntered() {
     ++m_preparationEpoch;
     buildTaskInput();
     auto *task = createTask();
-    connect(task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); });
+    connect(
+        task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); },
+        Qt::QueuedConnection);
     addTaskToController(task);
     currentTask = task;
 }

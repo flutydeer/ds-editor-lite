@@ -926,10 +926,13 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
                     if (completionQueued) {
                         // The state receiver queues its transition before this observer restarts
                         // it.
-                        connect(duration, &Task::finished, &observations, [&] {
-                            replacementRequested = true;
-                            inferController->restartPieceInference(*targetPiece);
-                        });
+                        connect(
+                            duration, &Task::finished, &observations,
+                            [&] {
+                                replacementRequested = true;
+                                inferController->restartPieceInference(*targetPiece);
+                            },
+                            Qt::QueuedConnection);
                     }
                 } else {
                     replacementTaskId = duration->id();
@@ -942,8 +945,9 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
                             },
                             Qt::DirectConnection);
                     }
-                    connect(duration, &Task::finished, &observations,
-                            [&] { replacementFinished = true; });
+                    connect(
+                        duration, &Task::finished, &observations,
+                        [&] { replacementFinished = true; }, Qt::QueuedConnection);
                 }
             });
     const auto drainTasks = qScopeGuard([&] {

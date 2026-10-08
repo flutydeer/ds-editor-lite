@@ -94,36 +94,42 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
         const auto initTask = new InitInferEngineTask;
-        connect(initTask, &Task::finished, this, [this, initTask] {
-            QWriteLocker lock(&m_engineRwLock);
-            if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
-                return;
-            }
+        connect(
+            initTask, &Task::finished, this,
+            [this, initTask] {
+                QWriteLocker lock(&m_engineRwLock);
+                if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
+                    return;
+                }
 
-            const bool languageReady = initTask->success.load(std::memory_order_acquire);
-            const bool runtimeReady = SynthrtEngine::instance().runtimeInitialized();
-            appStatus->inferEngineEnvStatus =
-                runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
-            if (languageReady) {
-                appStatus->languageModuleError = QString();
-                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
-                // Warm up G2P models in the background so the first
-                // FillLyric / inference conversion does not stall. The engine
-                // was initialized with deferLanguageModels=true; this kicks
-                // off the deferred Stage 2 load on a worker thread, matching
-                // how PackageManager scans packages asynchronously.
-                QThreadPool::globalInstance()->start(
-                    [] { SynthrtEngine::instance().warmUpLanguageModels(); });
-            } else {
-                appStatus->languageModuleError = initTask->errorMessage;
-                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
-            }
-        });
+                const bool languageReady = initTask->success.load(std::memory_order_acquire);
+                const bool runtimeReady = SynthrtEngine::instance().runtimeInitialized();
+                appStatus->inferEngineEnvStatus =
+                    runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+                if (languageReady) {
+                    appStatus->languageModuleError = QString();
+                    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
+                    // Warm up G2P models in the background so the first
+                    // FillLyric / inference conversion does not stall. The engine
+                    // was initialized with deferLanguageModels=true; this kicks
+                    // off the deferred Stage 2 load on a worker thread, matching
+                    // how PackageManager scans packages asynchronously.
+                    QThreadPool::globalInstance()->start(
+                        [] { SynthrtEngine::instance().warmUpLanguageModels(); });
+                } else {
+                    appStatus->languageModuleError = initTask->errorMessage;
+                    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+                }
+            },
+            Qt::QueuedConnection);
         // Cleanup must survive engine teardown while completion is still queued.
-        connect(initTask, &Task::finished, initTask, [initTask] {
-            taskManager->removeTask(initTask);
-            initTask->deleteLater();
-        });
+        connect(
+            initTask, &Task::finished, initTask,
+            [initTask] {
+                taskManager->removeTask(initTask);
+                initTask->deleteLater();
+            },
+            Qt::QueuedConnection);
         appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
         appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
         appStatus->languageModuleError = QString();

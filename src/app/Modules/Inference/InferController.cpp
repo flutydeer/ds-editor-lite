@@ -1155,7 +1155,9 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     auto task = new GetPronunciationTask(InferenceAutomationBridge::currentDocumentVersion(),
                                          clip.id(), clip.inferenceRevision(),
                                          buildNoteInferenceSnapshots(clip), clip.singerInfo());
-    connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
+    connect(
+        task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); },
+        Qt::QueuedConnection);
     m_getPronTasks.add(task);
 }
 
@@ -1175,7 +1177,9 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     auto task = new GetPhonemeNameTask(InferenceAutomationBridge::currentDocumentVersion(),
                                        clip.id(), clip.inferenceRevision(),
                                        buildNoteInferenceSnapshots(clip), clip.singerInfo());
-    connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
+    connect(
+        task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); },
+        Qt::QueuedConnection);
     m_getPhoneTasks.add(task);
 }
 

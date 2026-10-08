@@ -200,8 +200,9 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
     decodeTask->tick = tick;
     const auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
-    connect(decodeTask, &Task::finished, this,
-            [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); });
+    connect(
+        decodeTask, &Task::finished, this,
+        [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); }, Qt::QueuedConnection);
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
@@ -439,8 +440,10 @@ void TrackController::scheduleHashUpdate(const AudioClip *clip) {
         [hashTask] { hashTask->terminate(); });
     hashTask->automationTaskId = automationTask.taskId;
     runtime->automationTasks().markRunning(automationTask.taskId);
-    connect(hashTask, &Task::finished, trackController,
-            [hashTask] { trackController->handleComputeAudioHashTaskFinished(hashTask); });
+    connect(
+        hashTask, &Task::finished, trackController,
+        [hashTask] { trackController->handleComputeAudioHashTaskFinished(hashTask); },
+        Qt::QueuedConnection);
     taskManager->addTask(hashTask);
     taskManager->startTask(hashTask);
 }

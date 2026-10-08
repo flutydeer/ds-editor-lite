@@ -40,8 +40,9 @@ void ProbeAcousticCacheState::onEntry(QEvent *event) {
 
     const auto input = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
     auto *task = new InferAcousticCacheProbeTask(input);
-    connect(task, &InferAcousticCacheProbeTask::finished, this,
-            [this, task] { handleTaskFinished(*task); });
+    connect(
+        task, &InferAcousticCacheProbeTask::finished, this,
+        [this, task] { handleTaskFinished(*task); }, Qt::QueuedConnection);
     m_currentTask = task;
     inferController->addInferAcousticCacheProbeTask(*task);
 }

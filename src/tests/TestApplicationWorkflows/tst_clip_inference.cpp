@@ -878,7 +878,6 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
     const QPointer<InferPiece> target(piece);
     QSemaphore entered;
     QSemaphore release;
-    QSemaphore completed;
     const auto cleanup = qScopeGuard([&] {
         release.release();
         QVERIFY(runtime().documents().commitNewDocument(
@@ -922,16 +921,13 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
                         }
                     },
                     Qt::DirectConnection);
-                connect(
-                    candidate, &Task::finished, &observations, [&] { completed.release(); },
-                    Qt::DirectConnection);
             });
     QVERIFY(runtime().history().undo(commandContext()));
     QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 15000);
     QVERIFY(probe);
     release.release();
     // Keep the completion queued until the edit has changed the actual model inputs.
-    QVERIFY(completed.tryAcquire(1, 10000));
+    QVERIFY(QThreadPool::globalInstance()->waitForDone(10000));
     QVERIFY(probe->success());
     QVERIFY(probe->cacheHit());
     const auto changed = editGender();
@@ -1071,7 +1067,7 @@ void ApplicationWorkflowTests::changingSamplingSettingsRestartsRunningInference(
     QCOMPARE(reopened.inference()->samplingSteps, changedSteps);
     QCOMPARE(reopened.inference()->pitch_smooth_kernel_size, changedKernel);
     release.release();
-    QVERIFY(completed.tryAcquire(1, 10000));
+    QTRY_VERIFY_WITH_TIMEOUT(completed.available() > 0, 10000);
     QTRY_VERIFY_WITH_TIMEOUT(
         submittedSettings.contains(std::make_pair(changedSteps, changedKernel)) &&
             inferenceSettled(clip),
@@ -1409,7 +1405,6 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     QVERIFY(settingsBeforeTask);
     const auto previousLanguage = settingsBeforeTask.get().g2pLanguage;
     const auto previousStatus = appStatus->languageModuleStatus.get();
-    QSemaphore resultReady;
     bool failureBeforeResult = false;
     quint64 editSessionId = 0;
     int observedTaskId = -1;
@@ -1448,14 +1443,11 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
                                  : AppStatus::EditObjectType::Note,
                     targetClipId, {}, {targetNoteId});
                 if (failsBeforeDelivery) {
-                    connect(
-                        task, &Task::finished, &observations, [&] { resultReady.release(); },
-                        Qt::DirectConnection);
                     // Queue before the worker starts so failure precedes its result delivery.
                     QMetaObject::invokeMethod(
                         &observations,
                         [&] {
-                            if (!resultReady.tryAcquire(1, 10000)) {
+                            if (!QThreadPool::globalInstance()->waitForDone(10000)) {
                                 QTest::qFail("The language worker did not complete", __FILE__,
                                              __LINE__);
                                 return;

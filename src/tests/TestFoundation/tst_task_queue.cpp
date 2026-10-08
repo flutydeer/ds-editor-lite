@@ -5,10 +5,32 @@
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSemaphore>
+#include <QThread>
 #include <QThreadPool>
 #include <QtTest>
 
 namespace {
+    class CompletionDeletionProbe final : public QObject {
+    public:
+        explicit CompletionDeletionProbe(const std::atomic_bool &emitting) : emitting(emitting) {
+        }
+
+        bool deletionWhileEmitting = false;
+
+    protected:
+        bool eventFilter(QObject *, QEvent *event) override {
+            if (event->type() == QEvent::DeferredDelete && emitting.load()) {
+                // Observe unsafe deletion without crashing the test's emitting thread.
+                deletionWhileEmitting = true;
+                return true;
+            }
+            return false;
+        }
+
+    private:
+        const std::atomic_bool &emitting;
+    };
+
     class ControlledCompletionTask final : public Task {
     public:
         bool stopped() const {
@@ -70,7 +92,7 @@ void FoundationTests::canceledWorkerCompletionAdvancesTheQueue() {
     if (alreadyStopped) {
         first->release.release();
         QVERIFY(QThreadPool::globalInstance()->waitForDone(3000));
-        QVERIFY(first->Task::stopped());
+        QTRY_VERIFY_WITH_TIMEOUT(first->Task::stopped(), 3000);
     }
     first->finishAtObservation = finishAtObservation;
     queue.cancelIf([&](auto *task) { return task == first; });
@@ -88,4 +110,55 @@ void FoundationTests::canceledWorkerCompletionAdvancesTheQueue() {
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 3000);
     QVERIFY(queue.current == nullptr);
     QVERIFY(queue.pending.count() == 0);
+}
+
+void FoundationTests::cancellationDoesNotDeleteAnEmittingWorker() {
+    QVERIFY(taskManager->tasks().isEmpty());
+    TaskQueue<ControlledCompletionTask> queue;
+    QPointer<ControlledCompletionTask> task = new ControlledCompletionTask;
+    std::atomic_bool emittingFromWorker{false};
+    std::atomic_bool deliveredOnOwner{false};
+    QSemaphore finishNotification;
+    CompletionDeletionProbe probe(emittingFromWorker);
+    task->installEventFilter(&probe);
+    auto *owner = task->thread();
+    QObject::connect(
+        task, &Task::finished, this,
+        [&] {
+            if (QThread::currentThread() == owner) {
+                deliveredOnOwner.store(true);
+                return;
+            }
+            emittingFromWorker.store(true);
+            finishNotification.acquire();
+            emittingFromWorker.store(false);
+        },
+        Qt::DirectConnection);
+    const auto cleanup = qScopeGuard([&] {
+        if (task)
+            task->release.release();
+        finishNotification.release();
+        QThreadPool::globalInstance()->waitForDone();
+        queue.cancelIf([](auto *) { return true; });
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        if (task) {
+            if (queue.current == task)
+                queue.current = nullptr;
+            if (taskManager->findTaskById(task->id()))
+                taskManager->removeTask(task);
+            delete task;
+        }
+    });
+    queue.add(task);
+    QVERIFY(task->entered.tryAcquire(1, 3000));
+    task->release.release();
+    QTRY_VERIFY_WITH_TIMEOUT(emittingFromWorker.load() || deliveredOnOwner.load(), 3000);
+    queue.cancelIf([](auto *) { return true; });
+    QCoreApplication::processEvents();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    const auto unsafeDeletion = probe.deletionWhileEmitting;
+    finishNotification.release();
+    QVERIFY(QThreadPool::globalInstance()->waitForDone(3000));
+    QVERIFY2(!unsafeDeletion, "A task must remain alive while its worker is emitting completion");
 }

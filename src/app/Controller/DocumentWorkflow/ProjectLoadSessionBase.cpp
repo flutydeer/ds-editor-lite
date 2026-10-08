@@ -52,8 +52,10 @@ void ProjectLoadSessionBase::startParseTask() {
                 publishProgress(status);
         });
     }
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(task); });
-    connect(task, &Task::finished, task, &QObject::deleteLater);
+    connect(
+        task, &Task::finished, this, [this, task] { handleTaskFinished(task); },
+        Qt::QueuedConnection);
+    connect(task, &Task::finished, task, &QObject::deleteLater, Qt::QueuedConnection);
     taskManager->addAndStartTask(task);
 }
 
@@ -81,9 +83,11 @@ void ProjectLoadSessionBase::requestReprocess() {
     if (!task)
         return;
     m_reprocessTask = task;
-    connect(task, &Task::finished, this,
-            [this, generation, task] { handleReprocessFinished(generation, task); });
-    connect(task, &Task::finished, task, &QObject::deleteLater);
+    connect(
+        task, &Task::finished, this,
+        [this, generation, task] { handleReprocessFinished(generation, task); },
+        Qt::QueuedConnection);
+    connect(task, &Task::finished, task, &QObject::deleteLater, Qt::QueuedConnection);
     taskManager->addAndStartTask(task);
 }
 
