@@ -10,6 +10,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
@@ -138,6 +139,12 @@ void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     }
     QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
                                         drafts));
+    if (compact) {
+        QVERIFY(runtime.project().patchClipProperties(
+            commandContext(), {.id = Automation::ClipId(singingClip->id()),
+                               .length = 32 * AppGlobal::ticksPerWholeNote,
+                               .clipLen = 32 * AppGlobal::ticksPerWholeNote}));
+    }
     const auto notes = singingClip->notes().toList();
     QCOMPARE(notes.size(), 3);
     const auto preserved = notes.last()->serialize();
@@ -152,6 +159,8 @@ void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     auto *toolbar = window.findChild<ClipEditorToolBarView *>();
     QVERIFY(canvas);
     QVERIFY(toolbar);
+    if (compact)
+        QVERIFY(NoteLyricPresentation::usesCompactRendering(canvas->scaleX()));
     auto *tool = toolbar->findChild<QAbstractButton *>(rectangle ? QStringLiteral("btnArrow")
                                                                  : QStringLiteral("btnBeam"));
     QVERIFY(tool);

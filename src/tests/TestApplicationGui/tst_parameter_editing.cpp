@@ -13,8 +13,10 @@
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "../TestSupport/PointerInput.h"
 #include "../TestSupport/PointerEvents.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -107,10 +109,31 @@ namespace {
     };
 }
 
+void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument_data() {
+    QTest::addColumn<bool>("withVoice");
+    QTest::newRow("unselected-voice") << false;
+    QTest::newRow("unsupported-parameter-acknowledgment") << true;
+}
+
 void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument() {
+    QFETCH(bool, withVoice);
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
     auto &runtime = *context->m_coreRuntime;
+    if (withVoice) {
+        SingerInfo singer;
+        for (const auto &package : packageManager->installedPackages().successfulPackages) {
+            for (const auto &candidate : package.singers()) {
+                if (candidate.singerId() == TestSupport::fixtureSingerId())
+                    singer = candidate;
+            }
+        }
+        QVERIFY(!singer.isEmpty() && !singer.speakers().isEmpty());
+        if (paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singer))
+            QSKIP("The configured singer supports Mouth Opening, so no unsupported prompt applies");
+        QVERIFY(runtime.parameters().selectClipSingleSpeaker(
+            commandContext(), Automation::ClipId(clip->id()), singer, singer.speakers().first()));
+    }
     Automation::CurveDraftDto curve;
     curve.localStart = 240;
     curve.step = 5;
@@ -150,6 +173,22 @@ void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDo
     choose(background, ParamInfo::Gender);
     if (QTest::currentTestFailed())
         return;
+    auto *prompt = panel.findChild<QWidget *>("speakerMixEmptyState");
+    QVERIFY(prompt);
+    if (withVoice) {
+        QTRY_VERIFY(prompt->isVisible());
+        auto *acknowledge = prompt->findChild<QAbstractButton *>();
+        QVERIFY(acknowledge && acknowledge->isVisible() && acknowledge->isEnabled());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
+        QTest::mouseClick(acknowledge, Qt::LeftButton);
+        QTRY_VERIFY(!prompt->isVisible());
+        choose(foreground, ParamInfo::Gender);
+        choose(foreground, ParamInfo::MouthOpening);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!prompt->isVisible());
+    }
     QCOMPARE(panel.viewState().foreground, ParamInfo::MouthOpening);
     QCOMPARE(panel.viewState().background, ParamInfo::Gender);
     const auto foregroundText = foreground->currentText();

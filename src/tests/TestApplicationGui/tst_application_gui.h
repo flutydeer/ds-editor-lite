@@ -64,6 +64,7 @@ private slots:
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
+    void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument_data();
     void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument();
     void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry_data();
     void parameterStrokeInterruptionPreservesDocumentAndAllowsRetry();
