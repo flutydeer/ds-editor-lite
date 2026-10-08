@@ -1556,7 +1556,8 @@ namespace {
                                         const SingerInfo &singer,
                                         const SingerInfo &sameIdNewerSinger,
                                         const SpeakerInfo &sameIdNewerSpeaker,
-                                        const SpeakerInfo &sameIdNewerSpeakerB) {
+                                        const SpeakerInfo &sameIdNewerSpeakerB,
+                                        const SingerInfo &singleSpeakerSinger) {
         auto &runtime = testRuntime.runtime();
         const auto voices = invokeSchemaValid(registry, QStringLiteral("voices.list"), {},
                                               QStringLiteral("versioned voices.list"));
@@ -1630,7 +1631,41 @@ namespace {
                     QStringLiteral("Localized Registry Singer V2"),
             QStringLiteral("voices.list must search localized aliases and preserve default names"));
 
+        auto implicitVoice = voiceSelection(singleSpeakerSinger, sameIdNewerSpeaker);
+        implicitVoice.remove(QStringLiteral("speaker"));
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
+                                  {
+                                      {QStringLiteral("track_id"), fixture.trackId.value()},
+                                      {QStringLiteral("voice"),    implicitVoice          }
+        },
+                                  QStringLiteral("single-speaker-default"),
+                                  QStringLiteral("a single speaker is selected implicitly")));
+        const auto automaticVoice =
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
+                                 QStringLiteral("track_id"), fixture.trackId.value());
+        QCOMPARE(automaticVoice.value(QStringLiteral("own_voice")).toObject(),
+                 voiceSelection(singleSpeakerSinger, sameIdNewerSpeaker));
+
         const auto exactVoice = voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker);
+        auto ambiguousVoice = exactVoice;
+        ambiguousVoice.remove(QStringLiteral("speaker"));
+        const auto beforeAmbiguous = runtime.documentVersion();
+        const auto beforeAmbiguousModel = TestSupport::projectSnapshot(testRuntime.model());
+        const auto *beforeAmbiguousUndo = testRuntime.history()->nextUndoEntry();
+        const auto rejectedVoice = registry.invoke(
+            QStringLiteral("tracks.set_voice"),
+            {
+                {QStringLiteral("document_id"),       beforeAmbiguous.documentId.toString()},
+                {QStringLiteral("expected_revision"), qint64(beforeAmbiguous.revision)     },
+                {QStringLiteral("track_id"),          fixture.trackId.value()              },
+                {QStringLiteral("voice"),             ambiguousVoice                       }
+        });
+        QVERIFY(!rejectedVoice);
+        QCOMPARE(rejectedVoice.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        QCOMPARE(rejectedVoice.getError().fieldPath, QStringLiteral("voice.speaker"));
+        QCOMPARE(runtime.documentVersion(), beforeAmbiguous);
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeAmbiguousModel);
+        QCOMPARE(testRuntime.history()->nextUndoEntry(), beforeAmbiguousUndo);
         const auto described = invokeSchemaValid(
             registry, QStringLiteral("voices.describe"),
             QJsonObject{
@@ -2480,6 +2515,19 @@ void AutomationProtocolTests::routing() {
         .name = QStringLiteral("Registry Singer V2"),
         .info = registrySingerV2,
     });
+    const SingerInfo singleSpeakerSinger(
+        {QStringLiteral("single-speaker-singer"), registryPackageV2.id, registryPackageV2.version},
+        QStringLiteral("Single Speaker Singer"), {registrySpeakerV2}, {registryLanguageJa},
+        QStringLiteral("ja"));
+    if (scenario == QStringLiteral("voiceAndSpeakerMix")) {
+        registryPackageV2.singers.append({
+            .singerId = singleSpeakerSinger.singerId(),
+            .packageId = registryPackageV2.id,
+            .packageVersion = registryPackageV2.version,
+            .name = singleSpeakerSinger.name(),
+            .info = singleSpeakerSinger,
+        });
+    }
     Automation::PackageRuntimeServices packageServices;
     packageServices.installedPackages = [registryPackage, registryPackageV2] {
         return QList<Automation::PackageDto>{registryPackage, registryPackageV2};
@@ -3156,7 +3204,8 @@ void AutomationProtocolTests::routing() {
                                            Automation::AutomationErrorCode::PermissionDenied,
                QStringLiteral("L2 voice workflows must not depend on the L3 packages domain"));
         verifyPublicVoiceAndSpeakerMix(registry, fixture, *publicEditingFixture, registrySinger,
-                                       registrySingerV2, registrySpeakerV2, registrySpeakerV2B);
+                                       registrySingerV2, registrySpeakerV2, registrySpeakerV2B,
+                                       singleSpeakerSinger);
         access.update(AutomationWire::ControlLevel::L3);
         return;
     }
