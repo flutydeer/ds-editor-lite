@@ -219,12 +219,22 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision_data() {
     QTest::newRow("discard-replaces-project") << QStringLiteral("discard");
     QTest::newRow("cancel-save-path-preserves-project") << QStringLiteral("cancel-path");
     QTest::newRow("save-before-new") << QStringLiteral("save");
+    QTest::newRow("save-existing-file-before-new") << QStringLiteral("save-existing");
     QTest::newRow("failed-save-can-be-canceled") << QStringLiteral("failed-save");
 }
 
 void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     QFETCH(QString, choice);
     auto &runtime = *context->m_coreRuntime;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const bool existingPath = choice == QStringLiteral("save-existing");
+    const auto sourcePath = directory.filePath(QStringLiteral("source.dspx"));
+    if (existingPath) {
+        QVERIFY(runtime.documents().saveDocument(commandContext(), sourcePath));
+        QCOMPARE(documentWorkflowController->projectPath(), sourcePath);
+        QVERIFY(historyManager->isOnSavePoint());
+    }
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("Unsaved source");
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, track));
@@ -233,8 +243,6 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     const auto before = runtime.documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
-    QTemporaryDir directory;
-    QVERIFY(directory.isValid());
     WorkflowPrompt prompt;
     if (choice == QStringLiteral("cancel"))
         prompt.decisions = {SaveDecision::Cancel};
@@ -243,7 +251,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     else
         prompt.decisions = {SaveDecision::Save, SaveDecision::Cancel};
     if (choice == QStringLiteral("save") || choice == QStringLiteral("failed-save"))
-        prompt.savePath = directory.filePath(QStringLiteral("source.dspx"));
+        prompt.savePath = sourcePath;
     if (choice == QStringLiteral("failed-save"))
         QVERIFY(QDir().mkdir(prompt.savePath));
     if (choice == QStringLiteral("cancel"))
@@ -266,7 +274,8 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
                                    ? 1
                                    : 0);
     QCOMPARE(prompt.errors.size(), choice == QStringLiteral("failed-save") ? 1 : 0);
-    const bool replaced = choice == QStringLiteral("discard") || choice == QStringLiteral("save");
+    const bool replaced =
+        choice == QStringLiteral("discard") || choice == QStringLiteral("save") || existingPath;
     if (replaced) {
         QVERIFY(runtime.documentVersion().documentId != before.documentId);
         QVERIFY(HistoryManager::instance()->isOnSavePoint());
@@ -277,16 +286,16 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
         QVERIFY(!HistoryManager::instance()->isOnSavePoint());
     }
-    if (choice == QStringLiteral("save")) {
-        QVERIFY(QFileInfo(prompt.savePath).isFile());
+    if (choice == QStringLiteral("save") || existingPath) {
+        QVERIFY(QFileInfo(sourcePath).isFile());
         AppModel saved;
         DspxProjectConverter converter;
         QString error;
-        QVERIFY2(converter.load(prompt.savePath, &saved, error, ImportMode::NewProject),
+        QVERIFY2(converter.load(sourcePath, &saved, error, ImportMode::NewProject),
                  qPrintable(error));
         QVERIFY(!saved.tracks().isEmpty());
         QCOMPARE(saved.tracks().first()->name(), track.name);
-        QVERIFY(documentWorkflowController->recentProjectFiles().contains(prompt.savePath));
+        QVERIFY(documentWorkflowController->recentProjectFiles().contains(sourcePath));
     }
     if (choice == QStringLiteral("cancel")) {
         prompt.duringPrompt = {};
@@ -298,15 +307,27 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         QVERIFY(!historyManager->isOnSavePoint());
         prompt.savePath = directory.filePath(QStringLiteral("retained.dspx"));
+        QVERIFY(QDir().mkdir(prompt.savePath));
         documentWorkflowController->requestSave();
         QTRY_VERIFY(!documentWorkflowController->busy());
         QCOMPARE(prompt.pathCalls, 2);
+        QCOMPARE(prompt.errors.size(), 1);
+        QVERIFY(!prompt.errors.first().message.isEmpty());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        QVERIFY(!historyManager->isOnSavePoint());
+        QVERIFY(documentWorkflowController->projectPath().isEmpty());
+        QVERIFY(QDir().rmdir(prompt.savePath));
+        documentWorkflowController->requestSave();
+        QTRY_VERIFY(!documentWorkflowController->busy());
+        QCOMPARE(prompt.pathCalls, 3);
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         QVERIFY(historyManager->isOnSavePoint());
         QVERIFY(QFileInfo(prompt.savePath).isFile());
-        QVERIFY(prompt.errors.isEmpty());
+        QCOMPARE(prompt.errors.size(), 1);
     }
 }
 
