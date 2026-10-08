@@ -7,7 +7,7 @@
 
 编辑器的首选项由模型类 `AppOptions` 和前端的对话框 `AppOptionsDialog` 管理。其中，前端对话框包含各种设置页面，模型保存着对应页面的选项及其默认值，并且保存后会发出通知，以便其他组件能够立即响应更改。
 
-应用的首选项保存在 `C:\Users\你的用户名\AppData\Roaming\OpenVPI\DS Editor Lite\appConfig.json` 中。可以在调试的时候打开该文件，检查选项是否正确保存。
+应用的首选项保存在 `<用户目录>\AppData\Roaming\OpenVPI\DS Editor Lite\appConfig.json` 中。可以在调试的时候打开该文件，检查选项是否正确保存。
 
 ## 创建一个首选项页面
 
