@@ -178,6 +178,20 @@ QList<PronunciationFetchResult>
         for (size_t i = 0; i < outcomes.size(); i++) {
             const auto noteIdx = entries[i].first;
             auto &res = pronResult[noteIdx];
+
+            // A word that fails to convert keeps its position in the batch and carries its own
+            // error, so an unknown word does not affect the other words of the batch. A failed
+            // outcome carries no usable pronunciation or candidates, so the prefilled original
+            // lyric is kept instead of being overwritten, as the fill-lyric path also does
+            // (FillLyric/Utils/G2pService.cpp).
+            if (!outcomes[i].error.empty()) {
+                qCWarning(logInferPron).nospace()
+                    << "G2P conversion error note[" << noteIdx << "] lyric='"
+                    << qPrintable(fromUtf8(entries[i].second)) << "' reason='"
+                    << qPrintable(fromUtf8(outcomes[i].error)) << "'";
+                continue;
+            }
+
             res.pronunciation = fromUtf8(outcomes[i].pronunciation);
             res.stage = outcomes[i].stage;
             QStringList rawCandidates;
@@ -185,15 +199,6 @@ QList<PronunciationFetchResult>
             for (const auto &candidate : outcomes[i].candidates)
                 rawCandidates.append(fromUtf8(candidate));
             res.candidates = PronunciationText::normalizeCandidates(res.pronunciation, rawCandidates);
-
-            // A word that fails to convert keeps its position in the batch and carries its own
-            // error, so an unknown word does not affect the other words of the batch.
-            if (!outcomes[i].error.empty()) {
-                qCWarning(logInferPron).nospace()
-                    << "G2P conversion error note[" << noteIdx << "] lyric='"
-                    << qPrintable(fromUtf8(entries[i].second)) << "' reason='"
-                    << qPrintable(fromUtf8(outcomes[i].error)) << "'";
-            }
 
             // A fallback is the last resort of the language module, so it is reported: the reading
             // may not match how the word is pronounced, and no surface of the editor says where a
