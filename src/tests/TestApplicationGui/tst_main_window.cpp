@@ -664,6 +664,9 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(editor.setActiveClip(document, Automation::ClipId(singingClip->id())));
     const auto model = TestSupport::projectSnapshot(*appModel);
     historyManager->reset();
+    QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::TrackPanel));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::TrackPanel);
     const auto originalView = window.captureEditorViewState();
     QVERIFY(editor.setPanelVisibility(gui, true, false));
     QVERIFY(!window.captureEditorViewState().layout.bottomPanelVisible);
@@ -689,6 +692,14 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::Parameters));
     QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
                  EditorViewGlobal::Region::Parameters);
+    const auto focusedParameters = window.captureEditorViewState();
+    QVERIFY(editor.setPanelVisibility(gui, true, false));
+    QVERIFY(!window.captureEditorViewState().layout.bottomPanelVisible);
+    QVERIFY(editor.restoreView(gui, focusedParameters));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::Parameters);
+    QVERIFY(window.captureEditorViewState().layout.bottomPanelVisible);
+    QCOMPARE(window.captureEditorViewState().parameters, focusedParameters.parameters);
     QVERIFY(editor.setPanelVisibility(gui, true, false));
     QVERIFY(!window.captureEditorViewState().layout.bottomPanelVisible);
     QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::PianoRoll));
@@ -831,6 +842,9 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(runtime.playback().seek(commandContext(), backwardTick));
     QTRY_VERIFY(std::abs(canvas->startTick() - backwardTick) < 8);
     QVERIFY(editor.restoreView(gui, originalView));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::TrackPanel);
+    QCOMPARE(window.captureEditorViewState().layout, originalView.layout);
     QCOMPARE(window.captureEditorViewState().parameters.foreground,
              originalView.parameters.foreground);
     QCOMPARE(window.captureEditorViewState().parameters.background,
