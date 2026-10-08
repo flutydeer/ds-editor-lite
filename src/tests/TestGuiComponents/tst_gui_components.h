@@ -20,6 +20,7 @@ private slots:
     void bundledThemeLoadingAndFallback();
     void iconPalette_data();
     void iconPalette();
+    void systemThemeNotificationsUpdateBoundWidgets();
     void failedThemeKeepsSemanticColors();
     void mixDisplay_data();
     void mixDisplay();

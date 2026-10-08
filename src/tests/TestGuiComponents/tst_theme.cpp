@@ -17,8 +17,41 @@
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QScopeGuard>
+#include <QSignalSpy>
+#include <QSignalBlocker>
+#include <QStyleHints>
+#include <qpa/qplatformtheme.h>
+#include <qpa/qwindowsysteminterface.h>
+#include <private/qguiapplication_p.h>
 
 namespace {
+
+    class ControlledPlatformTheme final : public QPlatformTheme {
+    public:
+        Qt::ColorScheme colorScheme() const override {
+            return requested == Qt::ColorScheme::Unknown ? systemScheme : requested;
+        }
+
+        void requestColorScheme(Qt::ColorScheme scheme) override {
+            requested = scheme;
+            publish();
+        }
+
+        void changeSystemScheme(Qt::ColorScheme scheme) {
+            systemScheme = scheme;
+            publish();
+        }
+
+    private:
+        void publish() {
+            // Use the same notification entry point as Qt's platform themes.
+            QWindowSystemInterface::handleThemeChange<
+                QWindowSystemInterface::SynchronousDelivery>();
+        }
+
+        Qt::ColorScheme requested = Qt::ColorScheme::Unknown;
+        Qt::ColorScheme systemScheme = Qt::ColorScheme::Dark;
+    };
 
     std::optional<ThemeColorTable> parse(const QByteArray &json, QString &error) {
         return ThemeColorResolver::parse(json, &error);
@@ -30,7 +63,6 @@ namespace {
             return false;
         return file.write(content) == content.size();
     }
-
 }
 
 namespace {
@@ -420,6 +452,57 @@ void GuiComponentTests::iconPalette() {
     QCOMPARE(palette.active, primary);
     QCOMPARE(palette.selected, primary);
     QCOMPARE(palette.disabled, disabled);
+}
+
+void GuiComponentTests::systemThemeNotificationsUpdateBoundWidgets() {
+    ThemeEnvironment fixture;
+    auto *manager = ThemeManager::instance();
+    auto *hints = QGuiApplication::styleHints();
+    const auto previousTheme = manager->currentThemeId();
+    const auto previousScheme = hints->colorScheme();
+    auto *previousPlatform = QGuiApplicationPrivate::platform_theme;
+    ControlledPlatformTheme platform;
+    QWidget root;
+    manager->addStyleRoot(&root);
+    manager->addWindow(&root);
+    const auto restore = qScopeGuard([&] {
+        manager->removeWindow(&root);
+        manager->removeStyleRoot(&root);
+        QGuiApplicationPrivate::platform_theme = previousPlatform;
+        const QSignalBlocker blocker(hints);
+        manager->applyTheme(previousTheme);
+        hints->setColorScheme(previousScheme);
+    });
+    QGuiApplicationPrivate::platform_theme = &platform;
+    QSignalSpy changed(manager, &ThemeManager::themeChanged);
+    QVERIFY(manager->applyThemePreference(ThemeIds::systemThemePreferenceId()));
+    QCOMPARE(manager->currentThemeId(), ThemeIds::defaultThemeId());
+    const auto darkStyle = root.styleSheet();
+    const auto darkIcon = manager->semanticColor(QStringLiteral("icon.primary"));
+    changed.clear();
+
+    platform.changeSystemScheme(Qt::ColorScheme::Light);
+    QCOMPARE(manager->currentThemeId(), ThemeIds::lightThemeId());
+    QCOMPARE(changed.size(), 1);
+    QVERIFY(root.styleSheet() != darkStyle);
+    QCOMPARE(root.styleSheet(), manager->styleSheet());
+    QVERIFY(manager->semanticColor(QStringLiteral("icon.primary")) != darkIcon);
+    QCOMPARE(IconUtils::defaultActionPalette().normal,
+             manager->semanticColor(QStringLiteral("icon.primary")));
+
+    platform.changeSystemScheme(Qt::ColorScheme::Dark);
+    QCOMPARE(manager->currentThemeId(), ThemeIds::defaultThemeId());
+    QCOMPARE(changed.size(), 2);
+    QCOMPARE(root.styleSheet(), darkStyle);
+    QCOMPARE(manager->semanticColor(QStringLiteral("icon.primary")), darkIcon);
+
+    QVERIFY(manager->applyTheme(ThemeIds::lightThemeId()));
+    const auto lightStyle = root.styleSheet();
+    changed.clear();
+    platform.requestColorScheme(Qt::ColorScheme::Dark);
+    QCOMPARE(manager->currentThemeId(), ThemeIds::lightThemeId());
+    QVERIFY(changed.isEmpty());
+    QCOMPARE(root.styleSheet(), lightStyle);
 }
 
 void GuiComponentTests::failedThemeKeepsSemanticColors() {
