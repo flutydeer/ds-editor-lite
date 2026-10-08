@@ -72,8 +72,10 @@ namespace {
         timeout.setSingleShot(true);
         QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
         QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
-        timeout.start(timeoutMs);
-        loop.exec();
+        if (!reply->isFinished()) {
+            timeout.start(timeoutMs);
+            loop.exec();
+        }
 
         HttpResult result;
         if (!reply->isFinished()) {
@@ -1713,6 +1715,9 @@ void AutomationProtocolTests::crossConnectionCancellation() {
     const auto result = finishRequest(reply, 2000);
     QCOMPARE(canceled.status, 202);
     QVERIFY(canceled.body.isEmpty());
+    if (result.status != 204)
+        qWarning() << "Cancellation response:" << result.status << "timed out:" << result.timedOut
+                   << "network error:" << result.networkError << "body:" << result.body;
     QCOMPARE(result.status, 204);
     QVERIFY(result.body.isEmpty());
     cancellationContextRelease.release();
