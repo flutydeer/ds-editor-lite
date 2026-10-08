@@ -797,6 +797,51 @@ void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched
             task().get().error->message.contains(QStringLiteral("Fixture conversion rejected")));
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     }
+    if (result == "unconfigured") {
+        Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+        Automation::AutomationFileGuard guard;
+        Automation::AdmissionController admission;
+        QVERIFY(guard.setConfiguredRoots({files.path()}));
+        Automation::PublicAutomationRegistry registry(
+            runtime(), access, guard, admission,
+            Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                           &SynthrtEngine::instance()));
+        const QJsonObject arguments{
+            {QStringLiteral("path"),    inputPath             },
+            {QStringLiteral("purpose"), QStringLiteral("open")}
+        };
+        const auto *beforeUndo = historyManager->nextUndoEntry();
+        {
+            const auto searchPath = qgetenv("PATH");
+            const auto restoreSearchPath = qScopeGuard([&] {
+                if (searchPath.isNull())
+                    qunsetenv("PATH");
+                else
+                    qputenv("PATH", searchPath);
+            });
+            context->m_appOptions->general()->libreSVIPPath = QString{};
+            qputenv("PATH", files.path().toLocal8Bit());
+            QVERIFY(LibreSVIPFormatHandler::executablePath().isEmpty());
+            const auto rejected = registry.invoke(QStringLiteral("formats.inspect"), arguments);
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().code,
+                     Automation::AutomationErrorCode::HostCapabilityUnavailable);
+            QCOMPARE(rejected.getError().fieldPath, QStringLiteral("format_id"));
+            QVERIFY(rejected.getError().message.contains(QStringLiteral("libresvip-cli")));
+            QCOMPARE(runtime().documentVersion(), before);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
+            QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        }
+        context->m_appOptions->general()->libreSVIPPath = QCoreApplication::applicationFilePath();
+        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+        DspxProjectConverter converter;
+        QString error;
+        QVERIFY2(converter.save(inputPath, context->m_appModel, error), qPrintable(error));
+        const auto recovered = registry.invoke(QStringLiteral("formats.inspect"), arguments);
+        QVERIFY2(recovered, qPrintable(recovered ? QString{} : recovered.getError().message));
+        QVERIFY(!recovered.get().value(QStringLiteral("plan_digest")).toString().isEmpty());
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+    }
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
 }
