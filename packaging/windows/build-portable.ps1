@@ -1,6 +1,21 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = "dist\portable",
+
+    # Directory of unpacked wolf language packages to stage: one subdirectory per package, each
+    # containing its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake
+    # configuration of such a tree fails if no source for the packages is set. If this parameter is
+    # empty, the script passes no -D option and CMake resolves the packages from the
+    # WOLF_LANG_PACKAGES_SOURCE environment variable, an installed wolf-lang-packages package or,
+    # if LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK is ON, a sibling wolf checkout. If this parameter
+    # is set, LITE_WOLF_LANG_PACKAGES takes precedence over all of those sources.
+    # The parameter controls only whether the -D option is passed. The script does not clear the
+    # CMake cache of the build directory, so a cache that already contains LITE_WOLF_LANG_PACKAGES
+    # keeps supplying the value in the binaryDir of this preset (build\PortableDmlRelease) even
+    # on a default run. Deleting that cache, or configuring once with an explicit empty
+    # -DLITE_WOLF_LANG_PACKAGES=, restores the resolution described above.
+    [string]$WolfLangPackages = "",
+
     # Build the CUDA flavor: configures LITE_ENABLE_CUDA=ON. Default is the
     # DirectML (DML) flavor. The vcpkg tree must already carry
     # onnxruntime-builds[cuda12] (run vcpkg install with --x-feature=cuda12).
@@ -158,6 +173,13 @@ if (-not $NoBuild) {
             # agree on one source of truth.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
+        if ($WolfLangPackages) {
+            # Passed only if the caller sets a value. Omitting the option leaves the CMake
+            # resolution chain (the environment variable, the port, the sibling checkout) in
+            # effect. It does not clear a cache that already contains the value (see the
+            # parameter help above).
+            $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
+        }
         Invoke-Process "cmake" $configureArgs
     }
 
@@ -186,6 +208,75 @@ Invoke-Step "Install to a clean staging tree" {
     Invoke-Process "cmake" @("--install", $BuildDir, "--prefix", $StageDir)
     if (-not (Test-Path -LiteralPath (Join-Path $AppDir "$ExecutableName"))) {
         throw "$ExecutableName not found after install in $AppDir"
+    }
+}
+
+# Reads the deployed layout from src/libs/SynthrtEngine/DeployLayout.h (cmake/LiteBuildApi.cmake).
+function Get-DeployLayout {
+    $header = Join-Path $RepoRoot "src\libs\SynthrtEngine\DeployLayout.h"
+    $layout = @{}
+    foreach ($line in Select-String -LiteralPath $header -Pattern 'inline constexpr char ([A-Z_]+)\[\] = "([^"]*)";') {
+        $groups = $line.Matches[0].Groups
+        $layout[$groups[1].Value] = $groups[2].Value -replace '/', '\'
+    }
+    foreach ($name in @("ONNX_RUNTIME_DIR", "CUDA_RUNTIME_SUBDIR", "LANGUAGE_PACKAGES_DIR",
+        "PLUGIN_LIBRARIES")) {
+        if (-not $layout.ContainsKey($name)) {
+            throw "DeployLayout.h does not define $name in the form this script parses"
+        }
+    }
+    return $layout
+}
+
+$DeployLayout = Get-DeployLayout
+
+# Layout assertion: the installed tree must contain the complete deployment, not only the
+# executable. build-installer.ps1 states the same requirement for its staging directory (the
+# $requiredPaths list in Assert-StagingLayout). This step verifies it against $AppDir, which is
+# $StageDir\bin, the runtime directory into which the application and its deployment are
+# installed; the paths therefore have no deploy-root prefix. The plugins\<library> entries are the
+# host plugin trees: cmake/LiteBuildApi.cmake copies each tree only if the vcpkg tree contains it
+# and only warns if it is absent, so without this check a package could ship without an entire
+# plugin tree (dsinfer, wolf or otter) while every step reports success. The library names are not
+# repeated here: they are read from DeployLayout.h (PLUGIN_LIBRARIES), the same definition
+# cmake/LiteBuildApi.cmake reads. The executable is not in the list because the install step above
+# already rejects a staging tree without it.
+# The check reads the tree installed by this run. The install step removed the staging directory
+# first, so no leftover from a previous run can satisfy the check.
+Invoke-Step "Validate staging layout" {
+    $pluginTreePaths = $DeployLayout.PLUGIN_LIBRARIES -split ' ' |
+        ForEach-Object { "plugins\$_" }
+    # The ONNX Runtime payload is the second deployment input CMake reads from a package it cannot
+    # verify itself: a missing payload only warns unless LITE_INSTALL is set, which turns it into a
+    # configure error. The path below is the default flavor, which every build carries; the CUDA
+    # flavor subdirectory is the additional one and is asserted against -EnableCuda below.
+    $requiredPaths = @(
+        "plugins",
+        "plugins\platforms"
+    ) + $pluginTreePaths + @(
+        "Resources",
+        "configs",
+        $DeployLayout.LANGUAGE_PACKAGES_DIR,
+        $DeployLayout.ONNX_RUNTIME_DIR
+    )
+
+    # Every directory that DeployLayout.h records below plugins\<library>\ must exist in the
+    # installed tree. cmake/LiteBuildApi.cmake checks the same directories in the vcpkg source tree
+    # at configure time and only warns, so this check covers the tree that is about to be shipped.
+    # The names come from the parsed layout: a category constant already carries its
+    # plugins\<library>\ prefix, so the library-to-category mapping is derived here rather than
+    # restated.
+    foreach ($layoutEntry in $DeployLayout.GetEnumerator()) {
+        if ($layoutEntry.Value -match '^plugins\\[^\\]+\\[^\\]+$') {
+            $requiredPaths += $layoutEntry.Value
+        }
+    }
+
+    foreach ($path in $requiredPaths) {
+        $fullPath = Join-Path $AppDir $path
+        if (-not (Test-Path -LiteralPath $fullPath)) {
+            throw "Portable staging is missing required path: $path"
+        }
     }
 }
 
@@ -222,7 +313,8 @@ if ($PdbCount -eq 0) {
 # runtime gate already enforces this at build/install time; this is the
 # packaging-boundary net so a stale vcpkg tree can never slip through.
 Invoke-Step "Validate staging flavor" {
-    $cudaRuntimeDir = Join-Path $AppDir "plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaRuntimeDir = Join-Path $AppDir (
+        "$($DeployLayout.ONNX_RUNTIME_DIR)\$($DeployLayout.CUDA_RUNTIME_SUBDIR)")
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
         throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
@@ -235,7 +327,9 @@ Invoke-Step "Validate staging flavor" {
     }
 }
 
-$Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
+# UTC with second precision, because local-time stamps with minute precision can collide across
+# time zones, and the Move-Item -Force below would then silently overwrite the earlier package.
+$Timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss")
 $ZipBaseName = "DsEditorLite-$Timestamp-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-portable"
 $ZipPath = Join-Path $ResolvedOutputDir "$ZipBaseName.zip"
 
