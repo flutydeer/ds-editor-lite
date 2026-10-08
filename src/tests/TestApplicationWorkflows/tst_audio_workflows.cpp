@@ -403,6 +403,32 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         return;
     QVERIFY(centeredMaster.at(middle * 2) > 0.1f);
     QCOMPARE(centeredMaster.at(middle * 2), centeredMaster.at(middle * 2 + 1));
+    QVERIFY(editMix(QStringLiteral("master.set_mute"), {
+                                                           {QStringLiteral("mute"), true}
+    }));
+    QVector<float> mutedMaster;
+    exportSamples(QStringLiteral("master-muted.wav"), mutedMaster, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(std::all_of(mutedMaster.cbegin(), mutedMaster.cend(),
+                        [](float sample) { return std::abs(sample) < 1e-6f; }));
+    options.insert(QStringLiteral("mute_solo_enabled"), false);
+    QVector<float> bypassedMasterMute;
+    exportSamples(QStringLiteral("master-mute-bypassed.wav"), bypassedMasterMute,
+                  talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(bypassedMasterMute, centeredMaster);
+    options.remove(QStringLiteral("mute_solo_enabled"));
+    QVector<float> muteRestoredAfterExport;
+    exportSamples(QStringLiteral("master-mute-restored.wav"), muteRestoredAfterExport,
+                  talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(muteRestoredAfterExport, mutedMaster);
+    QVERIFY(editMix(QStringLiteral("history.undo"), {}));
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeMasterPan);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeMasterPan);
     QVERIFY(editMix(QStringLiteral("master.set_pan"), {
                                                           {QStringLiteral("pan"), 1.0}
     }));
