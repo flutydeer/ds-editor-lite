@@ -274,6 +274,59 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     const auto originalInterpolation = nodes.first()->interpMode();
     const auto selectedInterpolation =
         originalInterpolation == AnchorNode::Linear ? AnchorNode::Hermite : AnchorNode::Linear;
+    const auto beforeDrag = runtime.documentVersion();
+    const auto contentBeforeDrag = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeDrag = historyManager->nextUndoEntry();
+    const auto movedPosition = editor.pointFor(720, 450);
+    QVERIFY(viewport->rect().contains(movedPosition));
+    bool dragPressed = false;
+    const auto startDrag = [&] {
+        TestSupport::hoverWidget(*viewport, first);
+        QTest::mousePress(viewport, Qt::LeftButton, Qt::NoModifier, first);
+        dragPressed = true;
+        const auto selectedImage = viewport->grab().toImage();
+        editor.moveWithButton(movedPosition);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QCOMPARE(runtime.documentVersion(), beforeDrag);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDrag);
+        QCOMPARE(historyManager->nextUndoEntry(), undoBeforeDrag);
+        QTRY_VERIFY(viewport->grab().toImage() != selectedImage);
+    };
+    const auto releaseDrag = qScopeGuard([&] {
+        if (dragPressed)
+            QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, movedPosition);
+    });
+    startDrag();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(&editor.view, Qt::Key_Escape);
+    QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, movedPosition);
+    dragPressed = false;
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion(), beforeDrag);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDrag);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeDrag);
+    startDrag();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, movedPosition);
+    dragPressed = false;
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion().revision, beforeDrag.revision + 1);
+    QVERIFY(curve());
+    const auto movedNodes = curve()->nodes().toList();
+    QCOMPARE(movedNodes.size(), 2);
+    QVERIFY(qAbs(movedNodes.first()->pos() - 720) <= 4);
+    QVERIFY(qAbs(movedNodes.first()->value() - 450) <= 5);
+    QVERIFY(qAbs(movedNodes.last()->pos() - 960) <= 4);
+    QVERIFY(qAbs(movedNodes.last()->value() - 800) <= 5);
+    verifyDraw();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeDrag);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeDrag);
+    QVERIFY(curve());
     const auto label = ParamEditorGraphicsView::tr(
         selectedInterpolation == AnchorNode::Linear ? "Linear" : "Hermite");
     bool menuUsed = false;

@@ -555,7 +555,9 @@ void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
                     taskId = candidate->automationTaskId;
                 }
                 preparedTask = task;
-                connect(task, &Task::finished, &observations, [&] { completionDelivered = true; });
+                connect(
+                    task, &Task::finished, &observations, [&] { completionDelivered = true; },
+                    Qt::QueuedConnection);
             });
     if (cascadeRelink)
         fixture.controller->resolveMissingClipsNear(path);
