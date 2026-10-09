@@ -587,12 +587,17 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
         appOptions->general()->drawParamWithFinger = false;
         const auto beforePan = piano->startTick();
         const auto beforeFrame = pianoFrames.size();
-        auto touch = QTest::touchEvent(viewport, touchDevice, false);
-        touch.press(0, position).commit();
-        touch.move(0, position - QPoint(24, 0)).commit();
-        touch.move(0, position - QPoint(48, 0)).commit();
+        auto *inputWindow = viewport->window()->windowHandle();
+        QVERIFY(inputWindow);
+        const auto inputPosition = [&](const QPoint &point) {
+            return inputWindow->mapFromGlobal(viewport->mapToGlobal(point));
+        };
+        auto touch = QTest::touchEvent(inputWindow, touchDevice, false);
+        touch.press(0, inputPosition(position)).commit();
+        touch.move(0, inputPosition(position - QPoint(24, 0))).commit();
+        touch.move(0, inputPosition(position - QPoint(48, 0))).commit();
         QTRY_VERIFY2(piano->startTick() > beforePan, qPrintable(recentInput.join('\n')));
-        touch.release(0, position - QPoint(48, 0)).commit();
+        touch.release(0, inputPosition(position - QPoint(48, 0))).commit();
         verifyTimeline();
         if (QTest::currentTestFailed())
             return;
