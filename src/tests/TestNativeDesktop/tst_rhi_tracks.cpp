@@ -533,6 +533,25 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(1440, 1));
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 3);
+    frameCount = frames.size();
+    QVERIFY(fixture.runtime().project().moveTracks(
+        fixture.command(), {Automation::TrackId(fixture.secondTrackId)}, 0));
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QTRY_VERIFY(frames.size() > frameCount || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    appStatus->selectedClips = {};
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(1440, 0));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    frameCount = frames.size();
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(fixture.trackOfClip(), 1);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), editedModel);
+    QCOMPARE(historyManager->nextUndoEntry(), entry);
+    QTRY_VERIFY(frames.size() > frameCount || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    appStatus->selectedClips = {};
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(1440, 1));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     QVERIFY(failed.isEmpty());
     const auto afterEditing = fixture.runtime().documentVersion();
     canvas.setAutoPageTurn(true);
@@ -1093,6 +1112,30 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
     QTRY_VERIFY(canvas.isActiveWindow());
     historyManager->reset();
+    const auto beforeTempo = fixture.runtime().documentVersion();
+    const auto modelBeforeTempo =
+        TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+    auto tempoFrame = frames.size();
+    QVERIFY(fixture.runtime().timeline().setTempo(fixture.command(), 0, 60));
+    QTRY_VERIFY(frames.size() > tempoFrame || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    QCOMPARE(audio->clipLen(), 480);
+    QCOMPARE(audio->trimStartMs(), 0.0);
+    QCOMPARE(audio->playLengthMs(), 1000.0);
+    QCOMPARE(audio->materialLengthMs(), 1000.0);
+    QCOMPARE(fixture.runtime().documentVersion().revision, beforeTempo.revision + 1);
+    appStatus->selectedClips = {};
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(1200, 0));
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(720, 0));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    tempoFrame = frames.size();
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QTRY_VERIFY(frames.size() > tempoFrame || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel),
+             modelBeforeTempo);
+    QVERIFY(!historyManager->canUndo());
     const auto modelBeforeZoom =
         TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
     const auto versionBeforeZoom = fixture.runtime().documentVersion();
