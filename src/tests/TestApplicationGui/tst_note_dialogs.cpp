@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -43,6 +44,7 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSemaphore>
+#include <QTemporaryDir>
 #include <QThreadPool>
 #include <QTimer>
 #include <QtTest/QTest>
@@ -929,6 +931,52 @@ void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClip
     QVERIFY(pool->waitForDone(5000));
     QCoreApplication::sendPostedEvents(&phonemes, QEvent::MetaCall);
     QCOMPARE(loaded.count(), completedLoads);
+
+    QTemporaryDir waveFiles;
+    QVERIFY(waveFiles.isValid());
+    QVector<float> transients(51203, 0.0f);
+    for (int group = 0; group < 40; ++group) {
+        transients[group * 1280 + 1278] = 0.75f;
+        transients[group * 1280 + 1279] = -0.75f;
+    }
+    const auto transientPath = waveFiles.filePath(QStringLiteral("transients.wav"));
+    QVERIFY(TestSupport::writeWave(transientPath, transients));
+    QStringList originalPaths;
+    for (auto *piece : pieces) {
+        originalPaths.append(piece->audioPath);
+        piece->audioPath = transientPath;
+    }
+    const auto restorePaths = qScopeGuard([&] {
+        phonemes.setDataContext(nullptr);
+        for (qsizetype index = 0; index < pieces.size(); ++index)
+            pieces.at(index)->audioPath = originalPaths.at(index);
+    });
+    loaded.clear();
+    phonemes.setTimeRange(0, 1920);
+    phonemes.setDataContext(singingClip);
+    QTRY_VERIFY_WITH_TIMEOUT(std::any_of(loaded.cbegin(), loaded.cend(),
+                                         [pieceId](const auto &arguments) {
+                                             return arguments.first().toInt() == pieceId;
+                                         }),
+                             10000);
+    QVERIFY(pool->waitForDone(5000));
+    QCoreApplication::sendPostedEvents(&phonemes, QEvent::MetaCall);
+    const auto transientWaveform = phonemes.grab().toImage();
+    QRect peakBounds;
+    for (int y = 0; y < transientWaveform.height(); ++y) {
+        for (int x = 0; x < transientWaveform.width(); ++x) {
+            if (transientWaveform.pixelColor(x, y) == QColor(14, 231, 107))
+                peakBounds |= QRect(x, y, 1, 1);
+        }
+    }
+    QVERIFY2(peakBounds.height() > transientWaveform.height() / 2,
+             qPrintable(QStringLiteral("Transient waveform lost: peaks %1x%2, image %3x%4")
+                            .arg(peakBounds.width())
+                            .arg(peakBounds.height())
+                            .arg(transientWaveform.width())
+                            .arg(transientWaveform.height())));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalModel);
+    QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!editSessionManager->hasActiveTransaction());
 }
