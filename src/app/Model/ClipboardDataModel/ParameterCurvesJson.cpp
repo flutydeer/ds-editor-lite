@@ -1,6 +1,7 @@
 #include "ParameterCurvesJson.h"
 
 #include <QJsonObject>
+#include <QSet>
 
 #include <optional>
 #include <limits>
@@ -81,6 +82,7 @@ namespace ClipboardDataModel {
 
     QList<Automation::ParamCurvesDraftDto> deserializeParameters(const QJsonArray &parameters) {
         QList<Automation::ParamCurvesDraftDto> result;
+        QSet<QPair<int, int>> acceptedGroups;
         for (const auto parameterValue : parameters) {
             const auto parameterObject = parameterValue.toObject();
             const auto name = parameterObject.value(QStringLiteral("name")).toInt();
@@ -89,6 +91,9 @@ namespace ClipboardDataModel {
                 (layer != Param::Original && layer != Param::Edited && layer != Param::Envelope)) {
                 continue;
             }
+            const auto key = qMakePair(name, layer);
+            if (acceptedGroups.contains(key))
+                continue;
             Automation::ParamCurvesDraftDto parameter{
                 .name = static_cast<ParamInfo::Name>(name),
                 .type = static_cast<Param::Type>(layer),
@@ -100,8 +105,10 @@ namespace ClipboardDataModel {
                     parameter.curves.append(std::move(*curve));
             }
             if (!parameter.curves.isEmpty() &&
-                !Automation::hasOverlappingAnchorCurves(parameter.curves))
+                !Automation::hasOverlappingAnchorCurves(parameter.curves)) {
+                acceptedGroups.insert(key);
                 result.append(std::move(parameter));
+            }
         }
         return result;
     }
