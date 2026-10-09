@@ -361,10 +361,13 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
     QVERIFY(modelClip->usesTrackVoiceContext());
     QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
     QVERIFY(!historyManager->canUndo());
-    if (clipTarget) {
+    {
         auto *language = host->findChild<LanguageComboBox *>();
         QVERIFY(language && language->isVisible() && language->isEnabled());
-        const auto previousLanguage = modelClip->defaultLanguage();
+        const auto targetLanguage = [&] {
+            return clipTarget ? modelClip->defaultLanguage() : modelTrack->defaultLanguage();
+        };
+        const auto previousLanguage = targetLanguage();
         const auto previousIndex = language->currentIndex();
         const auto otherIndex = previousIndex == 0 ? 1 : 0;
         QVERIFY(otherIndex < language->count());
@@ -378,11 +381,11 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
         if (otherIndex == 1)
             QTest::keyClick(language->view(), Qt::Key_Down);
         QTest::keyClick(language->view(), Qt::Key_Return);
-        QCOMPARE(modelClip->defaultLanguage(), chosenLanguage);
+        QCOMPARE(targetLanguage(), chosenLanguage);
         QCOMPARE(language->currentLanguage(), chosenLanguage);
         QCOMPARE(runtime.documentVersion().revision, beforeLanguage.revision + 1);
         QVERIFY(runtime.history().undo(commandContext()));
-        QCOMPARE(modelClip->defaultLanguage(), previousLanguage);
+        QCOMPARE(targetLanguage(), previousLanguage);
         QCOMPARE(language->currentLanguage(), previousLanguage);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeLanguageModel);
         QVERIFY(!historyManager->canUndo());
