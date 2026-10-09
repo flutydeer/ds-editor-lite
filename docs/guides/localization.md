@@ -19,11 +19,11 @@
 
 `UiLanguageManager` 是应用级语言入口，负责：
 
-- 规范化并保存语言偏好；
-- 解析当前有效语言；
-- 持有应用、`qtbase` 和 `qt` translator；
-- 安装或卸载 translator；
-- 提供 `preference()`、`effectiveLanguageId()` 和 `effectiveLocale()`；
+- 规范化并保存语言偏好。
+- 解析当前有效语言。
+- 持有合并应用和 Qt 翻译的单个 `QTranslator`。
+- 安装或卸载这个 translator。
+- 提供 `preference()`、`effectiveLanguageId()` 和 `effectiveLocale()`。
 - 在有效语言切换成功后发送 `languageChanged(QString)`。
 
 启动顺序必须保持为：
@@ -38,7 +38,9 @@ QApplication
 
 这样可保证所有在构造函数中调用 `tr()` 的对象第一次创建时就使用正确语言。不要把语言初始化移到 `AppContext` 或主窗口之后。
 
-英文模式不加载应用 QM。中文模式从 Qt 翻译目录加载 `qtbase_zh_CN`、`qt_zh_CN`，并从资源路径 `:/i18n/translation_zh_CN.qm` 加载应用翻译。应用翻译或 Qt 翻译加载失败时会记录警告、卸载已加载的 translator，并安全回退英文。
+构建时，`src/app/CMakeLists.txt` 的 `qt_add_translations` 使用 `MERGE_QT_TRANSLATIONS` 和 `QT_TRANSLATION_CATALOGS qtbase`，将应用中文翻译与 Qt 官方 `qtbase` 中文翻译合并到同一个 QM，并嵌入 `/i18n` 资源。运行时不从 Qt 安装目录读取翻译文件，也不需要另行部署 `qtbase_zh_CN.qm` 或 `qt_zh_CN.qm`。
+
+英文模式不安装 translator。中文模式只加载 `:/i18n/translation_zh_CN.qm` 并安装这一个 translator。资源加载失败时记录警告、移除 translator 并回退英文，配置中的语言偏好仍保留。语言热切换与启动使用同一路径，不改写应用默认 locale。
 
 语言设置位于“设置 → 常规 → 应用”。组合框的 `itemData` 保存稳定 ID，显示文本不参与配置持久化或业务判断。缺失或非法配置统一按 `system` 处理。
 
