@@ -1142,7 +1142,7 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (platformRenderer && !platformRhiAvailable())
         QSKIP("No graphics backend is available for framebuffer validation");
     ExistingRhiNoteFixture fixture;
-    fixture.initialize(3840, platformRenderer ? platformRhiApi() : QRhiWidget::Api::Null);
+    fixture.initialize(38400, platformRenderer ? platformRhiApi() : QRhiWidget::Api::Null);
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
@@ -1277,8 +1277,19 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
                                 .arg(canvas.startTick())
                                 .arg(canvas.endTick())
                                 .arg(pageStart)));
+    const auto beforeFollowing = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto beforeJump = canvas.endTick();
+    const auto distantPosition = beforeJump + 2 * (beforeJump - canvas.startTick());
+    QVERIFY(distantPosition < fixture.clip->length());
+    canvas.setPlaybackPosition(distantPosition);
+    QTRY_VERIFY(canvas.startTick() > beforeJump && canvas.startTick() <= distantPosition &&
+                canvas.endTick() >= distantPosition);
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
     canvas.setPlaybackPosition(480);
     QTRY_VERIFY(canvas.startTick() <= 480 && canvas.endTick() >= 480);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeFollowing);
     QCOMPARE(fixture.runtime().documentVersion(), afterEditing);
     QCOMPARE(note->localStart(), 480);
     QVERIFY(!historyManager->canUndo());
