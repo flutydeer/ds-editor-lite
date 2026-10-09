@@ -721,6 +721,66 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     QCOMPARE(importedNote->length(), sourceNote->length());
     QCOMPARE(importedNote->keyIndex(), sourceNote->keyIndex());
     QCOMPARE(importedNote->lyric(), sourceNote->lyric());
+    if (midi && !opening && !corruptSource) {
+        QVERIFY(!originalTracks.isEmpty());
+        const auto exportVersion = runtime().documentVersion();
+        const auto exportModel = TestSupport::projectSnapshot(*context->m_appModel);
+        const auto *exportUndo = historyManager->nextUndoEntry();
+        const QList<const Track *> selectedTracks{importedTrack, originalTracks.first()};
+        for (qsizetype index = 0; index < selectedTracks.size(); ++index) {
+            const auto *selectedTrack = selectedTracks.at(index);
+            QVERIFY(selectedTrack && selectedTrack->clips().count() == 1);
+            const auto *selectedClip = qobject_cast<SingingClip *>(*selectedTrack->clips().begin());
+            QVERIFY(selectedClip && selectedClip->notes().count() == 1);
+            const auto *selectedNote = *selectedClip->notes().begin();
+            const auto exportPath =
+                files.filePath(QStringLiteral("selected-track-%1.mid").arg(index));
+            const auto exported = registry.invoke(
+                QStringLiteral("exports.midi.start"),
+                QJsonObject{
+                    {QStringLiteral("document_id"),      exportVersion.documentId.toString()    },
+                    {QStringLiteral("path"),             exportPath                             },
+                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")               },
+                    {QStringLiteral("options"),
+                     QJsonObject{{QStringLiteral("track_ids"), QJsonArray{selectedTrack->id()}}}},
+            });
+            QVERIFY2(exported, qPrintable(exported ? QString{}
+                                                   : QStringLiteral("%1: %2").arg(
+                                                         exported.getError().fieldPath,
+                                                         exported.getError().message)));
+            const auto exportId = Automation::TaskId::fromString(
+                exported.get().value(QStringLiteral("task_id")).toString());
+            QVERIFY(!exportId.isNull());
+            const auto exportTask = [&] {
+                return runtime().tasks().getTask(exportVersion.documentId, exportId);
+            };
+            QTRY_VERIFY_WITH_TIMEOUT(
+                exportTask() &&
+                    (exportTask().get().state == Automation::AutomationTaskState::Succeeded ||
+                     exportTask().get().state == Automation::AutomationTaskState::Failed),
+                10000);
+            const auto exportResult = exportTask().get();
+            QVERIFY2(exportResult.state == Automation::AutomationTaskState::Succeeded,
+                     qPrintable(exportResult.error ? exportResult.error->message : QString{}));
+            const auto parsed = MidiFileParser::parse(exportPath);
+            QVERIFY2(parsed.valid, qPrintable(parsed.errorMessage));
+            qsizetype noteCount = 0;
+            for (const auto &track : parsed.mediate.tracks()) {
+                for (const auto &note : track.notes) {
+                    ++noteCount;
+                    QCOMPARE(QString::fromStdString(track.title), selectedTrack->name());
+                    QCOMPARE(note.noteOnTick, selectedClip->start() + selectedNote->localStart());
+                    QCOMPARE(note.length, selectedNote->length());
+                    QCOMPARE(note.key, selectedNote->keyIndex());
+                    QCOMPARE(QString::fromStdString(note.lyric), selectedNote->lyric());
+                }
+            }
+            QCOMPARE(noteCount, qsizetype{1});
+            QCOMPARE(runtime().documentVersion(), exportVersion);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), exportModel);
+            QCOMPARE(historyManager->nextUndoEntry(), exportUndo);
+        }
+    }
     if (!opening) {
         QVERIFY(runtime().history().undo(commandContext()));
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
