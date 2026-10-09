@@ -1171,29 +1171,47 @@ void ApplicationServicesTests::extractionDomains() {
         auto pitchContext = harness.context();
         pitchContext.idempotencyKey = QStringLiteral("pitch-extraction");
         pitchContext.clientId = QStringLiteral("extraction-test");
-        const auto failedAccepted = runtime.extractions().startPitch(
-            pitchContext, harness.audioClipId(), harness.singingClipId());
-        QVERIFY(failedAccepted);
-        const auto failedState = harness.pitchStates.last();
-        QVERIFY(harness.extractionScheduler.runNext());
-        failedState->complete({
-            .state = Automation::ExtractionBackendState::Failed,
-            .errorCode = Automation::AutomationErrorCode::InferenceError,
-            .errorMessage = QStringLiteral("controlled pitch inference failure"),
-        });
-        const auto failedTask =
-            runtime.tasks().getTask(base.documentId, failedAccepted.get().taskId);
-        QVERIFY(failedTask);
-        QCOMPARE(failedTask.get().state, Automation::AutomationTaskState::Failed);
-        QVERIFY(failedTask.get().error);
-        QCOMPARE(failedTask.get().error->code, Automation::AutomationErrorCode::InferenceError);
-        QCOMPARE(runtime.documentVersion(), base);
-        QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+        Automation::TaskId lastFailedTask;
+        for (const bool invalidResult : {false, true}) {
+            const auto failedAccepted = runtime.extractions().startPitch(
+                pitchContext, harness.audioClipId(), harness.singingClipId());
+            QVERIFY(failedAccepted);
+            QVERIFY(failedAccepted.get().taskId != lastFailedTask);
+            lastFailedTask = failedAccepted.get().taskId;
+            const auto failedState = harness.pitchStates.last();
+            QVERIFY(harness.extractionScheduler.runNext());
+            if (invalidResult) {
+                failedState->complete({
+                    .state = Automation::ExtractionBackendState::Succeeded,
+                    .segments = {{.globalStartTick = 20,
+                                  .values = {60.0, std::numeric_limits<double>::quiet_NaN()}}},
+                });
+            } else {
+                failedState->complete({
+                    .state = Automation::ExtractionBackendState::Failed,
+                    .errorCode = Automation::AutomationErrorCode::InferenceError,
+                    .errorMessage = QStringLiteral("controlled pitch inference failure"),
+                });
+            }
+            const auto failedTask = runtime.tasks().getTask(base.documentId, lastFailedTask);
+            QVERIFY(failedTask);
+            QCOMPARE(failedTask.get().state, Automation::AutomationTaskState::Failed);
+            QVERIFY(failedTask.get().error);
+            QCOMPARE(failedTask.get().error->code,
+                     invalidResult ? Automation::AutomationErrorCode::InvalidArgument
+                                   : Automation::AutomationErrorCode::InferenceError);
+            if (invalidResult)
+                QCOMPARE(failedTask.get().error->fieldPath,
+                         QStringLiteral("result.segments[0].values"));
+            QVERIFY(!failedTask.get().mutation);
+            QCOMPARE(runtime.documentVersion(), base);
+            QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+        }
 
         const auto accepted = runtime.extractions().startPitch(pitchContext, harness.audioClipId(),
                                                                harness.singingClipId());
         QVERIFY(accepted);
-        QVERIFY(accepted.get().taskId != failedAccepted.get().taskId);
+        QVERIFY(accepted.get().taskId != lastFailedTask);
         const auto prepareCount = harness.pitchPrepareCount;
         const auto repeated = runtime.extractions().startPitch(pitchContext, harness.audioClipId(),
                                                                harness.singingClipId());
