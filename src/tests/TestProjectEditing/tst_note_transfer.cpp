@@ -566,7 +566,8 @@ void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true << QString{};
     QTest::newRow("original-curves-without-notes") << int(Param::Original) << false << QString{};
     QTest::newRow("envelope-curves") << int(Param::Envelope) << true << QString{};
-    for (const auto &fault : {"duplicate-positions", "reversed-positions", "out-of-range-value"})
+    for (const auto &fault : {"duplicate-positions", "reversed-positions", "out-of-range-value",
+                              "draw-negative-start", "draw-out-of-range-value"})
         QTest::newRow(fault) << int(Param::Edited) << true << QString::fromLatin1(fault);
 }
 
@@ -594,13 +595,22 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
     auto payload = QJsonDocument::fromJson(bytes).object();
     if (!fault.isEmpty()) {
-        auto &nodes = draft.params.first().curves.last().nodes;
-        if (fault == QStringLiteral("duplicate-positions"))
-            nodes.last().position = nodes.first().position;
-        else if (fault == QStringLiteral("reversed-positions"))
-            std::swap(nodes.first(), nodes.last());
-        else
-            nodes.first().value = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        const bool drawFault = fault.startsWith(QStringLiteral("draw-"));
+        if (drawFault) {
+            auto &curve = draft.params.first().curves.first();
+            if (fault == QStringLiteral("draw-negative-start"))
+                curve.localStart = -120;
+            else
+                curve.values.first() = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        } else {
+            auto &nodes = draft.params.first().curves.last().nodes;
+            if (fault == QStringLiteral("duplicate-positions"))
+                nodes.last().position = nodes.first().position;
+            else if (fault == QStringLiteral("reversed-positions"))
+                std::swap(nodes.first(), nodes.last());
+            else
+                nodes.first().value = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        }
         TestRuntime fixture;
         auto &runtime = fixture.runtime();
         const auto track = insertTrack(runtime, QStringLiteral("Destination"));
@@ -613,7 +623,9 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
         });
         QVERIFY(!rejected);
         QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
-        QCOMPARE(rejected.getError().fieldPath, QStringLiteral("clip.parameters.curves.nodes"));
+        QCOMPARE(rejected.getError().fieldPath,
+                 drawFault ? QStringLiteral("clip.parameters.curves")
+                           : QStringLiteral("clip.parameters.curves.nodes"));
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(fixture.model().tracks().first()->clips().count(), 0);
         QVERIFY(!fixture.history()->canUndo());
@@ -623,7 +635,10 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
                     ClipboardDataModel::serializeParameters(draft.params));
         clips.replace(0, clip);
         payload.insert(QStringLiteral("clips"), clips);
-        draft.params.first().curves.removeLast();
+        if (drawFault)
+            draft.params.first().curves.removeFirst();
+        else
+            draft.params.first().curves.removeLast();
     }
     const auto decoded = ClipsInfo::deserializeFromJson(payload);
     const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });

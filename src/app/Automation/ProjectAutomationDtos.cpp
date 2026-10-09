@@ -13,6 +13,7 @@
 #include <QSet>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -714,16 +715,26 @@ namespace Automation {
         return hash.result();
     }
 
-    bool validAnchorNodes(const ParamInfo::Name name, const QList<AnchorNodeDraftDto> &nodes,
-                          const int sourceStart, const int sourceEnd) {
-        if (nodes.size() < 2)
-            return false;
+    bool validCurveDraft(const ParamInfo::Name name, const CurveDraftDto &curve,
+                         const int sourceStart, const int sourceEnd) {
         const auto spec = ParamInfo::valueSpec(name);
+        const auto validValue = [&spec](const int value) {
+            return value >= spec.minimum && value <= spec.maximum &&
+                   (value - spec.minimum) % spec.step == 0;
+        };
+        if (curve.type == CurveDraftDto::Type::Draw) {
+            const auto end = static_cast<qint64>(curve.localStart) +
+                             static_cast<qint64>(curve.step) * curve.values.size();
+            return curve.step > 0 && !curve.values.isEmpty() && curve.localStart >= sourceStart &&
+                   end <= sourceEnd &&
+                   std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
+        }
+        if (curve.nodes.size() < 2)
+            return false;
         auto previous = std::numeric_limits<int>::min();
-        for (const auto &node : nodes) {
+        for (const auto &node : curve.nodes) {
             if (node.position < sourceStart || node.position > sourceEnd ||
-                node.position <= previous || node.value < spec.minimum ||
-                node.value > spec.maximum || (node.value - spec.minimum) % spec.step != 0 ||
+                node.position <= previous || !validValue(node.value) ||
                 node.interpolation < AnchorNode::Linear || node.interpolation > AnchorNode::None) {
                 return false;
             }
@@ -794,8 +805,14 @@ namespace Automation {
                             QStringLiteral("clip.parameters.curves.values"),
                             QStringLiteral("Draw curve range exceeds the supported timeline"));
                     }
-                } else if (!validAnchorNodes(parameter.name, curve.nodes, 0,
-                                             std::numeric_limits<int>::max())) {
+                    if (!validCurveDraft(parameter.name, curve, 0,
+                                         std::numeric_limits<int>::max())) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves"),
+                            QStringLiteral("Draw curve position or values are invalid"));
+                    }
+                } else if (!validCurveDraft(parameter.name, curve, 0,
+                                            std::numeric_limits<int>::max())) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("clip.parameters.curves.nodes"),
                         QStringLiteral("Anchor positions, values, or interpolation are invalid"));

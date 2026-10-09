@@ -219,23 +219,6 @@ namespace Automation {
             return false;
         }
 
-        bool validCurveDraft(const ParamInfo::Name name, const CurveDraftDto &curve,
-                             const int sourceStart, const int sourceEnd) {
-            const auto spec = ParamInfo::valueSpec(name);
-            const auto validValue = [&spec](const int value) {
-                return value >= spec.minimum && value <= spec.maximum &&
-                       (value - spec.minimum) % spec.step == 0;
-            };
-            if (curve.type == CurveDraftDto::Type::Draw) {
-                const auto end = static_cast<qint64>(curve.localStart) +
-                                 static_cast<qint64>(curve.step) * curve.values.size();
-                return curve.step > 0 && !curve.values.isEmpty() &&
-                       curve.localStart >= sourceStart && end <= sourceEnd &&
-                       std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
-            }
-            return validAnchorNodes(name, curve.nodes, sourceStart, sourceEnd);
-        }
-
         bool validTransferPayload(const NoteTransferPayload &payload) {
             if (payload.notes.isEmpty() || payload.sourceStart < 0 ||
                 payload.sourceEnd <= payload.sourceStart) {

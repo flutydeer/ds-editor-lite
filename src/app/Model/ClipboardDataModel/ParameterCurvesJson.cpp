@@ -43,26 +43,22 @@ namespace {
             result.step = object.value(QStringLiteral("step")).toInt();
             for (const auto value : object.value(QStringLiteral("values")).toArray())
                 result.values.append(value.toInt());
-            if (result.step <= 0 || result.values.isEmpty())
-                return std::nullopt;
-            return result;
-        }
-        if (type != QStringLiteral("anchor"))
-            return std::nullopt;
-
-        result.type = Automation::CurveDraftDto::Type::Anchor;
-        for (const auto value : object.value(QStringLiteral("nodes")).toArray()) {
-            const auto node = value.toObject();
-            const auto interpolation = node.value(QStringLiteral("interpolation")).toInt();
-            result.nodes.append({
-                .position = node.value(QStringLiteral("position")).toInt(),
-                .value = node.value(QStringLiteral("value")).toInt(),
-                .interpolation = static_cast<AnchorNode::InterpMode>(interpolation),
-            });
-        }
-        if (!Automation::validAnchorNodes(name, result.nodes, 0, std::numeric_limits<int>::max())) {
+        } else if (type == QStringLiteral("anchor")) {
+            result.type = Automation::CurveDraftDto::Type::Anchor;
+            for (const auto value : object.value(QStringLiteral("nodes")).toArray()) {
+                const auto node = value.toObject();
+                const auto interpolation = node.value(QStringLiteral("interpolation")).toInt();
+                result.nodes.append({
+                    .position = node.value(QStringLiteral("position")).toInt(),
+                    .value = node.value(QStringLiteral("value")).toInt(),
+                    .interpolation = static_cast<AnchorNode::InterpMode>(interpolation),
+                });
+            }
+        } else {
             return std::nullopt;
         }
+        if (!Automation::validCurveDraft(name, result, 0, std::numeric_limits<int>::max()))
+            return std::nullopt;
         return result;
     }
 }
