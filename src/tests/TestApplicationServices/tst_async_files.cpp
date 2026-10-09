@@ -1,6 +1,7 @@
 #include "tst_application_services.h"
 
 #include "AsyncFileDomainSupport.h"
+#include "../TestSupport/ProjectSnapshot.h"
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -1127,8 +1128,39 @@ void ApplicationServicesTests::extractionDomains() {
             qPrintable(QStringLiteral("pitch validation must prepare but not allocate or start")));
 
         const auto base = runtime.documentVersion();
-        const auto accepted = runtime.extractions().startPitch(
-            harness.context(), harness.audioClipId(), harness.singingClipId());
+        const auto original = TestSupport::projectSnapshot(harness.model());
+        auto pitchContext = harness.context();
+        pitchContext.idempotencyKey = QStringLiteral("pitch-extraction");
+        pitchContext.clientId = QStringLiteral("extraction-test");
+        const auto failedAccepted = runtime.extractions().startPitch(
+            pitchContext, harness.audioClipId(), harness.singingClipId());
+        QVERIFY(failedAccepted);
+        const auto failedState = harness.pitchStates.last();
+        QVERIFY(harness.extractionScheduler.runNext());
+        failedState->complete({
+            .state = Automation::ExtractionBackendState::Failed,
+            .errorCode = Automation::AutomationErrorCode::InferenceError,
+            .errorMessage = QStringLiteral("controlled pitch inference failure"),
+        });
+        const auto failedTask =
+            runtime.tasks().getTask(base.documentId, failedAccepted.get().taskId);
+        QVERIFY(failedTask);
+        QCOMPARE(failedTask.get().state, Automation::AutomationTaskState::Failed);
+        QVERIFY(failedTask.get().error);
+        QCOMPARE(failedTask.get().error->code, Automation::AutomationErrorCode::InferenceError);
+        QCOMPARE(runtime.documentVersion(), base);
+        QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+
+        const auto accepted = runtime.extractions().startPitch(pitchContext, harness.audioClipId(),
+                                                               harness.singingClipId());
+        QVERIFY(accepted);
+        QVERIFY(accepted.get().taskId != failedAccepted.get().taskId);
+        const auto prepareCount = harness.pitchPrepareCount;
+        const auto repeated = runtime.extractions().startPitch(pitchContext, harness.audioClipId(),
+                                                               harness.singingClipId());
+        QVERIFY(repeated);
+        QCOMPARE(repeated.get(), accepted.get());
+        QCOMPARE(harness.pitchPrepareCount, prepareCount);
         const auto state = harness.pitchStates.last();
         const auto ran = harness.extractionScheduler.runNext();
         state->complete({
@@ -1144,6 +1176,15 @@ void ApplicationServicesTests::extractionDomains() {
                   terminal.get().progress.value == 30 &&
                   runtime.documentVersion().revision == base.revision + 1),
                  qPrintable(QStringLiteral("pitch completion must commit one parameter revision")));
+        const auto committed = TestSupport::projectSnapshot(harness.model());
+        const auto replay = runtime.extractions().startPitch(pitchContext, harness.audioClipId(),
+                                                             harness.singingClipId());
+        QVERIFY(replay);
+        QCOMPARE(replay.get(), accepted.get());
+        QCOMPARE(harness.pitchPrepareCount, prepareCount);
+        QCOMPARE(harness.extractionScheduler.pendingCount(), 0);
+        QCOMPARE(TestSupport::projectSnapshot(harness.model()), committed);
+        QCOMPARE(runtime.documentVersion().revision, base.revision + 1);
 
         const auto wrongType = runtime.extractions().startPitch(
             harness.context(), harness.singingClipId(), harness.singingClipId());
@@ -1164,29 +1205,6 @@ void ApplicationServicesTests::extractionDomains() {
     };
 
     {
-        // Automation::OperationIds::extract::midi::start /
-        // QStringLiteral("success-backend-failure-and-typed-input")
-
-        const auto tracksBefore = harness.model().tracks().size();
-        const auto base = runtime.documentVersion();
-        const auto accepted =
-            runtime.extractions().startMidi(harness.context(), harness.audioClipId());
-        const auto state = harness.midiStates.last();
-        const auto ran = harness.extractionScheduler.runNext();
-        state->complete({
-            .state = Automation::ExtractionBackendState::Succeeded,
-            .notes = {{.keyIndex = 62, .localStart = 10, .length = 240}},
-        });
-        const auto terminal =
-            accepted ? runtime.tasks().getTask(base.documentId, accepted.get().taskId)
-                     : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
-                           Automation::AutomationError{});
-        QVERIFY2((accepted && ran && state->startCount == 1 && terminal &&
-                  terminal.get().state == Automation::AutomationTaskState::Succeeded &&
-                  runtime.documentVersion().revision == base.revision + 1 &&
-                  harness.model().tracks().size() == tracksBefore + 1),
-                 qPrintable(QStringLiteral("MIDI extraction must atomically add one track")));
-
         Automation::MidiExtractionOptionsDto overflowingMerge;
         overflowingMerge.destinationMode = QStringLiteral("merge_into_clip");
         overflowingMerge.targetTrackId = harness.trackId();
@@ -1252,4 +1270,169 @@ void ApplicationServicesTests::extractionDomains() {
                           Automation::OperationIds::extract::pitch::start)),
                  qPrintable(QStringLiteral("missing extraction service must be explicit")));
     };
+}
+
+void ApplicationServicesTests::midiExtractionDestinations_data() {
+    QTest::addColumn<QString>("destinationMode");
+    QTest::addColumn<bool>("cancelWhileRunning");
+    QTest::addColumn<bool>("backendRequestsCancel");
+    QTest::newRow("new-track-queued-cancel") << QString() << false << false;
+    QTest::newRow("existing-track-progress-cancel")
+        << QStringLiteral("create_clip") << true << true;
+    QTest::newRow("existing-clip-running-cancel")
+        << QStringLiteral("merge_into_clip") << true << false;
+}
+
+void ApplicationServicesTests::midiExtractionDestinations() {
+    QFETCH(QString, destinationMode);
+    QFETCH(bool, cancelWhileRunning);
+    QFETCH(bool, backendRequestsCancel);
+    RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    const bool merging = destinationMode == QStringLiteral("merge_into_clip");
+    if (merging) {
+        QVERIFY(runtime.project().moveClips(
+            harness.context(), {
+                                   {harness.singingClipId(), harness.trackId(), 120}
+        }));
+    }
+    Automation::MidiExtractionOptionsDto options;
+    options.destinationMode = destinationMode;
+    options.clientRef = QStringLiteral("extracted");
+    options.minimumNoteLength = 120;
+    options.targetStart = 720;
+    if (!destinationMode.isEmpty())
+        options.targetTrackId = harness.trackId();
+    if (merging)
+        options.targetClipId = harness.singingClipId();
+
+    const auto original = TestSupport::projectSnapshot(harness.model());
+    const auto base = runtime.documentVersion();
+    const auto tracksBefore = harness.model().tracks().size();
+    const auto tasksBefore = runtime.automationTasks().size();
+    auto context = harness.context();
+    context.idempotencyKey = QStringLiteral("midi-destination");
+    context.clientId = QStringLiteral("destination-test");
+    auto previewContext = context;
+    previewContext.validateOnly = true;
+    const auto preview =
+        runtime.extractions().startMidi(previewContext, harness.audioClipId(), options);
+    QVERIFY(preview);
+    QVERIFY(preview.get().validatedOnly);
+    QVERIFY(preview.get().taskId.isNull());
+    QCOMPARE(runtime.automationTasks().size(), tasksBefore);
+    QCOMPARE(harness.extractionScheduler.pendingCount(), 0);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+
+    const auto accepted = runtime.extractions().startMidi(context, harness.audioClipId(), options);
+    QVERIFY(accepted);
+    const auto canceledState = harness.midiStates.last();
+    const auto preparedCount = harness.midiPrepareCount;
+    const auto repeated = runtime.extractions().startMidi(context, harness.audioClipId(), options);
+    QVERIFY(repeated);
+    QCOMPARE(repeated.get(), accepted.get());
+    QCOMPARE(harness.midiPrepareCount, preparedCount);
+    QCOMPARE(harness.extractionScheduler.pendingCount(), 1);
+    if (cancelWhileRunning) {
+        QVERIFY(harness.extractionScheduler.runNext());
+        const auto running = runtime.tasks().getTask(base.documentId, accepted.get().taskId);
+        QVERIFY(running);
+        QCOMPARE(running.get().state, Automation::AutomationTaskState::Running);
+    }
+    if (backendRequestsCancel) {
+        QVERIFY(canceledState->callbacks.cancelRequested);
+        canceledState->callbacks.cancelRequested();
+    } else {
+        QVERIFY(runtime.tasks().cancelTask(harness.context(), accepted.get().taskId));
+    }
+    QVERIFY(runtime.tasks().cancelTask(harness.context(), accepted.get().taskId));
+    QCOMPARE(canceledState->cancelCount, 1);
+    if (cancelWhileRunning) {
+        canceledState->complete({
+            .state = Automation::ExtractionBackendState::Succeeded,
+            .notes = {{.keyIndex = 62, .localStart = 480, .length = 240}},
+        });
+    } else {
+        QVERIFY(harness.extractionScheduler.runNext());
+    }
+    const auto canceled = runtime.tasks().getTask(base.documentId, accepted.get().taskId);
+    QVERIFY(canceled);
+    QCOMPARE(canceled.get().state, Automation::AutomationTaskState::Canceled);
+    QCOMPARE(canceledState->startCount, cancelWhileRunning ? 1 : 0);
+    QCOMPARE(canceledState->destroyCount, 1);
+    QCOMPARE(runtime.documentVersion(), base);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+
+    const auto retry = runtime.extractions().startMidi(context, harness.audioClipId(), options);
+    QVERIFY(retry);
+    QVERIFY(retry.get().taskId != accepted.get().taskId);
+    QCOMPARE(harness.midiPrepareCount, preparedCount + 1);
+    const auto state = harness.midiStates.last();
+    QVERIFY(harness.extractionScheduler.runNext());
+    QCOMPARE(state->startCount, 1);
+    state->complete({
+        .state = Automation::ExtractionBackendState::Succeeded,
+        .notes = {{.keyIndex = 60, .localStart = -40, .length = 240},
+                  {.keyIndex = 60, .localStart = 240, .length = 60},
+                  {.keyIndex = 62, .localStart = 480, .length = 240},
+                  {.keyIndex = 67, .localStart = 960, .length = 360}},
+    });
+    const auto terminal = runtime.tasks().getTask(base.documentId, retry.get().taskId);
+    QVERIFY(terminal);
+    QCOMPARE(terminal.get().state, Automation::AutomationTaskState::Succeeded);
+    QCOMPARE(terminal.get().progress.value, 40);
+    QVERIFY(terminal.get().mutation);
+    QVERIFY(terminal.get().mutation->changed);
+    QCOMPARE(runtime.documentVersion().revision, base.revision + 1);
+    QCOMPARE(harness.model().tracks().size(), tracksBefore + (destinationMode.isEmpty() ? 1 : 0));
+
+    Automation::ClipId targetClip = harness.singingClipId();
+    QMap<QString, Automation::ObjectRef> created;
+    for (const auto &object : terminal.get().mutation->createdObjects)
+        created.insert(object.clientRef, object.object);
+    if (!merging) {
+        QVERIFY(created.contains(options.clientRef));
+        QCOMPARE(created.value(options.clientRef).kind, Automation::ObjectKind::Clip);
+        targetClip = Automation::ClipId(created.value(options.clientRef).value);
+    }
+    QVERIFY(created.contains(QStringLiteral("extracted/notes/0")));
+    QVERIFY(created.contains(QStringLiteral("extracted/notes/1")));
+    const auto project = runtime.project().getProject(base.documentId);
+    QVERIFY(project);
+    const Automation::ClipSnapshotDto *destination = nullptr;
+    for (const auto &track : project.get().tracks) {
+        for (const auto &clip : track.clips) {
+            if (clip.id == targetClip)
+                destination = &clip;
+        }
+    }
+    QVERIFY(destination);
+    if (!destinationMode.isEmpty())
+        QCOMPARE(destination->trackId, harness.trackId());
+    QCOMPARE(destination->data.properties.start,
+             merging ? 120 : (destinationMode.isEmpty() ? 0 : options.targetStart));
+    const auto &notes = destination->data.notes;
+    QCOMPARE(notes.size(), merging ? 3 : 2);
+    const auto &first = notes.at(notes.size() - 2);
+    const auto &second = notes.last();
+    QCOMPARE(first.localStart, merging ? 1080 : 480);
+    QCOMPARE(first.length, 240);
+    QCOMPARE(first.keyIndex, 62);
+    QCOMPARE(second.localStart, merging ? 1560 : 960);
+    QCOMPARE(second.length, 360);
+    QCOMPARE(second.keyIndex, 67);
+    QCOMPARE(first.lyric, QStringLiteral("la"));
+    QCOMPARE(first.language, QStringLiteral("en"));
+    const auto committed = TestSupport::projectSnapshot(harness.model());
+    const auto replay = runtime.extractions().startMidi(context, harness.audioClipId(), options);
+    QVERIFY(replay);
+    QCOMPARE(replay.get(), retry.get());
+    QCOMPARE(harness.midiPrepareCount, preparedCount + 1);
+    QCOMPARE(harness.extractionScheduler.pendingCount(), 0);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), committed);
+    QVERIFY(runtime.history().undo(harness.context()));
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+    QVERIFY(runtime.history().redo(harness.context()));
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), committed);
 }

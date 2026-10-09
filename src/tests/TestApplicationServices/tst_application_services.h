@@ -79,4 +79,6 @@ private slots:
     void audioExportStageFailuresReleaseResourcesAndAllowRetry_data();
     void audioExportStageFailuresReleaseResourcesAndAllowRetry();
     void extractionDomains();
+    void midiExtractionDestinations_data();
+    void midiExtractionDestinations();
 };
