@@ -817,6 +817,10 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     const QJsonObject query{
         {"document_id", version.documentId.toString()}
     };
+    const auto invokePlayback = [&](const QString &method, QJsonObject arguments = {}) {
+        arguments.insert(QStringLiteral("document_id"), version.documentId.toString());
+        return registry.invoke(method, arguments);
+    };
     const auto timeline = registry.invoke(QStringLiteral("timeline.get"), query);
     QVERIFY2(timeline, qPrintable(timeline ? QString{} : timeline.getError().message));
     const auto tempos = timeline.get()
@@ -837,6 +841,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QVERIFY(audio->preMixer()->open(256, 48000));
     // The test supplies the audio callback; the external device prerequisite is replaced.
     playbackController->setPlaybackStartGuard([] { return true; });
+    const auto noLoopRange = transport->loopingRange();
     bool bufferHeld = false;
     const auto restore = qScopeGuard([&] {
         if (bufferHeld)
@@ -867,8 +872,9 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
              720);
     QCOMPARE(transport->loopingRange(), qMakePair(qint64{24000}, qint64{36000}));
     const auto beforePlayback = runtime().documentVersion();
-    QVERIFY(runtime().playback().setPosition(commandContext(), 719));
-    QVERIFY(runtime().playback().play(commandContext()));
+    QVERIFY(invokePlayback(QStringLiteral("playback.seek"), {{"position", 719.0}}));
+    QCOMPARE(playbackController->lastPosition(), 719.0);
+    QVERIFY(invokePlayback(QStringLiteral("playback.play")));
     QCOMPARE(playbackController->playbackStatus(), PlaybackGlobal::Playing);
     talcs::AudioBuffer buffer(2, 256);
     QTRY_COMPARE_WITH_TIMEOUT(transport->bufferingCounter(), 0, 5000);
@@ -892,7 +898,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCoreApplication::processEvents();
     QCOMPARE(transport->position(), heldPosition + 256);
     QVERIFY(buffer.constSampleAt(0, 128) > 0);
-    QVERIFY(runtime().playback().pause(commandContext()));
+    QVERIFY(invokePlayback(QStringLiteral("playback.pause")));
     qint64 pausedFrames = 0;
     std::thread callback([&] { pausedFrames = audio->preMixer()->read(&buffer); });
     callback.join();
@@ -907,7 +913,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCOMPARE(snapshot.value(QStringLiteral("state")).toString(), QStringLiteral("paused"));
     QCOMPARE(snapshot.value(QStringLiteral("position")).toDouble(), playbackController->position());
 
-    QVERIFY(runtime().playback().stop(commandContext()));
+    QVERIFY(invokePlayback(QStringLiteral("playback.stop")));
     const auto samplePosition = [&](double tick) {
         return qRound64(context->m_appModel->timeline().tickToMs(tick) * transport->sampleRate() /
                         1000.0);
@@ -916,7 +922,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QVERIFY(qAbs(samplePosition(playbackController->position()) -
                  samplePosition(playbackController->lastPosition())) <= 1);
     // Resume before delivering the audio thread's acknowledgment of the previous pause.
-    QVERIFY(runtime().playback().play(commandContext()));
+    QVERIFY(invokePlayback(QStringLiteral("playback.play")));
     QCoreApplication::sendPostedEvents(audio, QEvent::MetaCall);
     QCOMPARE(playbackController->playbackStatus(), PlaybackGlobal::Playing);
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
@@ -924,6 +930,48 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCOMPARE(transport->playbackStatus(), talcs::TransportAudioSource::Playing);
     QVERIFY(buffer.constSampleAt(0, 128) > 0);
     QCOMPARE(runtime().documentVersion(), beforePlayback);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto loopVersion = runtime().documentVersion();
+    const auto loopModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *loopUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto disabled = invokePlayback(
+        QStringLiteral("playback.set_loop_enabled"),
+        {{"expected_revision", static_cast<qint64>(loopVersion.revision)}, {"enabled", false}});
+    QVERIFY2(disabled, qPrintable(disabled ? QString{} : disabled.getError().message));
+    const auto disabledLoop = disabled.get()
+                                  .value(QStringLiteral("playback"))
+                                  .toObject()
+                                  .value(QStringLiteral("loop"))
+                                  .toObject();
+    QVERIFY(!disabledLoop.value(QStringLiteral("enabled")).toBool());
+    QCOMPARE(disabledLoop.value(QStringLiteral("start")).toInt(), 480);
+    QCOMPARE(disabledLoop.value(QStringLiteral("end")).toInt(), 720);
+    QCOMPARE(transport->loopingRange(), noLoopRange);
+    QCOMPARE(runtime().documentVersion().revision, loopVersion.revision + 1);
+    const auto disabledModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto cleared = invokePlayback(
+        QStringLiteral("playback.clear_loop"),
+        {
+            {"expected_revision", static_cast<qint64>(runtime().documentVersion().revision)}
+    });
+    QVERIFY2(cleared, qPrintable(cleared ? QString{} : cleared.getError().message));
+    const auto clearedLoop = cleared.get()
+                                 .value(QStringLiteral("playback"))
+                                 .toObject()
+                                 .value(QStringLiteral("loop"))
+                                 .toObject();
+    QVERIFY(!clearedLoop.value(QStringLiteral("enabled")).toBool());
+    QCOMPARE(clearedLoop.value(QStringLiteral("start")).toInt(), 0);
+    QCOMPARE(clearedLoop.value(QStringLiteral("end")).toInt(), 0);
+    QCOMPARE(transport->loopingRange(), noLoopRange);
+    QCOMPARE(runtime().documentVersion().revision, loopVersion.revision + 2);
+    QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), disabledModel);
+    QCOMPARE(transport->loopingRange(), noLoopRange);
+    QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), loopModel);
+    QCOMPARE(transport->loopingRange(), qMakePair(qint64{24000}, qint64{36000}));
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), loopUndo);
 }
 
 void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixer() {
