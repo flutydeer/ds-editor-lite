@@ -18,6 +18,7 @@
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
+#include <lite/GUI/Controls/OverlaySplitter.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -36,6 +37,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
@@ -326,6 +328,33 @@ void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
     QTRY_VERIFY(editor.isActiveWindow() && name->isVisible());
     historyManager->reset();
     const auto before = runtime.documentVersion();
+
+    const auto originalModel = TestSupport::projectSnapshot(*context->m_appModel);
+    auto *splitter = editor.findChild<OverlaySplitter *>("trackSplitter");
+    auto *grip = editor.findChild<SplitterOverlayGrip *>();
+    QVERIFY(splitter && grip && grip->isVisible());
+    const auto originalSizes = splitter->sizes();
+    const auto dragBy = [&](int distance) {
+        const auto local = grip->rect().center();
+        const auto global = grip->mapToGlobal(local);
+        QTest::mousePress(grip, Qt::LeftButton, Qt::NoModifier, local);
+        const QPoint delta(distance, 0);
+        QMouseEvent move(QEvent::MouseMove, QPointF(local + delta), QPointF(global + delta),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(grip, &move);
+        QTest::mouseRelease(grip, Qt::LeftButton);
+    };
+    auto *panel = splitter->widget(0);
+    dragBy(-splitter->width());
+    QTRY_COMPARE(panel->width(), panel->minimumWidth());
+    QVERIFY(controls->isVisible() && splitter->widget(1)->isVisible());
+    dragBy(splitter->width());
+    QTRY_COMPARE(panel->width(), panel->maximumWidth());
+    dragBy(originalSizes.first() - splitter->sizes().first());
+    QTRY_COMPARE(splitter->sizes(), originalSizes);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), originalModel);
+    QVERIFY(!historyManager->canUndo());
 
     QTest::mouseClick(mute, Qt::LeftButton);
     QVERIFY(track->control().mute());
