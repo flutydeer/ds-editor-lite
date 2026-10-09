@@ -1,6 +1,6 @@
 #include "tst_application_services.h"
 
-#include "AsyncFileDomainSupport.h"
+#include "../TestSupport/AsyncFileDomainSupport.h"
 #include "../TestSupport/ProjectSnapshot.h"
 
 #include <QCoreApplication>

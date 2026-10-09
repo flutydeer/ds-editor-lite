@@ -24,6 +24,8 @@ private slots:
     void malformedCursor();
     void routing_data();
     void routing();
+    void publicExtractionAuthorizesAndRoutesOptions_data();
+    void publicExtractionAuthorizesAndRoutesOptions();
     void batchImportRouting_data();
     void batchImportRouting();
     void batchImportPlanRevalidation();

@@ -4,7 +4,7 @@ project(TestApplicationServices)
 lite_add_test(${PROJECT_NAME} SOURCES
     ApplicationHarness.h
     tst_application_services.h
-    AsyncFileDomainSupport.h
+    ../TestSupport/AsyncFileDomainSupport.h
     tst_async_files.cpp
     tst_editor.cpp
     tst_host.cpp

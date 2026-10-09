@@ -508,8 +508,10 @@ namespace AutomationAsyncFileTests {
                         *midiPrepareError);
                 }
                 input.modelPath = QStringLiteral("controlled-midi-model");
-                input.defaultLanguage = QStringLiteral("en");
-                input.defaultLyric = QStringLiteral("la");
+                if (input.defaultLanguage.isEmpty())
+                    input.defaultLanguage = QStringLiteral("en");
+                if (input.defaultLyric.isEmpty())
+                    input.defaultLyric = QStringLiteral("la");
                 auto state = std::make_shared<FakeMidiState>();
                 state->input = input;
                 midiStates.append(state);

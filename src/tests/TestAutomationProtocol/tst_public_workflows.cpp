@@ -7,6 +7,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "TestRuntime.h"
+#include "../TestSupport/AsyncFileDomainSupport.h"
 
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -143,6 +144,143 @@ namespace {
         AdmissionController admission;
         QList<PublicDocumentBatchImportRequest> batches;
     };
+}
+
+void AutomationProtocolTests::publicExtractionAuthorizesAndRoutesOptions_data() {
+    QTest::addColumn<bool>("pitch");
+    QTest::newRow("pitch") << true;
+    QTest::newRow("midi") << false;
+}
+
+void AutomationProtocolTests::publicExtractionAuthorizesAndRoutesOptions() {
+    QFETCH(bool, pitch);
+    AutomationAsyncFileTests::RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    const auto path = harness.temporaryPath(QStringLiteral("source.wav"));
+    QVERIFY(writeFile(path, QByteArrayLiteral("controlled extraction source")));
+    auto *audio =
+        qobject_cast<AudioClip *>(harness.model().findClipById(harness.audioClipId().value()));
+    QVERIFY(audio);
+    QVERIFY(runtime.project().applyResolvedAudioPath(harness.context(), harness.audioClipId(),
+                                                     audioAssetSnapshotDto(*audio), path,
+                                                     AudioClip::PathStatus::Normal));
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    PublicAutomationRegistry registry(runtime, access, fileGuard, admission);
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(harness.model());
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto tasksBefore = runtime.automationTasks().size();
+    auto arguments = commandArguments(before);
+    arguments.insert(QStringLiteral("source_audio_clip_id"), harness.audioClipId().value());
+    const auto tool =
+        pitch ? QStringLiteral("extract.pitch.start") : QStringLiteral("extract.midi.start");
+    if (pitch) {
+        arguments.insert(QStringLiteral("target_singing_clip_id"), harness.singingClipId().value());
+        arguments.insert(QStringLiteral("options"),
+                         QJsonObject{
+                             {QStringLiteral("model_id"), QStringLiteral("pitch-fixture")}
+        });
+    } else {
+        arguments.insert(QStringLiteral("destination"),
+                         QJsonObject{
+                             {QStringLiteral("mode"),            QStringLiteral("merge_into_clip")},
+                             {QStringLiteral("target_track_id"), harness.trackId().value()        },
+                             {QStringLiteral("target_clip_id"),  harness.singingClipId().value()  },
+                             {QStringLiteral("start"),           120                              }
+        });
+        arguments.insert(QStringLiteral("options"),
+                         QJsonObject{
+                             {QStringLiteral("model_id"),            QStringLiteral("midi-fixture")     },
+                             {QStringLiteral("default_language"),    QStringLiteral("cmn")              },
+                             {QStringLiteral("default_lyric"),       QStringLiteral("test")             },
+                             {QStringLiteral("client_ref"),          QStringLiteral("public-extraction")},
+                             {QStringLiteral("minimum_note_length"), 120                                }
+        });
+    }
+    const auto denied = registry.invoke(tool, arguments);
+    QVERIFY(!denied);
+    QCOMPARE(denied.getError().code, AutomationErrorCode::PermissionDenied);
+    QCOMPARE(harness.pitchPrepareCount + harness.midiPrepareCount, 0);
+    QCOMPARE(runtime.automationTasks().size(), tasksBefore);
+    QCOMPARE(harness.extractionScheduler.pendingCount(), 0);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    QVERIFY(fileGuard.addSessionGrant(path, FileAccessPurpose::Read));
+    const auto accepted = registry.invoke(tool, arguments);
+    QVERIFY2(accepted, qPrintable(errorMessage(accepted)));
+    const auto taskId =
+        TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull());
+    QCOMPARE(harness.pitchPrepareCount + harness.midiPrepareCount, 1);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(harness.extractionScheduler.runNext());
+    if (pitch) {
+        const auto state = harness.pitchStates.last();
+        QCOMPARE(state->input.modelId, QStringLiteral("pitch-fixture"));
+        QCOMPARE(state->input.audioClipId, harness.audioClipId());
+        QCOMPARE(state->input.singingClipId, harness.singingClipId());
+        QCOMPARE(state->input.audioPath, path);
+        QVERIFY(!state->input.showProgressDialog);
+        state->complete({.state = ExtractionBackendState::Succeeded,
+                         .segments = {{.globalStartTick = 20, .values = {60.0, 60.5}}}});
+    } else {
+        const auto state = harness.midiStates.last();
+        const auto &input = state->input;
+        QCOMPARE(input.modelId, QStringLiteral("midi-fixture"));
+        QCOMPARE(input.audioPath, path);
+        QCOMPARE(input.defaultLanguage, QStringLiteral("cmn"));
+        QCOMPARE(input.defaultLyric, QStringLiteral("test"));
+        QCOMPARE(input.clientRef, QStringLiteral("public-extraction"));
+        QCOMPARE(input.minimumNoteLength, std::optional<int>(120));
+        QCOMPARE(input.destinationMode, QStringLiteral("merge_into_clip"));
+        QCOMPARE(input.targetTrackId, std::optional(harness.trackId()));
+        QCOMPARE(input.targetClipId, std::optional(harness.singingClipId()));
+        QCOMPARE(input.targetStart, 120);
+        QVERIFY(!input.showProgressDialog);
+        state->complete({
+            .state = ExtractionBackendState::Succeeded,
+            .notes = {{.keyIndex = 60, .localStart = 240, .length = 60},
+                      {.keyIndex = 62, .localStart = 480, .length = 240}}
+        });
+        const auto *target = qobject_cast<SingingClip *>(
+            harness.model().findClipById(harness.singingClipId().value()));
+        QVERIFY(target);
+        QCOMPARE(target->notes().count(), 2);
+        const auto project = runtime.project().getProject(before.documentId);
+        QVERIFY(project);
+        const ClipSnapshotDto *destination = nullptr;
+        for (const auto &track : project.get().tracks) {
+            for (const auto &clip : track.clips) {
+                if (clip.id == harness.singingClipId())
+                    destination = &clip;
+            }
+        }
+        QVERIFY(destination);
+        const auto &notes = destination->data.notes;
+        QCOMPARE(notes.size(), 2);
+        QCOMPARE(notes.last().localStart, 600);
+        QCOMPARE(notes.last().keyIndex, 62);
+        QCOMPARE(notes.last().lyric, QStringLiteral("test"));
+        QCOMPARE(notes.last().language, QStringLiteral("cmn"));
+    }
+    const auto terminal =
+        registry.invoke(QStringLiteral("tasks.get"),
+                        {
+                            {QStringLiteral("scope"),       QStringLiteral("document")  },
+                            {QStringLiteral("document_id"), before.documentId.toString()},
+                            {QStringLiteral("task_id"),     taskId.toString()           }
+    });
+    QVERIFY2(terminal, qPrintable(errorMessage(terminal)));
+    QCOMPARE(terminal.get().value(QStringLiteral("state")).toString(), QStringLiteral("succeeded"));
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(harness.context()));
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 
 void AutomationProtocolTests::batchImportRouting_data() {
