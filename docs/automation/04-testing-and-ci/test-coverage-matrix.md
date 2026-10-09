@@ -100,6 +100,7 @@ ApplicationGui 的平台条件统一为 Windows/Linux offscreen、macOS 原生�
 | 公开时间线修改与历史接线 | protocol | 领域测试未验证公开拍号修改、删除及速度删除的转换，主输出控制接线未执行 | 同一工程经公开入口修改速度和拍号，再分别删除，主输出静音及独奏与查询一致。跨过变化点的乐句内容及音符身份不变，每步提交及撤销重做共用完整工程快照和版本断言 | AutomationProtocol::publicTimelineEditsPreserveThePhraseAndUndo | 通用。共用 Registry fixture 及历史回放，无需声库或设备 |
 | 公开轨道整理与唱段删除 | protocol | 领域和 GUI 操作未经过公开换序、颜色、语言及唱段改名和删除转换 | 同一两轨工程经公开默认创建空轨、非相邻换序、修改目标颜色和语言、唱段改名及删除。换序保留原相对顺序和乐句身份，未选轨及其他唱段内容保留，各步撤销重做恢复完整工程 | AutomationProtocol::publicTrackOrganizationPreservesClipsAndHistory | 通用。共用 Registry fixture 和历史回放，无需声库或设备 |
 | 公共参数查询范围与输出预算 | protocol | 完整快照不能验证有界查询和曲线数据保真 | 检查时间范围裁剪、绘制曲线降采样、锚点原样保留、点数预算不足拒绝及查询无副作用 | AutomationProtocol::parameterQueryBoundsSamplesAndPreservesAnchors | 通用 |
+| 工程对象续页与编辑后游标失效 | protocol | 完整轨道、唱段和音符查询未经过续页投影，工程修改后的旧游标拒绝未接入公开行为验证 | 复用原编辑夹具，逐页结果与完整列表内容及顺序一致，末页结束。查询保持工程、版本及历史。公开重命名后拒绝旧音符游标，拒绝无副作用，撤销恢复原工程及撤销入口 | AutomationProtocol::routing 的 boundedQueries 数据行 | 通用。生产 Registry、游标和 History，无设备依赖 |
 | GUI 编辑模式设置与查询 | protocol | 参数 Shape/Scale 和音高调制未接入公开转换，实际状态被回报成默认模式，设置请求被拒绝 | 补齐输入/输出模式与转换。既有接口场景验证到达服务的枚举、状态读回及工程版本不变 | AutomationProtocol::routing(guiBindings) | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派。可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为。CMake 提供可执行路径，测试自身提供跨平台接收端。大帧验证不依赖工具总数 | Connector | 通用 |
 | Connector 权限刷新与状态入口恢复 | protocol | 权限拒绝后的恢复及刷新缺失状态入口时旧契约清理未验证 | 复用原权限刷新场景，恢复权限后实际调用成功。外部工具页移除状态入口，协议连接保留但固定包装拒绝且不转发，恢复入口后同进程继续成功调用 | Connector::editorPolicyRefresh | 通用。受控回环编辑器服务及实际下游请求。无需桌面或设备 |

@@ -3213,6 +3213,81 @@ void AutomationProtocolTests::routing() {
         verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture, *editorViewState);
         return;
     }
+    const auto beforePaging = runtime.documentVersion();
+    const auto beforePagingModel = TestSupport::projectSnapshot(fixture.model());
+    const auto *beforePagingUndo = fixture.history()->nextUndoEntry();
+    QString notesCursor;
+    const auto verifyPages = [&](const QString &method, QJsonObject arguments,
+                                 const QString &itemsKey) {
+        arguments.insert(QStringLiteral("document_id"), beforePaging.documentId.toString());
+        const auto complete = registry.invoke(method, arguments);
+        QVERIFY(complete);
+        const auto expected = complete.get().value(itemsKey).toArray();
+        QVERIFY(expected.size() > 1);
+        arguments.insert(QStringLiteral("limit"), 1);
+        QString cursor;
+        for (qsizetype index = 0; index < expected.size(); ++index) {
+            if (!cursor.isEmpty())
+                arguments.insert(QStringLiteral("cursor"), cursor);
+            const auto page = registry.invoke(method, arguments);
+            QVERIFY(page);
+            QCOMPARE(page.get().value(itemsKey).toArray(), QJsonArray{expected.at(index)});
+            cursor = page.get().value(QStringLiteral("next_cursor")).toString();
+            QCOMPARE(cursor.isEmpty(), index + 1 == expected.size());
+            if (index == 0 && itemsKey == QStringLiteral("notes"))
+                notesCursor = cursor;
+        }
+    };
+    verifyPages(QStringLiteral("tracks.list"), {}, QStringLiteral("tracks"));
+    if (QTest::currentTestFailed())
+        return;
+    verifyPages(QStringLiteral("clips.list"),
+                {
+                    {QStringLiteral("track_id"), publicEditingFixture->trackId.value()}
+    },
+                QStringLiteral("clips"));
+    if (QTest::currentTestFailed())
+        return;
+    verifyPages(QStringLiteral("notes.list"),
+                {
+                    {QStringLiteral("clip_id"), publicEditingFixture->noteClipId.value()}
+    },
+                QStringLiteral("notes"));
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!notesCursor.isEmpty());
+    QCOMPARE(runtime.documentVersion(), beforePaging);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforePagingModel);
+    QCOMPARE(fixture.history()->nextUndoEntry(), beforePagingUndo);
+
+    auto renameArguments = commandArguments(beforePaging);
+    renameArguments.insert(QStringLiteral("track_id"), publicEditingFixture->trackId.value());
+    renameArguments.insert(QStringLiteral("name"), QStringLiteral("Renamed between pages"));
+    QVERIFY(registry.invoke(QStringLiteral("tracks.rename"), renameArguments));
+    const auto afterRename = runtime.documentVersion();
+    const auto afterRenameModel = TestSupport::projectSnapshot(fixture.model());
+    const auto *afterRenameUndo = fixture.history()->nextUndoEntry();
+    const auto stalePage =
+        registry.invoke(QStringLiteral("notes.list"),
+                        QJsonObject{
+                            {QStringLiteral("document_id"), beforePaging.documentId.toString()      },
+                            {QStringLiteral("clip_id"),     publicEditingFixture->noteClipId.value()},
+                            {QStringLiteral("limit"),       1                                       },
+                            {QStringLiteral("cursor"),      notesCursor                             },
+    });
+    QVERIFY(!stalePage);
+    QCOMPARE(stalePage.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+    QCOMPARE(stalePage.getError().fieldPath, QStringLiteral("cursor"));
+    QCOMPARE(runtime.documentVersion(), afterRename);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), afterRenameModel);
+    QCOMPARE(fixture.history()->nextUndoEntry(), afterRenameUndo);
+    QVERIFY(runtime.history().undo(Automation::CommandContext{
+        .expected = afterRename,
+        .source = Automation::InvocationSource::Test,
+    }));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforePagingModel);
+    QCOMPARE(fixture.history()->nextUndoEntry(), beforePagingUndo);
+
     Automation::CurveDraftDto rangedAnchor;
     rangedAnchor.type = Automation::CurveDraftDto::Type::Anchor;
     rangedAnchor.nodes = {
