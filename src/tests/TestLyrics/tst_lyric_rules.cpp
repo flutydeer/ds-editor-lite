@@ -173,7 +173,14 @@ void LyricsTests::lyricRulesStableAutomationRuleIdMigration() {
              "built-in rule IDs should be deterministic per kind and key");
 }
 
+void LyricsTests::lyricRulesRuntimeOrder_data() {
+    QTest::addColumn<bool>("dictionary");
+    QTest::newRow("array") << false;
+    QTest::newRow("dictionary") << true;
+}
+
 void LyricsTests::lyricRulesRuntimeOrder() {
+    QFETCH(bool, dictionary);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto configDir = QDir(directory.path()).filePath(QStringLiteral("tagger"));
@@ -189,7 +196,22 @@ void LyricsTests::lyricRulesRuntimeOrder() {
         .language = QStringLiteral("cmn"),
         .builtin = false,
     };
-    const QList<CustomTaggerRule> customRules{customCmnRule()};
+    auto customRule = customCmnRule();
+    if (dictionary) {
+        const QList<QPair<QString, QByteArray>> dictionaries{
+            {QStringLiteral("first.txt"),  QByteArray("same\tsa\nfirst\tfa\n\n")   },
+            {QStringLiteral("second.txt"), QByteArray("second\tse\nnot-an-entry\n")},
+        };
+        for (const auto &[name, contents] : dictionaries) {
+            QFile file(QDir(configDir).filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QCOMPARE(file.write(contents), qint64(contents.size()));
+        }
+        customRule.entries.first().type = QStringLiteral("dict");
+        customRule.entries.first().value = {QStringLiteral("first.txt"),
+                                            QStringLiteral("second.txt")};
+    }
+    const QList<CustomTaggerRule> customRules{customRule};
 
     QVERIFY2(TextTagger::init(filesystemPath(configDir), filesystemPath(configDir)),
              "tagger test config should initialize");
@@ -237,6 +259,20 @@ void LyricsTests::lyricRulesRuntimeOrder() {
     QCOMPARE(afterRejectedUpdate.at(0).entries.size(), 1);
     QCOMPARE(afterRejectedUpdate.at(0).entries.front().tag, QStringLiteral("custom"));
     QCOMPARE(runtimeTags(), (QStringList{QStringLiteral("custom")}));
+    if (dictionary) {
+        const auto tagged = TextTagger::tag({"first", "second", "not-an-entry", "unmatched"});
+        QCOMPARE(tagged.size(), size_t{4});
+        for (size_t index = 0; index < 2; ++index) {
+            QCOMPARE(QString::fromStdString(tagged[index].language), QStringLiteral("cmn"));
+            QCOMPARE(QString::fromStdString(tagged[index].tag), QStringLiteral("custom"));
+            QVERIFY(!tagged[index].discard);
+        }
+        for (size_t index = 2; index < tagged.size(); ++index) {
+            QCOMPARE(QString::fromStdString(tagged[index].language), QStringLiteral("unknown"));
+            QCOMPARE(QString::fromStdString(tagged[index].tag), QStringLiteral("unknown"));
+            QVERIFY(!tagged[index].discard);
+        }
+    }
 }
 
 void LyricsTests::lyricRulesSplitterPreservesMixedLanguageText() {

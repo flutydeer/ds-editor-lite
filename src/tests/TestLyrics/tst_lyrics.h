@@ -14,6 +14,7 @@ private slots:
     void lyricRulesStableOrderPersistence();
     void lyricRulesLegacyOrderMigration();
     void lyricRulesStableAutomationRuleIdMigration();
+    void lyricRulesRuntimeOrder_data();
     void lyricRulesRuntimeOrder();
     void lyricRulesSplitterPreservesMixedLanguageText();
     void lyricRulesSplitterEnabledRules_data();
