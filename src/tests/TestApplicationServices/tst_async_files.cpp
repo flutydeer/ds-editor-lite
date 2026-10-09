@@ -743,6 +743,11 @@ void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrect
     QTest::newRow("duplicate-export-sources")
         << QStringLiteral("duplicate-sources") << Automation::AutomationErrorCode::InvalidArgument
         << QStringLiteral("config.sources");
+    QTest::newRow("backend-creation-failed")
+        << QStringLiteral("creation") << Automation::AutomationErrorCode::IoError << QString{};
+    QTest::newRow("output-access-denied")
+        << QStringLiteral("authorization") << Automation::AutomationErrorCode::PermissionDenied
+        << QString{};
 }
 
 void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrection() {
@@ -754,10 +759,15 @@ void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrect
     QVERIFY(harness.isReady());
     auto &runtime = harness.runtime();
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(harness.model());
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     const auto tasksBefore = runtime.automationTasks().size();
     auto state = harness.audioExportState();
     auto config = audioConfig(harness, QStringLiteral("mix.wav"));
     const auto originalConfig = config;
+    bool accessAllowed = false;
+    QStringList offeredOutputs;
+    AudioExportOutputAuthorizer authorizeOutputs;
     if (problem == QStringLiteral("overwrite")) {
         QFile existing(QDir(config.fileDirectory).filePath(config.fileName));
         QVERIFY(existing.open(QIODevice::WriteOnly));
@@ -776,11 +786,35 @@ void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrect
     } else if (problem == QStringLiteral("duplicate-sources")) {
         config.sourceOption = 2;
         config.sources = {0, 0};
+    } else if (problem == QStringLiteral("creation")) {
+        AutomationError error;
+        error.code = AutomationErrorCode::IoError;
+        error.message = QStringLiteral("Export backend could not prepare its output");
+        harness.audioCreateError = error;
+        const auto preview = runtime.audioExports().preview(before.documentId, config);
+        QVERIFY(isError(preview, errorCode, OperationIds::exports::audio::preview));
+        QCOMPARE(preview.getError().message, error.message);
+    } else if (problem == QStringLiteral("authorization")) {
+        authorizeOutputs =
+            [&](const AudioExportPreviewDto &preview) -> AutomationResult<AutomationUnit> {
+            offeredOutputs = preview.filePaths;
+            if (!accessAllowed) {
+                AutomationError error;
+                error.code = AutomationErrorCode::PermissionDenied;
+                error.message = QStringLiteral("Output access denied");
+                return error;
+            }
+            return AutomationUnit{};
+        };
     } else {
         QVERIFY(QDir().mkdir(QDir(config.fileDirectory).filePath(config.fileName)));
     }
-    const auto rejected = runtime.audioExports().start(harness.context(), config, {});
+    const auto rejected =
+        runtime.audioExports().start(harness.context(), config, {}, {}, authorizeOutputs, {});
     QVERIFY(isError(rejected, errorCode, OperationIds::exports::audio::start));
+    if (problem == QStringLiteral("authorization"))
+        QCOMPARE(offeredOutputs,
+                 QStringList{QDir(config.fileDirectory).absoluteFilePath(config.fileName)});
     if (!configField.isEmpty()) {
         QCOMPARE(rejected.getError().fieldPath, configField);
         QCOMPARE(state->createCount, 0);
@@ -790,11 +824,16 @@ void ApplicationServicesTests::audioExportRejectsInvalidRequestsAndAllowsCorrect
     QCOMPARE(state->executeCount, 0);
     QCOMPARE(state->publishCount, 0);
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    harness.audioCreateError.reset();
+    accessAllowed = true;
     if (problem == QStringLiteral("target"))
         QVERIFY(QDir().rmdir(QDir(originalConfig.fileDirectory).filePath(originalConfig.fileName)));
     AudioExportPolicyDto policy;
     policy.allowOverwrite = problem == QStringLiteral("overwrite");
-    const auto corrected = runtime.audioExports().start(harness.context(), originalConfig, policy);
+    const auto corrected = runtime.audioExports().start(harness.context(), originalConfig, policy,
+                                                        {}, authorizeOutputs, {});
     QVERIFY(corrected);
     QVERIFY(harness.audioScheduler.runNext());
     const auto completed = runtime.tasks().getTask(before.documentId, corrected.get().taskId);

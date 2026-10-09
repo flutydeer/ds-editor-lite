@@ -316,6 +316,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例。既有数�
 | 各语种的默认歌词设置 | gui | 设置页切换中英文时保存和恢复各自歌词，关闭后磁盘重读及页面重开保持内容，不修改工程历史 | ApplicationGui::generalSettingsKeepSeparateDefaultLyricsForEachLanguage | offscreen。隔离设置。无需声库推理 |
 | 渲染器设置及重启提示 | gui | 实际设置页选择实验渲染器并选择稍后重启，检查配置落盘、页面重开后的选项及提示生命周期，操作保留工程和历史 | ApplicationGui::experimentalRendererSettingPersistsWhenRestartIsDeferred | offscreen。隔离设置。渲染器本身由 NativeDesktop 验证 |
 | 音频导出准备及发布失败 | workflow | 外部后端在准备或发布阶段失败时保留可查询错误，只执行已到达阶段并清理一次。同一配置可重试成功，原失败记录及工程保持不变 | ApplicationServices::audioExportStageFailuresReleaseResourcesAndAllowRetry | 通用。现有后端替身和受控调度 |
+| 音频导出创建与输出授权恢复 | domain/workflow | 预演和开始的创建错误传递、输出计划授权拒绝及恢复未共用完整拒绝场景 | 复用原配置和路径数据行，检查后端创建错误、输出授权实际收到计划，拒绝不排队或修改工程及历史。恢复条件后同配置成功执行 | ApplicationServices::audioExportRejectsInvalidRequestsAndAllowsCorrection | 通用。现有外部后端及权限替身 |
 | 音频裁边和移动跨越变速点 | workflow | 完整应用上下文执行专用裁边/移动入口，验证毫秒时长、素材裁切、换算后的 tick 范围、预览、跨轨移动及连续撤销。复用生产音频时间投影与历史动作 | ApplicationWorkflows::audioClipTrimmingAndMovingPreserveRealtimeDurations | 通用。已知音频时间元数据。无需播放设备 |
 | 已打开音频文件被移除 | workflow | 格式加载器已持有文件句柄时移除目录项，当前解码仍使用原句柄完成。重开工程重新解析资源后报告 Missing 且不保留旧波形，不制造用户历史 | AudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload | 需文件系统允许移除已被音频后端打开的素材。Windows 删除共享受限时明确 QSKIP |
 | 音频解析期间另存工程 | workflow/protocol | 解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码。公开查询只返回已授权的候选路径，相同文件去重，授权撤销后隐藏路径。保留工程、资源和权限状态，无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用。临时 DSPX/WAV。无需播放设备 |
