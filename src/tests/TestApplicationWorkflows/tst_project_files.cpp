@@ -99,6 +99,8 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::newRow("atomic-missing-source") << 1 << false << QString{} << QStringLiteral("missing");
     QTest::newRow("best-effort-missing-source")
         << 1 << true << QString{} << QStringLiteral("missing");
+    QTest::newRow("best-effort-all-sources-missing")
+        << 2 << true << QString{} << QStringLiteral("missing");
     QTest::newRow("atomic-source-changed") << 0 << false << QStringLiteral("source") << QString{};
     QTest::newRow("best-effort-source-changed")
         << 0 << true << QStringLiteral("source") << QString{};
@@ -139,7 +141,9 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(broken.write("invalid midi"), qint64(12));
     }
-    if (invalidItems > 1) {
+    if (invalidItems > 1 && sourceVariant == QStringLiteral("missing")) {
+        QVERIFY(QFile::remove(dspx));
+    } else if (invalidItems > 1) {
         QFile broken(dspx);
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(broken.write("invalid project"), qint64(15));
@@ -209,8 +213,9 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     const auto *undoBeforeAdmission = historyManager->nextUndoEntry();
     ProjectParsePause parsePause(cancelRunning);
     const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
-    if (!bestEffort && (sourceVariant == QStringLiteral("extension") ||
-                        sourceVariant == QStringLiteral("missing"))) {
+    if ((!bestEffort && (sourceVariant == QStringLiteral("extension") ||
+                         sourceVariant == QStringLiteral("missing"))) ||
+        (invalidItems == 2 && sourceVariant == QStringLiteral("missing"))) {
         QVERIFY(!accepted);
         QCOMPARE(accepted.getError().code, sourceVariant == QStringLiteral("extension")
                                                ? Automation::AutomationErrorCode::FormatUnsupported
@@ -219,6 +224,30 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(historyManager->nextUndoEntry(), undoBeforeAdmission);
+        if (bestEffort) {
+            QVERIFY2(dspxConverter.save(dspx, context->m_appModel, error), qPrintable(error));
+            QVERIFY2(midiConverter.save(midi, context->m_appModel, error), qPrintable(error));
+            const auto retry = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
+            QVERIFY2(retry, qPrintable(retry ? QString{} : retry.getError().message));
+            const auto retryId = idFromResult(retry.get());
+            QVERIFY(!retryId.isNull());
+            const auto retryTask = [&] {
+                return runtime().tasks().getTask(before.documentId, retryId);
+            };
+            QTRY_VERIFY_WITH_TIMEOUT(
+                retryTask() &&
+                    (retryTask().get().state == Automation::AutomationTaskState::Succeeded ||
+                     retryTask().get().state == Automation::AutomationTaskState::Failed),
+                10000);
+            const auto completed = retryTask().get();
+            QVERIFY2(completed.state == Automation::AutomationTaskState::Succeeded,
+                     qPrintable(completed.error ? completed.error->message : QString{}));
+            QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
+            QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
+            QVERIFY(runtime().history().undo(commandContext()));
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+            QCOMPARE(historyManager->nextUndoEntry(), undoBeforeAdmission);
+        }
         return;
     }
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
