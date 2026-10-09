@@ -81,4 +81,6 @@ private slots:
     void extractionDomains();
     void midiExtractionDestinations_data();
     void midiExtractionDestinations();
+    void extractionSourceChangesRejectOldResultsAndAllowRetry_data();
+    void extractionSourceChangesRejectOldResultsAndAllowRetry();
 };

@@ -1436,3 +1436,126 @@ void ApplicationServicesTests::midiExtractionDestinations() {
     QVERIFY(runtime.history().redo(harness.context()));
     QCOMPARE(TestSupport::projectSnapshot(harness.model()), committed);
 }
+
+void ApplicationServicesTests::extractionSourceChangesRejectOldResultsAndAllowRetry_data() {
+    QTest::addColumn<bool>("pitch");
+    QTest::newRow("pitch-source") << true;
+    QTest::newRow("midi-source") << false;
+}
+
+void ApplicationServicesTests::extractionSourceChangesRejectOldResultsAndAllowRetry() {
+    QFETCH(bool, pitch);
+    RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    auto *audio =
+        dynamic_cast<AudioClip *>(harness.model().findClipById(harness.audioClipId().value()));
+    QVERIFY(audio);
+    const auto base = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(harness.model());
+    const auto sourceBefore = Automation::audioAssetSnapshotDto(*audio);
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto tasksBefore = runtime.automationTasks().size();
+    bool allowed = false;
+    QString authorizedPath;
+    const auto authorize =
+        [&](const QString &path) -> Automation::AutomationResult<Automation::AutomationUnit> {
+        authorizedPath = path;
+        if (!allowed) {
+            Automation::AutomationError error;
+            error.code = Automation::AutomationErrorCode::PermissionDenied;
+            error.fieldPath = QStringLiteral("path");
+            error.message = QStringLiteral("Source access denied");
+            return error;
+        }
+        return Automation::AutomationUnit{};
+    };
+    auto context = harness.context();
+    context.idempotencyKey = QStringLiteral("source-extraction");
+    context.clientId = QStringLiteral("source-test");
+    const auto start = [&]() {
+        if (pitch) {
+            Automation::PitchExtractionOptionsDto options;
+            options.authorizeSource = authorize;
+            return runtime.extractions().startPitch(context, harness.audioClipId(),
+                                                    harness.singingClipId(), options);
+        }
+        Automation::MidiExtractionOptionsDto options;
+        options.authorizeSource = authorize;
+        return runtime.extractions().startMidi(context, harness.audioClipId(), options);
+    };
+    const auto complete = [&] {
+        if (pitch) {
+            harness.pitchStates.last()->complete({
+                .state = Automation::ExtractionBackendState::Succeeded,
+                .segments = {{.globalStartTick = 20, .values = {60.0, 60.5}}},
+            });
+        } else {
+            harness.midiStates.last()->complete({
+                .state = Automation::ExtractionBackendState::Succeeded,
+                .notes = {{.keyIndex = 62, .localStart = 480, .length = 240}},
+            });
+        }
+    };
+    const auto denied = start();
+    QVERIFY(!denied);
+    QCOMPARE(denied.getError().code, Automation::AutomationErrorCode::PermissionDenied);
+    QCOMPARE(denied.getError().fieldPath, QStringLiteral("path"));
+    QCOMPARE(authorizedPath, sourceBefore.path);
+    QCOMPARE(harness.pitchPrepareCount + harness.midiPrepareCount, 0);
+    QCOMPARE(harness.extractionScheduler.pendingCount(), 0);
+    QCOMPARE(runtime.automationTasks().size(), tasksBefore);
+    QCOMPARE(runtime.documentVersion(), base);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), original);
+
+    allowed = true;
+    const auto accepted = start();
+    QVERIFY(accepted);
+    QVERIFY(harness.extractionScheduler.runNext());
+    QCOMPARE(pitch ? harness.pitchStates.last()->input.sourceAsset
+                   : harness.midiStates.last()->input.sourceAsset,
+             sourceBefore);
+    QFile resolved(harness.temporaryPath(QStringLiteral("resolved-source.bin")));
+    QVERIFY(resolved.open(QIODevice::WriteOnly));
+    const auto bytes = QByteArrayLiteral("controlled extraction source");
+    QCOMPARE(resolved.write(bytes), static_cast<qint64>(bytes.size()));
+    resolved.close();
+    const auto changed = runtime.project().applyResolvedAudioPath(
+        harness.context(), harness.audioClipId(), sourceBefore, resolved.fileName(),
+        AudioClip::PathStatus::Normal);
+    QVERIFY(changed);
+    QVERIFY(changed.get().changed);
+    QCOMPARE(runtime.documentVersion(), base);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    const auto sourceAfter = Automation::audioAssetSnapshotDto(*audio);
+    QVERIFY(sourceAfter != sourceBefore);
+    const auto relocated = TestSupport::projectSnapshot(harness.model());
+    complete();
+    const auto failed = runtime.tasks().getTask(base.documentId, accepted.get().taskId);
+    QVERIFY(failed);
+    QCOMPARE(failed.get().state, Automation::AutomationTaskState::Failed);
+    QVERIFY(failed.get().error);
+    QCOMPARE(failed.get().error->code, Automation::AutomationErrorCode::InvalidArgument);
+    QCOMPARE(failed.get().error->fieldPath, QStringLiteral("source_audio_clip_id"));
+    QVERIFY(!failed.get().mutation);
+    QCOMPARE(runtime.documentVersion(), base);
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), relocated);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+
+    const auto retried = start();
+    QVERIFY(retried);
+    QVERIFY(retried.get().taskId != accepted.get().taskId);
+    QCOMPARE(authorizedPath, sourceAfter.path);
+    QVERIFY(harness.extractionScheduler.runNext());
+    QCOMPARE(pitch ? harness.pitchStates.last()->input.sourceAsset
+                   : harness.midiStates.last()->input.sourceAsset,
+             sourceAfter);
+    complete();
+    const auto succeeded = runtime.tasks().getTask(base.documentId, retried.get().taskId);
+    QVERIFY(succeeded);
+    QCOMPARE(succeeded.get().state, Automation::AutomationTaskState::Succeeded);
+    QCOMPARE(runtime.documentVersion().revision, base.revision + 1);
+    QVERIFY(runtime.history().undo(harness.context()));
+    QCOMPARE(TestSupport::projectSnapshot(harness.model()), relocated);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+}
