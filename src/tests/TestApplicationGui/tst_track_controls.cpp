@@ -239,6 +239,9 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
 void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data() {
     QTest::addColumn<QString>("origin");
     QTest::newRow("track-header") << QStringLiteral("header");
+    QTest::newRow("track-control") << QStringLiteral("control");
+    QTest::newRow("track-index") << QStringLiteral("index");
+    QTest::newRow("track-meter") << QStringLiteral("level");
     QTest::newRow("tempo-lane") << QStringLiteral("tempo");
     QTest::newRow("time-signature-lane") << QStringLiteral("meter");
 }
@@ -265,8 +268,20 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
     QTRY_VERIFY(editor.isActiveWindow());
     QVERIFY(editor.setViewScale(1.0, 1.0));
     QVERIFY(editor.centerAt(9600, 5));
+    const auto headerInput = origin != QStringLiteral("tempo") && origin != QStringLiteral("meter");
     QWidget *target = headers->viewport();
-    if (origin == QStringLiteral("tempo"))
+    if (origin == QStringLiteral("control") || origin == QStringLiteral("index") ||
+        origin == QStringLiteral("level")) {
+        auto *item = headers->itemAt(headers->viewport()->rect().center());
+        QVERIFY(item);
+        auto *controls = qobject_cast<TrackControlView *>(headers->itemWidget(item));
+        QVERIFY(controls);
+        target = controls;
+        if (origin == QStringLiteral("index"))
+            target = controls->findChild<QLabel *>("lbTrackIndex");
+        else if (origin == QStringLiteral("level"))
+            target = controls->levelMeter();
+    } else if (origin == QStringLiteral("tempo"))
         target = editor.findChild<TempoLaneView *>();
     else if (origin == QStringLiteral("meter"))
         target = editor.findChild<TimeSignatureLaneView *>();
@@ -291,7 +306,22 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
     QTRY_VERIFY(editor.viewState().verticalScale > beforeScale.verticalScale);
     QTRY_VERIFY(headers->visualItemRect(headers->item(0)).height() > rowHeight);
     QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
-    if (origin != QStringLiteral("header")) {
+    if (origin == QStringLiteral("header")) {
+        auto *controls = qobject_cast<TrackControlView *>(headers->itemWidget(headers->item(0)));
+        QVERIFY(controls);
+        auto *singer = controls->findChild<QWidget *>("cbSinger");
+        auto *language = controls->findChild<QWidget *>("cbLanguage");
+        QVERIFY(singer && language);
+        QVERIFY(!singer->isHidden() && !language->isHidden());
+        wheel(-240, Qt::AltModifier);
+        QTRY_VERIFY(editor.viewState().verticalScale < beforeScale.verticalScale);
+        QTRY_VERIFY(singer->isHidden() && language->isHidden());
+        QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
+        wheel(240, Qt::AltModifier);
+        QTRY_VERIFY(!singer->isHidden() && !language->isHidden());
+        QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
+    }
+    if (!headerInput) {
         const auto beforeHorizontalScale = editor.viewState();
         wheel(120, Qt::ControlModifier);
         QTRY_VERIFY(editor.viewState().horizontalScale > beforeHorizontalScale.horizontalScale);
