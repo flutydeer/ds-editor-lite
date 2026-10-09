@@ -1159,7 +1159,7 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     const auto release = fixture.pointFor(1200, 62);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
-    const auto before = fixture.runtime().documentVersion();
+    auto before = fixture.runtime().documentVersion();
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     fixture.moveTo(release);
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
@@ -1238,6 +1238,29 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
         QVERIFY(originalFrame.rect().contains(movedRegion));
         QCOMPARE(originalFrame.copy(originalRegion), beforeResize.copy(originalRegion));
         QCOMPARE(originalFrame.copy(movedRegion), beforeResize.copy(movedRegion));
+
+        const auto untrimmedFrame = canvas.grabFramebuffer();
+        const auto keptRegion = regionFor(untrimmedFrame, fixture.pointFor(1320, 64));
+        QVERIFY(untrimmedFrame.rect().contains(keptRegion));
+        QVERIFY(fixture.runtime().project().resizeClipLeft(
+            fixture.command(), Automation::ClipId(fixture.clip->id()), 960));
+        QCOMPARE(fixture.clip->clipStart(), 960);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QImage trimmedFrame;
+        QTRY_VERIFY(!(trimmedFrame = canvas.grabFramebuffer()).isNull() &&
+                    trimmedFrame.copy(originalRegion) != untrimmedFrame.copy(originalRegion));
+        QCOMPARE(trimmedFrame.copy(keptRegion), untrimmedFrame.copy(keptRegion));
+        QVERIFY(fixture.runtime().history().undo(fixture.command()));
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_COMPARE(canvas.grabFramebuffer().copy(originalRegion),
+                     untrimmedFrame.copy(originalRegion));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), originalModel);
+        QVERIFY(!historyManager->canUndo());
+        before = fixture.runtime().documentVersion();
     }
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     fixture.moveTo(release);
