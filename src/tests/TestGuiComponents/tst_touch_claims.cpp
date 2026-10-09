@@ -6,6 +6,7 @@
 #include <lite/GUI/Controls/TouchClaimFilter.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/ComboPopupTouchFilter.h>
+#include <lite/GUI/Controls/ItemViewTouchFilter.h>
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -73,6 +74,18 @@ namespace {
 
     QPoint seekBarCenterInViewport(const SVS::SeekBar *seekBar, const QScrollArea *area) {
         return seekBar->mapTo(area->viewport(), seekBar->rect().center());
+    }
+
+    void sendMouse(QWidget *target, QEvent::Type type, const QPoint &position,
+                   Qt::MouseEventSource source, ulong timestamp) {
+        const auto button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
+        const auto buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
+        QMouseEvent event(type, QPointF(position), QPointF(position),
+                          QPointF(target->mapToGlobal(position)), button, buttons, Qt::NoModifier,
+                          source);
+        event.setTimestamp(timestamp);
+        QApplication::sendEvent(target, &event);
+        QApplication::processEvents();
     }
 
     // Drags the primary touch point from \p from to \p to in viewport-local
@@ -151,14 +164,7 @@ void GuiComponentTests::comboPopupTouchKeepsScrollingAndSelectionSeparate() {
         QTRY_VERIFY(scroll->maximum() > 0);
     };
     const auto send = [&](QEvent::Type type, const QPoint &position, Qt::MouseEventSource source) {
-        const auto button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
-        const auto buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
-        QMouseEvent event(type, QPointF(position), QPointF(position),
-                          QPointF(viewport->mapToGlobal(position)), button, buttons, Qt::NoModifier,
-                          source);
-        event.setTimestamp(1000 + elapsed.elapsed());
-        QApplication::sendEvent(viewport, &event);
-        QApplication::processEvents();
+        sendMouse(viewport, type, position, source, 1000 + elapsed.elapsed());
         const auto *scroller = QScroller::scroller(viewport);
         trace.append(QStringLiteral("event=%1 source=%2 y=%3 state=%4 scroll=%5/%6 ppm=%7,%8")
                          .arg(type)
@@ -252,6 +258,75 @@ void GuiComponentTests::comboPopupTouchKeepsScrollingAndSelectionSeparate() {
         return;
     QCOMPARE(activated.size(), 1);
     QCOMPARE(activated.first().first().toInt(), tappedRow);
+}
+
+void GuiComponentTests::itemViewTouchKeepsScrollingAndSelectionSeparate() {
+    QListWidget view;
+    for (int row = 0; row < 60; ++row)
+        view.addItem(QStringLiteral("Package %1").arg(row));
+    view.setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    view.resize(280, 220);
+    SmoothScroller smooth;
+    smooth.attachTo(&view);
+    ItemViewTouchFilter::install(&view);
+    auto *viewport = view.viewport();
+    auto *scroller = QScroller::scroller(viewport);
+    const auto stop = qScopeGuard([&] { scroller->stop(); });
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+    QTRY_VERIFY(view.verticalScrollBar()->maximum() > 0);
+    view.setCurrentRow(1);
+    QSignalSpy clicked(&view, &QAbstractItemView::clicked);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    const auto send = [&](QEvent::Type type, const QPoint &position, Qt::MouseEventSource source) {
+        sendMouse(viewport, type, position, source, 1000 + elapsed.elapsed());
+    };
+    const auto tapPosition =
+        view.visualItemRect(view.item(3)).intersected(viewport->rect()).center();
+    QCOMPARE(view.indexAt(tapPosition).row(), 3);
+    send(QEvent::MouseButtonPress, tapPosition, Qt::MouseEventSynthesizedBySystem);
+    send(QEvent::MouseButtonPress, tapPosition, Qt::MouseEventSynthesizedByQt);
+    QCOMPARE(view.currentRow(), 1);
+    QVERIFY(clicked.isEmpty());
+    send(QEvent::MouseButtonRelease, tapPosition, Qt::MouseEventSynthesizedBySystem);
+    QCOMPARE(view.currentRow(), 3);
+    QCOMPARE(clicked.size(), 1);
+    clicked.clear();
+
+    auto *device = QTest::createTouchDevice();
+    const auto from = QPoint(viewport->width() / 2, viewport->height() - 16);
+    const auto to = QPoint(from.x(), 16);
+    const auto beforeScroll = view.verticalScrollBar()->value();
+    QTest::touchEvent(viewport, device).press(0, from);
+    send(QEvent::MouseButtonPress, from, Qt::MouseEventSynthesizedBySystem);
+    for (int step = 1; step <= 8; ++step) {
+        const auto position = from + (to - from) * step / 8;
+        QTest::touchEvent(viewport, device).move(0, position);
+        send(QEvent::MouseMove, position, Qt::MouseEventSynthesizedBySystem);
+        if (step == 4)
+            send(QEvent::MouseButtonPress, position, Qt::MouseEventSynthesizedByQt);
+        QTest::qWait(15);
+    }
+    send(QEvent::MouseButtonRelease, to, Qt::MouseEventSynthesizedBySystem);
+    QTest::touchEvent(viewport, device).release(0, to);
+    QTRY_VERIFY(view.verticalScrollBar()->value() > beforeScroll);
+    QTRY_COMPARE(scroller->state(), QScroller::Inactive);
+    QCOMPARE(view.currentRow(), 3);
+    QVERIFY(clicked.isEmpty());
+
+    const auto canceledPosition = viewport->rect().center();
+    QVERIFY(view.indexAt(canceledPosition).isValid());
+    QVERIFY(view.indexAt(canceledPosition).row() != view.currentRow());
+    send(QEvent::MouseButtonPress, canceledPosition, Qt::MouseEventSynthesizedBySystem);
+    QTouchEvent cancel(QEvent::TouchCancel, device);
+    QApplication::sendEvent(viewport, &cancel);
+    send(QEvent::MouseButtonRelease, canceledPosition, Qt::MouseEventSynthesizedBySystem);
+    QCOMPARE(view.currentRow(), 3);
+    QVERIFY(clicked.isEmpty());
+    QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, canceledPosition);
+    QCOMPARE(view.currentRow(), view.indexAt(canceledPosition).row());
+    QCOMPARE(clicked.size(), 1);
 }
 
 void GuiComponentTests::touchClaimsFinishOnSystemCancel_data() {

@@ -48,6 +48,7 @@ private slots:
     void touchFlickContinuesAfterRelease();
     void comboPopupTouchKeepsScrollingAndSelectionSeparate_data();
     void comboPopupTouchKeepsScrollingAndSelectionSeparate();
+    void itemViewTouchKeepsScrollingAndSelectionSeparate();
     void pathEditorMovesAndDeletesTheSelectedDirectories();
     void pathEditorInlineEditsCommitOrCancel_data();
     void pathEditorInlineEditsCommitOrCancel();
