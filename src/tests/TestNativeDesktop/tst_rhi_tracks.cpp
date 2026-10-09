@@ -16,6 +16,7 @@
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Views/Common/EditorTouchGesture.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
@@ -657,6 +658,11 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     auto &canvas = *fixture.canvas;
     const auto previousCursor = QCursor::pos();
     const auto restore = qScopeGuard([&] { QCursor::setPos(previousCursor); });
+    const auto previousTouchLogging = appOptions->developer()->logTouchEvents;
+    if (touchSelection)
+        appOptions->developer()->logTouchEvents = true;
+    const auto restoreTouchLogging =
+        qScopeGuard([&] { appOptions->developer()->logTouchEvents = previousTouchLogging; });
     QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
     QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
     canvas.update();
@@ -803,6 +809,8 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     const auto inputPosition = [&](const QPoint &position) {
         return inputWindow->mapFromGlobal(canvas.mapToGlobal(position));
     };
+    fixture.host->activateWindow();
+    QTRY_VERIFY(fixture.host->isActiveWindow());
     auto *touchDevice = QTest::createTouchDevice();
     auto sequence = QTest::touchEvent(inputWindow, touchDevice, false);
     bool selecting = false;
@@ -819,9 +827,11 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         }
     });
     if (touchSelection) {
+        QVERIFY(!EditorPointer::isTouchStreamActive());
         sequence.press(0, inputPosition(selectFrom)).commit();
         selecting = true;
-        QTest::qWait(static_cast<int>(EditorTouchGesture::Config{}.longPressMs) + 50);
+        QTRY_VERIFY_WITH_TIMEOUT(EditorPointer::isTouchStreamActive(),
+                                 static_cast<int>(EditorTouchGesture::Config{}.longPressMs) + 50);
     } else if (edgeScroll) {
         QTest::mousePress(inputWindow, Qt::LeftButton, Qt::NoModifier, inputPosition(selectFrom));
     } else {
@@ -835,7 +845,17 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     if (edgeScroll) {
         const auto initialOffset = canvas.startTick();
         QVERIFY(!appStatus->selectedClips.get().contains(offscreenClipId));
-        QTRY_VERIFY_WITH_TIMEOUT(appStatus->selectedClips.get().contains(offscreenClipId), 3000);
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            appStatus->selectedClips.get().contains(offscreenClipId),
+            qPrintable(QStringLiteral("Edge selection stalled: touch=%1, active=%2, ticks=%3..%4, "
+                                      "initial=%5, selected=%6")
+                           .arg(EditorPointer::isTouchStreamActive())
+                           .arg(fixture.host->isActiveWindow())
+                           .arg(canvas.startTick())
+                           .arg(canvas.endTick())
+                           .arg(initialOffset)
+                           .arg(appStatus->selectedClips.get().size())),
+            3000);
         QVERIFY(canvas.startTick() > initialOffset);
     }
     QCOMPARE(fixture.runtime().documentVersion(), beforeSelection);
