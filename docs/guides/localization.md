@@ -183,7 +183,7 @@ cmake --build --preset debug --target DsEditorLite_lrelease
 
 普通应用构建也会生成 `translation_zh_CN.qm`，并通过 `/i18n` 资源前缀嵌入可执行文件。生成型 `.qm` 不应提交到仓库，也不需要添加手工 qrc 条目。
 
-Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所需的中文翻译。安装包必须在没有开发机 Qt 目录的环境中验证标准文件对话框、消息框等 Qt UI 的中文显示。
+Qt 标准控件的中文翻译在构建时通过 `MERGE_QT_TRANSLATIONS` 合入应用 catalog，运行时不依赖 `windeployqt --translations` 部署独立 Qt QM。安装包仍需在没有开发机 Qt 目录的环境中验证标准文件对话框、消息框等 Qt UI 的中文显示。
 
 提交翻译更新前应确认：
 
@@ -197,13 +197,13 @@ Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所�
 
 新增语言时需要同时完成以下工作：
 
-1. 在 `UiLanguageManager` 注册稳定语言 ID，并扩展偏好规范化和有效语言解析；
-2. 在设置页组合框中添加显示名称，`itemData` 使用语言 ID；
-3. 新增对应 TS，并加入 `qt_add_translations(TS_FILES ...)`；
-4. 在 `UiLanguageManager` 中加载应用 QM 和该语言的 Qt translator；
-5. 更新 `windeployqt --translations` 的部署语言列表；
-6. 扩展 `TestUiLanguage`，覆盖显式选择、自动检测、非法配置和回退；
-7. 验证缺少应用或 Qt 翻译时不会崩溃，并产生可定位日志；
+1. 在 `UiLanguageManager` 注册稳定语言 ID，并扩展偏好规范化和有效语言解析。
+2. 在设置页组合框中添加显示名称，`itemData` 使用语言 ID。
+3. 新增对应 TS，并加入 `qt_add_translations(TS_FILES ...)`。保留 `MERGE_QT_TRANSLATIONS` 和需要的 Qt catalog 配置，使该语言的 Qt 标准控件翻译合入同一 QM。
+4. 在 `UiLanguageManager` 加载该语言的嵌入式 catalog，继续由一个 translator 管理应用和 Qt 文本。
+5. 构建完整应用并检查对应 QM 已通过 `/i18n` 嵌入，无需新增独立 Qt QM 的运行时路径或部署语言列表。
+6. 扩展所属 Qt Test 套件的语言场景，覆盖显式选择、自动检测、非法配置和回退。
+7. 验证嵌入式 catalog 不可用时保留可定位日志并回退英文，同时验证同一 catalog 中的应用文本和 Qt 标准控件文本。
 8. 执行目标语言与英文之间的连续往返热切换测试。
 
 语言 ID 是配置协议的一部分，发布后不要随意重命名。若第三方组件使用独立翻译资源，应由 `UiLanguageManager` 持有独立 translator，并和应用 translator 一起安装、卸载及验证；不要恢复 qtmediate 的另一套 Widget 翻译订阅路径。
@@ -225,8 +225,7 @@ Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所�
   TODO 的复杂格式化可保留 C Locale；
 - 中英往返后没有重复菜单、重复连接、对象泄漏或业务回调；
 - 更新 TS 后所有活动文本都有完成的翻译；
-- Debug 全量构建通过；CTest 在无人值守 Worker 中跳过，使用 Computer Use 操作真实程序
-  完成针对改动的自测与基本功能回归冒烟测试。
+- Debug 全量构建及所属 CTest 套件通过。普通控件可用 offscreen，原生窗口用例在桌面或 Linux Xvfb 执行，主观显示质量另做必要人工检查。
 
 ## 相关实现
 
