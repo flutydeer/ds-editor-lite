@@ -743,6 +743,24 @@ namespace Automation {
         return true;
     }
 
+    bool hasOverlappingAnchorCurves(const QList<CurveDraftDto> &curves) {
+        QList<QPair<int, int>> ranges;
+        for (const auto &curve : curves) {
+            if (curve.type != CurveDraftDto::Type::Anchor || curve.nodes.isEmpty())
+                continue;
+            const auto [minimum, maximum] = std::minmax_element(
+                curve.nodes.cbegin(), curve.nodes.cend(),
+                [](const auto &left, const auto &right) { return left.position < right.position; });
+            ranges.append({minimum->position, maximum->position});
+        }
+        std::sort(ranges.begin(), ranges.end());
+        for (qsizetype i = 1; i < ranges.size(); ++i) {
+            if (ranges.at(i).first <= ranges.at(i - 1).second)
+                return true;
+        }
+        return false;
+    }
+
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
         const auto localEnd = static_cast<qint64>(properties.clipStart) + properties.clipLen;
@@ -817,6 +835,11 @@ namespace Automation {
                         QStringLiteral("clip.parameters.curves.nodes"),
                         QStringLiteral("Anchor positions, values, or interpolation are invalid"));
                 }
+            }
+            if (hasOverlappingAnchorCurves(parameter.curves)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("clip.parameters.curves.nodes.position"),
+                    QStringLiteral("Anchor curves must not overlap"));
             }
         }
         QStringList clientRefs;

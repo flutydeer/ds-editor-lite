@@ -210,6 +210,7 @@ namespace Automation {
 
     [[nodiscard]] bool validCurveDraft(ParamInfo::Name name, const CurveDraftDto &curve,
                                        int sourceStart, int sourceEnd);
+    [[nodiscard]] bool hasOverlappingAnchorCurves(const QList<CurveDraftDto> &curves);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft);

@@ -242,6 +242,8 @@ namespace Automation {
                 if (seenParameters.contains(key) || parameter.curves.isEmpty())
                     return false;
                 seenParameters.insert(key);
+                if (hasOverlappingAnchorCurves(parameter.curves))
+                    return false;
                 for (const auto &curve : parameter.curves) {
                     if (!validCurveDraft(parameter.name, curve, payload.sourceStart,
                                          payload.sourceEnd)) {

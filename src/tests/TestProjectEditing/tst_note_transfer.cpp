@@ -562,18 +562,24 @@ void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits() {
 void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::addColumn<int>("layer");
     QTest::addColumn<bool>("hasNotes");
+    QTest::addColumn<bool>("multipleAnchors");
     QTest::addColumn<QString>("fault");
-    QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true << QString{};
-    QTest::newRow("original-curves-without-notes") << int(Param::Original) << false << QString{};
-    QTest::newRow("envelope-curves") << int(Param::Envelope) << true << QString{};
+    QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true << false << QString{};
+    QTest::newRow("original-curves-without-notes")
+        << int(Param::Original) << false << false << QString{};
+    QTest::newRow("envelope-curves") << int(Param::Envelope) << true << false << QString{};
+    QTest::newRow("separate-anchor-curves") << int(Param::Edited) << true << true << QString{};
+    QTest::newRow("overlapping-anchor-curves")
+        << int(Param::Edited) << true << true << QStringLiteral("overlapping-anchor-ranges");
     for (const auto &fault : {"duplicate-positions", "reversed-positions", "out-of-range-value",
                               "draw-negative-start", "draw-out-of-range-value"})
-        QTest::newRow(fault) << int(Param::Edited) << true << QString::fromLatin1(fault);
+        QTest::newRow(fault) << int(Param::Edited) << true << false << QString::fromLatin1(fault);
 }
 
 void ProjectEditingTests::wholeClipParameterRoundTrip() {
     QFETCH(int, layer);
     QFETCH(bool, hasNotes);
+    QFETCH(bool, multipleAnchors);
     QFETCH(QString, fault);
     auto draft = clipDraft(QStringLiteral("Whole phrase"));
     if (hasNotes)
@@ -590,12 +596,18 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
          .type = type,
          .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
     };
+    if (multipleAnchors)
+        draft.params.first().curves.append(anchor({
+            {600, 6400},
+            {960, 6500}
+        }));
     const auto source = Automation::buildClip(draft, nullptr, Timeline{});
     const ClipsInfo copied{{source.get()}, {0}};
     const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
     auto payload = QJsonDocument::fromJson(bytes).object();
     if (!fault.isEmpty()) {
         const bool drawFault = fault.startsWith(QStringLiteral("draw-"));
+        const bool overlap = fault == QStringLiteral("overlapping-anchor-ranges");
         if (drawFault) {
             auto &curve = draft.params.first().curves.first();
             if (fault == QStringLiteral("draw-negative-start"))
@@ -604,7 +616,13 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
                 curve.values.first() = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
         } else {
             auto &nodes = draft.params.first().curves.last().nodes;
-            if (fault == QStringLiteral("duplicate-positions"))
+            if (overlap) {
+                nodes.first().position = 240;
+                nodes.last().position = 720;
+                draft.params.append({.name = ParamInfo::Energy,
+                                     .type = Param::Envelope,
+                                     .curves = {draw(0, 120, {-1000, -3000})}});
+            } else if (fault == QStringLiteral("duplicate-positions"))
                 nodes.last().position = nodes.first().position;
             else if (fault == QStringLiteral("reversed-positions"))
                 std::swap(nodes.first(), nodes.last());
@@ -624,8 +642,9 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
         QVERIFY(!rejected);
         QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
         QCOMPARE(rejected.getError().fieldPath,
-                 drawFault ? QStringLiteral("clip.parameters.curves")
-                           : QStringLiteral("clip.parameters.curves.nodes"));
+                 overlap     ? QStringLiteral("clip.parameters.curves.nodes.position")
+                 : drawFault ? QStringLiteral("clip.parameters.curves")
+                             : QStringLiteral("clip.parameters.curves.nodes"));
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(fixture.model().tracks().first()->clips().count(), 0);
         QVERIFY(!fixture.history()->canUndo());
@@ -635,7 +654,9 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
                     ClipboardDataModel::serializeParameters(draft.params));
         clips.replace(0, clip);
         payload.insert(QStringLiteral("clips"), clips);
-        if (drawFault)
+        if (overlap)
+            draft.params.removeFirst();
+        else if (drawFault)
             draft.params.first().curves.removeFirst();
         else
             draft.params.first().curves.removeLast();
@@ -645,11 +666,13 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     QCOMPARE(decoded.clips.size(), 1);
     const auto restored = Automation::clipDraftDto(*decoded.clips.first());
     QCOMPARE(restored.notes.size(), draft.notes.size());
-    QCOMPARE(restored.params.size(), 1);
-    QCOMPARE(restored.params.first().name, ParamInfo::Pitch);
-    QCOMPARE(restored.params.first().type, type);
-    QVERIFY(sameShape({.curves = draft.params.first().curves},
-                      {.curves = restored.params.first().curves}));
+    QCOMPARE(restored.params.size(), draft.params.size());
+    for (qsizetype i = 0; i < draft.params.size(); ++i) {
+        QCOMPARE(restored.params.at(i).name, draft.params.at(i).name);
+        QCOMPARE(restored.params.at(i).type, draft.params.at(i).type);
+        QVERIFY(sameShape({.curves = draft.params.at(i).curves},
+                          {.curves = restored.params.at(i).curves}));
+    }
 }
 
 void ProjectEditingTests::wholeClipsPasteAcrossTracksAsOneEdit() {
@@ -705,6 +728,11 @@ void ProjectEditingTests::wholeClipsPasteAcrossTracksAsOneEdit() {
 
     const auto before = runtime.documentVersion();
     const auto previousUndo = testRuntime.history()->nextUndoEntry();
+    const auto overflowingPaste =
+        decoded.preparePaste(tracks, std::numeric_limits<int>::max() - 480, 2);
+    QVERIFY(overflowingPaste.isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), previousUndo);
     const auto result = runtime.project().insertClips(commandContext(runtime),
                                                       decoded.preparePaste(tracks, 4800, 2));
     QVERIFY(result);

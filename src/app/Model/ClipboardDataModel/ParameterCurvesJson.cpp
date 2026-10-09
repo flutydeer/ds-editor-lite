@@ -99,7 +99,8 @@ namespace ClipboardDataModel {
                 if (curve)
                     parameter.curves.append(std::move(*curve));
             }
-            if (!parameter.curves.isEmpty())
+            if (!parameter.curves.isEmpty() &&
+                !Automation::hasOverlappingAnchorCurves(parameter.curves))
                 result.append(std::move(parameter));
         }
         return result;

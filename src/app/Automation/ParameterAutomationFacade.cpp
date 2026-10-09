@@ -236,7 +236,6 @@ namespace Automation {
 
         AutomationResult<AutomationUnit>
             validateReplacementAnchorCurves(const QList<CurveDraftDto> &curves) {
-            QList<QPair<int, int>> ranges;
             for (const auto &curve : curves) {
                 if (curve.type != CurveDraftDto::Type::Anchor)
                     continue;
@@ -244,15 +243,11 @@ namespace Automation {
                     validateAnchorDrafts(curve.nodes, QStringLiteral("curves.nodes"), 2);
                 if (!validation)
                     return validation.getError();
-                const auto range = anchorCurveRange(curve);
-                for (const auto &existing : ranges) {
-                    if (rangesOverlap(*range, existing)) {
-                        return AutomationError::invalidArgument(
-                            QStringLiteral("curves.nodes.position"),
-                            QStringLiteral("Anchor curves must not overlap"));
-                    }
-                }
-                ranges.append(*range);
+            }
+            if (hasOverlappingAnchorCurves(curves)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("curves.nodes.position"),
+                    QStringLiteral("Anchor curves must not overlap"));
             }
             return AutomationUnit{};
         }

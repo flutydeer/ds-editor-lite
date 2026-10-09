@@ -9,6 +9,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/PackageManager/PackageManager.h>
 
+#include <limits>
+
 namespace {
 
     QJsonObject serializeSingerInfo(const SingerInfo &singerInfo) {
@@ -339,17 +341,22 @@ QList<Automation::ClipInsertDto> ClipsInfo::preparePaste(const QList<Track *> &t
     int minStart = clips.first()->start();
     for (const auto *clip : clips)
         minStart = qMin(minStart, clip->start());
-    const auto offset = tick - minStart;
+    const auto offset = static_cast<qint64>(tick) - minStart;
 
     QList<Automation::ClipInsertDto> inserts;
     for (qsizetype i = 0; i < clips.size(); ++i) {
         const auto *clip = clips.at(i);
         if (!clip)
             continue;
-        const auto targetIndex =
-            qBound(0, trackIndex + trackIndexOffsets.value(i, 0), int(tracks.size()) - 1);
+        const auto targetIndex = static_cast<int>(qBound<qint64>(
+            0, static_cast<qint64>(trackIndex) + trackIndexOffsets.value(i, 0), tracks.size() - 1));
         auto draft = Automation::clipDraftDto(*clip);
-        draft.properties.start += offset;
+        const auto translatedStart = static_cast<qint64>(draft.properties.start) + offset;
+        if (translatedStart < std::numeric_limits<int>::min() ||
+            translatedStart > std::numeric_limits<int>::max()) {
+            return {};
+        }
+        draft.properties.start = static_cast<int>(translatedStart);
         inserts.append({Automation::TrackId(tracks.at(targetIndex)->id()), std::move(draft)});
     }
     return inserts;
