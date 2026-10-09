@@ -87,15 +87,30 @@ void VoiceAndInferenceTests::inputConversionUnavailablePrimaryIsReplaced() {
     QVERIFY(result.sanitizedMix == mix);
 }
 
+void VoiceAndInferenceTests::inputConversionUnavailableFallbackIsReplaced_data() {
+    QTest::addColumn<QString>("primary");
+    QTest::addColumn<QString>("fallback");
+    QTest::newRow("selected-source-preferred") << QStringLiteral("S1") << QStringLiteral("S1");
+    QTest::newRow("dominant-source-used") << QStringLiteral("S4") << QStringLiteral("S2");
+}
+
 void VoiceAndInferenceTests::inputConversionUnavailableFallbackIsReplaced() {
+    QFETCH(QString, primary);
+    QFETCH(QString, fallback);
     auto mix = twoSpeakerMix();
     mix.fallbackSpeaker = QStringLiteral("S3");
+    mix.sources[0].interval = 0.01;
+    mix.sources[0].proportions = {0.2, 0.4};
+    mix.sources[1].interval = 0.01;
+    mix.sources[1].proportions = {0.8, 0.6};
     const auto result = SpeakerMixValidator::validate(
-        "S1", mix, singerWithSpeakers({"S1", "S2", "S3"}, {"S1", "S2"}));
+        primary, mix, singerWithSpeakers({"S1", "S2", "S3", "S4"}, {"S1", "S2", "S4"}));
     QCOMPARE(result.status, SpeakerMixValidator::Status::Degraded);
+    QCOMPARE(result.primarySpeaker, primary);
     QCOMPARE(result.droppedSpeakers, QStringList{"S3"});
-    QCOMPARE(result.sanitizedMix.fallbackSpeaker, QStringLiteral("S1"));
+    QCOMPARE(result.sanitizedMix.fallbackSpeaker, fallback);
     QCOMPARE(result.sanitizedMix.sources, mix.sources);
+    QVERIFY(!result.warningMessage.isEmpty());
 }
 
 void VoiceAndInferenceTests::inputConversionUnresolvedSpeakerMetadataPreservesInput_data() {

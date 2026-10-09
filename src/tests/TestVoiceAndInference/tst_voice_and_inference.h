@@ -46,6 +46,7 @@ private slots:
     void inputConversionUnusableMixFallsBackToAvailableSpeaker_data();
     void inputConversionUnusableMixFallsBackToAvailableSpeaker();
     void inputConversionUnavailablePrimaryIsReplaced();
+    void inputConversionUnavailableFallbackIsReplaced_data();
     void inputConversionUnavailableFallbackIsReplaced();
     void inputConversionUnresolvedSpeakerMetadataPreservesInput_data();
     void inputConversionUnresolvedSpeakerMetadataPreservesInput();
