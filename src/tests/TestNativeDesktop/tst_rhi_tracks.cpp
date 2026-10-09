@@ -599,16 +599,19 @@ void NativeDesktopTests::rhiClipResizeCommitsOrCancels() {
 
 void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor_data() {
     QTest::addColumn<bool>("audioSource");
+    QTest::addColumn<bool>("missingAudio");
     QTest::addColumn<bool>("edgeScroll");
     QTest::addColumn<bool>("touchSelection");
-    QTest::newRow("singing-clip") << false << false << false;
-    QTest::newRow("audio-clip") << true << false << false;
-    QTest::newRow("selection-scrolls-to-an-offscreen-clip") << false << true << false;
-    QTest::newRow("touch-edge-selection-can-be-canceled") << false << true << true;
+    QTest::newRow("singing-clip") << false << false << false << false;
+    QTest::newRow("audio-clip") << true << false << false << false;
+    QTest::newRow("missing-audio-clip") << true << true << false << false;
+    QTest::newRow("selection-scrolls-to-an-offscreen-clip") << false << false << true << false;
+    QTest::newRow("touch-edge-selection-can-be-canceled") << false << false << true << true;
 }
 
 void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QFETCH(bool, audioSource);
+    QFETCH(bool, missingAudio);
     QFETCH(bool, edgeScroll);
     QFETCH(bool, touchSelection);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
@@ -618,13 +621,19 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     if (audioSource) {
         QVERIFY(fixture.application.directory.isValid());
         audioPath = fixture.application.directory.filePath(QStringLiteral("clipboard.wav"));
-        QVERIFY(TestSupport::writeWave(audioPath, QVector<float>(48000, 0.25f)));
+        if (!missingAudio)
+            QVERIFY(TestSupport::writeWave(audioPath, QVector<float>(48000, 0.25f)));
     }
     QVERIFY2(fixture.initialize(audioPath, true), qPrintable(fixture.application.error));
     if (audioSource) {
         const auto *audio = dynamic_cast<AudioClip *>(fixture.clip());
         QVERIFY(audio);
-        QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+        if (missingAudio) {
+            QTRY_COMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
+            QVERIFY(audio->audioInfo().peakCache.isEmpty());
+        } else {
+            QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+        }
     }
     auto &canvas = *fixture.canvas;
     const auto previousCursor = QCursor::pos();
@@ -703,6 +712,16 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         });
         TestSupport::hoverWidget(canvas, position);
         const auto global = canvas.mapToGlobal(position);
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(position), QPointF(global),
+                          Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+        QApplication::sendEvent(&canvas, &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, QPointF(position), QPointF(global),
+                            Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(&canvas, &release);
+        QCOMPARE(appStatus->selectedClips.get(),
+                 preview ? QList<int>{} : QList<int>{fixture.clipId});
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
         QContextMenuEvent event(QContextMenuEvent::Mouse, position, global);
         respond.start(0);
         QApplication::sendEvent(&canvas, &event);
@@ -730,7 +749,12 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         const auto *audio = dynamic_cast<AudioClip *>(pasted);
         QVERIFY(audio);
         QCOMPARE(audio->path(), audioPath);
-        QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+        if (missingAudio) {
+            QTRY_COMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
+            QVERIFY(audio->audioInfo().peakCache.isEmpty());
+        } else {
+            QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+        }
         QCOMPARE(audio->trimStartMs(), 0.0);
         QCOMPARE(audio->playLengthMs(), 1000.0);
     } else {
