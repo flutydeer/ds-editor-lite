@@ -3061,6 +3061,7 @@ namespace {
 
     void TestConnector::headlessHostAvailability() {
         FakeHttpEditor http;
+        http.exposeForwardCompatibleTools = true;
         expect(http.listen(), "headless availability fake editor must listen");
         if (QTest::currentTestFailed())
             return;
@@ -3070,7 +3071,7 @@ namespace {
         expect(bootstrap.listen(), "headless availability bootstrap must listen");
         if (QTest::currentTestFailed())
             return;
-        bootstrap.publish(SingleInstanceAutomationStatus{
+        SingleInstanceAutomationStatus ready{
             .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("headless-availability-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
@@ -3079,7 +3080,8 @@ namespace {
             .hostMode = QStringLiteral("headless"),
             .serverEnabled = true,
             .serverEndpoint = http.endpoint(),
-        });
+        };
+        bootstrap.publish(ready);
 
         DsConnector::ConnectorRuntime runtime(
             DsConnector::ConnectorOptions{
@@ -3090,6 +3092,8 @@ namespace {
                             {
                                 QStringLiteral("id:notes.list"),
                                 QStringLiteral("id:track_panel.get_state"),
+                                QStringLiteral("id:fake.flexible_output"),
+                                QStringLiteral("id:fake.minimal"),
                             }, },
                 .upstreamTimeoutMs = 2000,
         },
@@ -3143,6 +3147,69 @@ namespace {
         expect(typedHostCode == QStringLiteral("host_capability_unavailable") &&
                    http.calledTools.size() == forwardedBeforeHostReject,
                "a fixed GUI wrapper must reject the headless host without forwarding");
+
+        const auto listedNames = [&] {
+            QSet<QString> names;
+            runtime.callTool(
+                QStringLiteral("editor.tools.list"), {},
+                [&names](const DsConnector::ToolCallOutcome &outcome) {
+                    const auto tools = outcome.result.value(QStringLiteral("structuredContent"))
+                                           .toObject()
+                                           .value(QStringLiteral("tools"))
+                                           .toArray();
+                    for (const auto &entry : tools)
+                        names.insert(entry.toObject().value(QStringLiteral("name")).toString());
+                });
+            return names;
+        };
+        QVERIFY(listedNames().contains(QStringLiteral("fake.minimal")));
+        QVERIFY(!listedNames().contains(QStringLiteral("fake.flexible_output")));
+        QCOMPARE(describeCode(QStringLiteral("fake.flexible_output")),
+                 QStringLiteral("host_capability_unavailable"));
+        const auto invoke = [&](const QString &name) {
+            std::optional<DsConnector::ToolCallOutcome> result;
+            runtime.callTool(
+                QStringLiteral("editor.tools.invoke"),
+                QJsonObject{
+                    {QStringLiteral("name"),      name                                     },
+                    {QStringLiteral("arguments"),
+                     name == QStringLiteral("fake.minimal")
+                         ? QJsonObject{}
+                         : QJsonObject{{QStringLiteral("shape"), QStringLiteral("string")}}}
+            },
+                [&result](const DsConnector::ToolCallOutcome &outcome) { result = outcome; });
+            if (!waitUntil([&] { return result.has_value(); }, 5000))
+                return DsConnector::ToolCallOutcome{};
+            return *result;
+        };
+        const auto rejected = invoke(QStringLiteral("fake.flexible_output"));
+        QCOMPARE(rejected.result.value(QStringLiteral("structuredContent"))
+                     .toObject()
+                     .value(QStringLiteral("code"))
+                     .toString(),
+                 QStringLiteral("host_capability_unavailable"));
+        QCOMPARE(http.calledTools.size(), forwardedBeforeHostReject);
+
+        const auto usable = invoke(QStringLiteral("fake.minimal"));
+        QVERIFY(!usable.result.isEmpty());
+        QVERIFY(!usable.result.value(QStringLiteral("isError")).toBool());
+        QCOMPARE(http.calledTools.last(), QStringLiteral("fake.minimal"));
+
+        const auto refreshCount = http.toolsListCount;
+        ready.hostMode = QStringLiteral("gui");
+        bootstrap.publish(ready);
+        QVERIFY(waitUntil(
+            [&] {
+                return http.toolsListCount > refreshCount &&
+                       listedNames().contains(QStringLiteral("fake.flexible_output"));
+            },
+            10000));
+        const auto restored = invoke(QStringLiteral("fake.flexible_output"));
+        QVERIFY(!restored.result.isEmpty());
+        QVERIFY(!restored.result.value(QStringLiteral("isError")).toBool());
+        QCOMPARE(restored.result.value(QStringLiteral("structuredContent")).toString(),
+                 QStringLiteral("flexible"));
+        QCOMPARE(http.calledTools.last(), QStringLiteral("fake.flexible_output"));
 
         runtime.stop();
     }
