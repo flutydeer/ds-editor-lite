@@ -141,6 +141,8 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords_data() {
         << QStringLiteral("shift") << Rows{{"one"}, {"five"}, {"six"}} << false;
     QTest::newRow("reverse-drag") << QStringLiteral("drag") << Rows{{"one"}, {"five"}, {"six"}}
                                   << false;
+    QTest::newRow("wrapped-reverse-drag")
+        << QStringLiteral("wrapped-drag") << Rows{{"one"}, {"five"}, {"six"}} << false;
     QTest::newRow("whole-line") << QStringLiteral("line")
                                 << Rows{
                                        {"four", "five"},
@@ -174,6 +176,10 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     });
     if (QTest::currentTestFailed())
         return;
+    if (selection == QStringLiteral("wrapped-drag")) {
+        grid.resize(120, 600);
+        QTRY_VERIFY(cellPosition(grid, 0, 2).y() > cellPosition(grid, 0, 0).y());
+    }
     QSignalSpy countChanged(&grid, &FillLyric::LyricWrapView::noteCountChanged);
     if (selection == QStringLiteral("line")) {
         clickAt(grid, handlePosition(grid, 0));
@@ -183,7 +189,7 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
         QCOMPARE(selectedLines(grid), (QList<int>{0, 2}));
     } else if (selection == QStringLiteral("last")) {
         clickAt(grid, cellPosition(grid, 2, 0));
-    } else if (selection == QStringLiteral("drag")) {
+    } else if (selection == QStringLiteral("drag") || selection == QStringLiteral("wrapped-drag")) {
         const auto start = cellPosition(grid, 1, 0);
         const auto finish = cellPosition(grid, 0, 1);
         QTest::mousePress(grid.viewport(), Qt::LeftButton, Qt::NoModifier, start);
