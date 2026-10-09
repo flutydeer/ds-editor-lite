@@ -2125,6 +2125,48 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     QVERIFY(!historyManager->canUndo());
 
     {
+        const auto beforeMode = fixture.runtime().documentVersion();
+        const auto beforeModeContent =
+            TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+        beginEditing(fixture.pointFor(720, 60), QStringLiteral("Lyric"));
+        if (QTest::currentTestFailed())
+            return;
+        QTest::keySequence(edit, QKeySequence::SelectAll);
+        QTest::keyClicks(edit, "committed on tool change");
+        QCOMPARE(fixture.runtime().documentVersion(), beforeMode);
+        canvas.setEditMode(ClipEditorGlobal::DrawNote);
+        QTRY_VERIFY(!edit->isVisible());
+        QCOMPARE(first->lyric(), QStringLiteral("committed on tool change"));
+        QCOMPARE(second->lyric(), QStringLiteral("li"));
+        QCOMPARE(fixture.runtime().documentVersion().revision, beforeMode.revision + 1);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+
+        const auto committedText = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+        const auto drawFrom = fixture.pointFor(2400, 64);
+        const auto drawTo = fixture.pointFor(2880, 64);
+        QVERIFY(canvas.rect().contains(drawFrom) && canvas.rect().contains(drawTo));
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, drawFrom);
+        fixture.moveTo(drawTo);
+        QCOMPARE(fixture.clip->notes().count(), 2);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, drawTo);
+        QCOMPARE(fixture.clip->notes().count(), 3);
+        QCOMPARE(fixture.runtime().documentVersion().revision, beforeMode.revision + 2);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QVERIFY(fixture.runtime().history().undo(fixture.command()));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), committedText);
+        QVERIFY(fixture.runtime().history().undo(fixture.command()));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeModeContent);
+        QVERIFY(!historyManager->canUndo());
+        canvas.setEditMode(ClipEditorGlobal::Select);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+    }
+
+    {
         const auto defaults = appOptions->general()->defaultLyrics;
         const auto restoreDefaults =
             qScopeGuard([&] { appOptions->general()->defaultLyrics = defaults; });
