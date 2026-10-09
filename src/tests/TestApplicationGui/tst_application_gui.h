@@ -169,6 +169,8 @@ private slots:
     void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
+    void audioHashCompletionWaitsForTheSaveDecision_data();
+    void audioHashCompletionWaitsForTheSaveDecision();
     void newDocumentHonorsTheSaveDecision_data();
     void newDocumentHonorsTheSaveDecision();
     void rejectedProjectInputAllowsTheNextRequest_data();

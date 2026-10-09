@@ -5,18 +5,24 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "Controller/Tasks/OpenDspxProjectTask.h"
+#include "Controller/Tasks/ComputeAudioHashTask.h"
+#include "Controller/TrackController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "../TestSupport/MainWindowFixture.h"
+#include "../TestSupport/ThreadPoolBarrier.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QScopeGuard>
@@ -328,6 +334,118 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QVERIFY(historyManager->isOnSavePoint());
         QVERIFY(QFileInfo(prompt.savePath).isFile());
         QCOMPARE(prompt.errors.size(), 1);
+    }
+}
+
+void ApplicationGuiTests::audioHashCompletionWaitsForTheSaveDecision_data() {
+    QTest::addColumn<bool>("replaceDocument");
+    QTest::newRow("cancel-new-applies-hash") << false;
+    QTest::newRow("discard-old-document-rejects-hash") << true;
+}
+
+void ApplicationGuiTests::audioHashCompletionWaitsForTheSaveDecision() {
+    QFETCH(bool, replaceDocument);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("pending-hash.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    auto &runtime = *context->m_coreRuntime;
+    const auto releaseDocument = qScopeGuard([&] {
+        documentWorkflowController->setUi(nullptr);
+        QVERIFY(runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            directory.setAutoRemove(false);
+    });
+    Automation::ClipDraftDto draft;
+    draft.type = Automation::ClipDraftDto::Type::Audio;
+    draft.properties.length = 480;
+    draft.properties.clipLen = 480;
+    draft.audioPath = path;
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Audio hash");
+    track.clips = {draft};
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {track};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    QPointer<AudioClip> audio(
+        qobject_cast<AudioClip *>(*context->m_appModel->tracks().first()->clips().begin()));
+    QVERIFY(audio);
+    QTRY_COMPARE(audio->audioInfo().frames, 4800);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QVERIFY(audio->pathInfo().sha512.isEmpty());
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const auto expectedHash = QString::fromLatin1(
+        QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha512).toHex());
+    file.close();
+    historyManager->reset();
+    QVERIFY(runtime.project().renameTrack(
+        commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
+        QStringLiteral("Unsaved edit")));
+    const auto before = runtime.documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *beforeUndo = historyManager->nextUndoEntry();
+    QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
+    TestSupport::ThreadPoolBarrier worker;
+    QTRY_VERIFY_WITH_TIMEOUT(worker.ready(), 5000);
+    QPointer<ComputeAudioHashTask> hashTask;
+    Automation::TaskId taskId;
+    bool completionDelivered = false;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType type, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<ComputeAudioHashTask *>(task);
+                if (type != TaskManager::Added || !candidate || !taskId.isNull())
+                    return;
+                hashTask = candidate;
+                taskId = candidate->automationTaskId;
+                connect(
+                    candidate, &Task::finished, &observations, [&] { completionDelivered = true; },
+                    Qt::QueuedConnection);
+            });
+    TrackController::scheduleHashUpdate(audio);
+    QVERIFY(hashTask && !taskId.isNull());
+    WorkflowPrompt prompt;
+    prompt.decisions = {replaceDocument ? SaveDecision::Discard : SaveDecision::Cancel};
+    prompt.duringPrompt = [&] {
+        QVERIFY(documentWorkflowController->busy());
+        worker.resume();
+        QTRY_VERIFY_WITH_TIMEOUT(completionDelivered, 5000);
+        QVERIFY(hashTask && taskManager->tasks().contains(hashTask));
+        QVERIFY(audio && audio->pathInfo().sha512.isEmpty());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+    };
+    documentWorkflowController->setUi(&prompt);
+    documentWorkflowController->requestNew();
+    QTRY_VERIFY_WITH_TIMEOUT(prompt.decisionCalls == 1 && !documentWorkflowController->busy(),
+                             10000);
+    QVERIFY(prompt.errors.isEmpty() && prompt.promptsWereBusy);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty() && !hashTask, 10000);
+    if (replaceDocument) {
+        QVERIFY(!audio);
+        QVERIFY(runtime.documentVersion().documentId != before.documentId);
+        for (const auto *newTrack : context->m_appModel->tracks()) {
+            for (const auto *newClip : newTrack->clips())
+                QVERIFY(newClip->clipType() != Clip::Audio);
+        }
+        QVERIFY(historyManager->isOnSavePoint() && !historyManager->canUndo());
+    } else {
+        QVERIFY(audio);
+        QCOMPARE(audio->pathInfo().sha512, expectedHash);
+        QCOMPARE(audio->audioInfo().frames, 4800);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        const auto completed = runtime.tasks().getTask(before.documentId, taskId);
+        QVERIFY(completed);
+        QCOMPARE(completed.get().state, Automation::AutomationTaskState::Succeeded);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Audio hash"));
+        QCOMPARE(audio->pathInfo().sha512, expectedHash);
+        QVERIFY(!historyManager->canUndo());
     }
 }
 
