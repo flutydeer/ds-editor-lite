@@ -193,5 +193,6 @@ RHI 回退场景通过 Qt 渲染失败通知进入生产处理，重复通知合
 | AppContext 的未调用旧单例访问器 | 当前接线使用 CoreRuntime、LevelMeterManager 和 SynthrtEngine | 运行时装配、单例所有权、资源释放及活动访问器 |
 | MIDI 旧同步加载包装 | 产品使用 MidiLoadSession 的解析、重处理、配置和实体化流程 | 当前 MIDI 加载、界面配置、轨道生成及导出 |
 | 已确认无调用的 Synthrt 旧包装和 LanguageInfo 旧设置方法 | 当前会话或快照接线有独立的生产入口，旧方法暂时保留 | 活动会话、语言路由、快照、身份比较及实际包元数据更新 |
+| ProjectAutomationDtos 的未调用属性、声线、完整文档和批量导入指纹重载 | 当前调用使用 TrackDraftDto 和 QList&lt;ClipInsertDto&gt; 重载，其他旧重载暂时保留 | 活动请求指纹、幂等行为及共用序列化助手 |
 
 混合函数只按已确认的局部行为划分，不以整个目录或整个 GUI 类型替代判断。暂时保留的清理候选不新增独立测试，也不在本期覆盖提升中删除。

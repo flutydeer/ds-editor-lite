@@ -2194,14 +2194,13 @@ namespace Automation {
     void PublicAutomationRegistry::registerBindings() {
         addBinding(ToolNames::application_get_info,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
-                       auto result = m_runtime.application().getInfo();
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       return AutomationResult<QJsonObject>(QJsonObject{
-                           {QStringLiteral("name"),     result.get().name    },
-                           {QStringLiteral("version"),  result.get().version },
-                           {QStringLiteral("platform"), result.get().platform},
-                           {QStringLiteral("build_id"), result.get().buildId },
+                       return m_runtime.application().getInfo().map([&](const auto &value) {
+                           return QJsonObject{
+                               {QStringLiteral("name"),     value.name    },
+                               {QStringLiteral("version"),  value.version },
+                               {QStringLiteral("platform"), value.platform},
+                               {QStringLiteral("build_id"), value.buildId },
+                           };
                        });
                    });
         addBinding(ToolNames::application_get_status, [this](const QJsonObject &,
@@ -2271,163 +2270,164 @@ namespace Automation {
                               ApplicationTerminationMode::Restart, QStringLiteral("restart"));
         addBinding(ToolNames::documents_get,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
-                       auto result = m_runtime.documents().getDocument(documentId(arguments));
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       auto project = m_runtime.project().getProject(documentId(arguments));
-                       if (!project)
-                           return AutomationResult<QJsonObject>(project.getError());
-                       return AutomationResult<QJsonObject>(
-                           queryResult(result.get().document, QStringLiteral("snapshot"),
-                                       encodeDocument(result.get(), project.get(), m_fileGuard)));
+                       return m_runtime.documents()
+                           .getDocument(documentId(arguments))
+                           .flatMap([&](const auto &value) {
+                               auto project = m_runtime.project().getProject(documentId(arguments));
+                               if (!project)
+                                   return AutomationResult<QJsonObject>(project.getError());
+                               return AutomationResult<QJsonObject>(
+                                   queryResult(value.document, QStringLiteral("snapshot"),
+                                               encodeDocument(value, project.get(), m_fileGuard)));
+                           });
                    });
         addBinding(ToolNames::documents_list_recent, [this](const QJsonObject &,
                                                             const PublicInvocationContext &) {
-            auto result = m_runtime.settings().getRecentProjectFiles();
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray projects;
-            for (const auto &path : result.get()) {
-                const auto authorized = m_fileGuard.authorize(path, FileAccessPurpose::Read);
-                if (!authorized)
-                    continue;
-                const QFileInfo info(authorized.get().canonicalPath);
-                projects.append(QJsonObject{
-                    {QStringLiteral("path"),      authorized.get().canonicalPath},
-                    {QStringLiteral("file_name"), info.fileName()               },
-                    {QStringLiteral("exists"),    info.exists()                 },
-                });
-            }
-            return AutomationResult<QJsonObject>(QJsonObject{
-                {QStringLiteral("projects"), projects}
+            return m_runtime.settings().getRecentProjectFiles().map([&](const auto &value) {
+                QJsonArray projects;
+                for (const auto &path : value) {
+                    const auto authorized = m_fileGuard.authorize(path, FileAccessPurpose::Read);
+                    if (!authorized)
+                        continue;
+                    const QFileInfo info(authorized.get().canonicalPath);
+                    projects.append(QJsonObject{
+                        {QStringLiteral("path"),      authorized.get().canonicalPath},
+                        {QStringLiteral("file_name"), info.fileName()               },
+                        {QStringLiteral("exists"),    info.exists()                 },
+                    });
+                }
+                return QJsonObject{
+                    {QStringLiteral("projects"), projects}
+                };
             });
         });
         addBinding(ToolNames::notes_list, [this](const QJsonObject &arguments,
                                                  const PublicInvocationContext &) {
-            auto result = m_runtime.notes().getNotes(
-                documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray notes;
-            for (const auto &note : result.get()) {
-                auto encoded = encodeNoteDraft(note.data);
-                encoded.insert(QStringLiteral("note_id"), note.id.value());
-                encoded.insert(QStringLiteral("clip_id"), note.clipId.value());
-                notes.append(encoded);
-            }
-            auto page = paginateJson(
-                m_collectionCursorCodec, notes, arguments, QStringLiteral("editor-public-notes/v1"),
-                QJsonObject{
-                    {QStringLiteral("document"),
-                     encodeDocumentVersion(m_runtime.documentVersion())                    },
-                    {QStringLiteral("clip_id"),  arguments.value(QStringLiteral("clip_id"))},
-                    {QStringLiteral("notes"),    notes                                     }
-            });
-            if (!page)
-                return AutomationResult<QJsonObject>(page.getError());
-            auto encoded =
-                queryResult(m_runtime.documentVersion(), QStringLiteral("notes"), page.get().items);
-            if (!page.get().nextCursor.isEmpty())
-                encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
-            return AutomationResult<QJsonObject>(std::move(encoded));
+            return m_runtime.notes()
+                .getNotes(documentId(arguments),
+                          ClipId(arguments.value(QStringLiteral("clip_id")).toInt()))
+                .flatMap([&](const auto &value) {
+                    QJsonArray notes;
+                    for (const auto &note : value) {
+                        auto encoded = encodeNoteDraft(note.data);
+                        encoded.insert(QStringLiteral("note_id"), note.id.value());
+                        encoded.insert(QStringLiteral("clip_id"), note.clipId.value());
+                        notes.append(encoded);
+                    }
+                    auto page = paginateJson(
+                        m_collectionCursorCodec, notes, arguments,
+                        QStringLiteral("editor-public-notes/v1"),
+                        QJsonObject{
+                            {QStringLiteral("document"),
+                             encodeDocumentVersion(m_runtime.documentVersion())                    },
+                            {QStringLiteral("clip_id"),  arguments.value(QStringLiteral("clip_id"))},
+                            {QStringLiteral("notes"),    notes                                     }
+                    });
+                    if (!page)
+                        return AutomationResult<QJsonObject>(page.getError());
+                    auto encoded = queryResult(m_runtime.documentVersion(), QStringLiteral("notes"),
+                                               page.get().items);
+                    if (!page.get().nextCursor.isEmpty())
+                        encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
+                    return AutomationResult<QJsonObject>(std::move(encoded));
+                });
         });
         addBinding(ToolNames::parameters_get, [this](const QJsonObject &arguments,
                                                      const PublicInvocationContext &) {
-            auto result = m_runtime.parameters().getParameter(
-                documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
-                parameterName(arguments.value(QStringLiteral("name")).toString()),
-                parameterType(arguments.value(QStringLiteral("layer")).toString()));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            auto encoded = encodeParameter(result.get(), arguments);
-            if (!encoded)
-                return AutomationResult<QJsonObject>(encoded.getError());
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("snapshot"), encoded.get()));
+            return m_runtime.parameters()
+                .getParameter(documentId(arguments),
+                              ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                              parameterName(arguments.value(QStringLiteral("name")).toString()),
+                              parameterType(arguments.value(QStringLiteral("layer")).toString()))
+                .flatMap([&](const auto &value) {
+                    auto encoded = encodeParameter(value, arguments);
+                    if (!encoded)
+                        return AutomationResult<QJsonObject>(encoded.getError());
+                    return AutomationResult<QJsonObject>(
+                        queryResult(value.document, QStringLiteral("snapshot"), encoded.get()));
+                });
         });
         addBinding(ToolNames::parameters_get_capabilities, [this](const QJsonObject &arguments,
                                                                   const PublicInvocationContext &) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            auto result = m_runtime.parameters().getCapabilities(documentId(arguments), clipId);
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray parameters;
-            for (const auto &capability : result.get().parameters) {
-                QJsonArray layers;
-                for (const auto type : capability.types)
-                    layers.append(parameterType(type));
-                QJsonArray curveTypes;
-                if (capability.supportsDraw)
-                    curveTypes.append(QStringLiteral("draw"));
-                if (capability.supportsAnchor)
-                    curveTypes.append(QStringLiteral("anchor"));
-                QJsonArray interpolations;
-                for (const auto mode : capability.interpolations)
-                    interpolations.append(interpolation(mode));
-                parameters.append(QJsonObject{
-                    {QStringLiteral("name"),           parameterName(capability.name)},
-                    {QStringLiteral("layers"),         layers                        },
-                    {QStringLiteral("curve_types"),    curveTypes                    },
-                    {QStringLiteral("interpolations"), interpolations                },
-                    {QStringLiteral("editable"),       capability.editable           },
-                    {QStringLiteral("range"),
-                     QJsonObject{
-                         {QStringLiteral("minimum"), capability.valueSpec.minimum},
-                         {QStringLiteral("maximum"), capability.valueSpec.maximum},
-                         {QStringLiteral("step"), capability.valueSpec.step},
-                         {QStringLiteral("unit"), capability.valueSpec.unit},
-                     }                                                               },
+            return m_runtime.parameters()
+                .getCapabilities(documentId(arguments), clipId)
+                .map([&](const auto &value) {
+                    QJsonArray parameters;
+                    for (const auto &capability : value.parameters) {
+                        QJsonArray layers;
+                        for (const auto type : capability.types)
+                            layers.append(parameterType(type));
+                        QJsonArray curveTypes;
+                        if (capability.supportsDraw)
+                            curveTypes.append(QStringLiteral("draw"));
+                        if (capability.supportsAnchor)
+                            curveTypes.append(QStringLiteral("anchor"));
+                        QJsonArray interpolations;
+                        for (const auto mode : capability.interpolations)
+                            interpolations.append(interpolation(mode));
+                        parameters.append(QJsonObject{
+                            {QStringLiteral("name"),           parameterName(capability.name)},
+                            {QStringLiteral("layers"),         layers                        },
+                            {QStringLiteral("curve_types"),    curveTypes                    },
+                            {QStringLiteral("interpolations"), interpolations                },
+                            {QStringLiteral("editable"),       capability.editable           },
+                            {QStringLiteral("range"),
+                             QJsonObject{
+                                 {QStringLiteral("minimum"), capability.valueSpec.minimum},
+                                 {QStringLiteral("maximum"), capability.valueSpec.maximum},
+                                 {QStringLiteral("step"), capability.valueSpec.step},
+                                 {QStringLiteral("unit"), capability.valueSpec.unit},
+                             }                                                               },
+                        });
+                    }
+                    return queryResult(value.document, QStringLiteral("capabilities"),
+                                       QJsonObject{
+                                           {QStringLiteral("clip_id"),    clipId.value()},
+                                           {QStringLiteral("parameters"), parameters    }
+                    });
                 });
-            }
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("capabilities"),
-                            QJsonObject{
-                                {QStringLiteral("clip_id"),    clipId.value()},
-                                {QStringLiteral("parameters"), parameters    }
-            }));
         });
         addBinding(ToolNames::timeline_get, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &) {
-            auto result = m_runtime.timeline().getTimeline(documentId(arguments));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray tempos;
-            for (const auto &tempo : result.get().tempos) {
-                tempos.append(QJsonObject{
-                    {QStringLiteral("tick"),  tempo.pos  },
-                    {QStringLiteral("tempo"), tempo.value}
+            return m_runtime.timeline()
+                .getTimeline(documentId(arguments))
+                .map([&](const auto &value) {
+                    QJsonArray tempos;
+                    for (const auto &tempo : value.tempos) {
+                        tempos.append(QJsonObject{
+                            {QStringLiteral("tick"),  tempo.pos  },
+                            {QStringLiteral("tempo"), tempo.value}
+                        });
+                    }
+                    QJsonArray signatures;
+                    for (const auto &signature : value.timeSignatures) {
+                        signatures.append(QJsonObject{
+                            {QStringLiteral("bar_index"),   signature.barIndex   },
+                            {QStringLiteral("numerator"),   signature.numerator  },
+                            {QStringLiteral("denominator"), signature.denominator},
+                        });
+                    }
+                    return queryResult(value.document, QStringLiteral("snapshot"),
+                                       QJsonObject{
+                                           {QStringLiteral("tempos"),          tempos    },
+                                           {QStringLiteral("time_signatures"), signatures}
+                    });
                 });
-            }
-            QJsonArray signatures;
-            for (const auto &signature : result.get().timeSignatures) {
-                signatures.append(QJsonObject{
-                    {QStringLiteral("bar_index"),   signature.barIndex   },
-                    {QStringLiteral("numerator"),   signature.numerator  },
-                    {QStringLiteral("denominator"), signature.denominator},
-                });
-            }
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("snapshot"),
-                            QJsonObject{
-                                {QStringLiteral("tempos"),          tempos    },
-                                {QStringLiteral("time_signatures"), signatures}
-            }));
         });
-        addBinding(ToolNames::history_get_state,
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &) {
-                       auto result = m_runtime.history().getState(documentId(arguments));
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       return AutomationResult<QJsonObject>(queryResult(
-                           result.get().document, QStringLiteral("snapshot"),
-                           QJsonObject{
-                               {QStringLiteral("can_undo"),      result.get().canUndo    },
-                               {QStringLiteral("can_redo"),      result.get().canRedo    },
-                               {QStringLiteral("on_save_point"), result.get().onSavePoint},
-                               {QStringLiteral("undo_name"),     result.get().undoName   },
-                               {QStringLiteral("redo_name"),     result.get().redoName   },
-                       }));
-                   });
+        addBinding(ToolNames::history_get_state, [this](const QJsonObject &arguments,
+                                                        const PublicInvocationContext &) {
+            return m_runtime.history().getState(documentId(arguments)).map([&](const auto &value) {
+                return queryResult(value.document, QStringLiteral("snapshot"),
+                                   QJsonObject{
+                                       {QStringLiteral("can_undo"),      value.canUndo    },
+                                       {QStringLiteral("can_redo"),      value.canRedo    },
+                                       {QStringLiteral("on_save_point"), value.onSavePoint},
+                                       {QStringLiteral("undo_name"),     value.undoName   },
+                                       {QStringLiteral("redo_name"),     value.redoName   },
+                });
+            });
+        });
         addBinding(ToolNames::voices_list, [this](const QJsonObject &arguments,
                                                   const PublicInvocationContext &) {
             auto result = m_runtime.packages().getInstalledPackages();
