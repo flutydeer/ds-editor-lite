@@ -602,6 +602,23 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         QVERIFY(fontIndex > 0);
         fontFamily = font->itemData(fontIndex).toString();
         page->ensureWidgetVisible(font);
+        const auto retainedFontSettings = runtime.settings().getSettings();
+        QVERIFY(retainedFontSettings);
+        const auto retainedFont = QApplication::font();
+        QVERIFY(writeFailure.block());
+        QTest::mouseClick(font, Qt::LeftButton);
+        QTRY_VERIFY(font->view()->isVisible());
+        QTest::keyClick(font->view(), Qt::Key_Home);
+        for (int row = 0; row < fontIndex; ++row)
+            QTest::keyClick(font->view(), Qt::Key_Down);
+        QTest::keyClick(font->view(), Qt::Key_Return);
+        const auto afterFontFailure = runtime.settings().getSettings();
+        QVERIFY(afterFontFailure);
+        QCOMPARE(afterFontFailure.get().appearance, retainedFontSettings.get().appearance);
+        QCOMPARE(font->currentData().toString(),
+                 retainedFontSettings.get().appearance.uiFontFamily);
+        QCOMPARE(QApplication::font(), retainedFont);
+        QVERIFY(writeFailure.restore());
         selectComboIndex(font, fontIndex);
         if (QTest::currentTestFailed())
             return;
@@ -615,6 +632,28 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         QTRY_VERIFY(duration->isVisible());
         QCOMPARE(animation->value(), original.animationEnabled);
 
+        const auto retainedAppearance = runtime.settings().getSettings();
+        QVERIFY(retainedAppearance);
+        const auto retainedStyleForOptions = window.styleSheet();
+        QVERIFY(writeFailure.block());
+        auto *nativeFrame = panel.findChild<SwitchButton *>("appearanceNativeFrame");
+        QVERIFY(nativeFrame);
+        page->ensureWidgetVisible(nativeFrame);
+        QTest::mouseClick(nativeFrame, Qt::LeftButton);
+        QCOMPARE(nativeFrame->value(), retainedAppearance.get().appearance.useNativeFrame);
+        QVERIFY(panel.findChildren<RestartDialog *>().isEmpty());
+        page->ensureWidgetVisible(animation);
+        QTest::mouseClick(animation, Qt::LeftButton);
+        const auto afterOptionsFailure = runtime.settings().getSettings();
+        QVERIFY(afterOptionsFailure);
+        QCOMPARE(afterOptionsFailure.get().appearance, retainedAppearance.get().appearance);
+        QCOMPARE(animation->value(), retainedAppearance.get().appearance.animationEnabled);
+        QCOMPARE(window.styleSheet(), retainedStyleForOptions);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(appStatus->selectedNotes.get(), selectedNotes);
+        QCOMPARE(appStatus->activeClipId.get(), activeClip);
+        QVERIFY(writeFailure.restore());
         QTest::mouseClick(animation, Qt::LeftButton);
         QCOMPARE(animation->value(), enabled);
         QTest::mouseClick(duration, Qt::LeftButton);
