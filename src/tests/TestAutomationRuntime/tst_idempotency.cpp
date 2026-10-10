@@ -235,6 +235,50 @@ void AutomationRuntimeTests::unsuccessfulAttemptsDoNotClaimKeys() {
              qPrintable(QStringLiteral("validate-only must not claim its key")));
     QVERIFY2((!failed && retried && attempts == 2),
              qPrintable(QStringLiteral("a failed handler must not claim its key")));
+
+    const auto taskContext = commandContext(
+        runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000008"));
+    const auto operation = Automation::OperationIds::extract::pitch::start;
+    const auto fingerprint = QByteArrayLiteral("early-task-failure");
+    const auto beforeTask = runtime.documentVersion();
+    int starts = 0;
+    bool releasedBeforeReply = false;
+    bool boundCallback = false;
+    bool markedFailed = false;
+    const auto start = [&](Automation::DocumentSession &session, bool)
+        -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
+        ++starts;
+        const auto task = runtime.automationTasks().createTask(operation, session.version());
+        const Automation::TaskAcceptedResult accepted{
+            .taskId = task.taskId,
+            .document = session.version(),
+        };
+        if (starts == 1) {
+            boundCallback = runtime.automationTasks().setUnsuccessfulCallback(
+                task.taskId, [&, accepted](const Automation::AutomationTaskSnapshot &) {
+                    releasedBeforeReply = runtime.dispatcher().releaseDocumentIdempotency(
+                        operation, taskContext, fingerprint, accepted);
+                });
+            markedFailed = runtime.automationTasks().fail(
+                task.taskId, Automation::AutomationError::invalidArgument(
+                                 QStringLiteral("result"), QStringLiteral("early failure")));
+        }
+        return accepted;
+    };
+    const auto early = runtime.dispatcher().dispatchIdempotentDocumentCommandResult<
+        Automation::TaskAcceptedResult>(operation, taskContext, fingerprint, start);
+    QVERIFY(early && boundCallback && markedFailed && releasedBeforeReply);
+    const auto retry = runtime.dispatcher().dispatchIdempotentDocumentCommandResult<
+        Automation::TaskAcceptedResult>(operation, taskContext, fingerprint, start);
+    QVERIFY(retry);
+    QVERIFY(retry.get().taskId != early.get().taskId);
+    const auto repeat = runtime.dispatcher().dispatchIdempotentDocumentCommandResult<
+        Automation::TaskAcceptedResult>(operation, taskContext, fingerprint, start);
+    QVERIFY(repeat);
+    QCOMPARE(repeat.get(), retry.get());
+    QCOMPARE(starts, 2);
+    QCOMPARE(runtime.documentVersion(), beforeTask);
+    QVERIFY(runtime.automationTasks().cancel(retry.get().taskId));
 }
 
 void AutomationRuntimeTests::documentsAndGenerationsHaveIndependentKeySpaces() {
