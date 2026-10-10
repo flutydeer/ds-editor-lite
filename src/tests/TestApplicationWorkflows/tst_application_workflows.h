@@ -73,6 +73,7 @@ private slots:
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
     void builtInG2pConvertsDictionaryAndUnlistedWords();
+    void g2pOnnxSessionTranslatesInputsAndRecoversAfterFailure();
     void publicAudioPathUpdatesPrepareCommitAndUndo_data();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 

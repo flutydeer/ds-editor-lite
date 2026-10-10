@@ -32,6 +32,10 @@
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
 #include <synthrt/G2P/LanguageService.h>
+#include <synthrt/Core/Tensor/Tensor.h>
+#include <synthrt/G2P/Core/Manager.h>
+#include <synthrt/G2P/Task/SessionFactory.h>
+#include <synthrt/G2P/Task/SessionTask.h>
 
 #include <QPointer>
 #include <QJsonArray>
@@ -44,6 +48,7 @@
 #include <QSemaphore>
 #include <QThreadPool>
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
 #include <QtTest>
 
@@ -790,6 +795,93 @@ void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
         QVERIFY(!result.candidates.empty());
     }
     QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+    QCOMPARE(runtime().documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
+}
+
+void ApplicationWorkflowTests::g2pOnnxSessionTranslatesInputsAndRecoversAfterFailure() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    auto *category = srt::g2p::Manager::instance()->category(srt::g2p::kDriverCategory);
+    QVERIFY(category);
+    const auto factory =
+        category->getFirstObject(srt::g2p::kG2pOnnxDriverName).as<srt::g2p::SessionFactory>();
+    QVERIFY(factory);
+    const auto session = factory->createSession();
+    QVERIFY(session);
+    QVERIFY(session->initialize());
+    QVERIFY(!session->isOpen());
+    const auto closeSession = qScopeGuard([&] {
+        if (session->isOpen())
+            session->close();
+    });
+    const auto modelPath =
+        QDir(QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT))
+            .filePath(QStringLiteral("inferences/duration/linguistic.onnx"));
+    QVERIFY(QFileInfo::exists(modelPath));
+    const auto nativePath = std::filesystem::u8path(modelPath.toUtf8().toStdString());
+    const auto openArgs = srt::core::NO<srt::g2p::SessionOpenArgs>::create();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto version = runtime().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(session->open(nativePath, openArgs));
+    QVERIFY(session->isOpen());
+
+    auto tokens = srt::core::Tensor::create(srt::core::ITensor::Int64, {1, 2});
+    auto languages = srt::core::Tensor::create(srt::core::ITensor::Int64, {1, 2});
+    auto wordDiv = srt::core::Tensor::create(srt::core::ITensor::Int64, {1, 1});
+    auto wordDuration = srt::core::Tensor::create(srt::core::ITensor::Int64, {1, 1});
+    QVERIFY(tokens && languages && wordDiv && wordDuration);
+    tokens.get()->mutableData<int64_t>()[0] = 2;
+    tokens.get()->mutableData<int64_t>()[1] = 3;
+    languages.get()->mutableData<int64_t>()[0] = 1;
+    languages.get()->mutableData<int64_t>()[1] = 1;
+    wordDiv.get()->mutableData<int64_t>()[0] = 2;
+    wordDuration.get()->mutableData<int64_t>()[0] = 10;
+    const auto input = srt::core::NO<srt::g2p::SessionStartInput>::create();
+    input->inputs = {
+        {"tokens",    tokens.get().as<srt::core::ITensor>()      },
+        {"languages", languages.get().as<srt::core::ITensor>()   },
+        {"word_div",  wordDiv.get().as<srt::core::ITensor>()     },
+        {"word_dur",  wordDuration.get().as<srt::core::ITensor>()}
+    };
+    input->outputs = {"encoder_out", "x_masks"};
+    const auto verifyOutput = [&] {
+        auto result = session->start(input);
+        QVERIFY(result);
+        const auto translated = result.get().as<srt::g2p::SessionResult>();
+        QVERIFY(translated);
+        QVERIFY(translated->outputs.contains("encoder_out"));
+        QVERIFY(translated->outputs.contains("x_masks"));
+        const auto encoded = translated->outputs.at("encoder_out");
+        const auto masks = translated->outputs.at("x_masks");
+        QVERIFY(encoded && masks);
+        QCOMPARE(encoded->shape(), std::vector<int64_t>({1, 2, 4}));
+        QCOMPARE(masks->shape(), std::vector<int64_t>({1, 2}));
+        const auto *values = encoded->data<float>();
+        const auto *maskValues = masks->data<bool>();
+        QVERIFY(values && maskValues);
+        for (size_t index = 0; index < 8; ++index)
+            QCOMPARE(values[index], index < 4 ? 2.0f : 3.0f);
+        QVERIFY(!maskValues[0] && !maskValues[1]);
+    };
+    verifyOutput();
+    if (QTest::currentTestFailed())
+        return;
+    input->inputs.erase("word_div");
+    QVERIFY(!session->start(input));
+    QVERIFY(session->isOpen());
+    input->inputs.emplace("word_div", wordDiv.get().as<srt::core::ITensor>());
+    verifyOutput();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(session->close());
+    QVERIFY(!session->isOpen());
+    QVERIFY(session->open(nativePath, openArgs));
+    verifyOutput();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
