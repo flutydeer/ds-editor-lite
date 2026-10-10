@@ -18,8 +18,6 @@
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Dialogs/Base/RestartDialog.h"
-#include <lite/GUI/Theme/ThemeLoader.h>
-#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
@@ -48,25 +46,19 @@ void AppearancePage::changeTheme(const int index) {
     if (themePreferenceId.isEmpty())
         return;
 
-    const auto themeManager = ThemeManager::instance();
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
         return;
-    auto settings = snapshot.get().appearance;
-    const auto previousThemePreferenceId = settings.themeId;
-    if (themePreferenceId != previousThemePreferenceId &&
-        !themeManager->applyThemePreference(themePreferenceId)) {
+    const auto previousThemePreferenceId = snapshot.get().appearance.themeId;
+    const auto applied = runtime->settings().updateTheme({}, {.themeId = themePreferenceId});
+    if (!applied) {
         const QSignalBlocker blocker(m_cbxTheme);
         m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(previousThemePreferenceId));
-        QMessageBox::critical(this, tr("Theme switch failed"), ThemeLoader::lastError());
-        return;
+        QMessageBox::critical(this, tr("Theme switch failed"), applied.getError().message);
     }
-
-    settings.themeId = themePreferenceId;
-    runtime->settings().updateAppearance({}, settings);
 }
 
 void AppearancePage::changeInterfaceFont(const int index) {

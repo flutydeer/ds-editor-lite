@@ -51,6 +51,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QMessageBox>
 #include <QLocale>
 #include <QPointer>
 #include <QTreeView>
@@ -513,6 +514,45 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         const auto [theme, font] = controls(page);
         QVERIFY(theme);
         QVERIFY(font);
+        const auto configPath = appOptions->configPath();
+        TestSupport::FileWriteBlocker writeFailure(configPath);
+        QVERIFY(writeFailure.block());
+        const auto retainedTheme = ThemeManager::instance()->currentThemeId();
+        const auto retainedStyle = window.styleSheet();
+        const auto rejectedTheme =
+            retainedTheme == ThemeIds::themeIdForPreference(ThemeIds::lightThemePreferenceId())
+                ? ThemeIds::darkThemePreferenceId()
+                : ThemeIds::lightThemePreferenceId();
+        page->ensureWidgetVisible(theme);
+        QTest::mouseClick(theme, Qt::LeftButton);
+        QTRY_VERIFY(theme->view()->isVisible());
+        const auto rejectedIndex = theme->findData(rejectedTheme);
+        QVERIFY(rejectedIndex >= 0);
+        QTest::keyClick(theme->view(), Qt::Key_Home);
+        for (int row = 0; row < rejectedIndex; ++row)
+            QTest::keyClick(theme->view(), Qt::Key_Down);
+        bool errorShown = false;
+        QTimer::singleShot(0, page, [&] {
+            if (auto *error = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                const auto dismiss = qScopeGuard([&] { error->accept(); });
+                errorShown = true;
+                QVERIFY(!error->text().isEmpty());
+            }
+        });
+        QTest::keyClick(theme->view(), Qt::Key_Return);
+        QCoreApplication::processEvents();
+        const auto afterFailure = runtime.settings().getSettings();
+        QVERIFY(afterFailure);
+        QCOMPARE(afterFailure.get().appearance, original);
+        QCOMPARE(theme->currentData().toString(), original.themeId);
+        QCOMPARE(ThemeManager::instance()->currentThemeId(), retainedTheme);
+        QCOMPARE(window.styleSheet(), retainedStyle);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(appStatus->selectedNotes.get(), selectedNotes);
+        QCOMPARE(appStatus->activeClipId.get(), activeClip);
+        QVERIFY(errorShown);
+        QVERIFY(writeFailure.restore());
         QString darkStyle;
         for (const auto &preference :
              {ThemeIds::darkThemePreferenceId(), ThemeIds::lightThemePreferenceId()}) {
