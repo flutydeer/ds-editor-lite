@@ -85,8 +85,8 @@ namespace ClipboardDataModel {
         QSet<QPair<int, int>> acceptedGroups;
         for (const auto parameterValue : parameters) {
             const auto parameterObject = parameterValue.toObject();
-            const auto name = parameterObject.value(QStringLiteral("name")).toInt();
-            const auto layer = parameterObject.value(QStringLiteral("layer")).toInt();
+            const auto name = parameterObject.value(QStringLiteral("name")).toInt(-1);
+            const auto layer = parameterObject.value(QStringLiteral("layer")).toInt(-1);
             if (name < ParamInfo::Pitch || name > ParamInfo::ToneShift ||
                 (layer != Param::Original && layer != Param::Edited && layer != Param::Envelope)) {
                 continue;

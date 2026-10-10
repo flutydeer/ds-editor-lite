@@ -570,6 +570,9 @@ void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::newRow("envelope-curves") << int(Param::Envelope) << true << false << QString{};
     QTest::newRow("duplicate-parameter-group")
         << int(Param::Original) << true << false << QStringLiteral("duplicate-parameter-group");
+    QTest::newRow("malformed-parameter-discriminators")
+        << int(Param::Original) << true << false
+        << QStringLiteral("malformed-parameter-discriminators");
     QTest::newRow("separate-anchor-curves") << int(Param::Edited) << true << true << QString{};
     QTest::newRow("overlapping-anchor-curves")
         << int(Param::Edited) << true << true << QStringLiteral("overlapping-anchor-ranges");
@@ -598,7 +601,8 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
          .type = type,
          .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
     };
-    if (fault == QStringLiteral("duplicate-parameter-group")) {
+    if (fault == QStringLiteral("duplicate-parameter-group") ||
+        fault == QStringLiteral("malformed-parameter-discriminators")) {
         draft.params.append({.name = ParamInfo::Pitch,
                              .type = Param::Edited,
                              .curves = {draw(0, 120, {6700, 6720, 6680})}});
@@ -615,7 +619,29 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     const ClipsInfo copied{{source.get()}, {0}};
     const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
     auto payload = QJsonDocument::fromJson(bytes).object();
-    if (fault == QStringLiteral("duplicate-parameter-group")) {
+    if (fault == QStringLiteral("malformed-parameter-discriminators")) {
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        auto parameters = clip.value(QStringLiteral("parameters")).toArray();
+        auto missing = parameters.first().toObject();
+        missing.remove(QStringLiteral("name"));
+        missing.remove(QStringLiteral("layer"));
+        auto curves = missing.value(QStringLiteral("curves")).toArray();
+        auto changed = curves.first().toObject();
+        changed.insert(QStringLiteral("values"), QJsonArray{7200, 7220, 7180});
+        curves.replace(0, changed);
+        missing.insert(QStringLiteral("curves"), curves);
+        auto wrongType = parameters.last().toObject();
+        wrongType.insert(QStringLiteral("layer"), QStringLiteral("envelope"));
+        auto fractional = parameters.at(1).toObject();
+        fractional.insert(QStringLiteral("name"), 0.5);
+        parameters.prepend(fractional);
+        parameters.prepend(wrongType);
+        parameters.prepend(missing);
+        clip.insert(QStringLiteral("parameters"), parameters);
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+    } else if (fault == QStringLiteral("duplicate-parameter-group")) {
         auto clips = payload.value(QStringLiteral("clips")).toArray();
         auto clip = clips.first().toObject();
         auto parameters = clip.value(QStringLiteral("parameters")).toArray();
