@@ -2,11 +2,16 @@
 
 #include <lite/Tasking/Task.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+
+#include <QFileInfo>
 
 #include <utility>
 
 ProjectLoadSessionBase::ProjectLoadSessionBase(QString filePath, quint64 requestId, QObject *parent)
     : IProjectLoadSession(parent), m_filePath(std::move(filePath)), m_requestId(requestId) {
+    m_sourcePath = m_filePath;
 }
 
 ProjectLoadSessionBase::~ProjectLoadSessionBase() {
@@ -131,6 +136,20 @@ void ProjectLoadSessionBase::publishProgress(const TaskStatus &status) {
 void ProjectLoadSessionBase::finishWithResult(PreparedProject result) {
     if (m_terminal)
         return;
+    const auto directory = QFileInfo(m_sourcePath).absolutePath();
+    const auto prepareReferences = [&](auto &payload) {
+        payload.sourcePath = m_sourcePath;
+        for (const auto &track : payload.model.tracks) {
+            for (auto *clip : track->clips()) {
+                if (auto *audio = qobject_cast<AudioClip *>(clip))
+                    audio->setReferenceDirectory(directory);
+            }
+        }
+    };
+    if (auto *payload = std::get_if<ReplaceProjectPayload>(&result))
+        prepareReferences(*payload);
+    else if (auto *payload = std::get_if<AppendProjectPayload>(&result))
+        prepareReferences(*payload);
     m_result = std::move(result);
     m_terminal = true;
     emit ready();

@@ -8,11 +8,13 @@
 #include "Controller/Tasks/OpenDspxProjectTask.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/ProjectFormats/LibreSVIPFormatHandler.h"
+#include "TestSupport/WaveFixture.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
@@ -497,6 +499,10 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures_dat
     QTest::newRow("import-external-libresvip")
         << QStringLiteral("libresvip") << false << QByteArray() << false;
     QTest::newRow("open-native-dspx") << QStringLiteral("dspx") << true << QByteArray() << false;
+    QTest::newRow("open-relocated-audio-reference")
+        << QStringLiteral("dspx-relocated-audio") << true << QByteArray() << false;
+    QTest::newRow("import-relocated-audio-reference")
+        << QStringLiteral("dspx-relocated-audio") << false << QByteArray() << false;
     QTest::newRow("open-external-libresvip")
         << QStringLiteral("libresvip") << true << QByteArray() << false;
     QTest::newRow("import-midi") << QStringLiteral("midi") << false << QByteArray() << false;
@@ -526,6 +532,7 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     QFETCH(bool, opening);
     QFETCH(QByteArray, changeAfterAdmission);
     QFETCH(bool, corruptSource);
+    const bool relativeAudio = sourceFormat == QStringLiteral("dspx-relocated-audio");
     const bool externalConverter = sourceFormat == QStringLiteral("libresvip");
     const bool midi = sourceFormat == QStringLiteral("midi");
     const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
@@ -563,10 +570,27 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     sourceNote->setLanguage(QStringLiteral("cmn"));
     sourceClip->insertNote(sourceNote);
     sourceTrack->insertClip(sourceClip);
+    QString originalAudioPath;
+    QString relocatedAudioPath;
+    if (relativeAudio) {
+        QVERIFY(QDir().mkpath(files.filePath(QStringLiteral("original/media"))));
+        QVERIFY(QDir().mkpath(files.filePath(QStringLiteral("relocated/media"))));
+        originalAudioPath = files.filePath(QStringLiteral("original/media/reference.wav"));
+        relocatedAudioPath = files.filePath(QStringLiteral("relocated/media/reference.wav"));
+        QVERIFY(TestSupport::writeWave(originalAudioPath, QVector<float>(4800, 0.125f)));
+        auto *audio = new AudioClip;
+        audio->setName(QStringLiteral("Imported accompaniment"));
+        audio->setStart(5760);
+        audio->setLength(120);
+        audio->setClipLen(120);
+        audio->setPath(originalAudioPath);
+        sourceTrack->insertClip(audio);
+    }
     QVERIFY(source.appendTrack(sourceTrack));
-    const auto path = files.filePath(midi                ? QStringLiteral("待导入.mid")
-                                     : externalConverter ? QStringLiteral("待导入 project.svp")
-                                                         : QStringLiteral("待导入.dspx"));
+    auto path = files.filePath(midi                ? QStringLiteral("待导入.mid")
+                               : externalConverter ? QStringLiteral("待导入 project.svp")
+                               : relativeAudio     ? QStringLiteral("original/待导入.dspx")
+                                                   : QStringLiteral("待导入.dspx"));
     std::unique_ptr<IProjectConverter> converter;
     if (midi)
         converter = std::make_unique<MidiConverter>();
@@ -574,6 +598,24 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
         converter = std::make_unique<DspxProjectConverter>();
     QString error;
     QVERIFY2(converter->save(path, &source, error), qPrintable(error));
+    if (relativeAudio) {
+        const auto relocatedProject = files.filePath(QStringLiteral("relocated/待导入.dspx"));
+        QVERIFY(QFile::copy(path, relocatedProject));
+        QVERIFY(QFile::rename(originalAudioPath, relocatedAudioPath));
+        QVERIFY(!QFileInfo::exists(originalAudioPath));
+        path = relocatedProject;
+    }
+    const auto retainFailedInput = qScopeGuard([&] {
+        if (QTest::currentTestFailed())
+            files.setAutoRemove(false);
+    });
+    const auto releaseAudio = qScopeGuard([&] {
+        if (!relativeAudio)
+            return;
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
     if (corruptSource) {
         QFile broken(path);
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
@@ -739,7 +781,7 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     }
     const auto *importedTrack = tracks.last();
     QCOMPARE(importedTrack->name(), sourceTrack->name());
-    QCOMPARE(importedTrack->clips().count(), 1);
+    QCOMPARE(importedTrack->clips().count(), sourceTrack->clips().count());
     const auto *importedClip = qobject_cast<SingingClip *>(*importedTrack->clips().begin());
     QVERIFY(importedClip);
     if (!midi)
@@ -751,6 +793,17 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     QCOMPARE(importedNote->length(), sourceNote->length());
     QCOMPARE(importedNote->keyIndex(), sourceNote->keyIndex());
     QCOMPARE(importedNote->lyric(), sourceNote->lyric());
+    if (relativeAudio) {
+        QPointer<AudioClip> importedAudio;
+        for (auto *candidate : importedTrack->clips()) {
+            if (auto *audio = qobject_cast<AudioClip *>(candidate))
+                importedAudio = audio;
+        }
+        QVERIFY(importedAudio);
+        QTRY_VERIFY_WITH_TIMEOUT(importedAudio && importedAudio->audioInfo().frames == 4800, 10000);
+        QCOMPARE(QFileInfo(importedAudio->path()).canonicalFilePath(),
+                 QFileInfo(relocatedAudioPath).canonicalFilePath());
+    }
     if (midi && !opening && !corruptSource) {
         QVERIFY(!originalTracks.isEmpty());
         const auto exportVersion = runtime().documentVersion();

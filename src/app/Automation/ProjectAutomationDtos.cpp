@@ -285,6 +285,7 @@ namespace Automation {
             addString(hash, draft.audioPath);
             addString(hash, draft.audioPathInfo.relativeDir);
             addString(hash, draft.audioPathInfo.sha512);
+            addString(hash, draft.audioReferenceDirectory);
             addInteger(hash, static_cast<int>(draft.audioPathStatus));
             addInteger(hash, draft.hasRealTimeAnchor);
             addDouble(hash, draft.properties.trimStartMs);
@@ -439,6 +440,7 @@ namespace Automation {
             result.type = ClipDraftDto::Type::Audio;
             result.audioPath = audio.path();
             result.audioPathInfo = audio.pathInfo();
+            result.audioReferenceDirectory = audio.referenceDirectory();
             result.audioPathStatus = audio.pathStatus();
             result.audioInfo = audio.audioInfo();
             result.hasRealTimeAnchor = audio.hasRealTimeAnchor();
@@ -512,6 +514,7 @@ namespace Automation {
             appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, audio->id());
             audio->setPath(draft.audioPath);
             audio->setPathInfo(draft.audioPathInfo);
+            audio->setReferenceDirectory(draft.audioReferenceDirectory);
             audio->setPathStatus(draft.audioPathStatus);
             audio->setAudioInfo(draft.audioInfo);
             if (draft.hasRealTimeAnchor) {

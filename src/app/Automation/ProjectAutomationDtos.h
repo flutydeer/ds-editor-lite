@@ -114,6 +114,7 @@ namespace Automation {
 
         QString audioPath;
         AudioPathInfo audioPathInfo;
+        QString audioReferenceDirectory;
         AudioClip::PathStatus audioPathStatus = AudioClip::PathStatus::Normal;
         AudioInfoModel audioInfo;
         bool hasRealTimeAnchor = false;

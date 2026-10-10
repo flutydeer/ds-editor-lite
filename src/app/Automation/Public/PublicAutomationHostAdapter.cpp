@@ -282,6 +282,7 @@ namespace Automation {
                         QStringLiteral("The project format could not create a load session")));
                     return;
                 }
+                m_session->setSourcePath(m_path);
                 connect(m_session, &IProjectLoadSession::ready, this,
                         [this] { commit(m_session->takeResult()); });
                 connect(m_session, &IProjectLoadSession::failed, this,
@@ -520,6 +521,7 @@ namespace Automation {
                         QStringLiteral("A project format could not create an import session")));
                     return;
                 }
+                m_session->setSourcePath(m_request.items.at(m_index).canonicalPath);
                 connect(m_session, &IProjectLoadSession::ready, this,
                         [this] { collect(m_session->takeResult()); });
                 connect(m_session, &IProjectLoadSession::failed, this,

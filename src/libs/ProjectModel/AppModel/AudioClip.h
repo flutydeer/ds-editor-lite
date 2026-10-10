@@ -44,6 +44,10 @@ public:
     AudioPathInfo pathInfo() const;
     void setPathInfo(const AudioPathInfo &pathInfo);
 
+    // Imported references retain their source directory until a path is resolved.
+    QString referenceDirectory() const;
+    void setReferenceDirectory(const QString &directory);
+
     PathStatus pathStatus() const;
     void setPathStatus(PathStatus status);
 
@@ -106,6 +110,7 @@ private:
     QString m_path;
     quint64 m_sourceGeneration = 0;
     AudioPathInfo m_pathInfo;
+    QString m_referenceDirectory;
     PathStatus m_pathStatus = PathStatus::Normal;
     AudioInfoModel m_info;
     double m_trimStartMs = 0;

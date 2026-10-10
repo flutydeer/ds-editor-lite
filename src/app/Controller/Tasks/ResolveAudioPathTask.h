@@ -7,8 +7,8 @@
 
 // When the absolute path of an audio file is broken, relocates the file in the background, in
 // candidate order:
-// 1. project dir + relativeDir + fileName (sha512 must match)
-// 2. project dir + fileName (sha512 must match)
+// Source project candidates precede current project candidates. Each directory is checked
+// for relativeDir + fileName and then fileName (sha512 must match).
 // When expectedSha512 is empty (project saved by an editor that does not write the field),
 // the first existing candidate is matched by file name and marked HitUnconfirmed for user
 // confirmation
@@ -26,6 +26,7 @@ public:
     QString fileName;
     QString expectedSha512;
     QString projectDir;
+    QString referenceDir;
 
     Result result = Result::Miss;
     QString resolvedPath;

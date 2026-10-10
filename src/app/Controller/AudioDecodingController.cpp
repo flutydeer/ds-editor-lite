@@ -230,6 +230,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip, const b
     resolveTask->relativeDir = resolveTask->assetSnapshot.pathInfo.relativeDir;
     resolveTask->fileName = QFileInfo(resolveTask->assetSnapshot.path).fileName();
     resolveTask->expectedSha512 = resolveTask->assetSnapshot.pathInfo.sha512;
+    resolveTask->referenceDir = clip->referenceDirectory();
     const auto projectPath = runtime->documentPath();
     resolveTask->projectDir =
         projectPath.isEmpty() ? QString{} : QFileInfo(projectPath).absolutePath();
