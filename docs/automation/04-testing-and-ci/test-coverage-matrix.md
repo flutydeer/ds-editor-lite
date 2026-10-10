@@ -218,7 +218,8 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例。既有数�
 
 | 功能域 / 关键行为 | 类别 | 原有缺口与本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|
-| 批量锚点、曲线合并、动态声线关键帧 | domain | 单点与整体替换不能覆盖批量命令。补插入、移动、删除、插值/权重及一次撤销。动态帧省略权重时，中间插入采用插值，末端延伸保持最后帧比例，原帧身份及完整工程可撤销重做。插入重试返回同一结果，复用请求身份改变插值时拒绝，模型、版本及历史不变。冲突失败不落半成品。曲线合并后继续使用已失效的源或目标身份时拒绝，完整工程、版本和撤销入口保持，原合并仍可撤销重做 | ProjectEditing::batchAnchorsCommitAndUndoTogether、adjacentAnchorCurvesMergeWithoutLosingNodes、dynamicSpeakerKeyframesEditAndUndo | 通用 |
+| 歌词规则身份冲突与恢复 | domain | 规则创建的分词及语言标记数据行验证重复名称，自定义标记另拒绝重复语言。失败保留完整配置、写入次数、文档及撤销入口，修正身份后可继续创建。身份唯一性依赖已有规则，不重复 Schema 字段矩阵 | ApplicationServices::lyricRuleCreation | 通用。既有设置服务夹具，无模型或设备 |
+| 批量锚点、曲线合并、动态声线关键帧 | domain | 单点与整体替换不能覆盖批量命令。补插入、移动、删除、插值/权重及一次撤销。动态帧省略权重时，中间插入采用插值，末端延伸保持最后帧比例，原帧身份及完整工程可撤销重做。插入重试返回同一结果，复用请求身份改变插值时拒绝，模型、版本及历史不变。同位置重复插入、批量目标碰撞和首帧移动均拒绝，完整工程、版本及撤销入口保留，正常编辑仍可继续。曲线合并后继续使用已失效的源或目标身份时拒绝，完整工程、版本和撤销入口保持，原合并仍可撤销重做 | ProjectEditing::batchAnchorsCommitAndUndoTogether、adjacentAnchorCurvesMergeWithoutLosingNodes、dynamicSpeakerKeyframesEditAndUndo | 通用 |
 | 批量轨道顺序、片段裁边、音符搜索与切分 | domain | 补正常编辑结果、原音符保持、无匹配及撤销。搜索用少量有语义的数据行 | ProjectEditing::batchTrackOrderAndClipTrimming、noteSearch、splitAtPreservesPhraseAndUndo | 通用 |
 | LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式。修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
 | DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移。包不可用时保留内容，已解析声库减少来源时保留剩余比例 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |

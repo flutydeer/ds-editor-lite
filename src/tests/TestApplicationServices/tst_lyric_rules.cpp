@@ -130,6 +130,34 @@ void ApplicationServicesTests::lyricRuleCreation() {
         QCOMPARE(harness.settings.fillLyric.splitterOrder,
                  (QStringList{QStringLiteral("custom"), QStringLiteral("builtin")}));
     }
+    harness.lyricRulesSnapshot.prepend(created.get().rule);
+    const auto persisted = harness.settings;
+    const auto version = harness.core().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    const auto verifyDuplicate = [&](const Automation::LyricRuleDraftDto &duplicate,
+                                     const QString &field) {
+        const auto result =
+            harness.core().settings().createLyricRule(applicationContext(), duplicate);
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        QCOMPARE(result.getError().fieldPath, field);
+        QCOMPARE(harness.settings, persisted);
+        QCOMPARE(harness.lyricWrites, 1);
+        QCOMPARE(harness.core().documentVersion(), version);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
+    };
+    verifyDuplicate(draft, QStringLiteral("name"));
+    draft.name = QStringLiteral("second");
+    if (tagger) {
+        verifyDuplicate(draft, QStringLiteral("language"));
+        draft.language = QStringLiteral("cmn");
+    }
+    const auto recovered = harness.core().settings().createLyricRule(applicationContext(), draft);
+    QVERIFY(recovered && recovered.get().changed);
+    QVERIFY(recovered.get().rule.ruleId != created.get().rule.ruleId);
+    QCOMPARE(harness.lyricWrites, 2);
+    QCOMPARE(harness.core().documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }
 
 void ApplicationServicesTests::lyricRuleRename_data() {

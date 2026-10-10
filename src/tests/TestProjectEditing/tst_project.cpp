@@ -1176,13 +1176,31 @@ void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
                                                     {0.25, 0.75}));
     QCOMPARE(mix().dynamicKeyframes.at(1).weights, QVector<double>{0.25});
     const auto version = runtime.documentVersion();
-    QVERIFY(!parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
-                                                {
-                                                    {middle, 720},
-                                                    {last,   720}
-    }));
-    QCOMPARE(runtime.documentVersion(), version);
-    QCOMPARE(mix().dynamicKeyframes.at(1).tick, 480);
+    const auto unchangedModel = TestSupport::projectSnapshot(testRuntime.model());
+    const auto undoEntry = testRuntime.history()->nextUndoEntry();
+    const auto verifyRejected = [&](const AutomationResult<MutationResult> &result,
+                                    const QString &field) {
+        QVERIFY(isError(result, AutomationErrorCode::InvalidArgument, field));
+        QCOMPARE(runtime.documentVersion(), version);
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), unchangedModel);
+        QCOMPARE(testRuntime.history()->nextUndoEntry(), undoEntry);
+    };
+    verifyRejected(parameters.insertSpeakerMixKeyframe(commandContext(runtime), clip, 480,
+                                                       QVector<double>{0.4, 0.6}),
+                   QStringLiteral("position"));
+    verifyRejected(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
+                                                      {
+                                                          {middle, 720},
+                                                          {last,   720}
+    }),
+                   QStringLiteral("moves"));
+    const auto initial = Automation::SpeakerMixKeyframeId(frames.first().id);
+    verifyRejected(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
+                                                      {
+                                                          {initial, 240},
+                                                          {middle,  600}
+    }),
+                   QStringLiteral("moves"));
     QVERIFY(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
                                                {
                                                    {middle, 600 },
