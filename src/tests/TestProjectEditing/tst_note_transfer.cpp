@@ -573,6 +573,8 @@ void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::newRow("malformed-parameter-discriminators")
         << int(Param::Original) << true << false
         << QStringLiteral("malformed-parameter-discriminators");
+    QTest::newRow("malformed-curve-fields")
+        << int(Param::Edited) << true << false << QStringLiteral("malformed-curve-fields");
     QTest::newRow("separate-anchor-curves") << int(Param::Edited) << true << true << QString{};
     QTest::newRow("overlapping-anchor-curves")
         << int(Param::Edited) << true << true << QStringLiteral("overlapping-anchor-ranges");
@@ -619,7 +621,38 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     const ClipsInfo copied{{source.get()}, {0}};
     const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
     auto payload = QJsonDocument::fromJson(bytes).object();
-    if (fault == QStringLiteral("malformed-parameter-discriminators")) {
+    if (fault == QStringLiteral("malformed-curve-fields")) {
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        auto parameters = clip.value(QStringLiteral("parameters")).toArray();
+        auto parameter = parameters.first().toObject();
+        auto curves = parameter.value(QStringLiteral("curves")).toArray();
+        const auto anchorTemplate = curves.last().toObject();
+        QJsonArray malformedGroups;
+        for (const auto &field : {QStringLiteral("position"), QStringLiteral("value"),
+                                  QStringLiteral("interpolation")}) {
+            auto malformed = anchorTemplate;
+            auto nodes = malformed.value(QStringLiteral("nodes")).toArray();
+            auto node = nodes.first().toObject();
+            node.remove(field);
+            nodes.replace(0, node);
+            malformed.insert(QStringLiteral("nodes"), nodes);
+            auto group = parameter;
+            group.insert(QStringLiteral("curves"), QJsonArray{malformed});
+            malformedGroups.append(group);
+        }
+        auto malformedDraw = curves.first().toObject();
+        auto values = malformedDraw.value(QStringLiteral("values")).toArray();
+        values.replace(0, QStringLiteral("invalid sample"));
+        malformedDraw.insert(QStringLiteral("values"), values);
+        parameter.insert(QStringLiteral("curves"), QJsonArray{malformedDraw});
+        malformedGroups.append(parameter);
+        for (const auto &valid : parameters)
+            malformedGroups.append(valid);
+        clip.insert(QStringLiteral("parameters"), malformedGroups);
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+    } else if (fault == QStringLiteral("malformed-parameter-discriminators")) {
         auto clips = payload.value(QStringLiteral("clips")).toArray();
         auto clip = clips.first().toObject();
         auto parameters = clip.value(QStringLiteral("parameters")).toArray();

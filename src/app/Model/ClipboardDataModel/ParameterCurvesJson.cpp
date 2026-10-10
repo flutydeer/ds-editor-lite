@@ -34,25 +34,49 @@ namespace {
         return result;
     }
 
+    std::optional<int> integerValue(const QJsonValue &value) {
+        if (!value.isDouble())
+            return std::nullopt;
+        const auto number = value.toInt();
+        if (value.toDouble() != number)
+            return std::nullopt;
+        return number;
+    }
+
     std::optional<Automation::CurveDraftDto> deserializeCurve(const ParamInfo::Name name,
                                                               const QJsonObject &object) {
         Automation::CurveDraftDto result;
         const auto type = object.value(QStringLiteral("type")).toString();
-        result.localStart = object.value(QStringLiteral("local_start")).toInt();
+        const auto localStart = integerValue(object.value(QStringLiteral("local_start")));
+        if (!localStart)
+            return std::nullopt;
+        result.localStart = *localStart;
         if (type == QStringLiteral("draw")) {
             result.type = Automation::CurveDraftDto::Type::Draw;
-            result.step = object.value(QStringLiteral("step")).toInt();
-            for (const auto value : object.value(QStringLiteral("values")).toArray())
-                result.values.append(value.toInt());
+            const auto step = integerValue(object.value(QStringLiteral("step")));
+            if (!step)
+                return std::nullopt;
+            result.step = *step;
+            for (const auto value : object.value(QStringLiteral("values")).toArray()) {
+                const auto sample = integerValue(value);
+                if (!sample)
+                    return std::nullopt;
+                result.values.append(*sample);
+            }
         } else if (type == QStringLiteral("anchor")) {
             result.type = Automation::CurveDraftDto::Type::Anchor;
             for (const auto value : object.value(QStringLiteral("nodes")).toArray()) {
                 const auto node = value.toObject();
-                const auto interpolation = node.value(QStringLiteral("interpolation")).toInt();
+                const auto position = integerValue(node.value(QStringLiteral("position")));
+                const auto nodeValue = integerValue(node.value(QStringLiteral("value")));
+                const auto interpolation =
+                    integerValue(node.value(QStringLiteral("interpolation")));
+                if (!position || !nodeValue || !interpolation)
+                    return std::nullopt;
                 result.nodes.append({
-                    .position = node.value(QStringLiteral("position")).toInt(),
-                    .value = node.value(QStringLiteral("value")).toInt(),
-                    .interpolation = static_cast<AnchorNode::InterpMode>(interpolation),
+                    .position = *position,
+                    .value = *nodeValue,
+                    .interpolation = static_cast<AnchorNode::InterpMode>(*interpolation),
                 });
             }
         } else {
@@ -85,8 +109,10 @@ namespace ClipboardDataModel {
         QSet<QPair<int, int>> acceptedGroups;
         for (const auto parameterValue : parameters) {
             const auto parameterObject = parameterValue.toObject();
-            const auto name = parameterObject.value(QStringLiteral("name")).toInt(-1);
-            const auto layer = parameterObject.value(QStringLiteral("layer")).toInt(-1);
+            const auto name =
+                integerValue(parameterObject.value(QStringLiteral("name"))).value_or(-1);
+            const auto layer =
+                integerValue(parameterObject.value(QStringLiteral("layer"))).value_or(-1);
             if (name < ParamInfo::Pitch || name > ParamInfo::ToneShift ||
                 (layer != Param::Original && layer != Param::Edited && layer != Param::Envelope)) {
                 continue;
