@@ -95,7 +95,7 @@ private slots:
     void publicUiSettingsPersistAndRollback();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
     void switchingUiLanguagePreservesSettingsAndTheOpenDocument();
-    void experimentalRendererSettingPersistsWhenRestartIsDeferred();
+    void experimentalSettingsPersistWhenRestartIsDeferred();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
     void automationServerReconfigurationUpdatesAccessAndConnectionDetails();

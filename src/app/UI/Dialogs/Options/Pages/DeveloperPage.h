@@ -18,6 +18,8 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    bool applyOptions();
+
     Button *m_btnOpenConfigFolder;
     Button *m_btnOpenLogFolder;
     Button *m_btnOpenDumpFolder;
