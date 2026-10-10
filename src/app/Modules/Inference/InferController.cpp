@@ -352,10 +352,9 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
         const auto pos = static_cast<double>(playbackController->position());
-        const double windowTicks =
-            appModel->timeline().secToTick(appOptions->inference()->playbackLookaheadSeconds);
-        // Public cancellation removes the state machine. A new playback request can recover
-        // missing results, but continuous position updates must not retry failed inference.
+        // Recover each missing pipeline at most once per playback request when it enters
+        // the lookahead window. Continuous position updates must not retry failed inference.
+        m_playbackRecoveryPieces.clear();
         for (const auto track : appModel->tracks()) {
             for (const auto clip : track->clips()) {
                 if (clip->clipType() != IClip::Singing)
@@ -370,14 +369,13 @@ void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::Playb
                                         return pipeline->pieceId() == piece->id();
                                     }))
                         continue;
-                    const auto range = pieceGlobalRange(singingClip->id(), piece->id());
-                    if (range.isValid() && range.end > pos && range.start < pos + windowTicks)
-                        createPipeline(*piece);
+                    m_playbackRecoveryPieces.append(piece);
                 }
             }
         }
         refreshPlaybackWindow(pos);
     } else { // Paused / Stopped
+        m_playbackRecoveryPieces.clear();
         // Paused/Stopped: let the currently running acoustic task finish,
         // then put remaining Running/Pending pipelines back to probe-wait state
         // so they stop queueing
@@ -393,13 +391,31 @@ void InferControllerPrivate::onPlaybackPositionChanged(double tick) {
 }
 
 void InferControllerPrivate::refreshPlaybackWindow(const double pos) {
-    if (m_autoStartAcousticInfer)
-        return; // auto-start mode bypasses playback-window scheduling
-
     // Lookahead window: covers [pos, pos + windowSeconds] in wall-clock time. Converted
     // to ticks via the timeline because inference engine operates on seconds, not ticks.
     const double windowTicks =
         appModel->timeline().secToTick(appOptions->inference()->playbackLookaheadSeconds);
+    for (auto it = m_playbackRecoveryPieces.begin(); it != m_playbackRecoveryPieces.end();) {
+        auto *piece = it->data();
+        if (!piece || appModel->findClipById(piece->clipId()) != piece->clip ||
+            !piece->audioPath.isEmpty() ||
+            std::any_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                        [piece](const InferPipeline *pipeline) {
+                            return pipeline->pieceId() == piece->id();
+                        })) {
+            it = m_playbackRecoveryPieces.erase(it);
+            continue;
+        }
+        const auto range = pieceGlobalRange(piece->clipId(), piece->id());
+        if (!range.isValid() || range.end <= pos || range.start >= pos + windowTicks) {
+            ++it;
+            continue;
+        }
+        it = m_playbackRecoveryPieces.erase(it);
+        createPipeline(*piece);
+    }
+    if (m_autoStartAcousticInfer)
+        return; // auto-start mode bypasses playback-window scheduling
 
     QList<InferPipeline *> inWindow;
     for (const auto pipeline : std::as_const(m_inferPipelines)) {
@@ -463,6 +479,7 @@ void InferControllerPrivate::handleModelChanged() {
     for (const auto pipeline : std::as_const(m_inferPipelines))
         delete pipeline;
     m_inferPipelines.clear();
+    m_playbackRecoveryPieces.clear();
     m_retryAllScheduled = false;
     // Registered cache paths from the replaced document are stale: its undo
     // history was reset and its pipelines destroyed above, so no finish callback

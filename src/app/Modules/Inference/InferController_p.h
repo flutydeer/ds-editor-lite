@@ -18,6 +18,7 @@
 #include "Global/AppOptionsGlobal.h"
 
 #include <QList>
+#include <QPointer>
 #include <QHash>
 #include <QStringList>
 
@@ -133,6 +134,7 @@ public:
     QHash<int, PendingPhonemeNameApply> m_pendingPhonemeNameApplies;
 
     QList<InferPipeline *> m_inferPipelines;
+    QList<QPointer<InferPiece>> m_playbackRecoveryPieces;
 
     bool m_autoStartAcousticInfer = true;
     bool m_retryAllScheduled = false;

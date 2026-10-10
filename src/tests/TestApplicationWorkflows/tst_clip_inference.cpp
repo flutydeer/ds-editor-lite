@@ -1316,12 +1316,15 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
 
 void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation_data() {
     QTest::addColumn<bool>("autoStartInference");
-    QTest::newRow("playback-window") << false;
-    QTest::newRow("automatic-inference") << true;
+    QTest::addColumn<bool>("seekIntoWindow");
+    QTest::newRow("playback-window") << false << false;
+    QTest::newRow("automatic-inference") << true << false;
+    QTest::newRow("seek-into-recovery-window") << false << true;
 }
 
 void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation() {
     QFETCH(bool, autoStartInference);
+    QFETCH(bool, seekIntoWindow);
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
     auto *audio = AudioContext::instance();
@@ -1374,8 +1377,16 @@ void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation(
     const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
     QVERIFY(audio->preMixer()->open(256, 48000));
     playbackController->setPlaybackStartGuard([] { return true; });
-    QVERIFY(runtime().playback().setPosition(commandContext(), clip->start() + note->localStart()));
+    const auto targetPosition = clip->start() + note->localStart();
+    QVERIFY(runtime().playback().setPosition(commandContext(),
+                                             seekIntoWindow ? targetPosition + note->length() + 4800
+                                                            : targetPosition));
     QVERIFY(runtime().playback().play(commandContext()));
+    if (seekIntoWindow) {
+        QCoreApplication::processEvents();
+        QVERIFY(target && target->audioPath.isEmpty());
+        QVERIFY(runtime().playback().setPosition(commandContext(), targetPosition));
+    }
     QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
                                  QFile::exists(target->audioPath) && taskManager->tasks().isEmpty(),
                              15000);
