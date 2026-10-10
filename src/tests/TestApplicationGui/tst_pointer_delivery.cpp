@@ -549,19 +549,23 @@ void ApplicationGuiTests::pianoPenHoverHintsFollowTheDeliveredState() {
 
 void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts_data() {
     QTest::addColumn<bool>("barrel");
-    QTest::addColumn<bool>("interrupt");
+    QTest::addColumn<QString>("finish");
     QTest::addColumn<bool>("unsupported");
-    QTest::newRow("eraser-release") << false << false << false;
-    QTest::newRow("barrel-drag-release") << true << false << false;
-    QTest::newRow("eraser-interruption") << false << true << false;
-    QTest::newRow("barrel-drag-interruption") << true << true << false;
-    QTest::newRow("eraser-does-not-split") << false << false << true;
+    QTest::newRow("eraser-release") << false << QString{} << false;
+    QTest::newRow("barrel-drag-release") << true << QString{} << false;
+    QTest::newRow("eraser-interruption") << false << QStringLiteral("deactivate") << false;
+    QTest::newRow("barrel-drag-interruption") << true << QStringLiteral("deactivate") << false;
+    QTest::newRow("eraser-leaves-digitizer") << false << QStringLiteral("proximity") << false;
+    QTest::newRow("eraser-does-not-split") << false << QString{} << true;
 }
 
 void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
     QFETCH(bool, barrel);
-    QFETCH(bool, interrupt);
+    QFETCH(QString, finish);
     QFETCH(bool, unsupported);
+    if (finish == QStringLiteral("proximity") &&
+        QGuiApplication::platformName() == QStringLiteral("windows"))
+        QSKIP("The Windows native backend delivers proximity through pointer messages");
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -590,6 +594,11 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
         QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
     const auto button = barrel ? Qt::RightButton : Qt::LeftButton;
     const auto cleanup = qScopeGuard([&] { deactivate(*view); });
+    if (finish == QStringLiteral("proximity")) {
+        TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove, first, 0.0,
+                                     Qt::NoButton, Qt::NoButton);
+        QTRY_COMPARE(view->viewport()->cursor().shape(), Qt::BitmapCursor);
+    }
     QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletPress, first, 0.7,
                                          button, button));
     QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletMove,
@@ -612,7 +621,7 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
         QVERIFY(editSessionManager->hasActiveTransaction());
         QVERIFY(EditorPointer::isPenStreamActive());
         QVERIFY(EditorPointer::isPenEraseIntentActive());
-        if (interrupt) {
+        if (finish == QStringLiteral("deactivate")) {
             deactivate(*view);
             QCOMPARE(runtime.documentVersion(), before);
             QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
@@ -620,8 +629,16 @@ void ApplicationGuiTests::pianoPenErasingCommitsOrInterrupts() {
             QCOMPARE(sceneNoteCount(secondId), 1);
             QVERIFY(!historyManager->canUndo());
         } else {
-            QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device, QEvent::TabletRelease,
-                                                 last, 0, button, Qt::NoButton));
+            if (finish == QStringLiteral("proximity")) {
+                QTabletEvent event(QEvent::TabletLeaveProximity, &device, last,
+                                   view->viewport()->mapToGlobal(last), 0.0, 0, 0, 0, 0, 0,
+                                   Qt::NoModifier, Qt::NoButton, Qt::NoButton);
+                QApplication::sendEvent(qApp, &event);
+            } else {
+                QVERIFY(TestSupport::sendTabletEvent(*view->viewport(), device,
+                                                     QEvent::TabletRelease, last, 0, button,
+                                                     Qt::NoButton));
+            }
             QCOMPARE(singingClip->notes().count(), 0);
             QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
             QVERIFY(runtime.history().undo(commandContext()));

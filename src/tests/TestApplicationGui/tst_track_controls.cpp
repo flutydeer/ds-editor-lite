@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/LevelMeterManager.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
@@ -38,6 +39,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
@@ -427,6 +429,33 @@ void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
     QVERIFY(track->control().mute() && mute->isChecked());
+
+    auto *newTrack = editor.findChild<QPushButton *>("btnNewTrack");
+    auto *headers = editor.findChild<TrackListView *>();
+    QVERIFY(newTrack && newTrack->isVisible() && headers);
+    const auto beforeAppend = runtime.documentVersion();
+    const auto modelBeforeAppend = TestSupport::projectSnapshot(*context->m_appModel);
+    QTest::mouseClick(newTrack, Qt::LeftButton);
+    QCOMPARE(context->m_appModel->tracks().size(), 2);
+    QCOMPARE(context->m_appModel->tracks().first(), track);
+    const auto *appended = context->m_appModel->tracks().last();
+    const auto appendedId = appended->id();
+    QCOMPARE(appended->name(), TrackController::tr("New Track"));
+    QCOMPARE(appended->defaultLanguage(), appOptions->general()->defaultSingingLanguage);
+    QCOMPARE(runtime.documentVersion().revision, beforeAppend.revision + 1);
+    QCOMPARE(runtime.documentVersion().documentId, beforeAppend.documentId);
+    QTRY_COMPARE(headers->trackCount(), 2);
+    auto *appendedControls =
+        qobject_cast<TrackControlView *>(headers->itemWidget(headers->item(1)));
+    QVERIFY(appendedControls);
+    QCOMPARE(appendedControls->name(), appended->name());
+    QCOMPARE(appendedControls->trackIndex(), 2);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QTRY_COMPARE(headers->trackCount(), 1);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBeforeAppend);
+    QVERIFY(runtime.history().redo(commandContext()));
+    QTRY_COMPARE(headers->trackCount(), 2);
+    QCOMPARE(context->m_appModel->tracks().last()->id(), appendedId);
 }
 
 void ApplicationGuiTests::trackColorMenuPreviewsAndCommits_data() {
