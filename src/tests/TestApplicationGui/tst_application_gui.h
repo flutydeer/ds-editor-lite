@@ -240,6 +240,9 @@ private:
     QTemporaryDir dataRoot;
     QByteArray previousDataRoot;
     bool dataRootInstalled = false;
+#ifdef Q_OS_WIN
+    bool comInitialized = false;
+#endif
     std::unique_ptr<AppContext> context;
     std::unique_ptr<PianoRollGraphicsScene> scene;
     std::unique_ptr<PianoRollGraphicsView> view;

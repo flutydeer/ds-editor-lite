@@ -36,6 +36,9 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_track_menus.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ole32)
+endif()
 # Reuse the workflow suite's external conversion subprocess fixture.
 add_dependencies(${PROJECT_NAME} DsEditorLite TestApplicationWorkflows)
 target_compile_definitions(${PROJECT_NAME} PRIVATE

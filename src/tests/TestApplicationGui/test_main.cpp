@@ -29,10 +29,23 @@
 #include <QTemporaryDir>
 #include <QTimer>
 
+#ifdef Q_OS_WIN
+#  include <objbase.h>
+#endif
+
 ApplicationGuiTests::ApplicationGuiTests() = default;
 ApplicationGuiTests::~ApplicationGuiTests() = default;
 
 void ApplicationGuiTests::initTestCase() {
+#ifdef Q_OS_WIN
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen")) {
+        // Match the Windows plugin's COM lifetime across audio driver changes.
+        const auto result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        QVERIFY2(SUCCEEDED(result) || result == RPC_E_CHANGED_MODE,
+                 "Failed to initialize the offscreen GUI's COM apartment");
+        comInitialized = SUCCEEDED(result);
+    }
+#endif
     QVERIFY(dataRoot.isValid());
     previousDataRoot = qgetenv("DSEL_TEST_DATA_ROOT");
     qputenv("DSEL_TEST_DATA_ROOT", dataRoot.path().toUtf8());
@@ -130,6 +143,12 @@ void ApplicationGuiTests::cleanupTestCase() {
         else
             qputenv("DSEL_TEST_DATA_ROOT", previousDataRoot);
     }
+#ifdef Q_OS_WIN
+    if (comInitialized) {
+        CoUninitialize();
+        comInitialized = false;
+    }
+#endif
 }
 
 Automation::CommandContext ApplicationGuiTests::commandContext() const {
