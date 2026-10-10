@@ -33,6 +33,7 @@
 #include "../TestSupport/ProcessFixture.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/FileWriteBlocker.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -52,6 +53,7 @@
 #include <QTimer>
 #include <QJsonArray>
 
+#include <algorithm>
 #include <memory>
 #include <atomic>
 
@@ -526,25 +528,32 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     const auto beforeRules = settings.listLyricRules();
     QVERIFY(beforeSettings);
     QVERIFY(beforeRules);
+    const auto moveTarget =
+        static_cast<int>(std::count_if(beforeRules.get().cbegin(), beforeRules.get().cend(),
+                                       [&](const auto &rule) { return rule.kind == draft.kind; })) -
+        1;
+    QVERIFY(moveTarget > 0);
+    QCOMPARE(created.get().rule.order, 0);
     Automation::LyricRulePatchDto patch{.name = QStringLiteral("Renamed rule")};
     if (tagger)
         patch.language = QStringLiteral("jpn");
     else
         patch.regexes = QStringList{QStringLiteral("(fixtureword)")};
     const auto config = appOptions->configPath();
-    const auto backup = config + QStringLiteral(".lyric-save-failure-backup");
-    QVERIFY(QFile::rename(config, backup));
-    const auto restoreFile = qScopeGuard([&] {
-        if (QFile::exists(backup)) {
-            QVERIFY(QDir().rmdir(config));
-            QVERIFY(QFile::rename(backup, config));
-        }
-    });
-    // Occupy the configuration file path to reject writes on every supported platform.
-    QVERIFY(QDir().mkdir(config));
+    TestSupport::FileWriteBlocker writeFailure(config);
+    QVERIFY(writeFailure.block());
     const auto rejected = settings.updateLyricRule({}, id, patch);
     QVERIFY(!rejected);
     QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::IoError);
+    const auto rejectedDisable = settings.setLyricRuleEnabled({}, id, false);
+    QVERIFY(!rejectedDisable);
+    QCOMPARE(rejectedDisable.getError().code, Automation::AutomationErrorCode::IoError);
+    const auto rejectedMove = settings.moveLyricRule({}, id, moveTarget);
+    QVERIFY(!rejectedMove);
+    QCOMPARE(rejectedMove.getError().code, Automation::AutomationErrorCode::IoError);
+    const auto rejectedDelete = settings.deleteLyricRule({}, id);
+    QVERIFY(!rejectedDelete);
+    QCOMPARE(rejectedDelete.getError().code, Automation::AutomationErrorCode::IoError);
     const auto retainedSettings = settings.getSettings();
     const auto retainedRules = settings.listLyricRules();
     QVERIFY(retainedSettings);
@@ -556,8 +565,7 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QCOMPARE(retainedPreview.get(), preview.get());
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
-    QVERIFY(QDir().rmdir(config));
-    QVERIFY(QFile::rename(backup, config));
+    QVERIFY(writeFailure.restore());
 
     QVERIFY(settings.updateLyricRule({}, id, patch));
     const auto retriedPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
@@ -572,6 +580,10 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QVERIFY(disabledPreview);
     QCOMPARE(disabledPreview.get().taggedTokens.size(), 1);
     QCOMPARE(disabledPreview.get().taggedTokens.first().language, QStringLiteral("eng"));
+    const auto moved = settings.moveLyricRule({}, id, moveTarget);
+    QVERIFY2(moved, qPrintable(moved ? QString{} : moved.getError().message));
+    QVERIFY(moved.get().changed);
+    QCOMPARE(moved.get().rule.order, moveTarget);
     AppOptions reopened;
     const auto rules = Automation::createAppOptionsAutomationServices(&reopened).lyricRules();
     const auto it = std::find_if(rules.cbegin(), rules.cend(),
@@ -579,6 +591,7 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QVERIFY(it != rules.cend());
     QCOMPARE(it->name, QStringLiteral("Renamed rule"));
     QCOMPARE(it->kind, draft.kind);
+    QCOMPARE(it->order, moveTarget);
     if (tagger)
         QCOMPARE(it->language, QStringLiteral("jpn"));
     else
