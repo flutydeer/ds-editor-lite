@@ -34,7 +34,8 @@ private slots:
     void midiAtomicWrite();
     void midiExportPreservesProjectTimingAndOptionalMetadata_data();
     void midiExportPreservesProjectTimingAndOptionalMetadata();
-    void dspxTimeSignatureProjectionValidation();
+    void dspxTimelineValidationPreservesExistingModel_data();
+    void dspxTimelineValidationPreservesExistingModel();
     void dspxRoundTripPreservesEditedPhrase();
     void dspxRoundTripPreservesEditedPhrase_data();
     void dspxPhonemeInterchangeRespectsExternalChanges();

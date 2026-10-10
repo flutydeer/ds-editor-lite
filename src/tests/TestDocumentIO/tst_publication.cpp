@@ -152,23 +152,6 @@ namespace {
             [](const QByteArray &output) { return output.startsWith("MThd"); });
     }
 
-    void testDspxTimeSignatureProjectionValidation() {
-        opendspx::Model project;
-        project.content.timeline.tempos.push_back({0, 120.0});
-        project.content.timeline.timeSignatures.push_back(
-            {0, (std::numeric_limits<int>::max)(), 1});
-        project.content.timeline.timeSignatures.push_back({1, 4, 4});
-
-        AppModel model;
-        LoopSettings loopSettings;
-        QString error;
-        DspxProjectConverter converter;
-        expect(!converter.loadParsedProject(project, &model, loopSettings, error,
-                                            ImportMode::NewProject) &&
-                   !error.isEmpty(),
-               QStringLiteral("DSPX load must reject out-of-range time signatures"));
-    }
-
     void testAudioPublicationOverwrite() {
         QTemporaryDir directory;
         const auto target = directory.filePath(QStringLiteral("audio.wav"));
@@ -397,8 +380,62 @@ void DocumentIOTests::midiAtomicWrite() {
     testMidiAtomicWrite();
 }
 
-void DocumentIOTests::dspxTimeSignatureProjectionValidation() {
-    testDspxTimeSignatureProjectionValidation();
+void DocumentIOTests::dspxTimelineValidationPreservesExistingModel_data() {
+    QTest::addColumn<QString>("invalidTimeline");
+    QTest::newRow("missing-tempo") << QStringLiteral("missing-tempo");
+    QTest::newRow("zero-tempo") << QStringLiteral("zero-tempo");
+    QTest::newRow("invalid-meter") << QStringLiteral("invalid-meter");
+    QTest::newRow("unrepresentable-measure") << QStringLiteral("unrepresentable-measure");
+}
+
+void DocumentIOTests::dspxTimelineValidationPreservesExistingModel() {
+    QFETCH(QString, invalidTimeline);
+    opendspx::Model project;
+    project.content.timeline.tempos = {
+        {0, 120.0}
+    };
+    project.content.timeline.timeSignatures = {
+        {0, 4, 4}
+    };
+    if (invalidTimeline == QStringLiteral("missing-tempo")) {
+        project.content.timeline.tempos.clear();
+    } else if (invalidTimeline == QStringLiteral("zero-tempo")) {
+        project.content.timeline.tempos.front().value = 0.0;
+    } else if (invalidTimeline == QStringLiteral("invalid-meter")) {
+        project.content.timeline.timeSignatures.front().numerator = 0;
+    } else {
+        project.content.timeline.timeSignatures = {
+            {0, (std::numeric_limits<int>::max)(), 1},
+            {1, 4,                                 4}
+        };
+    }
+
+    AppModel model;
+    model.newProject();
+    auto *track = new Track;
+    track->setName(QStringLiteral("Existing track"));
+    model.insertTrack(track, 0);
+    const auto original = TestSupport::projectSnapshot(model);
+    LoopSettings loop(true, 480, 960);
+    const auto originalLoop = loop.serialize();
+    QString error;
+    DspxProjectConverter converter;
+    QVERIFY(!converter.loadParsedProject(project, &model, loop, error, ImportMode::NewProject));
+    QVERIFY(!error.isEmpty());
+    QCOMPARE(TestSupport::projectSnapshot(model), original);
+    QCOMPARE(loop.serialize(), originalLoop);
+
+    project.content.timeline.tempos = {
+        {0, 120.0}
+    };
+    project.content.timeline.timeSignatures = {
+        {0, 4, 4}
+    };
+    error.clear();
+    QVERIFY2(converter.loadParsedProject(project, &model, loop, error, ImportMode::NewProject),
+             qPrintable(error));
+    QCOMPARE(TestSupport::projectSnapshot(model), original);
+    QCOMPARE(loop.serialize(), LoopSettings().serialize());
 }
 
 void DocumentIOTests::dspxRoundTripPreservesEditedPhrase_data() {
