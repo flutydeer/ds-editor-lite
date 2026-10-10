@@ -917,6 +917,11 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     }
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
     if (checkOtherTrack) {
+        // Tasks leave the queue before the state machine applies their results.
+        QTRY_VERIFY_WITH_TIMEOUT(blockedBackground && queuedBackground &&
+                                     blockedBackground->state.get() == QStringLiteral("Ready") &&
+                                     queuedBackground->state.get() == QStringLiteral("Ready"),
+                                 15000);
         QVERIFY(QFileInfo::exists(blockedBackground->audioPath));
         QVERIFY(QFileInfo::exists(queuedBackground->audioPath));
     }
