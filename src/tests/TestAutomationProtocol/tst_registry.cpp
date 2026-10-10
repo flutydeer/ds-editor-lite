@@ -1218,6 +1218,18 @@ namespace {
     void verifyCurrentDocumentSavePolicy(Automation::PublicAutomationRegistry &registry,
                                          Automation::CoreRuntime &runtime,
                                          const QString &directoryPath, const int &saveCount) {
+        const auto before = runtime.documentVersion();
+        const auto document = runtime.documents().getDocument(before.documentId);
+        QVERIFY(document);
+        QVERIFY(document.get().path.isEmpty());
+        const auto savesBeforePathChoice = saveCount;
+        const auto withoutPath =
+            registry.invoke(QStringLiteral("documents.save"), commandArguments(before));
+        QVERIFY(!withoutPath);
+        QCOMPARE(withoutPath.getError().code, Automation::AutomationErrorCode::PathRequired);
+        QCOMPARE(withoutPath.getError().fieldPath, QStringLiteral("path"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(saveCount, savesBeforePathChoice);
         const auto path =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("current-document.dspx"));
         const auto savedAs =
