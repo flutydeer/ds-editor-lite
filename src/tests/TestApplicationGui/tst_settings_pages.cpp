@@ -325,6 +325,29 @@ void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguag
         chooseLanguage(page, language, QStringLiteral("eng"));
         if (QTest::currentTestFailed())
             return;
+        const auto retained = runtime.settings().getSettings();
+        QVERIFY(retained);
+        const auto retainedLyric = lyric->text();
+        const auto retainedModel = TestSupport::projectSnapshot(*context->m_appModel);
+        const auto *retainedUndo = historyManager->nextUndoEntry();
+        TestSupport::FileWriteBlocker writeFailure(appOptions->configPath());
+        QVERIFY(writeFailure.block());
+        replaceText(lyric, QStringLiteral("rejected default"));
+        QTest::keyClick(lyric, Qt::Key_Return);
+        const auto afterFailure = runtime.settings().getSettings();
+        QVERIFY(afterFailure);
+        QCOMPARE(afterFailure.get().general, retained.get().general);
+        QCOMPARE(lyric->text(), retainedLyric);
+        QCOMPARE(language->currentLanguage(), QStringLiteral("eng"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), retainedModel);
+        QCOMPARE(historyManager->nextUndoEntry(), retainedUndo);
+        QVERIFY(writeFailure.restore());
+        chooseLanguage(page, language, QStringLiteral("cmn"));
+        chooseLanguage(page, language, QStringLiteral("eng"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(lyric->text(), retainedLyric);
         replaceText(lyric, QStringLiteral("doo"));
         QTest::keyClick(lyric, Qt::Key_Return);
         chooseLanguage(page, language, QStringLiteral("cmn"));
