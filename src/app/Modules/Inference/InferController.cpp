@@ -189,10 +189,28 @@ void InferController::cancelPieceInference(const int pieceId) {
     d->cancelPieceRelatedTasks(pieceId);
     const auto pipelines = Linq::where(
         d->m_inferPipelines, [pieceId](const InferPipeline *p) { return p->pieceId() == pieceId; });
+    bool playbackRecoveryRequested = false;
     for (const auto pipeline : pipelines) {
+        const QPointer<InferPiece> piece(&pipeline->piece());
         pipeline->stop();
         d->m_inferPipelines.removeOne(pipeline);
         pipeline->deleteLater();
+        if (piece && piece->audioPath.isEmpty() &&
+            playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+            if (!d->m_playbackRecoveryPieces.contains(piece))
+                d->m_playbackRecoveryPieces.append(piece);
+            playbackRecoveryRequested = true;
+        }
+    }
+    if (playbackRecoveryRequested && !d->m_playbackRecoveryScheduled) {
+        d->m_playbackRecoveryScheduled = true;
+        // Playback is an independent consumer. Defer recovery until cancellation or pipeline
+        // replacement has returned, and coalesce multi-piece cancellation into one refresh.
+        QTimer::singleShot(0, d, [d] {
+            d->m_playbackRecoveryScheduled = false;
+            if (playbackController->playbackStatus() == PlaybackGlobal::Playing)
+                d->refreshPlaybackWindow(static_cast<double>(playbackController->position()));
+        });
     }
 }
 

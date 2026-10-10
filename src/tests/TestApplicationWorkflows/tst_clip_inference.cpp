@@ -1317,14 +1317,17 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
 void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation_data() {
     QTest::addColumn<bool>("autoStartInference");
     QTest::addColumn<bool>("seekIntoWindow");
-    QTest::newRow("playback-window") << false << false;
-    QTest::newRow("automatic-inference") << true << false;
-    QTest::newRow("seek-into-recovery-window") << false << true;
+    QTest::addColumn<bool>("cancelWhilePlaying");
+    QTest::newRow("playback-window") << false << false << false;
+    QTest::newRow("automatic-inference") << true << false << false;
+    QTest::newRow("seek-into-recovery-window") << false << true << false;
+    QTest::newRow("cancel-during-playback") << false << false << true;
 }
 
 void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation() {
     QFETCH(bool, autoStartInference);
     QFETCH(bool, seekIntoWindow);
+    QFETCH(bool, cancelWhilePlaying);
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
     auto *audio = AudioContext::instance();
@@ -1353,6 +1356,16 @@ void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation(
     QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
                                  QFile::exists(target->audioPath) && taskManager->tasks().isEmpty(),
                              15000);
+    const auto beforePlayback = runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(audio->preMixer()->open(256, 48000));
+    playbackController->setPlaybackStartGuard([] { return true; });
+    const auto targetPosition = clip->start() + note->localStart();
+    if (cancelWhilePlaying) {
+        QVERIFY(runtime().playback().setPosition(commandContext(), targetPosition));
+        QVERIFY(runtime().playback().play(commandContext()));
+    }
     const auto services = Automation::createPublicAutomationHostServices(
         runtime(), context->m_appModel, &SynthrtEngine::instance());
     const auto accepted = services.startInference({
@@ -1369,23 +1382,19 @@ void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation(
         runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
     QVERIFY(canceled);
     QCOMPARE(canceled.get().state, Automation::AutomationTaskState::Canceled);
-    QVERIFY(target && target->audioPath.isEmpty());
-    appOptions->inference()->autoStartInfer = autoStartInference;
-    appOptions->notifyOptionsChanged(AppOptionsGlobal::Inference);
-    const auto beforePlayback = runtime().documentVersion();
-    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
-    const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
-    QVERIFY(audio->preMixer()->open(256, 48000));
-    playbackController->setPlaybackStartGuard([] { return true; });
-    const auto targetPosition = clip->start() + note->localStart();
-    QVERIFY(runtime().playback().setPosition(commandContext(),
-                                             seekIntoWindow ? targetPosition + note->length() + 4800
-                                                            : targetPosition));
-    QVERIFY(runtime().playback().play(commandContext()));
-    if (seekIntoWindow) {
-        QCoreApplication::processEvents();
+    if (!cancelWhilePlaying) {
         QVERIFY(target && target->audioPath.isEmpty());
-        QVERIFY(runtime().playback().setPosition(commandContext(), targetPosition));
+        appOptions->inference()->autoStartInfer = autoStartInference;
+        appOptions->notifyOptionsChanged(AppOptionsGlobal::Inference);
+        QVERIFY(runtime().playback().setPosition(
+            commandContext(),
+            seekIntoWindow ? targetPosition + note->length() + 4800 : targetPosition));
+        QVERIFY(runtime().playback().play(commandContext()));
+        if (seekIntoWindow) {
+            QCoreApplication::processEvents();
+            QVERIFY(target && target->audioPath.isEmpty());
+            QVERIFY(runtime().playback().setPosition(commandContext(), targetPosition));
+        }
     }
     QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
                                  QFile::exists(target->audioPath) && taskManager->tasks().isEmpty(),
@@ -1397,6 +1406,7 @@ void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation(
         runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
     QVERIFY(canceledAfterPlayback);
     QCOMPARE(canceledAfterPlayback.get().state, Automation::AutomationTaskState::Canceled);
+    QCOMPARE(playbackController->playbackStatus(), PlaybackGlobal::Playing);
     QTRY_COMPARE(audio->transport()->bufferingCounter(), 0);
     talcs::AudioBuffer buffer(2, 256);
     const auto position = audio->transport()->position();

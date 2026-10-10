@@ -135,6 +135,7 @@ public:
 
     QList<InferPipeline *> m_inferPipelines;
     QList<QPointer<InferPiece>> m_playbackRecoveryPieces;
+    bool m_playbackRecoveryScheduled = false;
 
     bool m_autoStartAcousticInfer = true;
     bool m_retryAllScheduled = false;
