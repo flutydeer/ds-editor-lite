@@ -145,9 +145,11 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
             // the next launch. The Toast below explains what happened.
             const QSignalBlocker blocker(m_cbExecutionProvider);
             m_cbExecutionProvider->setCurrentText(cpuProvider);
-            modifyOption();
-            Toast::show(tr("No available GPU found. The execution provider has been switched "
-                           "back to CPU."));
+            if (applyOptions())
+                Toast::show(tr("No available GPU found. The execution provider has been switched "
+                               "back to CPU."));
+            else
+                m_gpuItem->setDescription(tr("No available GPU found"));
         }
         return;
     }
@@ -216,13 +218,18 @@ void InferencePage::confirmCleanCache() {
 }
 
 void InferencePage::modifyOption() {
+    applyOptions();
+}
+
+bool InferencePage::applyOptions() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
-        return;
+        return false;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
-        return;
-    auto settings = snapshot.get().inference;
+        return false;
+    const auto previous = snapshot.get().inference;
+    auto settings = previous;
     settings.executionProvider = m_cbExecutionProvider->currentText();
     if (settings.executionProvider != QStringLiteral("CPU") && m_cbDeviceList->isEnabled()) {
         if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
@@ -242,7 +249,44 @@ void InferencePage::modifyOption() {
     settings.pitchSmoothKernelSize = m_smoothSlider->spinbox->value();
     settings.singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
     settings.singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
-    runtime->settings().updateInference({}, settings);
+    if (runtime->settings().updateInference({}, settings))
+        return true;
+
+    const auto restoreValue = [](auto *control, auto value) {
+        const QSignalBlocker blocker(control);
+        control->setValue(value);
+    };
+    restoreValue(m_dsDepthSlider, previous.depth);
+    restoreValue(m_swRunVocoderOnCpu, previous.runVocoderOnCpu);
+    restoreValue(m_autoStartInfer, previous.autoStartInference);
+    restoreValue(m_playbackWindowSlider, previous.playbackLookaheadSeconds);
+    restoreValue(m_smoothSlider, previous.pitchSmoothKernelSize);
+    const QSignalBlocker providerBlocker(m_cbExecutionProvider);
+    const QSignalBlocker deviceBlocker(m_cbDeviceList);
+    const QSignalBlocker samplingBlocker(m_cbSamplingSteps);
+    const QSignalBlocker capacityBlocker(m_cbSingerSessionCacheCapacity);
+    const QSignalBlocker timeoutBlocker(m_cbSingerSessionIdleTimeout);
+    m_cbExecutionProvider->setCurrentText(previous.executionProvider);
+    m_cbSamplingSteps->setCurrentText(QLocale().toString(previous.samplingSteps));
+    m_cbSingerSessionCacheCapacity->setCurrentIndex(
+        m_cbSingerSessionCacheCapacity->findData(previous.singerSessionCacheCapacity));
+    m_cbSingerSessionIdleTimeout->setCurrentIndex(
+        m_cbSingerSessionIdleTimeout->findData(previous.singerSessionIdleTimeoutSeconds));
+    m_requestedGpuProvider = previous.executionProvider;
+    const bool needsGpu = previous.executionProvider != QStringLiteral("CPU");
+    m_deviceCard->setItemVisible(m_gpuItem, needsGpu);
+    if (needsGpu && m_cbDeviceList->isEnabled()) {
+        int selectedIndex = 0;
+        for (int index = 0; index < m_cbDeviceList->count(); ++index) {
+            const auto device = m_cbDeviceList->itemData(index, GpuInfoRole).value<GpuInfo>();
+            if (!previous.selectedGpuId.isEmpty() && device.deviceId == previous.selectedGpuId) {
+                selectedIndex = index;
+                break;
+            }
+        }
+        m_cbDeviceList->setCurrentIndex(selectedIndex);
+    }
+    return false;
 }
 
 QWidget *InferencePage::createContentWidget() {
@@ -271,7 +315,10 @@ QWidget *InferencePage::createContentWidget() {
     m_gpuItem = m_deviceCard->addItem(tr("GPU"), QString{}, m_cbDeviceList);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [this] {
         requestGpuDetection();
-        modifyOption();
+        if (!applyOptions()) {
+            requestGpuDetection();
+            return;
+        }
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
@@ -292,7 +339,10 @@ QWidget *InferencePage::createContentWidget() {
                                  numberLocale.toString(10), numberLocale.toString(20),
                                  numberLocale.toString(50), numberLocale.toString(100)});
     m_cbSamplingSteps->setCurrentText(numberLocale.toString(option->samplingSteps));
-    connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, &InferencePage::modifyOption);
+    connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, [this] {
+        if (m_cbSamplingSteps->lineEdit()->hasAcceptableInput())
+            modifyOption();
+    });
 
     // Render - Depth
     constexpr double kDsDepthMin = 0.0;
@@ -310,7 +360,8 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - Run vocoder on CPU
     auto modifyAndRestart = [&] {
-        modifyOption();
+        if (!applyOptions())
+            return;
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);

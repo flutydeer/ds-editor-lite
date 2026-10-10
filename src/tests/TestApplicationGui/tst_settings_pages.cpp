@@ -1326,6 +1326,27 @@ void ApplicationGuiTests::gpuDetectionFiltersDevicesAndDiscardsStaleReplies() {
         }
         QVERIFY(alternateIndex >= 0);
         page->ensureWidgetVisible(devices);
+        const auto retainedDevice = runtime.settings().getSettings();
+        QVERIFY(retainedDevice);
+        TestSupport::FileWriteBlocker writeFailure(appOptions->configPath());
+        QVERIFY(writeFailure.block());
+        QTest::mouseClick(devices, Qt::LeftButton);
+        QTRY_VERIFY(devices->view()->isVisible());
+        QTest::keyClick(devices->view(), Qt::Key_Home);
+        for (int row = 0; row < alternateIndex; ++row)
+            QTest::keyClick(devices->view(), Qt::Key_Down);
+        QTest::keyClick(devices->view(), Qt::Key_Return);
+        const auto afterDeviceFailure = runtime.settings().getSettings();
+        QVERIFY(afterDeviceFailure);
+        QCOMPARE(afterDeviceFailure.get().inference.selectedGpuId,
+                 retainedDevice.get().inference.selectedGpuId);
+        QCOMPARE(afterDeviceFailure.get().inference.selectedGpuIndex,
+                 retainedDevice.get().inference.selectedGpuIndex);
+        QCOMPARE(devices->currentData(Qt::UserRole).value<GpuInfo>().deviceId, selected.deviceId);
+        QCOMPARE(runtime.documentVersion(), version);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), document);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+        QVERIFY(writeFailure.restore());
         selectComboIndex(devices, alternateIndex);
         if (QTest::currentTestFailed())
             return;
@@ -1355,6 +1376,7 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
     QTRY_COMPARE(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready);
     auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto snapshot = runtime.settings().getSettings();
     QVERIFY(snapshot);
     const auto original = snapshot.get().inference;
@@ -1393,10 +1415,33 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         QVERIFY(automatic);
         QVERIFY(vocoder);
         QCOMPARE(appOptions->inference()->executionProvider, QStringLiteral("CPU"));
+        TestSupport::FileWriteBlocker writeFailure(appOptions->configPath());
+        QVERIFY(writeFailure.block());
+        page->ensureWidgetVisible(automatic);
+        QTest::mouseClick(automatic, Qt::LeftButton);
+        const auto afterFailure = runtime.settings().getSettings();
+        QVERIFY(afterFailure);
+        QCOMPARE(afterFailure.get().inference.autoStartInference, original.autoStartInference);
+        QCOMPARE(automatic->value(), original.autoStartInference);
+        page->ensureWidgetVisible(vocoder);
+        QTest::mouseClick(vocoder, Qt::LeftButton);
+        QCOMPARE(vocoder->value(), original.runVocoderOnCpu);
+        QVERIFY(page->findChildren<RestartDialog *>().isEmpty());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(writeFailure.restore());
         page->ensureWidgetVisible(sampling);
-        replaceText(sampling->lineEdit(), QLocale().toString(steps));
-        if (QTest::currentTestFailed())
-            return;
+        QTest::mouseClick(sampling->lineEdit(), Qt::LeftButton);
+        QTRY_VERIFY(sampling->lineEdit()->hasFocus());
+        QTest::keySequence(sampling->lineEdit(), QKeySequence::SelectAll);
+        QTest::keyClick(sampling->lineEdit(), Qt::Key_Backspace);
+        QCOMPARE(sampling->currentText(), QString{});
+        const auto whileTyping = runtime.settings().getSettings();
+        QVERIFY(whileTyping);
+        QCOMPARE(whileTyping.get().inference.samplingSteps, original.samplingSteps);
+        QTest::keyClicks(sampling->lineEdit(), QLocale().toString(steps));
+        QCOMPARE(sampling->currentText(), QLocale().toString(steps));
         QTest::keyClick(sampling->lineEdit(), Qt::Key_Tab);
         page->ensureWidgetVisible(automatic);
         QTest::mouseClick(automatic, Qt::LeftButton);

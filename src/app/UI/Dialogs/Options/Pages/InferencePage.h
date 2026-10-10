@@ -32,6 +32,7 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    bool applyOptions();
     void requestGpuDetection();
     void startGpuDetection(const QString &provider);
     void showGpuDetectionPending();
