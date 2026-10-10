@@ -86,12 +86,8 @@ namespace AnchorEditor {
                     m_state.dragging = false;
                     m_state.dragNodeInfos.clear();
                 }
-            } else if (beginMutation()) {
+            } else {
                 createAnchorAt(scenePos);
-                m_state.dragStartScenePos = scenePos;
-                m_state.dragging = false;
-                commitMutationIfReady();
-                notifyCurvesChanged();
             }
         } else if (node) {
             selectNode(node);
@@ -187,13 +183,7 @@ namespace AnchorEditor {
             return;
         if (anchorNodeAt(scenePos))
             return;
-        if (beginMutation()) {
-            createAnchorAt(scenePos);
-            m_state.dragStartScenePos = scenePos;
-            m_state.dragging = false;
-            commitMutationIfReady();
-            notifyCurvesChanged();
-        }
+        createAnchorAt(scenePos);
     }
 
     void AnchorEditController::hoverEnter() {
@@ -563,12 +553,7 @@ namespace AnchorEditor {
         }
         if (m_provisionalCurve && curve != m_provisionalCurve)
             discardProvisionalCurve();
-        const bool createdCurve = !curve;
-        if (createdCurve) {
-            curve = new AnchorCurve;
-            m_curves.append(curve);
-        }
-        const auto existingNodes = curve->nodes().toList();
+        const auto existingNodes = curve ? curve->nodes().toList() : QList<AnchorNode *>{};
         const auto insertion = anchorInsertionLayout(existingNodes, tick);
         if (insertion.index < existingNodes.size() &&
             existingNodes.at(insertion.index)->pos() == tick) {
@@ -577,9 +562,19 @@ namespace AnchorEditor {
             m_state.hoveredNode = existing;
             m_state.showPreview = false;
             m_state.previewCurve = nullptr;
+            m_state.dragStartScenePos = scenePos;
+            m_state.dragging = false;
+            notifyChanged();
             return;
         }
 
+        if (!beginMutation())
+            return;
+        const bool createdCurve = !curve;
+        if (createdCurve) {
+            curve = new AnchorCurve;
+            m_curves.append(curve);
+        }
         auto *node = new AnchorNode(tick, value);
         node->setInterpMode(insertion.interpolation);
         if (insertion.previousInterpolation)
@@ -593,6 +588,10 @@ namespace AnchorEditor {
         m_state.hoveredNode = node;
         m_state.showPreview = false;
         m_state.previewCurve = nullptr;
+        m_state.dragStartScenePos = scenePos;
+        m_state.dragging = false;
+        commitMutationIfReady();
+        notifyCurvesChanged();
     }
 
     void AnchorEditController::updatePreview(const QPointF &scenePos) {

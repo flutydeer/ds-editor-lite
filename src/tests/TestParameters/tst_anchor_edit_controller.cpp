@@ -52,40 +52,6 @@ namespace {
         delete source;
     }
 
-    void testCreateAndPublishingReentry() {
-        AnchorEditor::AnchorEditController controller;
-        controller.setCoordinateMapper(mapper());
-        int begins = 0;
-        int commits = 0;
-        controller.setHostCallbacks({
-            [&] {
-                ++begins;
-                return true;
-            },
-            [&](const QList<AnchorCurve *> &curves) {
-                ++commits;
-                controller.loadFromModel({});
-                expect(!curves.isEmpty(), "publish must receive working curves");
-            },
-            [](AnchorEditor::EditFinishReason) {},
-            [] {},
-        });
-        controller.setEditActive(true);
-        controller.doubleClickAt({100, 800}, Qt::LeftButton);
-        expect(begins == 1 && commits == 0,
-               "the first anchor must stay provisional until it forms a curve");
-        controller.doubleClickAt({200, 600}, Qt::LeftButton);
-        expect(begins == 1 && commits == 1,
-               "the second anchor must commit the provisional transaction");
-        expect(controller.curves().size() == 1, "reentrant load must be ignored while publishing");
-        if (controller.curves().isEmpty())
-            return;
-        expect(controller.curves().first()->nodes().toList().first()->pos() == 10,
-               "created anchor tick must use mapper");
-        expect(controller.curves().first()->nodes().toList().size() == 2,
-               "the committed anchor curve must contain both nodes");
-    }
-
     void testProvisionalAnchorExitDiscardsWithoutPublishing() {
         AnchorEditor::AnchorEditController controller;
         controller.setCoordinateMapper(mapper());
@@ -614,7 +580,51 @@ void ParametersTests::anchorEditControllerLoadOwnsCopies() {
 }
 
 void ParametersTests::anchorEditControllerCreateAndPublishingReentry() {
-    testCreateAndPublishingReentry();
+    AnchorEditor::AnchorEditController controller;
+    controller.setCoordinateMapper(mapper());
+    int begins = 0;
+    int commits = 0;
+    controller.setHostCallbacks({
+        [&] {
+            ++begins;
+            return true;
+        },
+        [&](const QList<AnchorCurve *> &curves) {
+            ++commits;
+            controller.loadFromModel({});
+            QVERIFY(!curves.isEmpty());
+        },
+        [](AnchorEditor::EditFinishReason) {},
+        [] {},
+    });
+    controller.setEditActive(true);
+    controller.doubleClickAt({100, 800}, Qt::LeftButton);
+    QCOMPARE(begins, 1);
+    QCOMPARE(commits, 0);
+    QCOMPARE(controller.curves().size(), 1);
+    auto *curve = controller.curves().first();
+    auto *first = curve->nodes().toList().first();
+    controller.doubleClickAt({100, 300}, Qt::LeftButton);
+    QCOMPARE(curve->nodes().count(), 1);
+    QCOMPARE(curve->nodes().toList().first(), first);
+    QCOMPARE(first->value(), 20);
+    QCOMPARE(commits, 0);
+    controller.doubleClickAt({200, 600}, Qt::LeftButton);
+    QCOMPARE(begins, 1);
+    QCOMPARE(commits, 1);
+    QCOMPARE(controller.curves().size(), 1);
+    QCOMPARE(controller.curves().first(), curve);
+    QCOMPARE(first->pos(), 10);
+    QCOMPARE(curve->nodes().count(), 2);
+    controller.doubleClickAt({100, 300}, Qt::LeftButton);
+    QVERIFY(controller.pressAt({100, 300}, Qt::LeftButton));
+    QVERIFY(controller.releaseAt({100, 300}, Qt::LeftButton));
+    QCOMPARE(commits, 1);
+    QCOMPARE(begins, 1);
+    QCOMPARE(curve->nodes().count(), 2);
+    QCOMPARE(curve->nodes().toList().first(), first);
+    QCOMPARE(first->value(), 20);
+    QCOMPARE(controller.state().selectedNodes, QList<AnchorNode *>{first});
 }
 
 void ParametersTests::anchorInsertionPreservesSegmentInterpolation_data() {
