@@ -3,16 +3,23 @@
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
 #include "../TestSupport/ThreadPoolBarrier.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Modules/Extractors/ExtractPitchTask.h"
+#include "Modules/Extractors/ExtractMidiTask.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <TalcsFormat/AudioFormatIO.h>
 
 #include <QFile>
+#include <QCryptographicHash>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QUuid>
 #include <QtTest>
@@ -55,6 +62,205 @@ namespace {
             .clientRef = clientRef
         };
     }
+}
+
+void ApplicationWorkflowTests::
+    extractionPreparationRejectsMissingResourcesAndChangedSources_data() {
+    QTest::addColumn<bool>("pitch");
+    QTest::newRow("pitch-preparation") << true;
+    QTest::newRow("midi-preparation") << false;
+}
+
+void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndChangedSources() {
+    QFETCH(bool, pitch);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto sourcePath = files.filePath(QStringLiteral("source.wav"));
+    QVERIFY(writeAudio(sourcePath));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    const auto originalBytes = source.readAll();
+    source.close();
+    const auto digest = QString::fromLatin1(
+        QCryptographicHash::hash(originalBytes, QCryptographicHash::Sha512).toHex());
+    const auto restoreSource = [&] {
+        QFile restored(sourcePath);
+        return restored.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+               restored.write(originalBytes) == originalBytes.size();
+    };
+    const auto previousPitch = context->m_appOptions->general()->rmvpePath;
+    const auto previousMidi = context->m_appOptions->general()->gameDir;
+    std::unique_ptr<TestSupport::ThreadPoolBarrier> workers;
+    QList<TaskId> attempts;
+    const auto cleanup = qScopeGuard([&] {
+        context->m_appOptions->general()->rmvpePath = previousPitch;
+        context->m_appOptions->general()->gameDir = previousMidi;
+        if (workers)
+            workers->resume();
+        for (const auto &id : attempts)
+            runtime().tasks().cancelTask(commandContext(), id);
+        workers.reset();
+        QThreadPool::globalInstance()->waitForDone(10000);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            files.setAutoRemove(false);
+    });
+    auto &modelPath = pitch ? context->m_appOptions->general()->rmvpePath
+                            : context->m_appOptions->general()->gameDir;
+    modelPath.clear();
+    ClipDraftDto audio;
+    audio.type = ClipDraftDto::Type::Audio;
+    audio.properties.length = 480;
+    audio.properties.clipLen = 480;
+    audio.audioPath = sourcePath;
+    const auto inserted = runtime().project().insertClips(commandContext(), {
+                                                                                {trackId, audio}
+    });
+    QVERIFY(inserted && inserted.get().affectedObjects.size() == 1);
+    const ClipId sourceId(inserted.get().affectedObjects.first().value);
+    auto *sourceClip =
+        qobject_cast<AudioClip *>(context->m_appModel->findClipById(sourceId.value()));
+    QVERIFY(sourceClip);
+    QTRY_COMPARE(sourceClip->audioInfo().frames, qint64{4800});
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QVERIFY(runtime().project().setAudioClipHash(commandContext(), sourceId,
+                                                 audioAssetSnapshotDto(*sourceClip), digest));
+    const auto before = runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto tasksBefore = runtime().automationTasks().size();
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                           &SynthrtEngine::instance()));
+    QJsonObject arguments{
+        {QStringLiteral("document_id"),          before.documentId.toString()        },
+        {QStringLiteral("expected_revision"),    static_cast<qint64>(before.revision)},
+        {QStringLiteral("source_audio_clip_id"), sourceId.value()                    },
+        {QStringLiteral("options"),              QJsonObject{}                       }
+    };
+    if (pitch)
+        arguments.insert(QStringLiteral("target_singing_clip_id"), clip->id());
+    else
+        arguments.insert(QStringLiteral("destination"),
+                         QJsonObject{
+                             {QStringLiteral("mode"),            QStringLiteral("create_clip")},
+                             {QStringLiteral("target_track_id"), trackId.value()              },
+                             {QStringLiteral("start"),           480                          }
+        });
+    const auto tool =
+        pitch ? QStringLiteral("extract.pitch.start") : QStringLiteral("extract.midi.start");
+    const auto start = [&] { return registry.invoke(tool, arguments); };
+    const auto unconfigured = start();
+    QVERIFY(!unconfigured);
+    QVERIFY2(unconfigured.getError().code == AutomationErrorCode::ModuleNotReady,
+             qPrintable(unconfigured.getError().fieldPath + QStringLiteral(": ") +
+                        unconfigured.getError().message));
+    QCOMPARE(unconfigured.getError().fieldPath,
+             pitch ? QStringLiteral("rmvpe_model_path") : QStringLiteral("game_model_path"));
+    modelPath = files.filePath(QStringLiteral("unavailable-model"));
+    const auto missingModel = start();
+    QVERIFY(!missingModel);
+    QCOMPARE(missingModel.getError().code, AutomationErrorCode::FileNotFound);
+    arguments.insert(QStringLiteral("options"),
+                     QJsonObject{
+                         {QStringLiteral("model_id"), QStringLiteral("unavailable-model")}
+    });
+    const auto unsupportedModel = start();
+    QVERIFY(!unsupportedModel);
+    QCOMPARE(unsupportedModel.getError().code, AutomationErrorCode::InvalidArgument);
+    QCOMPARE(unsupportedModel.getError().fieldPath, QStringLiteral("options.model_id"));
+    arguments.insert(QStringLiteral("options"), QJsonObject{});
+    QCOMPARE(runtime().automationTasks().size(), tasksBefore);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+
+    // Preparation only requires a resource path. Every accepted attempt stops before inference.
+    modelPath = files.filePath(pitch ? QStringLiteral("placeholder.onnx")
+                                     : QStringLiteral("placeholder-model"));
+    if (pitch) {
+        QFile placeholder(modelPath);
+        QVERIFY(placeholder.open(QIODevice::WriteOnly));
+    } else {
+        QVERIFY(QDir().mkpath(modelPath));
+    }
+    int modelTasks = 0;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                if (change == TaskManager::Added && (qobject_cast<ExtractPitchTask *>(task) ||
+                                                     qobject_cast<ExtractMidiTask *>(task)))
+                    ++modelTasks;
+            });
+    QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
+    workers = std::make_unique<TestSupport::ThreadPoolBarrier>();
+    QTRY_VERIFY_WITH_TIMEOUT(workers->ready(), 5000);
+    const auto accepted = start();
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto canceledId =
+        TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!canceledId.isNull());
+    attempts.append(canceledId);
+    const auto canceledTask = [&] {
+        return runtime().tasks().getTask(before.documentId, canceledId);
+    };
+    QTRY_VERIFY(canceledTask() && canceledTask().get().state == AutomationTaskState::Running);
+    QCOMPARE(modelTasks, 0);
+    QVERIFY(runtime().tasks().cancelTask(commandContext(), canceledId));
+    workers->resume();
+    QTRY_VERIFY_WITH_TIMEOUT(
+        canceledTask() && canceledTask().get().state == AutomationTaskState::Canceled, 10000);
+    workers.reset();
+    QCOMPARE(modelTasks, 0);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+
+    QVERIFY(source.open(QIODevice::WriteOnly | QIODevice::Append));
+    QCOMPARE(source.write("changed"), qint64{7});
+    source.close();
+    const auto changed = start();
+    QVERIFY2(changed, qPrintable(changed ? QString{} : changed.getError().message));
+    const auto changedId =
+        TaskId::fromString(changed.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!changedId.isNull() && changedId != canceledId);
+    attempts.append(changedId);
+    const auto changedTask = [&] {
+        return runtime().tasks().getTask(before.documentId, changedId);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(
+        changedTask() && changedTask().get().state == AutomationTaskState::Failed, 10000);
+    const auto failed = changedTask().get();
+    QVERIFY(failed.error && !failed.mutation);
+    QCOMPARE(failed.error->code, AutomationErrorCode::InvalidArgument);
+    QVERIFY(failed.error->message.contains(QStringLiteral("does not match")));
+    QCOMPARE(modelTasks, 0);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    QVERIFY(restoreSource());
+    const auto retry = start();
+    QVERIFY2(retry, qPrintable(retry ? QString{} : retry.getError().message));
+    const auto retryId =
+        TaskId::fromString(retry.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!retryId.isNull() && retryId != changedId);
+    attempts.append(retryId);
+    QVERIFY(runtime().tasks().cancelTask(commandContext(), retryId));
+    QTRY_VERIFY_WITH_TIMEOUT(runtime().tasks().getTask(before.documentId, retryId).get().state ==
+                                 AutomationTaskState::Canceled,
+                             10000);
+    QCOMPARE(modelTasks, 0);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 
 void ApplicationWorkflowTests::audioBatchFailurePolicy_data() {

@@ -55,6 +55,8 @@ private slots:
     void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 
+    void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
+    void extractionPreparationRejectsMissingResourcesAndChangedSources();
     void audioBatchFailurePolicy_data();
 
     void audioBatchFailurePolicy();
