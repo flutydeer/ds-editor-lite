@@ -765,7 +765,18 @@ void ApplicationWorkflowTests::editSessionControlsResultDeferral() {
     QVERIFY(resolution.dropReason.isEmpty());
 }
 
-void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges() {
+void ApplicationWorkflowTests::
+    publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges_data() {
+    QTest::addColumn<bool>("modulatePitch");
+    QTest::newRow("scale-breathiness") << false;
+    QTest::newRow("modulate-pitch") << true;
+}
+
+void ApplicationWorkflowTests::publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges() {
+    QFETCH(bool, modulatePitch);
+    const auto parameterName =
+        modulatePitch ? QStringLiteral("pitch") : QStringLiteral("breathiness");
+    const auto parameterKind = modulatePitch ? ParamInfo::Pitch : ParamInfo::Breathiness;
     using namespace Automation;
     AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
     AutomationFileGuard files;
@@ -787,7 +798,7 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
                                  .value(QStringLiteral("parameters"))
                                  .toArray()) {
         const auto parameter = value.toObject();
-        if (parameter.value(QStringLiteral("name")).toString() == QStringLiteral("breathiness"))
+        if (parameter.value(QStringLiteral("name")).toString() == parameterName)
             available = parameter;
     }
     QVERIFY(!available.isEmpty());
@@ -796,7 +807,8 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
     const auto minimum = range.value(QStringLiteral("minimum")).toInt();
     const auto maximum = range.value(QStringLiteral("maximum")).toInt();
     QVERIFY(maximum > minimum);
-    const auto initialValue = minimum + (maximum - minimum) / 2;
+    const auto baseline = note->keyIndex() * 100;
+    const auto initialValue = modulatePitch ? baseline + 300 : minimum + (maximum - minimum) / 2;
     CurveDraftDto curve;
     curve.values = QList<int>(385, initialValue);
     QJsonArray values;
@@ -817,8 +829,8 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
     });
     QVERIFY2(drawn, qPrintable(drawn ? QString{} : drawn.getError().message));
     QCOMPARE(runtime().documentVersion().revision, beforeDraw.revision + 1);
-    const auto prepared = runtime().parameters().getParameter(
-        document, clipId, ParamInfo::Breathiness, Param::Edited);
+    const auto prepared =
+        runtime().parameters().getParameter(document, clipId, parameterKind, Param::Edited);
     QVERIFY(prepared);
     QCOMPARE(prepared.get().curves.size(), 1);
     QCOMPARE(prepared.get().curves.first().localStart, curve.localStart);
@@ -832,22 +844,24 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
     historyManager->reset();
     const auto before = runtime().documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
-    const auto scaled =
-        registry.invoke(QStringLiteral("parameters.scale"),
-                        {
-                            {"document_id",       document.toString()                    },
-                            {"expected_revision", static_cast<qint64>(before.revision)   },
-                            {"clip_id",           clipId.value()                         },
-                            {"name",              available.value(QStringLiteral("name"))},
-                            {"local_start",       480                                    },
-                            {"local_end",         960                                    },
-                            {"transition_start",  240                                    },
-                            {"transition_end",    1200                                   },
-                            {"factor",            0.0                                    }
-    });
-    QVERIFY2(scaled, qPrintable(scaled ? QString{} : scaled.getError().message));
-    const auto result = runtime().parameters().getParameter(document, clipId,
-                                                            ParamInfo::Breathiness, Param::Edited);
+    QJsonObject request{
+        {"document_id",       document.toString()                 },
+        {"expected_revision", static_cast<qint64>(before.revision)},
+        {"clip_id",           clipId.value()                      },
+        {"local_start",       modulatePitch ? 600 : 480           },
+        {"local_end",         modulatePitch ? 840 : 960           },
+        {"transition_start",  modulatePitch ? 540 : 240           },
+        {"transition_end",    modulatePitch ? 900 : 1200          },
+        {"factor",            0.0                                 },
+    };
+    if (!modulatePitch)
+        request.insert(QStringLiteral("name"), parameterName);
+    const auto transformed = registry.invoke(modulatePitch ? QStringLiteral("parameters.modulate")
+                                                           : QStringLiteral("parameters.scale"),
+                                             request);
+    QVERIFY2(transformed, qPrintable(transformed ? QString{} : transformed.getError().message));
+    const auto result =
+        runtime().parameters().getParameter(document, clipId, parameterKind, Param::Edited);
     QVERIFY(result);
     const auto sampleAt = [&](int tick) -> std::optional<int> {
         for (const auto &segment : result.get().curves) {
@@ -858,11 +872,12 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
         }
         return std::nullopt;
     };
-    QCOMPARE(sampleAt(720), std::optional<int>(minimum));
+    const auto target = modulatePitch ? baseline : minimum;
+    QCOMPARE(sampleAt(720), std::optional<int>(target));
     QCOMPARE(sampleAt(120), std::optional<int>(initialValue));
     QCOMPARE(sampleAt(1440), std::optional<int>(initialValue));
-    const auto transition = sampleAt(360);
-    QVERIFY(transition && *transition > minimum && *transition < initialValue);
+    const auto transition = sampleAt(modulatePitch ? 570 : 360);
+    QVERIFY(transition && *transition > target && *transition < initialValue);
     QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
     QVERIFY(runtime().history().undo(commandContext()));
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);

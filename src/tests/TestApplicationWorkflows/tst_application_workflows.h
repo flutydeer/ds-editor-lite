@@ -115,7 +115,8 @@ private slots:
 
     void publicInferenceStartsBeforeQueuedDocumentChanges_data();
     void publicInferenceStartsBeforeQueuedDocumentChanges();
-    void publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges();
+    void publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges_data();
+    void publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges();
     void publicInferenceStatusAssociatesTasksWithTheirScope();
 
     void offlineExportRestoresMixerState_data();
