@@ -53,6 +53,22 @@
 #include <filesystem>
 #include <utility>
 
+namespace {
+    void pauseAtFirstTaskStatus(Task *task, QObject *observer, std::atomic_bool &paused,
+                                QSemaphore &entered, QSemaphore &resume) {
+        // The caller keeps the synchronization objects alive until the resumed task finishes.
+        QObject::connect(
+            task, &Task::statusUpdated, observer,
+            [&paused, &entered, &resume](const TaskStatus &) {
+                if (!paused.exchange(true)) {
+                    entered.release();
+                    resume.acquire();
+                }
+            },
+            Qt::DirectConnection);
+    }
+}
+
 bool ApplicationWorkflowTests::inferenceSettled(const SingingClip *clip) {
     return clip && !clip->pieces().isEmpty() &&
            std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
@@ -147,15 +163,7 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
                     inference->inferenceContext().taskType != stage)
                     return;
                 ++stageTasks;
-                connect(
-                    task, &Task::statusUpdated, &observations,
-                    [&](const TaskStatus &) {
-                        if (!paused.exchange(true)) {
-                            workerEntered.release();
-                            releaseWorker.acquire();
-                        }
-                    },
-                    Qt::DirectConnection);
+                pauseAtFirstTaskStatus(task, &observations, paused, workerEntered, releaseWorker);
             });
     if (stage == QStringLiteral("acoustic"))
         inferController->startPendingAcousticInference();
@@ -743,11 +751,21 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     QFETCH(QString, interruption);
     const bool replaceDocument = interruption == QStringLiteral("replace-document");
     const bool removeSourceTrack = interruption == QStringLiteral("remove-source-track");
+    const bool checkOtherTrack = interruption == QStringLiteral("cancel");
+    QSemaphore workerEntered;
+    QSemaphore releaseWorker;
+    std::atomic_bool paused = false;
+    QObject observations;
+    QPointer<InferPiece> blockedBackground;
+    QPointer<InferPiece> queuedBackground;
+    QString queuedBackgroundState;
+    bool gateAttached = false;
     QTemporaryDir materials;
     QVERIFY(materials.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
     appOptions->inference()->cacheDirectory = materials.filePath(QStringLiteral("cache"));
     const auto restore = qScopeGuard([&] {
+        releaseWorker.release();
         QVERIFY(runtime().documents().commitNewDocument(
             commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
@@ -757,6 +775,56 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(piece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    if (checkOtherTrack) {
+        auto *backgroundTrack = context->m_appModel->tracks().last();
+        const auto backgroundId = Automation::TrackId(backgroundTrack->id());
+        QVERIFY(backgroundId != trackId);
+        const auto duplicateBackground = [&](int targetStart) -> SingingClip * {
+            const auto copied = runtime().project().duplicateClips(
+                commandContext(), {Automation::ClipId(clip->id())},
+                {.targetTrackId = backgroundId, .targetStart = targetStart});
+            if (!copied)
+                return nullptr;
+            for (const auto &created : copied.get().createdObjects) {
+                if (created.object.kind == Automation::ObjectKind::Clip)
+                    return qobject_cast<SingingClip *>(context->m_appModel->findClipById(
+                        Automation::ClipId(created.object.value).value()));
+            }
+            return nullptr;
+        };
+        const QPointer<SingingClip> firstBackground(duplicateBackground(clip->start()));
+        QVERIFY(firstBackground && firstBackground != clip);
+        const QPointer<SingingClip> secondBackground(
+            duplicateBackground(clip->start() + clip->length() + 480));
+        QVERIFY(secondBackground && secondBackground != firstBackground);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            inferenceSettled(firstBackground) && inferenceSettled(secondBackground), 15000);
+        const QPointer<InferPiece> firstPiece(firstBackground->pieces().first());
+        const QPointer<InferPiece> secondPiece(secondBackground->pieces().first());
+        connect(taskManager, &TaskManager::taskChanged, &observations,
+                [&, firstPiece, secondPiece](TaskManager::TaskChangeType change, Task *task,
+                                             qsizetype) {
+                    auto *inference = dynamic_cast<IInferTask *>(task);
+                    if (gateAttached || change != TaskManager::Added || !inference || !firstPiece ||
+                        !secondPiece ||
+                        inference->inferenceContext().taskType != QStringLiteral("acoustic") ||
+                        (inference->pieceId() != firstPiece->id() &&
+                         inference->pieceId() != secondPiece->id()))
+                        return;
+                    gateAttached = true;
+                    const bool first = inference->pieceId() == firstPiece->id();
+                    blockedBackground = first ? firstPiece : secondPiece;
+                    queuedBackground = first ? secondPiece : firstPiece;
+                    pauseAtFirstTaskStatus(task, &observations, paused, workerEntered,
+                                           releaseWorker);
+                });
+        inferController->startPendingAcousticInference({backgroundTrack});
+        QTRY_VERIFY_WITH_TIMEOUT(workerEntered.available() == 1, 10000);
+        QVERIFY(blockedBackground && queuedBackground);
+        QTRY_VERIFY_WITH_TIMEOUT(queuedBackground->acousticInferStatus.get() == Running, 10000);
+        queuedBackgroundState = queuedBackground->state.get();
+        QVERIFY(queuedBackgroundState != QStringLiteral("Acoustic.Awaiting"));
+    }
     const auto previousDocument = runtime().documentVersion().documentId;
     const auto *previousUndo = HistoryManager::instance()->nextUndoEntry();
     const auto previousContent = TestSupport::projectSnapshot(*context->m_appModel);
@@ -839,7 +907,19 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     QVERIFY(file.open(QIODevice::ReadOnly));
     QCOMPARE(file.readAll(), original);
     file.close();
+    if (checkOtherTrack) {
+        QVERIFY(blockedBackground && queuedBackground);
+        QTRY_COMPARE_WITH_TIMEOUT(piece->state.get(), QStringLiteral("Acoustic.Awaiting"), 10000);
+        QCOMPARE(queuedBackground->state.get(), queuedBackgroundState);
+        QCOMPARE(queuedBackground->acousticInferStatus.get(), Running);
+        QVERIFY(blockedBackground->audioPath.isEmpty());
+        releaseWorker.release();
+    }
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    if (checkOtherTrack) {
+        QVERIFY(QFileInfo::exists(blockedBackground->audioPath));
+        QVERIFY(QFileInfo::exists(queuedBackground->audioPath));
+    }
     const auto retry = runtime().audioExports().start(commandContext(), config, policy);
     QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
     exportId = retry.get().taskId;
