@@ -741,6 +741,43 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
                                {.clientId = QStringLiteral("project-import-client"),
                                 .source = Automation::InvocationSource::PublicJsonRpc});
     };
+    if (sourceFormat == QStringLiteral("dspx") && !corruptSource &&
+        changeAfterAdmission.isEmpty()) {
+        const auto tasksBefore = runtime().automationTasks().size();
+        const auto *undoBefore = historyManager->nextUndoEntry();
+        const auto savedBefore = historyManager->isOnSavePoint();
+        const auto operation =
+            opening ? QStringLiteral("documents.open") : QStringLiteral("documents.import");
+        const auto verifyRejected = [&](const QJsonObject &request,
+                                        Automation::AutomationErrorCode code) {
+            const auto rejected =
+                registry.invoke(operation, request,
+                                {.clientId = QStringLiteral("project-import-client"),
+                                 .source = Automation::InvocationSource::PublicJsonRpc});
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().code, code);
+            QCOMPARE(rejected.getError().operationId, operation);
+            QCOMPARE(runtime().automationTasks().size(), tasksBefore);
+            QCOMPARE(runtime().documentVersion(), before);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+            QCOMPARE(historyManager->nextUndoEntry(), undoBefore);
+            QCOMPARE(historyManager->isOnSavePoint(), savedBefore);
+        };
+        auto stale = arguments;
+        stale.insert(opening ? QStringLiteral("current_document_id")
+                             : QStringLiteral("document_id"),
+                     QUuid::createUuid().toString(QUuid::WithoutBraces));
+        verifyRejected(stale, Automation::AutomationErrorCode::DocumentChanged);
+        stale = arguments;
+        stale.insert(QStringLiteral("expected_revision"), static_cast<qint64>(before.revision + 1));
+        verifyRejected(stale, Automation::AutomationErrorCode::RevisionConflict);
+        const auto unsupportedPath = files.filePath(QStringLiteral("unsupported.project-format"));
+        QVERIFY(QFile::copy(path, unsupportedPath));
+        auto unsupported = arguments;
+        unsupported.insert(QStringLiteral("path"), unsupportedPath);
+        unsupported.remove(QStringLiteral("plan_digest"));
+        verifyRejected(unsupported, Automation::AutomationErrorCode::FormatUnsupported);
+    }
     const auto accepted = load();
     QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
     auto id =
