@@ -1001,9 +1001,41 @@ void AutomationProtocolTests::listenerLifecycle_data() {
 void AutomationProtocolTests::listenerLifecycle() {
     QFETCH(bool, foreignThread);
     McpServerFixture fixture;
-    QVERIFY2(fixture.start(), qPrintable(fixture.error));
     auto &server = fixture.server;
     auto &manager = fixture.manager;
+    QString configurationError;
+    QVERIFY(!server.start(0, {.mcp = false, .native = true}, configurationError));
+    QVERIFY(!configurationError.isEmpty());
+    QVERIFY(!server.isListening() && server.endpoint().isEmpty());
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    const auto originalPort = server.port();
+    configurationError.clear();
+    QVERIFY(!server.start(0, configurationError));
+    QVERIFY(!configurationError.isEmpty());
+    QCOMPARE(server.port(), originalPort);
+    bool routesUpdated = false;
+    if (foreignThread) {
+        std::thread requester([&] {
+            routesUpdated = server.setRoutes({.mcp = false, .native = true}, configurationError);
+        });
+        requester.join();
+    } else {
+        routesUpdated = server.setRoutes({.mcp = false, .native = true}, configurationError);
+    }
+    QVERIFY(!routesUpdated);
+    QVERIFY(!configurationError.isEmpty());
+    QVERIFY(server.isListening());
+    QCOMPARE(server.port(), originalPort);
+    const auto rejectedRequestId = QStringLiteral("ping-after-rejected-reconfiguration");
+    const auto rejectedPing =
+        requestObject(QString::fromLatin1(Mcp::PingMethod), rejectedRequestId);
+    const auto stillAvailable =
+        send(manager, baseRequest(fixture.endpoint(), QString::fromLatin1(Mcp::PingMethod)),
+             QJsonDocument(rejectedPing).toJson(QJsonDocument::Compact));
+    QVERIFY(!stillAvailable.timedOut);
+    QCOMPARE(stillAvailable.status, 200);
+    QCOMPARE(bodyObject(stillAvailable).value(QStringLiteral("id")).toString(), rejectedRequestId);
+    QVERIFY(bodyObject(stillAvailable).contains(QStringLiteral("result")));
     Automation::McpHttpServer conflictingServer(
         [](const Mcp::RequestEnvelope &, const QString &) { return QJsonObject{}; });
     QString conflictError;
