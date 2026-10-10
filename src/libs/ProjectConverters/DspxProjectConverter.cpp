@@ -25,6 +25,8 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QSaveFile>
+#include <QDir>
+#include <QFileInfo>
 
 #include <algorithm>
 #include <functional>
@@ -1274,15 +1276,22 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
                 audioClipRef->time.clipLen = clip->clipLen();
                 audioClipRef->control.gain = clip->gain();
                 audioClipRef->control.mute = clip->mute();
-                audioClipRef->path = audioClip->path().toStdString();
-                // On save, recompute relativeDir against the save target and merge locating info
-                // into a local workspace copy (model untouched), so fallback-resolved paths persist
-                // on save
+                auto audioPath = audioClip->path();
                 auto pathInfo = audioClip->pathInfo();
-                pathInfo.relativeDir =
-                    DiffscopeAudioWorkspace::relativeDirFor(audioClip->path(), path);
+                const auto referenceDirectory = audioClip->referenceDirectory();
+                if (!path.isEmpty() && !referenceDirectory.isEmpty()) {
+                    const QDir sourceDirectory(referenceDirectory);
+                    if (!audioPath.isEmpty() && QDir::isRelativePath(audioPath))
+                        audioPath = QDir::cleanPath(sourceDirectory.absoluteFilePath(audioPath));
+                    // Preserve the fallback location even while the source file is missing.
+                    pathInfo.relativeDir = QFileInfo(path).absoluteDir().relativeFilePath(
+                        sourceDirectory.absoluteFilePath(pathInfo.relativeDir));
+                } else {
+                    pathInfo.relativeDir = DiffscopeAudioWorkspace::relativeDirFor(audioPath, path);
+                }
+                audioClipRef->path = audioPath.toStdString();
                 auto workspace = clip->workspace();
-                DiffscopeAudioWorkspace::write(workspace, pathInfo, audioClip->path());
+                DiffscopeAudioWorkspace::write(workspace, pathInfo, audioPath);
                 for (const auto &[key, value] : workspace.asKeyValueRange()) {
                     audioClipRef->workspace[key.toStdString()] =
                         JsonStdc::fromQJsonValue(value).toObject();

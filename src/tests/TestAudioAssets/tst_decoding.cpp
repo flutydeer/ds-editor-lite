@@ -25,6 +25,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectConverters/DspxProjectConverter.h>
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -136,13 +137,15 @@ namespace {
         }
 
         AutomationResult<MutationResult> openDocument(const DocumentDraftDto &document,
-                                                      const InvocationSource source) {
+                                                      const InvocationSource source,
+                                                      const QString &path = {}) {
             auto context = command(source);
             const auto admitted = runtime().dispatcher().admitDocumentTask(context);
             if (!admitted)
                 return admitted.getError();
             return runtime().documents().commitOpenedDocument(
-                context, document, directory.filePath(QStringLiteral("project.dspx")),
+                context, document,
+                path.isEmpty() ? directory.filePath(QStringLiteral("project.dspx")) : path,
                 QStringLiteral("project"), true);
         }
 
@@ -426,13 +429,15 @@ void AudioAssetsTests::cascadingRelinkRequiresMatchingAudioIdentity() {
 }
 
 void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory_data() {
-    QTest::addColumn<bool>("pasteCopy");
-    QTest::newRow("clipboard-paste") << true;
-    QTest::newRow("undo-manual-relink") << false;
+    QTest::addColumn<QString>("operation");
+    QTest::newRow("clipboard-paste") << QStringLiteral("paste");
+    QTest::newRow("undo-manual-relink") << QStringLiteral("relink");
+    QTest::newRow("save-relative-source") << QStringLiteral("save-relative");
+    QTest::newRow("save-fallback-source") << QStringLiteral("save-fallback");
 }
 
 void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
-    QFETCH(bool, pasteCopy);
+    QFETCH(QString, operation);
     Fixture fixture;
     QVERIFY(fixture.directory.isValid());
     const auto retainInput = qScopeGuard([&] {
@@ -443,7 +448,9 @@ void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
     QVERIFY(QDir().mkpath(QDir(referenceDirectory).filePath(QStringLiteral("media"))));
     const auto sourcePath =
         QDir(referenceDirectory).filePath(QStringLiteral("media/reference.wav"));
-    const auto missingPath = fixture.directory.filePath(QStringLiteral("old/reference.wav"));
+    const auto missingPath = operation == QStringLiteral("save-relative")
+                                 ? QStringLiteral("media/reference.wav")
+                                 : fixture.directory.filePath(QStringLiteral("old/reference.wav"));
     QVERIFY(TestSupport::writeWave(sourcePath, QVector<float>(9600, 0.125f)));
     QByteArray sourceBytes;
     {
@@ -465,7 +472,7 @@ void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
     QVERIFY(target);
     QCOMPARE(target->pathStatus(), AudioClip::PathStatus::Missing);
 
-    if (pasteCopy) {
+    if (operation == QStringLiteral("paste")) {
         ClipsInfo copied;
         copied.clips.append(target);
         copied.trackIndexOffsets.append(0);
@@ -481,7 +488,7 @@ void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
         target = qobject_cast<AudioClip *>(fixture.model().findClipById(newId));
         QVERIFY(target);
         QVERIFY(drainTasks());
-    } else {
+    } else if (operation == QStringLiteral("relink")) {
         const auto replacement = fixture.directory.filePath(QStringLiteral("replacement.wav"));
         QVERIFY(TestSupport::writeWave(replacement, QVector<float>(4800, 0.25f)));
         QVERIFY(fixture.runtime().project().relocateAudioClip(
@@ -491,6 +498,28 @@ void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
         QVERIFY(fixture.runtime().history().undo(fixture.command(InvocationSource::Test)));
         QVERIFY(drainTasks());
         QCOMPARE(target->path(), missingPath);
+    } else {
+        const auto savedDirectory = fixture.directory.filePath(QStringLiteral("saved"));
+        QVERIFY(QDir().mkpath(savedDirectory));
+        const auto savedPath = QDir(savedDirectory).filePath(QStringLiteral("project.dspx"));
+        const auto beforeSave = audioAssetSnapshotDto(*target);
+        QVERIFY(fixture.runtime().documents().saveDocumentAs(
+            fixture.command(InvocationSource::Test), savedPath));
+        QCOMPARE(audioAssetSnapshotDto(*target), beforeSave);
+        QCOMPARE(target->referenceDirectory(), referenceDirectory);
+        AppModel loaded;
+        DspxProjectConverter converter;
+        QString error;
+        QVERIFY2(converter.load(savedPath, &loaded, error, ImportMode::NewProject),
+                 qPrintable(error));
+        auto loadedData = loaded.takeProjectData();
+        auto reloaded = documentDraftDto(loadedData);
+        reloaded.tracks.first().clips.first().audioReferenceDirectory = savedDirectory;
+        QVERIFY(fixture.openDocument(reloaded, InvocationSource::Test, savedPath));
+        QVERIFY(drainTasks());
+        QCOMPARE(fixture.runtime().documentPath(), savedPath);
+        target = fixture.firstAudioClip();
+        QVERIFY(target);
     }
     QCOMPARE(target->pathStatus(), AudioClip::PathStatus::Missing);
     const auto beforeRecovery = fixture.runtime().documentVersion();
