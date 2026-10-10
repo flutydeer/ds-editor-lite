@@ -88,6 +88,8 @@ private slots:
     void changingSamplingSettingsRestartsRunningInference();
     void changingSpeakerMixRefreshesExistingInference();
     void playbackWindowPrioritizesAndSuspendsAcousticInference();
+    void playbackRecoversAfterPublicInferenceCancellation_data();
+    void playbackRecoversAfterPublicInferenceCancellation();
     void voiceExportPreparationInterruptionsAllowRetry_data();
     void voiceExportPreparationInterruptionsAllowRetry();
     void movingInheritedVoiceReusesOrRebuildsInference_data();

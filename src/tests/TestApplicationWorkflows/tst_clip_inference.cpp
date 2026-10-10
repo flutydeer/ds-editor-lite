@@ -1314,6 +1314,85 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
     QVERIFY(!registeredPieces.contains(pastPiece->id()));
 }
 
+void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation_data() {
+    QTest::addColumn<bool>("autoStartInference");
+    QTest::newRow("playback-window") << false;
+    QTest::newRow("automatic-inference") << true;
+}
+
+void ApplicationWorkflowTests::playbackRecoversAfterPublicInferenceCancellation() {
+    QFETCH(bool, autoStartInference);
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    auto *audio = AudioContext::instance();
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    const auto previousReadAhead = audio->bufferingReadAheadSize();
+    const auto previousAutoStart = appOptions->inference()->autoStartInfer;
+    const auto cleanup = qScopeGuard([&] {
+        runtime().playback().stop(commandContext());
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+        audio->preMixer()->close();
+        audio->setBufferingReadAheadSize(previousReadAhead);
+        playbackController->setPlaybackStartGuard([] { return false; });
+        appOptions->inference()->cacheDirectory = previousCache;
+        appOptions->inference()->autoStartInfer = previousAutoStart;
+        appOptions->notifyOptionsChanged(AppOptionsGlobal::Inference);
+    });
+    appOptions->inference()->cacheDirectory = cache.path();
+    audio->setBufferingReadAheadSize(0);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> target(piece);
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
+                                 QFile::exists(target->audioPath) && taskManager->tasks().isEmpty(),
+                             15000);
+    const auto services = Automation::createPublicAutomationHostServices(
+        runtime(), context->m_appModel, &SynthrtEngine::instance());
+    const auto accepted = services.startInference({
+        .command = commandContext(),
+        .scope = {{"kind", "clip"}, {"clip_ids", QJsonArray{clip->id()}}},
+        .stages = {QStringLiteral("acoustic")},
+    });
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    QVERIFY(!accepted.get().taskId.isNull());
+    QVERIFY(target && target->audioPath.isEmpty());
+    QVERIFY(runtime().tasks().cancelTask(commandContext(), accepted.get().taskId));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto canceled =
+        runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+    QVERIFY(canceled);
+    QCOMPARE(canceled.get().state, Automation::AutomationTaskState::Canceled);
+    QVERIFY(target && target->audioPath.isEmpty());
+    appOptions->inference()->autoStartInfer = autoStartInference;
+    appOptions->notifyOptionsChanged(AppOptionsGlobal::Inference);
+    const auto beforePlayback = runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBefore = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(audio->preMixer()->open(256, 48000));
+    playbackController->setPlaybackStartGuard([] { return true; });
+    QVERIFY(runtime().playback().setPosition(commandContext(), clip->start() + note->localStart()));
+    QVERIFY(runtime().playback().play(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
+                                 QFile::exists(target->audioPath) && taskManager->tasks().isEmpty(),
+                             15000);
+    QCOMPARE(runtime().documentVersion().documentId, beforePlayback.documentId);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBefore);
+    const auto canceledAfterPlayback =
+        runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+    QVERIFY(canceledAfterPlayback);
+    QCOMPARE(canceledAfterPlayback.get().state, Automation::AutomationTaskState::Canceled);
+    QTRY_COMPARE(audio->transport()->bufferingCounter(), 0);
+    talcs::AudioBuffer buffer(2, 256);
+    const auto position = audio->transport()->position();
+    QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
+    QVERIFY(audio->transport()->position() > position);
+}
+
 void ApplicationWorkflowTests::changingSpeakerMixRefreshesExistingInference() {
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())

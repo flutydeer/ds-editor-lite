@@ -351,9 +351,31 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
-        // Playing: only start pending pieces inside the lookahead window, instead of
-        // enqueuing everything behind the playhead at once
         const auto pos = static_cast<double>(playbackController->position());
+        const double windowTicks =
+            appModel->timeline().secToTick(appOptions->inference()->playbackLookaheadSeconds);
+        // Public cancellation removes the state machine. A new playback request can recover
+        // missing results, but continuous position updates must not retry failed inference.
+        for (const auto track : appModel->tracks()) {
+            for (const auto clip : track->clips()) {
+                if (clip->clipType() != IClip::Singing)
+                    continue;
+                const auto singingClip = static_cast<SingingClip *>(clip);
+                if (!canStartClipInference(*singingClip))
+                    continue;
+                for (const auto piece : singingClip->pieces()) {
+                    if (!piece->audioPath.isEmpty() ||
+                        std::any_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                                    [piece](const InferPipeline *pipeline) {
+                                        return pipeline->pieceId() == piece->id();
+                                    }))
+                        continue;
+                    const auto range = pieceGlobalRange(singingClip->id(), piece->id());
+                    if (range.isValid() && range.end > pos && range.start < pos + windowTicks)
+                        createPipeline(*piece);
+                }
+            }
+        }
         refreshPlaybackWindow(pos);
     } else { // Paused / Stopped
         // Paused/Stopped: let the currently running acoustic task finish,
