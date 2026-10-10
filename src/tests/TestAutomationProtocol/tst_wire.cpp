@@ -290,6 +290,21 @@ void AutomationProtocolTests::schemaValueDiagnostics_data() {
     };
     row("nullable-type", nullableText, QJsonValue(QJsonValue::Null), true,
         QStringLiteral("#/type"));
+    const auto gainReference = QStringLiteral("#/$defs/gain~1channel~0");
+    const auto referencedGain = JsonSchema::document(
+        JsonSchema::object(
+            {
+                {QStringLiteral("gain"), JsonSchema::reference(gainReference)}
+    },
+            {QStringLiteral("gain")}),
+        QJsonObject{{QStringLiteral("gain/channel~"), JsonSchema::number()}});
+    row("escaped-local-definition", referencedGain,
+        QJsonObject{
+            {QStringLiteral("gain"), 1.5}
+    },
+        QJsonObject{{QStringLiteral("gain"), QStringLiteral("loud")}},
+        gainReference + QStringLiteral("/type"), QStringLiteral("/gain"));
+
     const auto musicalSymbol = QString::fromUcs4(U"\U0001f3b5");
     row("unicode-code-point-length", JsonSchema::string({}, 1, 1), musicalSymbol,
         musicalSymbol + musicalSymbol, QStringLiteral("#/maxLength"));
