@@ -8,11 +8,14 @@
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
+#include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "Utils/UiLanguageManager.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "../TestSupport/MainWindowFixture.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/AccentButton.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
@@ -30,6 +33,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
+#include <QListWidget>
 #include <QMessageBox>
 #include <QPointer>
 #include <QScopeGuard>
@@ -59,6 +63,60 @@ namespace {
         }
         return nullptr;
     }
+}
+
+void ApplicationGuiTests::pitchSourceSelectionReturnsOnlyAcceptedAudio_data() {
+    QTest::addColumn<QString>("completion");
+    QTest::newRow("accept-selected-source") << QStringLiteral("accept");
+    QTest::newRow("cancel-selected-source") << QStringLiteral("cancel");
+    QTest::newRow("escape-selected-source") << QStringLiteral("escape");
+    QTest::newRow("close-selected-source") << QStringLiteral("close");
+}
+
+void ApplicationGuiTests::pitchSourceSelectionReturnsOnlyAcceptedAudio() {
+    QFETCH(QString, completion);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    AudioClip first;
+    first.setName(QStringLiteral("First source"));
+    first.setPath(files.filePath(QStringLiteral("first.wav")));
+    AudioClip second;
+    second.setName(QStringLiteral("Second source"));
+    second.setPath(files.filePath(QStringLiteral("second.wav")));
+    QVERIFY(TestSupport::writeWave(first.path(), QVector<float>(4800, 0.125f)));
+    QVERIFY(TestSupport::writeWave(second.path(), QVector<float>(9600, 0.25f)));
+    const auto before = context->m_coreRuntime->documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBefore = historyManager->nextUndoEntry();
+
+    ExtractPitchParamDialog dialog({&first, &second});
+    dialog.show();
+    dialog.activateWindow();
+    auto *list = dialog.findChild<QListWidget *>();
+    QVERIFY(list);
+    QTRY_VERIFY(list->isVisible());
+    QVERIFY(!dialog.okButton()->isEnabled());
+    QCOMPARE(dialog.selectedClipId, -1);
+    const auto target = list->visualItemRect(list->item(1));
+    QVERIFY(target.isValid());
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, target.center());
+    QTRY_COMPARE(dialog.selectedClipId, second.id());
+    QVERIFY(dialog.okButton()->isEnabled());
+    if (completion == QStringLiteral("accept"))
+        QTest::mouseClick(dialog.okButton(), Qt::LeftButton);
+    else if (completion == QStringLiteral("cancel"))
+        QTest::mouseClick(dialog.cancelButton(), Qt::LeftButton);
+    else if (completion == QStringLiteral("escape"))
+        QTest::keyClick(list, Qt::Key_Escape);
+    else
+        QVERIFY(dialog.close());
+    QTRY_VERIFY(!dialog.isVisible());
+    const bool accepted = completion == QStringLiteral("accept");
+    QCOMPARE(dialog.result(), accepted ? QDialog::Accepted : QDialog::Rejected);
+    QCOMPARE(dialog.selectedClipId, accepted ? second.id() : -1);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBefore);
 }
 
 void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {

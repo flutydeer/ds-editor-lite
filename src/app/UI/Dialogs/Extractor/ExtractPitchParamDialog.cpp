@@ -33,10 +33,8 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
     okButton()->setEnabled(false);
 
     connect(okButton(), &Button::clicked, this, &Dialog::accept);
-    connect(cancelButton(), &Button::clicked, this, [this] {
-        selectedClipId = -1;
-        reject();
-    });
+    connect(cancelButton(), &Button::clicked, this, &Dialog::reject);
+    connect(this, &Dialog::rejected, this, [this] { selectedClipId = -1; });
     connect(clipList, &QListWidget::currentRowChanged, this,
             &ExtractPitchParamDialog::onSelectionChanged);
 }
@@ -51,9 +49,4 @@ void ExtractPitchParamDialog::onSelectionChanged(const int row) {
     okButton()->setEnabled(true);
     const int clipId = item->data(Qt::UserRole).toInt();
     selectedClipId = clipId;
-}
-
-void ExtractPitchParamDialog::closeEvent(QCloseEvent *event) {
-    selectedClipId = -1;
-    OKCancelDialog::closeEvent(event);
 }

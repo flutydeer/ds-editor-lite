@@ -142,6 +142,8 @@ private slots:
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();
+    void pitchSourceSelectionReturnsOnlyAcceptedAudio_data();
+    void pitchSourceSelectionReturnsOnlyAcceptedAudio();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
     void closingTheMainWindowReleasesTheDefaultDialogParent();
     void cancelingMainWindowClosePreservesTheEditableDocument_data();
