@@ -15,6 +15,8 @@
 #else
 #  include <cerrno>
 #  include <fcntl.h>
+#  include <pthread.h>
+#  include <signal.h>
 #  include <unistd.h>
 #endif
 
@@ -256,6 +258,14 @@ namespace DsConnector {
                 m_nonBlocking = true;
             }
 #else
+            // Keep a closed reader from terminating the process before writeFrame reports EPIPE.
+            sigset_t blockedSignals;
+            sigemptyset(&blockedSignals);
+            sigaddset(&blockedSignals, SIGPIPE);
+            if (pthread_sigmask(SIG_BLOCK, &blockedSignals, nullptr) != 0) {
+                error = QStringLiteral("Unable to configure stdout signals");
+                return false;
+            }
             const auto flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
             if (flags < 0 || fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK) < 0) {
                 error = QStringLiteral("Unable to configure stdout backpressure");

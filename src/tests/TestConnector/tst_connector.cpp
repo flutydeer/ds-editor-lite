@@ -4077,6 +4077,9 @@ namespace {
         const auto disconnectedFinished = disconnectedOutput.waitForFinished(15000);
         const auto disconnectedError = disconnectedOutput.readAllStandardError();
         QVERIFY2(disconnectedFinished, qPrintable(QString::fromUtf8(disconnectedError)));
+        if (disconnectedOutput.exitStatus() != QProcess::NormalExit)
+            qWarning() << "Disconnected stdout child exit code:" << disconnectedOutput.exitCode()
+                       << "stderr:" << disconnectedError;
         QCOMPARE(disconnectedOutput.exitStatus(), QProcess::NormalExit);
         QCOMPARE(disconnectedOutput.exitCode(), 3);
         QVERIFY2(disconnectedError.contains("stdout"),
