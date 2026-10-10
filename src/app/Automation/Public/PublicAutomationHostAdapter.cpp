@@ -319,7 +319,7 @@ namespace Automation {
                         replace->sourceKind == ProjectSourceKind::Native ? m_path : QString(),
                         replace->sourceKind == ProjectSourceKind::Native
                             ? QFileInfo(m_path).fileName()
-                            : replace->displayName,
+                            : QFileInfo(m_path).completeBaseName(),
                         replace->sourceKind == ProjectSourceKind::Native, m_path);
                 } else if (auto *append = std::get_if<AppendProjectPayload>(&prepared)) {
                     auto draft = documentDraftDto(append->model);

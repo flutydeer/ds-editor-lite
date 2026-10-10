@@ -723,9 +723,10 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
         const auto document =
             runtime().documents().getDocument(runtime().documentVersion().documentId);
         QVERIFY(document);
-        if (externalConverter || midi)
+        if (externalConverter || midi) {
             QVERIFY(document.get().path.isEmpty());
-        else
+            QCOMPARE(document.get().projectName, QFileInfo(path).completeBaseName());
+        } else
             QCOMPARE(QFileInfo(document.get().path).canonicalFilePath(),
                      QFileInfo(path).canonicalFilePath());
         QCOMPARE(historyManager->isOnSavePoint(), !externalConverter && !midi);
