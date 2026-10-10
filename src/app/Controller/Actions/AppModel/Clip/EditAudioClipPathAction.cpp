@@ -8,6 +8,7 @@ EditAudioClipPathAction *EditAudioClipPathAction::build(AudioClip *clip, const Q
     auto a = new EditAudioClipPathAction;
     a->m_clip = clip;
     a->m_oldPath = clip->path();
+    a->m_oldReferenceDirectory = clip->referenceDirectory();
     a->m_newPath = newPath;
     a->m_oldPathInfo = clip->pathInfo();
     a->m_newPathInfo = newPathInfo;
@@ -19,7 +20,7 @@ EditAudioClipPathAction *EditAudioClipPathAction::build(AudioClip *clip, const Q
 }
 
 void EditAudioClipPathAction::execute() {
-    apply(m_newPath, m_newPathInfo, m_newFormatData, true);
+    apply(m_newPath, m_newPathInfo, m_newFormatData, true, {});
     m_clip->setPathStatus(AudioClip::PathStatus::Normal);
 }
 
@@ -27,20 +28,23 @@ void EditAudioClipPathAction::undo() {
     // GUI relinks calculate the hash after committing the path change.
     if (m_newPathInfo.sha512.isEmpty() && m_clip->path() == m_newPath)
         m_newPathInfo.sha512 = m_clip->pathInfo().sha512;
-    apply(m_oldPath, m_oldPathInfo, m_oldFormatData, m_hadFormatData);
+    apply(m_oldPath, m_oldPathInfo, m_oldFormatData, m_hadFormatData, m_oldReferenceDirectory);
     m_clip->setPathStatus(m_oldStatus);
 }
 
 void EditAudioClipPathAction::apply(const QString &path, const AudioPathInfo &pathInfo,
-                                    const QJsonObject &formatData, const bool hasFormatData) const {
-    const bool pathChanged = m_clip->path() != path;
+                                    const QJsonObject &formatData, const bool hasFormatData,
+                                    const QString &referenceDirectory) const {
+    const bool sourceChanged =
+        m_clip->path() != path || m_clip->referenceDirectory() != referenceDirectory;
     m_clip->setPathInfo(pathInfo);
     if (hasFormatData)
         m_clip->workspace().insert(kFormatDataKey, formatData);
     else
         m_clip->workspace().remove(kFormatDataKey);
     m_clip->setPath(path);
-    if (!pathChanged)
+    m_clip->setReferenceDirectory(referenceDirectory);
+    if (!sourceChanged)
         m_clip->notifySourceChanged();
     // The old peak cache is invalid after relinking; clear it after the source notification has
     // synchronously started a replacement decode.

@@ -34,6 +34,8 @@ private slots:
     void replacementBeforeDeferredStart();
     void mixedImportSources();
     void resolutionRetryPreservesSource();
+    void editedImportedAudioRecoversFromItsOriginalDirectory_data();
+    void editedImportedAudioRecoversFromItsOriginalDirectory();
     void relocatedDecodeNotification();
     void unlinkingAudioSourcePreservesOpenDecodeUntilReload();
     void audioPreparationWaitsForTheSaveDecision_data();

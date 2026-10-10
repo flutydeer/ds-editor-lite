@@ -247,6 +247,8 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             obj["path"] = audioClip->path();
             obj["relativeDir"] = audioClip->pathInfo().relativeDir;
             obj["sha512"] = audioClip->pathInfo().sha512;
+            if (!audioClip->referenceDirectory().isEmpty())
+                obj["referenceDirectory"] = audioClip->referenceDirectory();
             // Realtime truth so paste after a tempo edit stays time-accurate
             if (audioClip->hasRealTimeAnchor()) {
                 obj["trimStartMs"] = audioClip->trimStartMs();
@@ -312,6 +314,7 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
             auto audioClip = new AudioClip;
             audioClip->setPath(obj["path"].toString());
             audioClip->setPathInfo({obj["relativeDir"].toString(), obj["sha512"].toString()});
+            audioClip->setReferenceDirectory(obj["referenceDirectory"].toString());
             clip = audioClip;
         }
 

@@ -14,6 +14,7 @@
 #include "Automation/Public/PublicAutomationRegistry.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
@@ -422,6 +423,94 @@ void AudioAssetsTests::cascadingRelinkRequiresMatchingAudioIdentity() {
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(fixture.history()->isOnSavePoint());
     QVERIFY(!fixture.history()->canUndo());
+}
+
+void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory_data() {
+    QTest::addColumn<bool>("pasteCopy");
+    QTest::newRow("clipboard-paste") << true;
+    QTest::newRow("undo-manual-relink") << false;
+}
+
+void AudioAssetsTests::editedImportedAudioRecoversFromItsOriginalDirectory() {
+    QFETCH(bool, pasteCopy);
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    const auto retainInput = qScopeGuard([&] {
+        if (QTest::currentTestFailed())
+            fixture.directory.setAutoRemove(false);
+    });
+    const auto referenceDirectory = fixture.directory.filePath(QStringLiteral("source"));
+    QVERIFY(QDir().mkpath(QDir(referenceDirectory).filePath(QStringLiteral("media"))));
+    const auto sourcePath =
+        QDir(referenceDirectory).filePath(QStringLiteral("media/reference.wav"));
+    const auto missingPath = fixture.directory.filePath(QStringLiteral("old/reference.wav"));
+    QVERIFY(TestSupport::writeWave(sourcePath, QVector<float>(9600, 0.125f)));
+    QByteArray sourceBytes;
+    {
+        QFile source(sourcePath);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        sourceBytes = source.readAll();
+    }
+    QVERIFY(!sourceBytes.isEmpty());
+    const auto digest = QString::fromLatin1(
+        QCryptographicHash::hash(sourceBytes, QCryptographicHash::Sha512).toHex());
+    QVERIFY(QFile::remove(sourcePath));
+    auto document = missingAudioDocument(missingPath);
+    auto &draft = document.tracks.first().clips.first();
+    draft.audioReferenceDirectory = referenceDirectory;
+    draft.audioPathInfo = {QStringLiteral("media"), digest};
+    QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
+    QVERIFY(drainTasks());
+    QPointer<AudioClip> target = fixture.firstAudioClip();
+    QVERIFY(target);
+    QCOMPARE(target->pathStatus(), AudioClip::PathStatus::Missing);
+
+    if (pasteCopy) {
+        ClipsInfo copied;
+        copied.clips.append(target);
+        copied.trackIndexOffsets.append(0);
+        auto decoded = ClipsInfo::deserializeFromJson(ClipsInfo::serializeToJson(copied));
+        const auto releaseDecoded = qScopeGuard([&] { qDeleteAll(decoded.clips); });
+        const auto inserted = fixture.runtime().project().insertClips(
+            fixture.command(InvocationSource::Test),
+            decoded.preparePaste(fixture.model().tracks(), 960, 0));
+        QVERIFY(inserted);
+        QVERIFY(!inserted.get().affectedObjects.isEmpty());
+        const auto newId = inserted.get().affectedObjects.first().value;
+        QVERIFY(newId != target->id());
+        target = qobject_cast<AudioClip *>(fixture.model().findClipById(newId));
+        QVERIFY(target);
+        QVERIFY(drainTasks());
+    } else {
+        const auto replacement = fixture.directory.filePath(QStringLiteral("replacement.wav"));
+        QVERIFY(TestSupport::writeWave(replacement, QVector<float>(4800, 0.25f)));
+        QVERIFY(fixture.runtime().project().relocateAudioClip(
+            fixture.command(InvocationSource::Test), ClipId(target->id()), replacement, {}, {}));
+        QVERIFY(drainTasks());
+        QCOMPARE(target->audioInfo().frames, 4800);
+        QVERIFY(fixture.runtime().history().undo(fixture.command(InvocationSource::Test)));
+        QVERIFY(drainTasks());
+        QCOMPARE(target->path(), missingPath);
+    }
+    QCOMPARE(target->pathStatus(), AudioClip::PathStatus::Missing);
+    const auto beforeRecovery = fixture.runtime().documentVersion();
+    const auto *undoBeforeRecovery = fixture.history()->nextUndoEntry();
+    const auto savedBeforeRecovery = fixture.history()->isOnSavePoint();
+    {
+        QFile restored(sourcePath);
+        QVERIFY(restored.open(QIODevice::WriteOnly));
+        QCOMPARE(restored.write(sourceBytes), qint64(sourceBytes.size()));
+    }
+    fixture.controller->onModelChanged();
+    QVERIFY(drainTasks());
+    QVERIFY(target);
+    QCOMPARE(target->audioInfo().frames, 9600);
+    QCOMPARE(QFileInfo(target->path()).canonicalFilePath(),
+             QFileInfo(sourcePath).canonicalFilePath());
+    QCOMPARE(target->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(fixture.runtime().documentVersion(), beforeRecovery);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undoBeforeRecovery);
+    QCOMPARE(fixture.history()->isOnSavePoint(), savedBeforeRecovery);
 }
 
 void AudioAssetsTests::resolutionRetryPreservesSource() {
