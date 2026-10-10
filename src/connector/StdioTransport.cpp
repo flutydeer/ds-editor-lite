@@ -258,6 +258,13 @@ namespace DsConnector {
                 m_nonBlocking = true;
             }
 #else
+#  ifdef Q_OS_DARWIN
+            // Darwin signals the process on EPIPE, so protect the stdout descriptor.
+            if (fcntl(STDOUT_FILENO, F_SETNOSIGPIPE, 1) < 0) {
+                error = QStringLiteral("Unable to configure stdout signals");
+                return false;
+            }
+#  else
             // Keep a closed reader from terminating the process before writeFrame reports EPIPE.
             sigset_t blockedSignals;
             sigemptyset(&blockedSignals);
@@ -266,6 +273,7 @@ namespace DsConnector {
                 error = QStringLiteral("Unable to configure stdout signals");
                 return false;
             }
+#  endif
             const auto flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
             if (flags < 0 || fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK) < 0) {
                 error = QStringLiteral("Unable to configure stdout backpressure");

@@ -4070,10 +4070,9 @@ namespace {
         QVERIFY(disconnectedSink.waitForFinished(5000));
         disconnectedOutput.start();
         QVERIFY(disconnectedOutput.waitForStarted(5000));
-        if (disconnectedOutput.state() == QProcess::Running) {
+        // Keep stdin open so stdout failure must also stop the blocked reader.
+        if (disconnectedOutput.state() == QProcess::Running)
             disconnectedOutput.write(discover + '\n');
-            disconnectedOutput.closeWriteChannel();
-        }
         const auto disconnectedFinished = disconnectedOutput.waitForFinished(15000);
         const auto disconnectedError = disconnectedOutput.readAllStandardError();
         QVERIFY2(disconnectedFinished, qPrintable(QString::fromUtf8(disconnectedError)));
