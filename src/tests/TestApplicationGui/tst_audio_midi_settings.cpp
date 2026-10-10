@@ -207,6 +207,7 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
     const bool previousDeviceAvailable = deviceContext->device() != nullptr;
     const auto previousBuffer = deviceContext->adoptedBufferSize();
     const auto previousRate = deviceContext->adoptedSampleRate();
+    const bool previousMixerOpen = deviceContext->controlMixer()->isOpen();
     auto driver = std::make_unique<FixtureAudioDriver>(defaultDeviceAvailable);
     const auto restore = qScopeGuard([&] {
         const auto removeDriver = qScopeGuard([&] {
@@ -231,6 +232,10 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
             device->close();
         }
         QVERIFY(runtime.settings().updateAudio({}, original.get().audio));
+        // Restoring an uninitialized device format can reopen its mixer at zero sample rate.
+        if (!previousMixerOpen)
+            deviceContext->controlMixer()->close();
+        QCOMPARE(deviceContext->controlMixer()->isOpen(), previousMixerOpen);
     });
     QVERIFY(manager->addAudioDriver(driver.get()));
     const auto before = runtime.documentVersion();
