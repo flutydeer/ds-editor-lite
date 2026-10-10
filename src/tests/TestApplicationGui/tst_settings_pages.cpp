@@ -508,11 +508,15 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
     const auto activeClip = appStatus->activeClipId.get();
     const auto snapshot = runtime.settings().getSettings();
     QVERIFY(snapshot);
-    const auto original = snapshot.get().appearance;
+    const auto savedAppearance = snapshot.get().appearance;
     const auto restore = qScopeGuard([&] {
-        QVERIFY(runtime.settings().updateAppearance({}, original));
-        QVERIFY(ThemeManager::instance()->applyThemePreference(original.themeId));
+        QVERIFY(runtime.settings().updateAppearance({}, savedAppearance));
+        QVERIFY(ThemeManager::instance()->applyThemePreference(savedAppearance.themeId));
     });
+    QVERIFY(runtime.settings().updateTheme({}, {.themeId = ThemeIds::darkThemePreferenceId()}));
+    const auto explicitThemeSettings = runtime.settings().getSettings();
+    QVERIFY(explicitThemeSettings);
+    const auto original = explicitThemeSettings.get().appearance;
     const bool enabled = !original.animationEnabled;
     const double scale = original.animationTimeScale == 1.75 ? 0.75 : 1.75;
     QString fontFamily;
