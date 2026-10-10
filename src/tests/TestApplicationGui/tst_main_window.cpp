@@ -14,6 +14,7 @@
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Note/QuantizeDialog.h"
+#include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
@@ -67,6 +68,7 @@
 #include <QDialogButtonBox>
 #include <QClipboard>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QLabel>
 #include <QCursor>
 #include <QToolButton>
@@ -475,6 +477,78 @@ void ApplicationGuiTests::mainMenuQuantizationUsesTheChosenScopeAndOptions() {
     QCOMPARE(notes.last()->localStart(), second.localStart);
     QCOMPARE(notes.last()->length(), second.length);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::mainMenuPitchSourceCancellationKeepsDocument() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    const auto path = dataRoot.filePath(QStringLiteral("menu-pitch-source.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.125f)));
+    auto &runtime = *context->m_coreRuntime;
+    Automation::ClipDraftDto audio;
+    audio.type = Automation::ClipDraftDto::Type::Audio;
+    audio.properties.name = QStringLiteral("Pitch source");
+    audio.properties.length = 120;
+    audio.properties.clipLen = 120;
+    audio.audioPath = path;
+    const auto inserted =
+        runtime.project().insertClips(commandContext(), {
+                                                            {.trackId = trackId, .clip = audio}
+    });
+    QVERIFY(inserted);
+    QVERIFY(!inserted.get().affectedObjects.isEmpty());
+    const auto sourceId = inserted.get().affectedObjects.first().value;
+    auto *sourceClip = qobject_cast<AudioClip *>(context->m_appModel->findClipById(sourceId));
+    QVERIFY(sourceClip);
+    QTRY_COMPARE(sourceClip->audioInfo().frames, 4800);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    historyManager->reset();
+    host.window->activateWindow();
+    QTRY_VERIFY(host.window->isActiveWindow());
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto tasksBefore = runtime.automationTasks().list(before.documentId);
+    const auto *undoBefore = historyManager->nextUndoEntry();
+    bool answered = false;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, host.window.get(), [&] {
+        auto *dialog = qobject_cast<ExtractPitchParamDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        answer.stop();
+        const auto close = qScopeGuard([&] {
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        auto *list = dialog->findChild<QListWidget *>();
+        QVERIFY(list);
+        const auto row = list->visualItemRect(list->item(0));
+        QVERIFY(row.isValid());
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, row.center());
+        QTRY_COMPARE(dialog->selectedClipId, sourceId);
+        QTest::keyClick(list, Qt::Key_Escape);
+        QTRY_VERIFY(!dialog->isVisible());
+        QCOMPARE(dialog->result(), QDialog::Rejected);
+        QCOMPARE(dialog->selectedClipId, -1);
+        answered = true;
+    });
+    answer.start();
+    clickMainMenuAction(*host.window, "Extract pitch parameter...");
+    answer.stop();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(answered);
+    QCOMPARE(runtime.automationTasks().list(before.documentId), tasksBefore);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBefore);
 }
 
 void ApplicationGuiTests::pianoEditControlsFollowTheVisibleSelectionAndUndo() {
