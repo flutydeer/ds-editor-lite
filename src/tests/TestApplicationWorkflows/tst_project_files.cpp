@@ -90,6 +90,8 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::addColumn<QString>("changeAfterAdmission");
     QTest::addColumn<QString>("sourceVariant");
     QTest::newRow("midi-and-dspx") << 0 << false << QString{} << QString{};
+    QTest::newRow("independent-relocated-audio-origins")
+        << 0 << false << QString{} << QStringLiteral("relocated-audio");
     QTest::newRow("best-effort-empty-project") << 0 << true << QString{} << QStringLiteral("empty");
     QTest::newRow("atomic-failure") << 1 << false << QString{} << QStringLiteral("content");
     QTest::newRow("best-effort") << 1 << true << QString{} << QStringLiteral("content");
@@ -118,8 +120,20 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QFETCH(QString, changeAfterAdmission);
     QFETCH(QString, sourceVariant);
     const bool cancelRunning = changeAfterAdmission == QStringLiteral("cancel-running");
+    const bool relativeAudio = sourceVariant == QStringLiteral("relocated-audio");
     QTemporaryDir files;
     QVERIFY(files.isValid());
+    const auto retainFailedInput = qScopeGuard([&] {
+        if (relativeAudio && QTest::currentTestFailed())
+            files.setAutoRemove(false);
+    });
+    const auto releaseAudio = qScopeGuard([&] {
+        if (!relativeAudio)
+            return;
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
     const auto dspx = files.filePath(QStringLiteral("source.dspx"));
     auto midi = files.filePath(QStringLiteral("source.mid"));
     QString error;
@@ -150,6 +164,43 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(broken.write("invalid project"), qint64(15));
     }
+    QStringList audioProjects;
+    QStringList audioPaths;
+    if (relativeAudio) {
+        for (int index = 0; index < 2; ++index) {
+            const auto originalDirectory = files.filePath(QStringLiteral("original/%1").arg(index));
+            const auto relocatedDirectory =
+                files.filePath(QStringLiteral("relocated/%1").arg(index));
+            QVERIFY(QDir().mkpath(QDir(originalDirectory).filePath(QStringLiteral("media"))));
+            QVERIFY(QDir().mkpath(QDir(relocatedDirectory).filePath(QStringLiteral("media"))));
+            const auto originalAudio =
+                QDir(originalDirectory).filePath(QStringLiteral("media/reference.wav"));
+            const auto relocatedAudio =
+                QDir(relocatedDirectory).filePath(QStringLiteral("media/reference.wav"));
+            QVERIFY(
+                TestSupport::writeWave(originalAudio, QVector<float>(4800 * (index + 1), 0.125f)));
+            AppModel source;
+            source.setTimeline(context->m_appModel->timeline());
+            auto *track = new Track;
+            track->setName(QStringLiteral("Audio source %1").arg(index));
+            auto *clip = new AudioClip;
+            clip->setPath(originalAudio);
+            clip->setLength(120);
+            clip->setClipLen(120);
+            track->insertClip(clip);
+            QVERIFY(source.appendTrack(track));
+            const auto originalProject =
+                QDir(originalDirectory).filePath(QStringLiteral("source.dspx"));
+            const auto relocatedProject =
+                QDir(relocatedDirectory).filePath(QStringLiteral("source.dspx"));
+            QVERIFY2(dspxConverter.save(originalProject, &source, error), qPrintable(error));
+            QVERIFY(QFile::copy(originalProject, relocatedProject));
+            QVERIFY(QFile::rename(originalAudio, relocatedAudio));
+            QVERIFY(!QFileInfo::exists(originalAudio));
+            audioProjects.append(relocatedProject);
+            audioPaths.append(relocatedAudio);
+        }
+    }
     const auto before = runtime().documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto initialTrackCount = context->m_appModel->tracks().size();
@@ -162,7 +213,9 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
     QJsonArray items;
-    const QStringList paths = cancelRunning ? QStringList{midi, dspx} : QStringList{dspx, midi};
+    const QStringList paths = relativeAudio   ? audioProjects
+                              : cancelRunning ? QStringList{midi, dspx}
+                                              : QStringList{dspx, midi};
     for (int index = 0; index < paths.size(); ++index) {
         QJsonObject item{
             {QStringLiteral("path"), paths[index]}
@@ -330,6 +383,25 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
             sourceVariant == QStringLiteral("empty"))
             QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount * 2);
         QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
+        if (relativeAudio) {
+            for (int index = 0; index < audioPaths.size(); ++index) {
+                QPointer<AudioClip> imported;
+                for (auto *track : context->m_appModel->tracks()) {
+                    if (track->name() != QStringLiteral("Audio source %1").arg(index))
+                        continue;
+                    for (auto *clip : track->clips()) {
+                        if (auto *audio = qobject_cast<AudioClip *>(clip))
+                            imported = audio;
+                    }
+                }
+                QVERIFY(imported);
+                QTRY_VERIFY_WITH_TIMEOUT(
+                    imported && imported->audioInfo().frames == 4800 * (index + 1), 10000);
+                QCOMPARE(QFileInfo(imported->path()).canonicalFilePath(),
+                         QFileInfo(audioPaths[index]).canonicalFilePath());
+            }
+            QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        }
         QVERIFY(runtime().history().undo(commandContext()));
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Target"));
