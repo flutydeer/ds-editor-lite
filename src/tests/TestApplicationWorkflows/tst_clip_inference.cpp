@@ -500,20 +500,26 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
     auto canceled = createTask(false);
     auto cachedRetry = createTask(false);
     QThreadPool workers;
-    QSignalSpy failureFinished(failed.get(), &Task::finished);
-    workers.start(failed.get());
-    QTRY_COMPARE_WITH_TIMEOUT(failureFinished.count(), 1, 15000);
-    QVERIFY(workers.waitForDone(5000));
-    QVERIFY(failed->stopped());
-    QVERIFY(!failed->success());
-    QVERIFY(!failed->terminated());
+    const auto execute = [&](IInferTask *task, const bool expectedSuccess) {
+        QSignalSpy finished(task, &Task::finished);
+        workers.start(task);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 15000);
+        QVERIFY(workers.waitForDone(5000));
+        QVERIFY(task->stopped());
+        QVERIFY(!task->terminated());
+        QCOMPARE(task->success(), expectedSuccess);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+        QCOMPARE(runtime().documentVersion(), version);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+    };
+    execute(failed.get(), false);
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(
         QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files).isEmpty());
-    QSignalSpy retryFinished(retried.get(), &Task::finished);
-    workers.start(retried.get());
-    QTRY_COMPARE_WITH_TIMEOUT(retryFinished.count(), 1, 15000);
-    QVERIFY(workers.waitForDone(5000));
-    QVERIFY(retried->success());
+    execute(retried.get(), true);
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(
         !QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files).isEmpty());
     const auto cachedOutputs =
@@ -548,11 +554,73 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
     QVERIFY(!canceled->success());
     QCOMPARE(QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files),
              cachedOutputs);
-    QSignalSpy cachedRetryFinished(cachedRetry.get(), &Task::finished);
-    workers.start(cachedRetry.get());
-    QTRY_COMPARE_WITH_TIMEOUT(cachedRetryFinished.count(), 1, 15000);
-    QVERIFY(workers.waitForDone(5000));
-    QVERIFY(cachedRetry->success());
+    execute(cachedRetry.get(), true);
+    if (QTest::currentTestFailed())
+        return;
+    if (stage == QStringLiteral("duration") || stage == QStringLiteral("pitch") ||
+        stage == QStringLiteral("variance")) {
+        const auto cacheFiles =
+            QDir(cache.path())
+                .entryList({QStringLiteral("infer-%1-output-*.json").arg(stage)}, QDir::Files);
+        QCOMPARE(cacheFiles.size(), 1);
+        const auto outputPath = cache.filePath(cacheFiles.first());
+        QFile output(outputPath);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        const auto validBytes = output.readAll();
+        output.close();
+        const auto writeOutput = [&](const QByteArray &bytes) {
+            QVERIFY(output.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(output.write(bytes), qint64(bytes.size()));
+            output.close();
+        };
+        writeOutput(QByteArrayLiteral("{\"words\":"));
+        if (QTest::currentTestFailed())
+            return;
+        auto regenerated = createTask(false);
+        execute(regenerated.get(), true);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QJsonParseError parseError;
+        const auto regeneratedJson = QJsonDocument::fromJson(output.readAll(), &parseError);
+        output.close();
+        QCOMPARE(parseError.error, QJsonParseError::NoError);
+        QVERIFY(regeneratedJson.isObject());
+        if (stage == QStringLiteral("duration")) {
+            GenericInferModel corrupted;
+            QVERIFY(corrupted.deserialize(QJsonDocument::fromJson(validBytes).object()));
+            bool changed = false;
+            for (auto &word : corrupted.words) {
+                for (auto &phone : word.phones) {
+                    if (phone.token != QStringLiteral("SP") &&
+                        phone.token != QStringLiteral("AP")) {
+                        phone.token = QStringLiteral("cached-phoneme-mismatch");
+                        changed = true;
+                        break;
+                    }
+                }
+                if (changed)
+                    break;
+            }
+            QVERIFY(changed);
+            writeOutput(QJsonDocument(corrupted.serialize()).toJson());
+            if (QTest::currentTestFailed())
+                return;
+            auto mismatched = createTask(false);
+            execute(mismatched.get(), false);
+            if (QTest::currentTestFailed())
+                return;
+            writeOutput(validBytes);
+            if (QTest::currentTestFailed())
+                return;
+            auto repaired = createTask(false);
+            execute(repaired.get(), true);
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY(qobject_cast<InferDurationTask *>(repaired.get())->result() ==
+                    qobject_cast<InferDurationTask *>(cachedRetry.get())->result());
+        }
+    }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
