@@ -4056,6 +4056,32 @@ namespace {
         blockingSink.kill();
         blockingSink.waitForFinished(5000);
 
+        QProcess disconnectedOutput;
+        QProcess disconnectedSink;
+        disconnectedOutput.setProgram(executable);
+        disconnectedOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
+        disconnectedSink.setProgram(QCoreApplication::applicationFilePath());
+        disconnectedSink.setArguments({QStringLiteral("--blocked-stdio-sink")});
+        disconnectedOutput.setStandardOutputProcess(&disconnectedSink);
+        // Close the peer before launch so the writer cannot inherit the pipe's read end.
+        disconnectedSink.start();
+        QVERIFY(disconnectedSink.waitForStarted(5000));
+        disconnectedSink.kill();
+        QVERIFY(disconnectedSink.waitForFinished(5000));
+        disconnectedOutput.start();
+        QVERIFY(disconnectedOutput.waitForStarted(5000));
+        if (disconnectedOutput.state() == QProcess::Running) {
+            disconnectedOutput.write(discover + '\n');
+            disconnectedOutput.closeWriteChannel();
+        }
+        const auto disconnectedFinished = disconnectedOutput.waitForFinished(15000);
+        const auto disconnectedError = disconnectedOutput.readAllStandardError();
+        QVERIFY2(disconnectedFinished, qPrintable(QString::fromUtf8(disconnectedError)));
+        QCOMPARE(disconnectedOutput.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(disconnectedOutput.exitCode(), 3);
+        QVERIFY2(disconnectedError.contains("stdout"),
+                 qPrintable(QString::fromUtf8(disconnectedError)));
+
         QProcess boundary;
         boundary.setProgram(executable);
         boundary.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
