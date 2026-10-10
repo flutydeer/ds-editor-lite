@@ -23,6 +23,8 @@
 #include <lite/History/HistoryManager.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
+#include <TalcsDevice/AudioDriver.h>
+#include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 #include <QApplication>
@@ -37,12 +39,65 @@
 #include <QFile>
 #include <QDir>
 #include <QtTest/QTest>
+#include <QAbstractItemView>
 
 #include <cmath>
+#include <memory>
 
 using TestSupport::openOptionsPage;
 
 namespace {
+    class FixtureAudioDevice final : public talcs::AudioDevice {
+    public:
+        FixtureAudioDevice(talcs::AudioDriver *driver, const QString &name) : AudioDevice(driver) {
+            setName(name);
+            setDriver(driver);
+            setChannelCount(2);
+            setActiveChannelCount(2);
+            setAvailableBufferSizes({256, 512, 1024});
+            setPreferredBufferSize(512);
+            setAvailableSampleRates({44100, 48000});
+            setPreferredSampleRate(48000);
+            setIsInitialized(true);
+        }
+
+        bool openControlPanel() override {
+            ++controlPanelRequests;
+            return true;
+        }
+
+        int controlPanelRequests = 0;
+    };
+
+    class FixtureAudioDriver final : public talcs::AudioDriver {
+    public:
+        explicit FixtureAudioDriver(bool defaultDeviceAvailable)
+            : defaultDeviceAvailable(defaultDeviceAvailable) {
+            setName(QStringLiteral("fixture-output"));
+        }
+
+        QStringList devices() const override {
+            return availableDevices;
+        }
+
+        QString defaultDevice() const override {
+            return defaultDeviceAvailable ? devices().first() : QString();
+        }
+
+        talcs::AudioDevice *createDefaultDevice() override {
+            return defaultDeviceAvailable ? new FixtureAudioDevice(this, {}) : nullptr;
+        }
+
+        talcs::AudioDevice *createDevice(const QString &name) override {
+            return devices().contains(name) ? new FixtureAudioDevice(this, name) : nullptr;
+        }
+
+        QStringList availableDevices{QStringLiteral("Output A"), QStringLiteral("Output B")};
+
+    private:
+        const bool defaultDeviceAvailable;
+    };
+
     template <typename SpinBox>
     void enterNumber(IOptionPage &page, SpinBox *spin, const QString &text) {
         QVERIFY(spin);
@@ -52,26 +107,153 @@ namespace {
         auto *editor = spin->template findChild<QLineEdit *>();
         QVERIFY(editor);
         QTest::mouseClick(editor, Qt::LeftButton);
-        QTRY_VERIFY(editor->hasFocus());
+        QTRY_VERIFY2(
+            editor->hasFocus(),
+            qPrintable(
+                QStringLiteral("input=%1 focus=%2 popup=%3 visible-center=%4")
+                    .arg(spin->objectName(),
+                         QApplication::focusWidget() ? QApplication::focusWidget()->objectName()
+                                                     : QStringLiteral("none"),
+                         QApplication::activePopupWidget()
+                             ? QString::fromLatin1(
+                                   QApplication::activePopupWidget()->metaObject()->className())
+                             : QStringLiteral("none"))
+                    .arg(editor->visibleRegion().contains(editor->rect().center()))));
         QApplication::clipboard()->setText(text);
         QTest::keySequence(editor, QKeySequence::SelectAll);
         QTest::keySequence(editor, QKeySequence::Paste);
         QTest::keyClick(editor, Qt::Key_Tab);
     }
 
-    void chooseValue(IOptionPage &page, ComboBox *combo, int value) {
+    void chooseValue(IOptionPage &page, ComboBox *combo, const QVariant &value) {
         QVERIFY(combo);
         const auto index = combo->findData(value);
         QVERIFY(index >= 0);
         page.ensureWidgetVisible(combo);
         QCoreApplication::processEvents();
-        combo->setFocus();
-        QTRY_VERIFY(combo->hasFocus());
-        QTest::keyClick(combo, Qt::Key_Home);
+        QTest::mouseClick(combo, Qt::LeftButton);
+        auto *items = combo->view();
+        QTRY_VERIFY(items->isVisible());
+        QTest::keyClick(items, Qt::Key_Home);
         for (int row = 0; row < index; ++row)
-            QTest::keyClick(combo, Qt::Key_Down);
-        QCOMPARE(combo->currentData().toInt(), value);
+            QTest::keyClick(items, Qt::Key_Down);
+        QTest::keyClick(items, Qt::Key_Return);
+        QTRY_COMPARE(combo->currentIndex(), index);
+        QTRY_VERIFY(!items->isVisible());
+        // Offscreen popup activation can leave its host window without keyboard focus.
+        combo->window()->activateWindow();
+        QTRY_VERIFY(combo->window()->isActiveWindow());
     }
+}
+
+void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage_data() {
+    QTest::addColumn<bool>("defaultDeviceAvailable");
+    QTest::newRow("default-output") << true;
+    QTest::newRow("named-outputs-only") << false;
+}
+
+void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
+    QFETCH(bool, defaultDeviceAvailable);
+    auto &runtime = *context->m_coreRuntime;
+    const auto original = runtime.settings().getSettings();
+    QVERIFY(original);
+    auto *output = AudioSystem::outputSystem();
+    auto *deviceContext = output->outputContext();
+    auto *manager = deviceContext->driverManager();
+    const auto previousDriver =
+        deviceContext->driver() ? deviceContext->driver()->name() : QString();
+    const auto previousDevice =
+        deviceContext->device() ? deviceContext->device()->name() : QString();
+    const bool previousDeviceAvailable = deviceContext->device() != nullptr;
+    const auto previousBuffer = deviceContext->adoptedBufferSize();
+    const auto previousRate = deviceContext->adoptedSampleRate();
+    auto driver = std::make_unique<FixtureAudioDriver>(defaultDeviceAvailable);
+    const auto restore = qScopeGuard([&] {
+        const auto removeDriver = qScopeGuard([&] {
+            if (manager->driver(driver->name()) == driver.get())
+                QVERIFY(manager->removeDriver(driver.get()));
+        });
+        deviceContext->setDriver({});
+        deviceContext->setAdoptedBufferSize(previousBuffer);
+        deviceContext->setAdoptedSampleRate(previousRate);
+        if (!previousDriver.isEmpty()) {
+            const bool restored = deviceContext->setDriver(
+                previousDriver, talcs::OutputContext::DO_DoNotChangeAdoptedSpec);
+            // An initialized driver can have no available output device.
+            if (previousDeviceAvailable) {
+                QVERIFY(restored);
+                QVERIFY(deviceContext->setDevice(previousDevice,
+                                                 talcs::OutputContext::DO_DoNotChangeAdoptedSpec));
+            }
+        }
+        if (auto *device = deviceContext->device()) {
+            device->stop();
+            device->close();
+        }
+        QVERIFY(runtime.settings().updateAudio({}, original.get().audio));
+    });
+    QVERIFY(manager->addAudioDriver(driver.get()));
+    const auto before = runtime.documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    {
+        AppOptionsDialog panel;
+        openOptionsPage(panel, AppOptionsGlobal::Audio);
+        if (QTest::currentTestFailed())
+            return;
+        auto *page = panel.findChild<AudioPage *>();
+        QVERIFY(page);
+        auto *drivers = page->findChild<ComboBox *>("audioDriver");
+        auto *devices = page->findChild<ComboBox *>("audioDevice");
+        auto *buffer = page->findChild<ComboBox *>("audioBufferSize");
+        auto *rate = page->findChild<ComboBox *>("audioSampleRate");
+        auto *controlPanel = page->findChild<QPushButton *>("audioDeviceControlPanel");
+        QVERIFY(drivers && devices && buffer && rate && controlPanel);
+        chooseValue(*page, drivers, driver->name());
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->driver(), driver.get());
+        QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
+        QVERIFY(devices->isEnabled() && buffer->isEnabled() && rate->isEnabled());
+        QCOMPARE(devices->currentData().toString(),
+                 defaultDeviceAvailable ? QString() : QStringLiteral("Output A"));
+        chooseValue(*page, devices, QStringLiteral("Output B"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->device()->name(), QStringLiteral("Output B"));
+        chooseValue(*page, buffer, QVariant::fromValue(qint64(256)));
+        if (QTest::currentTestFailed())
+            return;
+        chooseValue(*page, rate, 44100.0);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->adoptedBufferSize(), qint64(256));
+        QCOMPARE(deviceContext->adoptedSampleRate(), 44100.0);
+        driver->availableDevices.append(QStringLiteral("Output C"));
+        emit driver->deviceChanged();
+        QTRY_VERIFY(devices->findData(QStringLiteral("Output C")) >= 0);
+        QCOMPARE(devices->currentData().toString(), QStringLiteral("Output B"));
+        QCOMPARE(buffer->currentData().value<qint64>(), qint64(256));
+        QCOMPARE(rate->currentData().toDouble(), 44100.0);
+        QVERIFY(controlPanel->isEnabled());
+        page->ensureWidgetVisible(controlPanel);
+        QTest::mouseClick(controlPanel, Qt::LeftButton);
+        auto *selected = dynamic_cast<FixtureAudioDevice *>(deviceContext->device());
+        QVERIFY(selected);
+        QCOMPARE(selected->controlPanelRequests, 1);
+        QCOMPARE(AudioSettings::driverName(), driver->name());
+        QCOMPARE(AudioSettings::deviceName(), QStringLiteral("Output B"));
+        QCOMPARE(AudioSettings::adoptedBufferSize(), qint64(256));
+        QCOMPARE(AudioSettings::adoptedSampleRate(), 44100.0);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+    }
+    AppOptions reopened;
+    QCOMPARE(reopened.audio()->obj.value("driverName").toString(), driver->name());
+    QCOMPARE(reopened.audio()->obj.value("deviceName").toString(), QStringLiteral("Output B"));
+    QCOMPARE(reopened.audio()->obj.value("adoptedBufferSize").toInteger(), qint64(256));
+    QCOMPARE(reopened.audio()->obj.value("adoptedSampleRate").toDouble(), 44100.0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
 
 void ApplicationGuiTests::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry() {
@@ -215,7 +397,8 @@ void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {
         {
             auto *theme = ThemeManager::instance();
             const auto originalTheme = theme->currentThemeId();
-            const auto restoreTheme = qScopeGuard([&] { QVERIFY(theme->applyTheme(originalTheme)); });
+            const auto restoreTheme =
+                qScopeGuard([&] { QVERIFY(theme->applyTheme(originalTheme)); });
             for (const auto &id : {QStringLiteral("lite-light"), QStringLiteral("lite-dark")}) {
                 QVERIFY(theme->applyTheme(id));
                 // QSS serializes theme colors to 8-bit RGBA.

@@ -236,31 +236,12 @@ void AudioPage::updateDriverComboBox() {
 
     updateDeviceComboBox();
 
-    if (outputSys->outputContext()->driver()) {
-        connect(outputSys->outputContext()->driver(), &talcs::AudioDriver::deviceChanged, this,
-                [this] {
-                    disconnect(m_deviceComboBox, nullptr, this, nullptr);
-                    m_deviceComboBox->clear();
-                    disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
-                    m_bufferSizeComboBox->clear();
-                    disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
-                    m_sampleRateComboBox->clear();
-                    updateDeviceComboBox();
-                });
-    }
-
     connect(
         m_driverComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
         [outputSys, this](const int index) {
             const auto newDrvName = m_driverComboBox->itemData(index).toString();
             if (newDrvName.isEmpty())
                 return;
-            disconnect(m_deviceComboBox, nullptr, this, nullptr);
-            m_deviceComboBox->clear();
-            disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
-            m_bufferSizeComboBox->clear();
-            disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
-            m_sampleRateComboBox->clear();
             if (!outputSys->setDriver(newDrvName)) {
                 QMessageBox::warning(
                     this, {},
@@ -282,6 +263,13 @@ void AudioPage::updateDriverComboBox() {
 }
 
 void AudioPage::updateDeviceComboBox() {
+    disconnect(m_deviceChangeConnection);
+    disconnect(m_deviceComboBox, nullptr, this, nullptr);
+    m_deviceComboBox->clear();
+    disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
+    m_bufferSizeComboBox->clear();
+    disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
+    m_sampleRateComboBox->clear();
     auto outputSys = AudioSystem::outputSystem();
     auto *driver = outputSys->outputContext()->driver();
     m_deviceComboBox->setEnabled(driver != nullptr);
@@ -292,6 +280,8 @@ void AudioPage::updateDeviceComboBox() {
     if (!driver)
         return;
 
+    m_deviceChangeConnection = connect(driver, &talcs::AudioDriver::deviceChanged, this,
+                                      &AudioPage::updateDeviceComboBox);
     bool currentIndexDetermined = false;
 
     if (!driver->defaultDevice().isEmpty()) {
@@ -308,7 +298,7 @@ void AudioPage::updateDeviceComboBox() {
         if (outputSys->outputContext()->device() &&
             deviceList[i] == outputSys->outputContext()->device()->name()) {
             currentIndexDetermined = true;
-            m_deviceComboBox->setCurrentIndex(i + 1);
+            m_deviceComboBox->setCurrentIndex(m_deviceComboBox->count() - 1);
         }
     }
     if (!outputSys->outputContext()->device()) {

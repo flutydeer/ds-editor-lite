@@ -192,6 +192,8 @@ private slots:
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void audioPageInputsPersistWithoutPlayback();
+    void audioDeviceChoicesApplyThroughThePage_data();
+    void audioDeviceChoicesApplyThroughThePage();
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
