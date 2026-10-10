@@ -40,6 +40,8 @@
 #include <QDir>
 #include <QtTest/QTest>
 #include <QAbstractItemView>
+#include <QMessageBox>
+#include <QTimer>
 
 #include <cmath>
 #include <memory>
@@ -76,6 +78,10 @@ namespace {
             setName(QStringLiteral("fixture-output"));
         }
 
+        bool initialize() override {
+            return available && AudioDriver::initialize();
+        }
+
         QStringList devices() const override {
             return availableDevices;
         }
@@ -89,10 +95,14 @@ namespace {
         }
 
         talcs::AudioDevice *createDevice(const QString &name) override {
-            return devices().contains(name) ? new FixtureAudioDevice(this, name) : nullptr;
+            return devices().contains(name) && name != unavailableDevice
+                       ? new FixtureAudioDevice(this, name)
+                       : nullptr;
         }
 
         QStringList availableDevices{QStringLiteral("Output A"), QStringLiteral("Output B")};
+        bool available = true;
+        QString unavailableDevice;
 
     private:
         const bool defaultDeviceAvailable;
@@ -125,7 +135,8 @@ namespace {
         QTest::keyClick(editor, Qt::Key_Tab);
     }
 
-    void chooseValue(IOptionPage &page, ComboBox *combo, const QVariant &value) {
+    void chooseValue(IOptionPage &page, ComboBox *combo, const QVariant &value,
+                     bool expectSelected = true) {
         QVERIFY(combo);
         const auto index = combo->findData(value);
         QVERIFY(index >= 0);
@@ -138,11 +149,40 @@ namespace {
         for (int row = 0; row < index; ++row)
             QTest::keyClick(items, Qt::Key_Down);
         QTest::keyClick(items, Qt::Key_Return);
-        QTRY_COMPARE(combo->currentIndex(), index);
+        if (expectSelected)
+            QTRY_COMPARE(combo->currentIndex(), index);
         QTRY_VERIFY(!items->isVisible());
         // Offscreen popup activation can leave its host window without keyboard focus.
         combo->window()->activateWindow();
         QTRY_VERIFY(combo->window()->isActiveWindow());
+    }
+
+    void chooseUnavailableValue(IOptionPage &page, ComboBox *combo, const QVariant &value) {
+        const auto name = combo->itemText(combo->findData(value));
+        QVERIFY(!name.isEmpty());
+        bool warned = false;
+        QTimer dismiss;
+        dismiss.setInterval(10);
+        QObject::connect(&dismiss, &QTimer::timeout, &page, [&] {
+            auto *warning = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            if (!warning)
+                return;
+            dismiss.stop();
+            const auto closeOnFailure = qScopeGuard([&] {
+                if (warning->isVisible())
+                    warning->reject();
+            });
+            QCOMPARE(warning->icon(), QMessageBox::Warning);
+            QVERIFY(warning->text().contains(name));
+            auto *button = warning->button(QMessageBox::Ok);
+            QVERIFY(button);
+            QTest::mouseClick(button, Qt::LeftButton);
+            warned = true;
+        });
+        dismiss.start();
+        chooseValue(page, combo, value, false);
+        dismiss.stop();
+        QVERIFY(warned);
     }
 }
 
@@ -208,6 +248,22 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
         auto *rate = page->findChild<ComboBox *>("audioSampleRate");
         auto *controlPanel = page->findChild<QPushButton *>("audioDeviceControlPanel");
         QVERIFY(drivers && devices && buffer && rate && controlPanel);
+        const auto beforeDriver = runtime.settings().getSettings();
+        QVERIFY(beforeDriver);
+        driver->available = false;
+        chooseUnavailableValue(*page, drivers, driver->name());
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!deviceContext->driver());
+        QVERIFY(drivers->currentData().isNull());
+        QVERIFY(!devices->isEnabled() && !buffer->isEnabled() && !rate->isEnabled());
+        QVERIFY(!controlPanel->isEnabled());
+        const auto afterDriverFailure = runtime.settings().getSettings();
+        QVERIFY(afterDriverFailure);
+        QCOMPARE(afterDriverFailure.get().audio, beforeDriver.get().audio);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+        driver->available = true;
         chooseValue(*page, drivers, driver->name());
         if (QTest::currentTestFailed())
             return;
@@ -216,6 +272,22 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
         QVERIFY(devices->isEnabled() && buffer->isEnabled() && rate->isEnabled());
         QCOMPARE(devices->currentData().toString(),
                  defaultDeviceAvailable ? QString() : QStringLiteral("Output A"));
+        auto *previousOutput = deviceContext->device();
+        const auto previousChoice = devices->currentData();
+        const auto beforeDevice = runtime.settings().getSettings();
+        QVERIFY(beforeDevice);
+        driver->unavailableDevice = QStringLiteral("Output B");
+        chooseUnavailableValue(*page, devices, driver->unavailableDevice);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->device(), previousOutput);
+        QCOMPARE(devices->currentData(), previousChoice);
+        const auto afterDeviceFailure = runtime.settings().getSettings();
+        QVERIFY(afterDeviceFailure);
+        QCOMPARE(afterDeviceFailure.get().audio, beforeDevice.get().audio);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+        driver->unavailableDevice.clear();
         chooseValue(*page, devices, QStringLiteral("Output B"));
         if (QTest::currentTestFailed())
             return;
