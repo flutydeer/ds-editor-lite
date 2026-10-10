@@ -185,6 +185,7 @@ RHI 回退场景通过 Qt 渲染失败通知进入生产处理，重复通知合
 |---|---|---|
 | 公共工具的 Schema 构造函数 | 声明输入输出定义，不按字段、工具数量或完整清单镜像补测 | 运行时 JSON 校验、参数转换、路由、授权及业务结果 |
 | Qt 元对象或类型声明、类声明、显式默认成员 | 不含手写业务行为 | 手写方法、信号调用及声明所关联的实际行为 |
+| EventDiagFilter 的统计输出 | 临时开发者性能计数与日志格式，不影响工程、编辑或任务结果 | 事件传递、过滤器生命周期及开关持久化 |
 | GAME/RMVPE 模型执行 | 本期约定不执行实际模型 | 通用准备、文件快照、来源校验、准入、取消及失败恢复 |
 | SeekBar、TaskWindow、G2pListWidget、G2pInfoWidget、GraphicsLayerManager、DirSelector、AcrylicBrush 的旧实现 | 已确认没有当前产品创建或调用路径，暂时保留 | 当前实际使用的控件、歌词和发音界面、图层与绘制逻辑 |
 | PianoKeyboardView 的 Uniform 专属分支及未调用绘制助手 | 当前键盘固定为 Classic，没有样式修改入口 | Classic 绘制与输入、主题属性、滑奏及音符释放 |

@@ -1175,6 +1175,7 @@ void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
     auto laterFrames = mix().dynamicKeyframes;
     QCOMPARE(laterFrames.at(2).tick, 720);
     QCOMPARE(laterFrames.at(2).weights, QVector<double>{0.75});
+    const auto undoneKeyframe = Automation::SpeakerMixKeyframeId(laterFrames.at(2).id);
     laterFrames.removeAt(2);
     QCOMPARE(laterFrames, frames);
     QCOMPARE(runtime.documentVersion().revision, beforeLaterVersion.revision + 1);
@@ -1193,13 +1194,14 @@ void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
     const auto version = runtime.documentVersion();
     const auto unchangedModel = TestSupport::projectSnapshot(testRuntime.model());
     const auto undoEntry = testRuntime.history()->nextUndoEntry();
-    const auto verifyRejected = [&](const AutomationResult<MutationResult> &result,
-                                    const QString &field) {
-        QVERIFY(isError(result, AutomationErrorCode::InvalidArgument, field));
-        QCOMPARE(runtime.documentVersion(), version);
-        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), unchangedModel);
-        QCOMPARE(testRuntime.history()->nextUndoEntry(), undoEntry);
-    };
+    const auto verifyRejected =
+        [&](const AutomationResult<MutationResult> &result, const QString &field,
+            const AutomationErrorCode code = AutomationErrorCode::InvalidArgument) {
+            QVERIFY(isError(result, code, field));
+            QCOMPARE(runtime.documentVersion(), version);
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), unchangedModel);
+            QCOMPARE(testRuntime.history()->nextUndoEntry(), undoEntry);
+        };
     verifyRejected(parameters.insertSpeakerMixKeyframe(commandContext(runtime), clip, 480,
                                                        QVector<double>{0.4, 0.6}),
                    QStringLiteral("position"));
@@ -1216,6 +1218,23 @@ void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
                                                           {middle,  600}
     }),
                    QStringLiteral("moves"));
+    verifyRejected(
+        parameters.removeSpeakerMixKeyframes(commandContext(runtime), clip, {initial, middle}),
+        QStringLiteral("keyframe_ids"));
+    verifyRejected(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
+                                                      {
+                                                          {middle,         600},
+                                                          {undoneKeyframe, 840}
+    }),
+                   {}, AutomationErrorCode::NotFound);
+    verifyRejected(parameters.setSpeakerMixKeyframeWeights(commandContext(runtime), clip,
+                                                           undoneKeyframe, {0.4, 0.6}),
+                   {}, AutomationErrorCode::NotFound);
+    verifyRejected(parameters.removeSpeakerMixKeyframes(commandContext(runtime), clip,
+                                                        {middle, undoneKeyframe}),
+                   {}, AutomationErrorCode::NotFound);
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
                                                {
                                                    {middle, 600 },
