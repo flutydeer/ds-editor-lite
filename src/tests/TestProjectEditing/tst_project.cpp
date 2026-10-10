@@ -840,6 +840,7 @@ void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve_data() {
     QTest::addColumn<QString>("operation");
     QTest::newRow("moving-across-another-curve") << QStringLiteral("move");
     QTest::newRow("inserting-across-another-curve") << QStringLiteral("insert");
+    QTest::newRow("moving-a-stale-batch-target") << QStringLiteral("move-stale");
     QTest::newRow("removing-a-stale-batch-target") << QStringLiteral("remove");
     QTest::newRow("interpolating-a-stale-batch-target") << QStringLiteral("interpolation");
 }
@@ -888,6 +889,13 @@ void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve() {
                     {240, 6100, AnchorNode::Hermite},
                     {840, 6500, AnchorNode::Hermite}
             });
+        if (operation == QStringLiteral("move-stale"))
+            return parameters.moveAnchors(
+                commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                {
+                    {first.nodes.first().id, 120, 6100},
+                    {stale,                  360, 6300}
+            });
         if (operation == QStringLiteral("remove"))
             return parameters.removeAnchors(commandContext(runtime), clip, ParamInfo::Pitch,
                                             Param::Edited, {first.nodes.first().id, stale});
@@ -908,6 +916,13 @@ void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve() {
     QVERIFY(after);
     QCOMPARE(after.get().curves.first().nodes.first().id, first.nodes.first().id);
     QCOMPARE(after.get().curves.last().id, curves.get().curves.last().id);
+    const auto recovered = parameters.moveAnchor(commandContext(runtime), clip, ParamInfo::Pitch,
+                                                 Param::Edited, first.nodes.first().id, 120, 6100);
+    QVERIFY(recovered && recovered.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), model);
+    QVERIFY(!fixture.history()->canUndo());
 }
 
 void ProjectEditingTests::adjacentAnchorCurvesMergeWithoutLosingNodes() {
@@ -2505,15 +2520,23 @@ void ProjectEditingTests::curveTransforms() {
     const MouthOpeningParamProperties properties;
 
     const auto name = kind == Kind::ModulatePitch ? ParamInfo::Pitch : ParamInfo::MouthOpening;
+    bool transformAvailable = true;
+    bool baselineAvailable = true;
     Automation::ParameterRuntimeServices services;
-    services.prepareTransform =
-        [&properties](SingingClip *, ParamInfo::Name,
-                      const Kind kind) -> AutomationResult<CurveTransform::Config> {
+    services.prepareTransform = [&properties, &transformAvailable, &baselineAvailable](
+                                    SingingClip *, ParamInfo::Name,
+                                    const Kind kind) -> AutomationResult<CurveTransform::Config> {
+        if (!transformAvailable)
+            return Automation::AutomationError{
+                .code = AutomationErrorCode::ModuleNotReady,
+                .message = QStringLiteral("Transform source is temporarily unavailable")};
         CurveTransform::Config config;
         config.kind = kind;
         config.properties = &properties;
         config.tickToMilliseconds = [](const int tick) { return double(tick); };
-        config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
+        config.pitchBaselineAtTick = [&baselineAvailable](int) {
+            return baselineAvailable ? std::optional<double>(6000.0) : std::nullopt;
+        };
         return config;
     };
     TestRuntime testRuntime({}, {}, {}, {}, {}, {}, {}, {}, {}, std::move(services));
@@ -2539,6 +2562,36 @@ void ProjectEditingTests::curveTransforms() {
         testRuntime.history()->reset();
         const Automation::ParameterTransformDto request{1, 99, kind == Kind::Scale ? 0.5 : 0.0, 1,
                                                         99};
+        const auto before = runtime.documentVersion();
+        const auto beforeModel = TestSupport::projectSnapshot(testRuntime.model());
+        const auto verifyRejected = [&](const auto &result, const AutomationErrorCode code) {
+            QVERIFY(isError(result, code));
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), beforeModel);
+            QVERIFY(!testRuntime.history()->canUndo());
+        };
+        transformAvailable = false;
+        verifyRejected(runtime.parameters().transformParameter(commandContext(runtime), clipId,
+                                                               name, kind, request),
+                       AutomationErrorCode::ModuleNotReady);
+        transformAvailable = true;
+        auto gap = request;
+        gap.localStart = 40;
+        gap.localEnd = 55;
+        gap.transitionStart = 40;
+        gap.transitionEnd = 55;
+        verifyRejected(runtime.parameters().transformParameter(commandContext(runtime), clipId,
+                                                               name, kind, gap),
+                       AutomationErrorCode::OperationUnavailable);
+        if (kind == Kind::ModulatePitch) {
+            baselineAvailable = false;
+            verifyRejected(runtime.parameters().transformParameter(commandContext(runtime), clipId,
+                                                                   name, kind, request),
+                           AutomationErrorCode::OperationUnavailable);
+            baselineAvailable = true;
+        }
+        if (QTest::currentTestFailed())
+            return;
         const auto applied = runtime.parameters().transformParameter(commandContext(runtime),
                                                                      clipId, name, kind, request);
         const auto snapshot = [&] {
