@@ -41,6 +41,7 @@
 #include <sndfile.h>
 
 #include <array>
+#include <utility>
 
 namespace {
     using Audio::AudioExporter;
@@ -220,13 +221,28 @@ void ApplicationGuiTests::exportFormatUpdatesFileNamePreview() {
     QCOMPARE(QDir::cleanPath(QFileInfo(controls.preview->text()).absolutePath()),
              QDir::cleanPath(output.path()));
 
-    QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Flac));
-    QCOMPARE(controls.fileName->text(), QStringLiteral("mix_${sampleRate}.flac"));
-    QCOMPARE(controls.exporter->config().fileType(), AudioExporterConfig::FT_Flac);
-    QCOMPARE(QFileInfo(controls.preview->text()).fileName(), QStringLiteral("mix_48000.flac"));
-    QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Wav));
-    QCOMPARE(controls.fileName->text(), QStringLiteral("mix_${sampleRate}.wav"));
-    QCOMPARE(QFileInfo(controls.preview->text()).fileName(), QStringLiteral("mix_48000.wav"));
+    for (const auto &[format, extension] : std::array{
+             std::pair{AudioExporterConfig::FT_Flac,      QStringLiteral("flac")},
+             std::pair{AudioExporterConfig::FT_OggVorbis, QStringLiteral("ogg") },
+             std::pair{AudioExporterConfig::FT_Mp3,       QStringLiteral("mp3") },
+             std::pair{AudioExporterConfig::FT_Wav,       QStringLiteral("wav") }
+    }) {
+        QVERIFY(chooseOption(controls.fileType, format));
+        QCOMPARE(controls.fileName->text(), QStringLiteral("mix_${sampleRate}.%1").arg(extension));
+        QCOMPARE(controls.exporter->config().fileType(), format);
+        QCOMPARE(QFileInfo(controls.preview->text()).fileName(),
+                 QStringLiteral("mix_48000.%1").arg(extension));
+        const bool lossy =
+            format == AudioExporterConfig::FT_OggVorbis || format == AudioExporterConfig::FT_Mp3;
+        QCOMPARE(bool(controls.exporter->warning() & AudioExporter::W_LossyFormat), lossy);
+        if (lossy) {
+            inspectExportPlan(dialog,
+                              {output.filePath(QStringLiteral("mix_48000.%1").arg(extension))},
+                              AudioExporter::W_LossyFormat);
+            if (QTest::currentTestFailed())
+                return;
+        }
+    }
 
     auto *browse = exportButton(&dialog, AudioExportDialog::tr("&Browse..."));
     QVERIFY(browse);
@@ -340,6 +356,15 @@ void ApplicationGuiTests::exportSourcesAndMixingUpdateFilePlan() {
     QCOMPARE(controls.fileName->text(), QStringLiteral("stems.wav"));
     QCOMPARE(controls.exporter->config().source(), QList<int>{1});
     QCOMPARE(controls.exporter->dryRun(), QStringList{output.filePath("stems.wav")});
+
+    pasteText(controls.fileName, QStringLiteral("${trackName}.wav"));
+    const QStringList invalidMixedTemplate{output.filePath(QStringLiteral("${trackName}.wav"))};
+    QCOMPARE(controls.exporter->dryRun(), invalidMixedTemplate);
+    QVERIFY(controls.exporter->warning() & AudioExporter::W_UnrecognizedTemplate);
+    inspectExportPlan(dialog, invalidMixedTemplate, AudioExporter::W_UnrecognizedTemplate);
+    if (QTest::currentTestFailed())
+        return;
+    pasteText(controls.fileName, QStringLiteral("stems.wav"));
 
     QVERIFY(chooseOption(controls.mixing, AudioExporterConfig::MO_Separated));
     QTest::mouseClick(controls.tracks->viewport(), Qt::LeftButton, Qt::ControlModifier,
