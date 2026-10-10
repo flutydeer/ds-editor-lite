@@ -1,5 +1,6 @@
 #include "tst_application_gui.h"
 #include "../TestSupport/MainWindowFixture.h"
+#include "../TestSupport/FileWriteBlocker.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -86,16 +87,8 @@ void ApplicationGuiTests::publicUiSettingsPersistAndRollback() {
                                 .source = Automation::InvocationSource::PublicJsonRpc});
     };
     const auto config = appOptions->configPath();
-    const auto backup = config + QStringLiteral(".ui-settings-backup");
-    QVERIFY(QFile::rename(config, backup));
-    const auto restoreFile = qScopeGuard([&] {
-        if (QFile::exists(backup)) {
-            if (QFileInfo(config).isDir())
-                QVERIFY(QDir().rmdir(config));
-            QVERIFY(QFile::rename(backup, config));
-        }
-    });
-    QVERIFY(QDir().mkdir(config));
+    TestSupport::FileWriteBlocker writeFailure(config);
+    QVERIFY(writeFailure.block());
     const auto failed = apply();
     QVERIFY(!failed);
     QCOMPARE(failed.getError().fieldPath, field);
@@ -113,8 +106,7 @@ void ApplicationGuiTests::publicUiSettingsPersistAndRollback() {
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
 
-    QVERIFY(QDir().rmdir(config));
-    QVERIFY(QFile::rename(backup, config));
+    QVERIFY(writeFailure.restore());
     const auto applied = apply();
     QVERIFY2(applied, qPrintable(applied ? QString{} : applied.getError().message));
     AppOptions stored;

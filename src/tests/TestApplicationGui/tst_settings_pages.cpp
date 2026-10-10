@@ -1,5 +1,6 @@
 #include "tst_application_gui.h"
 #include "../TestSupport/OptionsPanelFixture.h"
+#include "../TestSupport/FileWriteBlocker.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -205,15 +206,8 @@ void ApplicationGuiTests::experimentalSettingsPersistWhenRestartIsDeferred() {
         QVERIFY(backend);
         page->ensureWidgetVisible(backend);
         const auto config = appOptions->configPath();
-        const auto backup = config + QStringLiteral(".renderer-save-failure-backup");
-        QVERIFY(QFile::rename(config, backup));
-        const auto restoreFile = qScopeGuard([&] {
-            if (QFile::exists(backup)) {
-                QVERIFY(QDir().rmdir(config));
-                QVERIFY(QFile::rename(backup, config));
-            }
-        });
-        QVERIFY(QDir().mkdir(config));
+        TestSupport::FileWriteBlocker writeFailure(config);
+        QVERIFY(writeFailure.block());
         const auto modelBeforeFailure = TestSupport::projectSnapshot(*context->m_appModel);
         const auto *undoBeforeFailure = historyManager->nextUndoEntry();
         const auto rejectedIndex = backend->findData(experimental);
@@ -246,8 +240,7 @@ void ApplicationGuiTests::experimentalSettingsPersistWhenRestartIsDeferred() {
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBeforeFailure);
         QCOMPARE(historyManager->nextUndoEntry(), undoBeforeFailure);
         QVERIFY(QDir(config).isEmpty());
-        QVERIFY(QDir().rmdir(config));
-        QVERIFY(QFile::rename(backup, config));
+        QVERIFY(writeFailure.restore());
         QTest::mouseClick(embedded, Qt::LeftButton);
         deferRestart(page);
         if (QTest::currentTestFailed())

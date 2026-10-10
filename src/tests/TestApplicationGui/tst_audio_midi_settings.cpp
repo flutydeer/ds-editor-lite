@@ -1,5 +1,6 @@
 #include "tst_application_gui.h"
 #include "../TestSupport/OptionsPanelFixture.h"
+#include "../TestSupport/FileWriteBlocker.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -89,16 +90,8 @@ void ApplicationGuiTests::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry(
         QVERIFY(runtime.settings().updateAudio({}, original.get().audio));
     });
     const auto config = appOptions->configPath();
-    const auto backup = config + QStringLiteral(".save-failure-backup");
-    QVERIFY(QFile::rename(config, backup));
-    const auto restoreFile = qScopeGuard([&] {
-        if (QFile::exists(backup)) {
-            QVERIFY(QDir().rmdir(config));
-            QVERIFY(QFile::rename(backup, config));
-        }
-    });
-    // A directory occupying the file path makes persistence fail on every platform.
-    QVERIFY(QDir().mkdir(config));
+    TestSupport::FileWriteBlocker writeFailure(config);
+    QVERIFY(writeFailure.block());
     const auto before = runtime.documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
     Automation::AudioDeviceSettingsPatchDto patch;
@@ -118,8 +111,7 @@ void ApplicationGuiTests::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry(
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     QVERIFY(QDir(config).isEmpty());
-    QVERIFY(QDir().rmdir(config));
-    QVERIFY(QFile::rename(backup, config));
+    QVERIFY(writeFailure.restore());
 
     const auto retried = runtime.settings().updateAudioDevice({}, patch);
     QVERIFY2(retried, qPrintable(retried ? QString() : retried.getError().message));
