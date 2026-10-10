@@ -2,6 +2,7 @@
 
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "Automation/ExtractionAutomationAdapter.h"
 #include "../TestSupport/ThreadPoolBarrier.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Extractors/ExtractPitchTask.h"
@@ -27,6 +28,8 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
+#include <utility>
 
 using namespace Automation;
 
@@ -201,6 +204,59 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
                                                      qobject_cast<ExtractMidiTask *>(task)))
                     ++modelTasks;
             });
+    const auto detachedSource = files.filePath(QStringLiteral("prepared-source.wav"));
+    QVERIFY(QFile::copy(sourcePath, detachedSource));
+    const auto services = createExtractionAutomationServices(context->m_appOptions, taskManager);
+    const auto verifySourceLoss = [&](auto prepare, auto input) {
+        input.audioPath = detachedSource;
+        input.sourceAsset.pathInfo.sha512 = digest;
+        const auto prepared = prepare(input);
+        QVERIFY(prepared);
+        QVERIFY(QFile::remove(detachedSource));
+        struct Outcome {
+            std::optional<ExtractionBackendState> state;
+            AutomationErrorCode errorCode{};
+            QString message;
+        };
+        const auto outcome = std::make_shared<Outcome>();
+        const auto collect = [outcome](auto result) {
+            outcome->state = result.state;
+            outcome->errorCode = result.errorCode;
+            outcome->message = std::move(result.errorMessage);
+        };
+        const auto stop = qScopeGuard([&] { prepared.get().job->cancel(); });
+        prepared.get().job->start({}, collect);
+        QTRY_VERIFY_WITH_TIMEOUT(outcome->state.has_value(), 10000);
+        QCOMPARE(*outcome->state, ExtractionBackendState::Failed);
+        QCOMPARE(outcome->errorCode, AutomationErrorCode::IoError);
+        QVERIFY(outcome->message.contains(QStringLiteral("snapshot")));
+        QCOMPARE(modelTasks, 0);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+        QVERIFY(QFile::copy(sourcePath, detachedSource));
+        const auto recovered = prepare(input);
+        QVERIFY(recovered);
+        recovered.get().job->cancel();
+        outcome->state.reset();
+        recovered.get().job->start({}, collect);
+        QVERIFY(outcome->state.has_value());
+        QCOMPARE(*outcome->state, ExtractionBackendState::Canceled);
+        QCOMPARE(modelTasks, 0);
+    };
+    if (pitch) {
+        verifySourceLoss(services.preparePitch,
+                         PitchExtractionInput{.audioClipId = sourceId,
+                                              .singingClipId = ClipId(clip->id()),
+                                              .timeline = context->m_appModel->timeline()});
+    } else {
+        verifySourceLoss(services.prepareMidi,
+                         MidiExtractionInput{.audioClipId = sourceId,
+                                             .timeline = context->m_appModel->timeline(),
+                                             .audioClipLengthTick = sourceClip->length()});
+    }
+    if (QTest::currentTestFailed())
+        return;
     QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
     workers = std::make_unique<TestSupport::ThreadPoolBarrier>();
     QTRY_VERIFY_WITH_TIMEOUT(workers->ready(), 5000);
