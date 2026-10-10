@@ -525,4 +525,64 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeReset);
         QCOMPARE((*clip->notes().begin())->serialize(), noteBeforeReset);
     }
+
+    const TrackId removedTrack(context->m_appModel->tracks().last()->id());
+    const ClipId removedClip(otherClip->id());
+    const auto beforeRemoval = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeRemoval = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(runtime().project().removeTracks(commandContext(), {removedTrack}));
+    otherClip = nullptr;
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto removedVersion = runtime().documentVersion();
+    const auto removedContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *removedUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto query = [&](const QString &tool, const QJsonObject &requestedScope) {
+        return registry.invoke(tool,
+                               {
+                                   {QStringLiteral("document_id"), documentId.toString()},
+                                   {QStringLiteral("scope"),       requestedScope       }
+        },
+                               invocation);
+    };
+    for (const auto &tool :
+         {QStringLiteral("inference.get_status"), QStringLiteral("inference.get_capabilities")}) {
+        const auto staleTrack = query(
+            tool,
+            {
+                {QStringLiteral("kind"),      QStringLiteral("track")                          },
+                {QStringLiteral("track_ids"), QJsonArray{trackId.value(), removedTrack.value()}}
+        });
+        QVERIFY(!staleTrack);
+        QCOMPARE(staleTrack.getError().code, AutomationErrorCode::NotFound);
+        QVERIFY(staleTrack.getError().object);
+        QCOMPARE(staleTrack.getError().object->kind, ObjectKind::Track);
+        QCOMPARE(staleTrack.getError().object->value, removedTrack.value());
+        const auto staleClip = query(
+            tool, {
+                      {QStringLiteral("kind"),     QStringLiteral("clip")                     },
+                      {QStringLiteral("clip_ids"), QJsonArray{clip->id(), removedClip.value()}}
+        });
+        QVERIFY(!staleClip);
+        QCOMPARE(staleClip.getError().code, AutomationErrorCode::NotFound);
+        QVERIFY(staleClip.getError().object);
+        QCOMPARE(staleClip.getError().object->kind, ObjectKind::Clip);
+        QCOMPARE(staleClip.getError().object->value, removedClip.value());
+        const auto remaining = query(tool, scope);
+        QVERIFY2(remaining, qPrintable(remaining ? QString{} : remaining.getError().message));
+        QCOMPARE(runtime().documentVersion(), removedVersion);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), removedContent);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), removedUndo);
+        QVERIFY(taskManager->tasks().isEmpty());
+    }
+    QVERIFY(runtime().history().undo(commandContext()));
+    otherClip = qobject_cast<SingingClip *>(context->m_appModel->findClipById(removedClip.value()));
+    QVERIFY(otherClip);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeRemoval);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeRemoval);
+    for (const auto &tool :
+         {QStringLiteral("inference.get_status"), QStringLiteral("inference.get_capabilities")}) {
+        const auto restored = query(tool, unrelatedScope);
+        QVERIFY2(restored, qPrintable(restored ? QString{} : restored.getError().message));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 }
