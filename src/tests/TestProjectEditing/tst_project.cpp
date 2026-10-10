@@ -946,6 +946,20 @@ void ProjectEditingTests::adjacentAnchorCurvesMergeWithoutLosingNodes() {
     QCOMPARE(merged.nodes.at(2).position, 480);
     QCOMPARE(merged.nodes.at(2).value, 6400);
     QCOMPARE(merged.nodes.last().interpolation, AnchorNode::Hermite);
+    const auto mergedVersion = runtime.documentVersion();
+    const auto mergedModel = TestSupport::projectSnapshot(testRuntime.model());
+    const auto *mergeUndo = testRuntime.history()->nextUndoEntry();
+    const auto staleSource =
+        parameters.mergeAnchorCurves(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                     before.first().id, before.last().id);
+    QVERIFY(isError(staleSource, AutomationErrorCode::NotFound));
+    const auto staleTarget =
+        parameters.mergeAnchorCurves(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                     before.last().id, before.first().id);
+    QVERIFY(isError(staleTarget, AutomationErrorCode::NotFound));
+    QCOMPARE(runtime.documentVersion(), mergedVersion);
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), mergedModel);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), mergeUndo);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(curves().size(), 2);
     QCOMPARE(curves().last().id, before.last().id);
