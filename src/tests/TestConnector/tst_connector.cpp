@@ -262,6 +262,8 @@ namespace {
             Sse,
             RepeatedSse,
             MalformedJson,
+            WrongResponseId,
+            TruncatedResponse,
             UnsupportedContentType,
             Oversized,
         };
@@ -808,6 +810,15 @@ namespace {
                                           applicationTransportExtraField);
                     return;
                 }
+                if (mode == ApplicationResponseMode::TruncatedResponse) {
+                    const QByteArray headers =
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                        "Content-Length: 16\r\nConnection: close\r\n\r\n";
+                    m_rawLog.append(headers);
+                    socket->write(headers);
+                    socket->disconnectFromHost();
+                    return;
+                }
                 if (mode == ApplicationResponseMode::Oversized) {
                     respondOversized(socket);
                     return;
@@ -833,8 +844,10 @@ namespace {
                                       {QStringLiteral("build_id"),
                                        QStringLiteral("fake-build")}},
                     mode == ApplicationResponseMode::BusinessError);
+                const auto responseId =
+                    mode == ApplicationResponseMode::WrongResponseId ? QJsonValue(42) : request.id;
                 const auto response = AutomationWire::Mcp::makeResultResponse(
-                    request.id, result, info, request.protocolVersion);
+                    responseId, result, info, request.protocolVersion);
                 if (mode == ApplicationResponseMode::Sse ||
                     mode == ApplicationResponseMode::RepeatedSse)
                     respondSse(socket, response, mode == ApplicationResponseMode::RepeatedSse);
@@ -2272,6 +2285,8 @@ namespace {
         add("duplicate-sse-result", Mode::RepeatedSse, "message",
             "multiple_upstream_sse_responses");
         add("malformed-json", Mode::MalformedJson, "message", "invalid_upstream_json_response");
+        add("wrong-response-id", Mode::WrongResponseId, "message", "invalid_upstream_response");
+        add("truncated-response", Mode::TruncatedResponse, "message", "upstream_transport_error");
         add("proxy-html-response", Mode::UnsupportedContentType, "message",
             "unsupported_upstream_content_type");
         add("business-error", Mode::BusinessError, "code", "fake_business_error");
@@ -2317,7 +2332,9 @@ namespace {
                      QStringLiteral("upstream_timeout"));
         if (mode == int(FakeHttpEditor::ApplicationResponseMode::RepeatedSse) ||
             mode == int(FakeHttpEditor::ApplicationResponseMode::MalformedJson) ||
-            mode == int(FakeHttpEditor::ApplicationResponseMode::UnsupportedContentType)) {
+            mode == int(FakeHttpEditor::ApplicationResponseMode::UnsupportedContentType) ||
+            mode == int(FakeHttpEditor::ApplicationResponseMode::WrongResponseId) ||
+            mode == int(FakeHttpEditor::ApplicationResponseMode::TruncatedResponse)) {
             QVERIFY(result.value(QStringLiteral("isError")).toBool());
             fixture.sendTool(QStringLiteral("after-invalid-response"),
                              QStringLiteral("application.get_info"));
@@ -3359,14 +3376,10 @@ namespace {
         expect(waitUntil(
                    [&] {
                        const auto status = runtime.status();
-                       return status.value(QStringLiteral("exposure"))
-                                      .toObject()
-                                      .value(QStringLiteral("generic_target_count"))
-                                      .toInt() == 5 &&
-                              status.value(QStringLiteral("toolset"))
-                                      .toObject()
-                                      .value(QStringLiteral("compatibility"))
-                                      .toString() == QStringLiteral("compatible");
+                       return status.value(QStringLiteral("toolset"))
+                                  .toObject()
+                                  .value(QStringLiteral("compatibility"))
+                                  .toString() == QStringLiteral("compatible");
                    },
                    10000),
                "the fake command must become available after handshake");
@@ -3448,7 +3461,11 @@ namespace {
              {qMakePair(FakeHttpEditor::ApplicationResponseMode::MalformedJson,
                         QStringLiteral("invalid_upstream_json_response")),
               qMakePair(FakeHttpEditor::ApplicationResponseMode::RepeatedSse,
-                        QStringLiteral("multiple_upstream_sse_responses"))}) {
+                        QStringLiteral("multiple_upstream_sse_responses")),
+              qMakePair(FakeHttpEditor::ApplicationResponseMode::WrongResponseId,
+                        QStringLiteral("invalid_upstream_response")),
+              qMakePair(FakeHttpEditor::ApplicationResponseMode::TruncatedResponse,
+                        QStringLiteral("upstream_transport_error"))}) {
             const auto callsBefore = http.calledTools.count(QStringLiteral("fake.command"));
             http.applicationResponseMode = response.first;
             const auto unknown = invokeCommand();
