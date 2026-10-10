@@ -35,6 +35,9 @@
 
 #include <QPointer>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
@@ -47,6 +50,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <filesystem>
 #include <utility>
 
 bool ApplicationWorkflowTests::inferenceSettled(const SingingClip *clip) {
@@ -396,6 +400,7 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry_data() 
     QTest::newRow("pitch") << QStringLiteral("pitch");
     QTest::newRow("variance") << QStringLiteral("variance");
     QTest::newRow("acoustic") << QStringLiteral("acoustic");
+    QTest::newRow("vocoder-runtime-error") << QStringLiteral("vocoder-runtime-error");
 }
 
 void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
@@ -418,9 +423,54 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
     const auto version = runtime().documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
     const auto singer = clip->singerIdentifier();
+    const bool runtimeFailure = stage == QStringLiteral("vocoder-runtime-error");
+    auto failureSinger = singer;
+    const auto originalRoots = appOptions->general()->packageSearchPaths;
+    const auto restorePackages = qScopeGuard([&] {
+        if (!runtimeFailure)
+            return;
+        const auto restored = packageManager->refreshInstalledPackages(originalRoots);
+        QVERIFY2(restored, qPrintable(restored ? QString{} : restored.getError().message));
+    });
+    if (runtimeFailure) {
+        const auto root = cache.filePath(QStringLiteral("voicebanks/ci-fixture@1.0.101"));
+        QVERIFY(QDir().mkpath(QFileInfo(root).absolutePath()));
+        std::error_code copyError;
+        std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                              std::filesystem::u8path(root.toUtf8().constData()),
+                              std::filesystem::copy_options::recursive, copyError);
+        QVERIFY2(!copyError, qPrintable(QString::fromStdString(copyError.message())));
+        QFile manifest(QDir(root).filePath(QStringLiteral("desc.json")));
+        QVERIFY(manifest.open(QIODevice::ReadOnly));
+        auto description = QJsonDocument::fromJson(manifest.readAll()).object();
+        manifest.close();
+        description.insert(QStringLiteral("version"), QStringLiteral("1.0.101"));
+        QVERIFY(manifest.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const auto manifestBytes = QJsonDocument(description).toJson();
+        QCOMPARE(manifest.write(manifestBytes), qint64(manifestBytes.size()));
+        manifest.close();
+        const auto modelPath = QFINDTESTDATA("../resources/inference-vocoder-runtime-error.onnx");
+        QVERIFY(!modelPath.isEmpty());
+        QFile model(modelPath);
+        QVERIFY(model.open(QIODevice::ReadOnly));
+        const auto modelBytes = model.readAll();
+        QFile target(QDir(root).filePath(QStringLiteral("inferences/vocoder/vocoder.onnx")));
+        QVERIFY(target.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(target.write(modelBytes), qint64(modelBytes.size()));
+        target.close();
+        auto roots = originalRoots;
+        roots.append(root);
+        const auto refreshed = packageManager->refreshInstalledPackages(roots);
+        QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
+        failureSinger.packageVersion = QVersionNumber(1, 0, 101);
+        QVERIFY(!packageManager->findSingerByIdentifier(failureSinger).isEmpty());
+        QTest::ignoreMessage(QtCriticalMsg,
+                             QRegularExpression(QStringLiteral(
+                                 "inferAcoustic: Failed to (start|run) vocoder inference for")));
+    }
     const auto createTask = [&](const bool unsupported) -> std::unique_ptr<IInferTask> {
         const auto prepareInput = [&](auto input) {
-            if (unsupported)
+            if (unsupported && !runtimeFailure)
                 input.notes.first().phonemeNames.first().name = QStringLiteral("unmapped-phoneme");
             return input;
         };
@@ -434,7 +484,8 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
             return std::make_unique<InferVarianceTask>(
                 prepareInput(InferControllerHelper::buildInferVarianceInput(*piece, singer)));
         return std::make_unique<InferAcousticTask>(
-            prepareInput(InferControllerHelper::buildInferAcousticInput(*piece, singer)));
+            prepareInput(InferControllerHelper::buildInferAcousticInput(
+                *piece, unsupported && runtimeFailure ? failureSinger : singer)));
     };
     auto failed = createTask(true);
     auto retried = createTask(false);
