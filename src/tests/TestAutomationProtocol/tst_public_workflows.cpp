@@ -1762,7 +1762,21 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
     };
     auto input = commandArguments(runtime.documentVersion());
     input.insert(QStringLiteral("clip_id"), clipId.value());
-    input.insert(QStringLiteral("notes"), QJsonArray{note(0, names), note(480, timed)});
+    auto manual = note(0, names);
+    manual.insert(QStringLiteral("pronunciation"), QStringLiteral("la"));
+    const QJsonArray candidates{QStringLiteral("la"), QStringLiteral("lah")};
+    manual.insert(QStringLiteral("pronunciation_candidates"), candidates);
+    manual.insert(QStringLiteral("language"),
+                  QJsonObject{
+                      {QStringLiteral("mode"),        QStringLiteral("explicit")},
+                      {QStringLiteral("language_id"), QStringLiteral("eng")     }
+    });
+    auto unknownLanguage = note(480, timed);
+    unknownLanguage.insert(QStringLiteral("language"),
+                           QJsonObject{
+                               {QStringLiteral("mode"), QStringLiteral("unknown")}
+    });
+    input.insert(QStringLiteral("notes"), QJsonArray{manual, unknownLanguage});
     const auto inserted = registry.invoke(QStringLiteral("notes.insert"), input);
     QVERIFY2(inserted, qPrintable(errorMessage(inserted)));
     const auto version = runtime.documentVersion();
@@ -1779,6 +1793,22 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
     QCOMPARE(notes.size(), 2);
     QCOMPARE(notes.first().toObject().value(QStringLiteral("phonemes")).toArray(), names);
     QCOMPARE(notes.last().toObject().value(QStringLiteral("phonemes")).toArray(), timed);
+    const auto manualResult = notes.first().toObject();
+    QCOMPARE(manualResult.value(QStringLiteral("pronunciation")).toObject(),
+             QJsonObject({
+                 {QStringLiteral("value"),  QStringLiteral("la")    },
+                 {QStringLiteral("source"), QStringLiteral("edited")}
+    }));
+    QCOMPARE(manualResult.value(QStringLiteral("pronunciation_candidates")).toArray(), candidates);
+    QCOMPARE(manualResult.value(QStringLiteral("language")).toString(), QStringLiteral("eng"));
+    const auto unknownResult = notes.last().toObject();
+    QCOMPARE(unknownResult.value(QStringLiteral("language")).toString(), QStringLiteral("unknown"));
+    QCOMPARE(unknownResult.value(QStringLiteral("pronunciation"))
+                 .toObject()
+                 .value(QStringLiteral("source"))
+                 .toString(),
+             QStringLiteral("original"));
+    QVERIFY(unknownResult.value(QStringLiteral("pronunciation_candidates")).toArray().isEmpty());
     auto partial = timed;
     partial[1] = names.at(1);
     input = commandArguments(version);
