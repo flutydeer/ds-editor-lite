@@ -216,8 +216,13 @@ namespace Automation {
                     trackSnapshot.data = trackDraftDto(*track);
                     trackSnapshot.data.clips.clear();
                     for (const auto *clip : track->clips()) {
-                        trackSnapshot.clips.append(
-                            {ClipId(clip->id()), trackSnapshot.id, clipDraftDto(*clip)});
+                        ClipSnapshotDto clipSnapshot{
+                            ClipId(clip->id()), trackSnapshot.id, clipDraftDto(*clip), {}};
+                        if (clip->clipType() == Clip::Singing) {
+                            clipSnapshot.effectiveDefaultLanguage =
+                                static_cast<const SingingClip *>(clip)->effectiveDefaultLanguage();
+                        }
+                        trackSnapshot.clips.append(std::move(clipSnapshot));
                     }
                     result.tracks.append(std::move(trackSnapshot));
                 }

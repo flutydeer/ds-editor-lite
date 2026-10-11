@@ -1,0 +1,187 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-latest
+            triplet: x64-linux
+            qt-arch: linux_gcc_64
+            preset: coverage
+            jobs: 4
+          - name: Windows x64
+            runner: windows-latest
+            triplet: x64-windows
+            qt-arch: win64_msvc2022_64
+            preset: tests
+            jobs: 4
+          - name: macOS arm64
+            runner: macos-latest
+            triplet: arm64-osx
+            qt-arch: clang_64
+            preset: tests
+            jobs: 2
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      QT_VERSION: '6.11.2'
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
+      VCPKG_MAX_CONCURRENCY: '2'
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
+      DSEL_TEST_ARTIFACTS: '${{ github.workspace }}/build/test-results/sandboxes'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Prepare diagnostics
+        run: mkdir -p build/test-results build/ci/vcpkg-cache
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
+            automake libtool libltdl-dev python3-venv xvfb xauth \
+            libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+            libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
+            libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev libicu-dev
+          python3 -m venv build/ci/coverage-env
+          build/ci/coverage-env/bin/pip install gcovr==8.6
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake autoconf-archive libtool ninja pkg-config
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: ${{ matrix.qt-arch }}
+          # Qt 6.11 changed the Windows repository layout after aqt 3.3 was released.
+          aqtsource: ${{ runner.os == 'Windows' && 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b' || '' }}
+          modules: 'qt5compat qtshadertools qtscxml qthttpserver qtwebsockets'
+          cache: true
+      - name: Dependency cache environment
+        id: cache-environment
+        run: printf 'image=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+      - name: Restore dependency packages
+        id: packages
+        uses: actions/cache/restore@v6
+        with:
+          path: build/ci/vcpkg-cache
+          # Image changes can require new compiler or SDK ABIs even with an unchanged manifest.
+          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-project/ports/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          restore-keys: |
+            ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-
+            ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
+      - name: Build dependencies
+        id: dependencies
+        run: python scripts/ci/bootstrap-vcpkg.py --triplet '${{ matrix.triplet }}' 2>&1 | tee build/test-results/dependencies.log
+      - name: Save dependency packages
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: ${{ steps.packages.outputs.cache-primary-key }}
+      - name: Preserve completed packages after dependency failure
+        if: failure() && steps.dependencies.outcome == 'failure'
+        uses: actions/cache/save@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: ${{ steps.packages.outputs.cache-primary-key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Environment
+        run: |
+          {
+            git rev-parse HEAD
+            git submodule status
+            git -C vcpkg rev-parse HEAD
+            python -c "import platform; print(platform.platform(), platform.machine())"
+            cmake --version
+            ninja --version
+            "$QT_ROOT_DIR/bin/qtpaths" --qt-version
+          } > build/test-results/environment.txt
+      - name: Configure
+        if: runner.os != 'Windows'
+        run: |
+          platform_args=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            platform_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
+          fi
+          cmake --preset '${{ matrix.preset }}' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
+            -DVCPKG_TARGET_TRIPLET='${{ matrix.triplet }}' "${platform_args[@]}" \
+            2>&1 | tee build/test-results/configure.log
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset '${{ matrix.preset }}' -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build editor, connector and tests
+        id: build
+        if: runner.os != 'Windows'
+        run: cmake --build --preset '${{ matrix.preset }}' -- -k 0 2>&1 | tee build/test-results/build.log
+      - name: Build Windows editor, connector and tests
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset '${{ matrix.preset }}' -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Linux tests
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a ctest --preset ci-coverage --output-junit "$PWD/build/test-results/junit.xml" \
+            2>&1 | tee build/test-results/ctest.log
+      - name: Windows and macOS tests
+        if: runner.os != 'Linux'
+        run: |
+          ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
+            2>&1 | tee build/test-results/ctest.log
+      - name: Linux coverage
+        if: always() && runner.os == 'Linux' && steps.build.outcome == 'success'
+        run: |
+          mkdir -p build/test-results/coverage
+          build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
+            --html-nested build/test-results/coverage/index.html \
+            --json build/test-results/coverage/coverage.json \
+            --json-summary build/test-results/coverage/summary.json \
+            --csv build/test-results/coverage/files.csv \
+            --txt build/test-results/coverage/lines.txt \
+            --print-summary 2>&1 | tee build/test-results/coverage.log
+          cat build/test-results/coverage/files.csv
+      - name: macOS crash diagnostics
+        if: always() && runner.os == 'macOS'
+        continue-on-error: true
+        run: python scripts/ci/collect-macos-crashes.py
+      - name: Test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.triplet }}-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/test-results
+            build/*/Testing/Temporary
+            build/*/CMakeFiles/CMakeConfigureLog.yaml
+            vcpkg/buildtrees/**/*.log
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14

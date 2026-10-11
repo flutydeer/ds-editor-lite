@@ -135,7 +135,9 @@ void DocumentImportController::prepareNext() {
         m_currentTask = task;
         const auto dlg = new TaskDialog(task, true, true, nullptr);
         dlg->show();
-        connect(task, &Task::finished, this, [this, task] { onAudioTaskFinished(task); });
+        connect(
+            task, &Task::finished, this, [this, task] { onAudioTaskFinished(task); },
+            Qt::QueuedConnection);
         taskManager->addTask(task);
         taskManager->startTask(task);
         return;

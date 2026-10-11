@@ -1,6 +1,7 @@
 #include "AutomationTaskManager.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace Automation {
 
@@ -197,8 +198,9 @@ namespace Automation {
             if (it->snapshot.state == AutomationTaskState::CancelRequested) {
                 it->snapshot.state = AutomationTaskState::Canceled;
                 it->snapshot.cancelable = false;
-                unsuccessful = std::move(it->unsuccessful);
-                terminal = std::move(it->terminal);
+                // Moving a std::function may leave its captures in the retained task record.
+                unsuccessful = std::exchange(it->unsuccessful, {});
+                terminal = std::exchange(it->terminal, {});
                 snapshot = it->snapshot;
                 if (it->snapshot.scope == AutomationTaskScope::Application)
                     retainTerminalApplicationLocked(taskId);
@@ -257,7 +259,7 @@ namespace Automation {
             it->snapshot.mutation = std::move(mutation);
             it->snapshot.error.reset();
             it->unsuccessful = {};
-            terminal = std::move(it->terminal);
+            terminal = std::exchange(it->terminal, {});
             snapshot = it->snapshot;
             retainTerminalDocumentLocked(taskId);
         }
@@ -281,7 +283,7 @@ namespace Automation {
             it->snapshot.applicationResult = std::move(result);
             it->snapshot.error.reset();
             it->unsuccessful = {};
-            terminal = std::move(it->terminal);
+            terminal = std::exchange(it->terminal, {});
             snapshot = it->snapshot;
             retainTerminalApplicationLocked(taskId);
         }
@@ -302,8 +304,8 @@ namespace Automation {
             it->snapshot.state = AutomationTaskState::Failed;
             it->snapshot.cancelable = false;
             it->snapshot.error = std::move(error);
-            unsuccessful = std::move(it->unsuccessful);
-            terminal = std::move(it->terminal);
+            unsuccessful = std::exchange(it->unsuccessful, {});
+            terminal = std::exchange(it->terminal, {});
             snapshot = it->snapshot;
             if (it->snapshot.scope == AutomationTaskScope::Application)
                 retainTerminalApplicationLocked(taskId);
@@ -330,8 +332,8 @@ namespace Automation {
             }
             it->snapshot.state = AutomationTaskState::Canceled;
             it->snapshot.cancelable = false;
-            unsuccessful = std::move(it->unsuccessful);
-            terminal = std::move(it->terminal);
+            unsuccessful = std::exchange(it->unsuccessful, {});
+            terminal = std::exchange(it->terminal, {});
             snapshot = it->snapshot;
             if (it->snapshot.scope == AutomationTaskScope::Application)
                 retainTerminalApplicationLocked(taskId);
@@ -367,7 +369,8 @@ namespace Automation {
                     it->snapshot.error.reset();
                     removedTasks.append({it->snapshot,
                                          shouldCancel ? std::move(it->cancel) : CancelCallback{},
-                                         std::move(it->unsuccessful), std::move(it->terminal)});
+                                         std::exchange(it->unsuccessful, {}),
+                                         std::exchange(it->terminal, {})});
                 }
                 it = m_records.erase(it);
             }
@@ -399,7 +402,8 @@ namespace Automation {
                     it->snapshot.error.reset();
                     removedTasks.append({it->snapshot,
                                          shouldCancel ? std::move(it->cancel) : CancelCallback{},
-                                         std::move(it->unsuccessful), std::move(it->terminal)});
+                                         std::exchange(it->unsuccessful, {}),
+                                         std::exchange(it->terminal, {})});
                 }
                 it = m_records.erase(it);
             }

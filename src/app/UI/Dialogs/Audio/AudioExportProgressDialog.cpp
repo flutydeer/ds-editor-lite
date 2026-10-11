@@ -169,7 +169,7 @@ namespace Audio::Internal {
             return;
         }
         if (isTerminal()) {
-            event->ignore();
+            event->accept();
             dismissTerminal();
             return;
         }

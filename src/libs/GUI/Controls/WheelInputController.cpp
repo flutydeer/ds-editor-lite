@@ -4,6 +4,7 @@
 
 #include <QInputDevice>
 #include <QWheelEvent>
+#include <QSignalBlocker>
 
 #include <algorithm>
 #include <cmath>

@@ -206,16 +206,19 @@ void PackageManager::initialize(const QStringList &searchPaths) {
     std::call_once(m_initialized, [this, searchPaths]() {
         Q_EMIT moduleStatusChanged(ModuleStatus::Loading);
         auto task = new GetInstalledPackagesTask(searchPaths);
-        connect(task, &GetInstalledPackagesTask::finished, this, [this, task]() {
-            taskManager->removeTask(task);
-            if (task->result) {
-                Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
-            } else {
-                qCritical() << "Package scan failed:" << task->result.getError().message;
-                Q_EMIT moduleStatusChanged(ModuleStatus::Error);
-            }
-            delete task;
-        });
+        connect(
+            task, &GetInstalledPackagesTask::finished, this,
+            [this, task]() {
+                taskManager->removeTask(task);
+                if (task->result) {
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
+                } else {
+                    qCritical() << "Package scan failed:" << task->result.getError().message;
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Error);
+                }
+                delete task;
+            },
+            Qt::QueuedConnection);
         taskManager->addAndStartTask(task);
     });
 }
@@ -264,7 +267,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             searchPaths.push_back(path);
         }
 
-        const bool allowReuse = m_catalogGeneration == 0;
         // SynthrtEngine::initialize is triggered asynchronously by InferEngine
         // on a separate task. VoicebankSession (Stage 1: voicebank scan +
         // LanguageService metadata) must be ready before we can query the
@@ -285,14 +287,26 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 };
             }
         }
-        auto snapshotExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
-        if (!snapshotExp) {
+        // Session refresh publishes shared inference state, so admission must precede it.
+        if (commitGate && !commitGate()) {
+            commitRejected = true;
+            return result;
+        }
+        auto refreshed = SynthrtEngine::instance().refreshVoicebanks(searchPaths);
+        if (!refreshed) {
             return GetInstalledPackagesError{
                 GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-                QString::fromUtf8(snapshotExp.error().message()),
+                QString::fromUtf8(refreshed.error().message()),
             };
         }
-        const auto snapshot = *snapshotExp;
+        const auto snapshot = refreshed->snapshot;
+        for (const auto &diagnostic : refreshed->diagnostics) {
+            if (diagnostic.severity != srt::core::Severity::Error)
+                continue;
+            // The backend may include the source path only in its diagnostic message.
+            result.failedPackages.emplace_back(QString{},
+                                               QString::fromStdString(diagnostic.message));
+        }
 
         // Iterate packages (valid + invalid). For valid packages, look up the
         // manifest via VoicebankSnapshot::findManifest(). Singers are looked up
@@ -468,10 +482,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
 
         qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
-        if (commitGate && !commitGate()) {
-            commitRejected = true;
-            return result;
-        }
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;

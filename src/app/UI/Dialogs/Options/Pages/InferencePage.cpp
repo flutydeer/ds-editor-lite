@@ -29,15 +29,26 @@
 #include <QMCore/qmsystem.h>
 
 #include <algorithm>
+#include <utility>
 
 enum CustomRole {
     GpuInfoRole = Qt::UserRole,
     IsDefaultGpuRole = Qt::UserRole + 1,
 };
 
-InferencePage::InferencePage(QWidget *parent)
+InferencePage::InferencePage(QWidget *parent, GpuDetector gpuDetector)
     : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)),
+      m_gpuDetector(std::move(gpuDetector)),
       m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
+    if (!m_gpuDetector) {
+        m_gpuDetector = [](const QString &provider) {
+            if (provider == QStringLiteral("DirectML"))
+                return DmlGpuUtils::getGpuList();
+            if (provider == QStringLiteral("CUDA"))
+                return CudaGpuUtils::getGpuList();
+            return QList<GpuInfo>{};
+        };
+    }
     connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
         const auto detectedProvider = m_activeGpuProvider;
         m_activeGpuProvider.clear();
@@ -78,15 +89,7 @@ void InferencePage::requestGpuDetection() {
 
 void InferencePage::startGpuDetection(const QString &provider) {
     m_activeGpuProvider = provider;
-    m_gpuDetectionWatcher->setFuture(QtConcurrent::run([provider] {
-        if (provider == QStringLiteral("DirectML")) {
-            return DmlGpuUtils::getGpuList();
-        }
-        if (provider == QStringLiteral("CUDA")) {
-            return CudaGpuUtils::getGpuList();
-        }
-        return QList<GpuInfo>{};
-    }));
+    m_gpuDetectionWatcher->setFuture(QtConcurrent::run(m_gpuDetector, provider));
 }
 
 void InferencePage::showGpuDetectionPending() {
@@ -142,9 +145,11 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
             // the next launch. The Toast below explains what happened.
             const QSignalBlocker blocker(m_cbExecutionProvider);
             m_cbExecutionProvider->setCurrentText(cpuProvider);
-            modifyOption();
-            Toast::show(tr("No available GPU found. The execution provider has been switched "
-                           "back to CPU."));
+            if (applyOptions())
+                Toast::show(tr("No available GPU found. The execution provider has been switched "
+                               "back to CPU."));
+            else
+                m_gpuItem->setDescription(tr("No available GPU found"));
         }
         return;
     }
@@ -213,13 +218,18 @@ void InferencePage::confirmCleanCache() {
 }
 
 void InferencePage::modifyOption() {
+    applyOptions();
+}
+
+bool InferencePage::applyOptions() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
-        return;
+        return false;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
-        return;
-    auto settings = snapshot.get().inference;
+        return false;
+    const auto previous = snapshot.get().inference;
+    auto settings = previous;
     settings.executionProvider = m_cbExecutionProvider->currentText();
     if (settings.executionProvider != QStringLiteral("CPU") && m_cbDeviceList->isEnabled()) {
         if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
@@ -239,7 +249,44 @@ void InferencePage::modifyOption() {
     settings.pitchSmoothKernelSize = m_smoothSlider->spinbox->value();
     settings.singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
     settings.singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
-    runtime->settings().updateInference({}, settings);
+    if (runtime->settings().updateInference({}, settings))
+        return true;
+
+    const auto restoreValue = [](auto *control, auto value) {
+        const QSignalBlocker blocker(control);
+        control->setValue(value);
+    };
+    restoreValue(m_dsDepthSlider, previous.depth);
+    restoreValue(m_swRunVocoderOnCpu, previous.runVocoderOnCpu);
+    restoreValue(m_autoStartInfer, previous.autoStartInference);
+    restoreValue(m_playbackWindowSlider, previous.playbackLookaheadSeconds);
+    restoreValue(m_smoothSlider, previous.pitchSmoothKernelSize);
+    const QSignalBlocker providerBlocker(m_cbExecutionProvider);
+    const QSignalBlocker deviceBlocker(m_cbDeviceList);
+    const QSignalBlocker samplingBlocker(m_cbSamplingSteps);
+    const QSignalBlocker capacityBlocker(m_cbSingerSessionCacheCapacity);
+    const QSignalBlocker timeoutBlocker(m_cbSingerSessionIdleTimeout);
+    m_cbExecutionProvider->setCurrentText(previous.executionProvider);
+    m_cbSamplingSteps->setCurrentText(QLocale().toString(previous.samplingSteps));
+    m_cbSingerSessionCacheCapacity->setCurrentIndex(
+        m_cbSingerSessionCacheCapacity->findData(previous.singerSessionCacheCapacity));
+    m_cbSingerSessionIdleTimeout->setCurrentIndex(
+        m_cbSingerSessionIdleTimeout->findData(previous.singerSessionIdleTimeoutSeconds));
+    m_requestedGpuProvider = previous.executionProvider;
+    const bool needsGpu = previous.executionProvider != QStringLiteral("CPU");
+    m_deviceCard->setItemVisible(m_gpuItem, needsGpu);
+    if (needsGpu && m_cbDeviceList->isEnabled()) {
+        int selectedIndex = 0;
+        for (int index = 0; index < m_cbDeviceList->count(); ++index) {
+            const auto device = m_cbDeviceList->itemData(index, GpuInfoRole).value<GpuInfo>();
+            if (!previous.selectedGpuId.isEmpty() && device.deviceId == previous.selectedGpuId) {
+                selectedIndex = index;
+                break;
+            }
+        }
+        m_cbDeviceList->setCurrentIndex(selectedIndex);
+    }
+    return false;
 }
 
 QWidget *InferencePage::createContentWidget() {
@@ -247,16 +294,17 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
-    m_cbExecutionProvider->addItems(
-        {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
-         ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
-    if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
-        m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(ExecutionProvider::Cuda));
+    m_cbExecutionProvider->setObjectName(QStringLiteral("inferenceExecutionProvider"));
+    for (const auto provider :
+         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        if (ExecutionProviderUtils::availableInBuild(provider))
+            m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(provider));
     }
     m_cbExecutionProvider->setCurrentText(option->executionProvider);
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
+    m_cbDeviceList->setObjectName(QStringLiteral("inferenceDevice"));
     m_cbDeviceList->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
@@ -267,7 +315,10 @@ QWidget *InferencePage::createContentWidget() {
     m_gpuItem = m_deviceCard->addItem(tr("GPU"), QString{}, m_cbDeviceList);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [this] {
         requestGpuDetection();
-        modifyOption();
+        if (!applyOptions()) {
+            requestGpuDetection();
+            return;
+        }
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
@@ -277,6 +328,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
+    m_cbSamplingSteps->setObjectName(QStringLiteral("inferenceSamplingSteps"));
     m_cbSamplingSteps->setEditable(true);
     // Prevent wheel-scroll over this editable combo from grabbing focus.
     m_cbSamplingSteps->setFocusPolicy(Qt::StrongFocus);
@@ -287,7 +339,10 @@ QWidget *InferencePage::createContentWidget() {
                                  numberLocale.toString(10), numberLocale.toString(20),
                                  numberLocale.toString(50), numberLocale.toString(100)});
     m_cbSamplingSteps->setCurrentText(numberLocale.toString(option->samplingSteps));
-    connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, &InferencePage::modifyOption);
+    connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, [this] {
+        if (m_cbSamplingSteps->lineEdit()->hasAcceptableInput())
+            modifyOption();
+    });
 
     // Render - Depth
     constexpr double kDsDepthMin = 0.0;
@@ -305,17 +360,20 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - Run vocoder on CPU
     auto modifyAndRestart = [&] {
-        modifyOption();
+        if (!applyOptions())
+            return;
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
         dlg->show();
     };
     m_swRunVocoderOnCpu = new SwitchButton(appOptions->inference()->runVocoderOnCpu);
+    m_swRunVocoderOnCpu->setObjectName(QStringLiteral("inferenceRunVocoderOnCpu"));
     connect(m_swRunVocoderOnCpu, &SwitchButton::toggled, this, modifyAndRestart);
 
     // Render - decayInfer
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
+    m_autoStartInfer->setObjectName(QStringLiteral("inferenceAutoStart"));
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     // Render - playback lookahead window (seconds)
@@ -390,12 +448,15 @@ QWidget *InferencePage::createContentWidget() {
             [this] { QM::reveal(appOptions->inference()->cacheDirectory); });
 
     m_lblCacheStats = new QLabel(tr("Scanning..."));
+    m_lblCacheStats->setObjectName(QStringLiteral("inferenceCacheStats"));
     m_lblCacheStats->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     m_btnScanCache = new Button(tr("Refresh"), this);
+    m_btnScanCache->setObjectName(QStringLiteral("inferenceScanCache"));
     connect(m_btnScanCache, &Button::clicked, this, &InferencePage::startCacheScan);
 
     m_btnCleanCache = new Button(tr("Clean Up..."), this);
+    m_btnCleanCache->setObjectName(QStringLiteral("inferenceCleanCache"));
     m_btnCleanCache->setEnabled(false);
     connect(m_btnCleanCache, &Button::clicked, this, &InferencePage::confirmCleanCache);
 

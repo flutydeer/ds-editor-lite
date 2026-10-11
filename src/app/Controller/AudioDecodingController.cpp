@@ -207,8 +207,10 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip, const bool int
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_tasks.append(decodeTask);
-    connect(decodeTask, &Task::finished, this,
-            [decodeTask, this, interactive] { handleTaskFinished(decodeTask, interactive); });
+    connect(
+        decodeTask, &Task::finished, this,
+        [decodeTask, this, interactive] { handleTaskFinished(decodeTask, interactive); },
+        Qt::QueuedConnection);
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
@@ -228,6 +230,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip, const b
     resolveTask->relativeDir = resolveTask->assetSnapshot.pathInfo.relativeDir;
     resolveTask->fileName = QFileInfo(resolveTask->assetSnapshot.path).fileName();
     resolveTask->expectedSha512 = resolveTask->assetSnapshot.pathInfo.sha512;
+    resolveTask->referenceDir = clip->referenceDirectory();
     const auto projectPath = runtime->documentPath();
     resolveTask->projectDir =
         projectPath.isEmpty() ? QString{} : QFileInfo(projectPath).absolutePath();
@@ -239,9 +242,10 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip, const b
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_resolveTasks.append(resolveTask);
-    connect(resolveTask, &Task::finished, this, [resolveTask, this, interactive] {
-        handleResolveTaskFinished(resolveTask, interactive);
-    });
+    connect(
+        resolveTask, &Task::finished, this,
+        [resolveTask, this, interactive] { handleResolveTaskFinished(resolveTask, interactive); },
+        Qt::QueuedConnection);
     taskManager->addTask(resolveTask);
     taskManager->startTask(resolveTask);
 }
@@ -454,9 +458,12 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
             runtime->automationTasks().markRunning(automationTask.taskId);
 
             m_resolveTasks.append(resolveTask);
-            connect(resolveTask, &Task::finished, this, [resolveTask, this, interactive] {
-                handleCascadeResolveTaskFinished(resolveTask, interactive);
-            });
+            connect(
+                resolveTask, &Task::finished, this,
+                [resolveTask, this, interactive] {
+                    handleCascadeResolveTaskFinished(resolveTask, interactive);
+                },
+                Qt::QueuedConnection);
             taskManager->addTask(resolveTask);
             taskManager->startTask(resolveTask);
         }

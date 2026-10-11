@@ -3,6 +3,9 @@
 
 #include <QFile>
 #include <QTextStream>
+#include <QRegularExpression>
+
+#include <limits>
 
 namespace LrcTools {
 
@@ -30,7 +33,8 @@ namespace LrcTools {
         d.q_ptr = this;
     }
 
-    LrcDecoderPrivate::LrcDecoderPrivate() = default;
+    LrcDecoderPrivate::LrcDecoderPrivate() : m_readIndex(m_lyrics.end()) {
+    }
 
     LrcDecoderPrivate::~LrcDecoderPrivate() = default;
 
@@ -163,12 +167,14 @@ namespace LrcTools {
     }
 
     void LrcDecoderPrivate::cleanup() {
+        m_duration = 0;
         m_currentIndex = 0;
         m_filename.clear();
         m_lastError.clear();
         m_lrcData.clear();
         m_metadata.clear();
         m_lyrics.clear();
+        m_readIndex = m_lyrics.end();
     }
 
     qint64 LrcDecoderPrivate::decodeHeader() {
@@ -204,42 +210,24 @@ namespace LrcTools {
     }
 
     void LrcDecoderPrivate::decodeLine(const QString &line) {
-        qint64 offset = 0;
-        const qint64 length = line.length();
-
-        if (offset >= length)
-            return;
-
-        QString time;
-        qint64 pts = 0;
+        static const QRegularExpression timestamp(
+            QStringLiteral(R"(\[(\d+):([0-5]?\d)(?:\.(\d{1,3}))?\])"));
+        qsizetype offset = 0;
         QList<qint64> times;
-        while (offset < length) {
-            if (line.at(offset) == '[') {
-                offset++;
-            } else if (line.at(offset).isDigit()) {
-                time += line.at(offset);
-                offset++;
-            } else if (line.at(offset) == ']') {
-                if (time.size() == 3) {
-                    pts += time.toLongLong();
-                } else {
-                    pts += time.toLongLong() * 10;
-                }
-                times.append(pts);
-                time.clear();
-                pts = 0;
-                offset++;
-            } else if (line.at(offset) == ':') {
-                pts += time.toLongLong() * 60 * 1000;
-                time.clear();
-                offset++;
-            } else if (line.at(offset) == '.') {
-                pts += time.toLongLong() * 1000;
-                time.clear();
-                offset++;
-            } else {
+        while (offset < line.size()) {
+            const auto match = timestamp.match(line, offset, QRegularExpression::NormalMatch,
+                                               QRegularExpression::AnchorAtOffsetMatchOption);
+            if (!match.hasMatch())
                 break;
-            }
+            bool validMinutes = false;
+            const auto minutes = match.captured(1).toLongLong(&validMinutes);
+            const auto remainder = match.captured(2).toLongLong() * 1000 +
+                                   match.captured(3).leftJustified(3, '0').toLongLong();
+            if (!validMinutes ||
+                minutes > ((std::numeric_limits<qint64>::max)() - remainder) / 60000)
+                return;
+            times.append(minutes * 60000 + remainder);
+            offset = match.capturedEnd();
         }
 
         const QString data = line.mid(offset);

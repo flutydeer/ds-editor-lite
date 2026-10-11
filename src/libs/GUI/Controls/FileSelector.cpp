@@ -47,10 +47,11 @@ static bool getPathFromMimeData(const QMimeData *mimeData, const QSet<QString> &
     }
 
     for (const auto &url : std::as_const(urls)) {
+        if (!url.isLocalFile())
+            continue;
         QString path = url.toLocalFile();
 
         if (folderMode) {
-            // 检查路径是否为目录
             QFileInfo info(path);
             if (info.isDir()) {
                 if (outPath) {
@@ -59,7 +60,6 @@ static bool getPathFromMimeData(const QMimeData *mimeData, const QSet<QString> &
                 return true;
             }
         } else {
-            // 原来的文件处理逻辑
             if (extensions.isEmpty()) {
                 if (outPath) {
                     *outPath = path;

@@ -111,7 +111,7 @@ namespace Automation {
             return QStringLiteral("none");
         }
 
-        QString pianoEditModeName(const EditorViewGlobal::PianoRollEditMode mode) {
+        const QStringList &pianoEditModeNames() {
             static const QStringList names{
                 QStringLiteral("select"),
                 QStringLiteral("interval_select"),
@@ -122,24 +122,19 @@ namespace Automation {
                 QStringLiteral("edit_pitch_anchor"),
                 QStringLiteral("erase_pitch"),
                 QStringLiteral("trace_pitch"),
+                QStringLiteral("modulate_pitch"),
             };
+            return names;
+        }
+
+        QString pianoEditModeName(const EditorViewGlobal::PianoRollEditMode mode) {
+            const auto &names = pianoEditModeNames();
             const auto index = static_cast<qsizetype>(mode);
             return index >= 0 && index < names.size() ? names.at(index) : QStringLiteral("select");
         }
 
         EditorViewGlobal::PianoRollEditMode pianoEditMode(const QString &name) {
-            static const QStringList names{
-                QStringLiteral("select"),
-                QStringLiteral("interval_select"),
-                QStringLiteral("draw_note"),
-                QStringLiteral("erase_note"),
-                QStringLiteral("split_note"),
-                QStringLiteral("draw_pitch"),
-                QStringLiteral("edit_pitch_anchor"),
-                QStringLiteral("erase_pitch"),
-                QStringLiteral("trace_pitch"),
-            };
-            const auto index = names.indexOf(name);
+            const auto index = pianoEditModeNames().indexOf(name);
             return index < 0 ? EditorViewGlobal::Select
                              : static_cast<EditorViewGlobal::PianoRollEditMode>(index);
         }
@@ -152,6 +147,10 @@ namespace Automation {
                     return QStringLiteral("erase");
                 case EditorViewGlobal::ParameterEditMode::Trace:
                     return QStringLiteral("trace");
+                case EditorViewGlobal::ParameterEditMode::Shape:
+                    return QStringLiteral("shape");
+                case EditorViewGlobal::ParameterEditMode::Scale:
+                    return QStringLiteral("scale");
                 case EditorViewGlobal::ParameterEditMode::Anchor:
                     return QStringLiteral("anchor");
             }
@@ -163,6 +162,10 @@ namespace Automation {
                 return EditorViewGlobal::ParameterEditMode::Erase;
             if (name == QStringLiteral("trace"))
                 return EditorViewGlobal::ParameterEditMode::Trace;
+            if (name == QStringLiteral("shape"))
+                return EditorViewGlobal::ParameterEditMode::Shape;
+            if (name == QStringLiteral("scale"))
+                return EditorViewGlobal::ParameterEditMode::Scale;
             if (name == QStringLiteral("anchor"))
                 return EditorViewGlobal::ParameterEditMode::Anchor;
             return EditorViewGlobal::ParameterEditMode::Draw;

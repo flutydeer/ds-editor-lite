@@ -114,6 +114,7 @@ namespace Automation {
 
         QString audioPath;
         AudioPathInfo audioPathInfo;
+        QString audioReferenceDirectory;
         AudioClip::PathStatus audioPathStatus = AudioClip::PathStatus::Normal;
         AudioInfoModel audioInfo;
         bool hasRealTimeAnchor = false;
@@ -208,6 +209,9 @@ namespace Automation {
     [[nodiscard]] QByteArray fingerprint(const DocumentDraftDto &draft);
     [[nodiscard]] QByteArray fingerprint(const BatchImportDraftDto &draft);
 
+    [[nodiscard]] bool validCurveDraft(ParamInfo::Name name, const CurveDraftDto &curve,
+                                       int sourceStart, int sourceEnd);
+    [[nodiscard]] bool hasOverlappingAnchorCurves(const QList<CurveDraftDto> &curves);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft);

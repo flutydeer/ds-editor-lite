@@ -18,8 +18,6 @@
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Dialogs/Base/RestartDialog.h"
-#include <lite/GUI/Theme/ThemeLoader.h>
-#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
@@ -27,20 +25,39 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void AppearancePage::modifyOption() {
+    applyOptions();
+}
+
+bool AppearancePage::applyOptions() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
-        return;
+        return false;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
-        return;
-    auto settings = snapshot.get().appearance;
+        return false;
+    const auto previous = snapshot.get().appearance;
+    auto settings = previous;
     settings.useNativeFrame = m_swUseNativeFrame->value();
     settings.animationEnabled = m_swAnimationEnabled->value();
     settings.animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
     settings.showGhostNotes = m_swShowGhostNotes->value();
     settings.showTempoLane = m_swShowTempoLane->value();
     settings.showTimeSignatureLane = m_swShowTimeSignatureLane->value();
-    runtime->settings().updateAppearance({}, settings);
+    if (runtime->settings().updateAppearance({}, settings))
+        return true;
+
+    const auto restoreSwitch = [](SwitchButton *control, bool value) {
+        const QSignalBlocker blocker(control);
+        control->setValue(value);
+    };
+    restoreSwitch(m_swUseNativeFrame, previous.useNativeFrame);
+    restoreSwitch(m_swAnimationEnabled, previous.animationEnabled);
+    restoreSwitch(m_swShowGhostNotes, previous.showGhostNotes);
+    restoreSwitch(m_swShowTempoLane, previous.showTempoLane);
+    restoreSwitch(m_swShowTimeSignatureLane, previous.showTimeSignatureLane);
+    const QSignalBlocker blocker(m_leAnimationTimeScale);
+    m_leAnimationTimeScale->setText(QLocale().toString(previous.animationTimeScale));
+    return false;
 }
 
 void AppearancePage::changeTheme(const int index) {
@@ -48,25 +65,19 @@ void AppearancePage::changeTheme(const int index) {
     if (themePreferenceId.isEmpty())
         return;
 
-    const auto themeManager = ThemeManager::instance();
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
         return;
-    auto settings = snapshot.get().appearance;
-    const auto previousThemePreferenceId = settings.themeId;
-    if (themePreferenceId != previousThemePreferenceId &&
-        !themeManager->applyThemePreference(themePreferenceId)) {
+    const auto previousThemePreferenceId = snapshot.get().appearance.themeId;
+    const auto applied = runtime->settings().updateTheme({}, {.themeId = themePreferenceId});
+    if (!applied) {
         const QSignalBlocker blocker(m_cbxTheme);
         m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(previousThemePreferenceId));
-        QMessageBox::critical(this, tr("Theme switch failed"), ThemeLoader::lastError());
-        return;
+        QMessageBox::critical(this, tr("Theme switch failed"), applied.getError().message);
     }
-
-    settings.themeId = themePreferenceId;
-    runtime->settings().updateAppearance({}, settings);
 }
 
 void AppearancePage::changeInterfaceFont(const int index) {
@@ -77,7 +88,12 @@ void AppearancePage::changeInterfaceFont(const int index) {
         if (snapshot) {
             auto settings = snapshot.get().appearance;
             settings.uiFontFamily = family;
-            runtime->settings().updateAppearance({}, settings);
+            if (!runtime->settings().updateAppearance({}, settings)) {
+                const QSignalBlocker blocker(m_cbxInterfaceFont);
+                const auto savedIndex =
+                    m_cbxInterfaceFont->findData(snapshot.get().appearance.uiFontFamily);
+                m_cbxInterfaceFont->setCurrentIndex(qMax(0, savedIndex));
+            }
         }
     }
 }
@@ -120,8 +136,10 @@ QWidget *AppearancePage::createContentWidget() {
     fontCard->addItem(tr("Interface font"), m_cbxInterfaceFont);
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
+    m_swUseNativeFrame->setObjectName(QStringLiteral("appearanceNativeFrame"));
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [this] {
-        modifyOption();
+        if (!applyOptions())
+            return;
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
@@ -133,9 +151,11 @@ QWidget *AppearancePage::createContentWidget() {
                         m_swUseNativeFrame);
 
     m_swAnimationEnabled = new SwitchButton(option->animationEnabled);
+    m_swAnimationEnabled->setObjectName(QStringLiteral("appearanceAnimationEnabled"));
     connect(m_swAnimationEnabled, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
     m_leAnimationTimeScale = new LineEdit;
+    m_leAnimationTimeScale->setObjectName(QStringLiteral("appearanceAnimationTimeScale"));
     const auto doubleValidator = new QDoubleValidator(m_leAnimationTimeScale);
     m_leAnimationTimeScale->setValidator(doubleValidator);
     m_leAnimationTimeScale->setText(QLocale().toString(option->animationTimeScale));

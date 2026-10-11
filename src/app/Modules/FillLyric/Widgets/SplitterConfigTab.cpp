@@ -12,6 +12,7 @@
 #include <re2/re2.h>
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/FillLyric/Utils/LyricRuleAutomationUtils.h"
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 
 #include "RuleListItemWidget.h"
@@ -230,6 +231,7 @@ namespace FillLyric {
         auto &rule = m_rules[m_currentIndex];
         if (!rule.builtin) {
             auto collected = m_detailPanel->collectCustomRule();
+            collected.ruleId = rule.customRule.ruleId;
             collected.enabled = rule.enabled;
             rule.customRule = collected;
             rule.name = collected.name;
@@ -243,6 +245,7 @@ namespace FillLyric {
         item.name = tr("new-rule");
         item.builtin = false;
         item.enabled = true;
+        item.customRule.ruleId = createAutomationRuleId();
         item.customRule.name = item.name;
         item.customRule.enabled = true;
         m_rules.append(item);
@@ -267,6 +270,8 @@ namespace FillLyric {
     }
 
     void SplitterConfigTab::onOrderChanged() {
+        saveCurrentDetail();
+
         // After drag-drop, read back the order from QListWidgetItem::data(UserRole)
         // which stores the original index in m_rules.
         auto *list = m_listPanel->listWidget();
@@ -330,6 +335,7 @@ namespace FillLyric {
                 settings.builtinSplitterEnabled[rule.name] = rule.enabled;
             } else {
                 settings.customSplitterRules.append({
+                    .ruleId = rule.customRule.ruleId,
                     .name = rule.customRule.name,
                     .regexes = rule.customRule.regexes,
                     .enabled = rule.enabled,

@@ -13,6 +13,7 @@
 #include <QSet>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -284,6 +285,7 @@ namespace Automation {
             addString(hash, draft.audioPath);
             addString(hash, draft.audioPathInfo.relativeDir);
             addString(hash, draft.audioPathInfo.sha512);
+            addString(hash, draft.audioReferenceDirectory);
             addInteger(hash, static_cast<int>(draft.audioPathStatus));
             addInteger(hash, draft.hasRealTimeAnchor);
             addDouble(hash, draft.properties.trimStartMs);
@@ -438,6 +440,7 @@ namespace Automation {
             result.type = ClipDraftDto::Type::Audio;
             result.audioPath = audio.path();
             result.audioPathInfo = audio.pathInfo();
+            result.audioReferenceDirectory = audio.referenceDirectory();
             result.audioPathStatus = audio.pathStatus();
             result.audioInfo = audio.audioInfo();
             result.hasRealTimeAnchor = audio.hasRealTimeAnchor();
@@ -511,6 +514,7 @@ namespace Automation {
             appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, audio->id());
             audio->setPath(draft.audioPath);
             audio->setPathInfo(draft.audioPathInfo);
+            audio->setReferenceDirectory(draft.audioReferenceDirectory);
             audio->setPathStatus(draft.audioPathStatus);
             audio->setAudioInfo(draft.audioInfo);
             if (draft.hasRealTimeAnchor) {
@@ -714,6 +718,52 @@ namespace Automation {
         return hash.result();
     }
 
+    bool validCurveDraft(const ParamInfo::Name name, const CurveDraftDto &curve,
+                         const int sourceStart, const int sourceEnd) {
+        const auto spec = ParamInfo::valueSpec(name);
+        const auto validValue = [&spec](const int value) {
+            return value >= spec.minimum && value <= spec.maximum &&
+                   (value - spec.minimum) % spec.step == 0;
+        };
+        if (curve.type == CurveDraftDto::Type::Draw) {
+            const auto end = static_cast<qint64>(curve.localStart) +
+                             static_cast<qint64>(curve.step) * curve.values.size();
+            return curve.step > 0 && !curve.values.isEmpty() && curve.localStart >= sourceStart &&
+                   end <= sourceEnd &&
+                   std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
+        }
+        if (curve.nodes.size() < 2)
+            return false;
+        auto previous = std::numeric_limits<int>::min();
+        for (const auto &node : curve.nodes) {
+            if (node.position < sourceStart || node.position > sourceEnd ||
+                node.position <= previous || !validValue(node.value) ||
+                node.interpolation < AnchorNode::Linear || node.interpolation > AnchorNode::None) {
+                return false;
+            }
+            previous = node.position;
+        }
+        return true;
+    }
+
+    bool hasOverlappingAnchorCurves(const QList<CurveDraftDto> &curves) {
+        QList<QPair<int, int>> ranges;
+        for (const auto &curve : curves) {
+            if (curve.type != CurveDraftDto::Type::Anchor || curve.nodes.isEmpty())
+                continue;
+            const auto [minimum, maximum] = std::minmax_element(
+                curve.nodes.cbegin(), curve.nodes.cend(),
+                [](const auto &left, const auto &right) { return left.position < right.position; });
+            ranges.append({minimum->position, maximum->position});
+        }
+        std::sort(ranges.begin(), ranges.end());
+        for (qsizetype i = 1; i < ranges.size(); ++i) {
+            if (ranges.at(i).first <= ranges.at(i - 1).second)
+                return true;
+        }
+        return false;
+    }
+
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
         const auto localEnd = static_cast<qint64>(properties.clipStart) + properties.clipLen;
@@ -776,7 +826,23 @@ namespace Automation {
                             QStringLiteral("clip.parameters.curves.values"),
                             QStringLiteral("Draw curve range exceeds the supported timeline"));
                     }
+                    if (!validCurveDraft(parameter.name, curve, 0,
+                                         std::numeric_limits<int>::max())) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves"),
+                            QStringLiteral("Draw curve position or values are invalid"));
+                    }
+                } else if (!validCurveDraft(parameter.name, curve, 0,
+                                            std::numeric_limits<int>::max())) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("clip.parameters.curves.nodes"),
+                        QStringLiteral("Anchor positions, values, or interpolation are invalid"));
                 }
+            }
+            if (hasOverlappingAnchorCurves(parameter.curves)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("clip.parameters.curves.nodes.position"),
+                    QStringLiteral("Anchor curves must not overlap"));
             }
         }
         QStringList clientRefs;

@@ -305,6 +305,7 @@ QWidget *AutomationPage::createContentWidget() {
             &AutomationPage::modifyOption);
 
     m_controlLevel = new ComboBox;
+    m_controlLevel->setObjectName(QStringLiteral("automationControlLevel"));
     m_controlLevel->addItem(tr("L1 - Basic Editing"),
                             static_cast<int>(AutomationOption::ControlLevel::L1));
     m_controlLevel->addItem(tr("L2 - Complete Creation"),
@@ -418,6 +419,7 @@ QWidget *AutomationPage::createContentWidget() {
     connect(openToolsetButton, &QPushButton::clicked, this, &AutomationPage::showToolsetPage);
 
     m_accessRoots = new PathEditor;
+    m_accessRoots->setObjectName(QStringLiteral("automationAccessRoots"));
     m_accessRoots->setPaths(option->accessRoots);
     connect(m_accessRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
     const auto accessControlCard = new OptionListCard;

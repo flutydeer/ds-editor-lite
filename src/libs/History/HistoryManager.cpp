@@ -50,8 +50,13 @@ void HistoryManager::record(ActionSequence *actions) {
 
     actions->setHistoryId(d->m_nextHistoryId++);
     d->m_undoStack.push(actions);
-    for (const auto sequence : d->m_redoStack)
+    for (const auto sequence : d->m_redoStack) {
+        if (sequence == d->m_savePoint) {
+            d->m_savePoint = nullptr;
+            d->m_isSavePointSet = false;
+        }
         delete sequence;
+    }
     d->m_redoStack.clear();
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }

@@ -5,7 +5,6 @@
 #include <QInputDevice>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QTimer>
 
 class PanSliderPrivate : public QObject {
     Q_DECLARE_PUBLIC(PanSlider)
@@ -35,9 +34,6 @@ public:
     bool mouseMoveBarrier = false;
     bool canMoveThumb = false;
 
-    QTimer timer;
-    bool doubleClickWindow = false;
-    QPoint mouseDownPos;
     // Touch drags have no cursor to teleport onto the current value, so the
     // press stores the offset between the finger and that position and every
     // move applies it: the value follows the finger's delta instead of
@@ -111,11 +107,6 @@ PanSlider::PanSlider(QWidget *parent) : PanSlider(parent, *new PanSliderPrivate)
     Q_D(PanSlider);
     setAttribute(Qt::WA_StyledBackground);
     d->q_ptr = this;
-    d->timer.setInterval(400);
-    QObject::connect(&d->timer, &QTimer::timeout, this, [=] {
-        d->timer.stop();
-        d->doubleClickWindow = false;
-    });
     resetValue();
     setMinimumWidth(32);
     setMinimumHeight(24);
@@ -218,14 +209,9 @@ void PanSlider::mouseMoveEvent(QMouseEvent *event) {
 
 void PanSlider::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(PanSlider);
-    // Qt replaces the second press of a double tap with this event, so the
-    // press-to-press reset window never sees a clean double tap. Two
-    // deliberate taps anywhere on the slider reset to the center, while the
-    // mouse keeps its existing paths.
-    if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchScreen) {
+    if (event->button() == Qt::LeftButton) {
         resetValue();
         d->canMoveThumb = false;
-        d->doubleClickWindow = false;
         event->accept();
         return;
     }
@@ -238,7 +224,6 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
         return;
 
     const auto pos = event->pos();
-    d->mouseDownPos = pos;
 
     // A touch-initiated press on this slider owns the gesture: pin the
     // ancestor scrollers (a running glide included) so the Qt-synthesized
@@ -255,15 +240,6 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
         d->grabOffsetX = d->panToX(d->panValue) - pos.x();
         d->isSliderDown = true;
         d->canMoveThumb = true;
-
-        if (d->doubleClickWindow) {
-            resetValue();
-            d->canMoveThumb = false;
-            d->doubleClickWindow = false;
-        } else {
-            d->doubleClickWindow = true;
-            d->timer.start();
-        }
         return;
     }
 
@@ -275,26 +251,17 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
     QCursor::setPos(mapToGlobal(QPointF{x, y}).toPoint());
     d->isSliderDown = true;
     d->canMoveThumb = true;
-
-    if (d->doubleClickWindow) {
-        resetValue();
-        d->canMoveThumb = false;
-        d->doubleClickWindow = false;
-    } else {
-        d->doubleClickWindow = true;
-        d->timer.start();
-    }
 }
 
 void PanSlider::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(PanSlider);
-    if (event->button() != Qt::LeftButton)
+    if (event->button() != Qt::LeftButton || !d->isSliderDown)
         return;
 
-    d->canMoveThumb = true;
-    const auto currentPos = event->pos();
-    if (currentPos != d->mouseDownPos)
-        d->setPanValue(d->panSliderValue);
+    d->isSliderDown = false;
+    d->canMoveThumb = false;
+    d->mouseMoveBarrier = false;
+    d->setPanValue(d->panSliderValue);
 
     QWidget::mouseReleaseEvent(event);
 }

@@ -57,23 +57,6 @@ namespace {
                 piece->localEndTick(timeline) + clip->start()};
     }
 
-    QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
-        QList<NoteInferenceSnapshot> result;
-        result.reserve(clip.notes().count());
-        for (const auto note : clip.notes()) {
-            NoteInferenceSnapshot snapshot;
-            snapshot.noteId = note->id();
-            snapshot.lyric = note->lyric();
-            snapshot.language = note->effectiveLanguage();
-            snapshot.pronunciation = note->pronunciation().result();
-            snapshot.globalStart = note->globalStart();
-            snapshot.length = note->length();
-            snapshot.keyIndex = note->keyIndex();
-            result.append(snapshot);
-        }
-        return result;
-    }
-
     // 排序键：档位越小优先级越高，同档位内距播放头越近越优先。
     // 档位 0 = 播放头落在片段范围内(必须最先推理，否则一定位就听不到声音)，
     // 1 = 播放头之后，2 = 播放头之前，3 = 片段已不存在。
@@ -197,12 +180,38 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
 void InferController::restartPieceInference(InferPiece &piece) {
     Q_D(InferController);
-    d->createPipeline(piece);
+    d->createPipeline(piece, true);
 }
 
 void InferController::cancelPieceInference(const int pieceId) {
     Q_D(InferController);
+    // Install worker cleanup before removing states, and stop already queued stage transitions.
     d->cancelPieceRelatedTasks(pieceId);
+    const auto pipelines = Linq::where(
+        d->m_inferPipelines, [pieceId](const InferPipeline *p) { return p->pieceId() == pieceId; });
+    bool playbackRecoveryRequested = false;
+    for (const auto pipeline : pipelines) {
+        const QPointer<InferPiece> piece(&pipeline->piece());
+        pipeline->stop();
+        d->m_inferPipelines.removeOne(pipeline);
+        pipeline->deleteLater();
+        if (piece && piece->audioPath.isEmpty() &&
+            playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+            if (!d->m_playbackRecoveryPieces.contains(piece))
+                d->m_playbackRecoveryPieces.append(piece);
+            playbackRecoveryRequested = true;
+        }
+    }
+    if (playbackRecoveryRequested && !d->m_playbackRecoveryScheduled) {
+        d->m_playbackRecoveryScheduled = true;
+        // Playback is an independent consumer. Defer recovery until cancellation or pipeline
+        // replacement has returned, and coalesce multi-piece cancellation into one refresh.
+        QTimer::singleShot(0, d, [d] {
+            d->m_playbackRecoveryScheduled = false;
+            if (playbackController->playbackStatus() == PlaybackGlobal::Playing)
+                d->refreshPlaybackWindow(static_cast<double>(playbackController->position()));
+        });
+    }
 }
 
 void InferController::addInferDurationTask(InferDurationTask &task) {
@@ -360,11 +369,31 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
-        // Playing: only start pending pieces inside the lookahead window, instead of
-        // enqueuing everything behind the playhead at once
         const auto pos = static_cast<double>(playbackController->position());
+        // Recover each missing pipeline at most once per playback request when it enters
+        // the lookahead window. Continuous position updates must not retry failed inference.
+        m_playbackRecoveryPieces.clear();
+        for (const auto track : appModel->tracks()) {
+            for (const auto clip : track->clips()) {
+                if (clip->clipType() != IClip::Singing)
+                    continue;
+                const auto singingClip = static_cast<SingingClip *>(clip);
+                if (!canStartClipInference(*singingClip))
+                    continue;
+                for (const auto piece : singingClip->pieces()) {
+                    if (!piece->audioPath.isEmpty() ||
+                        std::any_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                                    [piece](const InferPipeline *pipeline) {
+                                        return pipeline->pieceId() == piece->id();
+                                    }))
+                        continue;
+                    m_playbackRecoveryPieces.append(piece);
+                }
+            }
+        }
         refreshPlaybackWindow(pos);
     } else { // Paused / Stopped
+        m_playbackRecoveryPieces.clear();
         // Paused/Stopped: let the currently running acoustic task finish,
         // then put remaining Running/Pending pipelines back to probe-wait state
         // so they stop queueing
@@ -380,13 +409,31 @@ void InferControllerPrivate::onPlaybackPositionChanged(double tick) {
 }
 
 void InferControllerPrivate::refreshPlaybackWindow(const double pos) {
-    if (m_autoStartAcousticInfer)
-        return; // auto-start mode bypasses playback-window scheduling
-
     // Lookahead window: covers [pos, pos + windowSeconds] in wall-clock time. Converted
     // to ticks via the timeline because inference engine operates on seconds, not ticks.
     const double windowTicks =
         appModel->timeline().secToTick(appOptions->inference()->playbackLookaheadSeconds);
+    for (auto it = m_playbackRecoveryPieces.begin(); it != m_playbackRecoveryPieces.end();) {
+        auto *piece = it->data();
+        if (!piece || appModel->findClipById(piece->clipId()) != piece->clip ||
+            !piece->audioPath.isEmpty() ||
+            std::any_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                        [piece](const InferPipeline *pipeline) {
+                            return pipeline->pieceId() == piece->id();
+                        })) {
+            it = m_playbackRecoveryPieces.erase(it);
+            continue;
+        }
+        const auto range = pieceGlobalRange(piece->clipId(), piece->id());
+        if (!range.isValid() || range.end <= pos || range.start >= pos + windowTicks) {
+            ++it;
+            continue;
+        }
+        it = m_playbackRecoveryPieces.erase(it);
+        createPipeline(*piece);
+    }
+    if (m_autoStartAcousticInfer)
+        return; // auto-start mode bypasses playback-window scheduling
 
     QList<InferPipeline *> inWindow;
     for (const auto pipeline : std::as_const(m_inferPipelines)) {
@@ -450,6 +497,7 @@ void InferControllerPrivate::handleModelChanged() {
     for (const auto pipeline : std::as_const(m_inferPipelines))
         delete pipeline;
     m_inferPipelines.clear();
+    m_playbackRecoveryPieces.clear();
     m_retryAllScheduled = false;
     // Registered cache paths from the replaced document are stale: its undo
     // history was reset and its pipelines destroyed above, so no finish callback
@@ -555,6 +603,17 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
                 return;
             }
             ensureClipInferenceStarted(*clip);
+        } else {
+            // Undo retains the pieces, but removal destroys their pipelines.
+            for (const auto piece : clip->pieces()) {
+                const bool missingPipeline =
+                    std::none_of(m_inferPipelines.cbegin(), m_inferPipelines.cend(),
+                                 [piece](const InferPipeline *pipeline) {
+                                     return pipeline->pieceId() == piece->id();
+                                 });
+                if (missingPipeline)
+                    createPipeline(*piece);
+            }
         }
         return;
     }
@@ -668,6 +727,19 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
         if (auto *piece = clip->findPieceById(pieceId.value()))
             dirtyPieces.append(piece);
     }
+    const auto notifyPipeline = [this](InferPiece &piece, void (InferPipeline::*notify)(),
+                                       const Automation::InferenceStage firstStage) {
+        const auto pipelines =
+            Linq::where(m_inferPipelines, [&piece](const InferPipeline *pipeline) {
+                return pipeline->pieceId() == piece.id();
+            });
+        if (pipelines.isEmpty()) {
+            createPipeline(piece, false, firstStage);
+            return;
+        }
+        Q_ASSERT(pipelines.size() == 1);
+        (pipelines.first()->*notify)();
+    };
     switch (name) {
         case ParamInfo::Expressiveness:
             for (const auto &piece : dirtyPieces) {
@@ -677,11 +749,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onExpressivenessChanged();
+                notifyPipeline(*piece, &InferPipeline::onExpressivenessChanged,
+                               Automation::InferenceStage::Pitch);
             }
             break;
         case ParamInfo::Pitch:
@@ -692,11 +761,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onPitchChanged();
+                notifyPipeline(*piece, &InferPipeline::onPitchChanged,
+                               Automation::InferenceStage::Variance);
             }
             break;
         case ParamInfo::Energy:
@@ -711,11 +777,8 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferAcousticTasks.cancelIf(pred);
                 m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
-                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
-                    return p->pieceId() == piece->id();
-                });
-                Q_ASSERT(pipelines.size() == 1);
-                pipelines.first()->onVarianceChanged();
+                notifyPipeline(*piece, &InferPipeline::onVarianceChanged,
+                               Automation::InferenceStage::Acoustic);
             }
             break;
         case ParamInfo::SpeakerMix:
@@ -811,7 +874,8 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
         qDebug() << "Language module is ready. Tasks will be started.";
     } else if (status == AppStatus::ModuleStatus::Error) {
         clearAllPendingApplies("pending-cleared-module-error");
-        m_getPronTasks.disposePendingTasks();
+        m_getPronTasks.cancelAll();
+        m_getPhoneTasks.cancelAll();
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
             runtime->settings().updateG2pLanguage({}, {});
         }
@@ -1159,7 +1223,9 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     auto task = new GetPronunciationTask(InferenceAutomationBridge::currentDocumentVersion(),
                                          clip.id(), clip.inferenceRevision(),
                                          buildNoteInferenceSnapshots(clip), clip.singerInfo());
-    connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
+    connect(
+        task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); },
+        Qt::QueuedConnection);
     m_getPronTasks.add(task);
 }
 
@@ -1179,11 +1245,19 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     auto task = new GetPhonemeNameTask(InferenceAutomationBridge::currentDocumentVersion(),
                                        clip.id(), clip.inferenceRevision(),
                                        buildNoteInferenceSnapshots(clip), clip.singerInfo());
-    connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
+    connect(
+        task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); },
+        Qt::QueuedConnection);
     m_getPhoneTasks.add(task);
 }
 
-void InferControllerPrivate::createPipeline(InferPiece &piece) {
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested) {
+    createPipeline(piece, acousticInferenceRequested, Automation::InferenceStage::Duration);
+}
+
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested,
+                                            const Automation::InferenceStage firstStage) {
+    Q_Q(InferController);
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
 
@@ -1191,18 +1265,16 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
-    for (const auto pipeline : duplicatePipelines) {
-        m_inferPipelines.removeOne(pipeline);
-        pipeline->deleteLater();
-    }
+    if (!duplicatePipelines.isEmpty())
+        q->cancelPieceInference(piece.id());
 
-    auto pipeline = new InferPipeline(piece);
+    auto pipeline = new InferPipeline(piece, acousticInferenceRequested);
     m_inferPipelines.append(pipeline);
     connect(pipeline, &InferPipeline::dropped, this,
             [this, pipeline](const QString &reason, int, const QString &) {
                 handlePipelineDropped(pipeline, reason);
             });
-    pipeline->run();
+    pipeline->run(firstStage);
 }
 
 void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, const QString &reason) {

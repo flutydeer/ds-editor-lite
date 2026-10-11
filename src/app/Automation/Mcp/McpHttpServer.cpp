@@ -16,6 +16,7 @@
 #include <QPointer>
 #include <QPromise>
 #include <QTcpServer>
+#include <QTcpSocket>
 #include <QThread>
 #include <QTimer>
 #include <QUrl>
@@ -664,6 +665,36 @@ namespace Automation {
             QPointer<QTcpServer> tcpServer(m_tcpServer);
             if (tcpServer)
                 tcpServer->close();
+            QList<QPointer<QTcpSocket>> sockets;
+            if (m_httpServer) {
+                for (auto *socket : m_httpServer->findChildren<QTcpSocket *>())
+                    sockets.append(socket);
+            }
+            const auto allDisconnected = [&] {
+                return std::all_of(sockets.cbegin(), sockets.cend(), [](const auto &socket) {
+                    return !socket || socket->state() == QAbstractSocket::UnconnectedState;
+                });
+            };
+            QEventLoop drainLoop;
+            QTimer deadline;
+            deadline.setSingleShot(true);
+            const auto finishDrain = [&] {
+                if (allDisconnected())
+                    drainLoop.quit();
+            };
+            for (const auto &socket : sockets) {
+                connect(socket, &QTcpSocket::disconnected, &drainLoop, finishDrain);
+                connect(socket, &QObject::destroyed, &drainLoop, finishDrain);
+            }
+            connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
+            // Drain response bytes before deleting sockets, with one deadline for all peers.
+            deadline.start(2000);
+            for (const auto &socket : sockets) {
+                if (socket)
+                    socket->disconnectFromHost();
+            }
+            if (!allDisconnected())
+                drainLoop.exec();
             delete m_httpServer;
             m_httpServer = nullptr;
             if (tcpServer)
@@ -1255,8 +1286,7 @@ namespace Automation {
           m_limits(std::move(limits)), m_handlerContext(handlerContext ? handlerContext : this) {
         m_limits.maximumRequestBytes =
             std::clamp<qsizetype>(m_limits.maximumRequestBytes, 1024, maximumTransportBodyBytes);
-        m_limits.maximumResponseBytes =
-            std::max<qsizetype>(1024, m_limits.maximumResponseBytes);
+        m_limits.maximumResponseBytes = std::max<qsizetype>(1024, m_limits.maximumResponseBytes);
         m_limits.maximumJsonDepth = std::max(8, m_limits.maximumJsonDepth);
         m_limits.maximumJsonNodes = std::max<qsizetype>(128, m_limits.maximumJsonNodes);
         m_limits.maximumGlobalInFlight = std::max(1, m_limits.maximumGlobalInFlight);

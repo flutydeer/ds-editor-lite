@@ -19,11 +19,11 @@
 
 `UiLanguageManager` 是应用级语言入口，负责：
 
-- 规范化并保存语言偏好；
-- 解析当前有效语言；
-- 持有应用、`qtbase` 和 `qt` translator；
-- 安装或卸载 translator；
-- 提供 `preference()`、`effectiveLanguageId()` 和 `effectiveLocale()`；
+- 规范化并保存语言偏好。
+- 解析当前有效语言。
+- 持有合并应用和 Qt 翻译的单个 `QTranslator`。
+- 安装或卸载这个 translator。
+- 提供 `preference()`、`effectiveLanguageId()` 和 `effectiveLocale()`。
 - 在有效语言切换成功后发送 `languageChanged(QString)`。
 
 启动顺序必须保持为：
@@ -38,7 +38,9 @@ QApplication
 
 这样可保证所有在构造函数中调用 `tr()` 的对象第一次创建时就使用正确语言。不要把语言初始化移到 `AppContext` 或主窗口之后。
 
-英文模式不加载应用 QM。中文模式从 Qt 翻译目录加载 `qtbase_zh_CN`、`qt_zh_CN`，并从资源路径 `:/i18n/translation_zh_CN.qm` 加载应用翻译。应用翻译或 Qt 翻译加载失败时会记录警告、卸载已加载的 translator，并安全回退英文。
+构建时，`src/app/CMakeLists.txt` 的 `qt_add_translations` 使用 `MERGE_QT_TRANSLATIONS` 和 `QT_TRANSLATION_CATALOGS qtbase`，将应用中文翻译与 Qt 官方 `qtbase` 中文翻译合并到同一个 QM，并嵌入 `/i18n` 资源。运行时不从 Qt 安装目录读取翻译文件，也不需要另行部署 `qtbase_zh_CN.qm` 或 `qt_zh_CN.qm`。
+
+英文模式不安装 translator。中文模式只加载 `:/i18n/translation_zh_CN.qm` 并安装这一个 translator。资源加载失败时记录警告、移除 translator 并回退英文，配置中的语言偏好仍保留。语言热切换与启动使用同一路径，不改写应用默认 locale。
 
 语言设置位于“设置 → 常规 → 应用”。组合框的 `itemData` 保存稳定 ID，显示文本不参与配置持久化或业务判断。缺失或非法配置统一按 `system` 处理。
 
@@ -181,7 +183,7 @@ cmake --build --preset debug --target DsEditorLite_lrelease
 
 普通应用构建也会生成 `translation_zh_CN.qm`，并通过 `/i18n` 资源前缀嵌入可执行文件。生成型 `.qm` 不应提交到仓库，也不需要添加手工 qrc 条目。
 
-Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所需的中文翻译。安装包必须在没有开发机 Qt 目录的环境中验证标准文件对话框、消息框等 Qt UI 的中文显示。
+Qt 标准控件的中文翻译在构建时通过 `MERGE_QT_TRANSLATIONS` 合入应用 catalog，运行时不依赖 `windeployqt --translations` 部署独立 Qt QM。安装包仍需在没有开发机 Qt 目录的环境中验证标准文件对话框、消息框等 Qt UI 的中文显示。
 
 提交翻译更新前应确认：
 
@@ -195,13 +197,13 @@ Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所�
 
 新增语言时需要同时完成以下工作：
 
-1. 在 `UiLanguageManager` 注册稳定语言 ID，并扩展偏好规范化和有效语言解析；
-2. 在设置页组合框中添加显示名称，`itemData` 使用语言 ID；
-3. 新增对应 TS，并加入 `qt_add_translations(TS_FILES ...)`；
-4. 在 `UiLanguageManager` 中加载应用 QM 和该语言的 Qt translator；
-5. 更新 `windeployqt --translations` 的部署语言列表；
-6. 扩展 `TestUiLanguage`，覆盖显式选择、自动检测、非法配置和回退；
-7. 验证缺少应用或 Qt 翻译时不会崩溃，并产生可定位日志；
+1. 在 `UiLanguageManager` 注册稳定语言 ID，并扩展偏好规范化和有效语言解析。
+2. 在设置页组合框中添加显示名称，`itemData` 使用语言 ID。
+3. 新增对应 TS，并加入 `qt_add_translations(TS_FILES ...)`。保留 `MERGE_QT_TRANSLATIONS` 和需要的 Qt catalog 配置，使该语言的 Qt 标准控件翻译合入同一 QM。
+4. 在 `UiLanguageManager` 加载该语言的嵌入式 catalog，继续由一个 translator 管理应用和 Qt 文本。
+5. 构建完整应用并检查对应 QM 已通过 `/i18n` 嵌入，无需新增独立 Qt QM 的运行时路径或部署语言列表。
+6. 扩展所属 Qt Test 套件的语言场景，覆盖显式选择、自动检测、非法配置和回退。
+7. 验证嵌入式 catalog 不可用时保留可定位日志并回退英文，同时验证同一 catalog 中的应用文本和 Qt 标准控件文本。
 8. 执行目标语言与英文之间的连续往返热切换测试。
 
 语言 ID 是配置协议的一部分，发布后不要随意重命名。若第三方组件使用独立翻译资源，应由 `UiLanguageManager` 持有独立 translator，并和应用 translator 一起安装、卸载及验证；不要恢复 qtmediate 的另一套 Widget 翻译订阅路径。
@@ -223,8 +225,7 @@ Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所�
   TODO 的复杂格式化可保留 C Locale；
 - 中英往返后没有重复菜单、重复连接、对象泄漏或业务回调；
 - 更新 TS 后所有活动文本都有完成的翻译；
-- Debug 全量构建通过；CTest 在无人值守 Worker 中跳过，使用 Computer Use 操作真实程序
-  完成针对改动的自测与基本功能回归冒烟测试。
+- Debug 全量构建及所属 CTest 套件通过。普通控件可用 offscreen，原生窗口用例在桌面或 Linux Xvfb 执行，主观显示质量另做必要人工检查。
 
 ## 相关实现
 

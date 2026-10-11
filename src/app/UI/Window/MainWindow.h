@@ -59,7 +59,6 @@ public:
     bool swapParameters() override;
     bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode) override;
     bool setParameterValueViewport(double centerRatio, double verticalScale) override;
-    void refreshActiveClipTrackPresentation() override;
     void previewActiveClipTrackColor(int colorIndex) override;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const override;
     bool revealFocus(const HistoryFocus &focus) override;

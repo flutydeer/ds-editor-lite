@@ -130,7 +130,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnLoop->setToolTip(tr("Loop"));
     auto loopShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this);
     loopShortcut->setContext(Qt::ApplicationShortcut);
-    connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::toggle);
+    connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::click);
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;
@@ -190,6 +190,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         if (appModel->timeline().tempoAt(m_tempoEditTick) != tempo)
             emit setTempoTriggered(m_tempoEditTick, tempo);
         refreshTempoDisplay();
+        // The popup may have edited a marker behind the current playhead.
+        updateTempoView();
     });
 
     connect(m_elTimeSignature, &TimeSignatureComboBox::popupAboutToShow, this,

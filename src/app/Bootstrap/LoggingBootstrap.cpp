@@ -1,4 +1,5 @@
 #include "LoggingBootstrap.h"
+#include "AppDataPaths.h"
 
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include <lite/Support/Log.h>
@@ -18,14 +19,13 @@ namespace LoggingBootstrap {
 
     void init() {
         // 设置日志等级和过滤器
-        QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+        QDir appDataDir(AppDataPaths::applicationData());
         if (!appDataDir.exists()) {
             if (!appDataDir.mkpath("."))
                 qFatal() << "Failed to create app data directory";
         }
 #ifdef LITE_ENABLE_FILE_LOG
-        Log::setLogDirectory(
-            QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
+        Log::setLogDirectory(AppDataPaths::applicationData() + "/Logs");
 #endif
         Log::setConsoleLogLevel(Log::Debug);
         // Log::setConsoleTagFilter({"InferPipeline"});

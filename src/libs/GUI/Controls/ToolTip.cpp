@@ -346,8 +346,6 @@ void ToolTip::completeOpacityAnimation() {
 void ToolTip::updateMessage() {
     QLayoutItem *child;
     while ((child = m_messageLayout->takeAt(0)) != nullptr) {
-        // takeAt() only unlists the item; the widget must be scheduled for
-        // deletion separately or every content change leaks a label
         if (const auto widget = child->widget())
             widget->deleteLater();
         delete child;

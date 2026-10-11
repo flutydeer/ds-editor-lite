@@ -246,8 +246,7 @@ EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureImageBlock(const QString &key,
     const auto contentRect =
         targetBlock.adjusted(kBlockPadding, kBlockPadding, -kBlockPadding, -kBlockPadding);
 
-    // Same coverage convention as text blocks: white pixels carrying the source
-    // alpha, so the vertex color tints the shape
+    // Store a premultiplied white mask so the shader reads source alpha from RGB.
     QImage coverage(blockSize, QImage::Format_RGBA8888_Premultiplied);
     coverage.fill(0);
     const auto sourceImage = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -255,11 +254,11 @@ EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureImageBlock(const QString &key,
         const auto *source = reinterpret_cast<const QRgb *>(sourceImage.constScanLine(y));
         auto *target = coverage.scanLine(y + kBlockPadding);
         for (int x = 0; x < sourceImage.width(); ++x) {
-            const auto alpha = qAlpha(source[x]);
-            target[(x + kBlockPadding) * 4] = 255;
-            target[(x + kBlockPadding) * 4 + 1] = 255;
-            target[(x + kBlockPadding) * 4 + 2] = 255;
-            target[(x + kBlockPadding) * 4 + 3] = static_cast<uchar>(alpha);
+            const auto alpha = static_cast<uchar>(qAlpha(source[x]));
+            target[(x + kBlockPadding) * 4] = alpha;
+            target[(x + kBlockPadding) * 4 + 1] = alpha;
+            target[(x + kBlockPadding) * 4 + 2] = alpha;
+            target[(x + kBlockPadding) * 4 + 3] = alpha;
         }
     }
     {

@@ -7,8 +7,8 @@
 #include <QJsonObject>
 
 // Relocates/replaces the file of an audio clip (relink).
-// Restores the {path, pathInfo, formatData workspace} triple;
-// path changes drive playback reload and waveform re-decoding via propertyChanged.
+// Restores the path, reference directory, path info and format-data workspace.
+// Source changes drive playback reload and waveform decoding via sourceChanged.
 // Manual relinks MUST be undoable: the user-picked file is unverified and may have
 // different content (this is also the "replace source" feature). In contrast,
 // sha512-verified auto/cascade relocation bypasses this action on purpose — see
@@ -22,16 +22,18 @@ public:
     void undo() override;
 
 private:
-    void apply(const QString &path, const AudioPathInfo &pathInfo,
-               const QJsonObject &formatData) const;
+    void apply(const QString &path, const AudioPathInfo &pathInfo, const QJsonObject &formatData,
+               bool hasFormatData, const QString &referenceDirectory) const;
 
     AudioClip *m_clip = nullptr;
     QString m_oldPath;
+    QString m_oldReferenceDirectory;
     QString m_newPath;
     AudioPathInfo m_oldPathInfo;
     AudioPathInfo m_newPathInfo;
     QJsonObject m_oldFormatData;
     QJsonObject m_newFormatData;
+    bool m_hadFormatData = false;
     AudioClip::PathStatus m_oldStatus = AudioClip::PathStatus::Normal;
 };
 

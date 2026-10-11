@@ -1,0 +1,71 @@
+diff --git a/RtMidi.cpp b/RtMidi.cpp
+--- a/RtMidi.cpp
++++ b/RtMidi.cpp
+@@ -108,7 +108,7 @@ class MidiInCore: public MidiInApi
+   std::string getPortName( unsigned int portNumber );
+ 
+  protected:
+-  MIDIClientRef getCoreMidiClientSingleton(const std::string& clientName) throw();
++  MIDIClientRef getCoreMidiClientSingleton(const std::string& clientName);
+   void initialize( const std::string& clientName );
+ };
+ 
+@@ -128,7 +128,7 @@ class MidiOutCore: public MidiOutApi
+   void sendMessage( const unsigned char *message, size_t size );
+ 
+  protected:
+-  MIDIClientRef getCoreMidiClientSingleton(const std::string& clientName) throw();
++  MIDIClientRef getCoreMidiClientSingleton(const std::string& clientName);
+   void initialize( const std::string& clientName );
+ };
+ 
+@@ -1151,7 +1151,7 @@ MidiInCore :: ~MidiInCore( void )
+   delete data;
+ }
+ 
+-MIDIClientRef MidiInCore::getCoreMidiClientSingleton(const std::string& clientName) throw() {
++MIDIClientRef MidiInCore::getCoreMidiClientSingleton(const std::string& clientName) {
+ 
+   if (CoreMidiClientSingleton == 0){
+       // Set up our client.
+@@ -1159,6 +1159,7 @@ MIDIClientRef MidiInCore::getCoreMidiClientSingleton(const std::string& clientName)
+ 
+       CFStringRef name = CFStringCreateWithCString( NULL, clientName.c_str(), kCFStringEncodingASCII );
+       OSStatus result = MIDIClientCreate(name, NULL, NULL, &client );
++      CFRelease( name );
+       if ( result != noErr ) {
+         std::ostringstream ost;
+         ost << "MidiInCore::initialize: error creating OS-X MIDI client object (" << result << ").";
+@@ -1166,7 +1167,6 @@ MIDIClientRef MidiInCore::getCoreMidiClientSingleton(const std::string& clientName)
+         error( RtMidiError::DRIVER_ERROR, errorString_ );
+         return 0;
+       }
+-      CFRelease( name );
+ 
+       CoreMidiClientSingleton = client;
+   }
+@@ -1486,7 +1486,7 @@ MidiOutCore :: ~MidiOutCore( void )
+   delete data;
+ }
+ 
+-MIDIClientRef MidiOutCore::getCoreMidiClientSingleton(const std::string& clientName) throw() {
++MIDIClientRef MidiOutCore::getCoreMidiClientSingleton(const std::string& clientName) {
+ 
+   if (CoreMidiClientSingleton == 0){
+       // Set up our client.
+@@ -1494,6 +1494,7 @@ MIDIClientRef MidiOutCore::getCoreMidiClientSingleton(const std::string& clientName)
+ 
+       CFStringRef name = CFStringCreateWithCString( NULL, clientName.c_str(), kCFStringEncodingASCII );
+       OSStatus result = MIDIClientCreate(name, NULL, NULL, &client );
++      CFRelease( name );
+       if ( result != noErr ) {
+         std::ostringstream ost;
+         ost << "MidiInCore::initialize: error creating OS-X MIDI client object (" << result << ").";
+@@ -1501,7 +1502,6 @@ MIDIClientRef MidiOutCore::getCoreMidiClientSingleton(const std::string& clientName)
+         error( RtMidiError::DRIVER_ERROR, errorString_ );
+         return 0;
+       }
+-      CFRelease( name );
+ 
+       CoreMidiClientSingleton = client;
+   }

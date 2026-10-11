@@ -185,13 +185,16 @@ bool ClipEditorView::revealFocus(const HistoryFocus &focus, const bool animated)
     return m_pianoRollEditorView->pianoRollView()->revealFocus(focus, animated);
 }
 
-void ClipEditorView::refreshActiveClipTrackPresentation() {
+void ClipEditorView::refreshTrackPresentation() {
     Track *trackRef = nullptr;
     appModel->findClipById(appStatus->activeClipId, trackRef);
-    if (!trackRef)
+    if (m_presentationTrack == trackRef)
         return;
 
     disconnect(m_trackColorConnection);
+    m_presentationTrack = trackRef;
+    if (!trackRef)
+        return;
     applyTrackColor(trackRef->colorIndex());
     m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this,
                                      [this, trackRef] { applyTrackColor(trackRef->colorIndex()); });
@@ -212,14 +215,11 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
-    disconnect(m_trackColorConnection);
-
-    if (trackRef) {
-        applyTrackColor(trackRef->colorIndex());
-        m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
-            applyTrackColor(trackRef->colorIndex());
-        });
-    }
+    disconnect(m_clipPropertyConnection);
+    refreshTrackPresentation();
+    if (clip)
+        m_clipPropertyConnection =
+            connect(clip, &Clip::propertyChanged, this, &ClipEditorView::refreshTrackPresentation);
 
     bool hadActiveClip = m_hasActiveClip;
     if (clip == nullptr) {

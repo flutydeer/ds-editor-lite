@@ -16,6 +16,7 @@
 #include <lite/ProjectConverters/MidiTextCodecConverter.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 
 #include <opendspx/clip.h>
 #include <opendspx/singingclip.h>
@@ -1083,9 +1084,9 @@ namespace Automation {
                 QStringLiteral("The selected singer is not installed"));
         }
 
-        AutomationResult<QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>
-            resolveSpeakerMix(CoreRuntime &runtime, const QJsonObject &object,
-                              const QString &fieldPath) {
+        AutomationResult<EffectiveVoiceContext> resolveSpeakerMix(CoreRuntime &runtime,
+                                                                  const QJsonObject &object,
+                                                                  const QString &fieldPath) {
             const auto singerRef = object.value(QStringLiteral("singer")).toObject();
             const auto packageId = singerRef.value(QStringLiteral("package_id")).toString();
             const auto singerId = singerRef.value(QStringLiteral("singer_id")).toString();
@@ -1137,6 +1138,9 @@ namespace Automation {
                         mix.sources.append({*found});
                         fullWeights.append(source.value(QStringLiteral("weight")).toDouble());
                     }
+                    // Single mode stores its speaker outside the normalized mix.
+                    const auto speaker =
+                        mix.sources.isEmpty() ? SpeakerInfo{} : mix.sources.constFirst().speaker;
                     if (mix.sources.size() == 1) {
                         mix.mode = SpeakerMixModel::SingerSourceMode::Single;
                     } else {
@@ -1144,8 +1148,8 @@ namespace Automation {
                         mix.fixedWeights =
                             SpeakerMixModel::explicitWeightsFromFullWeights(fullWeights);
                     }
-                    return QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>{
-                        singer.info, SpeakerMixModel::normalizeSpeakerMixData(mix)};
+                    return EffectiveVoiceContext{singer.info, speaker,
+                                                 SpeakerMixModel::normalizeSpeakerMixData(mix)};
                 }
             }
             return AutomationError::invalidArgument(
@@ -1666,8 +1670,8 @@ namespace Automation {
             auto resolved = resolveSpeakerMix(runtime, object, QStringLiteral("preset"));
             if (!resolved)
                 return resolved.getError();
-            const auto &singer = resolved.get().first;
-            const auto &mix = resolved.get().second;
+            const auto &singer = resolved.get().singer;
+            const auto &mix = resolved.get().speakerMix;
             SpeakerMixPresetDto preset;
             preset.id = object.value(QStringLiteral("preset_id")).toString();
             preset.name = object.value(QStringLiteral("name")).toString();
@@ -1681,8 +1685,7 @@ namespace Automation {
             return preset;
         }
 
-        AutomationResult<
-            QPair<SpeakerMixPresetDto, QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>>
+        AutomationResult<QPair<SpeakerMixPresetDto, EffectiveVoiceContext>>
             resolveSpeakerMixPreset(CoreRuntime &runtime, const QString &presetId) {
             auto presets = runtime.presets().getSpeakerMixPresets();
             if (!presets)
@@ -1718,11 +1721,10 @@ namespace Automation {
                                   QStringLiteral("preset_id"));
             if (!resolved)
                 return resolved.getError();
-            resolved.get().second.sourcePresetId = found->id;
-            resolved.get().second.sourcePresetName = found->name;
-            resolved.get().second.sourcePresetDirty = false;
-            return QPair<SpeakerMixPresetDto, QPair<SingerInfo, SpeakerMixModel::SpeakerMixData>>{
-                *found, resolved.get()};
+            resolved.get().speakerMix.sourcePresetId = found->id;
+            resolved.get().speakerMix.sourcePresetName = found->name;
+            resolved.get().speakerMix.sourcePresetDirty = false;
+            return QPair<SpeakerMixPresetDto, EffectiveVoiceContext>{*found, resolved.get()};
         }
 
         QString effectiveDefaultLanguage(const ProjectSnapshotDto &project, const ClipId clipId) {
@@ -1730,14 +1732,7 @@ namespace Automation {
                 for (const auto &clip : track.clips) {
                     if (clip.id != clipId)
                         continue;
-                    if (!clip.data.defaultLanguage.isEmpty())
-                        return clip.data.defaultLanguage;
-                    const auto singer = clip.data.usesTrackVoiceContext ? track.data.singerInfo
-                                                                        : clip.data.ownSingerInfo;
-                    if (clip.data.usesTrackVoiceContext && !track.data.defaultLanguage.isEmpty()) {
-                        return track.data.defaultLanguage;
-                    }
-                    return singer.defaultLanguage();
+                    return clip.effectiveDefaultLanguage;
                 }
             }
             return {};
@@ -2073,6 +2068,23 @@ namespace Automation {
         m_handlers.insert(operationId, std::move(handler));
     }
 
+    std::function<AutomationResult<AutomationUnit>()>
+        PublicAutomationRegistry::audioPathCommitGuard(AuthorizedPath authorizedPath) const {
+        return [lifetime = std::weak_ptr<LifetimeState>(m_lifetimeState), guard = &m_fileGuard,
+                authorizedPath = std::move(authorizedPath)]() -> AutomationResult<AutomationUnit> {
+            const auto state = lifetime.lock();
+            if (!state || !state->active.load(std::memory_order_acquire)) {
+                return error(AutomationErrorCode::PermissionDenied,
+                             QStringLiteral("Audio source authorization is no longer available"),
+                             QStringLiteral("path"));
+            }
+            const auto authorized = guard->reauthorize(authorizedPath);
+            if (!authorized)
+                return authorized.getError();
+            return AutomationUnit{};
+        };
+    }
+
     AutomationResult<QJsonObject>
         PublicAutomationRegistry::invoke(const QString &operationId, const QJsonObject &arguments,
                                          const PublicInvocationContext &context) {
@@ -2182,14 +2194,13 @@ namespace Automation {
     void PublicAutomationRegistry::registerBindings() {
         addBinding(ToolNames::application_get_info,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
-                       auto result = m_runtime.application().getInfo();
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       return AutomationResult<QJsonObject>(QJsonObject{
-                           {QStringLiteral("name"),     result.get().name    },
-                           {QStringLiteral("version"),  result.get().version },
-                           {QStringLiteral("platform"), result.get().platform},
-                           {QStringLiteral("build_id"), result.get().buildId },
+                       return m_runtime.application().getInfo().map([&](const auto &value) {
+                           return QJsonObject{
+                               {QStringLiteral("name"),     value.name    },
+                               {QStringLiteral("version"),  value.version },
+                               {QStringLiteral("platform"), value.platform},
+                               {QStringLiteral("build_id"), value.buildId },
+                           };
                        });
                    });
         addBinding(ToolNames::application_get_status, [this](const QJsonObject &,
@@ -2259,305 +2270,325 @@ namespace Automation {
                               ApplicationTerminationMode::Restart, QStringLiteral("restart"));
         addBinding(ToolNames::documents_get,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
-                       auto result = m_runtime.documents().getDocument(documentId(arguments));
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       auto project = m_runtime.project().getProject(documentId(arguments));
-                       if (!project)
-                           return AutomationResult<QJsonObject>(project.getError());
-                       return AutomationResult<QJsonObject>(
-                           queryResult(result.get().document, QStringLiteral("snapshot"),
-                                       encodeDocument(result.get(), project.get(), m_fileGuard)));
+                       return m_runtime.documents()
+                           .getDocument(documentId(arguments))
+                           .flatMap([&](const auto &value) {
+                               auto project = m_runtime.project().getProject(documentId(arguments));
+                               if (!project)
+                                   return AutomationResult<QJsonObject>(project.getError());
+                               return AutomationResult<QJsonObject>(
+                                   queryResult(value.document, QStringLiteral("snapshot"),
+                                               encodeDocument(value, project.get(), m_fileGuard)));
+                           });
                    });
         addBinding(ToolNames::documents_list_recent, [this](const QJsonObject &,
                                                             const PublicInvocationContext &) {
-            auto result = m_runtime.settings().getRecentProjectFiles();
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray projects;
-            for (const auto &path : result.get()) {
-                const auto authorized = m_fileGuard.authorize(path, FileAccessPurpose::Read);
-                if (!authorized)
-                    continue;
-                const QFileInfo info(authorized.get().canonicalPath);
-                projects.append(QJsonObject{
-                    {QStringLiteral("path"),      authorized.get().canonicalPath},
-                    {QStringLiteral("file_name"), info.fileName()               },
-                    {QStringLiteral("exists"),    info.exists()                 },
-                });
-            }
-            return AutomationResult<QJsonObject>(QJsonObject{
-                {QStringLiteral("projects"), projects}
+            return m_runtime.settings().getRecentProjectFiles().map([&](const auto &value) {
+                QJsonArray projects;
+                for (const auto &path : value) {
+                    const auto authorized = m_fileGuard.authorize(path, FileAccessPurpose::Read);
+                    if (!authorized)
+                        continue;
+                    const QFileInfo info(authorized.get().canonicalPath);
+                    projects.append(QJsonObject{
+                        {QStringLiteral("path"),      authorized.get().canonicalPath},
+                        {QStringLiteral("file_name"), info.fileName()               },
+                        {QStringLiteral("exists"),    info.exists()                 },
+                    });
+                }
+                return QJsonObject{
+                    {QStringLiteral("projects"), projects}
+                };
             });
         });
         addBinding(ToolNames::notes_list, [this](const QJsonObject &arguments,
                                                  const PublicInvocationContext &) {
-            auto result = m_runtime.notes().getNotes(
-                documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray notes;
-            for (const auto &note : result.get()) {
-                auto encoded = encodeNoteDraft(note.data);
-                encoded.insert(QStringLiteral("note_id"), note.id.value());
-                encoded.insert(QStringLiteral("clip_id"), note.clipId.value());
-                notes.append(encoded);
-            }
-            auto page = paginateJson(
-                m_collectionCursorCodec, notes, arguments, QStringLiteral("editor-public-notes/v1"),
-                QJsonObject{
-                    {QStringLiteral("document"),
-                     encodeDocumentVersion(m_runtime.documentVersion())                    },
-                    {QStringLiteral("clip_id"),  arguments.value(QStringLiteral("clip_id"))},
-                    {QStringLiteral("notes"),    notes                                     }
-            });
-            if (!page)
-                return AutomationResult<QJsonObject>(page.getError());
-            auto encoded =
-                queryResult(m_runtime.documentVersion(), QStringLiteral("notes"), page.get().items);
-            if (!page.get().nextCursor.isEmpty())
-                encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
-            return AutomationResult<QJsonObject>(std::move(encoded));
+            return m_runtime.notes()
+                .getNotes(documentId(arguments),
+                          ClipId(arguments.value(QStringLiteral("clip_id")).toInt()))
+                .flatMap([&](const auto &value) {
+                    QJsonArray notes;
+                    for (const auto &note : value) {
+                        auto encoded = encodeNoteDraft(note.data);
+                        encoded.insert(QStringLiteral("note_id"), note.id.value());
+                        encoded.insert(QStringLiteral("clip_id"), note.clipId.value());
+                        notes.append(encoded);
+                    }
+                    auto page = paginateJson(
+                        m_collectionCursorCodec, notes, arguments,
+                        QStringLiteral("editor-public-notes/v1"),
+                        QJsonObject{
+                            {QStringLiteral("document"),
+                             encodeDocumentVersion(m_runtime.documentVersion())                    },
+                            {QStringLiteral("clip_id"),  arguments.value(QStringLiteral("clip_id"))},
+                            {QStringLiteral("notes"),    notes                                     }
+                    });
+                    if (!page)
+                        return AutomationResult<QJsonObject>(page.getError());
+                    auto encoded = queryResult(m_runtime.documentVersion(), QStringLiteral("notes"),
+                                               page.get().items);
+                    if (!page.get().nextCursor.isEmpty())
+                        encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
+                    return AutomationResult<QJsonObject>(std::move(encoded));
+                });
         });
         addBinding(ToolNames::parameters_get, [this](const QJsonObject &arguments,
                                                      const PublicInvocationContext &) {
-            auto result = m_runtime.parameters().getParameter(
-                documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
-                parameterName(arguments.value(QStringLiteral("name")).toString()),
-                parameterType(arguments.value(QStringLiteral("layer")).toString()));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            auto encoded = encodeParameter(result.get(), arguments);
-            if (!encoded)
-                return AutomationResult<QJsonObject>(encoded.getError());
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("snapshot"), encoded.get()));
+            return m_runtime.parameters()
+                .getParameter(documentId(arguments),
+                              ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                              parameterName(arguments.value(QStringLiteral("name")).toString()),
+                              parameterType(arguments.value(QStringLiteral("layer")).toString()))
+                .flatMap([&](const auto &value) {
+                    auto encoded = encodeParameter(value, arguments);
+                    if (!encoded)
+                        return AutomationResult<QJsonObject>(encoded.getError());
+                    return AutomationResult<QJsonObject>(
+                        queryResult(value.document, QStringLiteral("snapshot"), encoded.get()));
+                });
         });
         addBinding(ToolNames::parameters_get_capabilities, [this](const QJsonObject &arguments,
                                                                   const PublicInvocationContext &) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            auto result = m_runtime.parameters().getCapabilities(documentId(arguments), clipId);
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray parameters;
-            for (const auto &capability : result.get().parameters) {
-                QJsonArray layers;
-                for (const auto type : capability.types)
-                    layers.append(parameterType(type));
-                QJsonArray curveTypes;
-                if (capability.supportsDraw)
-                    curveTypes.append(QStringLiteral("draw"));
-                if (capability.supportsAnchor)
-                    curveTypes.append(QStringLiteral("anchor"));
-                QJsonArray interpolations;
-                for (const auto mode : capability.interpolations)
-                    interpolations.append(interpolation(mode));
-                parameters.append(QJsonObject{
-                    {QStringLiteral("name"),           parameterName(capability.name)},
-                    {QStringLiteral("layers"),         layers                        },
-                    {QStringLiteral("curve_types"),    curveTypes                    },
-                    {QStringLiteral("interpolations"), interpolations                },
-                    {QStringLiteral("editable"),       capability.editable           },
-                    {QStringLiteral("range"),
-                     QJsonObject{
-                         {QStringLiteral("minimum"), capability.valueSpec.minimum},
-                         {QStringLiteral("maximum"), capability.valueSpec.maximum},
-                         {QStringLiteral("step"), capability.valueSpec.step},
-                         {QStringLiteral("unit"), capability.valueSpec.unit},
-                     }                                                               },
+            return m_runtime.parameters()
+                .getCapabilities(documentId(arguments), clipId)
+                .map([&](const auto &value) {
+                    QJsonArray parameters;
+                    for (const auto &capability : value.parameters) {
+                        QJsonArray layers;
+                        for (const auto type : capability.types)
+                            layers.append(parameterType(type));
+                        QJsonArray curveTypes;
+                        if (capability.supportsDraw)
+                            curveTypes.append(QStringLiteral("draw"));
+                        if (capability.supportsAnchor)
+                            curveTypes.append(QStringLiteral("anchor"));
+                        QJsonArray interpolations;
+                        for (const auto mode : capability.interpolations)
+                            interpolations.append(interpolation(mode));
+                        parameters.append(QJsonObject{
+                            {QStringLiteral("name"),           parameterName(capability.name)},
+                            {QStringLiteral("layers"),         layers                        },
+                            {QStringLiteral("curve_types"),    curveTypes                    },
+                            {QStringLiteral("interpolations"), interpolations                },
+                            {QStringLiteral("editable"),       capability.editable           },
+                            {QStringLiteral("range"),
+                             QJsonObject{
+                                 {QStringLiteral("minimum"), capability.valueSpec.minimum},
+                                 {QStringLiteral("maximum"), capability.valueSpec.maximum},
+                                 {QStringLiteral("step"), capability.valueSpec.step},
+                                 {QStringLiteral("unit"), capability.valueSpec.unit},
+                             }                                                               },
+                        });
+                    }
+                    return queryResult(value.document, QStringLiteral("capabilities"),
+                                       QJsonObject{
+                                           {QStringLiteral("clip_id"),    clipId.value()},
+                                           {QStringLiteral("parameters"), parameters    }
+                    });
                 });
-            }
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("capabilities"),
-                            QJsonObject{
-                                {QStringLiteral("clip_id"),    clipId.value()},
-                                {QStringLiteral("parameters"), parameters    }
-            }));
         });
         addBinding(ToolNames::timeline_get, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &) {
-            auto result = m_runtime.timeline().getTimeline(documentId(arguments));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            QJsonArray tempos;
-            for (const auto &tempo : result.get().tempos) {
-                tempos.append(QJsonObject{
-                    {QStringLiteral("tick"),  tempo.pos  },
-                    {QStringLiteral("tempo"), tempo.value}
+            return m_runtime.timeline()
+                .getTimeline(documentId(arguments))
+                .map([&](const auto &value) {
+                    QJsonArray tempos;
+                    for (const auto &tempo : value.tempos) {
+                        tempos.append(QJsonObject{
+                            {QStringLiteral("tick"),  tempo.pos  },
+                            {QStringLiteral("tempo"), tempo.value}
+                        });
+                    }
+                    QJsonArray signatures;
+                    for (const auto &signature : value.timeSignatures) {
+                        signatures.append(QJsonObject{
+                            {QStringLiteral("bar_index"),   signature.barIndex   },
+                            {QStringLiteral("numerator"),   signature.numerator  },
+                            {QStringLiteral("denominator"), signature.denominator},
+                        });
+                    }
+                    return queryResult(value.document, QStringLiteral("snapshot"),
+                                       QJsonObject{
+                                           {QStringLiteral("tempos"),          tempos    },
+                                           {QStringLiteral("time_signatures"), signatures}
+                    });
                 });
-            }
-            QJsonArray signatures;
-            for (const auto &signature : result.get().timeSignatures) {
-                signatures.append(QJsonObject{
-                    {QStringLiteral("bar_index"),   signature.barIndex   },
-                    {QStringLiteral("numerator"),   signature.numerator  },
-                    {QStringLiteral("denominator"), signature.denominator},
-                });
-            }
-            return AutomationResult<QJsonObject>(
-                queryResult(result.get().document, QStringLiteral("snapshot"),
-                            QJsonObject{
-                                {QStringLiteral("tempos"),          tempos    },
-                                {QStringLiteral("time_signatures"), signatures}
-            }));
         });
-        addBinding(ToolNames::history_get_state,
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &) {
-                       auto result = m_runtime.history().getState(documentId(arguments));
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       return AutomationResult<QJsonObject>(queryResult(
-                           result.get().document, QStringLiteral("snapshot"),
-                           QJsonObject{
-                               {QStringLiteral("can_undo"),      result.get().canUndo    },
-                               {QStringLiteral("can_redo"),      result.get().canRedo    },
-                               {QStringLiteral("on_save_point"), result.get().onSavePoint},
-                               {QStringLiteral("undo_name"),     result.get().undoName   },
-                               {QStringLiteral("redo_name"),     result.get().redoName   },
-                       }));
-                   });
+        addBinding(ToolNames::history_get_state, [this](const QJsonObject &arguments,
+                                                        const PublicInvocationContext &) {
+            return m_runtime.history().getState(documentId(arguments)).map([&](const auto &value) {
+                return queryResult(value.document, QStringLiteral("snapshot"),
+                                   QJsonObject{
+                                       {QStringLiteral("can_undo"),      value.canUndo    },
+                                       {QStringLiteral("can_redo"),      value.canRedo    },
+                                       {QStringLiteral("on_save_point"), value.onSavePoint},
+                                       {QStringLiteral("undo_name"),     value.undoName   },
+                                       {QStringLiteral("redo_name"),     value.redoName   },
+                });
+            });
+        });
         addBinding(ToolNames::voices_list, [this](const QJsonObject &arguments,
                                                   const PublicInvocationContext &) {
-            auto result = m_runtime.packages().getInstalledPackages();
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            const auto query = arguments.value(QStringLiteral("query")).toString().trimmed();
-            const auto packageFilter = arguments.value(QStringLiteral("package_id")).toString();
-            QJsonArray voices;
-            for (const auto &package : result.get()) {
-                if (!packageFilter.isEmpty() && package.id != packageFilter)
-                    continue;
-                for (const auto &singer : package.singers) {
-                    if (!query.isEmpty() && !singer.singerId.contains(query, Qt::CaseInsensitive) &&
-                        !publicLocalizedTextContains(query, singer.name,
-                                                     singer.info.localizedNames())) {
-                        continue;
+            return m_runtime.packages().getInstalledPackages().flatMap(
+                [&](const auto &packages) -> AutomationResult<QJsonObject> {
+                    const auto query =
+                        arguments.value(QStringLiteral("query")).toString().trimmed();
+                    const auto packageFilter =
+                        arguments.value(QStringLiteral("package_id")).toString();
+                    QJsonArray voices;
+                    for (const auto &package : packages) {
+                        if (!packageFilter.isEmpty() && package.id != packageFilter)
+                            continue;
+                        for (const auto &singer : package.singers) {
+                            if (!query.isEmpty() &&
+                                !singer.singerId.contains(query, Qt::CaseInsensitive) &&
+                                !publicLocalizedTextContains(query, singer.name,
+                                                             singer.info.localizedNames())) {
+                                continue;
+                            }
+                            voices.append(QJsonObject{
+                                {QStringLiteral("package_id"), singer.packageId},
+                                {QStringLiteral("package_version"),
+                                 singer.packageVersion.toString()},
+                                {QStringLiteral("singer_id"), singer.singerId},
+                                {QStringLiteral("name"), singer.name},
+                                {QStringLiteral("display_name"),
+                                 resolvePublicDisplayText(singer.name,
+                                 singer.info.localizedNames())},
+                            });
+                        }
                     }
-                    voices.append(QJsonObject{
-                        {QStringLiteral("package_id"), singer.packageId},
-                        {QStringLiteral("package_version"), singer.packageVersion.toString()},
-                        {QStringLiteral("singer_id"), singer.singerId},
-                        {QStringLiteral("name"), singer.name},
-                        {QStringLiteral("display_name"),
-                         resolvePublicDisplayText(singer.name, singer.info.localizedNames())},
+                    auto page = paginateJson(m_collectionCursorCodec, voices, arguments,
+                                             QStringLiteral("editor-public-voices/v1"),
+                                             QJsonObject{
+                                                 {QStringLiteral("query"),      query        },
+                                                 {QStringLiteral("package_id"), packageFilter},
+                                                 {QStringLiteral("singers"),    voices       }
                     });
-                }
-            }
-            auto page = paginateJson(m_collectionCursorCodec, voices, arguments,
-                                     QStringLiteral("editor-public-voices/v1"),
-                                     QJsonObject{
-                                         {QStringLiteral("query"),      query        },
-                                         {QStringLiteral("package_id"), packageFilter},
-                                         {QStringLiteral("singers"),    voices       }
-            });
-            if (!page)
-                return AutomationResult<QJsonObject>(page.getError());
-            QJsonObject encoded{
-                {QStringLiteral("singers"), page.get().items}
-            };
-            if (!page.get().nextCursor.isEmpty())
-                encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
-            return AutomationResult<QJsonObject>(std::move(encoded));
+                    if (!page)
+                        return AutomationResult<QJsonObject>(page.getError());
+                    QJsonObject encoded{
+                        {QStringLiteral("singers"), page.get().items}
+                    };
+                    if (!page.get().nextCursor.isEmpty())
+                        encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
+                    return AutomationResult<QJsonObject>(std::move(encoded));
+                });
         });
         addBinding(ToolNames::voices_describe, [this](const QJsonObject &arguments,
                                                       const PublicInvocationContext &) {
             const auto voice = arguments.value(QStringLiteral("singer")).toObject();
             const auto singerId = voice.value(QStringLiteral("singer_id")).toString();
             const auto packageId = voice.value(QStringLiteral("package_id")).toString();
-            auto packageVersion =
-                parsePackageVersion(voice, QStringLiteral("singer.package_version"));
-            if (!packageVersion)
-                return AutomationResult<QJsonObject>(packageVersion.getError());
-            auto result = m_runtime.packages().getInstalledPackages();
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            for (const auto &package : result.get()) {
-                for (const auto &singer : package.singers) {
-                    if (singer.singerId == singerId && singer.packageId == packageId &&
-                        singer.packageVersion == packageVersion.get()) {
-                        const auto resolutionStates = AutomationWire::publicStringValueDomainValues(
-                            AutomationWire::PublicValueDomain::VoiceResolutionState);
-                        const auto resolutionState = singer.info.resolutionState();
-                        const bool resolved = resolutionState == ResolutionState::Resolved;
-                        const auto defaultLanguage = singer.info.defaultLanguage();
-                        QJsonArray languageIds;
-                        QJsonArray languages;
-                        bool defaultG2pReady = false;
-                        for (const auto &language : singer.info.languages()) {
-                            const auto languageId = language.id();
-                            const auto g2pId = language.g2p();
-                            const bool g2pReady =
-                                resolved && !g2pId.isEmpty() && g2pId != QStringLiteral("unknown");
-                            languageIds.append(languageId);
-                            languages.append(QJsonObject{
-                                {QStringLiteral("language_id"), languageId},
-                                {QStringLiteral("name"), language.name()},
-                                {QStringLiteral("display_name"),
-                                 resolvePublicDisplayText(language.name(),
-                                 language.localizedNames())},
-                                {QStringLiteral("localized_names"),
-                                 encodePublicLocalizedText(language.localizedNames())},
-                                {QStringLiteral("g2p_id"), g2pId},
-                                {QStringLiteral("g2p_ready"), g2pReady},
-                                {QStringLiteral("default"), languageId == defaultLanguage},
-                            });
-                            if (languageId == defaultLanguage)
-                                defaultG2pReady = g2pReady;
-                        }
-                        QJsonArray speakers;
-                        const auto speakerInfos = singer.info.speakers();
-                        const QString defaultSpeaker =
-                            speakerInfos.isEmpty() ? QString() : speakerInfos.constFirst().id();
-                        for (const auto &speaker : speakerInfos) {
-                            speakers.append(QJsonObject{
-                                {QStringLiteral("speaker_id"), speaker.id()},
-                                {QStringLiteral("name"), speaker.name()},
-                                {QStringLiteral("display_name"),
-                                 resolvePublicDisplayText(speaker.name(),
-                                 speaker.localizedNames())},
-                                {QStringLiteral("localized_names"),
-                                 encodePublicLocalizedText(speaker.localizedNames())},
-                                {QStringLiteral("languages"), languageIds},
-                                {QStringLiteral("mixable"), speaker.mixable()},
-                                {QStringLiteral("default"), speaker.id() == defaultSpeaker},
-                            });
-                        }
-                        const auto &capability = singer.info.capability();
-                        const bool mixingSupported =
-                            capability && capability->mixableSpeakers.size() > 1;
-                        return AutomationResult<QJsonObject>(QJsonObject{
-                            {QStringLiteral("snapshot"),
-                             QJsonObject{
-                                 {QStringLiteral("package_id"), singer.packageId},
-                                 {QStringLiteral("package_version"),
-                                  singer.packageVersion.toString()},
-                                 {QStringLiteral("singer_id"), singer.singerId},
-                                 {QStringLiteral("name"), singer.name},
-                                 {QStringLiteral("display_name"),
-                                  resolvePublicDisplayText(singer.name,
-                                                           singer.info.localizedNames())},
-                                 {QStringLiteral("localized_names"),
-                                  encodePublicLocalizedText(singer.info.localizedNames())},
-                                 {QStringLiteral("speakers"), speakers},
-                                 {QStringLiteral("languages"), languages},
-                                 {QStringLiteral("default_speaker_id"),
-                                  defaultSpeaker.isEmpty() ? QJsonValue(QJsonValue::Null)
-                                                           : QJsonValue(defaultSpeaker)},
-                                 {QStringLiteral("default_language"),
-                                  defaultLanguage.isEmpty() ? QJsonValue(QJsonValue::Null)
-                                                            : QJsonValue(defaultLanguage)},
-                                 {QStringLiteral("g2p_ready"), defaultG2pReady},
-                                 {QStringLiteral("resolution_state"),
-                                  resolutionStates.value(static_cast<qsizetype>(resolutionState))},
-                                 {QStringLiteral("mixing_supported"), mixingSupported},
-                             }},
+            return parsePackageVersion(voice, QStringLiteral("singer.package_version"))
+                .flatMap([&](const auto &packageVersion) {
+                    return m_runtime.packages().getInstalledPackages().flatMap(
+                        [&](const auto &packages) -> AutomationResult<QJsonObject> {
+                            for (const auto &package : packages) {
+                                for (const auto &singer : package.singers) {
+                                    if (singer.singerId == singerId &&
+                                        singer.packageId == packageId &&
+                                        singer.packageVersion == packageVersion) {
+                                        const auto resolutionStates =
+                                            AutomationWire::publicStringValueDomainValues(
+                                                AutomationWire::PublicValueDomain::
+                                                    VoiceResolutionState);
+                                        const auto resolutionState = singer.info.resolutionState();
+                                        const bool resolved =
+                                            resolutionState == ResolutionState::Resolved;
+                                        const auto defaultLanguage = singer.info.defaultLanguage();
+                                        QJsonArray languageIds;
+                                        QJsonArray languages;
+                                        bool defaultG2pReady = false;
+                                        for (const auto &language : singer.info.languages()) {
+                                            const auto languageId = language.id();
+                                            const auto g2pId = language.g2p();
+                                            const bool g2pReady =
+                                                resolved && !g2pId.isEmpty() &&
+                                                g2pId != QStringLiteral("unknown");
+                                            languageIds.append(languageId);
+                                            languages.append(QJsonObject{
+                                                {QStringLiteral("language_id"), languageId},
+                                                {QStringLiteral("name"), language.name()},
+                                                {QStringLiteral("display_name"),
+                                                 resolvePublicDisplayText(
+                                                     language.name(), language.localizedNames())},
+                                                {QStringLiteral("localized_names"),
+                                                 encodePublicLocalizedText(
+                                                     language.localizedNames())},
+                                                {QStringLiteral("g2p_id"), g2pId},
+                                                {QStringLiteral("g2p_ready"), g2pReady},
+                                                {QStringLiteral("default"),
+                                                 languageId == defaultLanguage},
+                                            });
+                                            if (languageId == defaultLanguage)
+                                                defaultG2pReady = g2pReady;
+                                        }
+                                        QJsonArray speakers;
+                                        const auto speakerInfos = singer.info.speakers();
+                                        const QString defaultSpeaker =
+                                            speakerInfos.isEmpty() ? QString()
+                                                                   : speakerInfos.constFirst().id();
+                                        for (const auto &speaker : speakerInfos) {
+                                            speakers.append(QJsonObject{
+                                                {QStringLiteral("speaker_id"), speaker.id()},
+                                                {QStringLiteral("name"), speaker.name()},
+                                                {QStringLiteral("display_name"),
+                                                 resolvePublicDisplayText(
+                                                     speaker.name(), speaker.localizedNames())},
+                                                {QStringLiteral("localized_names"),
+                                                 encodePublicLocalizedText(
+                                                     speaker.localizedNames())},
+                                                {QStringLiteral("languages"), languageIds},
+                                                {QStringLiteral("mixable"), speaker.mixable()},
+                                                {QStringLiteral("default"),
+                                                 speaker.id() == defaultSpeaker},
+                                            });
+                                        }
+                                        const auto &capability = singer.info.capability();
+                                        const bool mixingSupported =
+                                            capability && capability->mixableSpeakers.size() > 1;
+                                        return AutomationResult<QJsonObject>(QJsonObject{
+                                            {QStringLiteral("snapshot"),
+                                             QJsonObject{
+                                                 {QStringLiteral("package_id"), singer.packageId},
+                                                 {QStringLiteral("package_version"),
+                                                  singer.packageVersion.toString()},
+                                                 {QStringLiteral("singer_id"), singer.singerId},
+                                                 {QStringLiteral("name"), singer.name},
+                                                 {QStringLiteral("display_name"),
+                                                  resolvePublicDisplayText(
+                                                      singer.name, singer.info.localizedNames())},
+                                                 {QStringLiteral("localized_names"),
+                                                  encodePublicLocalizedText(
+                                                      singer.info.localizedNames())},
+                                                 {QStringLiteral("speakers"), speakers},
+                                                 {QStringLiteral("languages"), languages},
+                                                 {QStringLiteral("default_speaker_id"),
+                                                  defaultSpeaker.isEmpty()
+                                                      ? QJsonValue(QJsonValue::Null)
+                                                      : QJsonValue(defaultSpeaker)},
+                                                 {QStringLiteral("default_language"),
+                                                  defaultLanguage.isEmpty()
+                                                      ? QJsonValue(QJsonValue::Null)
+                                                      : QJsonValue(defaultLanguage)},
+                                                 {QStringLiteral("g2p_ready"), defaultG2pReady},
+                                                 {QStringLiteral("resolution_state"),
+                                                  resolutionStates.value(
+                                                      static_cast<qsizetype>(resolutionState))},
+                                                 {QStringLiteral("mixing_supported"),
+                                                  mixingSupported},
+                                             }},
+                                        });
+                                    }
+                                }
+                            }
+                            return AutomationResult<QJsonObject>(error(
+                                AutomationErrorCode::NotFound,
+                                QStringLiteral("Singer was not found"), QStringLiteral("singer")));
                         });
-                    }
-                }
-            }
-            return AutomationResult<QJsonObject>(error(AutomationErrorCode::NotFound,
-                                                       QStringLiteral("Singer was not found"),
-                                                       QStringLiteral("singer")));
+                });
         });
         addBinding(ToolNames::tracks_insert, [this](const QJsonObject &arguments,
                                                     const PublicInvocationContext &invocation) {
@@ -2737,33 +2768,17 @@ namespace Automation {
         addBinding(ToolNames::notes_insert, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &invocation) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            QString effectiveDefaultLanguage;
             QString defaultLyric = QStringLiteral("la");
             auto settings = m_runtime.settings().getSettings();
-            if (settings)
-                effectiveDefaultLanguage = settings.get().general.defaultSingingLanguage;
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
                 return AutomationResult<QJsonObject>(project.getError());
-            for (const auto &track : project.get().tracks) {
-                for (const auto &clip : track.clips) {
-                    if (clip.id != clipId)
-                        continue;
-                    if (!clip.data.defaultLanguage.isEmpty())
-                        effectiveDefaultLanguage = clip.data.defaultLanguage;
-                    else if (clip.data.usesTrackVoiceContext) {
-                        if (!track.data.defaultLanguage.isEmpty())
-                            effectiveDefaultLanguage = track.data.defaultLanguage;
-                        else if (!track.data.singerInfo.defaultLanguage().isEmpty())
-                            effectiveDefaultLanguage = track.data.singerInfo.defaultLanguage();
-                    } else if (!clip.data.ownSingerInfo.defaultLanguage().isEmpty()) {
-                        effectiveDefaultLanguage = clip.data.ownSingerInfo.defaultLanguage();
-                    }
-                }
-            }
+            auto language = effectiveDefaultLanguage(project.get(), clipId);
+            if (language.isEmpty() && settings)
+                language = settings.get().general.defaultSingingLanguage;
             if (settings)
-                defaultLyric = settings.get().general.defaultLyrics.value(effectiveDefaultLanguage,
-                                                                          QStringLiteral("la"));
+                defaultLyric =
+                    settings.get().general.defaultLyrics.value(language, QStringLiteral("la"));
             QList<NoteDraftDto> notes;
             QList<ResolvedValue> resolvedValues;
             const auto inputNotes = arguments.value(QStringLiteral("notes")).toArray();
@@ -3056,12 +3071,9 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(mix.getError());
                        const auto target = decodeSpeakerMixTarget(
                            arguments.value(QStringLiteral("target")).toObject());
-                       const auto speaker = mix.get().second.sources.isEmpty()
-                                                ? SpeakerInfo{}
-                                                : mix.get().second.sources.constFirst().speaker;
                        return mutationResult(m_runtime.parameters().setFixedSpeakerMix(
-                           commandContext(arguments, invocation), target, mix.get().first, speaker,
-                           mix.get().second));
+                           commandContext(arguments, invocation), target, mix.get().singer,
+                           mix.get().speaker, mix.get().speakerMix));
                    });
         addBinding(ToolNames::speaker_mix_get, [this](const QJsonObject &arguments,
                                                       const PublicInvocationContext &) {
@@ -3144,18 +3156,15 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(preset.getError());
                        const auto target = decodeSpeakerMixTarget(
                            arguments.value(QStringLiteral("target")).toObject());
-                       const auto &singer = preset.get().second.first;
-                       const auto &mix = preset.get().second.second;
-                       const auto speaker =
-                           mix.sources.isEmpty() ? SpeakerInfo{} : mix.sources.constFirst().speaker;
+                       const auto &voice = preset.get().second;
                        if (target.kind == SpeakerMixTargetKind::Track) {
                            return mutationResult(m_runtime.parameters().applyTrackSpeakerMix(
-                               commandContext(arguments, invocation), TrackId(target.id), singer,
-                               speaker, mix));
+                               commandContext(arguments, invocation), TrackId(target.id),
+                               voice.singer, voice.speaker, voice.speakerMix));
                        }
                        return mutationResult(m_runtime.parameters().applyClipSpeakerMix(
-                           commandContext(arguments, invocation), ClipId(target.id), singer,
-                           speaker, mix));
+                           commandContext(arguments, invocation), ClipId(target.id), voice.singer,
+                           voice.speaker, voice.speakerMix));
                    });
         addBinding(ToolNames::clips_use_track_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
@@ -3535,6 +3544,7 @@ namespace Automation {
                            .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            .canonicalPath = path,
                            .mode = PublicAudioPathUpdateMode::Relocate,
+                           .authorizeCommit = audioPathCommitGuard(authorized.get()),
                        };
                        return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
                    });
@@ -3580,6 +3590,7 @@ namespace Automation {
                     .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     .canonicalPath = path,
                     .mode = PublicAudioPathUpdateMode::Confirm,
+                    .authorizeCommit = audioPathCommitGuard(authorized.get()),
                 };
                 return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
             });
@@ -3733,6 +3744,10 @@ namespace Automation {
                                             arguments.value(QStringLiteral("path")).toString()));
                 if (!config)
                     return AutomationResult<QJsonObject>(config.getError());
+                // Selecting a public output format explicitly opts into that format's lossiness.
+                const auto format = options.value(QStringLiteral("format")).toString();
+                policy.allowLossyFormat =
+                    format == QStringLiteral("ogg") || format == QStringLiteral("mp3");
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
                     return AutomationResult<QJsonObject>(context.getError());
@@ -4383,19 +4398,12 @@ namespace Automation {
                             const auto effectiveSpeaker = clip.data.usesTrackVoiceContext
                                                               ? track.data.speakerInfo
                                                               : clip.data.ownSpeakerInfo;
-                            auto language = clip.data.defaultLanguage;
-                            if (language.isEmpty()) {
-                                language = clip.data.usesTrackVoiceContext
-                                               ? (!track.data.defaultLanguage.isEmpty()
-                                                      ? track.data.defaultLanguage
-                                                      : effectiveSinger.defaultLanguage())
-                                               : effectiveSinger.defaultLanguage();
-                            }
                             snapshot.insert(QStringLiteral("voice_context"),
-                                            encodeVoiceContext(
-                                                clip.data.ownSingerInfo, clip.data.ownSpeakerInfo,
-                                                effectiveSinger, effectiveSpeaker,
-                                                clip.data.usesTrackVoiceContext, language));
+                                            encodeVoiceContext(clip.data.ownSingerInfo,
+                                                               clip.data.ownSpeakerInfo,
+                                                               effectiveSinger, effectiveSpeaker,
+                                                               clip.data.usesTrackVoiceContext,
+                                                               clip.effectiveDefaultLanguage));
                         } else {
                             snapshot.insert(QStringLiteral("voice_context"),
                                             QJsonValue(QJsonValue::Null));

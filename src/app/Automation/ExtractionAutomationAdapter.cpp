@@ -208,7 +208,7 @@ namespace Automation {
                                  });
                 QObject::connect(
                     task, &Task::finished, connectionContext,
-                    [self, task] { self->handleExtractionFinished(task); });
+                    [self, task] { self->handleExtractionFinished(task); }, Qt::QueuedConnection);
                 if (m_input.showProgressDialog) {
                     auto *dialog = new TaskDialog(task, true, true);
                     dialog->setCancelCallback(m_callbacks.cancelRequested);
@@ -347,7 +347,7 @@ namespace Automation {
                                  });
                 QObject::connect(
                     task, &Task::finished, connectionContext,
-                    [self, task] { self->handleExtractionFinished(task); });
+                    [self, task] { self->handleExtractionFinished(task); }, Qt::QueuedConnection);
                 if (m_input.showProgressDialog) {
                     auto *dialog = new TaskDialog(task, true, true);
                     dialog->setCancelCallback(m_callbacks.cancelRequested);

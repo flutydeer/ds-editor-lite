@@ -1,14 +1,14 @@
 #include "Utils/AppDumpDirectory.h"
 
+#include "Bootstrap/AppDataPaths.h"
+
 #include <QDir>
 #include <QMCore/qmsystem.h>
-#include <QStandardPaths>
 
 namespace AppDumpDirectory {
 
     QString resolveDumpDirectory() {
-        return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-               QStringLiteral("/Dumps");
+        return AppDataPaths::applicationData() + QStringLiteral("/Dumps");
     }
 
     void openDumpDirectory() {

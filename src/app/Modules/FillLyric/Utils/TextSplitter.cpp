@@ -47,8 +47,7 @@ namespace FillLyric {
 
         while (RE2::FindAndConsume(&textPiece, regex, &match)) {
             if (match.empty()) {
-                result.emplace_back(text);
-                return result;
+                return {text};
             }
 
             const size_t match_start = match.data() - text.data();

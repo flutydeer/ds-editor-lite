@@ -33,6 +33,7 @@ private:
     void updateGain(double gain) const;
     void updatePan(double pan) const;
 
+    QMetaObject::Connection m_deviceChangeConnection;
     ComboBox *m_driverComboBox = nullptr;
     ComboBox *m_deviceComboBox = nullptr;
     ComboBox *m_bufferSizeComboBox = nullptr;

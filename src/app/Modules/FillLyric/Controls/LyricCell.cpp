@@ -13,7 +13,7 @@
 namespace FillLyric {
     LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
                          CellQss *qss, QList<LyricCell *> *cells, QGraphicsItem *parent)
-        : QGraphicsObject(parent), m_qss(qss), m_cells(cells), m_note(note), m_view(view) {
+        : QGraphicsObject(parent), m_cells(cells), m_note(note), m_view(view) {
         this->setX(x);
         this->setY(y);
         setFlag(ItemIsSelectable);
@@ -193,7 +193,6 @@ namespace FillLyric {
         menu->exec(event->screenPos());
         event->accept();
         delete menu;
-        return QGraphicsItem::contextMenuEvent(event);
     }
 
     void LyricCell::updateLyricRect() {

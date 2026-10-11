@@ -2,20 +2,26 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
-#include "AppController_p.h"
-#include "Interface/IMainWindow.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Utils/FontManager.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
-AppController::AppController(QObject *parent)
-    : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
-    Q_D(AppController);
-    AppControllerPrivate::initializeModules();
-}
-
-AppController::~AppController() {
-    delete d_ptr;
+AppController::AppController(QObject *parent) : QObject(parent) {
+    // Read appearance settings and push them into the theme system, which no
+    // longer depends on AppOptions.
+    const auto pushAppearance = [] {
+        const auto appearance = appOptions->appearance();
+        auto *theme = ThemeManager::instance();
+        theme->setAnimationSettings(appearance->animationEnabled, appearance->animationTimeScale);
+        theme->updateThemePreference(appearance->themeId);
+        FontManager::instance().applyInterfaceFont(appearance->uiFontFamily);
+    };
+    pushAppearance();
+    connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
+            [pushAppearance](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
+                    pushAppearance();
+            });
 }
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
@@ -76,21 +82,6 @@ void AppController::editMasterControl(const TrackControl &control) {
     runtime->timeline().setMasterControl(context, control);
 }
 
-void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
-                                      const bool canRedo, const QString &redoActionName) {
-    Q_D(AppController);
-    Q_UNUSED(canUndo);
-    Q_UNUSED(canRedo);
-    Q_UNUSED(redoActionName);
-    Q_UNUSED(undoActionName);
-    d->m_mainWindow->updateWindowTitle();
-}
-
-void AppController::setMainWindow(IMainWindow *window) {
-    Q_D(AppController);
-    d->m_mainWindow = window;
-}
-
 void AppController::quit() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
@@ -105,22 +96,4 @@ void AppController::restart() {
         return;
     runtime->application().requestTermination({.source = Automation::InvocationSource::TrustedGui},
                                               Automation::ApplicationTerminationMode::Restart);
-}
-
-void AppControllerPrivate::initializeModules() {
-    // Read appearance settings and push them into the theme system, which no
-    // longer depends on AppOptions.
-    const auto pushAppearance = [] {
-        const auto appearance = appOptions->appearance();
-        auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(appearance->animationEnabled, appearance->animationTimeScale);
-        theme->updateThemePreference(appearance->themeId);
-        FontManager::instance().applyInterfaceFont(appearance->uiFontFamily);
-    };
-    pushAppearance();
-    connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
-            [pushAppearance](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
-                    pushAppearance();
-            });
 }

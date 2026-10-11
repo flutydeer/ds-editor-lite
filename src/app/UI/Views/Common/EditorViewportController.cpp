@@ -1,4 +1,5 @@
 #include "EditorViewportController.h"
+#include "EditorViewportScale.h"
 
 #include "EditorScrollUtils.h"
 
@@ -245,11 +246,11 @@ double EditorViewportController::maximumOffset(const Qt::Orientation orientation
 
 double EditorViewportController::boundedScale(const Qt::Orientation orientation,
                                               const double requested) const {
-    if (!std::isfinite(requested) || requested <= 0.0)
-        return orientation == Qt::Horizontal ? m_scaleX : m_scaleY;
     return orientation == Qt::Horizontal
-               ? std::clamp(requested, effectiveMinimumScaleX(), m_maxScaleX)
-               : std::clamp(requested, effectiveMinimumScaleY(), m_maxScaleY);
+               ? EditorViewportScale::bounded(requested, m_scaleX, effectiveMinimumScaleX(),
+                                              m_maxScaleX)
+               : EditorViewportScale::bounded(requested, m_scaleY, effectiveMinimumScaleY(),
+                                              m_maxScaleY);
 }
 
 QRectF EditorViewportController::visibleSceneRect() const {
@@ -316,19 +317,16 @@ void EditorViewportController::notify(const bool emitScaleChanged) {
 }
 
 double EditorViewportController::effectiveMinimumScaleX() const {
-    if (!m_fillX || m_viewportSize.width() <= 0.0 || m_endTick <= m_startTick)
-        return m_minScaleX;
     const auto unscaledWidth = (m_endTick - m_startTick) * m_pixelsPerQuarterNote /
                                static_cast<double>(AppGlobal::ticksPerQuarterNote);
-    return std::clamp(m_viewportSize.width() / std::max(1.0, unscaledWidth), m_minScaleX,
-                      m_maxScaleX);
+    return EditorViewportScale::effectiveMinimum(m_fillX, m_viewportSize.width(), unscaledWidth,
+                                                 m_minScaleX, m_maxScaleX);
 }
 
 double EditorViewportController::effectiveMinimumScaleY() const {
-    if (!m_fillY || m_viewportSize.height() <= 0.0 || m_unitCount <= 0.0)
-        return m_minScaleY;
-    return std::clamp(m_viewportSize.height() / std::max(1.0, m_unitCount * m_unitHeight),
-                      m_minScaleY, m_maxScaleY);
+    return EditorViewportScale::effectiveMinimum(m_fillY, m_viewportSize.height(),
+                                                 m_unitCount * m_unitHeight, m_minScaleY,
+                                                 m_maxScaleY);
 }
 
 double EditorViewportController::contentWidth() const {

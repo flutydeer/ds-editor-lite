@@ -1,4 +1,5 @@
 #include "Utils/AppLogDirectory.h"
+#include "Bootstrap/AppDataPaths.h"
 
 #include <lite/Support/Log.h>
 
@@ -11,8 +12,7 @@ namespace AppLogDirectory {
     QString resolveLogDirectory() {
         auto dir = Log::logDirectory();
         if (dir.isEmpty())
-            dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-                  QStringLiteral("/Logs");
+            dir = AppDataPaths::applicationData() + QStringLiteral("/Logs");
         return dir;
     }
 
