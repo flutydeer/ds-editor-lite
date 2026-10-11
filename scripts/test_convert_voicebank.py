@@ -136,6 +136,20 @@ class ConvertVoicebankTest(VoicebankFixture):
                 self.assertIn("<package>:linguist/<id>", text)
                 self.assertFalse(output.exists())
 
+    def test_malformed_contributes_cleans_in_place_staging(self):
+        for contributes in ([], 42, "inferences", False, {"inferences": None},
+                            {"singers": {"invalid": "collection"}}):
+            with self.subTest(contributes=contributes):
+                desc = read_json(self.package / "desc.json")
+                desc["contributes"] = contributes
+                write_json(self.package / "desc.json", desc)
+                original = (self.package / "desc.json").read_bytes()
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual((self.package / "desc.json").read_bytes(), original)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_converts_the_package(self):
         output = self.destination("out")
         code, text = self.run_script(self.package, "--output", output)
@@ -416,6 +430,24 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
                 stage = read_json(directory / "inference.json")
                 self.assertEqual((directory / stage["configuration"]["file"]).resolve(),
                                  (output / "assets" / asset).resolve())
+
+    def test_language_dependency_keeps_the_strongest_minimum(self):
+        self.write_singer([{"id": "cmn", "g2p": "g2p-cmn-official"}])
+        for versions, expected in ((["1.0.0.0"], "2.0.0.0"),
+                                   (["3.0.0.0"], "3.0.0.0"),
+                                   (["1.0.0.0", "4.0.0.0"], "4.0.0.0")):
+            with self.subTest(versions=versions):
+                desc = read_json(self.package / "desc.json")
+                desc["dependencies"] = [{"id": "vendor/lang-cmn", "version": value}
+                                         for value in versions]
+                write_json(self.package / "desc.json", desc)
+                output = self.destination("out")
+                code, text = self.run_script(
+                    self.package, "--output", output,
+                    "--language", "cmn=vendor/lang-cmn:linguist/cmn-pinyin@2.0.0.0")
+                self.assertEqual(code, 0, text)
+                self.assertEqual(read_json(output / "desc.json")["dependencies"],
+                                 [{"id": "vendor/lang-cmn", "version": expected}])
 
     def test_reports_a_language_that_neither_side_supplies(self):
         self.write_singer([{"id": "eng", "g2p": "g2p-eng-official"}])

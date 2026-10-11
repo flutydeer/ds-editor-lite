@@ -250,6 +250,19 @@ private slots:
         QCOMPARE(runAnalyzerPackages(), 0);
     }
     void voicebankConversionLanguages() { QCOMPARE(runVoicebankLanguages(), 0); }
+    void converterScriptRegressions() {
+        QProcess process;
+        process.setWorkingDirectory(QFileInfo(QStringLiteral(TEST_SCRIPT)).absolutePath());
+        process.start(QStringLiteral(TEST_PYTHON),
+                      {QStringLiteral("-m"), QStringLiteral("unittest"),
+                       QStringLiteral("test_convert_voicebank"),
+                       QStringLiteral("test_convert_package"),
+                       QStringLiteral("test_voicebank_archive_tools")});
+        QVERIFY(process.waitForFinished(60000));
+        const auto diagnostics = process.readAllStandardError();
+        QVERIFY2(process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0,
+                 diagnostics.constData());
+    }
     void otterExtraction() {
         qputenv("DSEL_TEST_PLUGIN_ROOT", QByteArray(TEST_PLUGIN_ROOT));
         const auto result = runOtterExtraction();

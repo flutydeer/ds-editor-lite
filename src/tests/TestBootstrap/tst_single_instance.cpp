@@ -277,6 +277,21 @@ void BootstrapTests::protocol() {
            "multiple frames in one buffer must be parsed independently");
 }
 
+void BootstrapTests::reusedPidDoesNotKeepAStaleLock() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QFile stale(SingleInstanceIdentity::lockFilePath(directory.path()));
+    QVERIFY(stale.open(QIODevice::WriteOnly));
+    // This PID is alive, but its process name differs from the recorded editor's name.
+    const auto contents = QByteArray::number(QCoreApplication::applicationPid()) +
+                          "\neditor-before-pid-reuse\n\n";
+    QCOMPARE(stale.write(contents), contents.size());
+    stale.close();
+    SingleInstanceCoordinator coordinator(directory.path());
+    QCOMPARE(coordinator.start(), SingleInstanceCoordinator::StartResult::Primary);
+    coordinator.shutdown();
+}
+
 void BootstrapTests::identity() {
     QTemporaryDir first;
     QTemporaryDir second;

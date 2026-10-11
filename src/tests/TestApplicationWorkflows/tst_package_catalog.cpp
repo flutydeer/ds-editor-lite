@@ -7,6 +7,7 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/SynthrtEngine/SingerPipeline.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <QDir>
@@ -166,6 +167,52 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
         QCOMPARE(historyManager->nextUndoEntry(), undoBefore);
         QTRY_VERIFY(taskManager->tasks().isEmpty());
     }
+}
+
+void ApplicationWorkflowTests::packageReloadReadsUpdatesWhilePipelineIsLeased() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    const auto first = packageManager->refreshInstalledPackages({root});
+    QVERIFY(first);
+    const auto identity = first.get().successfulPackages.first().singers().first().identifier();
+    auto acquired = SynthrtEngine::instance().pipelineFor(identity);
+    QVERIFY(acquired);
+    auto active = acquired.take();
+    auto oldModel = active->acoustic();
+    QVERIFY(oldModel);
+    QFile declaration(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
+    QVERIFY(declaration.open(QIODevice::ReadOnly));
+    auto object = QJsonDocument::fromJson(declaration.readAll()).object();
+    declaration.close();
+    object.insert(QStringLiteral("name"), QStringLiteral("Updated while rendering"));
+    QVERIFY(declaration.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto bytes = QJsonDocument(object).toJson();
+    QCOMPARE(declaration.write(bytes), bytes.size());
+    declaration.close();
+    const auto refreshed = packageManager->refreshInstalledPackages({root});
+    QVERIFY(refreshed);
+    QCOMPARE(packageManager->findSingerByIdentifier(identity).name(),
+             QStringLiteral("Updated while rendering"));
+    auto replacement = SynthrtEngine::instance().pipelineFor(identity);
+    QVERIFY(replacement);
+    QVERIFY(replacement.get() != active);
+    const auto newModel = replacement.get()->acoustic();
+    QVERIFY(newModel);
+    QVERIFY(newModel.get() != oldModel.get());
+    QCOMPARE(active->acoustic().get(), oldModel.get());
 }
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {

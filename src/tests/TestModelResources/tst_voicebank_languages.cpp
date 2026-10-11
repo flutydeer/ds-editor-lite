@@ -320,10 +320,10 @@ int runVoicebankLanguages() {
     QProcess again;
     again.start(QStringLiteral(TEST_PYTHON), {QStringLiteral(TEST_SCRIPT), source, "--output",
                                               named, "--packages", packages, "--reserved", "hum"});
-    expect(again.waitForFinished(60000) && again.exitCode() == 0,
-           "the converter must succeed with --reserved; stderr: "
-               + QString::fromUtf8(again.readAllStandardError()).left(600));
+    const auto completed = again.waitForFinished(60000);
     const auto insisted = QString::fromUtf8(again.readAllStandardError());
+    expect(completed && again.exitCode() == 0,
+           "the converter must succeed with --reserved; stderr: " + insisted.left(600));
     QStringList stillReserved;
     for (const auto &value : read(QDir(named).filePath("characters/singer/config.json"))
                                  .value("reservedPhonemes").toArray()) {

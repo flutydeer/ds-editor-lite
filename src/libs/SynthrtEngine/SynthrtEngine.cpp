@@ -88,7 +88,11 @@ public:
     /// and none of them tolerates the destruction of the unit during use.
     mutable std::shared_mutex lifecycle;
 
-    std::unique_ptr<lite::synthrt::Bootstrap> bootstrap;
+    std::shared_ptr<lite::synthrt::Bootstrap> bootstrap;
+    fs::path pluginDirectory;
+    fs::path runtimeDirectory;
+    lite::synthrt::Backend backend = lite::synthrt::Backend::Cpu;
+    int driverDeviceIndex = 0;
     std::vector<fs::path> dependencyPaths;
 
     std::vector<fs::path> searchPathsFor(const std::vector<fs::path> &voicebanks) const {
@@ -230,11 +234,14 @@ public:
                const QString &ep, int deviceIndex, const fs::path &pluginRoot,
                const fs::path &runtimePath) {
         dependencyPaths = toPaths(packagePaths);
+        pluginDirectory = pluginRoot;
+        runtimeDirectory = runtimePath;
+        backend = lite::synthrt::backendFromName(ep.toStdString());
+        driverDeviceIndex = deviceIndex;
         const auto searched = searchPathsFor(toPaths(voicebankPaths));
 
         auto booted = lite::synthrt::Bootstrap::create(
-            pluginRoot, searched, runtimePath, lite::synthrt::backendFromName(ep.toStdString()),
-            deviceIndex);
+            pluginRoot, searched, runtimePath, backend, deviceIndex);
         if (!booted) {
             qCritical().noquote() << "SynthrtEngine: the unit could not be built:"
                                   << QString::fromStdString(booted.error().toString());
@@ -431,10 +438,8 @@ void SynthrtEngine::shutdown() noexcept {
     _impl->initialized.store(false, std::memory_order_release);
     completeInitializationAttempt();
 
-    // The owner must release every pipeline and analyzer lease before shutdown() runs, because
-    // each keeps a package of the unit loaded, and synthrt terminates the process if a package is
-    // released while its executives are alive. This function cannot enforce the order, so it logs
-    // each violation before the unit is destroyed.
+    // The application must still drain tasks before shutdown. A lease retains its runtime so its
+    // executives can be destroyed safely, but it must not outlive the application's other state.
     for (const auto &[key, pipeline] : _impl->pipelines) {
         if (!pipeline.expired()) {
             qCritical().noquote().nospace()
@@ -473,25 +478,27 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     if (!_impl->bootstrap) {
         return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
     }
-    _impl->bootstrap->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
+    std::shared_ptr<lite::synthrt::Bootstrap> reloaded;
+    if (mode == RescanMode::Reload) {
+        auto created = lite::synthrt::Bootstrap::create(
+            _impl->pluginDirectory, _impl->searchPathsFor(searchPaths), _impl->runtimeDirectory,
+            _impl->backend, _impl->driverDeviceIndex);
+        if (!created)
+            return created.takeError();
+        reloaded = created.take();
+    } else {
+        _impl->bootstrap->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
+    }
 
-    // synthrt returns a package that is still loaded instead of reading it again, so the handles
-    // held during the scan determine whether a package is read from disk. A reload releases the
-    // handles of the language session and the engine first, so that a voicebank changed on disk is
-    // read again unless a running synthesis still holds it. Reuse keeps the handles until the scan
-    // has taken the packages over, which makes a scan of an unchanged set inexpensive.
+    // A fresh unit cannot reuse old same-identity package handles. Active pipeline/analyzer leases
+    // retain the previous unit until their executives finish, while this scan reads current files.
+    // ReuseLoaded keeps using the current unit for the inexpensive startup rescan.
     const auto before = _impl->packageSet();
 
     // The failure semantics must differ by mode, because the two modes differ in whether the
     // previous state can be recovered:
-    //   * Reload has already released the handles of the language session and dropped the engine's
-    //     handles before the scan, and most packages that were read are no longer in the unit, so
-    //     the old handles cannot physically be recovered, and a failure can only land in the
-    //     consistent empty state, in which both the catalog and the handles are empty. Dropping
-    //     only the handles while keeping the old catalog would leave a self-contradictory state,
-    //     one in which the catalog describes the old packages and packages holds half of the new
-    //     ones, and downstream code (PackageManager, the language layer) would resolve singers
-    //     that do not exist from it.
+    //   * Reload publishes an empty new unit before the scan. An exceptional scan leaves that
+    //     consistent empty state, with no partially scanned packages attached to the catalog.
     //   * ReuseLoaded moves the old handles and the matching old catalog into previous together and
     //     holds them throughout the scan, so no package is released, and a failure can restore both
     //     as they were: the user still sees the voicebank list from before the scan.
@@ -499,9 +506,12 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     std::vector<lite::synthrt::SingerEntry> previousCatalog;
     if (mode == RescanMode::Reload) {
         _impl->republish();
-        _impl->releaseLanguageHandles();
+        _impl->language.reset();
         _impl->packages.clear();
         _impl->catalog.clear();
+        _impl->bootstrap = std::move(reloaded);
+        _impl->language =
+            std::make_unique<lite::synthrt::LanguageBridge>(_impl->bootstrap->unit());
     } else {
         previous = std::move(_impl->packages);
         previousCatalog = std::move(_impl->catalog);
@@ -625,7 +635,15 @@ srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
     if (!built) {
         return built.takeError();
     }
-    std::shared_ptr<lite::synthrt::SingerPipeline> pipeline(built.take().release());
+    struct OwnedPipeline {
+        std::shared_ptr<lite::synthrt::Bootstrap> unit;
+        std::unique_ptr<lite::synthrt::SingerPipeline> pipeline;
+    };
+    auto pipelineOwner = std::make_shared<OwnedPipeline>();
+    pipelineOwner->unit = _impl->bootstrap;
+    pipelineOwner->pipeline = built.take();
+    std::shared_ptr<lite::synthrt::SingerPipeline> pipeline(pipelineOwner,
+                                                         pipelineOwner->pipeline.get());
     _impl->pipelines[key] = pipeline;
     return pipeline;
 }
@@ -715,6 +733,7 @@ srt::Expected<SynthrtEngine::AnalyzerLease>
         return created.takeError();
     }
     AnalyzerLease lease;
+    lease.unitOwner = _impl->bootstrap;
     lease.package = *package;
     lease.spec = spec;
     lease.executive = created.take();

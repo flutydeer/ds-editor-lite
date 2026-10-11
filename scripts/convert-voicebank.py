@@ -680,7 +680,7 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         if not absolute.is_file():
             report.error(f"{handle}: {relative} does not exist")
             return None, None
-        return absolute, Path(os.path.relpath(absolute, target_dir)).as_posix()
+        return absolute, Path(os.path.relpath(absolute, target_dir.resolve())).as_posix()
 
     # The syllable stage. `direct` requires no file: it passes the phonemes of the G2P through,
     # which suits a language whose G2P already produces phonemes instead of syllables.
@@ -1269,7 +1269,9 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
         # reference does not resolve, and the loader reports the reference instead of the missing
         # dependency declaration. This also applies to a linguist built here: the linguist belongs
         # to this package, but the G2P that it imports does not.
-        required.setdefault(package, version)
+        previous = required.get(package)
+        if previous is None or tuple(map(int, version.split("."))) > tuple(map(int, previous.split("."))):
+            required[package] = version
 
     # Declared on the singer, because the models of the singer must contain these phonemes and a
     # host operates on the singer. The same set is excluded from the inventory of every language
@@ -1311,6 +1313,10 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     if desc is None:
         return
 
+    if not isinstance(desc, dict):
+        report.error(f"{desc_path}: the package manifest must be an object")
+        return
+
     contributes = desc.get("contributes")
     if contributes is None:
         if "contributions" in desc:
@@ -1319,12 +1325,19 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
             report.error(f"{desc_path}: has neither contributes nor contributions")
         return
 
+    if not isinstance(contributes, dict):
+        report.error(f"{desc_path}: contributes must be an object")
+        return
+
     kinds = {}
     singers = []
     contributions = {}
     # Check the whole declaration list before rewriting any file. Absolute paths, parent traversal
     # and links must not turn a conversion of the staging copy into a write outside that copy.
     for source_key in ("inferences", "singers"):
+        if not isinstance(contributes.get(source_key, []), list):
+            report.error(f"{desc_path}: contributes.{source_key} must be a list")
+            return
         for relative in contributes.get(source_key, []):
             if not isinstance(relative, str):
                 report.error(f"{desc_path}: contribution path must be a string")
@@ -1438,10 +1451,18 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
             report.warn(f"{root.name}: dependency {entry.get('id')!r} was optional in 2.3 and "
                         f"is required in 2.4, which does not support optional dependencies")
         dependencies.append({key: entry[key] for key in ("id", "version") if key in entry})
-    declared = {entry.get("id") for entry in dependencies}
     for identifier, version in sorted(required.items()):
-        if identifier not in declared:
-            dependencies.append({"id": identifier, "version": version})
+        minimum = tuple(map(int, version.split(".")))
+        for entry in dependencies:
+            if entry.get("id") != identifier:
+                continue
+            existing = four_part(entry.get("version", "0.0.0.0"), report,
+                                 f"{root.name}: dependency {identifier}")
+            if existing is None:
+                return
+            minimum = max(minimum, tuple(map(int, existing.split("."))))
+        dependencies = [entry for entry in dependencies if entry.get("id") != identifier]
+        dependencies.append({"id": identifier, "version": ".".join(map(str, minimum))})
     if dependencies:
         converted["dependencies"] = dependencies
     else:

@@ -402,8 +402,8 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
     }
 
     m_lockFile = std::make_unique<QLockFile>(SingleInstanceIdentity::lockFilePath(m_dataDirectory));
-    // Qt's own staleness is a clock, and a long running editor must never lose its lock to one,
-    // so it is off. What decides instead is the process the lock names.
+    // Disable age-based expiry for long-running editors. QLockFile::tryLock still checks the PID
+    // and process name (including PID reuse); the liveness check below is an additional fallback.
     m_lockFile->setStaleLockTime(0);
     if (!m_lockFile->tryLock(0)) {
         if (m_lockFile->error() != QLockFile::LockFailedError) {

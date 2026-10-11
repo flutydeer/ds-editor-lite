@@ -57,7 +57,7 @@ namespace DsConnector {
 
     private:
         void bootstrapChanged();
-        void clearEditorState(const QString &error);
+        void clearEditorState(const QString &error, bool drainReplies = false);
         void beginHandshake(const SingleInstanceAutomationSnapshot &snapshot);
         void startHandshakeAttempt();
         void startModernHandshake(quint64 epoch);
@@ -112,6 +112,7 @@ namespace DsConnector {
         std::optional<SingleInstanceAutomationSnapshot> m_handshakeTarget;
         bool m_handshakeInProgress = false;
         bool m_handshakeRefreshPending = false;
+        bool m_drainingEditorReplies = false;
         int m_handshakeRetryAttempt = 0;
         AutomationWire::OpaqueCursorCodec m_editorToolsCursorCodec;
     };
