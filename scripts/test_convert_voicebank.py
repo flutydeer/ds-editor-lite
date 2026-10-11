@@ -483,6 +483,28 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
                 self.assertEqual(read_json(declaration), singer)
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
+    def test_invalid_installed_language_keys_report_errors_and_clean_staging(self):
+        self.write_singer([{"id": "cmn"}])
+        root = self.work / "installed/vendor-lang-cmn"
+        for kind in ("linguist", "g2p"):
+            for field in ("language", "scheme"):
+                for value in (None, [], {}, False, 42, ""):
+                    with self.subTest(kind=kind, field=field, value=value):
+                        self.write_language_package("vendor/lang-cmn", "cmn", "pinyin", onset=False)
+                        path = root / ("linguists/cmn-pinyin/linguist.json" if kind == "linguist"
+                                       else "inferences/g2p/inference.json")
+                        declaration = read_json(path)
+                        target = declaration if kind == "linguist" else declaration["exports"]["languages"][0]
+                        target[field] = value
+                        write_json(path, declaration)
+                        original = (self.package / "desc.json").read_bytes()
+                        code, text = self.run_script(self.package, "--in-place",
+                                                     "--packages", self.work / "installed")
+                        self.assertEqual(code, 1, text)
+                        self.assertNotIn("Traceback", text)
+                        self.assertEqual((self.package / "desc.json").read_bytes(), original)
+                        self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_multiple_singers_keep_their_own_language_resources(self):
         self.stage_files()
         (self.package / "assets/cmn.txt").write_text("aa\ta\n", encoding="utf-8")

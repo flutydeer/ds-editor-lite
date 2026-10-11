@@ -500,8 +500,16 @@ def read_package_index(directory: Path, report: Report) -> dict:
         for locator, declaration in declarations.items():
             if locator.startswith("linguist/") \
                     and declaration.get("interface") == LINGUIST_INTERFACE:
-                linguists[declaration.get("language")] = (
-                    f"{identifier}:{locator}", declaration.get("scheme"),
+                language = declaration.get("language")
+                scheme = declaration.get("scheme")
+                if not isinstance(language, str) or not language:
+                    report.error(f"{identifier}:{locator}: language must be a nonempty string")
+                    continue
+                if not isinstance(scheme, str) or not scheme:
+                    report.error(f"{identifier}:{locator}: scheme must be a nonempty string")
+                    continue
+                linguists[language] = (
+                    f"{identifier}:{locator}", scheme,
                     imports_role(declaration, S2P_ROLE), imports_role(declaration, ONSET_ROLE))
 
         for locator, declaration in sorted(declarations.items()):
@@ -527,7 +535,19 @@ def read_package_index(directory: Path, report: Report) -> dict:
                                   f"{identifier}:{locator}", "exports")
             pairs = read_array(exports.get("languages", []), report,
                                f"{identifier}:{locator}", "exports.languages")
-            members = [pair for pair in pairs if isinstance(pair, dict)]
+            members = []
+            for pair in pairs:
+                if (not isinstance(pair, dict) or not isinstance(pair.get("language"), str)
+                        or not pair["language"]):
+                    report.error(f"{identifier}:{locator}: an exported language must name a "
+                                 f"nonempty language string")
+                    continue
+                if ("scheme" in pair and
+                        (not isinstance(pair["scheme"], str) or not pair["scheme"])):
+                    report.error(f"{identifier}:{locator}: an exported scheme must be a "
+                                 f"nonempty string")
+                    continue
+                members.append(pair)
             declared = [pair.get("language") for pair in members]
             exported_schemes = {pair.get("language"): pair.get("scheme") for pair in members
                                 if pair.get("scheme")}

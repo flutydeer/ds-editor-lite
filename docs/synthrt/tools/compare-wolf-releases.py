@@ -127,6 +127,8 @@ def main():
     parser.add_argument("--fail-on-violation", action="store_true",
                         help="exit non-zero when content changed without a version change")
     args = parser.parse_args()
+    if args.tags is not None and len(args.tags) != 2 and not args.self_check:
+        parser.error("--tags requires exactly two release tags")
 
     releases = load_releases(args.releases, args.repo)
     if isinstance(releases, dict):
@@ -149,6 +151,11 @@ def main():
         tags = lang_tags[:2]
         print("using the two newest language releases: %s" % ", ".join(tags))
 
+    for tag in tags:
+        if tag not in available:
+            print("tag not found: %s" % tag)
+            return 2
+
     labels = list(tags)
     packages = {}
     bad_digest = []
@@ -164,7 +171,16 @@ def main():
                 continue
             with ensure_extract(path, marker) as folder:
                 listing, desc = describe(folder)
+            if not isinstance(desc, dict):
+                print("invalid package manifest in %s: %s" % (tag, asset["name"]))
+                return 2
             key = desc.get("id") or match.group("name")
+            if not isinstance(key, str):
+                print("invalid package ID in %s: %s" % (tag, asset["name"]))
+                return 2
+            if side in packages.get(key, {}):
+                print("duplicate package ID in %s: %s (%s)" % (tag, key, asset["name"]))
+                return 2
             packages.setdefault(key, {})[side] = {
                 "archive_version": match.group("version"),
                 "declared_version": desc.get("version"),

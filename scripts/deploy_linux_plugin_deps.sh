@@ -78,7 +78,7 @@ copy_with_links() {
 }
 
 # Record of the source of each deployed library, one line per library: the library name, then the
-# modification time and size of its source.
+# SHA-256 digest of its source (deployed bytes may subsequently receive a different RPATH).
 RECORD="$DEPLOY_DIR/.plugin-deps"
 touch "$RECORD"
 
@@ -104,11 +104,11 @@ while :; do
             # A deployed library is copied again only if its source has changed, as happens when a
             # dependency is reinstalled. Neither the deployed contents nor the deployed modification
             # time detects that change, because the subsequent RPATH step rewrites every deployed
-            # copy on every build. Each copy is therefore recorded by the modification time and size
+            # copy on every build. Each copy is therefore recorded by the content digest
             # of its source, and a differing record indicates a different source. Skipping every
             # existing file instead would retain the first copy permanently, and a plugin would then
             # continue to load an outdated library.
-            signature="$(stat -c '%Y %s' "$(readlink -f "$source")")"
+            signature="$(sha256sum "$(readlink -f "$source")" | awk '{print $1}')"
             if [ -e "$DEPLOY_DIR/$name" ] && [ "$(recorded "$name")" = "$signature" ]; then
                 continue
             fi
