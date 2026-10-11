@@ -388,7 +388,12 @@ int runAnalyzerPackages() {
                 continue;
             const auto destination = metadataPlugins / directory.lexically_relative(pluginRoot);
             fs::create_directories(destination.parent_path());
+#ifdef Q_OS_WIN
             fs::copy(directory, destination, fs::copy_options::recursive);
+#else
+            // Preserve the deployed dylib dependency paths and manifest resource symlinks.
+            fs::create_directory_symlink(directory, destination);
+#endif
         }
     }
     SingletonRegistry::destroy(engine);

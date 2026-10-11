@@ -125,6 +125,17 @@ class ConvertVoicebankTest(VoicebankFixture):
                     self.assertEqual(outside.read_bytes(), original)
                     self.assertEqual((self.package / "desc.json").read_bytes(), before)
 
+    def test_language_bindings_require_external_linguist_locators(self):
+        for reference in ("vendor/pkg:inference/model", "vendor/pkg:singer/voice",
+                          "vendor/pkg:linguist/", ":linguist/cmn", "vendor/pkg:linguist/a/b"):
+            with self.subTest(reference=reference):
+                output = self.destination("out")
+                code, text = self.run_script(self.package, "--output", output,
+                                             "--language", f"cmn={reference}")
+                self.assertEqual(code, 1, text)
+                self.assertIn("<package>:linguist/<id>", text)
+                self.assertFalse(output.exists())
+
     def test_converts_the_package(self):
         output = self.destination("out")
         code, text = self.run_script(self.package, "--output", output)
