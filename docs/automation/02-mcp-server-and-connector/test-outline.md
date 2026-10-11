@@ -185,7 +185,7 @@ Connector 桥接工具：6
 
 - L0 为语义上固有且不可禁用的集合；L1、L2、L3 逐级包含，L3 等于完整公共契约集合。
 - `controlLevel` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
-- Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖；L0 不进入 Custom 列表且不能被其配置禁用。
+- Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖；L0 不能被 Custom 配置禁用，在工具集页只读展示（开关禁用、不持久化），分组计数把它们算作已启用。
 - 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
 - Editor `tools/list` 和执行期 Registry 使用同一策略。
 - 列表后改变控制层级/Custom 时，实际调用按最新策略判定。

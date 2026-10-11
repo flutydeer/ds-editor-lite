@@ -820,6 +820,19 @@ void ApplicationGuiTests::automationCustomToolsetInputsPersistAndExportPermissio
         clickOption(page, open);
         if (QTest::currentTestFailed())
             return;
+        // The intrinsic L0 layer is listed for reference only: always on, not
+        // switchable, and never written to the custom permission set.
+        for (const auto &intrinsicId :
+             {QStringLiteral("application.get_info"), QStringLiteral("application.get_status"),
+              QStringLiteral("application.request_exit"),
+              QStringLiteral("application.request_restart")}) {
+            auto *intrinsic = page->findChild<SwitchButton *>(
+                QStringLiteral("automationCustomTool_%1").arg(intrinsicId));
+            QVERIFY(intrinsic);
+            QVERIFY(intrinsic->value());
+            QVERIFY(!intrinsic->isEnabled());
+            QVERIFY(!option->customPermissionEnabled(intrinsicId));
+        }
         auto *expand = page->findChild<ToolButton *>("automationCustomToolGroupExpand_tracks");
         auto *group = page->findChild<SwitchButton *>("automationCustomToolGroupSwitch_tracks");
         auto *rename = page->findChild<SwitchButton *>("automationCustomTool_tracks.rename");

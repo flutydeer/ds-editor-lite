@@ -146,7 +146,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. 验证权威契约 ID 唯一、Schema 可通过 meta-schema 检查，Registry binding 与授权后的 Editor `tools/list` 集合分别等于契约源。
-2. 验证控制层级集合逐级包含、L3 等于完整公共契约集合，并验证语义上固有的 L0 工具不进入 Custom 设置且不能被任何权限配置禁用。
+2. 验证控制层级集合逐级包含、L3 等于完整公共契约集合，并验证语义上固有的 L0 工具不能被任何权限配置禁用、在 Custom 工具集页只读展示（开关禁用、不写入 `customPermissions`）。
 3. 按 Query、同步 Command、异步 Command 和特殊参数形状选取代表工具，验证 Registry JSON 映射与结果封装；不为每个工具生成一份同构 smoke 调用。
 4. Schema-invalid、权限关闭、host unavailable、错误优先级、revision 与通用失败封装在各自共享层验证一次；领域测试仅补充工具特有的拒绝条件。
 5. 由确定性语料覆盖各域独有的成功、no-op、validate-only、冲突、不可用、失败原子性和异步终态；真实产品会话按风险与可见行为选择代表路径，不设置逐工具场景配额。

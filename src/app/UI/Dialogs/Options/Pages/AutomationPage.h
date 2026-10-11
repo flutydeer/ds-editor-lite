@@ -5,6 +5,7 @@
 #include "IOptionPage.h"
 
 #include <QMap>
+#include <QSet>
 #include <QStringList>
 
 class ComboBox;
@@ -65,6 +66,9 @@ private:
     QMap<QString, OptionsCardItem *> m_customCategoryHeaderItems;
     QMap<QString, QStringList> m_customCategoryOperationIds;
     QStringList m_customPermissionOperationIds;
+    // Operation IDs of the intrinsic L0 layer: always allowed, listed in the
+    // toolset page for reference and never persisted as a custom permission.
+    QSet<QString> m_intrinsicOperationIds;
     OptionListCard *m_serverCard = nullptr;
     QLabel *m_runtimeStateValue = nullptr;
     QLabel *m_runtimeErrorValue = nullptr;

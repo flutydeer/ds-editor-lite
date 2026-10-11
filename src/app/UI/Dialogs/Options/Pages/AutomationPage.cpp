@@ -152,13 +152,28 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
     for (auto it = m_customCategorySwitches.constBegin(); it != m_customCategorySwitches.constEnd();
          ++it) {
         const auto operationIds = m_customCategoryOperationIds.value(it.key());
-        const auto enabledCount = std::count_if(
-            operationIds.cbegin(), operationIds.cend(), [this](const QString &operationId) {
-                const auto operation = m_customPermissionSwitches.value(operationId);
-                return operation && operation->value();
-            });
+        auto enabledCount = 0;
+        auto configurableCount = 0;
+        auto configurableEnabledCount = 0;
+        for (const auto &operationId : operationIds) {
+            if (m_intrinsicOperationIds.contains(operationId)) {
+                // The intrinsic L0 layer is allowed at every control level, so it
+                // always counts as enabled even though it owns no permission entry.
+                ++enabledCount;
+                continue;
+            }
+            ++configurableCount;
+            const auto operation = m_customPermissionSwitches.value(operationId);
+            if (operation && operation->value()) {
+                ++configurableEnabledCount;
+                ++enabledCount;
+            }
+        }
         const QSignalBlocker blocker(it.value());
-        it.value()->setValue(enabledCount > 0);
+        // The group switch drives the configurable tools only: a group holding
+        // intrinsic tools can never be switched off completely, and a group without
+        // configurable tools stays on (its switch is disabled when it is built).
+        it.value()->setValue(configurableEnabledCount > 0 || configurableCount == 0);
         if (auto *header = m_customCategoryHeaderItems.value(it.key())) {
             header->setTitle(tr("%1 (%L2/%L3 enabled)")
                                  .arg(categoryDisplayName(it.key()))
@@ -534,14 +549,26 @@ QWidget *AutomationPage::createToolsetPage() {
     listLayout->setSpacing(6);
 
     QStringList categoryOrder;
-    for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
-        if (const auto *contract = AutomationWire::findPublicTool(operationId);
-            contract && !contract->category.isEmpty()) {
-            if (!m_customCategoryOperationIds.contains(contract->category))
-                categoryOrder.append(contract->category);
-            m_customCategoryOperationIds[contract->category].append(operationId);
-        }
+    const auto collectOperation = [&](const QString &operationId) {
+        const auto *contract = AutomationWire::findPublicTool(operationId);
+        if (!contract || contract->category.isEmpty())
+            return;
+        if (!m_customCategoryOperationIds.contains(contract->category))
+            categoryOrder.append(contract->category);
+        m_customCategoryOperationIds[contract->category].append(operationId);
+    };
+    // The intrinsic L0 layer is exposed at every control level and cannot be
+    // disabled, so it has no custom permission entry: it is listed alongside the
+    // configurable tools for reference only.
+    m_intrinsicOperationIds.clear();
+    for (const auto &contract : AutomationWire::publicToolContracts()) {
+        if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
+            continue;
+        m_intrinsicOperationIds.insert(contract.operationId);
+        collectOperation(contract.operationId);
     }
+    for (const auto &operationId : std::as_const(m_customPermissionOperationIds))
+        collectOperation(operationId);
 
     if (m_customPermissionOperationIds.isEmpty()) {
         const auto emptyCard = new OptionListCard;
@@ -580,20 +607,33 @@ QWidget *AutomationPage::createToolsetPage() {
             m_customCategoryHeaderItems.insert(category, headerItem);
 
             QList<OptionsCardItem *> operationItems;
+            auto configurableCount = 0;
             for (const auto &operationId : operationIds) {
+                const bool intrinsic = m_intrinsicOperationIds.contains(operationId);
                 auto *permissionSwitch =
-                    new SwitchButton(option->customPermissionEnabled(operationId));
+                    new SwitchButton(intrinsic || option->customPermissionEnabled(operationId));
                 permissionSwitch->setObjectName(
                     QStringLiteral("automationCustomTool_%1").arg(operationId));
-                m_customPermissionSwitches.insert(operationId, permissionSwitch);
-                connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
-                    refreshCategoryPermissionSwitches();
-                    modifyOption();
-                });
+                if (intrinsic) {
+                    // Display only: the switch mirrors the intrinsic state, stays
+                    // disabled and never writes a permission.
+                    permissionSwitch->setEnabled(false);
+                } else {
+                    ++configurableCount;
+                    m_customPermissionSwitches.insert(operationId, permissionSwitch);
+                    connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
+                        refreshCategoryPermissionSwitches();
+                        modifyOption();
+                    });
+                }
                 auto *item = categoryCard->addItem(operationId, permissionSwitch);
                 categoryCard->setItemVisible(item, false);
                 operationItems.append(item);
             }
+            // A group made of intrinsic tools only has nothing to switch: keep its
+            // group control on and inert instead of showing a dead switch.
+            if (configurableCount == 0)
+                categorySwitch->setEnabled(false);
 
             connect(expandButton, &QPushButton::toggled, this,
                     [this, categoryCard, expandButton, operationItems](const bool expanded) {
