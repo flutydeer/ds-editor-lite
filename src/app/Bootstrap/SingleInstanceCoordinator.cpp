@@ -414,16 +414,24 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
         qint64 holder = 0;
         QString host;
         QString application;
-        if (m_lockFile->getLockInfo(&holder, &host, &application) &&
+        const bool readable = m_lockFile->getLockInfo(&holder, &host, &application);
+        bool recovered = false;
+        if (readable &&
             (host.isEmpty() || host == QSysInfo::machineHostName()) &&
             !ProcessProbe::isAlive(holder)) {
             m_lockFile->removeStaleLockFile();
+        } else if (!readable) {
+            // A crash while writing can leave no usable PID. Allow Qt's normal stale-file
+            // recovery for this case, without expiring readable locks held by long-lived editors.
+            m_lockFile->setStaleLockTime(30000);
+            recovered = m_lockFile->tryLock(0);
+            m_lockFile->setStaleLockTime(0);
         }
         // A holder on its way out keeps the lock until its last step, and a launch that lands in
         // that moment, a restart's successor or a host started right after the previous one was
         // told to exit, is not a second instance. Bounded, so that a real second instance still
         // forwards its request promptly.
-        if (!m_lockFile->tryLock(750)) {
+        if (!recovered && !m_lockFile->tryLock(750)) {
             if (m_lockFile->error() == QLockFile::LockFailedError)
                 return StartResult::Secondary;
             m_error = tr("Failed to access the single-instance lock file");

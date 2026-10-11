@@ -40,7 +40,7 @@ bool InferAcousticCacheProbeTask::success() const {
 }
 
 bool InferAcousticCacheProbeTask::cacheHit() const {
-    return m_cacheHit.load(std::memory_order_acquire);
+    return m_cacheHit.load(std::memory_order_acquire) && m_lookup.isCurrent();
 }
 
 QString InferAcousticCacheProbeTask::result() const {
@@ -55,15 +55,15 @@ void InferAcousticCacheProbeTask::runTask() {
     newStatus.message = tr("Probing acoustic cache");
     setStatus(newStatus);
 
-    const auto cache = InferAcousticTask::lookupCache(m_input, m_cacheDirectory);
+    m_lookup = InferAcousticTask::lookupCache(m_input, m_cacheDirectory);
     if (isTerminateRequested())
         return;
 
-    if (cache.hit)
-        m_result = cache.outputCachePath;
-    m_cacheHit.store(cache.hit, std::memory_order_release);
+    if (m_lookup.hit)
+        m_result = m_lookup.outputCachePath;
+    m_cacheHit.store(m_lookup.hit, std::memory_order_release);
     m_success.store(true, std::memory_order_release);
     qCDebug(logInferTask) << "Acoustic cache probe finished"
-             << "hit:" << cache.hit << "clipId:" << clipId() << "pieceId:" << pieceId()
+             << "hit:" << m_lookup.hit << "clipId:" << clipId() << "pieceId:" << pieceId()
              << "taskId:" << id();
 }

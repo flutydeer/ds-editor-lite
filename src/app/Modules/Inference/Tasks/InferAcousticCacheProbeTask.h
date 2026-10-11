@@ -25,6 +25,7 @@ private:
     InferAcousticTask::InferAcousticInput m_input;
     QString m_result;
     QString m_cacheDirectory;
+    InferAcousticTask::AcousticCacheLookup m_lookup;
     std::atomic<bool> m_cacheHit{false};
     std::atomic<bool> m_success{false};
 };

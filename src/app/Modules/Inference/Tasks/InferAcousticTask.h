@@ -38,10 +38,13 @@ public:
 
     struct AcousticCacheLookup {
         GenericInferModel model;
+        QString modelHash;
         QString inputHash;
         QString inputCachePath;
         QString outputCachePath;
+        quint64 modelGeneration = 0;
         bool hit = false;
+        [[nodiscard]] bool isCurrent() const;
     };
 
     [[nodiscard]] int clipId() const override;

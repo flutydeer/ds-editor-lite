@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalServer>
@@ -275,6 +277,43 @@ void BootstrapTests::protocol() {
     expect(SingleInstanceProtocol::takeFrame(buffer, payload, error) &&
                SingleInstanceProtocol::takeFrame(buffer, payload, error) && buffer.isEmpty(),
            "multiple frames in one buffer must be parsed independently");
+}
+
+void BootstrapTests::malformedLockRecovery_data() {
+    QTest::addColumn<QByteArray>("contents");
+    QTest::addColumn<int>("ageSeconds");
+    QTest::addColumn<bool>("recover");
+    QTest::newRow("old-empty") << QByteArray() << 120 << true;
+    QTest::newRow("old-malformed") << QByteArray("invalid-pid\neditor\n\n") << 120 << true;
+    QTest::newRow("fresh-malformed") << QByteArray("invalid-pid\neditor\n\n") << 0 << false;
+    const auto live = QByteArray::number(QCoreApplication::applicationPid()) + '\n' +
+                      QFileInfo(QCoreApplication::applicationFilePath()).completeBaseName().toUtf8() +
+                      "\n\n";
+    QTest::newRow("old-live-holder") << live << 120 << false;
+}
+
+void BootstrapTests::malformedLockRecovery() {
+    QFETCH(QByteArray, contents);
+    QFETCH(int, ageSeconds);
+    QFETCH(bool, recover);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = SingleInstanceIdentity::lockFilePath(directory.path());
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(contents), contents.size());
+    QVERIFY(file.flush());
+    QVERIFY(file.setFileTime(QDateTime::currentDateTimeUtc().addSecs(-ageSeconds),
+                             QFileDevice::FileModificationTime));
+    file.close();
+    SingleInstanceCoordinator coordinator(directory.path());
+    QCOMPARE(coordinator.start(), recover ? SingleInstanceCoordinator::StartResult::Primary
+                                          : SingleInstanceCoordinator::StartResult::Secondary);
+    coordinator.shutdown();
+    if (!recover) {
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), contents);
+    }
 }
 
 void BootstrapTests::reusedPidDoesNotKeepAStaleLock() {

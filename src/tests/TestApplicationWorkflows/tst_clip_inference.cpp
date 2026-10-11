@@ -1173,7 +1173,14 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference()
     QVERIFY(!HistoryManager::instance()->canUndo());
 }
 
+void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit_data() {
+    QTest::addColumn<bool>("reloadModels");
+    QTest::newRow("parameter-edit") << false;
+    QTest::newRow("model-reload") << true;
+}
+
 void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
+    QFETCH(bool, reloadModels);
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())
         return;
@@ -1245,13 +1252,21 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
     QVERIFY(QThreadPool::globalInstance()->waitForDone(10000));
     QVERIFY(probe->success());
     QVERIFY(probe->cacheHit());
-    const auto changed = editGender();
-    QVERIFY(changed && changed.get().changed);
+    if (reloadModels) {
+        const auto refreshed = packageManager->refreshInstalledPackages(
+            appOptions->general()->packageSearchPaths);
+        QVERIFY(refreshed);
+        QVERIFY(!probe->cacheHit());
+    } else {
+        const auto changed = editGender();
+        QVERIFY(changed && changed.get().changed);
+    }
     const auto afterEdit = runtime().documentVersion();
     const auto *undo = HistoryManager::instance()->nextUndoEntry();
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     QVERIFY(target);
-    QCOMPARE(target->getInputCurve(ParamInfo::Gender)->mid(720).first(), value);
+    QCOMPARE(target->getInputCurve(ParamInfo::Gender)->mid(720).first(),
+             reloadModels ? originalInput.first() : value);
     QVERIFY(target->audioPath != originalAudio);
     inferController->startPendingAcousticInference();
     QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&

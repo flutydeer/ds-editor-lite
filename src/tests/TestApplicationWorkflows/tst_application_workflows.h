@@ -92,6 +92,7 @@ private slots:
     void modelInferenceWaitsForEditingBeforeApplying();
     void editingParametersRestartsOnlyDependentInference_data();
     void editingParametersRestartsOnlyDependentInference();
+    void queuedCacheProbeCannotRestoreAudioAfterAnEdit_data();
     void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
     void changingSamplingSettingsRestartsRunningInference_data();
     void changingSamplingSettingsRestartsRunningInference();
