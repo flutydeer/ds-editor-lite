@@ -17,6 +17,7 @@
 #include "Modules/Inference/Utils/PitchRouting.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/StringUtils.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include "InferTaskCommon.h"
 #include "InferStageModel.h"
@@ -83,35 +84,44 @@ QStringList InferAcousticTask::cacheFileNames() const {
     return InferCacheUtils::cacheFileNames(QStringLiteral("acoustic"), m_inputHash).toList();
 }
 
+bool InferAcousticTask::AcousticCacheLookup::isCurrent() const {
+    const auto currentHash = InferCacheUtils::inputHashForCurrentModels(modelHash);
+    return inputHash == currentHash &&
+           modelGeneration == SynthrtEngine::instance().catalogGeneration();
+}
+
 InferAcousticTask::AcousticCacheLookup
     InferAcousticTask::lookupCache(const InferAcousticInput &input, const QString &cacheDirectory) {
-    AcousticCacheLookup lookup;
-    lookup.model = input.toEngineModel();
-    lookup.inputHash = InferCacheUtils::inputHashForCurrentModels(lookup.model.hashData());
-
     const QDir cacheDir(cacheDirectory);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
-    const auto names = InferCacheUtils::cacheFileNames(QStringLiteral("acoustic"), lookup.inputHash);
-    lookup.inputCachePath = cacheDir.filePath(names.input);
-    lookup.outputCachePath = cacheDir.filePath(names.output);
+    for (;;) {
+        AcousticCacheLookup lookup;
+        lookup.modelGeneration = SynthrtEngine::instance().catalogGeneration();
+        lookup.model = input.toEngineModel();
+        lookup.modelHash = lookup.model.hashData();
+        lookup.inputHash = InferCacheUtils::inputHashForCurrentModels(lookup.modelHash);
+        const auto names =
+            InferCacheUtils::cacheFileNames(QStringLiteral("acoustic"), lookup.inputHash);
+        lookup.inputCachePath = cacheDir.filePath(names.input);
+        lookup.outputCachePath = cacheDir.filePath(names.output);
 
-    if (!QFile::exists(lookup.outputCachePath))
-        return lookup;
-
-    // The rendered file has the sample rate of the vocoder that produced it. The cache key
-    // identifies the singer and its package version, and therefore the vocoder. A file whose
-    // rate differs from the rate that the catalog declares for that vocoder is therefore not a
-    // result of this input.
-    const auto nativeOutputPath = StringUtils::qstr_to_native(lookup.outputCachePath);
-    const SndfileHandle outputFile(nativeOutputPath.c_str());
-    const auto expectedRate = InferFrameLayout::vocoderSampleRate(input.identifier);
-    lookup.hit = outputFile.error() == SF_ERR_NO_ERROR &&
-                 (outputFile.format() & SF_FORMAT_TYPEMASK) == SF_FORMAT_WAV &&
-                 outputFile.channels() == 1 && outputFile.samplerate() > 0 &&
-                 (expectedRate <= 0 || outputFile.samplerate() == expectedRate) &&
-                 outputFile.frames() > 0;
-    return lookup;
+        if (QFile::exists(lookup.outputCachePath)) {
+            // Check the current vocoder rate as well as the cached file's format.
+            const auto nativeOutputPath = StringUtils::qstr_to_native(lookup.outputCachePath);
+            const SndfileHandle outputFile(nativeOutputPath.c_str());
+            const auto expectedRate = InferFrameLayout::vocoderSampleRate(input.identifier);
+            lookup.hit = outputFile.error() == SF_ERR_NO_ERROR &&
+                         (outputFile.format() & SF_FORMAT_TYPEMASK) == SF_FORMAT_WAV &&
+                         outputFile.channels() == 1 && outputFile.samplerate() > 0 &&
+                         (expectedRate <= 0 || outputFile.samplerate() == expectedRate) &&
+                         outputFile.frames() > 0;
+        }
+        // A reload can rotate the disk revision or publish a catalog while the WAV is read.
+        // Retry both hits and misses so a subsequent render also uses the current cache key.
+        if (lookup.isCurrent())
+            return lookup;
+    }
 }
 
 void InferAcousticTask::runTask() {
