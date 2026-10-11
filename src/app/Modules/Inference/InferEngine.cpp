@@ -4,6 +4,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/Tasking/TaskManager.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include <lite/SynthrtEngine/SynthrtBootstrap.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "ExecutionProvider.h"
@@ -86,6 +87,7 @@ void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
         connect(&SynthrtEngine::instance(), &SynthrtEngine::voicebanksAboutToReload, this,
                 [this] {
+                    InferCacheUtils::invalidateModelCaches();
                     // The reload waits for idle model handles to close before reopening packages.
                     // Active tasks keep their own leases; selection policy survives the reload.
                     auto handles = m_singerSessions.clear(false);
@@ -108,8 +110,8 @@ void InferEngine::startInitialization() {
                     return;
                 }
 
-                const bool languageReady = initTask->success.load(std::memory_order_acquire);
-                const bool runtimeReady = SynthrtEngine::instance().initialized();
+                const bool languageReady = SynthrtEngine::instance().initialized();
+                const bool runtimeReady = SynthrtEngine::instance().inferenceReady();
                 appStatus->inferEngineEnvStatus =
                     runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
                 if (languageReady) {
@@ -293,7 +295,11 @@ bool InferEngine::initialize(QString &error) {
                                  .arg(memory);
     }
 
-    m_initialized = true;
+    m_initialized = SynthrtEngine::instance().inferenceReady();
+    if (!m_initialized) {
+        error = QStringLiteral("The ONNX inference driver is unavailable");
+        return false;
+    }
     qInfo().noquote() << "Successfully initialized InferEngine. Execution provider:" << ep;
     return true;
 }

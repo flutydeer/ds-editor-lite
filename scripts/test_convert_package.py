@@ -64,6 +64,21 @@ class ConvertPackageTest(VoicebankFixture):
         self.assertEqual(code, 1, text)
         self.assertIn("already contains files", text)
 
+    def test_refuses_an_existing_patch_archive_before_conversion(self):
+        patch = self.work / "patch"
+        archive = patch.with_suffix(".zip")
+        archive.write_bytes(b"unrelated user archive")
+        for force in ([], ["--force"]):
+            with self.subTest(force=force):
+                output = self.destination("out")
+                code, text = self.run_wrapper(self.package, "--output", output,
+                                              "--patch", patch, *force)
+                self.assertEqual(code, 1, text)
+                self.assertIn("already exists", text)
+                self.assertEqual(archive.read_bytes(), b"unrelated user archive")
+                self.assertFalse(output.exists())
+                self.assertFalse(patch.exists())
+
     def test_reports_a_category_the_reference_leaves_alone(self):
         # The reference converts the two voicebank categories, so a package that contributes another
         # category keeps that declaration as it was: the result is not a converted package.

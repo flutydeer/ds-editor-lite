@@ -1,6 +1,7 @@
 #include "tst_application_workflows.h"
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -30,6 +31,9 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
     const auto original = packageManager->installedPackages();
+    const auto inputHash = QStringLiteral("same singer, version and notes");
+    const auto cacheHash = InferCacheUtils::inputHashForCurrentModels(inputHash);
+    QCOMPARE(InferCacheUtils::inputHashForCurrentModels(inputHash), cacheHash);
     QVERIFY(!original.successfulPackages.isEmpty());
     SingerInfo singer;
     for (const auto &package : original.successfulPackages) {
@@ -62,6 +66,9 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
         searchPaths.append(emptyDirectory.path());
         const auto partial = packageManager->refreshInstalledPackages(searchPaths);
         QVERIFY2(partial, qPrintable(partial ? QString{} : partial.getError().message));
+        const auto refreshedHash = InferCacheUtils::inputHashForCurrentModels(inputHash);
+        QVERIFY(refreshedHash != cacheHash);
+        QCOMPARE(InferCacheUtils::inputHashForCurrentModels(inputHash), refreshedHash);
         QCOMPARE(partial.get().successfulPackages, original.successfulPackages);
         const auto &failures = partial.get().failedPackages;
         for (const auto &path : {missingRoot, invalidPackage}) {
@@ -88,6 +95,7 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
         QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
         QVERIFY(refreshed.isEmpty());
         QCOMPARE(SynthrtEngine::instance().catalogGeneration(), generationBefore);
+        QCOMPARE(InferCacheUtils::inputHashForCurrentModels(inputHash), refreshedHash);
     }
     QTRY_COMPARE(refreshed.size(), 1);
     QCOMPARE(packageManager->installedPackages().successfulPackages, original.successfulPackages);
@@ -260,6 +268,7 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
         searchPaths.append(stageRoot);
     }
     rewrite(root, QStringLiteral("desc.json"), [&](QJsonObject &object) {
+        object.insert(QStringLiteral("url"), QStringLiteral("https://example.org/voicebank"));
         object.insert(QStringLiteral("vendor"),
                       localized(QStringLiteral("Fixture vendor"), QStringLiteral("测试制作方")));
         object.insert(QStringLiteral("description"),
@@ -308,6 +317,7 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
             return item.id() == QStringLiteral("ci-fixture");
         });
         QVERIFY(package != packages.cend());
+        QCOMPARE(package->url(), QStringLiteral("https://example.org/voicebank"));
         QCOMPARE(package->version().normalized(), QVersionNumber::fromString(version).normalized());
         QCOMPARE(package->displayVendor(QStringLiteral("zh-CN")), vendor);
         QCOMPARE(package->displayDescription(QStringLiteral("zh-CN")),
@@ -319,10 +329,11 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
         if (sharedStages) {
             QCOMPARE(singer.capability()->vocoderPitchControllable,
                      baseline.capability()->vocoderPitchControllable);
-            const auto loaded = SynthrtEngine::instance().unitIfReady()->loadedPackages();
-            QVERIFY(std::any_of(loaded.cbegin(), loaded.cend(), [](const auto &handle) {
-                return handle.id() == "ci-fixture-stages";
-            }));
+            const auto stages = std::find_if(packages.cbegin(), packages.cend(), [](const auto &item) {
+                return item.id() == QStringLiteral("ci-fixture-stages");
+            });
+            QVERIFY(stages != packages.cend());
+            QVERIFY(stages->singers().isEmpty());
         } else {
             QCOMPARE(singer.capability(), baseline.capability());
         }

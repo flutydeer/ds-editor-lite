@@ -385,10 +385,14 @@ def write_patch(package: Path, landing: Path, destination: Path, desc, authority
     authority.write_json(destination / PATCH_MANIFEST, manifest)
 
     archive = destination.parent / (destination.name + ".zip")
-    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
-        for path in sorted(destination.rglob("*")):
-            if path.is_file():
-                zipped.write(path, path.relative_to(destination).as_posix())
+    try:
+        with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED) as zipped:
+            for path in sorted(destination.rglob("*")):
+                if path.is_file():
+                    zipped.write(path, path.relative_to(destination).as_posix())
+    except FileExistsError:
+        report.error(f"{archive}: already exists; no archive overwritten")
+        return
 
     report.note(f"{archive}: {len(changed)} file(s) written, "
                 f"{sum(entry['size'] for entry in manifest['files'])} byte(s), "
@@ -438,6 +442,10 @@ def main() -> int:
 
     patch = Path(options.patch) if options.patch is not None else None
     if patch is not None:
+        archive = patch.parent / (patch.name + ".zip")
+        if archive.exists() or archive.is_symlink():
+            report.error(f"{archive}: already exists; choose a different --patch directory")
+            return finish(report, 1)
         if in_place:
             report.error("--patch compares the package with the converted copy, and --in-place "
                          "rewrites the package itself, which leaves nothing to compare; specify "

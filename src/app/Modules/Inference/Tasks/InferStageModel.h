@@ -58,13 +58,14 @@ public:
         return static_cast<Executive *>(m_model.executive);
     }
 
-    /// Returns the speaker mapping of the import options of the stage, or no value if the singer
-    /// declares no import options of the expected type. The caller specifies the import options
-    /// type of its stage.
+    /// Missing optional import options mean identity mapping. A present value of the wrong type
+    /// remains an error. The caller specifies the import options type of its stage.
     template <class ImportOptions>
     std::optional<std::map<std::string, std::string>> speakerMapping() const {
         const auto *options = m_model.importOptions;
-        const auto *typed = options ? options->as<ImportOptions>() : nullptr;
+        if (!options)
+            return std::map<std::string, std::string>{};
+        const auto *typed = options->as<ImportOptions>();
         if (!typed)
             return std::nullopt;
         return typed->speakerMapping;

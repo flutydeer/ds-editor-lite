@@ -83,7 +83,8 @@ namespace ApplicationTest {
     public:
         explicit ApplicationHarness(
             std::optional<Automation::WindowId> windowId = Automation::WindowId::create(),
-            std::function<Automation::PublicSettingsSnapshotDto()> publicSettings = {})
+            std::function<Automation::PublicSettingsSnapshotDto()> publicSettings = {},
+            std::function<QList<Automation::SettingsGpuCandidateDto>(const QString &)> gpus = {})
             : history(HistoryManager::instance()), settings(validSettings()) {
             history->reset();
             packages.append({
@@ -104,6 +105,7 @@ namespace ApplicationTest {
             });
             auto settingsRuntime = settingsServices();
             settingsRuntime.publicSnapshot = std::move(publicSettings);
+            settingsRuntime.gpuCandidates = std::move(gpus);
             runtime = std::make_unique<Automation::CoreRuntime>(
                 &model, history, Automation::DocumentRuntimeServices{}, playbackServices(),
                 editorServices(), std::move(settingsRuntime), presetServices(), packageServices(),

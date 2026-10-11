@@ -790,13 +790,19 @@ function(lite_deploy_application _target)
     endif()
 
     if(APPLE AND _deploy_tool)
-        find_package(ffmpeg-builds CONFIG REQUIRED)
-        set_property(TARGET ${_target} APPEND PROPERTY BUILD_RPATH
-            "@executable_path/../Frameworks/ffmpeg-builds")
+        # Older extraction backends depended on FFmpeg; spec 2.4 does not require it.
+        find_package(ffmpeg-builds CONFIG QUIET)
+        if(TARGET FFmpeg::avcodec)
+            set_property(TARGET ${_target} APPEND PROPERTY BUILD_RPATH
+                "@executable_path/../Frameworks/ffmpeg-builds")
+            add_custom_command(TARGET ${_target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                    "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
+                    "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
+                VERBATIM
+            )
+        endif()
         add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
-                "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
             COMMAND bash "${LITE_SOURCE_DIR}/scripts/deploy_macos.sh"
                 "${_deploy_tool}" "$<TARGET_BUNDLE_DIR:${_target}>"
             COMMENT "Deploy and sign macOS runtime dependencies"

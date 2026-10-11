@@ -108,6 +108,23 @@ class VoicebankFixture(unittest.TestCase):
 class ConvertVoicebankTest(VoicebankFixture):
     """Tests for the reference converter, which holds the only implementation of the rules."""
 
+    def test_contribution_paths_cannot_rewrite_files_outside_the_package(self):
+        outside = self.work / "outside.json"
+        outside.write_bytes((self.package / "inferences/acoustic/config.json").read_bytes())
+        original = outside.read_bytes()
+        for index, path in enumerate((str(outside), "../outside.json")):
+            for options in (("--output", self.work / f"out-{index}"), ("--in-place",)):
+                with self.subTest(path=path, options=options):
+                    desc = read_json(self.package / "desc.json")
+                    desc["contributes"]["inferences"] = [path]
+                    write_json(self.package / "desc.json", desc)
+                    before = (self.package / "desc.json").read_bytes()
+                    code, text = self.run_script(self.package, *options)
+                    self.assertEqual(code, 1, text)
+                    self.assertIn("outside the package", text)
+                    self.assertEqual(outside.read_bytes(), original)
+                    self.assertEqual((self.package / "desc.json").read_bytes(), before)
+
     def test_converts_the_package(self):
         output = self.destination("out")
         code, text = self.run_script(self.package, "--output", output)
@@ -350,6 +367,44 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
 
     def role_of(self, linguist: Path, role: str):
         return [item["ref"] for item in read_json(linguist)["imports"] if item["role"] == role]
+
+    def test_multiple_singers_keep_their_own_language_resources(self):
+        self.stage_files()
+        (self.package / "assets/cmn.txt").write_text("aa\ta\n", encoding="utf-8")
+        (self.package / "assets/second.txt").write_text("bb\tb\n", encoding="utf-8")
+        write_json(self.package / "assets/second-onset.json", {"phonemeTypes": {"b": "consonant"}})
+        self.write_singer([{"id": "cmn", "g2p": "g2p-cmn-official", "s2pMode": "dict",
+                           "s2pFile": "../../assets/cmn.txt",
+                           "onsetFile": "../../assets/cmn_onset.json"}])
+        second = read_json(self.package / "characters/singer/config.json")
+        second["id"] = "second"
+        second["configuration"]["languages"][0].update(
+            s2pFile="../../assets/second.txt", onsetFile="../../assets/second-onset.json")
+        write_json(self.package / "characters/second/config.json", second)
+        desc = read_json(self.package / "desc.json")
+        desc["contributes"]["singers"].append("characters/second/config.json")
+        write_json(self.package / "desc.json", desc)
+        self.write_language_package("vendor/lang-cmn", "cmn", "pinyin", onset=False)
+        output = self.destination("out")
+        code, text = self.run_script(self.package, "--output", output,
+                                     "--packages", self.work / "installed")
+        self.assertEqual(code, 0, text)
+        for name, dictionary, onset, phoneme in (
+                ("singer", "cmn.txt", "cmn_onset.json", "a"),
+                ("second", "second.txt", "second-onset.json", "b")):
+            singer = read_json(output / f"characters/{name}/config.json")
+            reference = next(item["ref"] for item in singer["imports"]
+                             if item["role"] == singer["languages"]["cmn"])
+            linguist_id = reference.split("/")[-1]
+            linguist = read_json(output / f"linguists/{linguist_id}/linguist.json")
+            self.assertEqual(linguist["exports"]["phonemes"], [phoneme])
+            for role, asset in (("s2p", dictionary), ("onset", onset)):
+                ref = next(item["ref"] for item in linguist["imports"]
+                           if item["role"] == f"linguist/{role}")
+                directory = output / "inferences" / ref.split("/")[-1]
+                stage = read_json(directory / "inference.json")
+                self.assertEqual((directory / stage["configuration"]["file"]).resolve(),
+                                 (output / "assets" / asset).resolve())
 
     def test_reports_a_language_that_neither_side_supplies(self):
         self.write_singer([{"id": "eng", "g2p": "g2p-eng-official"}])

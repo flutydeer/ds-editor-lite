@@ -9,6 +9,11 @@
 
 namespace InferCacheUtils {
 
+    // Include the persistent model revision in every stage's disk-cache key. Explicit package
+    // reloads advance it without deleting wave files still referenced by a playing document.
+    QString inputHashForCurrentModels(const QString &inputHash);
+    void invalidateModelCaches();
+
     /// Names of the two cache files of one task input: the serialized input and the result.
     struct CacheFileNames {
         QString input;

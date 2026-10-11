@@ -7,6 +7,7 @@
 // dependency root, empty chooser, no log entry), which is why the fixtures cover both roots.
 
 #include "SynthrtEngine.h"
+#include "SynthrtBootstrap.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -357,6 +358,47 @@ int runAnalyzerPackages() {
                    "the analyzer should come from the highest loaded version: " + why);
         }
     }
+
+    // Validation must read a candidate with an already-loaded identity, without replacing the
+    // installed package or trusting its previously loaded declarations.
+    const auto installed = scanRoot / "otter-rmvpe-next";
+    expect(bool(engine->validatePackage(installed)), "the installed package should validate");
+    writePackage(fixture, "candidate", "otter/rmvpe", "f0", "invalid JSON", "0.2.0.0");
+    expect(!engine->validatePackage(fixture / "candidate"),
+           "a broken same-identity candidate should fail validation");
+    writeFile(installed / "inferences/f0/inference.json", "invalid JSON");
+    expect(!engine->validatePackage(installed), "validation should reread changed installed files");
+    expect(referencesOf(engine->analyzers(lite::synthrt::f0Contract())) == pitch,
+           "validation should leave the live catalog unchanged");
+
+    // Changing contract at the highest version hides the obsolete lower-version F0 entry.
+    writeFile(installed / "inferences/f0/inference.json", noteDeclaration("NOTE3", true));
+    expect(bool(engine->refreshVoicebanks({scanRoot})), "the changed contract should reload");
+    expect(engine->analyzers(lite::synthrt::f0Contract()).empty(),
+           "filtering must not expose the older version's contract");
+    const auto changedNotes = referencesOf(engine->analyzers(lite::synthrt::noteContract()));
+    expect(std::find(changedNotes.begin(), changedNotes.end(), "otter/rmvpe:inference/f0") !=
+               changedNotes.end(), "the latest contract should be offered");
+
+    expect(engine->inferenceReady(), "the deployed ONNX driver should be ready");
+    const auto metadataPlugins = fixture / "metadata-plugins";
+    for (const auto &category : lite::synthrt::pluginCategories(pluginRoot)) {
+        for (const auto &directory : category.directories) {
+            if (!fs::is_directory(directory))
+                continue;
+            const auto destination = metadataPlugins / directory.lexically_relative(pluginRoot);
+            fs::create_directories(destination.parent_path());
+            fs::copy(directory, destination, fs::copy_options::recursive);
+        }
+    }
+    SingletonRegistry::destroy(engine);
+    engine = SingletonRegistry::create<SynthrtEngine>(nullptr);
+    expect(engine->initialize(voicebanks, dependencies, QStringLiteral("CPU"), -1,
+                              metadataPlugins, runtimePath),
+           "metadata should initialize without the driver plugin");
+    expect(engine->initialized() && !engine->inferenceReady(),
+           "a metadata-only engine must not report inference readiness");
+    expect(engine->analyzers().size() == 3, "missing driver should not hide valid packages");
 
     unlock();
     if (failures == 0) {

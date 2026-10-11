@@ -282,6 +282,34 @@ void ApplicationServicesTests::computeDeviceSettingsMatchAvailableGpuIdentity() 
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBefore);
 }
 
+void ApplicationServicesTests::computeDeviceSwitchValidatesTheTargetProvider() {
+    Automation::PublicSettingsSnapshotDto snapshot;
+    snapshot.computeDevice = Automation::ComputeDevicePublicSettingsDto{
+        .configured = {.executionProvider = QStringLiteral("DirectML")},
+        .providerCandidates = {{QStringLiteral("DirectML"), {}, true, {}},
+                               {QStringLiteral("CUDA"), {}, true, {}}},
+        .gpuCandidates = {{0, QStringLiteral("dml-adapter"), {}, true, {}}},
+    };
+    QString queriedProvider;
+    ApplicationHarness harness(Automation::WindowId::create(), [&] { return snapshot; },
+                               [&](const QString &provider) {
+        queriedProvider = provider;
+        return QList<Automation::SettingsGpuCandidateDto>{
+            {0, QStringLiteral("cuda-uuid"), {}, true, {}}};
+    });
+    harness.settings.inference.executionProvider = QStringLiteral("DirectML");
+    const auto changed = harness.core().settings().updateComputeDevice(
+        applicationContext(), {.executionProvider = QStringLiteral("CUDA"), .gpuIndex = 0,
+                               .gpuId = QStringLiteral("cuda-uuid")});
+    QVERIFY(changed);
+    QCOMPARE(queriedProvider, QStringLiteral("CUDA"));
+    QCOMPARE(harness.settings.inference.selectedGpuId, QStringLiteral("cuda-uuid"));
+    const auto invalid = harness.core().settings().updateComputeDevice(
+        applicationContext(), {.gpuId = QStringLiteral("dml-adapter")});
+    QVERIFY(!invalid);
+    QCOMPARE(harness.settingsWrites, 1);
+}
+
 namespace {
     template <typename T, typename Getter, typename Update, typename Mutate>
     void exerciseSettingsCategory(ApplicationHarness &harness,
