@@ -656,7 +656,7 @@ def report_the_onset_layer(handle: str, entry: dict, bound_linguist: str, s2p, o
 
 def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
                         reserved: set, known: set, report: Report,
-                        singer_namespace: str = "") -> dict:
+                        singer_namespace: str = "", occupied_ids=()) -> dict:
     """Builds a voicebank-side linguist around the G2P of a language package.
 
     The three stages of a linguist come from different sources. The grapheme-to-phoneme stage
@@ -669,19 +669,40 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
     Returns the entries that the caller adds to desc.json, or None on failure.
     """
     handle = entry["id"]
-    resource_id = f"{singer_namespace}-{handle}" if singer_namespace else handle
     scheme = served["scheme"]
+    if not isinstance(scheme, str) or not scheme:
+        report.error(f"{handle}: the language scheme must be a nonempty string")
+        return None
     mode = entry.get("s2pMode", "dict")
-    variant = S2P_VARIANTS.get(mode)
+    variant = S2P_VARIANTS.get(mode) if isinstance(mode, str) else None
     if variant is None:
         report.error(f"{handle}: unknown s2pMode {mode!r}")
         return None
+
+    # A separator alone cannot distinguish (voice-a, eng) from (voice, a-eng). Allocate against
+    # existing declarations, earlier generated IDs and paths before writing any resource.
+    base_id = f"{singer_namespace}-{handle}" if singer_namespace else handle
+    base_id = re.sub(r"[^A-Za-z0-9_-]", "_", base_id)
+    suffix = 0
+    while True:
+        resource_id = base_id if suffix == 0 else f"{base_id}-{suffix}"
+        linguist_id = re.sub(r"[^A-Za-z0-9_-]", "_", f"{resource_id}-{scheme}")
+        identifiers = {f"s2p-{resource_id}", f"onset-{resource_id}", linguist_id}
+        paths = [root / "inferences" / f"{stage}-{resource_id}" for stage in ("s2p", "onset")]
+        paths.append(root / "linguists" / linguist_id)
+        if not identifiers.intersection(occupied_ids) and not any(
+                path.exists() or path.is_symlink() for path in paths):
+            break
+        suffix += 1
 
     inferences = []
     imports = [{"role": "linguist/g2p", "ref": served["g2p"]}]
 
     def relocate(relative: str, target_dir: Path):
         """Re-expresses a path from the singer declaration relative to a new declaration."""
+        if not isinstance(relative, str):
+            report.error(f"{handle}: a language resource path must be a string")
+            return None, None
         absolute = (singer_dir / relative).resolve()
         # A declaration may quote any path, and the conversion rewrites the quoted one into a
         # reference written by a declaration inside the package. A path outside the package would
@@ -771,7 +792,6 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
                            "path": f"./inferences/onset-{resource_id}/inference.json"})
         imports.append({"role": ONSET_ROLE, "ref": f":inference/onset-{resource_id}"})
 
-    linguist_id = f"{resource_id}-{scheme}"
     linguist_dir = root / "linguists" / linguist_id
     linguist_dir.mkdir(parents=True, exist_ok=True)
     write_json(linguist_dir / "linguist.json", {
@@ -1250,8 +1270,10 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
             # phonetics, and binding to the linguist of a package instead would silently use an
             # inventory different from the inventory that the voicebank ships.
             if entry.get("s2pFile") or entry.get("onsetFile") or entry.get("dict"):
+                occupied_ids = set(kinds) | {item["id"] for entries in synthesised.values()
+                                             for item in entries}
                 built = synthesise_linguist(root, path.parent, entry, served, reserved,
-                                            known, report, singer_namespace)
+                                            known, report, singer_namespace, occupied_ids)
                 if built is None:
                     continue
                 add_built("linguist", [built["linguist"]])
