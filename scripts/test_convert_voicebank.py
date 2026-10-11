@@ -165,6 +165,21 @@ class ConvertVoicebankTest(VoicebankFixture):
                                            for path in self.package.rglob("*") if path.is_file()})
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
+    def test_malformed_dependencies_leave_the_package_and_clean_staging(self):
+        for dependencies in (None, {}, "dependency", 42, [None], ["dependency"], [[]]):
+            with self.subTest(dependencies=dependencies):
+                desc = read_json(self.package / "desc.json")
+                desc["dependencies"] = dependencies
+                write_json(self.package / "desc.json", desc)
+                original = {path.relative_to(self.package): path.read_bytes()
+                            for path in self.package.rglob("*") if path.is_file()}
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(original, {path.relative_to(self.package): path.read_bytes()
+                                           for path in self.package.rglob("*") if path.is_file()})
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_converts_the_package(self):
         output = self.destination("out")
         code, text = self.run_script(self.package, "--output", output)

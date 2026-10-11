@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -71,16 +72,26 @@ def fetch(url, destination, proxy, timeout):
 
 
 def negative_control(directory):
-    probe = os.path.join(directory, "verifier-negative-control.bin")
-    with open(probe, "wb") as handle:
-        handle.write(bytes(range(64)))
-    good = sha512_of(probe)
-    flipped = good[:-1] + ("0" if good[-1] != "0" else "1")
-    intact, damaged = good == good, good != flipped
+    with tempfile.TemporaryDirectory(prefix="verifier-", dir=directory) as temporary:
+        probe = os.path.join(temporary, "probe.bin")
+        with open(probe, "wb") as handle:
+            handle.write(bytes(range(64)))
+        good = sha512_of(probe)
+        intact = sha512_of(probe) == good
+        with open(probe, "r+b") as handle:
+            first = handle.read(1)[0]
+            handle.seek(0)
+            handle.write(bytes([first ^ 1]))
+        damaged = sha512_of(probe) != good
     print("SELFTEST unchanged comparison: %s" % intact, flush=True)
     print("SELFTEST one-byte-flipped     : %s" % damaged, flush=True)
-    os.remove(probe)
     return intact and damaged
+
+
+def paths_alias(first, second):
+    if os.path.normcase(os.path.realpath(first)) == os.path.normcase(os.path.realpath(second)):
+        return True
+    return os.path.exists(first) and os.path.exists(second) and os.path.samefile(first, second)
 
 
 def acquire(base, entry, destination, attempts, proxy, timeout):
@@ -124,6 +135,11 @@ def main():
     if not entries:
         print("FATAL: no archives parsed from %s" % args.assets, flush=True)
         return 2
+    if args.report:
+        protected = [args.assets] + [os.path.join(args.out, entry["file"]) for entry in entries]
+        if any(paths_alias(args.report, path) for path in protected):
+            print("FATAL: the report must not overwrite an archive or the assets authority", flush=True)
+            return 2
     if not negative_control(args.out):
         print("FATAL: the verifier failed its own negative control", flush=True)
         return 2

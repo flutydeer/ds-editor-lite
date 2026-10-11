@@ -1431,8 +1431,9 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     converted.pop("contributes", None)
 
     dependencies = []
-    for entry in desc.get("dependencies", []):
+    for entry in read_array(desc.get("dependencies", []), report, str(desc_path), "dependencies"):
         if not isinstance(entry, dict):
+            report.error(f"{desc_path}: a dependency must be an object")
             continue
         # 2.4 reads an entry as the fields the loader allows and rejects the whole package for any
         # other field: a dependency entry is validated against an allow-list of `id` and `version`

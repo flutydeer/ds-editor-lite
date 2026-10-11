@@ -74,6 +74,8 @@ private slots:
     void inferenceFailureAndCancellationAllowRetry_data();
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
+    void clearingSingerResetsPronunciationAndPhonemes_data();
+    void clearingSingerResetsPronunciationAndPhonemes();
     void builtInG2pConvertsDictionaryAndUnlistedWords();
     void g2pConversionRecoversAfterInvalidRoute();
     void publicAudioPathUpdatesPrepareCommitAndUndo_data();
