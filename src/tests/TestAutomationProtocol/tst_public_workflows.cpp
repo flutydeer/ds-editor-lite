@@ -523,6 +523,43 @@ void AutomationProtocolTests::fillLyricsOptions() {
     const auto originalNotes =
         fixture.runtime.notes().getNotes(project.get().document.documentId, clip.id);
     QVERIFY(originalNotes);
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    if (splitter == QStringLiteral("character")) {
+        const auto rejectSelection = [&](const QJsonArray &selection, AutomationErrorCode code,
+                                         const QString &fieldPath) {
+            const auto version = fixture.runtime.documentVersion();
+            const auto model = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+            const auto *undo = fixture.runtimeFixture.history()->nextUndoEntry();
+            const auto canRedo = fixture.runtimeFixture.history()->canRedo();
+            auto request = commandArguments(version);
+            request.insert(QStringLiteral("clip_id"), clip.id.value());
+            request.insert(QStringLiteral("note_ids"), selection);
+            request.insert(QStringLiteral("text"), QStringLiteral("你好"));
+            const auto rejected = registry.invoke(QStringLiteral("notes.fill_lyrics"), request);
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().code, code);
+            QCOMPARE(rejected.getError().fieldPath, fieldPath);
+            QCOMPARE(fixture.runtime.documentVersion(), version);
+            QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), model);
+            QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), undo);
+            QCOMPARE(fixture.runtimeFixture.history()->canRedo(), canRedo);
+        };
+        const auto removedId = originalNotes.get().first().id;
+        rejectSelection(QJsonArray{removedId.value(), removedId.value()},
+                        AutomationErrorCode::InvalidArgument, QStringLiteral("note_ids"));
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(fixture.runtime.notes().removeNotes(commandContext(fixture.runtime), clip.id,
+                                                    {removedId}));
+        rejectSelection(QJsonArray{removedId.value(), originalNotes.get().last().id.value()},
+                        AutomationErrorCode::NotFound, {});
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(fixture.runtime.history().undo(commandContext(fixture.runtime)));
+        QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
+    }
     const auto before = fixture.runtime.documentVersion();
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     QJsonArray noteIds;
@@ -538,8 +575,6 @@ void AutomationProtocolTests::fillLyricsOptions() {
     arguments.insert(QStringLiteral("options"), QJsonObject{
         {QStringLiteral("splitter_id"), splitter}, {QStringLiteral("skip_slur"), skipSlur},
         {QStringLiteral("language"), language}});
-    PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
-                                      fixture.admission);
     const auto result = registry.invoke(QStringLiteral("notes.fill_lyrics"), arguments);
     QVERIFY2(result, qPrintable(errorMessage(result)));
     QCOMPARE(fixture.runtime.documentVersion().revision, before.revision + 1);
@@ -597,6 +632,7 @@ void AutomationProtocolTests::fillLyricsOptions() {
         QCOMPARE(restored.get().at(index).data.language,
                  originalNotes.get().at(index).data.language);
     }
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
 }
 
 void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
