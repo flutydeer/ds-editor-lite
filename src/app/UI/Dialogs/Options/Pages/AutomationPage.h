@@ -16,6 +16,7 @@ class OptionsCardItem;
 class PathEditor;
 class SwitchButton;
 class QVBoxLayout;
+class OptionSubPageStack;
 
 namespace SVS {
     class ExpressionSpinBox;
@@ -71,6 +72,7 @@ private:
     OptionsCardItem *m_customToolsetItem = nullptr;
     OptionsCardItem *m_accessRootsItem = nullptr;
     QVBoxLayout *m_pageHostLayout = nullptr;
+    OptionSubPageStack *m_subPageStack = nullptr;
     QWidget *m_accessControlPage = nullptr;
     QWidget *m_toolsetPage = nullptr;
     bool m_toolsetPageVisible = false;

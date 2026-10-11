@@ -1,5 +1,7 @@
 #include "AutomationPage.h"
 
+#include "OptionSubPageStack.h"
+
 #include "Automation/Mcp/McpClientConfiguration.h"
 #include "Automation/EditorAutomationRuntimeStatus.h"
 #include "Global/AppOptionsGlobal.h"
@@ -276,6 +278,10 @@ QWidget *AutomationPage::createContentWidget() {
     m_pageHostLayout = new QVBoxLayout(pageHost);
     m_pageHostLayout->setContentsMargins({});
     m_pageHostLayout->setSpacing(0);
+    // The two sub-pages live in a stack that owns their geometry, so switching
+    // between them can run the slide-in transition instead of a plain show/hide.
+    m_subPageStack = new OptionSubPageStack(pageHost);
+    m_pageHostLayout->addWidget(m_subPageStack);
     m_accessControlPage = new QWidget;
     m_toolsetPage = nullptr;
     m_serverCard = nullptr;
@@ -468,12 +474,15 @@ QWidget *AutomationPage::createContentWidget() {
     mainLayout->setSpacing(12);
     m_accessControlPage->setLayout(mainLayout);
     m_accessControlPage->setContentsMargins({});
-    m_pageHostLayout->addWidget(m_accessControlPage);
+    m_subPageStack->addPage(m_accessControlPage);
 
     if (m_toolsetPageVisible) {
         ensureToolsetPage();
-        m_accessControlPage->hide();
-        m_toolsetPage->show();
+        m_subPageStack->setCurrentPage(m_toolsetPage, OptionSubPageStack::Direction::Forward,
+                                       false);
+    } else {
+        m_subPageStack->setCurrentPage(m_accessControlPage, OptionSubPageStack::Direction::Forward,
+                                       false);
     }
     return pageHost;
 }
@@ -481,10 +490,11 @@ QWidget *AutomationPage::createContentWidget() {
 QWidget *AutomationPage::createToolsetPage() {
     const auto page = new QWidget;
     const auto layout = new QVBoxLayout(page);
-    // Right margin 0: the list scroll area below spans to the window edge so
-    // its overlay scrollbar pins there (the cards keep their inset via the
-    // scroll content's own right margin).
-    layout->setContentsMargins(16, 16, 0, 16);
+    // Right and bottom margins are 0: the list scroll area below spans to the
+    // window edge (its overlay scrollbar pins to the right edge, and the rows
+    // are clipped by the bottom edge instead of stopping short of it). The
+    // cards keep their insets via the scroll content's own margins.
+    layout->setContentsMargins(16, 16, 0, 0);
     layout->setSpacing(6);
 
     auto *backButton = new ToolButton(page);
@@ -517,9 +527,10 @@ QWidget *AutomationPage::createToolsetPage() {
     // painted with the palette's base colour (near white).
     listContent->setAttribute(Qt::WA_StyledBackground);
     const auto listLayout = new QVBoxLayout(listContent);
-    // The cards' right inset lives in the scrollable content, so the scroll
-    // area (and its overlay scrollbar) can span edge to edge.
-    listLayout->setContentsMargins(0, 0, 16, 0);
+    // The cards' right and bottom insets live in the scrollable content, so the
+    // scroll area (and its overlay scrollbar) can span edge to edge while the
+    // last card still has breathing room when the list is scrolled to the end.
+    listLayout->setContentsMargins(0, 0, 16, 16);
     listLayout->setSpacing(6);
 
     QStringList categoryOrder;
@@ -631,20 +642,17 @@ QWidget *AutomationPage::createToolsetPage() {
 }
 
 void AutomationPage::ensureToolsetPage() {
-    if (m_toolsetPage || !m_pageHostLayout)
+    if (m_toolsetPage || !m_subPageStack)
         return;
     m_toolsetPage = createToolsetPage();
-    m_pageHostLayout->addWidget(m_toolsetPage);
-    m_toolsetPage->hide();
+    m_subPageStack->addPage(m_toolsetPage);
 }
 
 void AutomationPage::showAccessControlPage() {
-    if (!m_accessControlPage)
+    if (!m_accessControlPage || !m_subPageStack)
         return;
     m_toolsetPageVisible = false;
-    if (m_toolsetPage)
-        m_toolsetPage->hide();
-    m_accessControlPage->show();
+    m_subPageStack->setCurrentPage(m_accessControlPage, OptionSubPageStack::Direction::Backward);
     // The two sub-pages need different heights: refit so the page follows the
     // one now visible instead of keeping the previous height.
     refitContent();
@@ -653,11 +661,10 @@ void AutomationPage::showAccessControlPage() {
 
 void AutomationPage::showToolsetPage() {
     ensureToolsetPage();
-    if (!m_accessControlPage || !m_toolsetPage)
+    if (!m_accessControlPage || !m_toolsetPage || !m_subPageStack)
         return;
     m_toolsetPageVisible = true;
-    m_accessControlPage->hide();
-    m_toolsetPage->show();
+    m_subPageStack->setCurrentPage(m_toolsetPage, OptionSubPageStack::Direction::Forward);
     // The toolset list of category cards is much taller than the access
     // control page: without this refit the page keeps the shorter height and
     // the category cards get squeezed into it.
