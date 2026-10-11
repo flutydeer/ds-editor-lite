@@ -1,20 +1,26 @@
 # 四期测试执行计划
 
-## 1. 执行顺序
+## 1. 执行入口
 
-先验证环境和完整构建，再运行 unit、domain、workflow、protocol、process、gui。具体程序由 CTest 标签选择。Qt Test 函数可直接定向运行。覆盖要求见[大纲](test-outline.md)，本期验收结论见[报告](test-report.md)，逐轮执行结果保留在测试产物和 PR 中。
+先准备环境并完整构建 Editor、Connector 和测试，再执行规定集合。定位问题时用 CTest 标签或程序名选择套件，用 Qt Test slot 选择具体行为。分类和程序职责见[测试大纲](test-outline.md)，能力到测试的对应见[覆盖矩阵](test-coverage-matrix.md)，验收事实见[测试报告](test-report.md)。
 
 ## 2. 环境与构建
 
-Windows 使用项目 VS DevShell/preset wrapper。Linux 和 macOS 使用同一 CMake 工程及固定依赖。所有测试启用 `LITE_BUILD_TESTS`，构建完整产品和测试聚合目标。CI 统一 Qt 6.11.2，平台配置如下。配置列表示执行要求，成功与否以实际运行结果为准。
+### 2.1. 公共要求
 
-| 平台 | runner / 架构 | triplet | CI 构建与测试入口 |
+使用 CMake 3.24 或以上、项目要求的 Qt 6、编译器及 vcpkg 依赖。Qt 包含 Core5Compat、ShaderTools、StateMachine、HttpServer、WebSockets 等组件。版本和系统包以 [workflow](../../../.github/workflows/tests.yml)、manifest 和 presets 为准，文档不维护平行版本表。
+
+所有测试启用 LITE_BUILD_TESTS。tests preset 使用 build/Tests，coverage 使用 build/Coverage，避免与 IDE 的 build/Debug 共享生成文件。build preset 同时构建完整产品和 lite_tests，不能仅编译测试程序后宣称产品构建通过。
+
+| 平台 | runner / 架构 | vcpkg triplet | CI 入口 |
 |---|---|---|---|
-| Linux | `ubuntu-latest` / x64 | `x64-linux` | `coverage` / `build/Coverage`，`ctest --preset ci-coverage`，随后独立 Coverage 步骤 |
-| Windows | `windows-latest` / x64 | `x64-windows` | 普通 Debug `tests` / `build/Tests`，`ctest --preset ci` |
-| macOS | `macos-latest` / arm64 | `arm64-osx` | 普通 Debug `tests` / `build/Tests`，`ctest --preset ci` |
+| Linux | ubuntu-latest / x64 | x64-linux | coverage 构建，ctest --preset ci-coverage，随后独立 Coverage 步骤 |
+| Windows | windows-latest / x64 | x64-windows | 普通 Debug tests 构建，ctest --preset ci |
+| macOS | macos-latest / arm64 | arm64-osx | 普通 Debug tests 构建，ctest --preset ci |
 
-专用 `tests` configure/build preset 使用 `build/Tests`，避免与 IDE 的 `build/Debug` 自动配置共享生成文件。Windows 入口：
+### 2.2. Windows
+
+通过项目 VS DevShell/preset wrapper 初始化 MSVC 和 Qt 环境：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Dependencies -Preset tests
@@ -22,9 +28,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Test -Preset local
 ```
 
-`-Mode Test` 省略 `-Preset` 时默认使用 `local`。显式指定的测试 preset（如 `ci`）保持用户选择。其他模式省略 `-Preset` 时仍默认使用 `debug`。
+Test 模式省略 preset 时默认 local，其他模式默认 debug。显式指定的 preset 保持原选择。依赖未变化时无需反复执行 Dependencies。
 
-Linux 和 macOS 本地准备 Qt 与系统开发依赖后，将 `QT_ROOT_DIR` 指向实际 Qt 安装目录。Qt 需包含 Core5Compat、ShaderTools、StateMachine、HttpServer 和 WebSockets 等项目依赖。系统包与 Qt 安装细节以[workflow](../../../.github/workflows/tests.yml)为准。[bootstrap-vcpkg.py](../../../scripts/ci/bootstrap-vcpkg.py)支持上述三个 triplet，[bootstrap-linux.sh](../../../scripts/ci/bootstrap-linux.sh)仅为 Linux 的薄委托。Linux 示例：
+### 2.3. Linux 和 macOS
+
+将 QT_ROOT_DIR 指向实际 Qt 安装目录，准备对应系统开发依赖。Linux 示例：
 
 ```bash
 python3 scripts/ci/bootstrap-vcpkg.py --triplet x64-linux
@@ -34,7 +42,7 @@ cmake --build --preset tests
 ctest --preset local
 ```
 
-macOS arm64 示例：
+macOS arm64 将 triplet 改为 arm64-osx，并显式选择架构：
 
 ```bash
 python3 scripts/ci/bootstrap-vcpkg.py --triplet arm64-osx
@@ -45,96 +53,86 @@ cmake --build --preset tests
 ctest --preset local
 ```
 
-Windows wrapper 将本地结果写到 `build/test-results`。直接 CTest 可加 `--output-junit` 指定报告路径，完整逐例输出位于构建目录的 `Testing/Temporary/LastTest.log`。`local` 选择本机全部注册测试，`ci` 包含通用、GUI 与内置声库集合，`ci-coverage` 在独立覆盖构建中执行同一集合。CI 仅 Linux 使用覆盖构建。Windows/macOS 的完整测试不要求 Microsoft 覆盖率收集器或 LLVM 插桩工具。无桌面 Linux 使用 `xvfb-run -a` 包装 CTest。单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
+无桌面 Linux 使用 xvfb-run -a 包装 CTest。bootstrap-linux.sh 仅委托跨平台 bootstrap-vcpkg.py，不另行维护依赖流程。
 
-程序划分见[测试大纲的套件表](test-outline.md#9-套件职责与程序划分)。每个程序只有一个 Qt Test 类及一次执行入口，用例文件为 `tst_<snake_case>.cpp`。多文件套件由 `test_main.cpp` 启动、`tst_<domain>.h` 声明测试类。单文件套件可在 `tst_` 文件中保留 `QTEST_MAIN` 或自定义入口，fixture 辅助使用语义名称。定向执行选择程序或 slot，不新增与源码平行的用例清单。两个 Provider 编译变体均须构建和执行，其用例不要求 CUDA 设备。
+### 2.4. 定向执行与日志
 
-执行产物记录源码版本、系统、编译器、Qt、CMake、Ninja、vcpkg 与子模块版本，用于重现问题。阶段文档不复制这些逐轮元数据，也不要求每次提交后更新报告。
+- local 选择本机全部注册测试。ci 包含通用、资源和原生集合，ci-coverage 在覆盖构建中执行同一规定集合。
+- CTest 用 -L 选择 unit、domain、workflow、protocol、process、gui 等职责标签，用 -R 选择程序。直接执行测试程序并传入 slot 名可定位具体行为，不另建函数清单。
+- 两个 Provider 编译变体共用源码，均须构建和执行，其配置测试不要求 CUDA 设备。
+- Windows wrapper 将结果写到 build/test-results。直接 CTest 可用 --output-junit 指定报告，逐例日志位于构建目录的 Testing/Temporary/LastTest.log。
+- 产物记录源码、工具链、依赖版本和执行条件。阶段文档不复制每次执行的版本及运行 ID。
 
 ## 3. 运行条件
 
-| 条件 | CI | 本地 |
-|---|---|---|
-| 通用、无窗口 | 执行 | 所有支持平台 |
-| offscreen 组件 | 执行 | 原生或 offscreen |
-| 原生窗口布局 | 执行。Linux 使用 Xvfb | 当前平台桌面 |
-| 内置测试声库 | 执行 | 默认执行 |
-| 音频输出设备 | 有可用设备则执行，否则明确跳过 | 自动探测或按名称指定 |
-| MIDI 回环 | 未配置则明确跳过 | 提供成对专用端口后执行 |
-| 外部真实声库、GPU | 不作为默认资源 | 显式配置后。GPU 不等同于已有 CPU 用例 |
-| 平台特有行为 | 各矩阵平台对应项 | 当前平台对应项 |
+### 3.1. GUI 后端
 
-不以 CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
-
-原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents` 和 `TestEditorRendering` 使用 offscreen。`TestEditorInteraction` 使用 `minimal:enable_fonts` 验证 Qt 拖放。`TestApplicationGui` 在 Windows/Linux 使用 offscreen，在 macOS 使用原生窗口验证菜单和触控焦点行为，并与其他原生套件共用 `desktop` 资源锁。各平台执行同一程序内的全部样例，`ci` 入口包含上述两种运行条件。普通组件无需播放设备，完整填词流程使用内置声库。
-
-本地原生桌面测试需要可交互且空闲的桌面，执行期间避免手工移动鼠标、切换窗口或操作剪贴板。CTest 资源锁不能隔离其他桌面程序。轨道拖动 fixture 同步系统光标和合成事件位置，并在结束后恢复原光标位置。
-
-`TestAudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload` 需要能够移除已经打开的文件。Windows 音频后端的文件共享模式阻止删除时，该用例明确跳过。允许移除的平台验证原句柄继续完成解码，随后重开工程报告资源缺失。用例只操作自己创建的临时素材。
-
-设备用例在 `TestNativeDesktop` 中按下列条件执行，环境变量均填写设备实际名称：
-
-| 配置 | 行为与未执行规则 |
+| 程序或行为 | 运行条件 |
 |---|---|
-| `DSEL_TEST_AUDIO_DRIVER`、`DSEL_TEST_AUDIO_DEVICE` | 两者均可省略，使用生产默认输出。无可用后端、未枚举到设备或仅有 dummy/disk 后端时 QSKIP。可只指定驱动，或在当前驱动下指定设备。指定名称不存在、已枚举设备初始化/打开失败、配置或播放失败均 FAIL，不回退其他设备 |
-| `DSEL_TEST_MIDI_INPUT`、`DSEL_TEST_MIDI_OUTPUT` | 填写已连接的专用 MIDI 回环输入/输出端口，测试不创建驱动。两者均缺少时 QSKIP。只配一项、端口不存在、打开/发送失败或收不到预期消息均 FAIL |
+| GuiComponents、EditorRendering | offscreen |
+| EditorInteraction | minimal:enable_fonts 与 Fusion，支持实际 Qt QDrag。offscreen 会忽略该拖放路径 |
+| ApplicationGui | Windows/Linux offscreen，macOS 原生窗口，执行相同样例和断言 |
+| NativeDesktop | 原生桌面，Linux CI 使用 Xvfb，与其他原生套件共用 desktop 资源锁 |
+| RHI Null 场景 | 需要原生窗口，不要求物理 GPU，验证输入、CPU 准备及帧提交 |
+| RHI 平台图形数据行 | Windows D3D11 软件渲染、macOS Metal 或 Linux OpenGL，后端可用后验证真实帧读回 |
 
-例如在 PowerShell 中设置 `$env:DSEL_TEST_AUDIO_DRIVER = "实际驱动名"`、`$env:DSEL_TEST_AUDIO_DEVICE = "实际设备名"`，或成对设置 `$env:DSEL_TEST_MIDI_INPUT` 与 `$env:DSEL_TEST_MIDI_OUTPUT`，随后执行 `ctest --preset local -R '^TestNativeDesktop$'`。Linux/macOS 使用同名环境变量。不要将示例名称当作有效设备配置。
+本地原生测试需要可交互且空闲的桌面，期间避免移动鼠标、切换窗口或使用剪贴板。资源锁不能隔离其他桌面程序。fixture 同步合成输入与系统光标，结束后恢复自身改动。
 
-音频场景使用静音 WAV，验证生产设备重开、缓冲配置及落盘、真实回调推进和公开播放/暂停/停止，完成后恢复自身配置。MIDI 场景发送专用通道的 note-on/off，验证实际输入及生产合成器输出后归零，并清理自己打开的端口。不要求扬声器发声。跳过的是缺少条件的具体 Qt Test 用例，不是整个原生桌面程序。Null RHI 钢琴窗和轨道场景不需要物理 GPU，但需要可用原生窗口环境。offscreen 不适用时明确跳过，实际后端或帧提交失败不能跳过。
+没有可用图形后端时只跳过对应数据行。后端已可用后的窗口、绘制、读回或断言失败必须失败。完整窗口先完成初始化再准备工程，退出时正常销毁控件，不以遗留窗口规避生命周期问题。
 
-`TestModelResources`、`TestApplicationGui`、`TestApplicationWorkflows` 和 NativeDesktop 的音高调制用例默认使用同一 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录，无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。资源程序检查完整推理、有效 WAV、缓存和重算，应用工作流检查真实读音/音素结果暂存与应用，GUI 使用语言、基准音高及波形结果，默认固定 CPU。资源程序另外以该内置包执行 DirectML/CUDA 条件行，确认请求后端与实际配置及能力一致，声码器同样走 GPU。未编译的后端或无可用设备分别报告跳过，实际 GPU 初始化、加载或执行失败仍报告失败。普通 CI 不需真实训练权重或播放设备。
+### 3.2. 声库与模型
 
-验证外部真实声库时设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，并按该资源配置 `DSEL_TEST_SINGER_ID`。显式资源优先于内置包。加载或执行失败报告失败，不自动扫描个人声库，也不回退内置资源。GAME/RMVPE 模型不在本期扩展范围。
+ModelResources、ApplicationWorkflows、ApplicationGui 及 NativeDesktop 的相关用例默认使用 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)。CMake 解压到当前构建树，不需在测试机安装训练框架。资源身份、中英文、声线及确定性模型说明见[资源 README](../../../src/tests/resources/README.md)。普通流程固定 CPU，不需播放设备。
 
-`TestApplicationWorkflows` 属于 workflow 集合，共用隔离的 Headless AppContext 并加载上述声库。结果门控用例构造未调度的任务快照。读音/音素用例执行真实语言任务，在编辑事务中等待结果暂存，检查结束后应用以及文档换代/片段删除后丢弃。队列重启回归受控暂停真实 duration worker，验证取消清理和替换任务终态。生产状态组件检查手动声学许可及恢复策略。离线导出检查混音器原先打开/关闭状态恢复。fixture 关闭自身音频设备，完整声学和声码器输出仍由资源程序承担。
+外部真实声库必须同时配置以下四项，内容取自实际资源：
 
-`TestProcessIntegration` 的普通音频导入导出场景使用生成的小型 WAV，经过实际 Editor 导入和导出任务，再用 libsndfile 解码验证。归入通用进程集合，不需要配置声库或音频设备。Headless、MCP 与跨 Host 场景共用进程沙箱，平台专有断言在相应系统执行。
+```powershell
+$env:DSEL_TEST_VOICEBANK_ROOT = "C:/Voicebanks/Example"
+$env:DSEL_TEST_SINGER_ID = "example-singer"
+$env:DSEL_TEST_LANGUAGE = "cmn"
+$env:DSEL_TEST_LYRIC = "la"
+```
 
-`TestAudioAssets` 中的解析用例使用独立文件与模型 fixture，解码控制复用真实 Headless AppContext 的生产接线。应用生命周期在套件内共享，每例仍清理文档、任务、路径解析结果和通知。不再通过替写 AudioContext 或 DocumentWorkflowController 的生产方法链接测试。
+Linux/macOS 使用同名环境变量。显式配置优先于内置包，缺项、加载或执行失败报告 FAIL，不扫描个人目录、不自动回退内置包。
 
-`TestApplicationGui` 共用应用与数据隔离环境，钢琴窗、轨道、参数曲线、导出配置、外观设置和声线混合分别在所属源文件中建立实际控件。设置输入等待窗口激活与编辑焦点，再通过真实事件提交并读取持久化结果。取消按对应对话框契约检查，不假定即时设置具有回滚行为。按测试程序或 slot 定向执行即可，不另设 GUI 通用 runner。组件级套件与应用共用 `EditorGuiCore` 的生产实现及资源，原生桌面条件和实验后端范围见[测试大纲](test-outline.md)。
+DirectML/CUDA 数据行使用内置包验证实际推理及声码器。未编译 Provider 或无设备时报告 QSKIP，已发现资源的初始化、加载或执行失败报告 FAIL。配置选择测试与真实 GPU 推理分别报告。GAME/RMVPE 实际模型不在本期执行范围。
 
-主窗口面板、嵌入及独立设置、日志和 Tagger 用例同属 ApplicationGui，使用真实控件及通知总线，结束后恢复配置、规则和窗口接线。独立设置在 offscreen 下显式重新激活所属窗口，再检查保留的焦点，原生窗口检查正常恢复。`newDocumentHonorsTheSaveDecision` 虽复用该程序的 AppContext，职责属于文件工作流：只替换保存提示及路径选择的外部回答，保留生产 DocumentWorkflowController、状态机和保存器。不据此声明真实保存对话框已被操作。
+### 3.3. 音频与 MIDI 设备
 
-完整窗口用例先完成窗口初始化，再准备受测工程。通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
+| 环境变量 | 选择与失败规则 |
+|---|---|
+| DSEL_TEST_AUDIO_DRIVER、DSEL_TEST_AUDIO_DEVICE | 均可省略，使用生产默认输出。无可用后端、没有设备或只有 dummy/disk 时 QSKIP。可只指定驱动或当前驱动的设备。指定名称不存在、已枚举设备初始化/打开失败、配置或播放失败均 FAIL |
+| DSEL_TEST_MIDI_INPUT、DSEL_TEST_MIDI_OUTPUT | 必须指向已连接的专用回环端口，不由测试安装驱动。均缺少时 QSKIP，部分配置、端口不存在、打开/发送失败或未收到消息均 FAIL |
 
-EditorInteraction 由 CTest 设置 `QT_QPA_PLATFORM=minimal:enable_fonts` 和 Fusion，真实 QDrag 经鼠标移动与释放进入 Qt 拖放循环，Escape 走取消路径。不向私有状态注入拖放结果。该套件与 NativeDesktop 各自使用进程级 GuiAppFixture 和逐用例 GuiDocumentFixture，重建文档并清理素材。G2P 单例不跨应用销毁后重新使用。启动/销毁用例自行在独立子进程执行，父进程检查退出码，失败输出进入测试日志，直接选择 Qt Test slot 的入口保持一致。Qt offscreen 直接忽略 QDrag，因此 ApplicationGui 的后端选择不能代替完整拖放验证。
+设备用例在 NativeDesktop 中，使用静音 WAV 验证真实回调、配置落盘、播放/暂停/停止，MIDI 检查 note-on/off、生产合成器 PCM 和释放后归零。只清理自己打开的端口和修改的配置，不要求扬声器发声。
 
-## 4. 隔离与清理
+文件删除能力按平台判断。unlinkingAudioSourcePreservesOpenDecodeUntilReload 在 Windows 后端不允许移除已打开文件时明确跳过，允许的平台继续验证旧句柄完成解码、重新打开后报告缺失。资源不足、平台不适用与测试通过分开记录，只跳过缺少条件的具体用例。
 
-ApplicationWorkflows、AudioAssets、ApplicationGui、EditorInteraction 和 NativeDesktop 的实际运行时用例共用 `RuntimeResourcesFixture`，从所构建 Editor 目录初始化内置歌词规则。macOS 同时使用该 bundle 的插件及 Frameworks。CTest 和直接运行使用相同初始化，不依赖测试可执行文件恰好位于产品资源旁边。内部路径覆盖仅在测试构建中生效。目录缺失、规则为空或插件加载失败均按失败处理。
+## 4. 隔离与时序
 
-每个进程 fixture 使用独立配置和数据根、访问根及临时素材。单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
+RuntimeResourcesFixture 从实际构建的 Editor 初始化规则和插件，macOS 同时使用 bundle 的 Frameworks。CTest 和直接执行使用相同装配，缺失部署或规则不能静默替换。内部数据根和插件路径覆盖仅对测试构建生效。
 
-CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Test 默认的五分钟 watchdog 在较长资源工作流完成内部失败处理前直接终止进程。任务自身的截止时间仍然有效。不通过延长推理等待来处理卡住的队列。
+进程 fixture 使用独立配置、缓存、访问根、临时素材及单实例身份，只管理自己创建的进程。重启前将 stdout/stderr 指向沙箱文件，替代进程继承有效输出目标。成功清理，失败保留沙箱路径、参数、退出码和输出。
 
-完整 ApplicationGui 套件使用 300 秒总预算，覆盖共享 runner 上整套交互流程的累计耗时。发生超时时先检查具体失败、最后执行位置及持续进展，区分单个行为卡住与完整程序的累计预算不足。各用例的状态、任务和控件等待保留原截止时间，不通过额外重跑或延长这些等待掩盖问题。
+应用在套件内共享生命周期，每例复位文档、历史、任务、解析结果和通知。完整工程比较共用生产编码器，身份与非持久状态另行检查。外部回答或后端替身只控制依赖，保存状态机、领域规则、文件发布和输入接线使用真实实现。
 
-重启场景的源进程将 stdout/stderr 写入沙箱内文件，使脱离原 QProcess 生命周期的替代进程继承有效输出目标。仍检查新进程身份、参数、服务就绪和退出。
+竞态使用受控 worker、调度器或时钟。程序超时、Qt Test watchdog 和业务等待分别设置，不把总套件预算当作单个任务时限。失败先检查最后执行位置、具体状态和进度，不能靠无依据放宽等待或无限重跑取得通过。
 
 ## 5. CI 引导与失败复验
 
-1. Draft PR 触发真实 Actions。在三个矩阵项中分别打通依赖、配置、完整 Editor/Connector/测试构建及各测试组。新增 Windows 和 macOS 路径须完成真实调试后才能记录通过。
-2. 查首个根因：依赖、编译、动态库/插件、断言、超时或共享状态污染。
-3. 修复对应实现，在可复现环境单跑失败用例和所属组。本期先完成 Windows 本地完整构建、测试和覆盖率采样，确认逻辑缺口及实际失败均已处理后再推送。
-4. 提交、推送新代码，恢复各平台完整规定集合。重跑旧执行只能验证原代码版本。某个平台通过不能替代另一个平台，失败项持续保留诊断产物和正确退出码。
-5. 按 triplet 隔离 Qt/vcpkg 缓存路径。验证冷缓存时只清除本 PR 对应缓存，完整运行成功后用相同代码验证缓存实际命中和完整集合通过。只在变更影响相应路径时重复验证。不清除其他 PR 的缓存，不缓存整个 CMake 构建目录。
-6. 仅修改不影响构建或测试的文档时，无需重新执行或等待 CI。运行证据继续使用对应代码版本的已有结果。
+1. Draft PR 分别打通三平台依赖、配置、完整构建、通用工作流、协议/进程和 GUI。必须有实际运行，提交 workflow 不等于验证成功。
+2. 从首个根因区分依赖、编译、加载、断言、超时或状态污染，保留原失败日志。
+3. 可本地复现时先跑失败用例及所属组，再完成 Windows 完整构建、规定测试和覆盖分析，之后提交并正常推送。
+4. 新代码由新运行验证，恢复三平台完整集合。旧 run 的重跑仍对应旧代码，一个平台通过不能替代其他平台。
+5. 冷缓存、暖缓存及依赖更新分别验证。只操作本 PR 对应缓存，不清理其他 PR 缓存。缓存键包含 triplet、runner 镜像、Qt、manifest 及覆盖端口，每次仍执行 install，由 vcpkg ABI 决定复用或重建，不缓存整个 CMake 树。
+6. 测试退出码正确传播，失败后仍收集已有日志、JUnit 和素材。macOS crash diagnostics 仅收集系统崩溃附件，不能代替测试结果。
+7. 纯文档修改不重跑或重新等待已验证代码的 CI。缓存路径只在受影响时复验，稳定 PR body 不充当状态日志。
 
-不能依靠无限重跑、删除有效断言、沉默跳过或无依据加大超时获得绿色状态。
+## 6. 覆盖率采集
 
-vcpkg 精确缓存键包含 runner 镜像身份，避免 latest 镜像升级后重新构建的 ABI 包无法保存。回退缓存仅提供候选包，install 负责判断是否可用。依赖准备时间与实际复用包数以日志为准。三平台的 Tests 步骤直接执行 CTest。Linux 的 Coverage 步骤单独读取已有执行数据生成报告，构建或测试失败时仍保留可用诊断材料。
+### 6.1. Linux / GCC
 
-整体 job 超时覆盖完整构建、测试和适用的报告生成，不替代 CTest 程序超时及异步任务截止时间。按实际阶段区分构建、测试与报告故障。本地按需运行原生采集时，还须单独核对插桩阶段，不能把前置插桩耗时当作测试挂起。
-
-## 6. 覆盖率与缺口分析
-
-gcovr 启用 `merge-lines`，按文件和源码行号合并不同函数或模板实例的命中。重算既有原始数据时，数字变化只属于统计口径调整，不算新增测试贡献。以同一口径比较新增命中行及剩余行为，逻辑覆盖的 90% 方向目标不作为硬失败阈值。
-
-Linux CI 的 Debug 构建启用 `LITE_TEST_COVERAGE=ON`，全部测试完成后，独立 Coverage 步骤通过 GCC/gcov 和 gcovr 8.6 生成应用、内部库和 Connector 的行覆盖与分支覆盖，不重复执行测试。Windows/macOS CI 使用普通 Debug 构建，覆盖率采集保留为本地按需能力。测试代码、第三方代码及生成文件不进入分母。编译器生成的异常清理分支和无源码分支不作为补测目标。未在 Linux 编译的平台实现也不在该数字内，必须结合功能矩阵检查，不能当作已经覆盖。
-
-本地 GCC 环境使用 `coverage` configure/build preset，运行该构建中的测试后执行：
+Linux CI 在 Debug coverage 构建执行测试，独立 Coverage 步骤复用执行数据生成 GCC/gcovr 报告，不重复跑测试。本地示例：
 
 ```bash
 cmake --preset coverage -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
@@ -150,24 +148,20 @@ build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
   --csv build/test-results/coverage/files.csv --print-summary
 ```
 
-普通测试不要求覆盖率工具。GCC 每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。本地跨平台专项采样分别统计，不将结果混合为一个比例。
+独立采样先确保该覆盖构建没有旧 .gcda，防止累计历史命中。merge-lines 按文件和源码行合并模板实例，口径修正不算新增测试贡献。
 
-Windows 本地按需采样使用 Visual Studio 的 `Microsoft.CodeCoverage.Console.exe`，不属于本期 CI 的必需步骤。先通过标准 wrapper 构建独立 `coverage` preset。该构建提供 `/PROFILE` 和调试符号，并关闭 Edit and Continue。采集时使用静态插桩。脚本自动查找已安装工具，也可用 `--collector` 指定路径。在可调用 CTest 的开发者终端中执行：
+### 6.2. Windows / MSVC
+
+本地使用 Visual Studio 的 Microsoft.CodeCoverage.Console.exe 静态插桩。coverage 构建提供调试符号及 /PROFILE，并关闭 Edit and Continue。在可调用 CTest 的开发者终端执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset coverage
 python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-full -- --preset coverage
-
-$env:DSEL_TEST_VOICEBANK_ROOT = "C:/Voicebanks/Example"
-$env:DSEL_TEST_SINGER_ID = "example-singer"
-$env:DSEL_TEST_LANGUAGE = "cmn"
-$env:DSEL_TEST_LYRIC = "la"
-python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-external -- --preset coverage
 ```
 
-声库路径、歌手 ID、语言和歌词都须填写本机资源对应的实际值，显式资源的这四项配置缺一不可。CTest 未在 PATH 时可用 `--ctest` 提供路径。每轮使用新的输出目录。脚本保留原始 `.coverage`、Cobertura、源码行去重 CSV、JUnit 和完整测试日志，并传播执行失败。比较不同资源集合时使用同一构建，按源码行并集合并各程序中的重复记录，检查分母和实际执行结果。Microsoft 原生报告不提供与 GCC 对等的分支覆盖，不采用其占位的分支百分比。
+脚本自动发现采集器，亦可用 --collector 指定，CTest 不在 PATH 时用 --ctest。每次用新的输出目录，采集期间不改源码、不重新构建同一目录、不并行运行另一采集。静态插桩可能较慢，日志暂时安静不等于挂起，先核对实际进程和阶段。
 
-macOS 本地按需采样也使用独立 `coverage` 构建，普通 CI 不执行该流程：
+### 6.3. macOS / LLVM
 
 ```bash
 cmake --preset coverage -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
@@ -177,14 +171,16 @@ cmake --build --preset coverage
 python3 scripts/tests/collect-llvm-coverage.py --output build/test-results/llvm-full -- --preset coverage
 ```
 
-脚本通过 `xcrun` 选择与编译器配套的 LLVM 工具，为各进程/模块隔离 profile，再生成合并 profile、LCOV、HTML、源码行去重 CSV 和原生分支汇总。Windows 与 LLVM 的公共源码过滤及行汇总共用 `coverage_support.py`，不重复实现统计规则。
+脚本通过 xcrun 选择配套工具，各进程/模块分别写 profile。Windows/macOS 的采集仅作为本地能力，普通 CI 不要求这些工具。公共源码过滤与行汇总复用 coverage_support.py。
 
-Linux CI 保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV。三平台都保存环境、依赖/构建日志、JUnit 和失败素材。Windows/macOS 按需专项采样在各自输出目录保存覆盖率材料，建设中已取得的有效证据继续保留。数字以对应产物为准。这些是本期测试产物，不生成或自动改写阶段文档。
+### 6.4. 结果核对与缺口判断
 
-采样产物记录实际受测代码、执行集合和失败项，详细关联由 PR 和 Actions 保留。构建成功但测试失败时得到的报告可用于发现遗漏。最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。阶段文档保留统计口径和缺口处置，不维护每轮覆盖率数值。
+核对构建、CTest 和采集器各自退出状态，保存原始数据、逐行/逐文件汇总、JUnit、完整日志及受测版本。发现与执行使用同一 CTest 筛选参数，不能把遗留程序或未选程序混入分母。按源码文件和行号合并同一次采样中程序/模块的重复命中，不拼接不同轮次或平台。
 
-结合 HTML 未执行行、目录汇总及功能矩阵判断缺口：优先未测的编辑结果、失败回滚、配置生效、文件发布和实际交互。数值低并不自动要求补测。设备/模型依赖、平台专属、主观观感及不可达的防御路径需说明范围。没有百分比门槛，不对 Schema、工具清单、无语义 getter 或历史 bug 数量设指标。覆盖率用于发现遗漏，不代替有意义的断言。[gcovr 统计口径](https://gcovr.com/en/stable/faq.html)。
+完整报告排除测试、第三方及生成代码，业务边界核算另保留分子、分母和逐文件区间。原始结果不能被边界统计覆盖。MSVC 不报告占位分支百分比，LLVM mapping/profile 警告保留并按函数核对，不静默缩小范围。
+
+按[大纲的边界](test-outline.md#10-业务逻辑覆盖统计边界)及产品风险分析未命中行，优先真实编辑、失败恢复、持久化、文件发布和 GUI 接线。合并重复场景和生产实现，区分新增命中、源码重构及统计变化，不为 Schema、布局或不可达私有分支堆测试。
 
 ## 7. 验收与审查
 
-三个 CI 矩阵平台的全部适用测试、Linux 独立 Coverage 步骤，以及本地规定验证完成，报告和实现一致后 ready。Windows/macOS 普通 Debug CI 不以原生或 LLVM 采集作为验收条件，尚在调试的平台不能记为通过。文档更新不要求重复等待已验证代码的 CI。约五分钟后检查审查。真实问题修复、验证、回复并 resolve。审查由仓库配置智能判断和自动触发，不逐次发送人工触发评论。最终受审代码的相应验证和 bot 明确认可同时成立才完成。
+Windows 完整环境业务逻辑覆盖达到约定的 90% 参考目标，三平台规定测试和 Linux 独立覆盖步骤通过，文档与实现一致后交付 ready PR。真实审查问题修复并本地验证后推送，回复并 resolve，由仓库智能触发复审，不逐次手工发送触发评论。受审代码的规定验证与 bot thumbs-up 或明确无问题结论同时成立才完成验收。
