@@ -241,6 +241,131 @@ public:
 
 private slots:
 
+    void runtimePluginFailurePreservesEditing_data() {
+        QTest::addColumn<bool>("createDirectory");
+        QTest::newRow("missing-plugin-root") << false;
+        QTest::newRow("empty-plugin-root") << true;
+    }
+
+    void runtimePluginFailurePreservesEditing() {
+        QFETCH(bool, createDirectory);
+        TestSupport::ProcessFixture fixture(QStringLiteral("headless-plugin-recovery"));
+        QVERIFY(fixture.isValid());
+        QVERIFY(fixture.writeConfig({
+            {QStringLiteral("general"),
+             QJsonObject{{QStringLiteral("packageSearchPaths"),
+                          QJsonArray{QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)}}}        },
+            {QStringLiteral("inference"),
+             QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                         {QStringLiteral("autoStartInfer"), false}}                        },
+            {QStringLiteral("automation"),
+             QJsonObject{
+                 {QStringLiteral("accessRoots"),
+                  QJsonArray{fixture.path(), QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)}}}},
+        }));
+        const auto invalidRoot = fixture.filePath(QStringLiteral("runtime-plugins"));
+        if (createDirectory)
+            QVERIFY(QDir().mkpath(invalidRoot));
+        QTcpServer reservation;
+        QVERIFY(reservation.listen(QHostAddress::LocalHost, 0));
+        const auto port = reservation.serverPort();
+        reservation.close();
+        auto &editor = fixture.process(QStringLiteral("editor"));
+        auto environment = fixture.environment();
+        environment.insert(QStringLiteral("DSEL_TEST_PLUGIN_ROOT"), invalidRoot);
+        editor.setProcessEnvironment(environment);
+        editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        NativeClient client(editor,
+                            QUrl(QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(port)));
+        const auto start = [&] {
+            editor.start(editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                      QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                      QStringLiteral("--control-port"), QString::number(port)});
+            return editor.waitForStarted(10000) && client.waitUntilReady();
+        };
+        QVERIFY2(start(), qPrintable(client.error));
+        QJsonObject result;
+        QVERIFY2(client.call(QStringLiteral("documents.new"),
+                             {
+                                 {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+        },
+                             result),
+                 qPrintable(client.error));
+        client.documentId = result.value(QStringLiteral("current"))
+                                .toObject()
+                                .value(QStringLiteral("document_id"))
+                                .toString();
+        QVERIFY(!client.documentId.isEmpty());
+        const QJsonObject document{
+            {QStringLiteral("document_id"), client.documentId}
+        };
+        QVERIFY2(client.call(QStringLiteral("documents.get"), document, result),
+                 qPrintable(client.error));
+        const auto before = result;
+        QVERIFY2(client.call(QStringLiteral("packages.refresh"), {}, result),
+                 qPrintable(client.error));
+        const auto failedTaskId = result.value(QStringLiteral("task_id"));
+        QVERIFY2(client.waitForTask(result, true, 60000, QStringLiteral("failed")),
+                 qPrintable(client.error));
+        QVERIFY2(client.call(QStringLiteral("tasks.get"),
+                             {
+                                 {QStringLiteral("scope"),   QStringLiteral("application")},
+                                 {QStringLiteral("task_id"), failedTaskId                 }
+        },
+                             result),
+                 qPrintable(client.error));
+        const auto error = result.value(QStringLiteral("error")).toObject();
+        QCOMPARE(error.value(QStringLiteral("code")).toString(),
+                 QStringLiteral("module_not_ready"));
+        QVERIFY(!error.value(QStringLiteral("message")).toString().isEmpty());
+        QVERIFY2(client.call(QStringLiteral("documents.get"), document, result),
+                 qPrintable(client.error));
+        QCOMPARE(result, before);
+        QVERIFY2(
+            client.mutate(
+                QStringLiteral("tracks.insert"),
+                {
+                    {QStringLiteral("index"),  0                                                 },
+                    {QStringLiteral("tracks"),
+                     QJsonArray{QJsonObject{
+                         {QStringLiteral("client_ref"), QStringLiteral("track")},
+                         {QStringLiteral("name"), QStringLiteral("Editable without inference")}}}}
+        },
+                result),
+            qPrintable(client.error));
+        const auto trackId = createdId(result, QStringLiteral("track"));
+        QVERIFY(trackId > 0);
+        QVERIFY2(client.call(QStringLiteral("tracks.list"), document, result),
+                 qPrintable(client.error));
+        const auto tracks = result.value(QStringLiteral("tracks")).toArray();
+        QCOMPARE(tracks.size(), 1);
+        QCOMPARE(tracks.first().toObject().value(QStringLiteral("track_id")).toInt(), trackId);
+        QVERIFY2(client.mutate(QStringLiteral("history.undo"), {}, result),
+                 qPrintable(client.error));
+        QVERIFY2(client.call(QStringLiteral("tracks.list"), document, result),
+                 qPrintable(client.error));
+        QVERIFY(result.value(QStringLiteral("tracks")).toArray().isEmpty());
+        const auto exit = [&] {
+            return client.call(QStringLiteral("application.request_exit"),
+                               {
+                                   {QStringLiteral("discard_changes"), true}
+            },
+                               result) &&
+                   editor.waitForFinished(15000) && editor.exitStatus() == QProcess::NormalExit &&
+                   editor.exitCode() == 0;
+        };
+        QVERIFY2(exit(), qPrintable(client.error));
+        environment.remove(QStringLiteral("DSEL_TEST_PLUGIN_ROOT"));
+        editor.setProcessEnvironment(environment);
+        QVERIFY2(start(), qPrintable(client.error));
+        QVERIFY2(client.call(QStringLiteral("packages.refresh"), {}, result),
+                 qPrintable(client.error));
+        QVERIFY2(client.waitForTask(result, true, 60000), qPrintable(client.error));
+        QVERIFY2(client.call(QStringLiteral("voices.list"), {}, result), qPrintable(client.error));
+        QVERIFY(!result.value(QStringLiteral("singers")).toArray().isEmpty());
+        QVERIFY2(exit(), qPrintable(client.error));
+    }
+
     void voicebankInferenceAndWaveExport_data() {
         QTest::addColumn<QString>("language");
         QTest::addColumn<QString>("lyric");
