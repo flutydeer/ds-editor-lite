@@ -1,0 +1,27 @@
+diff --git a/src/plugins/inferenceinterpreters/external/CliProcess.cpp b/src/plugins/inferenceinterpreters/external/CliProcess.cpp
+--- a/src/plugins/inferenceinterpreters/external/CliProcess.cpp
++++ b/src/plugins/inferenceinterpreters/external/CliProcess.cpp
+@@ -292,6 +292,15 @@ namespace otter::external {
+             // the host before the write can report EPIPE. The signal is blocked for this thread
+             // and a request that arrived during the write is consumed before the mask is
+             // restored, so the host never dies of a cancellation it asked for.
++#ifdef __APPLE__
++            // Darwin has no sigtimedwait. Suppress SIGPIPE on this pipe descriptor instead,
++            // preserving the caller's descriptor flag without changing process signal policy.
++            const int previous = fcntl(fd, F_GETNOSIGPIPE);
++            if (previous == -1 || fcntl(fd, F_SETNOSIGPIPE, 1) == -1) {
++                return lastSystemError("cannot suppress SIGPIPE for the engine pipe");
++            }
++            const auto finish = [fd, previous] { fcntl(fd, F_SETNOSIGPIPE, previous); };
++#else
+             sigset_t blocked;
+             sigset_t previous;
+             sigemptyset(&blocked);
+@@ -304,6 +313,7 @@ namespace otter::external {
+                 }
+                 pthread_sigmask(SIG_SETMASK, &previous, nullptr);
+             };
++#endif
+ 
+             auto *bytes = static_cast<const char *>(data);
+             while (size > 0) {

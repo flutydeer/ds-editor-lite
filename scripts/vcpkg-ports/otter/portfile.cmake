@@ -14,11 +14,17 @@
 # migration ledger docs/plans/synthrt-main-migration.md (history in docs/archive/
 # four-repo-integration-audit.md); this comment deliberately repeats neither gate results nor any
 # commit id beyond the pin below.
+set(_otter_platform_patches)
+if(VCPKG_TARGET_IS_OSX)
+    list(APPEND _otter_platform_patches macos-pipe-nosigpipe.patch)
+endif()
+
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/otter.git
     REF e770ab94ac0a27a31c6cec502aeac765c9db70ef
     HEAD_REF spec2.4-uptake
+    PATCHES ${_otter_platform_patches}
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
