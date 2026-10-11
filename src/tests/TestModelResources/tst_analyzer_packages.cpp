@@ -399,6 +399,8 @@ int runAnalyzerPackages() {
     expect(engine->initialized() && !engine->inferenceReady(),
            "a metadata-only engine must not report inference readiness");
     expect(engine->analyzers().size() == 3, "missing driver should not hide valid packages");
+    // Windows cannot remove the copied plugin DLLs while this unit still holds them loaded.
+    engine->shutdown();
 
     unlock();
     if (failures == 0) {
