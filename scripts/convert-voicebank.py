@@ -1262,12 +1262,17 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
         default_language = None
 
     bound = {}
+    declared_ids = set()
     for entry in declared:
         if (not isinstance(entry, dict) or not isinstance(entry.get("id"), str)
                 or not entry["id"]):
             report.error(f"{path}: a declared language must name an id string")
             continue
         handle = entry["id"]
+        if handle in declared_ids:
+            report.error(f"{path}: duplicate language id {handle!r}")
+            continue
+        declared_ids.add(handle)
 
         if handle in overrides:
             # An explicit binding is used as given: a caller who specifies a linguist has

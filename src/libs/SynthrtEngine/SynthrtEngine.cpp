@@ -576,7 +576,14 @@ srt::Expected<void> SynthrtEngine::validatePackage(const fs::path &path) const {
         if (!_impl->bootstrap)
             return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
         const auto &unit = _impl->bootstrap->unit();
-        isolated.setPackagePaths(unit.packagePaths());
+        auto packagePaths = unit.packagePaths();
+        std::error_code error;
+        const auto parent = fs::absolute(path, error).parent_path();
+        if (error)
+            return srt::Error(srt::Error::InvalidArgument, error.message());
+        if (std::find(packagePaths.begin(), packagePaths.end(), parent) == packagePaths.end())
+            packagePaths.push_back(parent);
+        isolated.setPackagePaths(packagePaths);
         for (const auto &category : lite::synthrt::pluginCategories({}))
             isolated.setPluginPaths(category.category, unit.pluginPaths(category.category));
     }

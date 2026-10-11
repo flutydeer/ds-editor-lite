@@ -55,6 +55,33 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             self.assertIn("unexpected package directories", " ".join(invalid.stderr.split()))
             self.assertIn("obsolete", invalid.stderr)
 
+    def test_plugin_tree_staging_removes_retired_binaries(self):
+        cmake = shutil.which("cmake")
+        if not cmake:
+            self.skipTest("CMake is unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            category = source / "inference"
+            category.mkdir(parents=True)
+            old = category / "retired-plugin.bin"
+            old.write_bytes(b"old plugin")
+            destination = root / "plugins/wolf"
+            neighbor = root / "plugins/otter/keep.bin"
+            neighbor.parent.mkdir(parents=True)
+            neighbor.write_bytes(b"other library")
+            command = [cmake, f"-Dsource={source}", f"-Ddestination={destination}",
+                       "-P", str(TOOLS.parents[2] / "cmake/LiteStagePluginTree.cmake")]
+            initial = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
+            self.assertTrue((destination / "inference/retired-plugin.bin").exists())
+            old.rename(category / "current-plugin.bin")
+            updated = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(updated.returncode, 0, updated.stdout + updated.stderr)
+            self.assertFalse((destination / "inference/retired-plugin.bin").exists())
+            self.assertEqual((destination / "inference/current-plugin.bin").read_bytes(), b"old plugin")
+            self.assertEqual(neighbor.read_bytes(), b"other library")
+
     def test_linux_plugin_deployment_detects_changes_with_identical_metadata(self):
         if sys.platform != "linux":
             self.skipTest("The deployment script targets Linux")

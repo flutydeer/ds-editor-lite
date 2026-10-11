@@ -135,17 +135,25 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         setItemData(0, QString(), Qt::UserRole + 1);
     }
 
-    auto selected = currentLanguage;
-    if (findData(selected) < 0)
-        selected = preferredLanguage;
-    if (findData(selected) < 0)
-        selected = itemData(0).toString();
-    setCurrentIndex(findData(selected));
+    auto selectedIndex = findData(currentLanguage);
+    if (selectedIndex < 0) {
+        selectedIndex = findData(preferredLanguage);
+        if (selectedIndex < 0 || disabled.contains(itemData(selectedIndex).toString())) {
+            selectedIndex = -1;
+            for (int index = 0; index < count(); ++index) {
+                if (!disabled.contains(itemData(index).toString())) {
+                    selectedIndex = index;
+                    break;
+                }
+            }
+        }
+    }
+    setCurrentIndex(selectedIndex);
     adjustWidthToContent();
     // When the selected item is a disabled one, the closed combo box itself has to give the reason
     // as well (the tooltip of that row inside the popup is a separate matter)
     refreshCurrentToolTip();
-    return selected;
+    return currentData().toString();
 }
 
 QString LanguageComboBox::setLanguageCodes(const QStringList &languageCodes,
