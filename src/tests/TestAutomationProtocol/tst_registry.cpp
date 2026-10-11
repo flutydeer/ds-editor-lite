@@ -1290,65 +1290,117 @@ namespace {
     }
 
     void verifyCurrentDocumentSavePolicy(Automation::PublicAutomationRegistry &registry,
-                                         Automation::CoreRuntime &runtime,
+                                         AutomationTestSupport::TestRuntime &fixture,
                                          const QString &directoryPath, const int &saveCount) {
+        auto &runtime = fixture.runtime();
+        const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+        QVERIFY(project);
+        QVERIFY(!project.get().tracks.isEmpty());
+        QVERIFY(runtime.project().renameTrack(
+            {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test},
+            project.get().tracks.constFirst().id, QStringLiteral("Edited before saving")));
         const auto before = runtime.documentVersion();
+        const auto beforeModel = TestSupport::projectSnapshot(fixture.model());
+        const auto *beforeUndo = fixture.history()->nextUndoEntry();
         const auto document = runtime.documents().getDocument(before.documentId);
         QVERIFY(document);
+        QVERIFY(!document.get().saved);
         QVERIFY(document.get().path.isEmpty());
         const auto savesBeforePathChoice = saveCount;
+        const auto newDocument = [&] {
+            const auto current = runtime.documentVersion();
+            return registry.invoke(
+                QStringLiteral("documents.new"),
+                {
+                    {QStringLiteral("current_document_id"), current.documentId.toString()        },
+                    {QStringLiteral("expected_revision"),   static_cast<qint64>(current.revision)},
+                    {QStringLiteral("template"),            QStringLiteral("empty")              },
+                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")             }
+            });
+        };
+        const auto replace = newDocument();
+        QVERIFY(!replace);
+        QCOMPARE(replace.getError().code, Automation::AutomationErrorCode::Busy);
+        QCOMPARE(replace.getError().fieldPath, QStringLiteral("unsaved_policy"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
+        QCOMPARE(saveCount, savesBeforePathChoice);
         const auto withoutPath =
             registry.invoke(QStringLiteral("documents.save"), commandArguments(before));
         QVERIFY(!withoutPath);
         QCOMPARE(withoutPath.getError().code, Automation::AutomationErrorCode::PathRequired);
         QCOMPARE(withoutPath.getError().fieldPath, QStringLiteral("path"));
         QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
         QCOMPARE(saveCount, savesBeforePathChoice);
         const auto path =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("current-document.dspx"));
         const auto savedAs =
             registry.invoke(QStringLiteral("documents.save_as"),
                             mergeCommandArguments(runtime.documentVersion(),
-                                                  QJsonObject{
+                                                  {
                                                       {QStringLiteral("path"),             path},
                                                       {QStringLiteral("overwrite_policy"),
-                                                       QStringLiteral("overwrite")             },
+                                                       QStringLiteral("overwrite")             }
         }));
-        reportFailure(QStringLiteral("documents.save_as"), savedAs);
+        QVERIFY2(savedAs, qPrintable(savedAs ? QString{} : savedAs.getError().message));
+        QCOMPARE(saveCount, savesBeforePathChoice + 1);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
+        auto savedDocument = runtime.documents().getDocument(before.documentId);
+        QVERIFY(savedDocument);
+        QVERIFY(savedDocument.get().saved);
 
         QFile external(path);
-        const auto replaced = savedAs &&
-                              external.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
-                              external.write("external") == 8;
+        QVERIFY(external.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(external.write("external"), qint64{8});
         external.close();
         const auto savesBeforeReject = saveCount;
         const auto rejected =
             registry.invoke(QStringLiteral("documents.save"),
                             mergeCommandArguments(runtime.documentVersion(),
-                                                  QJsonObject{
+                                                  {
                                                       {QStringLiteral("overwrite_policy"),
                                                        QStringLiteral("reject")}
         }));
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::OverwriteDenied);
+        QCOMPARE(saveCount, savesBeforeReject);
         QFile preserved(path);
-        const auto preservedReadable = preserved.open(QIODevice::ReadOnly);
-        const auto preservedContents = preserved.readAll();
+        QVERIFY(preserved.open(QIODevice::ReadOnly));
+        QCOMPARE(preserved.readAll(), QByteArrayLiteral("external"));
         preserved.close();
-        expect(replaced && !rejected &&
-                   rejected.getError().code == Automation::AutomationErrorCode::OverwriteDenied &&
-                   saveCount == savesBeforeReject && preservedReadable &&
-                   preservedContents == QByteArrayLiteral("external"),
-               QStringLiteral("documents.save must preserve an explicit reject overwrite policy"));
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
 
         const auto defaultSaved = registry.invoke(QStringLiteral("documents.save"),
                                                   commandArguments(runtime.documentVersion()));
-        reportFailure(QStringLiteral("documents.save"), defaultSaved);
+        QVERIFY2(defaultSaved,
+                 qPrintable(defaultSaved ? QString{} : defaultSaved.getError().message));
+        QCOMPARE(saveCount, savesBeforeReject + 1);
         QFile overwritten(path);
-        const auto overwrittenReadable = overwritten.open(QIODevice::ReadOnly);
-        const auto overwrittenContents = overwritten.readAll();
-        expect(
-            defaultSaved && saveCount == savesBeforeReject + 1 && overwrittenReadable &&
-                overwrittenContents == QByteArrayLiteral("registry-save"),
-            QStringLiteral("documents.save must retain overwrite as the omitted-policy default"));
+        QVERIFY(overwritten.open(QIODevice::ReadOnly));
+        QCOMPARE(overwritten.readAll(), QByteArrayLiteral("registry-save"));
+        overwritten.close();
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
+        savedDocument = runtime.documents().getDocument(before.documentId);
+        QVERIFY(savedDocument);
+        QVERIFY(savedDocument.get().saved);
+
+        const auto created = newDocument();
+        QVERIFY2(created, qPrintable(created ? QString{} : created.getError().message));
+        QVERIFY(runtime.documentVersion().documentId != before.documentId);
+        const auto replacement = runtime.project().getProject(runtime.documentVersion().documentId);
+        QVERIFY(replacement);
+        QVERIFY(replacement.get().tracks.isEmpty());
+        QVERIFY(!fixture.history()->canUndo());
+        QVERIFY(!fixture.history()->canRedo());
+        QCOMPARE(saveCount, savesBeforeReject + 1);
+        QVERIFY(overwritten.open(QIODevice::ReadOnly));
+        QCOMPARE(overwritten.readAll(), QByteArrayLiteral("registry-save"));
     }
 
     void verifyProjectInputGuards(Automation::PublicAutomationRegistry &registry,
@@ -3208,7 +3260,7 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("savePolicy")) {
-        verifyCurrentDocumentSavePolicy(registry, runtime, directory.path(), documentSaveCount);
+        verifyCurrentDocumentSavePolicy(registry, fixture, directory.path(), documentSaveCount);
         return;
     }
     if (scenario == QStringLiteral("advancedApplication")) {
