@@ -5,6 +5,8 @@
 
 #include <QList>
 #include <QString>
+#include <QHash>
+#include <QSet>
 
 enum class GetInstalledPackagesErrorType {
     MetadataBackendNotInitialized,
@@ -31,6 +33,7 @@ struct GetInstalledPackagesResult {
 
     QList<PackageInfo> successfulPackages;
     QList<FailedPackage> failedPackages;
+    QHash<SingerIdentifier, QSet<QString>> convertibleLanguages;
 };
 
 #endif //GETINSTALLEDPACKAGESRESULT_H

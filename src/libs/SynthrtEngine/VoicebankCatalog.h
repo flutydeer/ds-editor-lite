@@ -180,6 +180,9 @@ namespace lite::synthrt {
         srt::DisplayText packageDescription;
         srt::DisplayText packageCopyright;
         std::string packageUrl;
+
+        /// Conversion readiness captured with this catalog after supplying phoneme coverage.
+        std::set<std::string> convertibleLanguages;
     };
 
     /// Returns whether \a interfaceName names an analysis contract that this build runs.

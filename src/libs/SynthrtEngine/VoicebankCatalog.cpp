@@ -235,12 +235,13 @@ namespace lite::synthrt {
             return std::make_pair(*low, *high);
         }
 
-        /// Returns the speakers that the singer declaration lists, keyed by identifier.
+        /// Returns speakers in declaration order, which also defines the default speaker.
         ///
         /// Read from the raw declaration rather than from an interpreted configuration because no
         /// interpreter reads this data: a display name and a tone range are host-only data.
-        std::map<std::string, SpeakerCapability> declaredSpeakers(const srt::SingerSpec &singer) {
-            std::map<std::string, SpeakerCapability> result;
+        std::vector<SpeakerCapability> declaredSpeakers(const srt::SingerSpec &singer) {
+            std::vector<SpeakerCapability> result;
+            std::set<std::string> seen;
             const auto &configuration = singer.manifestConfiguration();
             if (!configuration.isObject()) {
                 return result;
@@ -266,7 +267,8 @@ namespace lite::synthrt {
                     entry.name = srt::DisplayText(entry.id);
                 }
                 entry.toneRange = toneRangeOf(speaker);
-                result.emplace(entry.id, std::move(entry));
+                if (seen.insert(entry.id).second)
+                    result.push_back(std::move(entry));
             }
             return result;
         }
@@ -343,8 +345,8 @@ namespace lite::synthrt {
                 }
                 return result;
             }
-            for (const auto &[id, speaker] : declared) {
-                add(id, &speaker);
+            for (const auto &speaker : declared) {
+                add(speaker.id, &speaker);
             }
             return result;
         }

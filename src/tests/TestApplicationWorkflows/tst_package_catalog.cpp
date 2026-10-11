@@ -3,6 +3,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Utils/InferCacheUtils.h"
 #include "Modules/FillLyric/Utils/G2pService.h"
+#include "Automation/PackageAutomationAdapter.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -338,6 +339,132 @@ void ApplicationWorkflowTests::disjointModelPhonemesDisableLanguageCoverage() {
     QVERIFY(!SynthrtEngine::instance().canConvert(identity, QStringLiteral("cmn")));
     QVERIFY(!SynthrtEngine::instance()
                  .languageUnavailableReason(identity, QStringLiteral("cmn")).isEmpty());
+}
+
+void ApplicationWorkflowTests::packageLanguageReadinessUsesTheCatalogSnapshot() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    const auto services = Automation::createPackageAutomationServices(packageManager);
+    const auto before = services.installedPackages();
+    const auto fixture = std::find_if(before.cbegin(), before.cend(), [](const auto &package) {
+        return package.id == QStringLiteral("ci-fixture");
+    });
+    QVERIFY(fixture != before.cend());
+    QVERIFY(!fixture->singers.isEmpty());
+    const auto identity = fixture->singers.first().info.identifier();
+    QVERIFY(fixture->singers.first().convertibleLanguages.contains(QStringLiteral("cmn")));
+    QTemporaryDir emptyRoot;
+    QVERIFY(emptyRoot.isValid());
+    // Reproduce the interval after the engine publishes a scan and before PackageManager does.
+    auto scanned = SynthrtEngine::instance().refreshVoicebanks(
+        {std::filesystem::u8path(emptyRoot.path().toUtf8().constData())});
+    QVERIFY(scanned);
+    QVERIFY(scanned.take().empty());
+    QVERIFY(!SynthrtEngine::instance().canConvert(identity, QStringLiteral("cmn")));
+    QCOMPARE(services.installedPackages(), before);
+    QVERIFY(packageManager->refreshInstalledPackages({emptyRoot.path()}));
+    QVERIFY(services.installedPackages().isEmpty());
+}
+
+void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability_data() {
+    QTest::addColumn<QString>("scenario");
+    QTest::newRow("declaration-order") << QStringLiteral("ordered");
+    QTest::newRow("missing-mapping-keys") << QStringLiteral("missing-keys");
+    QTest::newRow("missing-model-targets") << QStringLiteral("missing-targets");
+    QTest::newRow("speakerless-model") << QStringLiteral("speakerless");
+}
+
+void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability() {
+    QFETCH(QString, scenario);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    const auto rewrite = [&](const QString &relativePath, auto amend) {
+        QFile file(QDir(root).filePath(relativePath));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        auto object = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+        amend(object);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const auto bytes = QJsonDocument(object).toJson();
+        QCOMPARE(file.write(bytes), bytes.size());
+    };
+    rewrite(QStringLiteral("characters/fixture/config.json"), [&](QJsonObject &object) {
+        auto configuration = object.value(QStringLiteral("configuration")).toObject();
+        const auto speakers = configuration.value(QStringLiteral("speakers")).toArray();
+        QCOMPARE(speakers.size(), 2);
+        configuration.insert(QStringLiteral("speakers"),
+                             scenario == QStringLiteral("speakerless")
+                                 ? QJsonArray{} : QJsonArray{speakers[1], speakers[0]});
+        object.insert(QStringLiteral("configuration"), configuration);
+        auto imports = object.value(QStringLiteral("imports")).toArray();
+        for (qsizetype i = 0; i < imports.size(); ++i) {
+            auto entry = imports[i].toObject();
+            if (entry.value(QStringLiteral("role")).toString() !=
+                QStringLiteral("singer/acoustic"))
+                continue;
+            auto options = entry.value(QStringLiteral("options")).toObject();
+            if (scenario == QStringLiteral("missing-keys"))
+                options.insert(QStringLiteral("speakerMapping"),
+                               QJsonObject{{QStringLiteral("unlisted"), QStringLiteral("clear")}});
+            else if (scenario == QStringLiteral("missing-targets"))
+                options.insert(QStringLiteral("speakerMapping"),
+                               QJsonObject{{QStringLiteral("clear"), QStringLiteral("missing")},
+                                           {QStringLiteral("soft"), QStringLiteral("missing")}});
+            else if (scenario == QStringLiteral("speakerless"))
+                options.remove(QStringLiteral("speakerMapping"));
+            entry.insert(QStringLiteral("options"), options);
+            imports[i] = entry;
+        }
+        object.insert(QStringLiteral("imports"), imports);
+    });
+    if (scenario == QStringLiteral("speakerless")) {
+        rewrite(QStringLiteral("inferences/acoustic/config.json"), [](QJsonObject &object) {
+            auto exports = object.value(QStringLiteral("exports")).toObject();
+            exports.insert(QStringLiteral("speakers"), QJsonArray{});
+            object.insert(QStringLiteral("exports"), exports);
+            auto configuration = object.value(QStringLiteral("configuration")).toObject();
+            configuration.insert(QStringLiteral("useSpeakerEmbedding"), false);
+            configuration.remove(QStringLiteral("speakers"));
+            object.insert(QStringLiteral("configuration"), configuration);
+        });
+    }
+    if (QTest::currentTestFailed())
+        return;
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    const auto loaded = packageManager->refreshInstalledPackages({root});
+    QVERIFY(loaded);
+    QVERIFY(!loaded.get().successfulPackages.isEmpty());
+    const auto singers = loaded.get().successfulPackages.first().singers();
+    QVERIFY(!singers.isEmpty());
+    const auto &singer = singers.first();
+    if (scenario == QStringLiteral("ordered")) {
+        QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
+        QCOMPARE(singer.speakers().size(), 2);
+        QCOMPARE(singer.speakers().first().id(), QStringLiteral("soft"));
+        QCOMPARE(singer.speakers().last().id(), QStringLiteral("clear"));
+    } else {
+        QVERIFY(singer.speakers().isEmpty());
+        QCOMPARE(singer.resolutionState(), scenario == QStringLiteral("speakerless")
+                                              ? ResolutionState::Resolved
+                                              : ResolutionState::Missing);
+    }
 }
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {
