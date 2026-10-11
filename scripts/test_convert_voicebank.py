@@ -539,6 +539,67 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
                 self.assertEqual(read_json(output / "desc.json")["dependencies"],
                                  [{"id": "vendor/lang-cmn", "version": expected}])
 
+    def test_generated_language_resources_avoid_names_ids_and_existing_paths(self):
+        self.stage_files()
+        (self.package / "assets/cmn.txt").write_text("aa\ta\n", encoding="utf-8")
+        (self.package / "assets/second.txt").write_text("bb\tb\n", encoding="utf-8")
+        self.write_singer([{"id": "eng", "s2pFile": "../../assets/cmn.txt"}])
+        first_path = self.package / "characters/singer/config.json"
+        first = read_json(first_path)
+        first["id"] = "voice-a"
+        write_json(first_path, first)
+        second = read_json(first_path)
+        second["id"] = "voice"
+        second["configuration"] = {"defaultLanguage": "a-eng", "languages": [
+            {"id": "a-eng", "s2pFile": "../../assets/second.txt"}]}
+        write_json(self.package / "characters/second/config.json", second)
+        existing_path = self.package / "inferences/s2p-voice-a-eng/inference.json"
+        write_json(existing_path, {"preserve": "existing file"})
+        existing = read_json(self.package / "inferences/vocoder/config.json")
+        existing["id"] = "s2p-voice-a-eng-1"
+        write_json(self.package / "inferences/existing/config.json", existing)
+        desc = read_json(self.package / "desc.json")
+        desc["contributes"]["singers"].append("characters/second/config.json")
+        desc["contributes"]["inferences"].append("inferences/existing/config.json")
+        write_json(self.package / "desc.json", desc)
+        self.write_language_package("vendor/lang-eng", "eng", "arpabet", onset=False)
+        self.write_language_package("vendor/lang-aeng", "a-eng", "arpabet", onset=False)
+        output = self.destination("out")
+        code, text = self.run_script(self.package, "--output", output,
+                                     "--packages", self.work / "installed")
+        self.assertEqual(code, 0, text)
+        self.assertEqual(read_json(output / existing_path.relative_to(self.package)),
+                         {"preserve": "existing file"})
+        contributions = read_json(output / "desc.json")["contributions"]
+        for entries in contributions.values():
+            self.assertEqual(len({entry["id"] for entry in entries}), len(entries))
+        references = []
+        for name, handle, phoneme in (("singer", "eng", "a"), ("second", "a-eng", "b")):
+            singer = read_json(output / f"characters/{name}/config.json")
+            reference = next(item["ref"] for item in singer["imports"]
+                             if item["role"] == singer["languages"][handle])
+            references.append(reference)
+            linguist = read_json(output / "linguists" / reference.split("/")[-1] / "linguist.json")
+            self.assertEqual(linguist["exports"]["phonemes"], [phoneme])
+        self.assertNotEqual(*references)
+
+    def test_invalid_s2p_modes_and_resource_paths_leave_the_source_unchanged(self):
+        self.stage_files()
+        self.write_language_package("vendor/lang-cmn", "cmn", "pinyin", onset=False)
+        cases = [("s2pMode", value) for value in ([], {}, None, True, 42)]
+        cases += [("s2pFile", ["invalid"]), ("onsetFile", {"invalid": "path"})]
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                self.write_singer([{"id": "cmn", "s2pFile": "../../assets/cmn.txt", field: value}])
+                declaration = self.package / "characters/singer/config.json"
+                original = declaration.read_bytes()
+                code, text = self.run_script(self.package, "--in-place",
+                                             "--packages", self.work / "installed")
+                self.assertEqual(code, 1, text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(declaration.read_bytes(), original)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_reports_a_language_that_neither_side_supplies(self):
         self.write_singer([{"id": "eng", "g2p": "g2p-eng-official"}])
         self.write_language_package("vendor/lang-eng", "eng", "arpabet", onset=False)

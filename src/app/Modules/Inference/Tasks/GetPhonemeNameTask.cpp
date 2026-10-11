@@ -227,7 +227,13 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                 qCWarning(logInferPhoneme)
                     << "the composition reported" << static_cast<quint64>(syllable.onsets.size())
                     << "onsets for" << static_cast<quint64>(syllable.phonemes.size())
-                    << "phonemes; the rest are treated as non-onsets. language:" << input.language;
+                    << "phonemes; the result is rejected. language:" << input.language;
+                result.success = false;
+                result.errorMessage = tr("The onset markers do not match the phonemes for \"%1\"")
+                                          .arg(input.pronunciation);
+                allSuccess = false;
+                results.append(result);
+                continue;
             }
             for (size_t k = 0; k < syllable.phonemes.size(); ++k) {
                 PhonemeName pn;

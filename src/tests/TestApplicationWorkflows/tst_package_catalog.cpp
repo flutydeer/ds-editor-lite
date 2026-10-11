@@ -489,6 +489,9 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
                  QStringLiteral("清亮声线"));
         QCOMPARE(singer.languages().first().displayName(QStringLiteral("zh-CN")),
                  QStringLiteral("普通话"));
+        QCOMPARE(singer.languages().first().name(), QStringLiteral("Mandarin"));
+        QCOMPARE(singer.languages().first().displayName(QStringLiteral("de")),
+                 QStringLiteral("Mandarin"));
         QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), project);

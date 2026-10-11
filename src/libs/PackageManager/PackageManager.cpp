@@ -116,6 +116,7 @@ namespace {
             LanguageInfo language(toQString(handle), toQString(handle));
             if (const auto name = capabilities.languageNames.find(handle);
                 name != capabilities.languageNames.end()) {
+                language.setName(toQString(name->second.text()));
                 language.setLocalizedNames(toLocalizedTextMap(name->second));
             }
             result.append(std::move(language));

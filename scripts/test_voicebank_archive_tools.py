@@ -4,6 +4,7 @@ import json
 import hashlib
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,27 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             with zipfile.ZipFile(archive) as zipped:
                 self.assertEqual(zipped.read("model.bin"), b"fixture payload")
+
+    def test_staged_language_check_rejects_obsolete_packages(self):
+        cmake = shutil.which("cmake")
+        if not cmake:
+            self.skipTest("CMake is unavailable")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = root / "current"
+            expected.mkdir()
+            (expected / "desc.json").write_text("{}", encoding="utf-8")
+            command = [cmake, f"-DLITE_STAGED_LANG_PACKAGES_DIR={root}", "-Dexpected=current",
+                       "-P", str(TOOLS.parents[2] / "cmake/LitePackagingLayoutCheck.cmake")]
+            valid = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(valid.returncode, 0, valid.stdout + valid.stderr)
+            obsolete = root / "obsolete"
+            obsolete.mkdir()
+            (obsolete / "desc.json").write_text("{}", encoding="utf-8")
+            invalid = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn("unexpected package directories", invalid.stderr)
+            self.assertIn("obsolete", invalid.stderr)
 
     def test_pack_rejects_external_file_links_before_creating_archive(self):
         with tempfile.TemporaryDirectory() as temporary:

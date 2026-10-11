@@ -137,6 +137,9 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         if(_staged_not_directories)
             list(APPEND _findings "these entries are not directories: ${_staged_not_directories}")
         endif()
+        if(_extra)
+            list(APPEND _findings "unexpected package directories remain from an earlier source: ${_extra}")
+        endif()
     endif()
 
     if(_findings)
@@ -150,16 +153,9 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         return()
     endif()
 
-    if(_extra)
-        string(CONCAT _extra_note
-            " It also contains ${_extra}, which this configure did not stage. These directories "
-            "remain from an earlier source and do not indicate what this build deployed.")
-    else()
-        set(_extra_note "")
-    endif()
     message(STATUS
         "[lang-packages] Staged ${_staged_count} wolf language package(s) from '${source}' into "
-        "'${_stage_dir}', each with a desc.json.${_extra_note}")
+        "'${_stage_dir}', each with a desc.json.")
 
     # The install rules are checked here as well (see the file header: the install tree does not
     # exist during the build). They must install the same packages to the same land point below the
