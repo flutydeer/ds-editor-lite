@@ -1562,14 +1562,12 @@ namespace {
         return result ? result.get().value(QStringLiteral("snapshot")).toObject() : QJsonObject{};
     }
 
-    void verifyPublicVoiceAndSpeakerMix(Automation::PublicAutomationRegistry &registry,
-                                        AutomationTestSupport::TestRuntime &testRuntime,
-                                        const PublicEditingFixture &fixture,
-                                        const SingerInfo &singer,
-                                        const SingerInfo &sameIdNewerSinger,
-                                        const SpeakerInfo &sameIdNewerSpeaker,
-                                        const SpeakerInfo &sameIdNewerSpeakerB,
-                                        const SingerInfo &singleSpeakerSinger) {
+    void verifyPublicVoiceAndSpeakerMix(
+        Automation::PublicAutomationRegistry &registry,
+        AutomationTestSupport::TestRuntime &testRuntime, const PublicEditingFixture &fixture,
+        const SingerInfo &singer, const SingerInfo &sameIdNewerSinger,
+        const SpeakerInfo &sameIdNewerSpeaker, const SpeakerInfo &sameIdNewerSpeakerB,
+        const SingerInfo &singleSpeakerSinger, QList<Automation::PackageDto> &catalog) {
         auto &runtime = testRuntime.runtime();
         const auto voices = invokeSchemaValid(registry, QStringLiteral("voices.list"), {},
                                               QStringLiteral("versioned voices.list"));
@@ -1657,6 +1655,86 @@ namespace {
                                  QStringLiteral("track_id"), fixture.trackId.value());
         QCOMPARE(automaticVoice.value(QStringLiteral("own_voice")).toObject(),
                  voiceSelection(singleSpeakerSinger, sameIdNewerSpeaker));
+
+        {
+            const auto originalCatalog = catalog;
+            const auto restoreCatalog = qScopeGuard([&] { catalog = originalCatalog; });
+            const auto versionBeforeRemoval = runtime.documentVersion();
+            const auto modelBeforeRemoval = TestSupport::projectSnapshot(testRuntime.model());
+            const auto *undoBeforeRemoval = testRuntime.history()->nextUndoEntry();
+            catalog.removeIf([&](const Automation::PackageDto &package) {
+                return package.id == singleSpeakerSinger.packageId() &&
+                       package.version == singleSpeakerSinger.packageVersion();
+            });
+            const auto removedVoice = registry.invoke(
+                QStringLiteral("voices.describe"),
+                {
+                    {QStringLiteral("singer"), automaticVoice.value(QStringLiteral("own_voice"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("singer"))
+                                                   .toObject()}
+            });
+            QVERIFY(!removedVoice);
+            QCOMPARE(removedVoice.getError().code, Automation::AutomationErrorCode::NotFound);
+            QCOMPARE(removedVoice.getError().fieldPath, QStringLiteral("singer"));
+            const auto stalePage = registry.invoke(
+                QStringLiteral("voices.list"),
+                {
+                    {QStringLiteral("limit"),  1          },
+                    {QStringLiteral("cursor"), firstCursor}
+            });
+            QVERIFY(!stalePage);
+            QCOMPARE(stalePage.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+            QCOMPARE(stalePage.getError().fieldPath, QStringLiteral("cursor"));
+            const auto remainingVoice = registry.invoke(
+                QStringLiteral("voices.describe"),
+                {
+                    {QStringLiteral("singer"), voiceSelection(singer, singer.speakers().first())
+                                                   .value(QStringLiteral("singer"))
+                                                   .toObject()}
+            });
+            QVERIFY2(remainingVoice,
+                     qPrintable(remainingVoice ? QString{} : remainingVoice.getError().message));
+            QCOMPARE(remainingVoice.get()
+                         .value(QStringLiteral("snapshot"))
+                         .toObject()
+                         .value(QStringLiteral("package_version"))
+                         .toString(),
+                     singer.packageVersion().toString());
+            QCOMPARE(runtime.documentVersion(), versionBeforeRemoval);
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforeRemoval);
+            QCOMPARE(testRuntime.history()->nextUndoEntry(), undoBeforeRemoval);
+            catalog = originalCatalog;
+            const auto restoredVoice = registry.invoke(
+                QStringLiteral("voices.describe"),
+                {
+                    {QStringLiteral("singer"), automaticVoice.value(QStringLiteral("own_voice"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("singer"))
+                                                   .toObject()}
+            });
+            QVERIFY2(restoredVoice,
+                     qPrintable(restoredVoice ? QString{} : restoredVoice.getError().message));
+            QCOMPARE(restoredVoice.get()
+                         .value(QStringLiteral("snapshot"))
+                         .toObject()
+                         .value(QStringLiteral("singer_id"))
+                         .toString(),
+                     singleSpeakerSinger.singerId());
+            const auto resumedPage = registry.invoke(
+                QStringLiteral("voices.list"),
+                {
+                    {QStringLiteral("limit"),  1          },
+                    {QStringLiteral("cursor"), firstCursor}
+            });
+            QVERIFY2(resumedPage,
+                     qPrintable(resumedPage ? QString{} : resumedPage.getError().message));
+            QCOMPARE(resumedPage.get().value(QStringLiteral("singers")).toArray(),
+                     QJsonArray{expectedVoices.at(1)});
+            QCOMPARE(runtime.documentVersion(), versionBeforeRemoval);
+            QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforeRemoval);
+            QCOMPARE(testRuntime.history()->nextUndoEntry(), undoBeforeRemoval);
+        }
 
         const auto exactVoice = voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker);
         auto ambiguousVoice = exactVoice;
@@ -2541,9 +2619,9 @@ void AutomationProtocolTests::routing() {
         });
     }
     Automation::PackageRuntimeServices packageServices;
-    packageServices.installedPackages = [registryPackage, registryPackageV2] {
-        return QList<Automation::PackageDto>{registryPackage, registryPackageV2};
-    };
+    const auto packageCatalog = std::make_shared<QList<Automation::PackageDto>>(
+        QList<Automation::PackageDto>{registryPackage, registryPackageV2});
+    packageServices.installedPackages = [packageCatalog] { return *packageCatalog; };
     auto packageRefreshControl = std::make_shared<PackageRefreshTestControl>();
     packageRefreshControl->privatePath = privatePackageDirectory.path();
     packageServices.refreshPackages =
@@ -3217,7 +3295,7 @@ void AutomationProtocolTests::routing() {
                QStringLiteral("L2 voice workflows must not depend on the L3 packages domain"));
         verifyPublicVoiceAndSpeakerMix(registry, fixture, *publicEditingFixture, registrySinger,
                                        registrySingerV2, registrySpeakerV2, registrySpeakerV2B,
-                                       singleSpeakerSinger);
+                                       singleSpeakerSinger, *packageCatalog);
         access.update(AutomationWire::ControlLevel::L3);
         return;
     }
