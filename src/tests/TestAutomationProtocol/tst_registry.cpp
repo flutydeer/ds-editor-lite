@@ -1102,6 +1102,7 @@ namespace {
             {QStringLiteral("path"),        path                        },
             {QStringLiteral("options"),     options                     },
         };
+        const auto validOptions = options;
         const auto preview = registry.invoke(QStringLiteral("exports.midi.preview"), arguments);
         QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
         const auto plan = preview.get().value(QStringLiteral("plan")).toObject();
@@ -1131,6 +1132,79 @@ namespace {
         QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
         QVERIFY(!fixture.history()->canUndo());
         QVERIFY(!fixture.history()->canRedo());
+        output.close();
+
+        const auto rejectSelection = [&](const QJsonObject &selection,
+                                         Automation::AutomationErrorCode code,
+                                         const QString &fieldPath,
+                                         std::optional<Automation::ObjectRef> object = {}) {
+            const auto version = runtime.documentVersion();
+            const auto model = TestSupport::projectSnapshot(fixture.model());
+            const auto *undo = fixture.history()->nextUndoEntry();
+            const auto canRedo = fixture.history()->canRedo();
+            auto request = arguments;
+            request.insert(QStringLiteral("options"), selection);
+            const auto result = registry.invoke(QStringLiteral("exports.midi.preview"), request);
+            QVERIFY(!result);
+            QCOMPARE(result.getError().code, code);
+            QCOMPARE(result.getError().fieldPath, fieldPath);
+            QCOMPARE(result.getError().object, object);
+            QCOMPARE(runtime.documentVersion(), version);
+            QCOMPARE(TestSupport::projectSnapshot(fixture.model()), model);
+            QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+            QCOMPARE(fixture.history()->canRedo(), canRedo);
+            QCOMPARE(control.entered.available(), 0);
+            QFile existing(path);
+            QVERIFY(existing.open(QIODevice::ReadOnly));
+            QCOMPARE(existing.readAll(), previousFile);
+        };
+
+        auto selection = validOptions;
+        selection.insert(QStringLiteral("track_ids"),
+                         QJsonArray{first.id.value(), first.id.value()});
+        rejectSelection(selection, Automation::AutomationErrorCode::InvalidArgument,
+                        QStringLiteral("options.track_ids"));
+        if (QTest::currentTestFailed())
+            return;
+        selection = validOptions;
+        selection.insert(QStringLiteral("clip_ids"),
+                         QJsonArray{first.clips.at(0).id.value(), first.clips.at(0).id.value()});
+        rejectSelection(selection, Automation::AutomationErrorCode::InvalidArgument,
+                        QStringLiteral("options.clip_ids"));
+        if (QTest::currentTestFailed())
+            return;
+
+        const auto context = [&] {
+            return Automation::CommandContext{.expected = runtime.documentVersion(),
+                                              .source = Automation::InvocationSource::Test};
+        };
+        QVERIFY(runtime.project().removeTracks(context(), {second.id}));
+        QVERIFY(runtime.project().removeClips(context(), {first.clips.at(2).id}));
+        selection = validOptions;
+        selection.insert(QStringLiteral("track_ids"), tracks);
+        rejectSelection(selection, Automation::AutomationErrorCode::NotFound, {},
+                        Automation::ObjectRef{Automation::ObjectKind::Track, second.id.value()});
+        if (QTest::currentTestFailed())
+            return;
+        selection = validOptions;
+        selection.insert(QStringLiteral("clip_ids"),
+                         QJsonArray{first.clips.at(0).id.value(), first.clips.at(2).id.value()});
+        rejectSelection(
+            selection, Automation::AutomationErrorCode::NotFound, {},
+            Automation::ObjectRef{Automation::ObjectKind::Clip, first.clips.at(2).id.value()});
+        if (QTest::currentTestFailed())
+            return;
+
+        QVERIFY(runtime.history().undo(context()));
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
+        arguments.insert(QStringLiteral("options"), validOptions);
+        const auto restored = registry.invoke(QStringLiteral("exports.midi.preview"), arguments);
+        QVERIFY2(restored, qPrintable(restored ? QString{} : restored.getError().message));
+        const auto restoredPlan = restored.get().value(QStringLiteral("plan")).toObject();
+        QCOMPARE(restoredPlan.value(QStringLiteral("track_ids")).toArray(), tracks);
+        QCOMPARE(restoredPlan.value(QStringLiteral("clip_ids")).toArray(), selectedClips);
+        QCOMPARE(control.entered.available(), 0);
     }
 
     void verifyMidiExportPublicationGate(Automation::PublicAutomationRegistry &registry,
