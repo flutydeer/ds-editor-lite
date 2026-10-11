@@ -84,6 +84,7 @@ namespace {
         summary.acousticParameters = std::move(parameters);
         summary.pitchUsesExpressiveness = capabilities.allowsExpressiveness;
         summary.effectiveLanguages = toQStringList(capabilities.languages);
+        summary.reservedPhonemes = toQStringList(capabilities.reservedPhonemes);
         return summary;
     }
 
@@ -271,9 +272,15 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 toQString(singer.capabilities.defaultLanguage));
             singerInfo.setLocalizedNames(toLocalizedTextMap(singer.name));
             singerInfo.setCapability(summaryOf(singer.capabilities));
-            // Every singer in the catalog has loaded, including all of its imports. The previous
-            // implementation needed three states because it listed partially resolved singers.
-            singerInfo.setResolutionState(ResolutionState::Resolved);
+            // Spec 2.4 permits optional stages, but the editor currently runs all five stages.
+            const auto &stages = singer.capabilities;
+            const bool usable = stages.duration && stages.pitch && stages.variance &&
+                                stages.acoustic && stages.vocoder;
+            singerInfo.setResolutionState(usable ? ResolutionState::Resolved
+                                                 : ResolutionState::Missing);
+            if (!usable)
+                qWarning() << "Singer" << toQString(singer.contributionId) << "in" << packageId
+                           << "is missing stages required by the editor inference pipeline";
             // Speakers that the acoustic model cannot address are excluded from the singer rather
             // than offered and rejected later, so they are reported here. Without this warning, a
             // voicebank with this defect is indistinguishable from a voicebank with fewer speakers.

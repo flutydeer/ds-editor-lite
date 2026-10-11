@@ -47,6 +47,7 @@ struct SingerCapabilitySummary {
     std::optional<bool> vocoderPitchControllable;
 
     QList<QString> effectivePhonemes; ///< non-vocoder stage intersection
+    QStringList reservedPhonemes; ///< singer-specific rest / breath markers
     int phonemeConsistency = 0;
     QStringList phonemeWarnings;
     bool phonemeDegraded = false;

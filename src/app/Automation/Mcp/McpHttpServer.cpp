@@ -607,12 +607,16 @@ namespace Automation {
             if (m_handler) {
                 httpServer->route(
                     QStringLiteral("/mcp"), QHttpServerRequest::Method::AnyKnown,
-                    [this](QHttpServerRequest request) { return handleMcpRequest(request); });
+                    [this](const QHttpServerRequest &request, QHttpServerResponder &&responder) {
+                        sendResponse(handleMcpRequest(request), std::move(responder));
+                    });
             }
             if (m_nativeHandler) {
                 httpServer->route(
                     QStringLiteral("/automation/v1"), QHttpServerRequest::Method::AnyKnown,
-                    [this](QHttpServerRequest request) { return handleNativeRequest(request); });
+                    [this](const QHttpServerRequest &request, QHttpServerResponder &&responder) {
+                        sendResponse(handleNativeRequest(request), std::move(responder));
+                    });
             }
             httpServer->addAfterRequestHandler(
                 this, [](const QHttpServerRequest &, QHttpServerResponse &response) {
@@ -663,21 +667,22 @@ namespace Automation {
         }
 
         void stop() {
-            // A response completed a moment ago may still be on its way out: the future finished
-            // on the caller's thread, the write was queued to this one, and the socket sends on
-            // the next turn of this loop. That is exactly the shape of an exit or restart request,
-            // whose acceptance schedules the quit that brings us here. Deleting the server now
-            // would close the socket under the reply, and the client would hear "connection
-            // closed" instead of the answer it was given. Bounded, since nothing here says
-            // whether anything is pending.
-            {
-                QEventLoop drain;
-                QTimer::singleShot(150, &drain, &QEventLoop::quit);
-                drain.exec(QEventLoop::ExcludeUserInputEvents);
-            }
             QPointer<QTcpServer> tcpServer(m_tcpServer);
             if (tcpServer)
                 tcpServer->close();
+
+            QEventLoop drainLoop;
+            QTimer deadline;
+            deadline.setSingleShot(true);
+            connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
+            deadline.start(2000);
+            // Futures may already be finished while their response writes are still queued on
+            // this thread. Wait until each responder has handed its bytes to the socket first.
+            m_responseDrain = &drainLoop;
+            if (m_pendingResponses != 0)
+                drainLoop.exec(QEventLoop::ExcludeUserInputEvents);
+            m_responseDrain = nullptr;
+
             QList<QPointer<QTcpSocket>> sockets;
             if (m_httpServer) {
                 for (auto *socket : m_httpServer->findChildren<QTcpSocket *>())
@@ -688,9 +693,6 @@ namespace Automation {
                     return !socket || socket->state() == QAbstractSocket::UnconnectedState;
                 });
             };
-            QEventLoop drainLoop;
-            QTimer deadline;
-            deadline.setSingleShot(true);
             const auto finishDrain = [&] {
                 if (allDisconnected())
                     drainLoop.quit();
@@ -699,14 +701,12 @@ namespace Automation {
                 connect(socket, &QTcpSocket::disconnected, &drainLoop, finishDrain);
                 connect(socket, &QObject::destroyed, &drainLoop, finishDrain);
             }
-            connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
             // Drain response bytes before deleting sockets, with one deadline for all peers.
-            deadline.start(2000);
             for (const auto &socket : sockets) {
                 if (socket)
                     socket->disconnectFromHost();
             }
-            if (!allDisconnected())
+            if (!allDisconnected() && deadline.isActive())
                 drainLoop.exec();
             delete m_httpServer;
             m_httpServer = nullptr;
@@ -716,6 +716,24 @@ namespace Automation {
         }
 
     private:
+        void sendResponse(QFuture<QHttpServerResponse> future, QHttpServerResponder responder) {
+            ++m_pendingResponses;
+            future.then(this, [this, responder = std::move(responder)](
+                                  QHttpServerResponse response) mutable {
+                // Explicit responders bypass QHttpServer's after-request handlers.
+                auto headers = response.headers();
+                headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::CacheControl,
+                                        QStringLiteral("no-store"));
+                headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::XContentTypeOptions,
+                                        QStringLiteral("nosniff"));
+                response.setHeaders(std::move(headers));
+                responder.sendResponse(response);
+                --m_pendingResponses;
+                if (m_pendingResponses == 0 && m_responseDrain)
+                    m_responseDrain->quit();
+            });
+        }
+
         std::optional<QHttpServerResponse>
             commonRejection(const QHttpServerRequest &request,
                             const McpHttpTransportState::Protocol protocol) const {
@@ -1278,6 +1296,8 @@ namespace Automation {
         QHttpServer *m_httpServer = nullptr;
         QTcpServer *m_tcpServer = nullptr;
         AutomationHttpRoutes m_routes;
+        int m_pendingResponses = 0;
+        QEventLoop *m_responseDrain = nullptr;
     };
 
     McpHttpServer::McpHttpServer(RequestHandler handler, QObject *parent)

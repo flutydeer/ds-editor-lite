@@ -1512,7 +1512,10 @@ def main() -> int:
             report.error(f"--language {binding}: expected HANDLE=REFERENCE[@VERSION]")
             return 1
         reference, _, version = reference.partition("@")
-        if ":" not in reference:
+        package, colon, contribution = reference.partition(":")
+        category, slash, identifier = contribution.partition("/")
+        if (not colon or not slash or category != "linguist" or
+                not PACKAGE_ID.fullmatch(package) or not SEGMENT.fullmatch(identifier)):
             report.error(f"--language {binding}: a linguist in another package is referenced "
                          f"as <package>:linguist/<id>")
             return 1

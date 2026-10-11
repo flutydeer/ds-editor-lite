@@ -282,6 +282,25 @@ namespace {
                "slur and syllabification notes cannot edit phonemes");
         expect(!breath.canEditPhonemes() && !pause.canEditPhonemes(),
                "AP and SP notes cannot edit phonemes");
+
+        auto *marker = new Note;
+        configureNote(*marker, 960, "BR");
+        SingingClip clip({marker});
+        SingerInfo singer;
+        SingerCapabilitySummary capability;
+        capability.reservedPhonemes = {QStringLiteral("BR")};
+        singer.setCapability(capability);
+        clip.setTrackSingerAndSpeakerInfo(singer, {});
+        expect(!marker->canEditPhonemes(), "a singer's reserved marker cannot edit phonemes");
+        const auto sliced = SingingClipSlicer::slice(Timeline{}, clip.notes().toList());
+        expect(sliced.segments.size() == 1, "a reserved marker needs no generated phonemes");
+        if (!sliced.segments.isEmpty()) {
+            expect(sliced.segments.first().paddingStartMs == 0 &&
+                       sliced.segments.first().paddingEndMs == 0,
+                   "a reserved marker gets no artificial SP padding");
+        }
+        clip.setTrackSingerAndSpeakerInfo({}, {});
+        expect(marker->canEditPhonemes(), "reserved markers belong to the selected singer");
     }
 
     void testRelativeTimingChangeInvalidatesEditedOffsets() {

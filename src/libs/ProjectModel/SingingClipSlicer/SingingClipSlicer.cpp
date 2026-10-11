@@ -59,8 +59,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     }
 
     auto isRestNote = [](const Note &note) {
-        const auto lyric = note.lyric().trimmed();
-        return lyric == "AP" || lyric == "SP";
+        return note.isReservedPhoneme();
     };
 
     // Calculate minimum available header length based on note, two cases:

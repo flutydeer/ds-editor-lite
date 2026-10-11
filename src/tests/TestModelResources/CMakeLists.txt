@@ -22,6 +22,10 @@ set(LITE_AUDIT_VOICEBANK "" CACHE PATH "Optional published spec 2.4 voicebank")
 set(LITE_AUDIT_LANGUAGE_PACKAGES "" CACHE PATH "Language packages for the optional audit")
 if(APPLE)
     set(_spec24_plugin_root "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
+    # The deployed plugins load the bundle's SDK libraries. Loading the vcpkg copies into the
+    # same test process as well would register synthrt contribution categories twice.
+    set_property(TARGET ${PROJECT_NAME} PROPERTY BUILD_RPATH
+        "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/Frameworks")
 elseif(WIN32)
     set(_spec24_plugin_root "$<TARGET_FILE_DIR:DsEditorLite>")
 else()

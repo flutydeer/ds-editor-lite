@@ -170,12 +170,17 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {
     QTest::addColumn<bool>("sharedStages");
-    QTest::newRow("stages-in-singer-package") << false;
-    QTest::newRow("vocoder-in-dependent-package") << true;
+    QTest::addColumn<QString>("missingStage");
+    QTest::newRow("stages-in-singer-package") << false << QString();
+    QTest::newRow("vocoder-in-dependent-package") << true << QString();
+    for (const auto &stage : {QStringLiteral("duration"), QStringLiteral("pitch"),
+                              QStringLiteral("variance")})
+        QTest::newRow(qPrintable(QStringLiteral("missing-%1").arg(stage))) << false << stage;
 }
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion() {
     QFETCH(bool, sharedStages);
+    QFETCH(QString, missingStage);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
@@ -220,6 +225,17 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
         };
     };
     QStringList searchPaths{root};
+    if (!missingStage.isEmpty()) {
+        rewrite(root, QStringLiteral("characters/fixture/config.json"), [&](QJsonObject &object) {
+            QJsonArray imports;
+            for (const auto &value : object.value(QStringLiteral("imports")).toArray()) {
+                if (value.toObject().value(QStringLiteral("role")).toString() !=
+                    QStringLiteral("singer/") + missingStage)
+                    imports.append(value);
+            }
+            object.insert(QStringLiteral("imports"), imports);
+        });
+    }
     if (sharedStages) {
         const auto stageRoot = directory.filePath(QStringLiteral("ci-fixture-stages@1.0.0"));
         std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
@@ -324,7 +340,8 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
                  QStringLiteral("目录测试资源"));
         QVERIFY(!package->singers().isEmpty());
         const auto singer = package->singers().first();
-        QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
+        QCOMPARE(singer.resolutionState(), missingStage.isEmpty() ? ResolutionState::Resolved
+                                                                 : ResolutionState::Missing);
         QVERIFY(singer.capability());
         if (sharedStages) {
             QCOMPARE(singer.capability()->vocoderPitchControllable,
@@ -334,8 +351,10 @@ void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVer
             });
             QVERIFY(stages != packages.cend());
             QVERIFY(stages->singers().isEmpty());
-        } else {
+        } else if (missingStage.isEmpty()) {
             QCOMPARE(singer.capability(), baseline.capability());
+        } else if (missingStage == QStringLiteral("pitch")) {
+            QCOMPARE(singer.capability()->pitchUsesExpressiveness, std::optional<bool>(false));
         }
         QCOMPARE(singer.displayName(QStringLiteral("zh-CN")), QStringLiteral("测试歌手"));
         QCOMPARE(singer.displayName(QStringLiteral("de")), QStringLiteral("Fixture singer"));
