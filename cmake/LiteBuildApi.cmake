@@ -342,11 +342,33 @@ function(lite_deploy_application _target)
         # The existence check tests the two paths rather than the generator expression, because
         # the build uses one of those two paths.
         if(EXISTS "${_lite_plugin_release}" OR EXISTS "${_lite_plugin_debug}")
-            qm_add_copy_command(${_target}
-                SOURCES ${_lite_plugin_tree}/
-                DESTINATION ${_lite_plugin_destination}/plugins/${_library}
-                ${_install_copy_args}
+            set(_lite_plugin_stage_script
+                "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/LiteStagePluginTree.cmake")
+            set(_lite_plugin_stage_destination
+                "${_lite_plugin_destination}/plugins/${_library}")
+            if(WIN32)
+                set(_lite_plugin_stage_destination
+                    "$<TARGET_FILE_DIR:${_target}>/plugins/${_library}")
+            endif()
+            add_custom_command(TARGET ${_target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}"
+                    "-Dsource=${_lite_plugin_tree}"
+                    "-Ddestination=${_lite_plugin_stage_destination}"
+                    -P "${_lite_plugin_stage_script}"
+                VERBATIM
             )
+            if(LITE_INSTALL)
+                # Preserve qmsetup's build-relative install layout on every platform.
+                install(CODE "
+                    file(RELATIVE_PATH _plugin_relative
+                        \"${QMSETUP_BUILD_DIR}\" \"${_lite_plugin_stage_destination}\")
+                    execute_process(COMMAND \"${CMAKE_COMMAND}\"
+                        \"-Dsource=${_lite_plugin_tree}\"
+                        \"-Ddestination=\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/\${_plugin_relative}\"
+                        -P \"${_lite_plugin_stage_script}\"
+                        COMMAND_ERROR_IS_FATAL ANY)
+                ")
+            endif()
         else()
             message(WARNING
                 "No ${_library} plugin tree at ${_lite_plugin_release}; the ${_library} "

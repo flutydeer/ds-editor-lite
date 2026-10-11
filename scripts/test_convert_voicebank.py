@@ -544,6 +544,22 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
                 self.assertEqual(path.read_bytes(), original)
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
+    def test_duplicate_singer_languages_leave_the_original_package_unchanged(self):
+        self.write_language_package("vendor/lang-cmn", "cmn", "pinyin", onset=False)
+        self.stage_files()
+        for language in ({"id": "cmn"},
+                         {"id": "cmn", "s2pMode": "dict", "s2pFile": "../../assets/cmn.txt"}):
+            with self.subTest(language=language):
+                self.write_singer([language, language])
+                path = self.package / "characters/singer/config.json"
+                original = path.read_bytes()
+                code, text = self.run_script(self.package, "--in-place",
+                                             "--packages", self.work / "installed")
+                self.assertEqual(code, 1, text)
+                self.assertIn("duplicate language id 'cmn'", text)
+                self.assertEqual(path.read_bytes(), original)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_invalid_installed_language_keys_report_errors_and_clean_staging(self):
         self.write_singer([{"id": "cmn"}])
         root = self.work / "installed/vendor-lang-cmn"

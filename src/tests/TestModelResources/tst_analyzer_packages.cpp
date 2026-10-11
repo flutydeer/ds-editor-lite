@@ -366,6 +366,18 @@ int runAnalyzerPackages() {
     writePackage(fixture, "candidate", "otter/rmvpe", "f0", "invalid JSON", "0.2.0.0");
     expect(!engine->validatePackage(fixture / "candidate"),
            "a broken same-identity candidate should fail validation");
+    const auto candidateRoot = fixture / "outside-live-search-paths";
+    writePackage(candidateRoot, "dependent", "example/dependent", "f0", f0Declaration("CANDIDATE"));
+    auto dependentManifest = descJson("example/dependent", "f0", "0.1.0.0");
+    dependentManifest.insert(dependentManifest.find("\"contributions\""),
+                             "\"dependencies\": [{\"id\": \"example/sibling\", "
+                             "\"version\": \"0.1.0.0\"}],\n    ");
+    writeFile(candidateRoot / "dependent/desc.json", dependentManifest);
+    expect(!engine->validatePackage(candidateRoot / "dependent"),
+           "a candidate with a missing sibling dependency should fail validation");
+    writePackage(candidateRoot, "sibling", "example/sibling", "f0", f0Declaration("SIBLING"));
+    expect(bool(engine->validatePackage(candidateRoot / "dependent")),
+           "validation should resolve dependencies beside an unconfigured candidate");
     writeFile(installed / "inferences/f0/inference.json", "invalid JSON");
     expect(!engine->validatePackage(installed), "validation should reread changed installed files");
     expect(referencesOf(engine->analyzers(lite::synthrt::f0Contract())) == pitch,

@@ -158,6 +158,40 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords_data() {
         << QStringLiteral("lines") << Rows{{"four", "five"}} << true;
 }
 
+void ApplicationGuiTests::languageFallbackSkipsDisabledItems_data() {
+    QTest::addColumn<QString>("current");
+    QTest::addColumn<QString>("preferred");
+    QTest::addColumn<QStringList>("disabled");
+    QTest::addColumn<QString>("expected");
+    QTest::newRow("disabled-preferred")
+        << QString() << QStringLiteral("cmn") << QStringList{"cmn"} << QStringLiteral("eng");
+    QTest::newRow("missing-current")
+        << QStringLiteral("missing") << QStringLiteral("cmn") << QStringList{"cmn"}
+        << QStringLiteral("eng");
+    QTest::newRow("disabled-first-item")
+        << QString() << QStringLiteral("missing") << QStringList{"cmn"} << QStringLiteral("eng");
+    QTest::newRow("explicit-disabled-current")
+        << QStringLiteral("cmn") << QStringLiteral("eng") << QStringList{"cmn"}
+        << QStringLiteral("cmn");
+    QTest::newRow("all-disabled")
+        << QString() << QStringLiteral("cmn") << QStringList{"cmn", "eng"} << QString();
+    QTest::newRow("all-disabled-explicit-current")
+        << QStringLiteral("cmn") << QStringLiteral("eng") << QStringList{"cmn", "eng"}
+        << QStringLiteral("cmn");
+}
+
+void ApplicationGuiTests::languageFallbackSkipsDisabledItems() {
+    QFETCH(QString, current);
+    QFETCH(QString, preferred);
+    QFETCH(QStringList, disabled);
+    QFETCH(QString, expected);
+    LanguageComboBox box(QStringLiteral("language"));
+    QCOMPARE(box.setLanguages(
+                 {LanguageInfo(QStringLiteral("cmn")), LanguageInfo(QStringLiteral("eng"))},
+                 current, preferred, disabled), expected);
+    QCOMPARE(box.currentLanguage(), expected);
+}
+
 void ApplicationGuiTests::unavailableLanguageWithoutReasonKeepsFallbackTooltip() {
     LanguageComboBox box(QStringLiteral("language"));
     const auto base = QStringLiteral("Default language");
