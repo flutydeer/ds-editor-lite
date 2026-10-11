@@ -17,6 +17,7 @@ private slots:
     void initTestCase();
     void protocol();
     void identity();
+    void reusedPidDoesNotKeepAStaleLock();
     void automationBootstrap();
     void watcherLimit();
     void initialReadTimeout();

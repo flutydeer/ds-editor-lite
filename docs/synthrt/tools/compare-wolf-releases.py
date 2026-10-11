@@ -176,7 +176,7 @@ def main():
     violations = 0
     compared = 0
     print("")
-    print("%-24s %-22s %-22s %s" % ("package", labels[0], labels[1], "files changed/added/removed"))
+    print("%-24s %-22s %-22s %s" % ("package", labels[1], labels[0], "files changed/added/removed"))
     for key in sorted(packages):
         entry = packages[key]
         if len(entry) < 2:
@@ -184,7 +184,7 @@ def main():
             print("%-24s only in %s (declared %s)" % (key, labels[only], entry[only]["declared_version"]))
             continue
         compared += 1
-        old, new = entry[0], entry[1]
+        old, new = entry[1], entry[0]
         old_files, new_files = old["files"], new["files"]
         changed = sorted(k for k in set(old_files) & set(new_files) if old_files[k] != new_files[k])
         added = sorted(set(new_files) - set(old_files))

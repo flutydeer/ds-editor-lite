@@ -46,6 +46,7 @@ private slots:
 
     void projectBatchImportUsesRealLoaders();
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
+    void packageReloadReadsUpdatesWhilePipelineIsLeased();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
     void publicProjectLoadChecksPlansAndParserFailures();

@@ -54,6 +54,7 @@ namespace otter {
 namespace lite::synthrt {
 
     class SingerPipeline;
+    class Bootstrap;
 
     /// Returns the interface name of otter's F0 analysis contract.
     ///
@@ -144,9 +145,8 @@ public:
 
     /// How a rescan treats the packages that are already loaded.
     enum class RescanMode {
-        /// Releases the handles of the engine and the language session before the scan, so that
-        /// a package changed on disk is read again. A package that a running synthesis still
-        /// holds stays loaded and is taken over as it is.
+        /// Reads into a fresh unit, including same-identity packages held by running tasks. Existing
+        /// leases retain their previous unit until they finish.
         Reload,
         /// Keeps the handles during the scan, so that a package that is already loaded is taken
         /// over without being read again. Intended for the first scan after initialize(), which
@@ -224,6 +224,8 @@ public:
     /// cannot release it, and the member order ensures that the executive is destroyed before the
     /// handle is released.
     struct AnalyzerLease {
+        /// Declared first so the executive and package are destroyed before their runtime.
+        std::shared_ptr<lite::synthrt::Bootstrap> unitOwner;
         srt::PackageHandle package;
         /// The declaration behind the reference, used to read the input format of the analyzer.
         /// Valid while \c package is held.
@@ -278,8 +280,8 @@ public:
     // unit exists.
 
     /// Returns the unit, or nullptr before a successful initialize() and after shutdown(). The
-    /// pointer remains valid until shutdown() and dangles if shutdown() runs while the caller holds
-    /// it.
+    /// pointer remains valid only until the next Reload or shutdown(). Prefer the scoped operations
+    /// above; callers must not retain this borrowed pointer across either operation.
     srt::SynthUnit *unitIfReady() noexcept;
 
 signals:

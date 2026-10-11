@@ -32,8 +32,15 @@ def member_name(root, path):
 
 def collect(root):
     names = []
+    resolved_root = os.path.normcase(os.path.realpath(root))
     for current, dirs, files in os.walk(root):
         dirs.sort()
+        for name in dirs + files:
+            path = os.path.join(current, name)
+            resolved = os.path.normcase(os.path.realpath(path))
+            if (os.path.islink(path) or
+                    os.path.commonpath((resolved_root, resolved)) != resolved_root):
+                raise ValueError("symbolic link or path outside the package: %s" % path)
         for name in sorted(files):
             names.append(member_name(root, os.path.join(current, name)))
     return names
@@ -144,14 +151,18 @@ def main():
         print("FATAL: the verifier failed its own negative control", flush=True)
         return 2
 
-    names = collect(root)
+    try:
+        names = collect(root)
+    except ValueError as error:
+        print("FATAL: %s" % error, flush=True)
+        return 2
     total = sum(os.path.getsize(os.path.join(root, name)) for name in names)
     print("SOURCE files=%d bytes=%d" % (len(names), total), flush=True)
-    if os.path.exists(archive):
+    if os.path.lexists(archive):
         print("FATAL: refusing to overwrite %s" % archive, flush=True)
         return 2
     os.makedirs(os.path.dirname(archive), exist_ok=True)
-    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+    with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
         for name in names:
             zf.write(os.path.join(root, name.replace("/", os.sep)), name)
 
