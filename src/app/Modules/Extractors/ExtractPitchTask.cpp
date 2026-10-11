@@ -32,19 +32,14 @@ void ExtractPitchTask::runTask() {
             return f0.start(input);
         },
         [this](const F0::F0Result &curve) {
-            // The analyzer reports which frames are voiced. If interpolateUnvoiced is enabled, an
-            // unvoiced frame contains an interpolated frequency rather than zero, and treating it
-            // as pitch would produce a curve where the singer was silent. If the analyzer reports
-            // no voicing, a zero frequency indicates an unvoiced frame.
-            const bool hasVoicing = curve.voiced.size() == curve.f0.size();
-            QList<double> values;
-            values.reserve(static_cast<qsizetype>(curve.f0.size()));
-            for (std::size_t frame = 0; frame < curve.f0.size(); ++frame) {
-                const bool voiced = hasVoicing ? curve.voiced[frame] != 0 : curve.f0[frame] > 0;
-                values.append(voiced ? freqToMidi(curve.f0[frame]) : 0.0);
+            const auto values = pitchValues(curve);
+            if (!values) {
+                fail(ErrorCode::ModelRunFailed,
+                     tr("The pitch analyzer returned mismatched frequency and voicing frames"));
+                return;
             }
             auto placed =
-                placeOnTimeline(values, curve.startTime * 1000.0, curve.interval * 1000.0);
+                placeOnTimeline(*values, curve.startTime * 1000.0, curve.interval * 1000.0);
             if (!placed.values.isEmpty()) {
                 result.append(std::move(placed));
             }
@@ -52,6 +47,21 @@ void ExtractPitchTask::runTask() {
     if (!success()) {
         result.clear();
     }
+}
+
+std::optional<QList<double>> ExtractPitchTask::pitchValues(const F0::F0Result &curve) {
+    const bool hasVoicing = !curve.voiced.empty();
+    if (hasVoicing && curve.voiced.size() != curve.f0.size())
+        return std::nullopt;
+    // An interpolated unvoiced frame can have a positive frequency, so only an absent mask
+    // permits inferring voicing from F0.
+    QList<double> values;
+    values.reserve(static_cast<qsizetype>(curve.f0.size()));
+    for (std::size_t frame = 0; frame < curve.f0.size(); ++frame) {
+        const bool voiced = hasVoicing ? curve.voiced[frame] != 0 : curve.f0[frame] > 0;
+        values.append(voiced ? freqToMidi(curve.f0[frame]) : 0.0);
+    }
+    return values;
 }
 
 double ExtractPitchTask::freqToMidi(const double frequency) {

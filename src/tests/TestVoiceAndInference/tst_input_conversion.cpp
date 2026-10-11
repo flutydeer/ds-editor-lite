@@ -2,6 +2,7 @@
 
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Tasks/InferTaskCommon.h"
 #include "Modules/Inference/Utils/PitchRouting.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
@@ -10,6 +11,7 @@
 #include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 
 #include <map>
+#include <QJsonObject>
 
 namespace {
     QList<InferWord> singleWord(const int tone = 0) {
@@ -54,6 +56,32 @@ InferSpeakerMix twoSpeakerMix(const QString &first, const QString &second) {
         {second, 0, {0.4}}
     };
     return mix;
+}
+
+void VoiceAndInferenceTests::inputConversionTrimsReservedLyrics_data() {
+    QTest::addColumn<QString>("lyric");
+    QTest::addColumn<bool>("rest");
+    QTest::newRow("plain") << QStringLiteral("SP") << true;
+    QTest::newRow("spaces") << QStringLiteral(" SP ") << true;
+    QTest::newRow("custom-marker") << QStringLiteral("\tBR\n") << true;
+    QTest::newRow("ordinary-lyric") << QStringLiteral(" la ") << false;
+    QTest::newRow("partial-marker") << QStringLiteral(" BR x ") << false;
+}
+
+void VoiceAndInferenceTests::inputConversionTrimsReservedLyrics() {
+    QFETCH(QString, lyric);
+    QFETCH(bool, rest);
+    Note note;
+    note.setLyric(lyric);
+    const InferInputNote input(note, {"AP", "SP", "BR"});
+    QCOMPARE(input.isRest, rest);
+    QCOMPARE(note.lyric(), lyric.trimmed());
+    auto serialized = note.serialize();
+    serialized.insert(QStringLiteral("lyric"), lyric);
+    Note restored;
+    restored.deserialize(serialized);
+    QCOMPARE(restored.lyric(), lyric.trimmed());
+    QCOMPARE(InferInputNote(restored, {"AP", "SP", "BR"}).isRest, rest);
 }
 
 void VoiceAndInferenceTests::inputConversionPieceSpeakerMix_data() {

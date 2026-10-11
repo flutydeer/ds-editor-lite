@@ -62,6 +62,7 @@ private slots:
     void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 
     void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
+    void pitchExtractionRejectsMisalignedVoicing();
     void extractionPreparationRejectsMissingResourcesAndChangedSources();
     void audioBatchFailurePolicy_data();
 

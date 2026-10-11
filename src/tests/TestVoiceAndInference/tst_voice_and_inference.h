@@ -28,6 +28,8 @@ private slots:
     void voiceContextSingerCapabilityCopiesAreIndependent();
     void inputConversionPieceSpeakerMix_data();
     void inputConversionPieceSpeakerMix();
+    void inputConversionTrimsReservedLyrics_data();
+    void inputConversionTrimsReservedLyrics();
     void inputConversionWordSpeakerMapping_data();
     void inputConversionWordSpeakerMapping();
     void inputConversionFrameSpeakerMapping_data();
