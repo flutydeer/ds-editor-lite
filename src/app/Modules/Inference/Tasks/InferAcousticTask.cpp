@@ -87,7 +87,7 @@ InferAcousticTask::AcousticCacheLookup
     InferAcousticTask::lookupCache(const InferAcousticInput &input, const QString &cacheDirectory) {
     AcousticCacheLookup lookup;
     lookup.model = input.toEngineModel();
-    lookup.inputHash = lookup.model.hashData();
+    lookup.inputHash = InferCacheUtils::inputHashForCurrentModels(lookup.model.hashData());
 
     const QDir cacheDir(cacheDirectory);
     if (!cacheDir.exists())

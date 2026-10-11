@@ -47,6 +47,7 @@ private slots:
     void audioDeviceSettingsFollowAvailableCandidates();
     void computeDeviceSettingsMatchAvailableGpuIdentity_data();
     void computeDeviceSettingsMatchAvailableGpuIdentity();
+    void computeDeviceSwitchValidatesTheTargetProvider();
     void packageVersionAndPathProjection();
     void packageRefreshPreviewAndResultProjection();
     void editorViewCommands_data();

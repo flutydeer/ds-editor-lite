@@ -101,6 +101,9 @@ public:
 
     bool initialized() const noexcept;
 
+    /// Metadata and dictionary-only languages remain usable without an ONNX driver.
+    bool inferenceReady() const;
+
     /// Returns whether initialize() has been attempted, regardless of its result. A caller that
     /// requires the engine can poll this to detect a failure instead of waiting indefinitely.
     bool initializationDone() const noexcept;
@@ -163,7 +166,12 @@ public:
     srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths,
                           std::vector<lite::synthrt::PackageProblem> *problems = nullptr,
-                          RescanMode mode = RescanMode::Reload);
+                          RescanMode mode = RescanMode::Reload,
+                          std::vector<lite::synthrt::PackageEntry> *packages = nullptr);
+
+    /// Reads and validates the supplied directory in a separate unit, even when its identity is
+    /// already loaded. No candidate handles or declarations enter the live catalog.
+    srt::Expected<void> validatePackage(const std::filesystem::path &path) const;
 
     /// Returns the singers found by the last scan.
     std::vector<lite::synthrt::SingerEntry> singers() const;

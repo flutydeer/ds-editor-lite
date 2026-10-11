@@ -221,10 +221,12 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             return commitRejectedError();
         }
         std::vector<lite::synthrt::PackageProblem> problems;
+        std::vector<lite::synthrt::PackageEntry> scannedPackages;
         auto scanned = SynthrtEngine::instance().refreshVoicebanks(
             searchPaths, &problems,
             mode == ScanMode::ReuseLoaded ? SynthrtEngine::RescanMode::ReuseLoaded
-                                          : SynthrtEngine::RescanMode::Reload);
+                                          : SynthrtEngine::RescanMode::Reload,
+            &scannedPackages);
         if (!scanned) {
             return GetInstalledPackagesError{
                 GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
@@ -240,28 +242,27 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                                                QString::fromStdString(problem.reason));
         }
 
-        // Singers are reported per contribution and grouped into their packages. The grouping
+        // Packages are listed even if they only contribute analyzers, models or languages. Grouping
         // uses the package identity rather than the path, because two directories may contain
         // the same package and the loader has already selected one of the two directories.
         QList<PackageInfo> packages;
         QHash<QString, qsizetype> packageAt;
+        for (const auto &entry : scannedPackages) {
+            const auto id = toQString(entry.id);
+            const auto version = VersionUtils::stdc_to_qt(entry.version);
+            PackageInfo info(id, version, toQString(entry.vendor.text()),
+                             toQString(entry.description.text()), toQString(entry.copyright.text()),
+                             {}, toQString(entry.url), StringUtils::path_to_qstr(entry.path));
+            info.setLocalizedVendor(toLocalizedTextMap(entry.vendor));
+            info.setLocalizedDescription(toLocalizedTextMap(entry.description));
+            info.setLocalizedLicense(toLocalizedTextMap(entry.copyright));
+            packageAt.insert(id + QLatin1Char('@') + version.toString(), packages.size());
+            packages.append(std::move(info));
+        }
         for (const auto &singer : singers) {
             const auto packageId = toQString(singer.packageId);
             const auto packageVersion = VersionUtils::stdc_to_qt(singer.packageVersion);
             const auto key = packageId + QLatin1Char('@') + packageVersion.toString();
-
-            if (!packageAt.contains(key)) {
-                PackageInfo packageInfo(packageId, packageVersion,
-                                        toQString(singer.packageVendor.text()),
-                                        toQString(singer.packageDescription.text()),
-                                        toQString(singer.packageCopyright.text()), {}, {},
-                                        StringUtils::path_to_qstr(singer.packagePath));
-                packageInfo.setLocalizedVendor(toLocalizedTextMap(singer.packageVendor));
-                packageInfo.setLocalizedDescription(toLocalizedTextMap(singer.packageDescription));
-                packageInfo.setLocalizedLicense(toLocalizedTextMap(singer.packageCopyright));
-                packageAt.insert(key, packages.size());
-                packages.append(std::move(packageInfo));
-            }
 
             SingerInfo singerInfo(
                 SingerIdentifier{toQString(singer.contributionId), packageId, packageVersion},

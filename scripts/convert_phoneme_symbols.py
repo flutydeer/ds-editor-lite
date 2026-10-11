@@ -47,12 +47,12 @@ def convert(input_path: Path, output_path: Path, prefix: str) -> int:
     """
     with open(input_path, "r", encoding="utf-8") as stream:
         data = yaml.safe_load(stream)
-    if not isinstance(data, dict):
+    if not isinstance(data, dict) or not isinstance(data.get("symbols"), list):
         raise ValueError("the source must be a map with a `symbols` list")
 
     prefix_with_slash = prefix + "/"
     phoneme_types = {}
-    for entry in data.get("symbols", []):
+    for entry in data["symbols"]:
         if not isinstance(entry, dict):
             continue
         symbol = entry.get("symbol", "")

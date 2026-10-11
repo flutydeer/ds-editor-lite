@@ -84,7 +84,7 @@ void InferDurationTask::runTask() {
 
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
-    m_inputHash = input.hashData();
+    m_inputHash = InferCacheUtils::inputHashForCurrentModels(input.hashData());
     const auto cacheDir = QDir(m_cacheDirectory);
     const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("duration"), m_inputHash);
     if (!cacheDir.exists())

@@ -617,6 +617,14 @@ namespace Automation {
 
         bool audioRuntimeAvailable();
 
+        QList<SettingsGpuCandidateDto> gpuCandidatesFor(const QString &provider) {
+            QList<SettingsGpuCandidateDto> candidates;
+            for (const auto &gpu : GpuCatalog::forProvider(provider))
+                candidates.append({.index = gpu.index, .id = gpu.deviceId,
+                                   .displayName = gpu.description});
+            return candidates;
+        }
+
         ComputeDevicePublicValueDto publicComputeValue(const InferenceSettingsDto &inference) {
             return {
                 .executionProvider = inference.executionProvider,
@@ -790,19 +798,11 @@ namespace Automation {
             // filling them back from the currently selected item. Filling them from the selected
             // item would leave the candidates always empty when no device is selected, and the
             // gpu_id validation of settings.compute_device.update would always pass.
-            QList<SettingsGpuCandidateDto> gpuCandidates;
-            for (const auto &gpu : GpuCatalog::forProvider(configured.inference.executionProvider)) {
-                gpuCandidates.append({
-                    .index = gpu.index,
-                    .id = gpu.deviceId,
-                    .displayName = gpu.description,
-                });
-            }
             result.computeDevice = ComputeDevicePublicSettingsDto{
                 .configured = publicComputeValue(configured.inference),
                 .effective = publicComputeValue(effectiveSettings.inference),
                 .providerCandidates = std::move(providerCandidates),
-                .gpuCandidates = std::move(gpuCandidates),
+                .gpuCandidates = gpuCandidatesFor(configured.inference.executionProvider),
             };
             if (configured.inference.executionProvider !=
                 effectiveSettings.inference.executionProvider) {
@@ -1131,6 +1131,7 @@ namespace Automation {
                 }
             });
         services.snapshot = [options] { return captureAll(options); };
+        services.gpuCandidates = gpuCandidatesFor;
         services.publicSnapshot = [options, effectiveSettings] {
             return capturePublicSettings(options, *effectiveSettings);
         };

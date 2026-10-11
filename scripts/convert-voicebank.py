@@ -639,7 +639,8 @@ def report_the_onset_layer(handle: str, entry: dict, bound_linguist: str, s2p, o
 
 
 def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
-                        reserved: set, known: set, report: Report) -> dict:
+                        reserved: set, known: set, report: Report,
+                        singer_namespace: str = "") -> dict:
     """Builds a voicebank-side linguist around the G2P of a language package.
 
     The three stages of a linguist come from different sources. The grapheme-to-phoneme stage
@@ -652,6 +653,7 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
     Returns the entries that the caller adds to desc.json, or None on failure.
     """
     handle = entry["id"]
+    resource_id = f"{singer_namespace}-{handle}" if singer_namespace else handle
     scheme = served["scheme"]
     mode = entry.get("s2pMode", "dict")
     variant = S2P_VARIANTS.get(mode)
@@ -682,7 +684,7 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
 
     # The syllable stage. `direct` requires no file: it passes the phonemes of the G2P through,
     # which suits a language whose G2P already produces phonemes instead of syllables.
-    s2p_dir = root / "inferences" / f"s2p-{handle}"
+    s2p_dir = root / "inferences" / f"s2p-{resource_id}"
     phonemes = set()
     configuration = {}
     if variant != "direct":
@@ -725,9 +727,9 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         # time.
         "exports": {"languages": [{"language": handle, "scheme": scheme}]},
     })
-    inferences.append({"id": f"s2p-{handle}",
-                       "path": f"./inferences/s2p-{handle}/inference.json"})
-    imports.append({"role": S2P_ROLE, "ref": f":inference/s2p-{handle}"})
+    inferences.append({"id": f"s2p-{resource_id}",
+                       "path": f"./inferences/s2p-{resource_id}/inference.json"})
+    imports.append({"role": S2P_ROLE, "ref": f":inference/s2p-{resource_id}"})
 
     # The onset stage is optional: a language without a rule resource has no onset stage, and the
     # pronunciation layer still works. The deployment-level consequence of a missing member is
@@ -737,7 +739,7 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         if mode_name != "rule":
             report.error(f"{handle}: unknown onsetMode {mode_name!r}")
             return None
-        onset_dir = root / "inferences" / f"onset-{handle}"
+        onset_dir = root / "inferences" / f"onset-{resource_id}"
         absolute, relative = relocate(entry["onsetFile"], onset_dir)
         if absolute is None:
             return None
@@ -749,11 +751,11 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
             "name": f"{handle} onsets",
             "configuration": {"file": relative},
         })
-        inferences.append({"id": f"onset-{handle}",
-                           "path": f"./inferences/onset-{handle}/inference.json"})
-        imports.append({"role": ONSET_ROLE, "ref": f":inference/onset-{handle}"})
+        inferences.append({"id": f"onset-{resource_id}",
+                           "path": f"./inferences/onset-{resource_id}/inference.json"})
+        imports.append({"role": ONSET_ROLE, "ref": f":inference/onset-{resource_id}"})
 
-    linguist_id = f"{handle}-{scheme}"
+    linguist_id = f"{resource_id}-{scheme}"
     linguist_dir = root / "linguists" / linguist_id
     linguist_dir.mkdir(parents=True, exist_ok=True)
     write_json(linguist_dir / "linguist.json", {
@@ -1144,13 +1146,13 @@ def convert_declaration(path: Path, report: Report):
 
 def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict, index: dict,
                            reserved: set, known: set, required: dict, synthesised: dict,
-                           report: Report) -> None:
+                           report: Report, singer_namespace: str = "") -> None:
     """Converts 2.3 `inferenceId` imports into 2.4 role and ref pairs and binds singer languages.
 
     Collects into \a required the packages referenced by any binding, so that the caller can
     declare them, and into \a synthesised the contributions that any linguist built here adds to
-    the package, each once: a language produces the same declarations regardless of the singer
-    that references it, and within a category an `id` identifies a single contribution.
+    the package. Multiple singers get separate language declarations because their dictionaries
+    and onset rules may differ even when their language handles match.
     """
 
     def add_built(category: str, entries: list) -> None:
@@ -1229,7 +1231,7 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
             # inventory different from the inventory that the voicebank ships.
             if entry.get("s2pFile") or entry.get("onsetFile") or entry.get("dict"):
                 built = synthesise_linguist(root, path.parent, entry, served, reserved,
-                                            known, report)
+                                            known, report, singer_namespace)
                 if built is None:
                     continue
                 add_built("linguist", [built["linguist"]])
@@ -1320,6 +1322,18 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     kinds = {}
     singers = []
     contributions = {}
+    # Check the whole declaration list before rewriting any file. Absolute paths, parent traversal
+    # and links must not turn a conversion of the staging copy into a write outside that copy.
+    for source_key in ("inferences", "singers"):
+        for relative in contributes.get(source_key, []):
+            if not isinstance(relative, str):
+                report.error(f"{desc_path}: contribution path must be a string")
+                return
+            try:
+                (root / relative).resolve().relative_to(root.resolve())
+            except (ValueError, OSError, RuntimeError):
+                report.error(f"{desc_path}: {relative} is outside the package")
+                return
     for source_key, target_key in (("inferences", "inference"), ("singers", "singer")):
         entries = contributes.get(source_key, [])
         if not entries:
@@ -1352,7 +1366,7 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
             if target_key == "inference":
                 kinds[identifier] = kind
             else:
-                singers.append(declaration_path)
+                singers.append((declaration_path, identifier))
             # The path keeps its original spelling, so no path inside the declaration changes.
             converted_entries.append({"id": identifier, "path": f"./{relative}"})
         if converted_entries:
@@ -1369,9 +1383,10 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
 
     required = {}
     synthesised = {}
-    for singer in singers:
+    for singer, identifier in singers:
         convert_singer_imports(root, singer, kinds, overrides, index, set(reserved), known,
-                               required, synthesised, report)
+                               required, synthesised, report,
+                               identifier if len(singers) > 1 else "")
     # Contributions added by the linguists built above. They are appended after the loop because
     # they exist only after the singer languages have been read.
     for category, entries in sorted(synthesised.items()):

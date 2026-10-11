@@ -149,6 +149,17 @@ namespace lite::synthrt {
         }
     };
 
+    /// Metadata of a scanned package, including packages without singer contributions.
+    struct PackageEntry {
+        std::string id;
+        stdc::VersionNumber version;
+        fs::path path;
+        srt::DisplayText vendor;
+        srt::DisplayText description;
+        srt::DisplayText copyright;
+        std::string url;
+    };
+
     /// A singer contributed by a loaded package.
     ///
     /// The package fields are repeated on every singer of a package rather than stored once beside

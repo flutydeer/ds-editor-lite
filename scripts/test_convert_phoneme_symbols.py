@@ -83,6 +83,15 @@ class ConvertPhonemeSymbolsTest(unittest.TestCase):
     def test_reports_the_missing_parent_directory(self):
         self.assertEqual(self.run_helper(self.source, "-o", self.work / "absent" / "out.json"), 1)
 
+    def test_rejects_missing_or_non_list_symbols_without_writing_output(self):
+        for source in ("{}", "symbols: null", "symbols: text", "symbols: 42",
+                       "symbols: {symbol: en/a}"):
+            with self.subTest(source=source):
+                self.source.write_text(source, encoding="utf-8")
+                output = self.work / "out.json"
+                self.assertEqual(self.run_helper(self.source, "-o", output), 1)
+                self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1019,11 +1019,14 @@ namespace Automation {
                         QStringLiteral("execution_provider"),
                         QStringLiteral("Inference provider is unavailable"));
                 }
+                const auto candidates = m_services.gpuCandidates
+                                            ? m_services.gpuCandidates(target.inference.executionProvider)
+                                            : publicSnapshot.computeDevice
+                                                  ? publicSnapshot.computeDevice->gpuCandidates
+                                                  : QList<SettingsGpuCandidateDto>{};
                 if (target.inference.executionProvider != QStringLiteral("CPU") &&
-                    publicSnapshot.computeDevice &&
-                    !publicSnapshot.computeDevice->gpuCandidates.isEmpty() &&
+                    (m_services.gpuCandidates || !candidates.isEmpty()) &&
                     !target.inference.selectedGpuId.isEmpty()) {
-                    const auto &candidates = publicSnapshot.computeDevice->gpuCandidates;
                     const auto found = std::any_of(
                         candidates.cbegin(), candidates.cend(), [&](const auto &candidate) {
                             return candidate.available &&

@@ -84,7 +84,8 @@ void InferVarianceTask::runTask() {
     const auto input = m_input.toEngineModel();
     auto cacheKey = input.hashData().toUtf8();
     cacheKey.append(":variance-output-v2");
-    m_inputHash = QCryptographicHash::hash(cacheKey, QCryptographicHash::Sha1).toHex();
+    m_inputHash = InferCacheUtils::inputHashForCurrentModels(
+        QCryptographicHash::hash(cacheKey, QCryptographicHash::Sha1).toHex());
     const auto cacheDir = QDir(m_cacheDirectory);
     const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("variance"), m_inputHash);
     if (!cacheDir.exists())

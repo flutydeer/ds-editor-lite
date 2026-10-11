@@ -1,5 +1,7 @@
 #include "InferCacheUtils.h"
 
+#include "Bootstrap/AppDataPaths.h"
+
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -10,10 +12,51 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QCryptographicHash>
+#include <QMutexLocker>
+#include <QSaveFile>
+#include <QUuid>
 
 namespace InferCacheUtils {
 
     namespace {
+
+        QMutex revisionMutex;
+        QHash<QString, QByteArray> unpersistedRevisions;
+
+        QString revisionPath() {
+            return QDir(AppDataPaths::applicationData()).filePath(
+                QStringLiteral("inference-model-revision"));
+        }
+
+        QByteArray newRevision(const QString &path) {
+            const auto revision = QUuid::createUuid().toByteArray(QUuid::WithoutBraces);
+            QDir().mkpath(QFileInfo(path).absolutePath());
+            QSaveFile file(path);
+            if (file.open(QIODevice::WriteOnly) && file.write(revision) == revision.size() &&
+                file.commit()) {
+                unpersistedRevisions.remove(path);
+            } else {
+                // Keep the current session safe even if the profile cannot be written. Removing
+                // the previous marker also prevents an old revision being reused after restart.
+                QFile::remove(path);
+                unpersistedRevisions.insert(path, revision);
+                qWarning() << "Could not persist inference cache revision:" << path;
+            }
+            return revision;
+        }
+
+        QByteArray currentRevision(const QString &path) {
+            if (unpersistedRevisions.contains(path))
+                return unpersistedRevisions.value(path);
+            QFile file(path);
+            if (file.open(QIODevice::ReadOnly)) {
+                const auto revision = file.readAll();
+                if (!QUuid::fromString(QString::fromUtf8(revision)).isNull())
+                    return revision;
+            }
+            return newRevision(path);
+        }
 
         const QRegularExpression kCacheFilePattern(
             QStringLiteral("^infer-(acoustic|duration|pitch|variance)-(input|output)-"
@@ -30,6 +73,17 @@ namespace InferCacheUtils {
         }
 
     } // namespace
+
+    QString inputHashForCurrentModels(const QString &inputHash) {
+        QMutexLocker lock(&revisionMutex);
+        return QCryptographicHash::hash(inputHash.toUtf8() + ':' + currentRevision(revisionPath()),
+                                        QCryptographicHash::Sha1).toHex();
+    }
+
+    void invalidateModelCaches() {
+        QMutexLocker lock(&revisionMutex);
+        newRevision(revisionPath());
+    }
 
     CacheFileNames cacheFileNames(const QString &category, const QString &hash) {
         // Only the acoustic task renders audio; every other task stores its result as JSON.

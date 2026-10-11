@@ -398,6 +398,11 @@ bool SynthrtEngine::initialized() const noexcept {
     return _impl->initialized.load(std::memory_order_acquire);
 }
 
+bool SynthrtEngine::inferenceReady() const {
+    std::shared_lock lock(_impl->lifecycle);
+    return _impl->bootstrap && _impl->bootstrap->hasDriver();
+}
+
 bool SynthrtEngine::initializationDone() const noexcept {
     return _impl->initializationDone.load(std::memory_order_acquire);
 }
@@ -458,7 +463,8 @@ void SynthrtEngine::shutdown() noexcept {
 srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     SynthrtEngine::refreshVoicebanks(const std::vector<fs::path> &searchPaths,
                                      std::vector<lite::synthrt::PackageProblem> *problems,
-                                     RescanMode mode) {
+                                     RescanMode mode,
+                                     std::vector<lite::synthrt::PackageEntry> *packages) {
     // Release idle app caches before taking the SDK lock: their DirectML teardown guard has the
     // same lock order as an inference task (provider serialization, then SDK lifecycle).
     if (mode == RescanMode::Reload)
@@ -533,7 +539,31 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         // takes no lock of its own.
         _impl->feedSingerPhonemes();
     }
+    if (packages) {
+        packages->clear();
+        for (const auto &package : _impl->packages) {
+            packages->push_back({package.id(), package.version(), package.path(), package.vendor(),
+                                 package.description(), package.copyright(), package.url()});
+        }
+    }
     return _impl->catalog;
+}
+
+srt::Expected<void> SynthrtEngine::validatePackage(const fs::path &path) const {
+    srt::SynthUnit isolated;
+    {
+        std::shared_lock lock(_impl->lifecycle);
+        if (!_impl->bootstrap)
+            return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
+        const auto &unit = _impl->bootstrap->unit();
+        isolated.setPackagePaths(unit.packagePaths());
+        for (const auto &category : lite::synthrt::pluginCategories({}))
+            isolated.setPluginPaths(category.category, unit.pluginPaths(category.category));
+    }
+    auto opened = isolated.openPackage(path, srt::SynthUnit::Load);
+    if (!opened)
+        return opened.takeError();
+    return {};
 }
 
 std::uint64_t SynthrtEngine::catalogGeneration() const noexcept {
@@ -612,11 +642,13 @@ std::vector<lite::synthrt::AnalyzerEntry>
     });
     const auto wanted = interfaceName.toStdString();
     std::vector<lite::synthrt::AnalyzerEntry> result;
+    std::optional<std::pair<std::string, std::string>> previous;
     for (auto &entry : found) {
-        if (!result.empty() && result.back().packageId == entry.packageId &&
-            result.back().contributionId == entry.contributionId) {
+        const auto key = std::pair{entry.packageId, entry.contributionId};
+        if (previous == key) {
             continue;
         }
+        previous = key;
         if (!wanted.empty() && entry.interfaceName != wanted) {
             continue;
         }

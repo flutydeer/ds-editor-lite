@@ -227,12 +227,8 @@ namespace Automation {
                 return AutomationResult<PackageValidationReportDto>(std::move(error));
             }
             PackageValidationReportDto result;
-            auto opened =
-                unit->openPackage(StringUtils::qstr_to_path(path), srt::SynthUnit::Load);
+            auto opened = SynthrtEngine::instance().validatePackage(StringUtils::qstr_to_path(path));
             if (opened) {
-                // Released immediately because validation does not keep the package loaded. A
-                // voicebank in use by the editor is held by the catalog, not by this handle.
-                opened.take().reset();
                 return AutomationResult<PackageValidationReportDto>(std::move(result));
             }
             result.hasErrors = true;

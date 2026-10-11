@@ -573,6 +573,7 @@ namespace Automation {
     struct SettingsRuntimeServices {
         std::function<SettingsSnapshotDto()> snapshot;
         std::function<PublicSettingsSnapshotDto()> publicSnapshot;
+        std::function<QList<SettingsGpuCandidateDto>(const QString &provider)> gpuCandidates;
         std::function<bool(const GeneralSettingsDto &)> applyGeneral;
         std::function<bool(const AppearanceSettingsDto &)> applyAppearance;
         std::function<bool(const InferenceSettingsDto &)> applyInference;
