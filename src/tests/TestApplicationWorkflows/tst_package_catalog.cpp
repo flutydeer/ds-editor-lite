@@ -294,6 +294,52 @@ void ApplicationWorkflowTests::fillLyricPreservesSingerReservedMarkers() {
     }
 }
 
+void ApplicationWorkflowTests::disjointModelPhonemesDisableLanguageCoverage() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    QFile declaration(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
+    QVERIFY(declaration.open(QIODevice::ReadOnly));
+    auto object = QJsonDocument::fromJson(declaration.readAll()).object();
+    declaration.close();
+    object.insert(QStringLiteral("reservedPhonemes"), QJsonArray{});
+    QVERIFY(declaration.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto bytes = QJsonDocument(object).toJson();
+    QCOMPARE(declaration.write(bytes), bytes.size());
+    declaration.close();
+    for (const auto *stage : {"duration", "pitch", "variance", "acoustic"}) {
+        QFile phonemes(QDir(root).filePath(
+            QStringLiteral("inferences/%1/phonemes.json").arg(QString::fromLatin1(stage))));
+        QVERIFY(phonemes.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const QJsonObject table{{QStringLiteral("cmn/%1-only").arg(QString::fromLatin1(stage)), 0}};
+        const auto tableBytes = QJsonDocument(table).toJson();
+        QCOMPARE(phonemes.write(tableBytes), tableBytes.size());
+    }
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    const auto loaded = packageManager->refreshInstalledPackages({root});
+    QVERIFY(loaded);
+    QVERIFY(!loaded.get().successfulPackages.isEmpty());
+    const auto identity = loaded.get().successfulPackages.first().singers().first().identifier();
+    const auto singer = SynthrtEngine::instance().singer(identity);
+    QVERIFY(singer);
+    QVERIFY(singer->capabilities.singablePhonemes.has_value());
+    QVERIFY(singer->capabilities.singablePhonemes->empty());
+    QVERIFY(!SynthrtEngine::instance().canConvert(identity, QStringLiteral("cmn")));
+    QVERIFY(!SynthrtEngine::instance()
+                 .languageUnavailableReason(identity, QStringLiteral("cmn")).isEmpty());
+}
+
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {
     QTest::addColumn<bool>("sharedStages");
     QTest::addColumn<QString>("missingStage");

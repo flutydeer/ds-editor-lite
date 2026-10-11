@@ -91,10 +91,10 @@ namespace lite::synthrt {
         /// Returns the phonemes that every non-empty table of \a tables holds.
         ///
         /// An empty table declares nothing and constrains nothing, which is why it is skipped
-        /// instead of intersected. An empty result means no phoneme is common to the models that
-        /// declared a table, and the caller that feeds the language layer treats it as no
-        /// declaration, because an empty table there declares that the singer sings nothing.
-        std::vector<std::string> commonPhonemes(const std::vector<std::set<std::string>> &tables) {
+        /// instead of intersected. No value means no table was declared; an empty vector means
+        /// that declared tables have no common phoneme.
+        std::optional<std::vector<std::string>>
+            commonPhonemes(const std::vector<std::set<std::string>> &tables) {
             std::set<std::string> result;
             bool started = false;
             for (const auto &table : tables) {
@@ -114,7 +114,9 @@ namespace lite::synthrt {
                     }
                 }
             }
-            return {result.begin(), result.end()};
+            if (!started)
+                return std::nullopt;
+            return std::vector<std::string>(result.begin(), result.end());
         }
 
         /// Supplies the phoneme table of every singer of \a catalog that declares one.
@@ -124,10 +126,8 @@ namespace lite::synthrt {
         template <class Supply>
         void feedSingers(const std::vector<SingerEntry> &catalog, Supply &&supply) {
             for (const auto &entry : catalog) {
-                // An empty table is no declaration. Supplying it would declare that the singer
-                // covers no phoneme, and the language layer reports a language with a complete
-                // inventory as unsingable in that case.
-                if (entry.capabilities.singablePhonemes.empty()) {
+                // Keep unknown coverage distinct from the known empty intersection of tables.
+                if (!entry.capabilities.singablePhonemes) {
                     continue;
                 }
                 // A singer that declares no language has no entry in the catalog of the language
@@ -470,7 +470,7 @@ namespace lite::synthrt {
                                         entry.contributionId),
                     entry.packageVersion,
                 },
-                entry.capabilities.singablePhonemes);
+                *entry.capabilities.singablePhonemes);
         });
     }
 
@@ -478,7 +478,7 @@ namespace lite::synthrt {
         feedSingers(catalog, [&language](const SingerEntry &entry) {
             language.setSingerPhonemes(
                 {entry.packageId, entry.contributionId, entry.packageVersion},
-                entry.capabilities.singablePhonemes);
+                *entry.capabilities.singablePhonemes);
         });
     }
 

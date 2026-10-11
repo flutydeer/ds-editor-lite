@@ -569,7 +569,8 @@ int runVoicebankAudit() {
     // The table the chain measures a coverage with comes from the catalog, and the audit supplies it
     // through the production entry point rather than reading a file of its own. Everything asserted
     // below therefore describes what the editor runs.
-    const auto &derived = capabilities.singablePhonemes;
+    expect(capabilities.singablePhonemes.has_value(), "the singer declares a phoneme table");
+    const auto derived = capabilities.singablePhonemes.value_or(std::vector<std::string>{});
     expect(!derived.empty(),
            "the catalog derives a phoneme table for the singer, which is what a measured coverage "
            "requires");
