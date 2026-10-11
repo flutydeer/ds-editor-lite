@@ -246,6 +246,36 @@ class ConvertVoicebankTest(VoicebankFixture):
         self.assertFalse((output / "keep.txt").exists())
         self.assertTrue((output / "desc.json").is_file())
 
+    def test_force_rejects_file_destinations_without_removing_them(self):
+        original = (self.package / "desc.json").read_bytes()
+        for destination, options in (
+                (self.work / "file-output", ("--output", self.work / "file-output", "--force")),
+                (self.package.with_name(self.package.name + ".converting"), ("--in-place", "--force"))):
+            with self.subTest(destination=destination):
+                destination.write_text("preserve", encoding="utf-8")
+                code, text = self.run_script(self.package, *options)
+                self.assertEqual(code, 1, text)
+                self.assertIn("destination must be a directory", text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(destination.read_text(encoding="utf-8"), "preserve")
+                self.assertEqual((self.package / "desc.json").read_bytes(), original)
+
+    def test_force_rejects_output_symlinks_without_touching_the_target(self):
+        target = self.work / "target"
+        target.mkdir()
+        (target / "keep.txt").write_text("preserve", encoding="utf-8")
+        for name, destination in (("live", target), ("dangling", self.work / "missing")):
+            link = self.work / name
+            try:
+                link.symlink_to(destination, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"Creating symbolic links is unavailable: {error}")
+            code, text = self.run_script(self.package, "--output", link, "--force")
+            self.assertEqual(code, 1, text)
+            self.assertNotIn("Traceback", text)
+            self.assertTrue(link.is_symlink())
+            self.assertEqual((target / "keep.txt").read_text(encoding="utf-8"), "preserve")
+
     def test_in_place_leaves_the_package_when_the_conversion_fails(self):
         declaration = self.package / "inferences" / "acoustic" / "config.json"
         broken = read_json(declaration)
@@ -481,6 +511,22 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
                 self.assertEqual(code, 1, text)
                 self.assertNotIn("Traceback", text)
                 self.assertEqual(read_json(declaration), singer)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
+    def test_non_object_import_options_leave_the_original_package_unchanged(self):
+        for value in (None, [], ["bad"], "bad", False, 42):
+            with self.subTest(value=value):
+                self.write_singer([{"id": "cmn"}])
+                path = self.package / "characters/singer/config.json"
+                declaration = read_json(path)
+                declaration["imports"][0]["options"] = value
+                write_json(path, declaration)
+                original = path.read_bytes()
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertIn("import options must be an object", text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(path.read_bytes(), original)
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
     def test_invalid_installed_language_keys_report_errors_and_clean_staging(self):

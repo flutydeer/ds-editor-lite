@@ -48,6 +48,7 @@ private slots:
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
     void packageReloadReadsUpdatesWhilePipelineIsLeased();
     void fillLyricPreservesSingerReservedMarkers();
+    void disjointModelPhonemesDisableLanguageCoverage();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
     void publicProjectLoadChecksPlansAndParserFailures();

@@ -139,9 +139,9 @@ namespace lite::synthrt {
         /// would sound for part of the phrase only. A model that declares no table is not
         /// intersected, so that a singer with one empty table is not reported as singing nothing.
         ///
-        /// An empty list means that no model declared a table, which is not the same as a singer
-        /// with no phoneme, and a host must not report it as an empty coverage for that reason.
-        std::vector<std::string> singablePhonemes;
+        /// No value means that no model declared a table. An empty value means that declared
+        /// tables have no common phoneme and must be reported as zero coverage.
+        std::optional<std::vector<std::string>> singablePhonemes;
 
         /// Returns whether every stage that a synthesis requires is present.
         bool complete() const {

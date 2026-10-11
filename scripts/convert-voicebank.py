@@ -1240,8 +1240,9 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
         converted = {"role": f"singer/{kind}", "ref": f":inference/{target}"}
         # An empty options object differs from an absent options object, but no component reads
         # it, and 2.4 allows it to be absent. Dropping it keeps the declaration minimal.
-        if entry.get("options"):
-            converted["options"] = entry["options"]
+        options = read_object(entry.get("options", {}), report, str(path), "import options")
+        if options:
+            converted["options"] = options
         imports.append(converted)
 
     configuration = dict(read_object(declaration.get("configuration", {}), report, str(path),
@@ -1624,6 +1625,9 @@ def main() -> int:
         # nor 2.4 and that no loader accepts. The conversion therefore runs in a staging directory
         # beside the package, and the package is replaced only once the whole run succeeded.
         root = args.package.parent / (args.package.name + ".converting")
+        if root.is_symlink() or (root.exists() and not root.is_dir()):
+            report.error(f"{root}: staging destination must be a directory, not a file or symbolic link")
+            return 1
         if root.exists() and not args.force:
             report.error(f"{root}: exists, probably left by an interrupted run; remove it, or pass "
                          f"--force to let this run clean it up")
@@ -1639,6 +1643,9 @@ def main() -> int:
             report.error(f"{root}: is the package, contains it or is inside it, and the "
                          f"destination is removed before the copy is made; specify an --output "
                          f"outside the package, or use --in-place")
+            return 1
+        if root.is_symlink() or (root.exists() and not root.is_dir()):
+            report.error(f"{root}: output destination must be a directory, not a file or symbolic link")
             return 1
         if root.exists():
             if not args.force:
