@@ -936,7 +936,6 @@ void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &
         // fallback branch of the two language tasks is exactly the state a note without a voicebank
         // should have: the pronunciation is the original word and the phonemes stay empty.
         createAndRunGetPronTask(*guardedClip, true);
-        createAndRunGetPhoneTask(*guardedClip, true);
     });
 }
 
@@ -995,8 +994,9 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
                 scheduleRetryAllSingingClips();
                 break;
             }
-            if (!resolution.clip->singerInfo().isEmpty())
-                createAndRunGetPhoneTask(*resolution.clip);
+            // Capture the revision after pronunciation commits, including the voice-clear
+            // fallback, so the two results cannot invalidate one another.
+            createAndRunGetPhoneTask(*resolution.clip, resolution.clip->singerInfo().isEmpty());
             break;
         }
         case InferenceApplyGate::Decision::Defer:
@@ -1085,8 +1085,7 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
                                             phase == "pending-flush" ? "edit-session-flush-apply"
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
-            if (!resolution.clip->singerInfo().isEmpty())
-                createAndRunGetPhoneTask(*resolution.clip);
+            createAndRunGetPhoneTask(*resolution.clip, resolution.clip->singerInfo().isEmpty());
             return PendingApplyResult::Applied;
         }
         case InferenceApplyGate::Decision::Drop:

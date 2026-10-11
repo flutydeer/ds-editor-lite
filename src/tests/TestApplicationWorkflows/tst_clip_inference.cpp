@@ -770,6 +770,50 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QCOMPARE(runtime().documentVersion(), version);
 }
 
+void ApplicationWorkflowTests::clearingSingerResetsPronunciationAndPhonemes_data() {
+    QTest::addColumn<bool>("defer");
+    QTest::newRow("immediate") << false;
+    QTest::newRow("after-edit-session") << true;
+}
+
+void ApplicationWorkflowTests::clearingSingerResetsPronunciationAndPhonemes() {
+    QFETCH(bool, defer);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    Automation::NoteWordPatchDto word;
+    word.noteId = Automation::NoteId(note->id());
+    word.lyric = QStringLiteral("啦");
+    QVERIFY(runtime().notes().patchWordProperties(commandContext(), Automation::ClipId(clip->id()),
+                                                 {word}));
+    QTRY_COMPARE_WITH_TIMEOUT(note->pronunciation().original, QStringLiteral("la"), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!note->phonemeNameSeq().original.isEmpty(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    const auto oldPhonemes = note->phonemeNameSeq().original;
+    QVERIFY(runtime().parameters().clearClipVoice(commandContext(), Automation::ClipId(clip->id())));
+    QVERIFY(clip->singerInfo().isEmpty());
+    const auto releaseEdit = qScopeGuard([] {
+        editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+    });
+    if (defer) {
+        const auto session = editSessionManager->beginTransaction(
+            {.domain = AppStatus::EditObjectType::Note,
+             .clipId = clip->id(),
+             .noteIds = {note->id()}});
+        QVERIFY(session != 0);
+        // Let the queued fallback finish while the edit transaction defers its writeback.
+        QTest::qWait(100);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QCOMPARE(note->pronunciation().original, QStringLiteral("la"));
+        QCOMPARE(note->phonemeNameSeq().original, oldPhonemes);
+        editSessionManager->endTransaction(session, EditSessionEndReason::Discard);
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(note->pronunciation().original == QStringLiteral("啦") &&
+                                note->phonemeNameSeq().original.isEmpty(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QVERIFY(clip->pieces().isEmpty());
+}
+
 void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())

@@ -1,11 +1,14 @@
 """Regression checks for the voicebank packaging and release-audit tools."""
 
 import json
+import hashlib
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 
@@ -76,6 +79,43 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             self.assertIn("removed: removed.txt", result.stdout)
             self.assertIn("compatVersion 1.0.0.0 -> 2.0.0.0", result.stdout)
             self.assertNotIn("stale.txt", result.stdout)
+
+    def test_fetch_negative_control_detects_a_constant_digest(self):
+        module = runpy.run_path(str(TOOLS / "fetch-wolf-release.py"))
+        control = module["negative_control"]
+        with tempfile.TemporaryDirectory() as temporary:
+            self.assertTrue(control(temporary))
+            with mock.patch.dict(control.__globals__, sha512_of=lambda _: "0" * 128):
+                self.assertFalse(control(temporary))
+
+    def test_fetch_report_cannot_replace_an_archive_or_authority(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "archives"
+            output.mkdir()
+            archive = output / "wolf-fixture-1.0.0.0.zip"
+            payload = b"verified archive bytes"
+            archive.write_bytes(payload)
+            authority = root / "assets.cmake"
+            source = ('set(WOLF_LANG_PACKAGES_BUNDLE_VERSION "1.0.0.0")\n'
+                      f'set(WOLF_LANG_TEST_FILE "{archive.name}")\n'
+                      f'set(WOLF_LANG_TEST_SHA512 "{hashlib.sha512(payload).hexdigest()}")\n')
+            authority.write_text(source, encoding="utf-8")
+            for report in (archive, authority):
+                with self.subTest(report=report):
+                    result = self.run_tool("fetch-wolf-release.py", "--assets", authority,
+                                           "--out", output, "--report", report)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn("report must not overwrite", result.stdout)
+                    self.assertEqual(archive.read_bytes(), payload)
+                    self.assertEqual(authority.read_text(encoding="utf-8"), source)
+            report = output / "report.json"
+            result = self.run_tool("fetch-wolf-release.py", "--assets", authority,
+                                   "--out", output, "--report", report)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["archives"][0]
+                             ["verdict"], "sha512-ok")
+            self.assertEqual(archive.read_bytes(), payload)
 
 
 if __name__ == "__main__":
