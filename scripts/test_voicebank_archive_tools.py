@@ -60,7 +60,13 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
                                                              "compatVersion": version}))
                     zipped.writestr(member, "test")
                 releases.append({"tag_name": tag, "assets": [{"name": archive.name,
-                                  "size": archive.stat().st_size}]})
+                                  "size": archive.stat().st_size}, {"name": "unrelated.zip"}]})
+                # Previous runs can leave stale or partially extracted trees. They must not
+                # affect the comparison of the archives verified during this run.
+                for side in ("x", "y"):
+                    stale = folder / f"{side}_{archive.stem}"
+                    stale.mkdir()
+                    (stale / "stale.txt").write_text("old extraction", encoding="utf-8")
             metadata = cache / "releases.json"
             metadata.write_text(json.dumps(releases), encoding="utf-8")
             result = self.run_tool("compare-wolf-releases.py", "--releases", metadata,
@@ -69,6 +75,7 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             self.assertIn("added: added.txt", result.stdout)
             self.assertIn("removed: removed.txt", result.stdout)
             self.assertIn("compatVersion 1.0.0.0 -> 2.0.0.0", result.stdout)
+            self.assertNotIn("stale.txt", result.stdout)
 
 
 if __name__ == "__main__":

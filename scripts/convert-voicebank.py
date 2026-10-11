@@ -1062,7 +1062,8 @@ def dropped_configuration_keys(configuration: dict) -> set:
 def convert_declaration(path: Path, report: Report):
     """Rewrites one module declaration in place. Returns (id, kind), or None on failure."""
     declaration = read_json(path, report)
-    if declaration is None:
+    if not isinstance(declaration, dict):
+        report.error(f"{path}: the declaration must be an object")
         return None
 
     kind_name = declaration.get("class")

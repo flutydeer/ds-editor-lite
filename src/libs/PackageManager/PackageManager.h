@@ -34,7 +34,7 @@ public:
 
     /// Package loading mode of a refresh.
     enum class ScanMode {
-        /// Reloads every package without another holder, so that changes on disk take effect.
+        /// Loads a fresh runtime catalog so that changes on disk take effect.
         Reload,
         /// Reuses the packages that the engine loaded from the same paths during initialization,
         /// so that the first listing does not load every package a second time.
@@ -65,6 +65,8 @@ private:
     mutable std::mutex m_refreshMutex;
     std::condition_variable m_refreshCompleted;
     bool m_refreshing = false;
+    QStringList m_refreshSearchPaths;
+    ScanMode m_refreshMode = ScanMode::Reload;
     bool m_lastRefreshCommitRejected = false;
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> m_lastRefreshResult;
     mutable QReadWriteLock m_resultRwLock;

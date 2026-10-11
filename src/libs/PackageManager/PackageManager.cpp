@@ -160,7 +160,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         if (m_refreshing) {
             qDebug() << "Already refreshing, wait for completion";
             m_refreshCompleted.wait(lock, [this] { return !m_refreshing; });
-            if (!m_lastRefreshCommitRejected) {
+            if (!m_lastRefreshCommitRejected && m_refreshMode == mode &&
+                m_refreshSearchPaths == searchPathsQt) {
                 auto result = m_lastRefreshResult;
                 lock.unlock();
                 // The leading refresh has already committed, and this caller shares its result.
@@ -171,9 +172,12 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     return commitRejectedError();
                 return result;
             }
-            qDebug() << "Leading package refresh was not committed, retry scan";
+            qDebug()
+                << "Leading package refresh was rejected or used different parameters, retry scan";
         }
         m_refreshing = true;
+        m_refreshMode = mode;
+        m_refreshSearchPaths = searchPathsQt;
     }
 
     bool commitRejected = false;

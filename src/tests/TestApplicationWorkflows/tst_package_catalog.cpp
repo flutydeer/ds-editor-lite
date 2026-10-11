@@ -2,6 +2,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Utils/InferCacheUtils.h"
+#include "Modules/FillLyric/Utils/G2pService.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -105,7 +106,16 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
     QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
 
-    for (const bool commitLeading : {true, false}) {
+    // Matching requests share a scan; a rejected leader, a different mode or different roots
+    // must allow the follower to perform its own requested scan.
+    for (const int scenario : {0, 1, 2, 3}) {
+        const bool commitLeading = scenario != 1;
+        const auto leadingMode = scenario == 2 ? PackageManager::ScanMode::ReuseLoaded
+                                              : PackageManager::ScanMode::Reload;
+        auto followerPaths = originalPaths;
+        const auto followerOnlyRoot = emptyDirectory.filePath(QStringLiteral("follower-missing"));
+        if (scenario == 3)
+            followerPaths.append(followerOnlyRoot);
         refreshed.clear();
         const auto before = runtime().documentVersion();
         const auto contentBefore = TestSupport::projectSnapshot(*context->m_appModel);
@@ -126,16 +136,19 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
                 following.wait();
         });
         leading = std::async(std::launch::async, [&] {
-            return packageManager->refreshInstalledPackages(originalPaths, [&] {
-                leadingAdmitted.release();
-                releaseLeading.acquire();
-                return commitLeading;
-            });
+            return packageManager->refreshInstalledPackages(
+                originalPaths,
+                [&] {
+                    leadingAdmitted.release();
+                    releaseLeading.acquire();
+                    return commitLeading;
+                },
+                leadingMode);
         });
         QVERIFY(leadingAdmitted.tryAcquire(1, 5000));
         following = std::async(std::launch::async, [&] {
             followerStarted.release();
-            return packageManager->refreshInstalledPackages(originalPaths, [&] {
+            return packageManager->refreshInstalledPackages(followerPaths, [&] {
                 ++followerCommits;
                 return true;
             });
@@ -156,7 +169,13 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
             QVERIFY(!first);
         QCOMPARE(second.get().successfulPackages, original.successfulPackages);
         QCOMPARE(followerCommits.load(), 1);
-        QTRY_COMPARE(refreshed.size(), 1);
+        QTRY_COMPARE(refreshed.size(), scenario >= 2 ? 2 : 1);
+        if (scenario == 3) {
+            const auto &failures = second.get().failedPackages;
+            QVERIFY(std::any_of(failures.cbegin(), failures.cend(), [&](const auto &failure) {
+                return failure.path == followerOnlyRoot;
+            }));
+        }
         QCOMPARE(packageManager->installedPackages().successfulPackages,
                  original.successfulPackages);
         QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
@@ -213,6 +232,66 @@ void ApplicationWorkflowTests::packageReloadReadsUpdatesWhilePipelineIsLeased() 
     QVERIFY(newModel);
     QVERIFY(newModel.get() != oldModel.get());
     QCOMPARE(active->acoustic().get(), oldModel.get());
+}
+
+void ApplicationWorkflowTests::fillLyricPreservesSingerReservedMarkers() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    QFile declaration(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
+    QVERIFY(declaration.open(QIODevice::ReadOnly));
+    auto object = QJsonDocument::fromJson(declaration.readAll()).object();
+    declaration.close();
+    object.insert(QStringLiteral("reservedPhonemes"), QJsonArray{"AP", "SP", "br"});
+    QVERIFY(declaration.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto bytes = QJsonDocument(object).toJson();
+    QCOMPARE(declaration.write(bytes), bytes.size());
+    declaration.close();
+    for (const auto *stage : {"duration", "pitch", "variance", "acoustic"}) {
+        QFile phonemes(QDir(root).filePath(
+            QStringLiteral("inferences/%1/phonemes.json").arg(QString::fromLatin1(stage))));
+        QVERIFY(phonemes.open(QIODevice::ReadOnly));
+        auto table = QJsonDocument::fromJson(phonemes.readAll()).object();
+        phonemes.close();
+        table.insert(QStringLiteral("br"), 6);
+        QVERIFY(phonemes.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        const auto tableBytes = QJsonDocument(table).toJson();
+        QCOMPARE(phonemes.write(tableBytes), tableBytes.size());
+    }
+    QFile dictionary(QDir(root).filePath(
+        QStringLiteral("inferences/fixture-g2p-cmn/dictionary.txt")));
+    QVERIFY(dictionary.open(QIODevice::Append));
+    const QByteArray entries("\nAP\tla\nSP\tla\nbr\tla\n");
+    QCOMPARE(dictionary.write(entries), entries.size());
+    dictionary.close();
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    const auto loaded = packageManager->refreshInstalledPackages({root});
+    QVERIFY(loaded);
+    QVERIFY(!loaded.get().successfulPackages.isEmpty());
+    const auto identity = loaded.get().successfulPackages.first().singers().first().identifier();
+    FillLyric::G2pService g2p(identity);
+    const auto results = g2p.convert(
+        {LangNote("AP", "cmn", kUnknownG2pId),
+         LangNote(QStringLiteral("啦"), "cmn", kUnknownG2pId),
+         LangNote("SP", "cmn", kUnknownG2pId), LangNote("br", "cmn", kUnknownG2pId)},
+        {"cmn"});
+    QCOMPARE(results.size(), 4);
+    const QStringList expected{"AP", "la", "SP", "br"};
+    for (int i = 0; i < results.size(); ++i) {
+        QCOMPARE(results[i].pronunciation, expected[i]);
+        QCOMPARE(results[i].candidates, QStringList{expected[i]});
+    }
 }
 
 void ApplicationWorkflowTests::localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data() {
