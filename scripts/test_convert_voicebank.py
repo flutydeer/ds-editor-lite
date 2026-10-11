@@ -171,6 +171,20 @@ class ConvertVoicebankTest(VoicebankFixture):
         self.assertIn("contributions", desc)
         self.assertNotIn("contributes", desc)
 
+    def test_in_place_preserves_an_existing_backup_even_with_force(self):
+        backup = self.package.with_name(self.package.name + ".replaced")
+        backup.mkdir()
+        marker = backup / "keep.txt"
+        marker.write_text("recovery data", encoding="utf-8")
+        before = (self.package / "desc.json").read_bytes()
+        for options in [("--in-place",), ("--in-place", "--force")]:
+            with self.subTest(options=options):
+                code, text = self.run_script(self.package, *options)
+                self.assertEqual(code, 1, text)
+                self.assertIn("backup", text)
+                self.assertEqual(marker.read_text(encoding="utf-8"), "recovery data")
+                self.assertEqual((self.package / "desc.json").read_bytes(), before)
+
     def test_reports_a_declaration_listed_twice(self):
         desc_path = self.package / "desc.json"
         desc = read_json(desc_path)
@@ -355,6 +369,29 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
         # The warning is not a failure: the language is bound like any other.
         singer = read_json(output / "characters" / "singer" / "config.json")
         self.assertIn("eng", singer["languages"])
+
+    def test_rejects_external_dictionary_links_in_both_copy_modes(self):
+        self.stage_files()
+        self.write_singer([{"id": "cmn", "g2p": "g2p-cmn-official", "s2pMode": "dict",
+                           "s2pFile": "../../assets/cmn.txt", "dict": "../../assets/cmn.txt"}])
+        self.write_language_package("vendor/lang-cmn", "cmn", "pinyin", onset=False)
+        outside = self.work / "outside.txt"
+        outside.write_text("ma\tm a\n", encoding="utf-8")
+        dictionary = self.package / "assets" / "cmn.txt"
+        dictionary.unlink()
+        try:
+            dictionary.symlink_to(outside)
+        except OSError as error:
+            self.skipTest(f"Creating symbolic links is unavailable: {error}")
+        original = (self.package / "desc.json").read_bytes()
+        for options in [("--output", self.work / "out"), ("--in-place",)]:
+            with self.subTest(options=options):
+                code, text = self.run_script(self.package, *options,
+                                             "--packages", self.work / "installed")
+                self.assertEqual(code, 1, text)
+                self.assertIn("outside the package", text)
+                self.assertEqual(outside.read_text(encoding="utf-8"), "ma\tm a\n")
+                self.assertEqual((self.package / "desc.json").read_bytes(), original)
 
     def test_reports_a_language_whose_own_linguist_has_no_onset_member(self):
         self.stage_files()

@@ -293,7 +293,10 @@ namespace Automation {
                                                                QStringLiteral("Page ID is empty"));
         return mutateView(
             OperationIds::editor::show_bottom_panel_page, context,
-            [pageId](EditorViewState &target) { target.layout.bottomPanelPageId = pageId; },
+            [pageId](EditorViewState &target) {
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = pageId;
+            },
             [this, pageId](const EditorViewState &) {
                 return m_services.showBottomPanelPage && m_services.showBottomPanelPage(pageId);
             },

@@ -2604,6 +2604,27 @@ namespace AutomationWire {
                  QStringLiteral("entries")});
         }
 
+        QJsonObject pianoEditModeSchema() {
+            return JsonSchema::string({
+                QStringLiteral("select"),
+                QStringLiteral("interval_select"),
+                QStringLiteral("draw_note"),
+                QStringLiteral("erase_note"),
+                QStringLiteral("split_note"),
+                QStringLiteral("draw_pitch"),
+                QStringLiteral("edit_pitch_anchor"),
+                QStringLiteral("erase_pitch"),
+                QStringLiteral("trace_pitch"),
+                QStringLiteral("modulate_pitch"),
+            });
+        }
+
+        QJsonObject parameterEditToolSchema() {
+            return JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
+                                       QStringLiteral("trace"), QStringLiteral("shape"),
+                                       QStringLiteral("scale"), QStringLiteral("anchor")});
+        }
+
         QJsonObject l3InputSchema(const QString &id) {
             if (id == PublicToolNames::workspace_get_state) {
                 return JsonSchema::document(JsonSchema::object(
@@ -2746,13 +2767,7 @@ namespace AutomationWire {
             if (id == PublicToolNames::clip_editor_piano_set_edit_mode) {
                 return l3DocumentInput(
                     {
-                        {QStringLiteral("mode"),
-                         JsonSchema::string(
-                             {QStringLiteral("select"), QStringLiteral("interval_select"),
-                              QStringLiteral("draw_note"), QStringLiteral("erase_note"),
-                              QStringLiteral("split_note"), QStringLiteral("draw_pitch"),
-                              QStringLiteral("edit_pitch_anchor"), QStringLiteral("erase_pitch"),
-                              QStringLiteral("trace_pitch")})}
+                        {QStringLiteral("mode"), pianoEditModeSchema()}
                 },
                     {QStringLiteral("mode")});
             }
@@ -2796,9 +2811,7 @@ namespace AutomationWire {
             if (id == PublicToolNames::clip_editor_parameters_set_tool) {
                 return l3DocumentInput(
                     {
-                        {QStringLiteral("tool"),
-                         JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
-                                             QStringLiteral("trace"), QStringLiteral("anchor")})}
+                        {QStringLiteral("tool"), parameterEditToolSchema()}
                 },
                     {QStringLiteral("tool")});
             }
@@ -2971,25 +2984,6 @@ namespace AutomationWire {
 
             qFatal("No explicit L3 input schema for operation '%s'", qPrintable(id));
             return {};
-        }
-
-        QJsonObject pianoEditModeSchema() {
-            return JsonSchema::string({
-                QStringLiteral("select"),
-                QStringLiteral("interval_select"),
-                QStringLiteral("draw_note"),
-                QStringLiteral("erase_note"),
-                QStringLiteral("split_note"),
-                QStringLiteral("draw_pitch"),
-                QStringLiteral("edit_pitch_anchor"),
-                QStringLiteral("erase_pitch"),
-                QStringLiteral("trace_pitch"),
-            });
-        }
-
-        QJsonObject parameterEditToolSchema() {
-            return JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
-                                       QStringLiteral("trace"), QStringLiteral("anchor")});
         }
 
         QJsonObject trackViewportSchema() {

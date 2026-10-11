@@ -140,8 +140,10 @@ void InlineTextEditOverlay::relayTouchMove(const QPointF &globalPos) {
 void InlineTextEditOverlay::relayTouchEnd(const QPointF &globalPos) {
     if (!m_touchClaimed)
         return;
+    // Release can arrive before an overdue timer callback is dispatched.
+    const bool raiseMenu = m_touchMenuPending || (m_touchLongPressTimer->isActive() &&
+                                                  m_touchLongPressTimer->remainingTime() == 0);
     m_touchLongPressTimer->stop();
-    const bool raiseMenu = m_touchMenuPending;
     m_touchMenuPending = false;
     sendTouchMouse(QEvent::MouseButtonRelease, globalPos, Qt::LeftButton, Qt::NoButton);
     if (raiseMenu)

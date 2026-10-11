@@ -450,6 +450,8 @@ namespace lite::synthrt {
             result.languages.reserve(value.entries.size());
             for (const auto &entry : value.entries) {
                 result.languages.push_back(entry.language);
+                if (const auto *linguist = targetOf(singer, entry.role))
+                    result.languageNames.emplace(entry.language, linguist->name());
             }
             result.defaultLanguage = value.defaultLanguage;
         }
@@ -484,6 +486,40 @@ namespace lite::synthrt {
                                   std::vector<srt::PackageHandle> &opened,
                                   std::vector<PackageProblem> &problems) {
         std::vector<SingerEntry> result;
+        const auto loadPackage = [&](const fs::path &path) {
+            auto handle = unit.openPackage(path, srt::SynthUnit::Load);
+            if (!handle) {
+                // Recorded rather than fatal, so that the scan continues with the other
+                // voicebanks; scan() states the policy.
+                problems.push_back({path, handle.error().toString()});
+                return;
+            }
+            auto package = handle.take();
+            if (std::any_of(opened.begin(), opened.end(), [&](const auto &existing) {
+                    return existing.id() == package.id() && existing.version() == package.version();
+                }))
+                return;
+            for (auto *spec : package.contributions(srt::SingerCategory::NAME)) {
+                auto *singer = spec->as<srt::SingerSpec>();
+                if (singer == nullptr) {
+                    continue;
+                }
+                result.push_back(SingerEntry{
+                    package.id(),
+                    package.version(),
+                    spec->locator().contributionId(),
+                    spec->name(),
+                    package.path(),
+                    capabilitiesOf(*singer),
+                    package.name(),
+                    package.vendor(),
+                    package.description(),
+                    package.copyright(),
+                    package.url(),
+                });
+            }
+            opened.push_back(std::move(package));
+        };
         for (const auto &directory : paths) {
             // Every filesystem query below uses the overload that reports errors through an error
             // code. The contents of a search path are arbitrary, and an entry that cannot be read
@@ -497,6 +533,15 @@ namespace lite::synthrt {
                 }
                 continue;
             }
+            if (fs::is_regular_file(directory / "desc.json", ec)) {
+                loadPackage(directory);
+                continue;
+            }
+            if (ec && ec != std::errc::no_such_file_or_directory) {
+                problems.push_back({directory, ec.message()});
+                continue;
+            }
+            ec.clear();
             fs::directory_iterator it(directory, ec);
             if (ec) {
                 problems.push_back({directory, ec.message()});
@@ -530,34 +575,7 @@ namespace lite::synthrt {
                     }
                     continue;
                 }
-                auto handle = unit.openPackage(entry.path(), srt::SynthUnit::Load);
-                if (!handle) {
-                    // Recorded rather than fatal, so that the scan continues with the other
-                    // voicebanks; scan() states the policy.
-                    problems.push_back({entry.path(), handle.error().toString()});
-                    continue;
-                }
-                auto package = handle.take();
-                for (auto *spec : package.contributions(srt::SingerCategory::NAME)) {
-                    auto *singer = spec->as<srt::SingerSpec>();
-                    if (singer == nullptr) {
-                        continue;
-                    }
-                    result.push_back(SingerEntry{
-                        package.id(),
-                        package.version(),
-                        spec->locator().contributionId(),
-                        spec->name(),
-                        package.path(),
-                        capabilitiesOf(*singer),
-                        package.name(),
-                        package.vendor(),
-                        package.description(),
-                        package.copyright(),
-                        package.url(),
-                    });
-                }
-                opened.push_back(std::move(package));
+                loadPackage(entry.path());
             }
         }
         return result;

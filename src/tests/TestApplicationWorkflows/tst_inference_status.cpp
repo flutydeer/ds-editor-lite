@@ -1,0 +1,588 @@
+#include "tst_application_workflows.h"
+
+#include "Automation/Public/PublicAutomationHostAdapter.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/InferController.h"
+#include "Modules/Inference/Tasks/InferPitchTask.h"
+#include "../TestSupport/VoicebankFixture.h"
+
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/Tasking/TaskManager.h>
+#include <lite/History/HistoryManager.h>
+
+#include <QJsonArray>
+#include <QEvent>
+#include <QPointer>
+#include <QScopeGuard>
+#include <QSemaphore>
+#include <QThreadPool>
+#include <QtTest>
+
+#include <algorithm>
+#include <atomic>
+
+using namespace Automation;
+
+namespace {
+    QJsonObject inferenceStage(const QJsonObject &response, const QString &name) {
+        const auto stages = response.value(QStringLiteral("status"))
+                                .toObject()
+                                .value(QStringLiteral("stages"))
+                                .toArray();
+        for (const auto &value : stages) {
+            const auto stage = value.toObject();
+            if (stage.value(QStringLiteral("stage")) == name)
+                return stage;
+        }
+        return {};
+    }
+}
+
+void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScope() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+
+    const auto documentId = runtime().documentVersion().documentId;
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                           &SynthrtEngine::instance()));
+    const PublicInvocationContext invocation{
+        .clientId = QStringLiteral("inference-status-client"),
+        .source = InvocationSource::PublicJsonRpc,
+    };
+    const auto beforeSinger = runtime().documentVersion();
+    const auto contentBeforeSinger = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeSinger = HistoryManager::instance()->nextUndoEntry();
+    const auto missingSinger = registry.invoke(
+        QStringLiteral("inference.start"),
+        {
+            {"document_id",       documentId.toString()                                              },
+            {"expected_revision", static_cast<qint64>(beforeSinger.revision)                         },
+            {"scope",             QJsonObject{{"kind", "clip"}, {"clip_ids", QJsonArray{clip->id()}}}},
+            {"stages",            QJsonArray{"duration", "pitch", "variance", "acoustic"}            },
+            {"options",           QJsonObject{}                                                      }
+    },
+        invocation);
+    QVERIFY(!missingSinger);
+    QCOMPARE(missingSinger.getError().code, AutomationErrorCode::HostCapabilityUnavailable);
+    QCOMPARE(missingSinger.getError().fieldPath, QStringLiteral("scope"));
+    QCoreApplication::processEvents();
+    QCOMPARE(runtime().documentVersion(), beforeSinger);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeSinger);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeSinger);
+    QVERIFY(taskManager->tasks().isEmpty());
+
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = cache.path();
+    const auto restoreCache =
+        qScopeGuard([&] { appOptions->inference()->cacheDirectory = previousCache; });
+    SingerInfo singer;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (candidate.singerId() == TestSupport::fixtureSingerId())
+                singer = candidate;
+        }
+    }
+    QVERIFY2(!singer.isEmpty(), "The configured fixture singer must be installed");
+    QVERIFY(!singer.speakers().isEmpty());
+    QVERIFY(runtime().project().duplicateClips(commandContext(), {ClipId(clip->id())},
+                                               {.targetTrackId = trackId, .targetStart = 4800}));
+    const QPointer<SingingClip> companion =
+        qobject_cast<SingingClip *>(context->m_appModel->tracks().first()->clips().toList().last());
+    QVERIFY(companion && companion != clip);
+    const QList<QPointer<SingingClip>> targets{clip, companion, otherClip};
+    for (const auto &target : targets) {
+        QVERIFY(target);
+        NoteWordPatchDto word;
+        word.noteId = NoteId((*target->notes().begin())->id());
+        word.lyric = TestSupport::fixtureLyric();
+        word.language = TestSupport::fixtureLanguage();
+        word.pronunciation = Pronunciation{};
+        word.pronunciationCandidates = QStringList{};
+        word.phonemes = Phonemes{};
+        QVERIFY(
+            runtime().notes().patchWordProperties(commandContext(), ClipId(target->id()), {word}));
+        QVERIFY(runtime().parameters().selectClipSingleSpeaker(
+            commandContext(), ClipId(target->id()), singer, singer.speakers().first()));
+    }
+    // A fresh cache keeps both background pipelines waiting for an explicit acoustic request.
+    QTRY_VERIFY_WITH_TIMEOUT(
+        std::all_of(targets.cbegin(), targets.cend(),
+                    [](const auto &target) {
+                        return target && !target->pieces().isEmpty() &&
+                               std::all_of(target->pieces().cbegin(), target->pieces().cend(),
+                                           [](const InferPiece *part) {
+                                               return part->state ==
+                                                      QStringLiteral("Acoustic.Awaiting");
+                                           });
+                    }) &&
+            taskManager->tasks().isEmpty(),
+        15000);
+    const QPointer<InferPiece> targetPiece(clip->pieces().first());
+    const auto targetPieceId = targetPiece->id();
+    const QJsonObject scope{
+        {QStringLiteral("kind"),     QStringLiteral("clip")},
+        {QStringLiteral("clip_ids"), QJsonArray{clip->id()}},
+    };
+    const QJsonObject trackScope{
+        {QStringLiteral("kind"),      QStringLiteral("track")    },
+        {QStringLiteral("track_ids"), QJsonArray{trackId.value()}},
+    };
+    const QJsonObject unrelatedScope{
+        {QStringLiteral("kind"),     QStringLiteral("clip")     },
+        {QStringLiteral("clip_ids"), QJsonArray{otherClip->id()}},
+    };
+
+    const auto status = [&](const QJsonObject &requestedScope) {
+        return registry.invoke(QStringLiteral("inference.get_status"),
+                               {
+                                   {QStringLiteral("document_id"), documentId.toString()},
+                                   {QStringLiteral("scope"),       requestedScope       }
+        },
+                               invocation);
+    };
+
+    QSemaphore workerEntered;
+    QSemaphore releaseWorker;
+    std::atomic_bool paused = false;
+    QObject observations;
+    TaskId taskId;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *pitch = qobject_cast<InferPitchTask *>(task);
+                if (change != TaskManager::Added || !pitch || pitch->pieceId() != targetPieceId)
+                    return;
+                connect(
+                    pitch, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            workerEntered.release();
+                            releaseWorker.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    const auto drainTasks = qScopeGuard([&] {
+        releaseWorker.release();
+        if (!taskId.isNull())
+            runtime().automationTasks().requestCancel(documentId, taskId);
+        inferController->cancelPieceInference(targetPieceId);
+        runtime().documents().commitNewDocument(
+            commandContext(), DocumentAutomationFacade::newDocumentDraft(false));
+        QThreadPool::globalInstance()->waitForDone();
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            cache.setAutoRemove(false);
+        else
+            QTRY_VERIFY(cache.remove());
+    });
+    const auto capabilities =
+        registry.invoke(QStringLiteral("inference.get_capabilities"),
+                        {
+                            {QStringLiteral("document_id"), documentId.toString()},
+                            {QStringLiteral("scope"),       trackScope           }
+    },
+                        invocation);
+    QVERIFY2(capabilities, qPrintable(capabilities ? QString{} : capabilities.getError().message));
+    const auto choices = capabilities.get().value(QStringLiteral("capabilities")).toObject();
+    QJsonObject options;
+    for (const auto &value : choices.value(QStringLiteral("providers")).toArray()) {
+        const auto provider = value.toObject();
+        if (provider.value(QStringLiteral("available")).toBool()) {
+            options.insert(QStringLiteral("provider_id"), provider.value(QStringLiteral("id")));
+            break;
+        }
+    }
+    for (const auto &value : choices.value(QStringLiteral("models")).toArray()) {
+        const auto model = value.toObject();
+        if (model.value(QStringLiteral("available")).toBool()) {
+            options.insert(QStringLiteral("model_id"), model.value(QStringLiteral("model_id")));
+            break;
+        }
+    }
+    QVERIFY(!options.value(QStringLiteral("provider_id")).toString().isEmpty());
+    QVERIFY(!options.value(QStringLiteral("model_id")).toString().isEmpty());
+    const QJsonObject request{
+        {QStringLiteral("document_id"),       documentId.toString()                                        },
+        {QStringLiteral("expected_revision"),
+         static_cast<qint64>(runtime().documentVersion().revision)                                         },
+        {QStringLiteral("scope"),             trackScope                                                   },
+        {QStringLiteral("stages"),            QJsonArray{QStringLiteral("pitch"), QStringLiteral("variance"),
+                                              QStringLiteral("acoustic")}},
+        {QStringLiteral("options"),           options                                                      }
+    };
+    auto invalidRequest = request;
+    invalidRequest.insert(
+        QStringLiteral("scope"),
+        QJsonObject{
+            {QStringLiteral("kind"),      QStringLiteral("track")                       },
+            {QStringLiteral("track_ids"),
+             QJsonArray{trackId.value(), context->m_appModel->tracks().last()->id() + 1}},
+    });
+    const auto beforeRejected = runtime().documentVersion();
+    const auto beforeContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto beforePitch = targetPiece->originalPitch;
+    const auto beforeVariance = targetPiece->originalBreathiness;
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto verifyPreparedContent = [&] {
+        QCoreApplication::processEvents();
+        QCOMPARE(runtime().documentVersion(), beforeRejected);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContent);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+        QCOMPARE(targetPiece->state, QStringLiteral("Acoustic.Awaiting"));
+        QCOMPARE(targetPiece->originalPitch, beforePitch);
+        QCOMPARE(targetPiece->originalBreathiness, beforeVariance);
+        QVERIFY(taskManager->tasks().isEmpty());
+        QVERIFY(!paused.load());
+    };
+    const auto rejected =
+        registry.invoke(QStringLiteral("inference.start"), invalidRequest, invocation);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, AutomationErrorCode::NotFound);
+    verifyPreparedContent();
+    if (QTest::currentTestFailed())
+        return;
+    for (const auto &key :
+         {QStringLiteral("provider_id"), QStringLiteral("device_id"), QStringLiteral("model_id")}) {
+        auto unavailableOptions = options;
+        unavailableOptions.insert(key, QStringLiteral("unavailable-test-selection"));
+        auto unavailableRequest = request;
+        unavailableRequest.insert(QStringLiteral("options"), unavailableOptions);
+        const auto unavailable =
+            registry.invoke(QStringLiteral("inference.start"), unavailableRequest, invocation);
+        QVERIFY2(!unavailable, qPrintable(key));
+        QCOMPARE(unavailable.getError().code, AutomationErrorCode::InvalidArgument);
+        QCOMPARE(unavailable.getError().fieldPath, QStringLiteral("options.") + key);
+        verifyPreparedContent();
+        if (QTest::currentTestFailed())
+            return;
+    }
+    auto incompletePipeline = request;
+    incompletePipeline.insert(QStringLiteral("stages"), QJsonArray{"pitch", "acoustic"});
+    const auto missingStage =
+        registry.invoke(QStringLiteral("inference.start"), incompletePipeline, invocation);
+    QVERIFY(!missingStage);
+    QCOMPARE(missingStage.getError().code, AutomationErrorCode::InvalidArgument);
+    QCOMPARE(missingStage.getError().fieldPath, QStringLiteral("stages"));
+    verifyPreparedContent();
+    if (QTest::currentTestFailed())
+        return;
+    const auto accepted = registry.invoke(QStringLiteral("inference.start"), request, invocation);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    taskId = TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull());
+    QTRY_COMPARE_WITH_TIMEOUT(workerEntered.available(), 1, 5000);
+
+    const auto running = status(scope);
+    QVERIFY2(running, qPrintable(running ? QString{} : running.getError().message));
+    const auto duration = inferenceStage(running.get(), QStringLiteral("duration"));
+    QCOMPARE(duration.value(QStringLiteral("state")).toString(), QStringLiteral("ready"));
+    QVERIFY(duration.value(QStringLiteral("task_id")).isNull());
+    const auto pitch = inferenceStage(running.get(), QStringLiteral("pitch"));
+    QCOMPARE(pitch.value(QStringLiteral("state")).toString(), QStringLiteral("running"));
+    QCOMPARE(pitch.value(QStringLiteral("task_id")).toString(), taskId.toString());
+    const auto trackRunning = status(trackScope);
+    QVERIFY(trackRunning);
+    QCOMPARE(inferenceStage(trackRunning.get(), QStringLiteral("pitch"))
+                 .value(QStringLiteral("task_id"))
+                 .toString(),
+             taskId.toString());
+    const auto acoustic = inferenceStage(running.get(), QStringLiteral("acoustic"));
+    QCOMPARE(acoustic.value(QStringLiteral("state")).toString(), QStringLiteral("queued"));
+    QCOMPARE(acoustic.value(QStringLiteral("task_id")).toString(), taskId.toString());
+
+    const auto unrelated = status(unrelatedScope);
+    QVERIFY2(unrelated, qPrintable(unrelated ? QString{} : unrelated.getError().message));
+    const auto background = inferenceStage(unrelated.get(), QStringLiteral("acoustic"));
+    QCOMPARE(background.value(QStringLiteral("state")).toString(), QStringLiteral("stale"));
+    QVERIFY(background.value(QStringLiteral("task_id")).isNull());
+    const auto mixed = status({
+        {QStringLiteral("kind"),     QStringLiteral("clip")                 },
+        {QStringLiteral("clip_ids"), QJsonArray{clip->id(), otherClip->id()}}
+    });
+    QVERIFY(mixed);
+    const auto mixedAcoustic = inferenceStage(mixed.get(), QStringLiteral("acoustic"));
+    QCOMPARE(mixedAcoustic.value(QStringLiteral("state")).toString(), QStringLiteral("queued"));
+    QCOMPARE(mixedAcoustic.value(QStringLiteral("task_id")).toString(), taskId.toString());
+
+    const auto beforeCancel = runtime().documentVersion();
+    const auto contentBeforeCancel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto canceledId = taskId;
+    const auto canceled =
+        registry.invoke(QStringLiteral("tasks.cancel"),
+                        {
+                            {QStringLiteral("scope"),       QStringLiteral("document")},
+                            {QStringLiteral("document_id"), documentId.toString()     },
+                            {QStringLiteral("task_id"),     taskId.toString()         }
+    },
+                        invocation);
+    QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
+    releaseWorker.release();
+    const auto terminal = [&] {
+        const auto task = runtime().tasks().getTask(documentId, taskId);
+        return task && (task.get().state == AutomationTaskState::Succeeded ||
+                        task.get().state == AutomationTaskState::Failed ||
+                        task.get().state == AutomationTaskState::Canceled);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto canceledTask = runtime().tasks().getTask(documentId, canceledId);
+    QVERIFY(canceledTask);
+    QCOMPARE(canceledTask.get().state, AutomationTaskState::Canceled);
+    QVERIFY(!canceledTask.get().mutation);
+    QCOMPARE(runtime().documentVersion(), beforeCancel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeCancel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    QVERIFY(targetPiece->audioPath.isEmpty());
+    const auto afterCancel = status(trackScope);
+    QVERIFY(afterCancel);
+    for (const auto &stage :
+         {QStringLiteral("pitch"), QStringLiteral("variance"), QStringLiteral("acoustic")}) {
+        QVERIFY(inferenceStage(afterCancel.get(), stage).value(QStringLiteral("task_id")).isNull());
+    }
+
+    QObject completionObservation;
+    bool completionCancelRequested = false;
+    bool completionCancelAccepted = false;
+    QString completionCancelError;
+    auto beforeCompletionCancel = runtime().documentVersion();
+    auto contentBeforeCompletionCancel = TestSupport::projectSnapshot(*context->m_appModel);
+    // Cancel after the worker is removed, before its queued result can enter the update state.
+    connect(taskManager, &TaskManager::taskChanged, &completionObservation,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                const auto *pitch = qobject_cast<InferPitchTask *>(task);
+                if (change != TaskManager::Removed || !pitch || pitch->pieceId() != targetPieceId ||
+                    completionCancelRequested)
+                    return;
+                completionCancelRequested = true;
+                beforeCompletionCancel = runtime().documentVersion();
+                contentBeforeCompletionCancel = TestSupport::projectSnapshot(*context->m_appModel);
+                const auto result =
+                    registry.invoke(QStringLiteral("tasks.cancel"),
+                                    {
+                                        {QStringLiteral("scope"),       QStringLiteral("document")},
+                                        {QStringLiteral("document_id"), documentId.toString()     },
+                                        {QStringLiteral("task_id"),     taskId.toString()         }
+                },
+                                    invocation);
+                completionCancelAccepted = static_cast<bool>(result);
+                if (!result)
+                    completionCancelError = result.getError().message;
+            });
+    auto completionRequest = request;
+    completionRequest.insert(QStringLiteral("expected_revision"),
+                             static_cast<qint64>(runtime().documentVersion().revision));
+    const auto completionAccepted =
+        registry.invoke(QStringLiteral("inference.start"), completionRequest, invocation);
+    QVERIFY2(completionAccepted,
+             qPrintable(completionAccepted ? QString{} : completionAccepted.getError().message));
+    taskId =
+        TaskId::fromString(completionAccepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull() && taskId != canceledId);
+    QTRY_VERIFY_WITH_TIMEOUT(completionCancelRequested, 15000);
+    QVERIFY2(completionCancelAccepted, qPrintable(completionCancelError));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QCOMPARE(runtime().documentVersion(), beforeCompletionCancel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeCompletionCancel);
+    const auto completionCanceled = runtime().tasks().getTask(documentId, taskId);
+    QVERIFY(completionCanceled);
+    QCOMPARE(completionCanceled.get().state, AutomationTaskState::Canceled);
+    disconnect(taskManager, nullptr, &completionObservation, nullptr);
+
+    auto retryRequest = request;
+    retryRequest.insert(QStringLiteral("expected_revision"),
+                        static_cast<qint64>(runtime().documentVersion().revision));
+    const auto retry = registry.invoke(QStringLiteral("inference.start"), retryRequest, invocation);
+    QVERIFY2(retry, qPrintable(retry ? QString{} : retry.getError().message));
+    taskId = TaskId::fromString(retry.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull() && taskId != canceledId);
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
+    const auto completed = runtime().tasks().getTask(documentId, taskId);
+    QVERIFY(completed);
+    QVERIFY2(completed.get().state == AutomationTaskState::Succeeded,
+             qPrintable(completed.get().error ? completed.get().error->message : QString{}));
+    const auto previousTask = runtime().tasks().getTask(documentId, canceledId);
+    QVERIFY(previousTask);
+    QCOMPARE(previousTask.get().state, AutomationTaskState::Canceled);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QCOMPARE(otherClip->pieces().first()->state, QStringLiteral("Acoustic.Awaiting"));
+    const auto finished = status(scope);
+    QVERIFY2(finished, qPrintable(finished ? QString{} : finished.getError().message));
+    for (const auto &name : {QStringLiteral("pitch"), QStringLiteral("acoustic")}) {
+        const auto stage = inferenceStage(finished.get(), name);
+        QCOMPARE(stage.value(QStringLiteral("state")).toString(), QStringLiteral("ready"));
+        QVERIFY(stage.value(QStringLiteral("task_id")).isNull());
+    }
+
+    const QPointer<InferPiece> companionPiece(companion->pieces().first());
+    const QPointer<InferPiece> unrelatedPiece(otherClip->pieces().first());
+    const auto companionPitch = companionPiece->originalPitch;
+    const auto companionVariance = companionPiece->originalBreathiness;
+    const auto companionAudio = companionPiece->audioPath;
+    const auto unrelatedPitch = unrelatedPiece->originalPitch;
+    const auto unrelatedVariance = unrelatedPiece->originalBreathiness;
+    const auto noteBeforeReset = (*clip->notes().begin())->serialize();
+    const auto *undoBeforeReset = HistoryManager::instance()->nextUndoEntry();
+    for (const auto &resetStage : {QStringLiteral("variance"), QStringLiteral("pitch")}) {
+        QVERIFY(!targetPiece->originalPitch.isEmpty());
+        QVERIFY(!targetPiece->audioPath.isEmpty());
+        const auto originalPitch = targetPiece->originalPitch;
+        const auto reset =
+            registry.invoke(QStringLiteral("inference.reset_stage"),
+                            {
+                                {QStringLiteral("document_id"),       documentId.toString()},
+                                {QStringLiteral("expected_revision"),
+                                 static_cast<qint64>(runtime().documentVersion().revision) },
+                                {QStringLiteral("scope"),             scope                },
+                                {QStringLiteral("stage"),             resetStage           }
+        },
+                            invocation);
+        QVERIFY2(reset, qPrintable(reset ? QString{} : reset.getError().message));
+        QVERIFY(reset.get().value(QStringLiteral("changed")).toBool());
+        QVERIFY(targetPiece && companionPiece && unrelatedPiece);
+        if (resetStage == QStringLiteral("variance"))
+            QCOMPARE(targetPiece->originalPitch, originalPitch);
+        else
+            QVERIFY(targetPiece->originalPitch.isEmpty());
+        QVERIFY(targetPiece->originalBreathiness.isEmpty());
+        QVERIFY(targetPiece->audioPath.isEmpty());
+        QCOMPARE((*clip->notes().begin())->serialize(), noteBeforeReset);
+        QCOMPARE(companionPiece->originalPitch, companionPitch);
+        QCOMPARE(companionPiece->originalBreathiness, companionVariance);
+        QCOMPARE(companionPiece->audioPath, companionAudio);
+        QCOMPARE(unrelatedPiece->originalPitch, unrelatedPitch);
+        QCOMPARE(unrelatedPiece->originalBreathiness, unrelatedVariance);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeReset);
+        QCOMPARE(targetPiece->acousticInferStatus.get(), Pending);
+        const auto resetStatus = status(scope);
+        QVERIFY(resetStatus);
+        QCOMPARE(inferenceStage(resetStatus.get(), QStringLiteral("duration"))
+                     .value(QStringLiteral("state"))
+                     .toString(),
+                 QStringLiteral("ready"));
+        QJsonArray restartedStages{QStringLiteral("variance"), QStringLiteral("acoustic")};
+        if (resetStage == QStringLiteral("pitch"))
+            restartedStages.prepend(QStringLiteral("pitch"));
+        else {
+            const auto preservedPitch = inferenceStage(resetStatus.get(), QStringLiteral("pitch"));
+            QCOMPARE(preservedPitch.value(QStringLiteral("state")).toString(),
+                     QStringLiteral("ready"));
+            QVERIFY(preservedPitch.value(QStringLiteral("task_id")).isNull());
+        }
+        for (const auto &stage : restartedStages) {
+            const auto current = inferenceStage(resetStatus.get(), stage.toString());
+            QCOMPARE(current.value(QStringLiteral("state")).toString(), QStringLiteral("stale"));
+            QVERIFY(current.value(QStringLiteral("task_id")).isNull());
+        }
+
+        auto repeatedRequest = request;
+        repeatedRequest.insert(QStringLiteral("scope"), scope);
+        repeatedRequest.insert(QStringLiteral("stages"), restartedStages);
+        repeatedRequest.insert(QStringLiteral("expected_revision"),
+                               static_cast<qint64>(runtime().documentVersion().revision));
+        const auto repeated =
+            registry.invoke(QStringLiteral("inference.start"), repeatedRequest, invocation);
+        QVERIFY2(repeated, qPrintable(repeated ? QString{} : repeated.getError().message));
+        taskId = TaskId::fromString(repeated.get().value(QStringLiteral("task_id")).toString());
+        QVERIFY(!taskId.isNull());
+        QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
+        const auto recomputed = runtime().tasks().getTask(documentId, taskId);
+        QVERIFY(recomputed);
+        QVERIFY2(recomputed.get().state == AutomationTaskState::Succeeded,
+                 qPrintable(recomputed.get().error ? recomputed.get().error->message : QString{}));
+        QVERIFY(!targetPiece->originalPitch.isEmpty());
+        QVERIFY(!targetPiece->originalBreathiness.isEmpty());
+        QVERIFY(!targetPiece->audioPath.isEmpty());
+        if (resetStage == QStringLiteral("variance"))
+            QCOMPARE(targetPiece->originalPitch, originalPitch);
+        QVERIFY(companionPiece && unrelatedPiece);
+        QCOMPARE(companionPiece->originalPitch, companionPitch);
+        QCOMPARE(companionPiece->originalBreathiness, companionVariance);
+        QCOMPARE(companionPiece->audioPath, companionAudio);
+        QCOMPARE(unrelatedPiece->originalPitch, unrelatedPitch);
+        QCOMPARE(unrelatedPiece->originalBreathiness, unrelatedVariance);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeReset);
+        QCOMPARE((*clip->notes().begin())->serialize(), noteBeforeReset);
+    }
+
+    const TrackId removedTrack(context->m_appModel->tracks().last()->id());
+    const ClipId removedClip(otherClip->id());
+    const auto beforeRemoval = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeRemoval = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(runtime().project().removeTracks(commandContext(), {removedTrack}));
+    otherClip = nullptr;
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto removedVersion = runtime().documentVersion();
+    const auto removedContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *removedUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto query = [&](const QString &tool, const QJsonObject &requestedScope) {
+        return registry.invoke(tool,
+                               {
+                                   {QStringLiteral("document_id"), documentId.toString()},
+                                   {QStringLiteral("scope"),       requestedScope       }
+        },
+                               invocation);
+    };
+    for (const auto &tool :
+         {QStringLiteral("inference.get_status"), QStringLiteral("inference.get_capabilities")}) {
+        const auto staleTrack = query(
+            tool,
+            {
+                {QStringLiteral("kind"),      QStringLiteral("track")                          },
+                {QStringLiteral("track_ids"), QJsonArray{trackId.value(), removedTrack.value()}}
+        });
+        QVERIFY(!staleTrack);
+        QCOMPARE(staleTrack.getError().code, AutomationErrorCode::NotFound);
+        QVERIFY(staleTrack.getError().object);
+        QCOMPARE(staleTrack.getError().object->kind, ObjectKind::Track);
+        QCOMPARE(staleTrack.getError().object->value, removedTrack.value());
+        const auto staleClip = query(
+            tool, {
+                      {QStringLiteral("kind"),     QStringLiteral("clip")                     },
+                      {QStringLiteral("clip_ids"), QJsonArray{clip->id(), removedClip.value()}}
+        });
+        QVERIFY(!staleClip);
+        QCOMPARE(staleClip.getError().code, AutomationErrorCode::NotFound);
+        QVERIFY(staleClip.getError().object);
+        QCOMPARE(staleClip.getError().object->kind, ObjectKind::Clip);
+        QCOMPARE(staleClip.getError().object->value, removedClip.value());
+        const auto remaining = query(tool, scope);
+        QVERIFY2(remaining, qPrintable(remaining ? QString{} : remaining.getError().message));
+        QCOMPARE(runtime().documentVersion(), removedVersion);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), removedContent);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), removedUndo);
+        QVERIFY(taskManager->tasks().isEmpty());
+    }
+    QVERIFY(runtime().history().undo(commandContext()));
+    otherClip = qobject_cast<SingingClip *>(context->m_appModel->findClipById(removedClip.value()));
+    QVERIFY(otherClip);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeRemoval);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeRemoval);
+    for (const auto &tool :
+         {QStringLiteral("inference.get_status"), QStringLiteral("inference.get_capabilities")}) {
+        const auto restored = query(tool, unrelatedScope);
+        QVERIFY2(restored, qPrintable(restored ? QString{} : restored.getError().message));
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+}

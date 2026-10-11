@@ -20,6 +20,7 @@
 #include "EditorPointerUtils.h"
 #include "EditorTouchController.h"
 #include "EditorWheelController.h"
+#include "EditorViewportScale.h"
 #include "Controller/PlaybackController.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -282,8 +283,9 @@ QRectF TimeGraphicsView::logicalVisibleRect() const {
         m_logicalHorizontalBarValue.value_or(wheelHorizontal.value_or(horizontalBarValue()));
     const auto verticalValue =
         m_logicalVerticalBarValue.value_or(wheelVertical.value_or(verticalBarValue()));
-    return rect.translated((horizontalValue - horizontalBarValue()) / scaleX(),
-                           (verticalValue - verticalBarValue()) / scaleY());
+    // Scene geometry and scrollbar offsets already include the editor's zoom.
+    return rect.translated(horizontalValue - horizontalBarValue(),
+                           verticalValue - verticalBarValue());
 }
 
 void TimeGraphicsView::ensureSceneRectVisible(const QRectF &rect, const int xmargin,
@@ -359,19 +361,19 @@ void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::adjustScaleXToFillView() {
-    if (sceneRect().width() < viewport()->width()) {
-        auto targetSceneWidth = viewport()->width();
-        auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
-        setScaleX(targetScaleX);
-    }
+    if (!m_ensureSceneFillViewX)
+        return;
+    const auto target = boundedScale(Qt::Horizontal, scaleX());
+    if (target != scaleX())
+        setScaleX(target);
 }
 
 void TimeGraphicsView::adjustScaleYToFillView() {
-    if (sceneRect().height() < viewport()->height()) {
-        auto targetSceneHeight = viewport()->height();
-        auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
-        setScaleY(targetScaleY);
-    }
+    if (!m_ensureSceneFillViewY)
+        return;
+    const auto target = boundedScale(Qt::Vertical, scaleY());
+    if (target != scaleY())
+        setScaleY(target);
 }
 
 void TimeGraphicsView::dragEnterEvent(QDragEnterEvent *event) {
@@ -454,7 +456,8 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
     if (scene()) {
         if (m_ensureSceneFillViewX) {
             adjustScaleXToFillView();
-        } else if (m_ensureSceneFillViewY) {
+        }
+        if (m_ensureSceneFillViewY) {
             adjustScaleYToFillView();
         }
     }
@@ -547,26 +550,16 @@ void TimeGraphicsView::stopProgrammaticViewportAnimations() {
 
 double TimeGraphicsView::boundedScale(const Qt::Orientation orientation,
                                       const double requested) const {
-    if (!std::isfinite(requested) || requested <= 0.0)
-        return orientation == Qt::Horizontal ? scaleX() : scaleY();
-
     if (orientation == Qt::Horizontal) {
-        auto minimum = 0.0001;
-        if (m_ensureSceneFillViewX && scaleX() > 0.0 && sceneRect().width() > 0.0) {
-            const auto unscaledWidth = sceneRect().width() / scaleX();
-            if (unscaledWidth > 0.0)
-                minimum = viewport()->width() / unscaledWidth;
-        }
-        return std::clamp(requested, std::min(minimum, m_scaleXMax), m_scaleXMax);
+        const auto minimum = EditorViewportScale::effectiveMinimum(
+            m_ensureSceneFillViewX, viewport()->width(), m_scene->sceneBaseSize().width(), 0.0001,
+            m_scaleXMax);
+        return EditorViewportScale::bounded(requested, scaleX(), minimum, m_scaleXMax);
     }
-
-    auto minimum = m_scaleYMin;
-    if (m_ensureSceneFillViewY && scaleY() > 0.0 && sceneRect().height() > 0.0) {
-        const auto unscaledHeight = sceneRect().height() / scaleY();
-        if (unscaledHeight > 0.0)
-            minimum = std::max(minimum, viewport()->height() / unscaledHeight);
-    }
-    return std::clamp(requested, std::min(minimum, m_scaleYMax), m_scaleYMax);
+    const auto minimum = EditorViewportScale::effectiveMinimum(
+        m_ensureSceneFillViewY, viewport()->height(), m_scene->sceneBaseSize().height(), m_scaleYMin,
+        m_scaleYMax);
+    return EditorViewportScale::bounded(requested, scaleY(), minimum, m_scaleYMax);
 }
 
 QPoint TimeGraphicsView::lastPointerPosition() const {
@@ -914,24 +907,8 @@ bool TimeGraphicsView::setViewportScale(double horizontalScale, double verticalS
 
     stopViewportAnimations();
 
-    double minimumHorizontalScale = 0.0001;
-    if (m_ensureSceneFillViewX && scaleX() > 0 && sceneRect().width() > 0) {
-        const auto unscaledSceneWidth = sceneRect().width() / scaleX();
-        if (unscaledSceneWidth > 0)
-            minimumHorizontalScale = viewport()->width() / unscaledSceneWidth;
-    }
-
-    auto minimumVerticalScale = m_scaleYMin;
-    if (m_ensureSceneFillViewY && scaleY() > 0 && sceneRect().height() > 0) {
-        const auto unscaledSceneHeight = sceneRect().height() / scaleY();
-        if (unscaledSceneHeight > 0)
-            minimumVerticalScale =
-                qMax(minimumVerticalScale, viewport()->height() / unscaledSceneHeight);
-    }
-
-    const auto targetHorizontalScale =
-        qMin(m_scaleXMax, qMax(minimumHorizontalScale, horizontalScale));
-    const auto targetVerticalScale = qMin(m_scaleYMax, qMax(minimumVerticalScale, verticalScale));
+    const auto targetHorizontalScale = boundedScale(Qt::Horizontal, horizontalScale);
+    const auto targetVerticalScale = boundedScale(Qt::Vertical, verticalScale);
     setScaleXY(targetHorizontalScale, targetVerticalScale);
     return true;
 }

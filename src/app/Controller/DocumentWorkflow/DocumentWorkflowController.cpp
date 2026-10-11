@@ -106,8 +106,25 @@ void DocumentWorkflowController::handleDocumentCommitted(const Automation::Docum
                                                          const bool recentFilesChanged) {
     if (!info.sourcePath.isEmpty())
         m_lastProjectFolder = QFileInfo(info.sourcePath).absolutePath();
-    if (info.previous.documentId != info.current.document.documentId)
+    if (info.previous.documentId != info.current.document.documentId) {
+        if (auto *runtime = automationRuntime(); runtime && runtime->windowId()) {
+            // Model replacement rejects view-originated selection updates while Replacing.
+            // Clear the old selection after the new document becomes Active.
+            const Automation::GuiDocumentCommandContext context{
+                .documentId = info.current.document.documentId,
+                .expectedRevision = info.current.document.revision,
+                .windowId = *runtime->windowId(),
+                .source = info.source,
+                .clientId = info.clientId,
+            };
+            const auto cleared =
+                runtime->facade().clearTrackPanelSelection(context, true, true, false);
+            if (!cleared)
+                qCWarning(logDocumentWorkflow)
+                    << "Failed to clear previous document selection:" << cleared.getError().message;
+        }
         activateFirstClip({}, info.source, info.clientId, true);
+    }
     emit documentIdentityChanged();
     if (recentFilesChanged)
         emit recentProjectFilesChanged(recentProjectFiles());

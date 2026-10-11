@@ -10,6 +10,8 @@
 // Keys are per-type static addresses, so no RTTI is required and it works for
 // any type without pre-registration of a type list. Everything is linked into a
 // single binary here, so each type's key is a single stable address.
+// Lookup and registration may run concurrently. Owners must still drain users
+// before destroying a registered object; lookup does not extend its lifetime.
 class SingletonRegistry {
 public:
     template <typename T>

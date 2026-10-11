@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.24)
 
 include(cmake/ProductMetadata.cmake)
 
@@ -9,10 +9,17 @@ project(lite
     HOMEPAGE_URL "${LITE_PRODUCT_URL}"
 )
 
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+endif()
+
 # ----------------------------------
 # Build Options
 # ----------------------------------
 option(LITE_BUILD_TESTS "Build test targets" OFF)
+option(LITE_TEST_COVERAGE "Enable coverage collection for the test build" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 option(LITE_ENABLE_FILE_LOG "Enable file logging (used by packaged builds)" OFF)
 # Default is DML-only; opt in to CUDA per invocation with -D LITE_ENABLE_CUDA=ON
@@ -72,6 +79,26 @@ qm_init_directories()
 # ----------------------------------
 if(LITE_BUILD_TESTS)
     enable_testing()
+    add_compile_definitions(LITE_TEST_DATA_ROOT)
+endif()
+
+if(LITE_TEST_COVERAGE)
+    if(NOT LITE_BUILD_TESTS)
+        message(FATAL_ERROR "LITE_TEST_COVERAGE requires LITE_BUILD_TESTS")
+    endif()
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(--coverage -fprofile-abs-path -fprofile-update=atomic)
+        add_link_options(--coverage)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate)
+    elseif(MSVC)
+        # Native static instrumentation needs full debug symbols and non-incremental linking.
+        add_compile_options(/Zi)
+        add_link_options(/DEBUG /PROFILE)
+    else()
+        message(FATAL_ERROR "LITE_TEST_COVERAGE supports GCC, Clang and MSVC")
+    endif()
 endif()
 
 # ----------------------------------

@@ -1,5 +1,7 @@
 #include "SearchDialog.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -11,11 +13,10 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QVBoxLayout>
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
-    : Dialog(parent), m_clip(singingClip), m_notes(m_clip->notes().toList()) {
+    : Dialog(parent), m_clip(singingClip) {
     setModal(true);
     setWindowTitle(tr("Search Lyrics"));
     resize(150, 300);
@@ -82,12 +83,13 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     searchText = tr("Please enter search content");
 
     connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
-    connect(startWithRadioButton, &QRadioButton::toggled, this, &SearchDialog::onSearchTextChanged);
-    connect(fuzzySearchRadioButton, &QRadioButton::toggled, this,
-            &SearchDialog::onSearchTextChanged);
+    connect(searchModeGroup, &QButtonGroup::buttonToggled, this,
+            [this](QAbstractButton *, bool checked) {
+                if (checked)
+                    onSearchTextChanged();
+            });
     connect(caseSensitiveCheckBox, &QCheckBox::toggled, this, &SearchDialog::onSearchTextChanged);
     connect(regexCheckBox, &QCheckBox::toggled, this, &SearchDialog::onSearchTextChanged);
-    connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
 
     connect(resultListWidget, &QListWidget::currentRowChanged, this,
             &SearchDialog::onItemSelectionChanged);
@@ -110,54 +112,25 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 SearchDialog::~SearchDialog() = default;
 
 void SearchDialog::onSearchTextChanged() {
-    const QString &searchTerm = lineEditSearch->text();
     resultListWidget->clear();
     labelInfo->clear();
 
-    const Qt::CaseSensitivity caseSensitivity =
-        caseSensitiveCheckBox->isChecked() ? Qt::CaseSensitive : Qt::CaseInsensitive;
-    const bool useRegex = regexCheckBox->isChecked();
-    const bool useStart = startWithRadioButton->isChecked();
-    const bool useFull = fullSearchRadioButton->isChecked();
-
-    for (const auto &note : m_notes) {
-        QString lyric = note->lyric();
-
-        bool match;
-        if (useStart) {
-            if (useRegex) {
-                QRegularExpression regex(
-                    "^" + searchTerm,
-                    static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
-                match = lyric.contains(regex);
-            } else {
-                match = lyric.startsWith(searchTerm, caseSensitivity);
+    const auto mode = startWithRadioButton->isChecked()    ? QStringLiteral("starts_with")
+                      : fullSearchRadioButton->isChecked() ? QStringLiteral("exact")
+                                                           : QStringLiteral("contains");
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        const auto matches = runtime->notes().searchNotes(
+            runtime->documentVersion().documentId, Automation::ClipId(m_clip->id()),
+            lineEditSearch->text(), mode, caseSensitiveCheckBox->isChecked(),
+            regexCheckBox->isChecked());
+        if (matches) {
+            for (const auto &match : matches.get()) {
+                const auto displayText = QStringLiteral("%1 (%2)").arg(
+                    match.lyric, appModel->getBarBeatTickTime(m_clip->start() + match.localStart));
+                auto *item = new QListWidgetItem(displayText);
+                item->setData(Qt::UserRole, match.noteId.value());
+                resultListWidget->addItem(item);
             }
-        } else if (useFull) {
-            if (useRegex) {
-                QRegularExpression regex(
-                    "^" + searchTerm + "$",
-                    static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
-                match = lyric.contains(regex);
-            } else {
-                match = lyric.compare(searchTerm, caseSensitivity) == 0;
-            }
-        } else {
-            if (useRegex) {
-                QRegularExpression regex(
-                    searchTerm, static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
-                match = lyric.contains(regex);
-            } else {
-                match = lyric.contains(searchTerm, caseSensitivity);
-            }
-        }
-
-        if (match) {
-            QString displayText = QString("%1 (%2)").arg(
-                note->lyric(), appModel->getBarBeatTickTime(note->globalStart()));
-            auto *item = new QListWidgetItem(displayText);
-            item->setData(Qt::UserRole, note->id());
-            resultListWidget->addItem(item);
         }
     }
 

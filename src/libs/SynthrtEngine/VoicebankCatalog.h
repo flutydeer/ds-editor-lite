@@ -113,6 +113,7 @@ namespace lite::synthrt {
 
         /// Language handles the singer declares, and which of them is its default.
         std::vector<std::string> languages;
+        std::map<std::string, srt::DisplayText> languageNames;
         std::string defaultLanguage;
 
         /// Phoneme tokens that a lyric may specify directly and that no language produces.
@@ -254,7 +255,7 @@ namespace lite::synthrt {
     void feedSingerPhonemes(LanguageBridge &language, const std::vector<SingerEntry> &catalog);
     /// \}
 
-    /// Opens every package directly under each of \a paths and returns the singers they contain.
+    /// Opens packages named by \a paths or directly under them and returns their singers.
     ///
     /// This function is the scanner that synthrt does not provide; see the file header. The search
     /// is one directory level deep, and a package is a directory that contains a desc.json. A

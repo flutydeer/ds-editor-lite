@@ -4,8 +4,6 @@
 
 #include <QTimer>
 
-#include "Model/AppOptions/AppOptions.h"
-#include "Controller/PlaybackController.h"
 #include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -49,8 +47,7 @@ void UpdateVarianceState::onEntry(QEvent *event) {
         return;
     }
 
-    auto isLazy = !appOptions->inference()->autoStartInfer &&
-                  playbackController->playbackStatus() != PlaybackStatus::Playing;
+    const auto isLazy = !m_pipeline.shouldStartAcousticInference();
     if (isLazy)
         QTimer::singleShot(0, this, [this] { emit updateSuccessWithLazyInference(); });
     else

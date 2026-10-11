@@ -1,0 +1,11 @@
+diff --git a/src/device/OutputContext.cpp b/src/device/OutputContext.cpp
+--- a/src/device/OutputContext.cpp
++++ b/src/device/OutputContext.cpp
+@@ -139,6 +139,7 @@ namespace talcs {
+         Q_D(OutputContext);
+         if (d->driver && driverName == d->driver->name() && d->driver->isInitialized() && d->device && d->device->isOpen())
+             return true;
++        AbstractOutputContext::setDevice(nullptr);
+         d->device.reset();
+         if (d->driver) {
+             d->driver->finalize();

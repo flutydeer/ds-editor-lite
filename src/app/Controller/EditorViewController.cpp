@@ -249,11 +249,6 @@ bool EditorViewController::applyParameterValueViewport(const double centerRatio,
     return m_view && m_view->setParameterValueViewport(centerRatio, verticalScale);
 }
 
-void EditorViewController::refreshActiveClipTrackPresentation() const {
-    if (m_view)
-        m_view->refreshActiveClipTrackPresentation();
-}
-
 void EditorViewController::previewActiveClipTrackColor(int colorIndex) const {
     if (m_view)
         m_view->previewActiveClipTrackColor(colorIndex);

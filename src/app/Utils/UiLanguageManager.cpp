@@ -1,7 +1,6 @@
 #include "UiLanguageManager.h"
 
 #include <QCoreApplication>
-#include <QLibraryInfo>
 
 UiLanguageManager *UiLanguageManager::s_instance = nullptr;
 
@@ -11,7 +10,7 @@ UiLanguageManager::UiLanguageManager(QObject *parent) : QObject(parent) {
 }
 
 UiLanguageManager::~UiLanguageManager() {
-    removeTranslators();
+    removeTranslator();
     s_instance = nullptr;
 }
 
@@ -44,22 +43,18 @@ void UiLanguageManager::setPreference(const QString &preference) {
         return;
 
     if (requestedLanguage == SimplifiedChinese) {
-        if (!loadChineseTranslators()) {
+        if (!loadChineseTranslator()) {
             qWarning()
                 << "Failed to load the complete zh_CN translation set; falling back to English";
-            removeTranslators();
+            removeTranslator();
             m_effectiveLanguageId = English;
             return;
         }
         m_effectiveLanguageId = SimplifiedChinese;
-        if (!m_qtBaseTranslator.isEmpty())
-            QCoreApplication::installTranslator(&m_qtBaseTranslator);
-        if (!m_qtTranslator.isEmpty())
-            QCoreApplication::installTranslator(&m_qtTranslator);
-        QCoreApplication::installTranslator(&m_appTranslator);
+        QCoreApplication::installTranslator(&m_translator);
     } else {
         m_effectiveLanguageId = English;
-        removeTranslators();
+        removeTranslator();
     }
 
     emit languageChanged(m_effectiveLanguageId);
@@ -96,27 +91,12 @@ QStringList UiLanguageManager::currentBcp47Candidates() {
     return s_instance ? s_instance->effectiveBcp47Candidates() : QStringList();
 }
 
-void UiLanguageManager::removeTranslators() {
+void UiLanguageManager::removeTranslator() {
     if (!QCoreApplication::instance())
         return;
-    QCoreApplication::removeTranslator(&m_appTranslator);
-    QCoreApplication::removeTranslator(&m_qtTranslator);
-    QCoreApplication::removeTranslator(&m_qtBaseTranslator);
+    QCoreApplication::removeTranslator(&m_translator);
 }
 
-bool UiLanguageManager::loadChineseTranslators() {
-    const QLocale locale(SimplifiedChinese);
-    const auto qtTranslationsPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
-    const bool qtBaseLoaded = m_qtBaseTranslator.load(locale, QStringLiteral("qtbase"),
-                                                      QStringLiteral("_"), qtTranslationsPath);
-    const bool qtLoaded =
-        m_qtTranslator.load(locale, QStringLiteral("qt"), QStringLiteral("_"), qtTranslationsPath);
-    const bool appLoaded = m_appTranslator.load(QStringLiteral(":/i18n/translation_zh_CN.qm"));
-
-    const bool qtTranslationsLoaded = qtBaseLoaded || qtLoaded;
-    if (!qtTranslationsLoaded)
-        qWarning() << "Failed to load Qt zh_CN translations from" << qtTranslationsPath;
-    if (!appLoaded)
-        qWarning() << "Failed to load application translation :/i18n/translation_zh_CN.qm";
-    return qtTranslationsLoaded && appLoaded;
+bool UiLanguageManager::loadChineseTranslator() {
+    return m_translator.load(QStringLiteral(":/i18n/translation_zh_CN.qm"));
 }

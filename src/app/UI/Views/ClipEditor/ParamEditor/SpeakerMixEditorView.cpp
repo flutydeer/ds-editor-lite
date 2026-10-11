@@ -87,13 +87,7 @@ SpeakerMixData SpeakerMixEditorView::committedMixData() const {
 SpeakerMixData SpeakerMixEditorView::workingMixData() const {
     SpeakerMixData result = m_committedData;
     if (m_editable) {
-        result.dynamicKeyframes.clear();
-        for (const auto &keyframe : m_keyframes) {
-            SpeakerMixModel::SpeakerMixKeyframe modelKeyframe;
-            modelKeyframe.tick = keyframe.tick;
-            modelKeyframe.weights = toVector(keyframe.weights);
-            result.dynamicKeyframes.append(modelKeyframe);
-        }
+        result.dynamicKeyframes = m_keyframes;
     }
     return normalizeSpeakerMixData(result);
 }
@@ -344,42 +338,8 @@ void SpeakerMixEditorView::deleteSelection() {
 QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const {
     if (m_keyframes.isEmpty())
         return {};
-
-    const int n = m_speakers.size();
-
-    auto expandWeights = [&](const SpeakerMixKeyframe &kf) {
-        return toList(SpeakerMixUtils::storedWeightsToFull(toVector(kf.weights), n));
-    };
-
-    if (tick <= m_keyframes.first().tick)
-        return expandWeights(m_keyframes.first());
-
-    if (tick >= m_keyframes.last().tick)
-        return expandWeights(m_keyframes.last());
-
-    int idx = 0;
-    for (int i = 0; i < m_keyframes.size() - 1; i++) {
-        if (tick >= m_keyframes[i].tick && tick < m_keyframes[i + 1].tick) {
-            idx = i;
-            break;
-        }
-    }
-
-    const auto &kf0 = m_keyframes[idx];
-    const auto &kf1 = m_keyframes[idx + 1];
-    const double t =
-        static_cast<double>(tick - kf0.tick) / static_cast<double>(kf1.tick - kf0.tick);
-
-    QList<double> result;
-    result.reserve(n);
-    double sum = 0;
-    for (int i = 0; i < n - 1; i++) {
-        const double w = kf0.weights.value(i) + t * (kf1.weights.value(i) - kf0.weights.value(i));
-        result.append(w);
-        sum += w;
-    }
-    result.append(1.0 - sum);
-    return toList(SpeakerMixUtils::normalizeFullWeights(toVector(result)));
+    const auto stored = SpeakerMixModel::interpolateSpeakerMixWeights(m_keyframes, tick);
+    return toList(SpeakerMixUtils::storedWeightsToFull(stored, m_speakers.size()));
 }
 
 void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
@@ -821,9 +781,7 @@ void SpeakerMixEditorView::addKeyframeAt(int tick) {
         return;
 
     const auto weights = interpolateWeights(tick);
-    SpeakerMixKeyframe kf;
-    kf.tick = tick;
-    kf.weights = toList(SpeakerMixUtils::fullWeightsToStored(toVector(weights)));
+    const SpeakerMixKeyframe kf{tick, SpeakerMixUtils::fullWeightsToStored(toVector(weights))};
 
     auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
                                [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });
@@ -907,15 +865,10 @@ void SpeakerMixEditorView::syncWorkingFromCommitted() {
     m_dynamicBypassed = SpeakerMixModel::isDynamicMixBypassed(m_committedData);
     m_editable = m_committedData.sources.size() >= 2 && !m_committedData.dynamicKeyframes.isEmpty();
 
-    const auto appendKeyframe = [this](const SpeakerMixModel::SpeakerMixKeyframe &keyframe) {
-        m_keyframes.append({keyframe.tick, toList(keyframe.weights)});
-    };
-
     if (!m_committedData.dynamicKeyframes.isEmpty()) {
-        for (const auto &keyframe : m_committedData.dynamicKeyframes)
-            appendKeyframe(keyframe);
+        m_keyframes = m_committedData.dynamicKeyframes;
     } else if (m_committedData.sources.size() >= 2 && !m_committedData.fixedWeights.isEmpty()) {
-        m_keyframes.append({0, toList(m_committedData.fixedWeights)});
+        m_keyframes.append({0, m_committedData.fixedWeights, 0});
     }
 
     setTransparentMouseEvents(!m_editable);

@@ -2,6 +2,9 @@
 #define NOTEINFERENCESNAPSHOT_H
 
 #include <QString>
+#include <QList>
+
+class SingingClip;
 
 class NoteInferenceSnapshot {
 public:
@@ -13,5 +16,7 @@ public:
     int length = 0;
     int keyIndex = 0;
 };
+
+QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip);
 
 #endif // NOTEINFERENCESNAPSHOT_H

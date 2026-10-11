@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QRunnable>
 #include <QReadWriteLock>
+#include <QThread>
 
 #include "TaskGlobal.h"
 #include <lite/Core/UniqueObject.h>
@@ -125,8 +126,15 @@ private:
         } catch (...) {
             qCritical("Unhandled non-standard exception in task '%s'", qPrintable(m_status.title));
         }
-        setFlag(TaskStopped);
-        emit finished();
+        const auto publishCompletion = [this] {
+            setFlag(TaskStopped);
+            emit finished();
+        };
+        // Cleanup must not delete a task while another thread is still emitting its completion.
+        if (QThread::currentThread() == thread())
+            publishCompletion();
+        else
+            QMetaObject::invokeMethod(this, publishCompletion, Qt::QueuedConnection);
     }
 
     TaskStatus m_status;

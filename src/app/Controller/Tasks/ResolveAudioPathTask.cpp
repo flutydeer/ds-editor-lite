@@ -4,11 +4,12 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QStringList>
 
 void ResolveAudioPathTask::runTask() {
     result = Result::Miss;
     resolvedPath.clear();
-    if (fileName.isEmpty() || projectDir.isEmpty())
+    if (fileName.isEmpty())
         return;
 
     struct Candidate {
@@ -17,11 +18,18 @@ void ResolveAudioPathTask::runTask() {
     };
 
     QList<Candidate> candidates;
-    const QDir projDir(projectDir);
-    if (!relativeDir.isEmpty())
-        candidates.append(
-            {QDir::cleanPath(projDir.filePath(relativeDir + '/' + fileName)), Result::HitRelative});
-    candidates.append({QDir::cleanPath(projDir.filePath(fileName)), Result::HitSibling});
+    QStringList directories;
+    if (!referenceDir.isEmpty())
+        directories.append(referenceDir);
+    if (!projectDir.isEmpty() && projectDir != referenceDir)
+        directories.append(projectDir);
+    for (const auto &directory : directories) {
+        const QDir projDir(directory);
+        if (!relativeDir.isEmpty())
+            candidates.append({QDir::cleanPath(projDir.filePath(relativeDir + '/' + fileName)),
+                               Result::HitRelative});
+        candidates.append({QDir::cleanPath(projDir.filePath(fileName)), Result::HitSibling});
+    }
 
     for (const auto &candidate : candidates) {
         if (isTerminateRequested())

@@ -21,6 +21,7 @@
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/History/HistoryManager.h>
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -283,6 +284,7 @@ namespace Automation {
                         QStringLiteral("The project format could not create a load session")));
                     return;
                 }
+                m_session->setSourcePath(m_path);
                 connect(m_session, &IProjectLoadSession::ready, this,
                         [this] { commit(m_session->takeResult()); });
                 connect(m_session, &IProjectLoadSession::failed, this,
@@ -320,7 +322,7 @@ namespace Automation {
                         replace->sourceKind == ProjectSourceKind::Native ? m_path : QString(),
                         replace->sourceKind == ProjectSourceKind::Native
                             ? QFileInfo(m_path).fileName()
-                            : replace->displayName,
+                            : QFileInfo(m_path).completeBaseName(),
                         replace->sourceKind == ProjectSourceKind::Native, m_path);
                 } else if (auto *append = std::get_if<AppendProjectPayload>(&prepared)) {
                     auto draft = documentDraftDto(append->model);
@@ -521,6 +523,7 @@ namespace Automation {
                         QStringLiteral("A project format could not create an import session")));
                     return;
                 }
+                m_session->setSourcePath(m_request.items.at(m_index).canonicalPath);
                 connect(m_session, &IProjectLoadSession::ready, this,
                         [this] { collect(m_session->takeResult()); });
                 connect(m_session, &IProjectLoadSession::failed, this,
@@ -1257,6 +1260,13 @@ namespace Automation {
                     fail(prepared.getError());
                     return;
                 }
+                if (m_request.authorizeCommit) {
+                    const auto authorized = m_request.authorizeCommit();
+                    if (!authorized) {
+                        fail(authorized.getError());
+                        return;
+                    }
+                }
                 auto validationContext = m_request.command;
                 validationContext.validateOnly = true;
                 auto validated = apply(validationContext, prepared.get());
@@ -1593,33 +1603,13 @@ namespace Automation {
             return result;
         }
 
-        QString inferenceScopeKey(const QJsonObject &scope) {
-            const auto kind = scope.value(QStringLiteral("kind")).toString();
-            const auto idField = kind == QStringLiteral("track")  ? QStringLiteral("track_ids")
-                                 : kind == QStringLiteral("clip") ? QStringLiteral("clip_ids")
-                                                                  : QString();
-            if (idField.isEmpty())
-                return kind;
-            QList<int> ids;
-            for (const auto &value : scope.value(idField).toArray())
-                ids.append(value.toInt());
-            std::sort(ids.begin(), ids.end());
-            ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
-            QStringList encoded;
-            for (const auto id : std::as_const(ids))
-                encoded.append(QString::number(id));
-            return kind + u':' + encoded.join(u',');
-        }
-
-        std::optional<AutomationTaskSnapshot> activeInferenceTask(CoreRuntime &runtime,
-                                                                  const DocumentId &documentId,
-                                                                  const QJsonObject &scope,
-                                                                  const QString &stage) {
-            const auto scopeKey = inferenceScopeKey(scope);
-            for (const auto &task : runtime.automationTasks().list(documentId)) {
+        QSet<TaskId> activeInferenceTasks(const QList<AutomationTaskSnapshot> &tasks, int pieceId,
+                                          const QString &stage) {
+            QSet<TaskId> result;
+            for (const auto &task : tasks) {
                 if (task.operationId != OperationIds::inference::start)
                     continue;
-                if (task.metadata.value(QStringLiteral("scope_key")).toString() != scopeKey)
+                if (!task.metadata.value(QStringLiteral("piece_ids")).toArray().contains(pieceId))
                     continue;
                 const auto stages = task.metadata.value(QStringLiteral("stages")).toArray();
                 if (std::none_of(stages.cbegin(), stages.cend(), [&stage](const QJsonValue &value) {
@@ -1631,10 +1621,10 @@ namespace Automation {
                     task.state == AutomationTaskState::Running ||
                     task.state == AutomationTaskState::CancelRequested ||
                     task.state == AutomationTaskState::Committing) {
-                    return task;
+                    result.insert(task.taskId);
                 }
             }
-            return std::nullopt;
+            return result;
         }
 
         QString pieceInferenceStageState(const InferPiece &piece, const QString &stage,
@@ -1657,6 +1647,8 @@ namespace Automation {
             if (targetIndex < currentIndex)
                 return QStringLiteral("ready");
             if (targetIndex > currentIndex)
+                return hasActiveTask ? QStringLiteral("queued") : QStringLiteral("stale");
+            if (state.endsWith(QStringLiteral(".Awaiting")))
                 return hasActiveTask ? QStringLiteral("queued") : QStringLiteral("stale");
             if (state.endsWith(QStringLiteral(".Error")) ||
                 state.endsWith(QStringLiteral(".Dropped"))) {
@@ -1685,28 +1677,36 @@ namespace Automation {
                 {QStringLiteral("failed"),  5},
             };
             QJsonArray stages;
+            const auto tasks = runtime.automationTasks().list(documentId);
             for (const auto &stage : InferenceAutomationFacade::supportedStages()) {
-                const auto activeTask = activeInferenceTask(runtime, documentId, scope, stage);
                 QString aggregate =
                     selected.get().isEmpty() ? QStringLiteral("idle") : QStringLiteral("ready");
                 QString reason;
+                QSet<TaskId> associatedTasks;
+                bool hasUnassociatedWork = false;
                 for (const auto *piece : selected.get()) {
                     if (!piece)
                         continue;
+                    const auto activeTasks = activeInferenceTasks(tasks, piece->id(), stage);
                     const auto state =
-                        pieceInferenceStageState(*piece, stage, activeTask.has_value(), &reason);
+                        pieceInferenceStageState(*piece, stage, !activeTasks.isEmpty(), &reason);
                     if (priorities.value(state) > priorities.value(aggregate))
                         aggregate = state;
+                    if (state == QStringLiteral("queued") || state == QStringLiteral("running")) {
+                        hasUnassociatedWork |= activeTasks.isEmpty();
+                        associatedTasks.unite(activeTasks);
+                    }
                 }
-                const auto exposesTask = activeTask && (aggregate == QStringLiteral("queued") ||
-                                                        aggregate == QStringLiteral("running"));
+                const auto exposesTask = associatedTasks.size() == 1 && !hasUnassociatedWork &&
+                                         (aggregate == QStringLiteral("queued") ||
+                                          aggregate == QStringLiteral("running"));
                 stages.append(QJsonObject{
-                    {QStringLiteral("stage"),   stage                                                                            },
-                    {QStringLiteral("state"),   aggregate                                                                        },
-                    {QStringLiteral("reason"),  reason                                                                           },
-                    {QStringLiteral("task_id"), exposesTask
-                                                    ? QJsonValue(activeTask->taskId.toString())
-                                                    : QJsonValue(QJsonValue::Null)},
+                    {QStringLiteral("stage"),   stage          },
+                    {QStringLiteral("state"),   aggregate      },
+                    {QStringLiteral("reason"),  reason         },
+                    {QStringLiteral("task_id"),
+                     exposesTask ? QJsonValue(associatedTasks.cbegin()->toString())
+                                 : QJsonValue(QJsonValue::Null)},
                 });
             }
             return AutomationResult<QJsonValue>(QJsonObject{
@@ -1786,8 +1786,8 @@ namespace Automation {
             void start();
             void requestCancel();
             void handleState(const QString &state);
+            bool validateTargets();
             void evaluate();
-            void startPendingAcoustic();
             [[nodiscard]] bool isComplete(const InferPiece &piece) const;
             void finishCanceled();
             void fail(AutomationError error);
@@ -1887,6 +1887,10 @@ namespace Automation {
             QJsonArray taskStages;
             for (const auto &stage : std::as_const(m_request.stages))
                 taskStages.append(stage);
+            // Query scopes may select a subset of a task's admitted pieces.
+            QJsonArray pieceIds;
+            for (const auto &piece : std::as_const(m_pieces))
+                pieceIds.append(piece->id());
             const auto task = m_runtime.automationTasks().createTask(
                 OperationIds::inference::start, base.get(), std::nullopt,
                 [weak] {
@@ -1895,7 +1899,7 @@ namespace Automation {
             },
                 m_request.command.clientId,
                 QJsonObject{
-                    {QStringLiteral("scope_key"), inferenceScopeKey(m_request.scope)},
+                    {QStringLiteral("piece_ids"), pieceIds},
                     {QStringLiteral("stages"), taskStages},
                 });
             m_taskId = task.taskId;
@@ -1909,10 +1913,12 @@ namespace Automation {
                         QStringLiteral("scope")));
                 });
             }
-            QTimer::singleShot(0, this, [weak] {
-                if (weak)
-                    weak->start();
-            });
+            // Check after the complete edit so a cross-track move keeps its admitted targets.
+            connect(HistoryManager::instance(), &HistoryManager::undoRedoChanged, this,
+                    [this] { validateTargets(); });
+            // Reset and enqueue in the admission turn, before unrelated completions can advance
+            // the document revision. The state machine still runs inference asynchronously.
+            start();
             return TaskAcceptedResult{m_taskId, base.get(), false};
         }
 
@@ -1940,30 +1946,7 @@ namespace Automation {
                 }
                 inferController->restartPieceInference(*piece);
             }
-            startPendingAcoustic();
             evaluate();
-        }
-
-        void HeadlessInferenceTask::startPendingAcoustic() {
-            // A pipeline remains in Acoustic.Awaiting until playback starts, unless automatic
-            // inference is enabled. A request that includes the acoustic stage requires acoustic
-            // inference explicitly, so the pieces of this task are started here, in the same way
-            // as an audio export starts the tracks it renders. The call affects only waiting
-            // pipelines, and the pieces reach the waiting state at different times, so the call is
-            // repeated whenever a piece changes state.
-            if (!m_includesAcoustic || m_finished || !m_model)
-                return;
-            QList<Track *> tracks;
-            for (const auto &piece : std::as_const(m_pieces)) {
-                if (!piece)
-                    continue;
-                Track *track = nullptr;
-                if (m_model->findClipById(piece->clipId(), track) && track &&
-                    !tracks.contains(track))
-                    tracks.append(track);
-            }
-            if (!tracks.isEmpty())
-                inferController->startPendingAcousticInference(tracks);
         }
 
         bool HeadlessInferenceTask::isComplete(const InferPiece &piece) const {
@@ -1995,20 +1978,25 @@ namespace Automation {
                     QStringLiteral("Inference pipeline failed in state %1").arg(state)));
                 return;
             }
-            if (state == QStringLiteral("Acoustic.Awaiting")) {
-                // Queued because the state is published from within the pipeline's state entry,
-                // and the resulting transition must not run within that entry.
-                const QPointer<HeadlessInferenceTask> weak(this);
-                QTimer::singleShot(0, this, [weak] {
-                    if (weak)
-                        weak->startPendingAcoustic();
-                });
-            }
             evaluate();
         }
 
-        void HeadlessInferenceTask::evaluate() {
+        bool HeadlessInferenceTask::validateTargets() {
             if (!m_started || m_finished)
+                return false;
+            for (const auto &piece : std::as_const(m_pieces)) {
+                if (!piece || m_model->findClipById(piece->clip->id()) != piece->clip) {
+                    fail(inferenceError(
+                        QStringLiteral("An inference target was removed while running"),
+                        QStringLiteral("scope")));
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void HeadlessInferenceTask::evaluate() {
+            if (!validateTargets())
                 return;
             const auto ready =
                 std::all_of(m_pieces.cbegin(), m_pieces.cend(), [this](const auto &piece) {

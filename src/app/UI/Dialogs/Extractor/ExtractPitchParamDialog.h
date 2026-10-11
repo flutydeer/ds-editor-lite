@@ -17,7 +17,6 @@ private slots:
     void onSelectionChanged(int row);
 
 private:
-    void closeEvent(QCloseEvent *event) override;
     QListWidget *clipList;
 };
 

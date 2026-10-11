@@ -32,9 +32,7 @@ target_link_libraries(ProjectConverters PUBLIC
 if(WIN32)
     target_link_libraries(ProjectConverters PRIVATE icu)
 elseif(NOT APPLE)
-    # ucsdet_* -- the charset detector MidiTextCodecConverter_icu.cpp calls -- lives in icui18n,
-    # not icuuc. Some distributions have icuuc pull i18n in for you and some do not, so naming it
-    # is the difference between linking and not.
+    # Charset detection requires icui18n as well as icuuc on Linux.
     find_package(ICU COMPONENTS uc i18n REQUIRED)
     target_link_libraries(ProjectConverters PRIVATE ICU::uc ICU::i18n)
 endif()

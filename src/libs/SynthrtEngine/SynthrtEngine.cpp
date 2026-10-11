@@ -19,6 +19,7 @@
 #include <utility>
 
 #include <QDebug>
+#include <QDir>
 
 #include <lite/Core/SingletonRegistry.h>
 #include <lite/Support/StringUtils.h>
@@ -88,6 +89,20 @@ public:
     mutable std::shared_mutex lifecycle;
 
     std::unique_ptr<lite::synthrt::Bootstrap> bootstrap;
+    std::vector<fs::path> dependencyPaths;
+
+    std::vector<fs::path> searchPathsFor(const std::vector<fs::path> &voicebanks) const {
+        auto paths = dependencyPaths;
+        for (const auto &path : voicebanks) {
+            std::error_code error;
+            const auto dependencyRoot = fs::is_regular_file(path / "desc.json", error)
+                                            ? path.parent_path()
+                                            : path;
+            if (std::find(paths.begin(), paths.end(), dependencyRoot) == paths.end())
+                paths.push_back(dependencyRoot);
+        }
+        return paths;
+    }
     std::unique_ptr<lite::synthrt::LanguageBridge> language;
 
     /// The packages that the last scan loaded. The handles keep them loaded until a refresh.
@@ -214,12 +229,8 @@ public:
     bool start(const QStringList &voicebankPaths, const QStringList &packagePaths,
                const QString &ep, int deviceIndex, const fs::path &pluginRoot,
                const fs::path &runtimePath) {
-        auto searched = toPaths(packagePaths);
-        for (auto &path : toPaths(voicebankPaths)) {
-            // A voicebank directory is also a dependency search path, because a language package
-            // may be installed beside the voicebanks that depend on it.
-            searched.push_back(std::move(path));
-        }
+        dependencyPaths = toPaths(packagePaths);
+        const auto searched = searchPathsFor(toPaths(voicebankPaths));
 
         auto booted = lite::synthrt::Bootstrap::create(
             pluginRoot, searched, runtimePath, lite::synthrt::backendFromName(ep.toStdString()),
@@ -324,6 +335,11 @@ SynthrtEngine::~SynthrtEngine() {
 }
 
 fs::path SynthrtEngine::defaultPluginRoot() {
+#ifdef LITE_TEST_DATA_ROOT
+    const auto testRoot = qEnvironmentVariable("DSEL_TEST_PLUGIN_ROOT");
+    if (!testRoot.isEmpty() && QDir::isAbsolutePath(testRoot))
+        return StringUtils::qstr_to_path(testRoot);
+#endif
     // The returned directory contains the plugin tree and is not the tree itself. Each of the
     // three packages installs under plugins/<library>/<category> below this directory, and
     // Bootstrap appends the remaining components. This directory must therefore be their common
@@ -357,11 +373,7 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths, const QStringL
                                const fs::path &runtimePath) {
     const auto announce = [this](bool ok) {
         _impl->initialized.store(ok, std::memory_order_release);
-        {
-            std::lock_guard guard(_impl->doneMutex);
-            _impl->initializationDone.store(true, std::memory_order_release);
-        }
-        _impl->done.notify_all();
+        completeInitializationAttempt();
         return ok;
     };
 
@@ -390,6 +402,14 @@ bool SynthrtEngine::initializationDone() const noexcept {
     return _impl->initializationDone.load(std::memory_order_acquire);
 }
 
+void SynthrtEngine::completeInitializationAttempt() noexcept {
+    {
+        std::lock_guard guard(_impl->doneMutex);
+        _impl->initializationDone.store(true, std::memory_order_release);
+    }
+    _impl->done.notify_all();
+}
+
 bool SynthrtEngine::waitForInitialization(int timeoutMs) const {
     std::unique_lock guard(_impl->doneMutex);
     return _impl->done.wait_for(guard, std::chrono::milliseconds(timeoutMs),
@@ -404,6 +424,7 @@ void SynthrtEngine::shutdown() noexcept {
     _impl->aboutToQuit.store(true, std::memory_order_release);
     std::unique_lock lock(_impl->lifecycle);
     _impl->initialized.store(false, std::memory_order_release);
+    completeInitializationAttempt();
 
     // The owner must release every pipeline and analyzer lease before shutdown() runs, because
     // each keeps a package of the unit loaded, and synthrt terminates the process if a package is
@@ -438,10 +459,15 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     SynthrtEngine::refreshVoicebanks(const std::vector<fs::path> &searchPaths,
                                      std::vector<lite::synthrt::PackageProblem> *problems,
                                      RescanMode mode) {
+    // Release idle app caches before taking the SDK lock: their DirectML teardown guard has the
+    // same lock order as an inference task (provider serialization, then SDK lifecycle).
+    if (mode == RescanMode::Reload)
+        emit voicebanksAboutToReload();
     std::unique_lock lock(_impl->lifecycle);
     if (!_impl->bootstrap) {
         return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
     }
+    _impl->bootstrap->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
 
     // synthrt returns a package that is still loaded instead of reading it again, so the handles
     // held during the scan determine whether a package is read from disk. A reload releases the
@@ -466,6 +492,7 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     std::vector<srt::PackageHandle> previous;
     std::vector<lite::synthrt::SingerEntry> previousCatalog;
     if (mode == RescanMode::Reload) {
+        _impl->republish();
         _impl->releaseLanguageHandles();
         _impl->packages.clear();
         _impl->catalog.clear();
@@ -491,9 +518,8 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     // After a failed Reload both members were cleared above (the consistent empty state); problems
     // always hold the reasons found by this scan.
 
-    // Only a change in the set of packages republishes the catalog. A rescan that finds the same
-    // packages keeps the held pipelines current instead of marking every singer session as stale.
-    if (_impl->packageSet() != before) {
+    // Reload already invalidated every old pipeline, even if its package identity is unchanged.
+    if (mode == RescanMode::ReuseLoaded && _impl->packageSet() != before) {
         _impl->republish();
     }
     if (problems != nullptr) {
