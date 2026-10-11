@@ -279,11 +279,13 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             singerInfo.setCapability(summaryOf(singer.capabilities));
             // Spec 2.4 permits optional stages, but the editor currently runs all five stages.
             const auto &stages = singer.capabilities;
-            const bool usable = stages.duration && stages.pitch && stages.variance &&
-                                stages.acoustic && stages.vocoder;
+            const bool complete = stages.duration && stages.pitch && stages.variance &&
+                                  stages.acoustic && stages.vocoder;
+            const bool addressable = !stages.speakers.empty() || stages.unaddressableSpeakers.empty();
+            const bool usable = complete && addressable;
             singerInfo.setResolutionState(usable ? ResolutionState::Resolved
                                                  : ResolutionState::Missing);
-            if (!usable)
+            if (!complete)
                 qWarning() << "Singer" << toQString(singer.contributionId) << "in" << packageId
                            << "is missing stages required by the editor inference pipeline";
             // Speakers that the acoustic model cannot address are excluded from the singer rather
@@ -294,6 +296,11 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                            << toQString(singer.contributionId) << "in" << packageId
                            << "is not mapped to a speaker of the acoustic model and is not offered";
             }
+            QSet<QString> convertibleLanguages;
+            for (const auto &language : singer.convertibleLanguages)
+                convertibleLanguages.insert(toQString(language));
+            result.convertibleLanguages.insert(singerInfo.identifier(),
+                                               std::move(convertibleLanguages));
             packages[packageAt.value(key)].addSinger(singerInfo);
         }
         result.successfulPackages = std::move(packages);

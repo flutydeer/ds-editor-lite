@@ -300,6 +300,21 @@ class ConvertVoicebankTest(VoicebankFixture):
         self.assertIn("contributions", desc)
         self.assertNotIn("contributes", desc)
 
+    def test_invalid_declaration_levels_leave_the_original_package_unchanged(self):
+        path = self.package / "inferences" / "acoustic" / "config.json"
+        original = read_json(path)
+        for value in ("bad", None, True, False, 0, -1, 1.5, [], {}):
+            with self.subTest(level=value):
+                declaration = dict(original, level=value)
+                write_json(path, declaration)
+                before = path.read_bytes()
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertIn("level must be a positive integer", text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(path.read_bytes(), before)
+                self.assertFalse(self.package.with_name(self.package.name + ".replaced").exists())
+
     def test_in_place_preserves_an_existing_backup_even_with_force(self):
         backup = self.package.with_name(self.package.name + ".replaced")
         backup.mkdir()

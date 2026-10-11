@@ -308,6 +308,16 @@ public:
             return;
         }
         lite::synthrt::feedSingerPhonemes(*language, catalog);
+        // Readiness belongs to the same snapshot as the singer metadata. Callers must not have
+        // to query a newer live catalog while converting an older package scan result.
+        for (auto &entry : catalog) {
+            entry.convertibleLanguages.clear();
+            for (const auto &handle : entry.capabilities.languages) {
+                if (language->canConvert(
+                        {entry.packageId, entry.contributionId, entry.packageVersion}, handle))
+                    entry.convertibleLanguages.insert(handle);
+            }
+        }
     }
 
     /// Marks every pipeline taken so far as describing an earlier catalog.

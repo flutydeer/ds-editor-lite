@@ -1130,6 +1130,10 @@ def convert_declaration(path: Path, report: Report):
     identifier = declaration.get("id")
     if not check_identifier(identifier, SEGMENT, "contribution id", report, str(path)):
         return None
+    level = declaration.get("level", 1)
+    if type(level) is not int or level <= 0:
+        report.error(f"{path}: level must be a positive integer")
+        return None
 
     # The declaration is copied and then edited instead of being rebuilt from the known keys: 2.4
     # preserves unrecognized keys in a framework-defined object, and a declaration is such an object
@@ -1142,7 +1146,7 @@ def convert_declaration(path: Path, report: Report):
     # validated against an allow-list; the allow-lists are cited at the dependency loop below.
     converted = dict(declaration)
     converted["interface"] = interface
-    converted["level"] = declaration.get("level", 1)
+    converted["level"] = level
     converted["variant"] = variant
 
     # `class` is the 2.3 name for the contract that interface and variant now specify, the id

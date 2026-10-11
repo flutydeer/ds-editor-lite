@@ -111,19 +111,14 @@ namespace Automation {
                     .path = package.path(),
                 };
                 for (const auto &singer : package.singers()) {
-                    const auto identifier = singer.identifier();
-                    QSet<QString> convertibleLanguages;
-                    for (const auto &language : singer.languages()) {
-                        if (SynthrtEngine::instance().canConvert(identifier, language.id()))
-                            convertibleLanguages.insert(language.id());
-                    }
                     converted.singers.append({
                         .singerId = singer.singerId(),
                         .packageId = singer.packageId(),
                         .packageVersion = singer.packageVersion(),
                         .name = singer.name(),
                         .info = singer,
-                        .convertibleLanguages = std::move(convertibleLanguages),
+                        .convertibleLanguages =
+                            packages.convertibleLanguages.value(singer.identifier()),
                     });
                 }
                 result.append(std::move(converted));
