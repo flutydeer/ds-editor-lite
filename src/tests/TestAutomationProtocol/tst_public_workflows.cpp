@@ -388,22 +388,50 @@ void AutomationProtocolTests::batchImportPlanRevalidation() {
     const auto projectPath = directory.filePath(QStringLiteral("planned.dspx"));
     QString failure;
     DspxProjectConverter converter;
-    QVERIFY2(converter.save(projectPath, &fixture.runtimeFixture.model(), failure),
-             qPrintable(failure));
     PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission, fixture.captureBatch());
     const auto before = fixture.runtime.documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
-    const auto inspection = registry.invoke(
-        QStringLiteral("formats.inspect"),
-        {{QStringLiteral("path"), projectPath},
-         {QStringLiteral("purpose"), QStringLiteral("import")}});
+    const auto midiPath = directory.filePath(QStringLiteral("broken.mid"));
+    QVERIFY(writeFile(projectPath, QByteArrayLiteral("invalid project")));
+    QVERIFY(writeFile(midiPath, QByteArrayLiteral("invalid midi")));
+    const auto inspectInvalid = [&](const QString &path) {
+        const auto result =
+            registry.invoke(QStringLiteral("formats.inspect"),
+                            {
+                                {QStringLiteral("path"),    path                    },
+                                {QStringLiteral("purpose"), QStringLiteral("import")}
+        });
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code, AutomationErrorCode::FormatUnsupported);
+        QCOMPARE(result.getError().fieldPath, QStringLiteral("path"));
+    };
+    inspectInvalid(projectPath);
+    inspectInvalid(midiPath);
+    QCOMPARE(fixture.runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
+    QVERIFY(fixture.batches.isEmpty());
+    QVERIFY2(converter.save(projectPath, &fixture.runtimeFixture.model(), failure),
+             qPrintable(failure));
+    const auto inspection =
+        registry.invoke(QStringLiteral("formats.inspect"),
+                        {
+                            {QStringLiteral("path"),    projectPath             },
+                            {QStringLiteral("purpose"), QStringLiteral("import")}
+    });
     QVERIFY2(inspection, qPrintable(errorMessage(inspection)));
     QCOMPARE(inspection.get().value(QStringLiteral("format_id")).toString(),
              QStringLiteral("dspx"));
-    QCOMPARE(inspection.get().value(QStringLiteral("sources")).toArray().first().toObject()
-                 .value(QStringLiteral("name")).toString(), QStringLiteral("Lead"));
+    QCOMPARE(inspection.get()
+                 .value(QStringLiteral("sources"))
+                 .toArray()
+                 .first()
+                 .toObject()
+                 .value(QStringLiteral("name"))
+                 .toString(),
+             QStringLiteral("Lead"));
     QCOMPARE(inspection.get().value(QStringLiteral("lyrics_preview")).toArray(),
              (QJsonArray{QStringLiteral("old-a"), QStringLiteral("-"), QStringLiteral("old-b"),
                          QStringLiteral("old-c")}));

@@ -191,7 +191,7 @@ RHI 回退场景通过 Qt 渲染失败通知进入生产处理，重复通知合
 | SeekBar、TaskWindow、G2pListWidget、G2pInfoWidget、GraphicsLayerManager、DirSelector、AcrylicBrush 的旧实现 | 已确认没有当前产品创建或调用路径，暂时保留 | 当前实际使用的控件、歌词和发音界面、图层与绘制逻辑 |
 | PianoKeyboardView 的 Uniform 专属分支及未调用绘制助手 | 当前键盘固定为 Classic，没有样式修改入口 | Classic 绘制与输入、主题属性、滑奏及音符释放 |
 | ProgressIndicator 的 Ring 专属绘制和尺寸分支 | 产品导出窗口使用 HorizontalBar，没有 Ring 选择入口 | 导出进度、横向绘制、动画、状态与主题 |
-| Registry 的旧富轨道或片段草稿解码分支 | 当前封闭的草稿 Schema 在进入私有处理器前拒绝这些旧字段 | 当前草稿默认值、公开编辑、声线及混合解析，运行时校验 |
+| Registry 的旧富草稿解码、未调用私有解码及 Editor 旧能力查询包装 | 封闭草稿 Schema 拒绝旧字段，其他旧包装经调用点检查确认没有当前入口，暂时保留 | 当前草稿默认值、音频导入、公开编辑与能力查询、声线及混合解析，运行时校验 |
 | AppContext 的未调用旧单例访问器 | 当前接线使用 CoreRuntime、LevelMeterManager 和 SynthrtEngine | 运行时装配、单例所有权、资源释放及活动访问器 |
 | MIDI 旧同步加载包装 | 产品使用 MidiLoadSession 的解析、重处理、配置和实体化流程 | 当前 MIDI 加载、界面配置、轨道生成及导出 |
 | 已确认无调用的 Synthrt 旧包装和 LanguageInfo 旧设置方法 | 当前会话或快照接线有独立的生产入口，旧方法暂时保留 | 活动会话、语言路由、快照、身份比较及实际包元数据更新 |
