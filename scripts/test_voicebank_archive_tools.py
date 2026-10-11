@@ -2,6 +2,7 @@
 
 import json
 import hashlib
+import os
 from pathlib import Path
 import runpy
 import shutil
@@ -51,8 +52,44 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             (obsolete / "desc.json").write_text("{}", encoding="utf-8")
             invalid = subprocess.run(command, capture_output=True, text=True)
             self.assertNotEqual(invalid.returncode, 0)
-            self.assertIn("unexpected package directories", invalid.stderr)
+            self.assertIn("unexpected package directories", " ".join(invalid.stderr.split()))
             self.assertIn("obsolete", invalid.stderr)
+
+    def test_linux_plugin_deployment_detects_changes_with_identical_metadata(self):
+        if sys.platform != "linux":
+            self.skipTest("The deployment script targets Linux")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, deployed, binaries = (root / name for name in ("source", "deployed", "bin"))
+            for folder in (source, deployed, binaries):
+                folder.mkdir()
+            objdump = binaries / "objdump"
+            objdump.write_text('#!/usr/bin/env bash\n'
+                               'if [[ "$2" == */plugin.so ]]; then printf "  NEEDED libfixture.so\\n"; fi\n',
+                               encoding="utf-8")
+            objdump.chmod(0o755)
+            (deployed / "plugin.so").write_bytes(b"plugin")
+            library = source / "libfixture.so"
+            library.write_bytes(b"old!")
+            original = library.stat()
+            environment = {**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"]}
+            command = ["bash", str(TOOLS.parents[2] / "scripts/deploy_linux_plugin_deps.sh"),
+                       str(deployed), str(source)]
+            first = subprocess.run(command, env=environment, capture_output=True, text=True)
+            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+            output = deployed / library.name
+            self.assertEqual(output.read_bytes(), b"old!")
+            output.write_bytes(b"RPATH rewritten")
+            unchanged = subprocess.run(command, env=environment, capture_output=True, text=True)
+            self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)
+            self.assertEqual(output.read_bytes(), b"RPATH rewritten")
+            library.write_bytes(b"new!")
+            os.utime(library, ns=(original.st_atime_ns, original.st_mtime_ns))
+            self.assertEqual(library.stat().st_size, original.st_size)
+            self.assertEqual(library.stat().st_mtime_ns, original.st_mtime_ns)
+            changed = subprocess.run(command, env=environment, capture_output=True, text=True)
+            self.assertEqual(changed.returncode, 0, changed.stdout + changed.stderr)
+            self.assertEqual(output.read_bytes(), b"new!")
 
     def test_pack_rejects_external_file_links_before_creating_archive(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -129,6 +166,42 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             self.assertEqual(advertised, expected)
             asset["browser_download_url"] = "invalid://must-not-download"
             self.assertEqual(module["ensure_archive"](root, "tag", asset)[1], expected)
+
+    def test_comparison_rejects_unknown_explicit_tags(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            releases = root / "releases.json"
+            releases.write_text(json.dumps([{"tag_name": "lang-v1.0.0.0", "assets": []}]),
+                                encoding="utf-8")
+            for tags in (("missing", "lang-v1.0.0.0"), ("lang-v1.0.0.0", "missing")):
+                with self.subTest(tags=tags):
+                    result = self.run_tool("compare-wolf-releases.py", "--releases", releases,
+                                           "--cache", root / "cache", "--tags", *tags)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn("tag not found: missing", result.stdout)
+                    self.assertNotIn("Traceback", result.stderr)
+                    self.assertFalse((root / "cache").exists())
+
+    def test_comparison_rejects_duplicate_package_ids_in_one_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tag = "lang-v1.0.0.0"
+            folder = root / tag
+            folder.mkdir()
+            assets = []
+            for name in ("first", "second"):
+                path = folder / f"wolf-{name}-1.0.0.0.zip"
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr("desc.json", json.dumps({"id": "duplicate", "version": "1.0.0.0"}))
+                    archive.writestr("content.txt", name)
+                assets.append({"name": path.name, "size": path.stat().st_size})
+            metadata = root / "releases.json"
+            metadata.write_text(json.dumps([{"tag_name": tag, "assets": assets}]), encoding="utf-8")
+            result = self.run_tool("compare-wolf-releases.py", "--releases", metadata,
+                                   "--cache", root, "--self-check", tag)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("duplicate package ID", result.stdout)
+            self.assertNotIn("self-check passed", result.stdout)
 
     def test_fetch_report_cannot_replace_an_archive_or_authority(self):
         with tempfile.TemporaryDirectory() as temporary:

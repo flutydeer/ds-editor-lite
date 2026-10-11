@@ -92,6 +92,17 @@ class ConvertPhonemeSymbolsTest(unittest.TestCase):
                 self.assertEqual(self.run_helper(self.source, "-o", output), 1)
                 self.assertFalse(output.exists())
 
+    def test_non_string_symbols_and_types_preserve_existing_output(self):
+        output = self.work / "out.json"
+        for field in ("symbol", "type"):
+            for value in (None, ["en/a"], {"name": "en/a"}, 42, True):
+                with self.subTest(field=field, value=value):
+                    entry = {"symbol": "en/a", "type": "vowel", field: value}
+                    self.source.write_text(json.dumps({"symbols": [entry]}), encoding="utf-8")
+                    output.write_text("preserve this inventory", encoding="utf-8")
+                    self.assertEqual(self.run_helper(self.source, "-o", output, "--force"), 1)
+                    self.assertEqual(output.read_text(encoding="utf-8"), "preserve this inventory")
+
 
 if __name__ == "__main__":
     unittest.main()

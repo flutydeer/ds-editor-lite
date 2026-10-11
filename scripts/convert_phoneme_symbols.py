@@ -57,6 +57,8 @@ def convert(input_path: Path, output_path: Path, prefix: str) -> int:
             continue
         symbol = entry.get("symbol", "")
         ph_type = entry.get("type", "")
+        if not isinstance(symbol, str) or not isinstance(ph_type, str):
+            raise ValueError("phoneme symbol and type must be strings")
         if not symbol or not ph_type:
             continue
         if symbol in MARKERS:
