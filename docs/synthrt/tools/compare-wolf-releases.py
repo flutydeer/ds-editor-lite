@@ -25,12 +25,14 @@ Archives are cached per tag and verified against the API's sha256 digest when on
 """
 
 import argparse
+import contextlib
 import hashlib
 import io
 import json
 import os
 import re
 import sys
+import tempfile
 import urllib.request
 import zipfile
 
@@ -80,13 +82,13 @@ def ensure_archive(cache, tag, asset):
     return path, actual, expected
 
 
+@contextlib.contextmanager
 def ensure_extract(path, side):
-    """Extract into a per-side folder, so comparing a tag with itself still reads two real trees."""
-    folder = os.path.join(os.path.dirname(path), side + "_" + os.path.basename(path)[:-4])
-    if not os.path.isdir(folder):
+    """Read a fresh tree for each side; an old or interrupted extraction is never reused."""
+    with tempfile.TemporaryDirectory(prefix=side + "_", dir=os.path.dirname(path)) as folder:
         with zipfile.ZipFile(path) as archive:
             archive.extractall(folder)
-    return folder
+        yield folder
 
 
 def find_file(root, filename):
@@ -151,16 +153,18 @@ def main():
     for side, tag in enumerate(tags):
         marker = "x" if side == 0 else "y"
         for asset in available[tag].get("assets") or []:
-            if not asset["name"].endswith(".zip"):
+            match = ARCHIVE.fullmatch(asset["name"])
+            if not match:
                 continue
             path, actual, expected = ensure_archive(args.cache, tag, asset)
             if expected and actual != expected:
                 bad_digest.append((tag, asset["name"], actual, expected))
-            folder = ensure_extract(path, marker)
-            listing, desc = describe(folder)
-            key = desc.get("id") or ARCHIVE.match(asset["name"]).group("name")
+                continue
+            with ensure_extract(path, marker) as folder:
+                listing, desc = describe(folder)
+            key = desc.get("id") or match.group("name")
             packages.setdefault(key, {})[side] = {
-                "archive_version": ARCHIVE.match(asset["name"]).group("version"),
+                "archive_version": match.group("version"),
                 "declared_version": desc.get("version"),
                 "compat_version": desc.get("compatVersion"),
                 "dependencies": desc.get("dependencies"),

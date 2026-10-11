@@ -150,6 +150,21 @@ class ConvertVoicebankTest(VoicebankFixture):
                 self.assertEqual((self.package / "desc.json").read_bytes(), original)
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
+    def test_non_object_declarations_leave_the_package_and_clean_staging(self):
+        declaration = self.package / "inferences/acoustic/config.json"
+        for value in ([], 42, "declaration", False, None):
+            with self.subTest(value=value):
+                write_json(declaration, value)
+                original = {path.relative_to(self.package): path.read_bytes()
+                            for path in self.package.rglob("*") if path.is_file()}
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertIn("the declaration must be an object", text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(original, {path.relative_to(self.package): path.read_bytes()
+                                           for path in self.package.rglob("*") if path.is_file()})
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
     def test_converts_the_package(self):
         output = self.destination("out")
         code, text = self.run_script(self.package, "--output", output)
