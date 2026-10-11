@@ -9,7 +9,7 @@ TaskDialog::TaskDialog(Task *task, const bool cancellable, const bool canHide, Q
         return;
 
     connect(m_task, &Task::statusUpdated, this, &TaskDialog::onStatusUpdated);
-    connect(m_task, &Task::finished, this, [this] { accept(); });
+    connect(m_task, &Task::finished, this, [this] { accept(); }, Qt::QueuedConnection);
 }
 
 void TaskDialog::onCanceled() {

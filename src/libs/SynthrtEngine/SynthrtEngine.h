@@ -85,7 +85,7 @@ public:
     // Initialization has a single stage, with no advance warm-up: wolf loads a language on its
     // first conversion.
     //
-    // voicebankPaths — directories containing packages, searched one level deep
+    // voicebankPaths — package directories or their parent directories, searched one level deep
     // packagePaths   — dependency search paths. This list differs from voicebankPaths: a
     //                  voicebank scan opens every package found, whereas a dependency is resolved
     //                  through these paths
@@ -104,6 +104,9 @@ public:
     /// Returns whether initialize() has been attempted, regardless of its result. A caller that
     /// requires the engine can poll this to detect a failure instead of waiting indefinitely.
     bool initializationDone() const noexcept;
+
+    /// Releases waiters when initialization is rejected by the host or during shutdown.
+    void completeInitializationAttempt() noexcept;
 
     /// Default timeout of waitForInitialization(). Initialization loads plugins and scans the
     /// voicebanks, which takes seconds on a slow disk. A caller that exceeds this timeout reports
@@ -150,8 +153,8 @@ public:
 
     /// Rescans the search paths and publishes the catalog.
     ///
-    /// catalogGeneration() changes only if the set of packages, by identifier, version and
-    /// directory, differs from the set before the scan.
+    /// Reload always advances catalogGeneration(); ReuseLoaded advances it when package identities
+    /// change. A reload also releases idle cached pipelines before scanning the package files.
     ///
     /// A package that fails to open is reported rather than treated as fatal; scan() in
     /// VoicebankCatalog states that policy and records the reason. A caller may also pass
@@ -184,8 +187,7 @@ public:
     srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
         pipelineFor(const SingerIdentifier &identifier);
 
-    /// Returns the number of catalog republications, that is, rescans that changed the set of
-    /// packages.
+    /// Returns the number of catalog republications, including every explicit reload.
     ///
     /// A pipeline obtained before such a refresh remains usable but describes the voicebank as it
     /// was scanned at that time. A cache that requires the current pipeline records this value
@@ -273,6 +275,10 @@ public:
     srt::SynthUnit *unitIfReady() noexcept;
 
 signals:
+    /// Synchronous cache invalidation before a reload releases and reopens package handles.
+    /// Emitted before acquiring the SDK lifecycle lock so model teardown can serialize safely.
+    void voicebanksAboutToReload();
+
     /// Emitted after a conversion failed at the route or executive layer, carrying the language
     /// that failed.
     ///

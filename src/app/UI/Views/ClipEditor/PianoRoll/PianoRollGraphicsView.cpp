@@ -275,7 +275,7 @@ bool PianoRollGraphicsView::event(QEvent *event) {
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
         d->hideHoverToolTips();
-        discardAction();
+        cancelPointerInteraction();
     } else if (event->type() == QEvent::HoverEnter)
         d->onHoverEnter(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverLeave)
@@ -289,13 +289,7 @@ EditorTouchTarget::ContentHit
     PianoRollGraphicsView::touchContentAt(const QPointF &viewportPosition) const {
     auto *d = const_cast<PianoRollGraphicsViewPrivate *>(d_func());
     const auto position = viewportPosition.toPoint();
-    auto *noteView = d->noteViewAt(position);
-    if (!noteView) {
-        // A pronunciation label belongs to its note, so it selects and drags
-        // together with it.
-        if (const auto *pronView = d->pronViewAt(position))
-            noteView = d->findNoteViewById(pronView->id());
-    }
+    const auto *noteView = d->noteViewForSelectionAt(position);
     if (!noteView)
         return ContentHit::None;
     // Mirrors the RHI backend: an explicit tool owns the note it lands on,
@@ -326,12 +320,13 @@ bool PianoRollGraphicsView::touchFingerEdits() const {
 }
 
 void PianoRollGraphicsView::cancelTouchPointerInteraction() {
+    cancelPointerInteraction();
+}
+
+void PianoRollGraphicsView::cancelPointerInteraction() {
     Q_D(PianoRollGraphicsView);
     discardAction();
-    // The touch stream was taken away mid-press (a second finger promoted it
-    // to navigation, or the platform cancelled it), so the release that would
-    // reset the interaction controller never comes; a latched mouse-down makes
-    // mousePressEvent refuse every later press.
+    // An interrupted stream has no release to clear the pressed button.
     d->m_interactionController->setMouseDown(false);
     TimeGraphicsView::cancelTouchPointerInteraction();
 }
@@ -505,11 +500,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_selectionModel->setSelectionChangeBarrier(true);
     if (event->button() != Qt::LeftButton && !EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
         d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
-        auto *noteView = d->noteViewAt(event->pos());
-        if (!noteView) {
-            if (const auto *pronView = d->pronViewAt(event->pos()))
-                noteView = d->findNoteViewById(pronView->id());
-        }
+        auto *noteView = d->noteViewForSelectionAt(event->pos());
         (void) d->m_selectionModel->applyPressSelection(noteView, false);
         if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
@@ -520,7 +511,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     const auto scenePos = mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
-    const auto noteView = d->noteViewAt(event->pos());
+    const auto noteView =
+        pressMode == Select ? d->noteViewForSelectionAt(event->pos()) : d->noteViewAt(event->pos());
     const auto pronView = d->pronViewAt(event->pos());
 
     if (pressMode == Select) {
@@ -1132,9 +1124,11 @@ HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus
 
     QRectF itemBounds;
     for (const auto id : focus.objectIds) {
-        if (const auto item = d->findNoteViewById(id))
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
+        if (const auto item = d->findNoteViewById(id)) {
+            // Painted borders can extend past the scene edge; navigation follows the note body.
+            const auto noteRect = item->mapRectToScene(item->rect());
+            itemBounds = itemBounds.isNull() ? noteRect : itemBounds.united(noteRect);
+        }
     }
     if (!itemBounds.isNull())
         return logicalVisibleRect().contains(itemBounds) ? HistoryFocusVisibility::Visible
@@ -1171,8 +1165,8 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool an
         QRectF bounds;
         for (const auto id : focus.objectIds) {
             if (const auto item = d->findNoteViewById(id)) {
-                bounds = bounds.isNull() ? item->sceneBoundingRect()
-                                         : bounds.united(item->sceneBoundingRect());
+                const auto noteRect = item->mapRectToScene(item->rect());
+                bounds = bounds.isNull() ? noteRect : bounds.united(noteRect);
             }
         }
         if (!bounds.isNull())
@@ -1462,12 +1456,8 @@ void PianoRollGraphicsView::endPenEraserStroke() {
 }
 
 void PianoRollGraphicsView::abortPenEraseStroke() {
-    // The system took the stroke away: drop the erase it staged so far and
-    // hand the handler and the pitch editor back to the armed tool. Both halves
-    // are idempotent, so an earlier discardAction() on the same interruption
-    // costs nothing.
     Q_D(PianoRollGraphicsView);
-    discardAction();
+    cancelPointerInteraction();
     d->endPenEraseStroke();
 }
 
@@ -1861,6 +1851,13 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
         if (const auto noteItem = dynamic_cast<NoteView *>(item))
             return noteItem;
     return nullptr;
+}
+
+NoteView *PianoRollGraphicsViewPrivate::noteViewForSelectionAt(const QPoint &pos) {
+    if (auto *noteView = noteViewAt(pos))
+        return noteView;
+    const auto *pronunciation = pronViewAt(pos);
+    return pronunciation ? findNoteViewById(pronunciation->id()) : nullptr;
 }
 
 // The handle frame is drawn only when exactly one note is selected: multi-select

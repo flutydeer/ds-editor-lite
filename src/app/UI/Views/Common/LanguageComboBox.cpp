@@ -177,10 +177,8 @@ void LanguageComboBox::markUnavailableItem(const int index, const QString &reaso
 
 void LanguageComboBox::refreshCurrentToolTip() {
     const int index = currentIndex();
-    const auto reason = index >= 0 && itemData(index, kUnavailableFlagsRole).isValid()
-                            ? itemData(index, kUnavailableReasonRole).toString()
-                            : QString();
-    if (reason.trimmed().isEmpty()) {
+    const bool unavailable = index >= 0 && itemData(index, kUnavailableFlagsRole).isValid();
+    if (!unavailable) {
         // The current language is available: hand the tooltip back to the caller (for example a
         // description like "Clip Default Language"), instead of holding on to it
         if (!m_reasonToolTip.isEmpty()) {
@@ -190,7 +188,7 @@ void LanguageComboBox::refreshCurrentToolTip() {
         return;
     }
 
-    const auto text = unavailableToolTipText(reason);
+    const auto text = unavailableToolTipText(itemData(index, kUnavailableReasonRole).toString());
     if (toolTip() != m_reasonToolTip) // caller just set its own tooltip: keep it, restore it later
         m_baseToolTip = toolTip();
     m_reasonToolTip = text;
@@ -231,11 +229,10 @@ QStringList LanguageComboBox::unavailableLanguages(const SingerInfo &singerInfo,
         if (id.isEmpty() || queried.contains(id))
             continue;
         queried.insert(id);
-        const auto reason = SynthrtEngine::instance().languageUnavailableReason(identifier, id);
-        if (reason.isEmpty())
+        if (SynthrtEngine::instance().canConvert(identifier, id))
             continue;
         unavailable.append(id);
-        reasons.insert(id, reason);
+        reasons.insert(id, SynthrtEngine::instance().languageUnavailableReason(identifier, id));
     }
     return unavailable;
 }

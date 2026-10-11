@@ -77,6 +77,7 @@ namespace Audio::Internal {
         pathLayout->addRow(filePathBrowseButton);
         auto fileNameLayout = new QHBoxLayout;
         m_fileNameEdit = new QLineEdit;
+        m_fileNameEdit->setObjectName(QStringLiteral("audioExportFileName"));
         fileNameLayout->addWidget(m_fileNameEdit, 1);
         auto fileNameTemplateButton = new QPushButton;
         fileNameTemplateButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarMenuButton));
@@ -139,11 +140,14 @@ namespace Audio::Internal {
         nameLabel->setBuddy(m_fileNameEdit);
         pathLayout->addRow(nameLabel, fileNameLayout);
         m_fileNamePreviewLabel = new QLabel;
+        m_fileNamePreviewLabel->setObjectName(QStringLiteral("audioExportFileNamePreview"));
         pathLayout->addWidget(m_fileNamePreviewLabel);
         m_fileDirectoryEdit = new QLineEdit;
+        m_fileDirectoryEdit->setObjectName(QStringLiteral("audioExportDirectory"));
         m_fileDirectoryEdit->setPlaceholderText(tr("(Project directory)"));
         pathLayout->addRow(tr("Dire&ctory"), m_fileDirectoryEdit);
         m_fileTypeComboBox = new ComboBox;
+        m_fileTypeComboBox->setObjectName(QStringLiteral("audioExportFileType"));
         m_fileTypeComboBox->addItems({tr("WAV"), tr("FLAC"), tr("Ogg Vorbis"), tr("MP3")});
         pathLayout->addRow(tr("&Type"), m_fileTypeComboBox);
         pathGroupBox->setLayout(pathLayout);
@@ -171,6 +175,7 @@ namespace Audio::Internal {
         vbrLabel->setBuddy(vbrSpinBox);
         formatLayout->addRow(vbrLabel, vbrLayout);
         m_formatSampleRateComboBox = new ComboBox;
+        m_formatSampleRateComboBox->setObjectName(QStringLiteral("audioExportSampleRate"));
         m_formatSampleRateComboBox->setEditable(true);
         m_formatSampleRateComboBox->setValidator(
             new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
@@ -189,6 +194,7 @@ namespace Audio::Internal {
         auto mixingGroupBox = new QGroupBox(tr("Mixer"));
         auto mixingLayout = new QFormLayout;
         m_mixingOptionComboBox = new ComboBox;
+        m_mixingOptionComboBox->setObjectName(QStringLiteral("audioExportMixing"));
         m_mixingOptionComboBox->addItems({
             tr("Mixed"),
             tr("Separated"),
@@ -203,6 +209,7 @@ namespace Audio::Internal {
         m_enableMuteSoloCheckBox->setChecked(true);
         mixingLayout->addRow(m_enableMuteSoloCheckBox);
         m_sourceComboBox = new ComboBox;
+        m_sourceComboBox->setObjectName(QStringLiteral("audioExportSource"));
         m_sourceComboBox->addItems({
             tr("All tracks"),
             tr("Selected tracks"),
@@ -211,6 +218,7 @@ namespace Audio::Internal {
         m_sourceComboBox->setItemData(AudioExporterConfig::SO_Selected, 0, Qt::UserRole - 1);
         mixingLayout->addRow(tr("&Source"), m_sourceComboBox);
         m_sourceListWidget = new QListWidget;
+        m_sourceListWidget->setObjectName(QStringLiteral("audioExportTracks"));
         m_sourceListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
         {
             // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
@@ -276,6 +284,7 @@ namespace Audio::Internal {
         exportButton->setDefault(true);
         buttonLayout->addWidget(exportButton);
         auto cancelButton = new QPushButton(tr("Cancel"));
+        cancelButton->setObjectName(QStringLiteral("audioExportCancel"));
         buttonLayout->addWidget(cancelButton);
         mainLayout->addLayout(buttonLayout);
 

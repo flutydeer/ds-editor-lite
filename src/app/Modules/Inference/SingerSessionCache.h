@@ -170,11 +170,12 @@ public:
         return result;
     }
 
-    HandleList clear() {
+    HandleList clear(bool clearRetention = true) {
         HandleList handles;
         {
             std::lock_guard lock(m_mutex);
-            m_retainedIdentifiers.clear();
+            if (clearRetention)
+                m_retainedIdentifiers.clear();
             handles.reserve(static_cast<std::size_t>(m_entries.size()));
             for (auto &entry : m_entries) {
                 if (entry.resident) {

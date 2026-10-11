@@ -48,7 +48,6 @@ public:
     bool setTrackAutoPageTurn(bool enabled) const;
     bool setPianoRollAutoPageTurn(bool enabled) const;
 
-    void refreshActiveClipTrackPresentation() const;
     void previewActiveClipTrackColor(int colorIndex) const;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;

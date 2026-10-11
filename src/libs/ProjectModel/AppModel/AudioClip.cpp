@@ -25,6 +25,7 @@ void AudioClip::setPath(const QString &path) {
     const bool changed = m_path != path;
     m_path = path;
     if (changed) {
+        m_referenceDirectory.clear();
         ++m_sourceGeneration;
         emit pathChanged();
         emit sourceChanged();
@@ -47,6 +48,18 @@ AudioPathInfo AudioClip::pathInfo() const {
 
 void AudioClip::setPathInfo(const AudioPathInfo &pathInfo) {
     m_pathInfo = pathInfo;
+}
+
+QString AudioClip::referenceDirectory() const {
+    return m_referenceDirectory;
+}
+
+void AudioClip::setReferenceDirectory(const QString &directory) {
+    if (m_referenceDirectory == directory)
+        return;
+    m_referenceDirectory = directory;
+    ++m_sourceGeneration;
+    emit sourceChanged();
 }
 
 AudioClip::PathStatus AudioClip::pathStatus() const {

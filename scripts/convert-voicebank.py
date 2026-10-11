@@ -1510,6 +1510,10 @@ def main() -> int:
         if args.output:
             report.error("--in-place and --output are mutually exclusive")
             return 1
+        replaced = args.package.parent / (args.package.name + ".replaced")
+        if replaced.exists() or replaced.is_symlink():
+            report.error(f"{replaced}: exists; preserve or move this backup before converting")
+            return 1
         # Each declaration is rewritten as it is visited and desc.json is written last, so a
         # failure midway through an in-place conversion would leave a package that is neither 2.3
         # nor 2.4 and that no loader accepts. The conversion therefore runs in a staging directory
@@ -1520,7 +1524,7 @@ def main() -> int:
                          f"--force to let this run clean it up")
             return 1
         shutil.rmtree(root, ignore_errors=True)
-        shutil.copytree(args.package, root)
+        shutil.copytree(args.package, root, symlinks=True)
     else:
         root = args.output or args.package.parent / (args.package.name + DEFAULT_OUTPUT_SUFFIX)
         # The destination is removed before the package is read, so a destination that is the
@@ -1538,15 +1542,25 @@ def main() -> int:
                              f"replace it")
                 return 1
             shutil.rmtree(root)
-        shutil.copytree(args.package, root)
+        shutil.copytree(args.package, root, symlinks=True)
         print(f"converting a copy at {root}")
 
     index = read_package_index(args.packages, report) if args.packages else {}
     if args.packages and not index:
         report.warn(f"{args.packages}: no language packages found")
 
+    # Validate the preserved links before any declaration is rewritten: a declaration itself
+    # can be a link, and write_json must never follow it back out of the staging tree.
+    for path in root.rglob("*"):
+        if not path.is_symlink():
+            continue
+        try:
+            path.resolve().relative_to(root.resolve())
+        except (ValueError, OSError, RuntimeError):
+            report.error(f"{path}: symbolic link resolves outside the package")
     extra = {token for token in args.reserved.split(",") if token}
-    convert(root, overrides, index, extra, report)
+    if not report.errors:
+        convert(root, overrides, index, extra, report)
     if args.in_place:
         if report.errors:
             # The staging copy is discarded: the sibling of the package is what the user has.
@@ -1554,8 +1568,6 @@ def main() -> int:
             print(f"{args.package}: left unchanged, the conversion reported {report.errors} "
                   f"error(s)")
         else:
-            replaced = args.package.parent / (args.package.name + ".replaced")
-            shutil.rmtree(replaced, ignore_errors=True)
             args.package.rename(replaced)
             try:
                 root.rename(args.package)

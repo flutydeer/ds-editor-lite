@@ -145,8 +145,7 @@ bool LevelMeter::event(QEvent *event) {
 }
 
 void LevelMeter::onHover(const QHoverEvent *event) {
-    Q_UNUSED(event);
-    const auto cursorY = mapFromGlobal(QCursor::pos()).y();
+    const auto cursorY = event->position().y();
     auto mouseOnBar = [&](const double y) {
         return y >= channelTop && y <= channelTop + channelLength;
     };
@@ -170,8 +169,7 @@ void LevelMeter::onHover(const QHoverEvent *event) {
 void LevelMeter::handleHoverOnBar() {
     auto yToLinear = [&](const double &y) { return 1 - (y - channelTop) / channelLength; };
 
-    const auto cursorY = mapFromGlobal(QCursor::pos()).y();
-    const auto db = VolumeUtils::linearTodB(yToLinear(cursorY));
+    const auto db = VolumeUtils::linearTodB(yToLinear(mouseY));
     m_currentValueText = gainValueToString(db);
 }
 

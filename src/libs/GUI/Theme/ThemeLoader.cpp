@@ -118,7 +118,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
 
     if (name.isEmpty() || colorType.isEmpty()) {
         s_lastError = QStringLiteral("Manifest missing required fields (name, colorType): %1")
-                          .arg(manifestPath(folderName));
+                          .arg(manifestFilePath);
         return std::nullopt;
     }
 
@@ -126,7 +126,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     if (colorType != QStringLiteral("light") && colorType != QStringLiteral("dark") &&
         colorType != QStringLiteral("highContrast")) {
         s_lastError = QStringLiteral("Invalid colorType '%1' in manifest: %2")
-                          .arg(colorType, manifestPath(folderName));
+                          .arg(colorType, manifestFilePath);
         return std::nullopt;
     }
 

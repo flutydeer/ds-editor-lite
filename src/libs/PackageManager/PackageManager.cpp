@@ -112,13 +112,12 @@ namespace {
         QList<LanguageInfo> result;
         result.reserve(static_cast<qsizetype>(capabilities.languages.size()));
         for (const auto &handle : capabilities.languages) {
-            // Only the handle is set. The G2P identifier, dictionary path, S2P and onset mode of
-            // the previous implementation belonged to its own G2P system. A language is now a
-            // linguist contribution, and these four values are internals of the linguist rather
-            // than properties of the singer, so the singer does not declare them and they are not
-            // listed. The handle also serves as the display name until the language layer
-            // supplies a display name. The G2P fields of LanguageInfo remain empty.
-            result.append(LanguageInfo(toQString(handle), toQString(handle)));
+            LanguageInfo language(toQString(handle), toQString(handle));
+            if (const auto name = capabilities.languageNames.find(handle);
+                name != capabilities.languageNames.end()) {
+                language.setLocalizedNames(toLocalizedTextMap(name->second));
+            }
+            result.append(std::move(language));
         }
         return result;
     }
@@ -135,16 +134,19 @@ void PackageManager::initialize(const QStringList &searchPaths) {
     std::call_once(m_initialized, [this, searchPaths]() {
         Q_EMIT moduleStatusChanged(ModuleStatus::Loading);
         auto task = new GetInstalledPackagesTask(searchPaths);
-        connect(task, &GetInstalledPackagesTask::finished, this, [this, task]() {
-            taskManager->removeTask(task);
-            if (task->result) {
-                Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
-            } else {
-                qCritical() << "Package scan failed:" << task->result.getError().message;
-                Q_EMIT moduleStatusChanged(ModuleStatus::Error);
-            }
-            delete task;
-        });
+        connect(
+            task, &GetInstalledPackagesTask::finished, this,
+            [this, task]() {
+                taskManager->removeTask(task);
+                if (task->result) {
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
+                } else {
+                    qCritical() << "Package scan failed:" << task->result.getError().message;
+                    Q_EMIT moduleStatusChanged(ModuleStatus::Error);
+                }
+                delete task;
+            },
+            Qt::QueuedConnection);
         taskManager->addAndStartTask(task);
     });
 }
@@ -213,6 +215,11 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             }
         }
 
+        // The SDK scan publishes inference state, so authorization must precede it.
+        if (commitGate && !commitGate()) {
+            commitRejected = true;
+            return commitRejectedError();
+        }
         std::vector<lite::synthrt::PackageProblem> problems;
         auto scanned = SynthrtEngine::instance().refreshVoicebanks(
             searchPaths, &problems,
@@ -279,10 +286,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         result.successfulPackages = std::move(packages);
 
         qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
-        if (commitGate && !commitGate()) {
-            commitRejected = true;
-            return commitRejectedError();
-        }
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;

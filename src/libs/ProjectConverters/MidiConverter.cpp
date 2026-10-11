@@ -88,7 +88,8 @@ static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note
     std::vector<opendspx::Note> arrNotes;
     for (const auto &note : notes) {
         opendspx::Note dsNote;
-        dsNote.pos = note->globalStart();
+        // The MIDI converter applies the clip offset to these local DSPX positions.
+        dsNote.pos = note->localStart();
         dsNote.length = note->length();
         dsNote.keyNum = note->keyIndex();
         if (includeLyrics)
@@ -100,22 +101,24 @@ static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note
 
 static void encodeClips(const Track *dsTrack, opendspx::Track *track, const bool includeLyrics) {
     for (const auto &clip : dsTrack->clips()) {
+        opendspx::ClipRef converted;
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = dynamic_cast<SingingClip *>(clip);
             auto singClip = std::make_shared<opendspx::SingingClip>();
-            singClip->name = clip->name().toStdString();
-            singClip->time = {clip->start(), clip->clipLen(), clip->clipStart(), clip->clipLen()};
             singClip->notes = encodeNotes(singingClip->notes(), includeLyrics);
-            track->clips.push_back(singClip);
+            converted = std::move(singClip);
         } else if (clip->clipType() == Clip::Audio) {
             const auto audioClip = dynamic_cast<AudioClip *>(clip);
             auto audioClipRef = std::make_shared<opendspx::AudioClip>();
-            audioClipRef->name = clip->name().toStdString();
-            audioClipRef->time = {clip->start(), clip->clipLen(), clip->clipStart(),
-                                  clip->clipLen()};
             audioClipRef->path = audioClip->path().toStdString();
-            track->clips.push_back(audioClipRef);
+            converted = std::move(audioClipRef);
         }
+        if (!converted)
+            continue;
+        converted->name = clip->name().toStdString();
+        converted->time = {clip->start() + clip->clipStart(), clip->length(), clip->clipStart(),
+                           clip->clipLen()};
+        track->clips.push_back(std::move(converted));
     }
 }
 
@@ -345,28 +348,17 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
     const auto hasTempo = !timelineModel.tempos.empty();
 
     if (hasTimeSignature) {
-        for (const auto &ts : timelineModel.timeSignatures) {
-            if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
-                ts.denominator != 16) {
-                result.errorMessage =
-                    QCoreApplication::translate(
-                        "MidiConverter",
-                        "Failed to load MIDI file.\ntimeSignatures denominator must be: "
-                        "%L1, %L2, %L3, %L4\ncurrent denominator: %L5")
-                        .arg(2)
-                        .arg(4)
-                        .arg(8)
-                        .arg(16)
-                        .arg(ts.denominator);
-                return result;
-            }
-        }
-    }
-
-    if (hasTimeSignature) {
-        result.timeSignatures.reserve(static_cast<qsizetype>(timelineModel.timeSignatures.size()));
+        QList<TimeSignature> signatures;
+        signatures.reserve(static_cast<qsizetype>(timelineModel.timeSignatures.size()));
         for (const auto &ts : timelineModel.timeSignatures)
-            result.timeSignatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
+            signatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
+        if (!Timeline::isTimeSignatureProjectionValid(signatures)) {
+            result.errorMessage = QCoreApplication::translate(
+                "MidiConverter",
+                "Failed to load MIDI file.\nInvalid time signature positions or values.");
+            return result;
+        }
+        result.timeSignatures = std::move(signatures);
     }
     if (hasTempo) {
         result.tempos.reserve(static_cast<qsizetype>(timelineModel.tempos.size()));
@@ -404,7 +396,16 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg,
 
     encodeTracks(model, dspx, options.includeLyrics);
 
-    auto midiMediate = midiConverter.convertDspxToIntermediate(dspx);
+    const auto generated = midiConverter.convertDspxToIntermediate(dspx);
+    // The intermediate converter supplies defaults even when the DSPX timeline is empty.
+    const opendspx::MidiIntermediateData midiMediate{
+        generated.resolution(),
+        options.includeTempo ? generated.tempos()
+                             : std::vector<opendspx::MidiIntermediateData::Tempo>{},
+        options.includeTimeSignatures
+            ? generated.timeSignatures()
+            : std::vector<opendspx::MidiIntermediateData::TimeSignature>{},
+        generated.markers(), generated.tracks()};
     std::stringstream ss(std::ios::out);
     midiConverter.convertIntermediateToMidi(ss, midiMediate);
 

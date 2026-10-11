@@ -25,11 +25,10 @@ namespace lite::synthrt {
         /// Borrowed from the package, which the handle above keeps alive.
         srt::SingerSpec *singer;
 
-        /// Creates a stage once and caches the executive, or caches the reason for the failure.
+        /// Creates a stage once and caches the executive, or a declaration failure.
         ///
-        /// Failures are cached as well as successes. A singer without a variance model fails on
-        /// every attempt, and a synthesis that requests the stage per phrase would otherwise query
-        /// the provider repeatedly for a stage that it has already reported as absent.
+        /// A missing stage is cached to avoid querying the same absent declaration per phrase.
+        /// Initialization errors are retried, allowing repaired model files to recover.
         template <class Executive, class Options, class InitArgs, class Make>
         srt::Expected<Executive *> stage(Executive *&slot, bool &tried, std::string &why,
                                          Make make) {
@@ -53,6 +52,9 @@ namespace lite::synthrt {
             // initialization step is easily omitted by a caller.
             if (auto started = executive->initialize(InitArgs{}); !started) {
                 why = started.error().toString();
+                // Files and drivers can recover between explicit retries. Keep only successful
+                // initialization; a repaired model must be opened again on the next request.
+                tried = false;
                 return started.takeError();
             }
             slot = executive;

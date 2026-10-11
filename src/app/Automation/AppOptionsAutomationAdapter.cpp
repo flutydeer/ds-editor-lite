@@ -775,17 +775,15 @@ namespace Automation {
                 .effective = effectiveSettings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
-            QList<SettingsStringCandidateDto> providerCandidates{
-                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::Cpu)),
-                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::DirectML)),
-            };
-            const auto cudaProvider = ExecutionProviderUtils::toString(ExecutionProvider::Cuda);
-            if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
-                providerCandidates.append(settingsCandidate(cudaProvider));
-            } else {
+            QList<SettingsStringCandidateDto> providerCandidates;
+            for (const auto provider :
+                 {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+                const auto name = ExecutionProviderUtils::toString(provider);
+                const auto available = ExecutionProviderUtils::availableInBuild(provider);
                 providerCandidates.append(settingsCandidate(
-                    cudaProvider, false,
-                    QStringLiteral("This build does not include the CUDA execution provider")));
+                    name, available,
+                    available ? QString{}
+                              : QStringLiteral("%1 is not available in this build").arg(name)));
             }
             // The candidates come from an actual enumeration: per provider it uses the same
             // enumerator that the GUI combo box and InferEngine resolve devices with, instead of
@@ -887,12 +885,18 @@ namespace Automation {
             if (!output || !output->outputContext() || !output->outputContext()->controlMixer())
                 return false;
             auto *context = output->outputContext();
-            if ((!context->driver() || context->driver()->name() != state.driverName) &&
-                !context->setDriver(state.driverName)) {
+            // Restore control settings even if the previous backend cannot be reopened.
+            context->setHotPlugNotificationMode(
+                static_cast<talcs::OutputContext::HotPlugNotificationMode>(
+                    state.hotPlugNotificationMode));
+            context->controlMixer()->setGain(static_cast<float>(state.gain));
+            context->controlMixer()->setPan(static_cast<float>(state.pan));
+            const auto driverName = context->driver() ? context->driver()->name() : QString{};
+            if (driverName != state.driverName && !context->setDriver(state.driverName)) {
                 return false;
             }
-            if ((!context->device() || context->device()->name() != state.deviceName) &&
-                !context->setDevice(state.deviceName)) {
+            const auto deviceName = context->device() ? context->device()->name() : QString{};
+            if (deviceName != state.deviceName && !context->setDevice(state.deviceName)) {
                 return false;
             }
             if (context->adoptedBufferSize() != state.bufferSize &&
@@ -903,11 +907,6 @@ namespace Automation {
                 !context->setAdoptedSampleRate(state.sampleRate)) {
                 return false;
             }
-            context->setHotPlugNotificationMode(
-                static_cast<talcs::OutputContext::HotPlugNotificationMode>(
-                    state.hotPlugNotificationMode));
-            context->controlMixer()->setGain(static_cast<float>(state.gain));
-            context->controlMixer()->setPan(static_cast<float>(state.pan));
             return true;
         }
 

@@ -19,6 +19,7 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    bool applyOptions();
     void changeTheme(int index);
     void changeInterfaceFont(int index);
 

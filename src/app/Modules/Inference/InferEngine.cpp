@@ -14,6 +14,7 @@
 #include <synthrt/Support/Logging.h>
 
 #include <QCoreApplication>
+#include <QScopeGuard>
 
 #include "Utils/DmlGpuUtils.h"
 #include <lite/Support/Log.h>
@@ -83,6 +84,15 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
 void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
+        connect(&SynthrtEngine::instance(), &SynthrtEngine::voicebanksAboutToReload, this,
+                [this] {
+                    // The reload waits for idle model handles to close before reopening packages.
+                    // Active tasks keep their own leases; selection policy survives the reload.
+                    auto handles = m_singerSessions.clear(false);
+                    InferDirectMLSerializationGuard dmlGuard;
+                    handles.clear();
+                },
+                Qt::DirectConnection);
         {
             QWriteLocker lock(&m_engineRwLock);
             m_startOptions.executionProvider = appOptions->inference()->executionProvider;
@@ -90,29 +100,36 @@ void InferEngine::startInitialization() {
             m_startOptions.packageSearchPaths = appOptions->general()->packageSearchPaths;
         }
         const auto initTask = new InitInferEngineTask;
-        connect(initTask, &Task::finished, this, [=] {
-            taskManager->removeTask(initTask);
-            QWriteLocker lock(&m_engineRwLock);
-            if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
-                delete initTask;
-                return;
-            }
+        connect(
+            initTask, &Task::finished, this,
+            [this, initTask] {
+                QWriteLocker lock(&m_engineRwLock);
+                if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
+                    return;
+                }
 
-            const bool languageReady = initTask->success.load(std::memory_order_acquire);
-            const bool runtimeReady = SynthrtEngine::instance().initialized();
-            appStatus->inferEngineEnvStatus =
-                runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
-            if (languageReady) {
-                appStatus->languageModuleError = QString();
-                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
-                // No warm-up is required. wolf loads a language on its first conversion and
-                // keeps it loaded, so only the first conversion of each language is delayed.
-            } else {
-                appStatus->languageModuleError = initTask->errorMessage;
-                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
-            }
-            delete initTask;
-        });
+                const bool languageReady = initTask->success.load(std::memory_order_acquire);
+                const bool runtimeReady = SynthrtEngine::instance().initialized();
+                appStatus->inferEngineEnvStatus =
+                    runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+                if (languageReady) {
+                    appStatus->languageModuleError = QString();
+                    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
+                    // wolf loads each language on its first conversion.
+                } else {
+                    appStatus->languageModuleError = initTask->errorMessage;
+                    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+                }
+            },
+            Qt::QueuedConnection);
+        // Cleanup must survive engine teardown while completion is still queued.
+        connect(
+            initTask, &Task::finished, initTask,
+            [initTask] {
+                taskManager->removeTask(initTask);
+                initTask->deleteLater();
+            },
+            Qt::QueuedConnection);
         appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
         appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
         appStatus->languageModuleError = QString();
@@ -131,6 +148,9 @@ bool InferEngine::isAboutToQuit() const noexcept {
 
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
+    const auto finishAttempt = qScopeGuard([] {
+        SynthrtEngine::instance().completeInitializationAttempt();
+    });
     if (m_disposed) {
         error = "Application is about to quit.";
         return false;

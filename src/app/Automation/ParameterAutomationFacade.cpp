@@ -171,34 +171,6 @@ namespace Automation {
                 QStringLiteral("Speaker mix weights do not match the source count"));
         }
 
-        QVector<double> interpolatedSpeakerMixWeights(const SpeakerMixModel::SpeakerMixData &data,
-                                                      const int position) {
-            const auto &keyframes = data.dynamicKeyframes;
-            if (keyframes.isEmpty())
-                return {};
-            if (position <= keyframes.first().tick)
-                return keyframes.first().weights;
-            if (position >= keyframes.last().tick)
-                return keyframes.last().weights;
-            for (int index = 0; index + 1 < keyframes.size(); ++index) {
-                const auto &left = keyframes.at(index);
-                const auto &right = keyframes.at(index + 1);
-                if (position < left.tick || position >= right.tick)
-                    continue;
-                const auto ratio = static_cast<double>(position - left.tick) /
-                                   static_cast<double>(right.tick - left.tick);
-                QVector<double> result;
-                result.reserve(left.weights.size());
-                for (int weightIndex = 0; weightIndex < left.weights.size(); ++weightIndex) {
-                    result.append(
-                        left.weights.at(weightIndex) +
-                        ratio * (right.weights.value(weightIndex) - left.weights.at(weightIndex)));
-                }
-                return SpeakerMixModel::explicitWeightsFromFullWeights(
-                    SpeakerMixModel::fullWeightsFromExplicitWeights(result));
-            }
-            return keyframes.last().weights;
-        }
 
         bool supportedParameter(const ParamInfo::Name name, const Param::Type type) {
             return name >= ParamInfo::Pitch && name <= ParamInfo::ToneShift &&
@@ -264,7 +236,6 @@ namespace Automation {
 
         AutomationResult<AutomationUnit>
             validateReplacementAnchorCurves(const QList<CurveDraftDto> &curves) {
-            QList<QPair<int, int>> ranges;
             for (const auto &curve : curves) {
                 if (curve.type != CurveDraftDto::Type::Anchor)
                     continue;
@@ -272,15 +243,11 @@ namespace Automation {
                     validateAnchorDrafts(curve.nodes, QStringLiteral("curves.nodes"), 2);
                 if (!validation)
                     return validation.getError();
-                const auto range = anchorCurveRange(curve);
-                for (const auto &existing : ranges) {
-                    if (rangesOverlap(*range, existing)) {
-                        return AutomationError::invalidArgument(
-                            QStringLiteral("curves.nodes.position"),
-                            QStringLiteral("Anchor curves must not overlap"));
-                    }
-                }
-                ranges.append(*range);
+            }
+            if (hasOverlappingAnchorCurves(curves)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("curves.nodes.position"),
+                    QStringLiteral("Anchor curves must not overlap"));
             }
             return AutomationUnit{};
         }
@@ -366,81 +333,50 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::replaceParameter(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, const QList<CurveDraftDto> &curves) {
-        return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::parameters::replace, context,
-            [this, clipId, name, type, curves](DocumentSession &session, const bool validateOnly) {
-                auto resolved = m_objects.singingClip(session, clipId);
-                if (!resolved)
-                    return AutomationResult<MutationResult>(resolved.getError());
-                if (!supportedParameter(name, type)) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("parameter"), QStringLiteral("Parameter is unsupported")));
-                }
-                for (const auto &curve : curves) {
+        return mutateParameter(
+            OperationIds::parameters::replace, context, clipId, name, type,
+            [name, replacement = curves](QList<CurveDraftDto> &existing) -> AutomationResult<bool> {
+                for (const auto &curve : replacement) {
                     if (curve.type != CurveDraftDto::Type::Draw &&
                         curve.type != CurveDraftDto::Type::Anchor) {
-                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        return AutomationError::invalidArgument(
                             QStringLiteral("curves.type"),
-                            QStringLiteral("Curve type is unsupported")));
+                            QStringLiteral("Curve type is unsupported"));
                     }
                     if (curve.type == CurveDraftDto::Type::Draw && curve.step <= 0) {
-                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        return AutomationError::invalidArgument(
                             QStringLiteral("curves.step"),
-                            QStringLiteral("Curve step must be positive")));
+                            QStringLiteral("Curve step must be positive"));
                     }
                     if (curve.type == CurveDraftDto::Type::Draw &&
                         static_cast<qint64>(curve.localStart) +
                                 static_cast<qint64>(curve.step) * curve.values.size() >
                             std::numeric_limits<int>::max()) {
-                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        return AutomationError::invalidArgument(
                             QStringLiteral("curves.values"),
-                            QStringLiteral("Draw curve range exceeds the supported timeline")));
+                            QStringLiteral("Draw curve range exceeds the supported timeline"));
                     }
                 }
-                const auto anchorValidation = validateReplacementAnchorCurves(curves);
+                const auto anchorValidation = validateReplacementAnchorCurves(replacement);
                 if (!anchorValidation)
-                    return AutomationResult<MutationResult>(anchorValidation.getError());
-                if (!validCurveValues(name, curves)) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                    return anchorValidation.getError();
+                if (!validCurveValues(name, replacement)) {
+                    return AutomationError::invalidArgument(
                         QStringLiteral("curves"),
-                        QStringLiteral("Parameter value is outside the editable range")));
-                }
-                auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                QList<CurveDraftDto> existing;
-                for (const auto *curve : clip->params.getParamByName(name)->curves(type)) {
-                    if (curve && (curve->type() == Curve::Draw || curve->type() == Curve::Anchor))
-                        existing.append(curveDraftDto(*curve));
+                        QStringLiteral("Parameter value is outside the editable range"));
                 }
                 QCryptographicHash oldHash(QCryptographicHash::Sha256);
                 QCryptographicHash newHash(QCryptographicHash::Sha256);
-                if (hasExplicitCurveIdentity(curves)) {
+                if (hasExplicitCurveIdentity(replacement)) {
                     hashCurves(oldHash, existing);
-                    hashCurves(newHash, curves);
+                    hashCurves(newHash, replacement);
                 } else {
                     hashCurveShapes(oldHash, existing);
-                    hashCurveShapes(newHash, curves);
+                    hashCurveShapes(newHash, replacement);
                 }
                 const bool changed = oldHash.result() != newHash.result();
-                const auto affected = QList<ObjectRef>{
-                    {ObjectKind::Clip, clipId.value()}
-                };
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
-                if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
-
-                std::vector<std::unique_ptr<Curve>> ownedCurves;
-                QList<Curve *> rawCurves;
-                ownedCurves.reserve(static_cast<size_t>(curves.size()));
-                for (const auto &draft : curves) {
-                    auto curve = buildCurve(draft);
-                    rawCurves.append(curve.get());
-                    ownedCurves.push_back(std::move(curve));
-                }
-                auto actions = std::make_unique<ParamsActions>();
-                actions->replaceParam(name, type, rawCurves, clip);
-                return m_committer.commit(session, std::move(actions), affected);
+                existing = replacement;
+                return changed;
             });
     }
 
@@ -1653,7 +1589,10 @@ namespace Automation {
                         return AutomationResult<bool>(converted.getError());
                     stored = converted.get();
                 } else {
-                    stored = interpolatedSpeakerMixWeights(data, position);
+                    stored = SpeakerMixModel::interpolateSpeakerMixWeights(data.dynamicKeyframes,
+                                                                           position);
+                    stored = SpeakerMixModel::explicitWeightsFromFullWeights(
+                        SpeakerMixModel::fullWeightsFromExplicitWeights(stored));
                 }
                 data.dynamicKeyframes.append({position, stored});
                 std::sort(

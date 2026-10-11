@@ -17,6 +17,13 @@ public:
     virtual PreparedProject takeResult() = 0;
     [[nodiscard]] virtual quint64 requestId() const = 0;
 
+    void setSourcePath(const QString &path) {
+        m_sourcePath = path;
+    }
+
+protected:
+    QString m_sourcePath;
+
 signals:
     void progressChanged(const ProjectLoadProgress &progress);
     void ready();

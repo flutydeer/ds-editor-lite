@@ -18,6 +18,7 @@
 #include "Global/AppOptionsGlobal.h"
 
 #include <QList>
+#include <QPointer>
 #include <QHash>
 #include <QStringList>
 
@@ -25,6 +26,10 @@ class GetPronunciationTask;
 class GetPhonemeNameTask;
 class InferController;
 class InferPipeline;
+
+namespace Automation {
+    enum class InferenceStage;
+}
 
 class InferControllerPrivate final : public ModelChangeHandler {
     Q_OBJECT
@@ -80,7 +85,9 @@ public:
     void createAndRunGetPhoneTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
     void restartLanguageTasksAfterVoiceCleared(SingingClip &clip);
 
-    void createPipeline(InferPiece &piece);
+    void createPipeline(InferPiece &piece, bool acousticInferenceRequested = false);
+    void createPipeline(InferPiece &piece, bool acousticInferenceRequested,
+                        Automation::InferenceStage firstStage);
     void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);
 
     void reset();
@@ -134,6 +141,8 @@ public:
     QHash<int, PendingPhonemeNameApply> m_pendingPhonemeNameApplies;
 
     QList<InferPipeline *> m_inferPipelines;
+    QList<QPointer<InferPiece>> m_playbackRecoveryPieces;
+    bool m_playbackRecoveryScheduled = false;
 
     bool m_autoStartAcousticInfer = true;
     bool m_retryAllScheduled = false;

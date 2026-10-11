@@ -1,0 +1,23 @@
+diff --git a/src/core/source/TransportAudioSource.cpp b/src/core/source/TransportAudioSource.cpp
+--- a/src/core/source/TransportAudioSource.cpp
++++ b/src/core/source/TransportAudioSource.cpp
+@@ -85,9 +85,9 @@ namespace talcs {
+         }
+         if (d->bufferingCounter)
+             return readData.length;
++        qint64 lengthToRead = readData.length;
+         if (d->src) {
+             qint64 curBufPos = readData.startPos;
+-            qint64 lengthToRead = readData.length;
+             qint64 srcPos = d->position;
+             d->src->setNextReadPosition(srcPos);
+             while (curBufPos + d->loopingEnd - srcPos < readData.startPos + readData.length &&
+@@ -102,7 +102,7 @@ namespace talcs {
+             }
+             safeRead(readData.buffer, curBufPos, lengthToRead, d->src);
+         }
+-        d->position += readData.length;
++        d->position += lengthToRead;
+         if (readData.length != 0)
+             d->_q_positionAboutToChange(d->position);
+         if (d->playbackStatus == AboutToPause) {

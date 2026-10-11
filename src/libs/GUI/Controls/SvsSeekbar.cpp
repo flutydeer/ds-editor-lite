@@ -379,6 +379,10 @@ namespace SVS {
     }
 
     void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
+        if (event->button() != Qt::LeftButton) {
+            QWidget::mouseDoubleClickEvent(event);
+            return;
+        }
         Q_D(SeekBar);
         const auto pos = event->pos();
         if (d->resetOnDoubleClick && d->mouseOnHandle(pos))
@@ -387,6 +391,10 @@ namespace SVS {
     }
 
     void SeekBar::mousePressEvent(QMouseEvent *event) {
+        if (event->button() != Qt::LeftButton) {
+            QWidget::mousePressEvent(event);
+            return;
+        }
         Q_D(SeekBar);
         d->timer->start();
         animateThumbTo(114);
@@ -401,6 +409,10 @@ namespace SVS {
     }
 
     void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
+        if (event->button() != Qt::LeftButton) {
+            QWidget::mouseReleaseEvent(event);
+            return;
+        }
         Q_D(SeekBar);
         animateThumbTo(77);
         setSliderDown(false);
@@ -433,8 +445,7 @@ namespace SVS {
                 break;
             case Qt::Key_Return:
             case Qt::Key_Space:
-                if (event->isAutoRepeat())
-                    d->setValue(d->defaultValue);
+                d->setValue(d->defaultValue);
                 break;
             default:
                 event->ignore();
