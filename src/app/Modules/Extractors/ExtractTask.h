@@ -101,7 +101,7 @@ protected:
     /// must provide \c sampleRate and \c maxSegmentDuration. \a start(executive, span, progress)
     /// runs one span and returns the result of the contract, and \a place(result) stores the
     /// result. This function sets the error code and message for every failure; a derived task
-    /// only stores the results.
+    /// stores the results or reports invalid result data with fail().
     ///
     /// This template contains only the steps that depend on the contract types. All other steps
     /// are member functions in ExtractTask.cpp.
@@ -154,6 +154,8 @@ protected:
                 return;
             }
             place(*analysed.take());
+            if (!success())
+                return;
         }
     }
 

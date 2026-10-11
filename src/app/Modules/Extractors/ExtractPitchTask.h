@@ -2,6 +2,8 @@
 #define EXTRACTPITCHTASK_H
 
 #include <QList>
+#include <optional>
+#include <otter/Api/F0/1/F0ApiL1.h>
 
 #include "ExtractTask.h"
 
@@ -15,6 +17,10 @@ public:
     };
 
     explicit ExtractPitchTask(Input input);
+
+    /// Converts aligned analyzer frames; an absent voicing mask is inferred from nonzero F0.
+    [[nodiscard]] static std::optional<QList<double>>
+        pitchValues(const otter::Api::F0::L1::F0Result &curve);
 
     QList<ResultSegment> result;
 

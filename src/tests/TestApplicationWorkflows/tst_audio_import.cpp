@@ -67,6 +67,27 @@ namespace {
     }
 }
 
+void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
+    otter::Api::F0::L1::F0Result curve;
+    curve.f0 = {440.0f, 220.0f, 0.0f};
+    auto values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 57.0, 0.0}));
+    curve.voiced = {1, 0, 0};
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 0.0, 0.0}));
+    curve.voiced = {1, 0};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced = {1, 0, 0, 1};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.f0.clear();
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced.clear();
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values && values->isEmpty());
+}
+
 void ApplicationWorkflowTests::
     extractionPreparationRejectsMissingResourcesAndChangedSources_data() {
     QTest::addColumn<bool>("pitch");
