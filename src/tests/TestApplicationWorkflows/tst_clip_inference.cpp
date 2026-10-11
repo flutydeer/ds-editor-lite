@@ -1200,8 +1200,21 @@ void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
             commandContext(), Automation::ClipId(clip->id()), ParamInfo::Gender, Param::Edited, 480,
             5, QList<int>(97, value), false);
     };
-    QVERIFY(editGender());
-    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    {
+        bool forwardProbeStarted = false;
+        QObject forwardObservation;
+        connect(taskManager, &TaskManager::taskChanged, &forwardObservation,
+                [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                    const auto *candidate = qobject_cast<InferAcousticCacheProbeTask *>(task);
+                    if (change == TaskManager::Added && candidate && target &&
+                        candidate->pieceId() == target->id())
+                        forwardProbeStarted = true;
+                });
+        QVERIFY(editGender());
+        // QStateMachine queues the edit transition. The previous Ready state is not evidence
+        // that this edit has settled, and undo must not cancel its as-yet-unstarted probe.
+        QTRY_VERIFY_WITH_TIMEOUT(forwardProbeStarted && inferenceSettled(clip), 15000);
+    }
     QPointer<InferAcousticCacheProbeTask> probe;
     bool captured = false;
     std::atomic_bool paused = false;
