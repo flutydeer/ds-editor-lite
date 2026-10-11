@@ -249,6 +249,23 @@ namespace {
                "word construction waits for phoneme offsets to match phoneme names");
     }
 
+    void testReservedPhonemesMakeRests() {
+        Note breath;
+        configureNote(breath, 0, "AP");
+        Note declared;
+        configureNote(declared, 480, "br");
+        expect(InferInputNote(breath).isRest,
+               "a forced reserved phoneme makes a rest without a singer");
+        expect(!InferInputNote(declared).isRest,
+               "a phoneme not declared by the singer configuration is sung as a lyric");
+        const auto reserved = ReservedPhonemes::forced() + QSet<QString>{QStringLiteral("br")};
+        expect(InferInputNote(declared, reserved).isRest,
+               "a reserved phoneme declared by the singer configuration makes a rest");
+        const auto merged = lite::synthrt::withForcedReservedPhonemes({"br", "AP"});
+        expect(merged == std::vector<std::string>({"SP", "AP", "br"}),
+               "the forced reserved phonemes come first and the union holds each phoneme once");
+    }
+
     void testEditingEligibility() {
         Note word;
         configureNote(word, 0, "word");
@@ -265,6 +282,25 @@ namespace {
                "slur and syllabification notes cannot edit phonemes");
         expect(!breath.canEditPhonemes() && !pause.canEditPhonemes(),
                "AP and SP notes cannot edit phonemes");
+
+        auto *marker = new Note;
+        configureNote(*marker, 960, "BR");
+        SingingClip clip({marker});
+        SingerInfo singer;
+        SingerCapabilitySummary capability;
+        capability.reservedPhonemes = {QStringLiteral("BR")};
+        singer.setCapability(capability);
+        clip.setTrackSingerAndSpeakerInfo(singer, {});
+        expect(!marker->canEditPhonemes(), "a singer's reserved marker cannot edit phonemes");
+        const auto sliced = SingingClipSlicer::slice(Timeline{}, clip.notes().toList());
+        expect(sliced.segments.size() == 1, "a reserved marker needs no generated phonemes");
+        if (!sliced.segments.isEmpty()) {
+            expect(sliced.segments.first().paddingStartMs == 0 &&
+                       sliced.segments.first().paddingEndMs == 0,
+                   "a reserved marker gets no artificial SP padding");
+        }
+        clip.setTrackSingerAndSpeakerInfo({}, {});
+        expect(marker->canEditPhonemes(), "reserved markers belong to the selected singer");
     }
 
     void testRelativeTimingChangeInvalidatesEditedOffsets() {
@@ -560,6 +596,7 @@ namespace {
 
 void LyricsTests::syllabificationRanges() {
     testRanges();
+    testReservedPhonemesMakeRests();
 }
 
 void LyricsTests::syllabificationSlicerSyllableAssignment() {

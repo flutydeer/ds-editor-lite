@@ -1,6 +1,7 @@
 #include "McpHttpServer.h"
 
 #include <QCryptographicHash>
+#include <QDebug>
 #include <QEventLoop>
 #include <QFuture>
 #include <QHttpHeaders>
@@ -606,12 +607,16 @@ namespace Automation {
             if (m_handler) {
                 httpServer->route(
                     QStringLiteral("/mcp"), QHttpServerRequest::Method::AnyKnown,
-                    [this](QHttpServerRequest request) { return handleMcpRequest(request); });
+                    [this](const QHttpServerRequest &request, QHttpServerResponder &&responder) {
+                        sendResponse(handleMcpRequest(request), std::move(responder));
+                    });
             }
             if (m_nativeHandler) {
                 httpServer->route(
                     QStringLiteral("/automation/v1"), QHttpServerRequest::Method::AnyKnown,
-                    [this](QHttpServerRequest request) { return handleNativeRequest(request); });
+                    [this](const QHttpServerRequest &request, QHttpServerResponder &&responder) {
+                        sendResponse(handleNativeRequest(request), std::move(responder));
+                    });
             }
             httpServer->addAfterRequestHandler(
                 this, [](const QHttpServerRequest &, QHttpServerResponse &response) {
@@ -665,6 +670,19 @@ namespace Automation {
             QPointer<QTcpServer> tcpServer(m_tcpServer);
             if (tcpServer)
                 tcpServer->close();
+
+            QEventLoop drainLoop;
+            QTimer deadline;
+            deadline.setSingleShot(true);
+            connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
+            deadline.start(2000);
+            // Futures may already be finished while their response writes are still queued on
+            // this thread. Wait until each responder has handed its bytes to the socket first.
+            m_responseDrain = &drainLoop;
+            if (m_pendingResponses != 0)
+                drainLoop.exec(QEventLoop::ExcludeUserInputEvents);
+            m_responseDrain = nullptr;
+
             QList<QPointer<QTcpSocket>> sockets;
             if (m_httpServer) {
                 for (auto *socket : m_httpServer->findChildren<QTcpSocket *>())
@@ -675,9 +693,6 @@ namespace Automation {
                     return !socket || socket->state() == QAbstractSocket::UnconnectedState;
                 });
             };
-            QEventLoop drainLoop;
-            QTimer deadline;
-            deadline.setSingleShot(true);
             const auto finishDrain = [&] {
                 if (allDisconnected())
                     drainLoop.quit();
@@ -686,14 +701,12 @@ namespace Automation {
                 connect(socket, &QTcpSocket::disconnected, &drainLoop, finishDrain);
                 connect(socket, &QObject::destroyed, &drainLoop, finishDrain);
             }
-            connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
             // Drain response bytes before deleting sockets, with one deadline for all peers.
-            deadline.start(2000);
             for (const auto &socket : sockets) {
                 if (socket)
                     socket->disconnectFromHost();
             }
-            if (!allDisconnected())
+            if (!allDisconnected() && deadline.isActive())
                 drainLoop.exec();
             delete m_httpServer;
             m_httpServer = nullptr;
@@ -703,6 +716,24 @@ namespace Automation {
         }
 
     private:
+        void sendResponse(QFuture<QHttpServerResponse> future, QHttpServerResponder responder) {
+            ++m_pendingResponses;
+            future.then(this, [this, responder = std::move(responder)](
+                                  QHttpServerResponse response) mutable {
+                // Explicit responders bypass QHttpServer's after-request handlers.
+                auto headers = response.headers();
+                headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::CacheControl,
+                                        QStringLiteral("no-store"));
+                headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::XContentTypeOptions,
+                                        QStringLiteral("nosniff"));
+                response.setHeaders(std::move(headers));
+                responder.sendResponse(response);
+                --m_pendingResponses;
+                if (m_pendingResponses == 0 && m_responseDrain)
+                    m_responseDrain->quit();
+            });
+        }
+
         std::optional<QHttpServerResponse>
             commonRejection(const QHttpServerRequest &request,
                             const McpHttpTransportState::Protocol protocol) const {
@@ -1045,9 +1076,16 @@ namespace Automation {
                         try {
                             if (handler)
                                 responseObject = handler(validated, clientId);
-                        } catch (const std::exception &) {
+                        } catch (const std::exception &e) {
+                            // The client receives a generic internal error, so the cause is
+                            // recorded here, where it can still be found.
+                            qCritical().noquote()
+                                << "MCP handler threw an exception for" << validated.method
+                                << ":" << e.what();
                             responseObject = {};
                         } catch (...) {
+                            qCritical().noquote() << "MCP handler threw a non-standard exception for"
+                                                  << validated.method;
                             responseObject = {};
                         }
                         const auto responseValidation = Mcp::validateResponse(
@@ -1204,10 +1242,14 @@ namespace Automation {
                         try {
                             if (handler)
                                 responseObject = handler(message, clientId);
-                        } catch (const std::exception &) {
+                        } catch (const std::exception &e) {
+                            qCritical().noquote()
+                                << "Native automation handler threw an exception:" << e.what();
                             responseObject = nativeProtocolError(
                                 -32603, QStringLiteral("Internal error"), requestId);
                         } catch (...) {
+                            qCritical().noquote()
+                                << "Native automation handler threw a non-standard exception";
                             responseObject = nativeProtocolError(
                                 -32603, QStringLiteral("Internal error"), requestId);
                         }
@@ -1254,6 +1296,8 @@ namespace Automation {
         QHttpServer *m_httpServer = nullptr;
         QTcpServer *m_tcpServer = nullptr;
         AutomationHttpRoutes m_routes;
+        int m_pendingResponses = 0;
+        QEventLoop *m_responseDrain = nullptr;
     };
 
     McpHttpServer::McpHttpServer(RequestHandler handler, QObject *parent)

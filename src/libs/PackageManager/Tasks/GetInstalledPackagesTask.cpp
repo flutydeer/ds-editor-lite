@@ -12,6 +12,8 @@ GetInstalledPackagesTask::GetInstalledPackagesTask(QStringList searchPaths)
 }
 
 void GetInstalledPackagesTask::runTask() {
-    // TODO 获取进度？
-    result = packageManager->refreshInstalledPackages(m_searchPaths);
+    // First listing after startup. The engine scanned the same paths during initialization, so
+    // the packages that it loaded are reused instead of being loaded a second time.
+    result = packageManager->refreshInstalledPackages(m_searchPaths, {},
+                                                      PackageManager::ScanMode::ReuseLoaded);
 }

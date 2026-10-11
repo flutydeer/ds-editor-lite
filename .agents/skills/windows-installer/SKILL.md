@@ -65,7 +65,7 @@ description: 为 DS Editor Lite 构建、检查或排查 Windows x64 DirectML/CU
 - 必须经 CMake install 到 staging（**不从 build 输出目录直接打包**），再压缩
   staging 的 `bin` 树成 zip。脚本随后补齐 vcpkg 依赖的 PDB；Qt 与 app 的 PDB
   由 install 自带（windeployqt `--pdb` + `LITE_INSTALL_PDB`）。
-- 文件名 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-portable.zip`，时间戳命名，
+- 文件名 `DsEditorLite-<yyyyMMdd-HHmmss>-win-x64-dml-portable.zip`，UTC 时间戳（秒级）命名，
   **不含版本号**。
 - 用 **pwsh**（PowerShell 7）运行；git-bash 调 Windows PowerShell 5.1 会报
   `Get-FileHash is not recognized`。

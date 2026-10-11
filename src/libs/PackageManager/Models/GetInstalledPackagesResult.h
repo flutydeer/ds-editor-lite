@@ -5,9 +5,14 @@
 
 #include <QList>
 #include <QString>
+#include <QHash>
+#include <QSet>
 
 enum class GetInstalledPackagesErrorType {
     MetadataBackendNotInitialized,
+    /// The commit gate of the caller declined the result, so the catalog was not replaced for
+    /// that caller.
+    CommitRejected,
     Unknown
 };
 
@@ -28,6 +33,7 @@ struct GetInstalledPackagesResult {
 
     QList<PackageInfo> successfulPackages;
     QList<FailedPackage> failedPackages;
+    QHash<SingerIdentifier, QSet<QString>> convertibleLanguages;
 };
 
 #endif //GETINSTALLEDPACKAGESRESULT_H

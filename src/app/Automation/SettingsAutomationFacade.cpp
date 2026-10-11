@@ -485,6 +485,9 @@ namespace Automation {
                 .effective = settings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
+            // The fallback snapshot taken while the service is unavailable performs no GPU probe:
+            // the real candidates come from the regular snapshot of AppOptionsAutomationAdapter,
+            // which returns only the configured GPU here.
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!settings.inference.selectedGpuId.isEmpty()) {
                 gpuCandidates.append({
@@ -1016,11 +1019,14 @@ namespace Automation {
                         QStringLiteral("execution_provider"),
                         QStringLiteral("Inference provider is unavailable"));
                 }
+                const auto candidates = m_services.gpuCandidates
+                                            ? m_services.gpuCandidates(target.inference.executionProvider)
+                                            : publicSnapshot.computeDevice
+                                                  ? publicSnapshot.computeDevice->gpuCandidates
+                                                  : QList<SettingsGpuCandidateDto>{};
                 if (target.inference.executionProvider != QStringLiteral("CPU") &&
-                    publicSnapshot.computeDevice &&
-                    !publicSnapshot.computeDevice->gpuCandidates.isEmpty() &&
+                    (m_services.gpuCandidates || !candidates.isEmpty()) &&
                     !target.inference.selectedGpuId.isEmpty()) {
-                    const auto &candidates = publicSnapshot.computeDevice->gpuCandidates;
                     const auto found = std::any_of(
                         candidates.cbegin(), candidates.cend(), [&](const auto &candidate) {
                             return candidate.available &&

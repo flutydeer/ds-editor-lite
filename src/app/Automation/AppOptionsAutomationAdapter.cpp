@@ -10,6 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/Inference/ExecutionProvider.h"
+#include "Modules/Inference/Utils/GpuCatalog.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
@@ -25,6 +26,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
+#include <QTimeZone>
 
 #include <algorithm>
 #include <iterator>
@@ -46,8 +48,8 @@ namespace Automation {
                 .defaultLyrics = value->defaultLyrics,
                 .packageSearchPaths = value->packageSearchPaths,
                 .recentProjectFiles = value->recentProjectFiles,
-                .gameDirectory = value->gameDir,
-                .pitchModelPath = value->rmvpePath,
+                .noteAnalyzer = value->noteAnalyzer,
+                .pitchAnalyzer = value->pitchAnalyzer,
                 .libreSvipPath = value->libreSVIPPath,
                 .drawParamWithFinger = value->drawParamWithFinger,
             };
@@ -60,8 +62,8 @@ namespace Automation {
             target->defaultLyrics = value.defaultLyrics;
             target->packageSearchPaths = value.packageSearchPaths;
             target->recentProjectFiles = value.recentProjectFiles;
-            target->gameDir = value.gameDirectory;
-            target->rmvpePath = value.pitchModelPath;
+            target->noteAnalyzer = value.noteAnalyzer;
+            target->pitchAnalyzer = value.pitchAnalyzer;
             target->libreSVIPPath = value.libreSvipPath;
             target->drawParamWithFinger = value.drawParamWithFinger;
         }
@@ -615,6 +617,14 @@ namespace Automation {
 
         bool audioRuntimeAvailable();
 
+        QList<SettingsGpuCandidateDto> gpuCandidatesFor(const QString &provider) {
+            QList<SettingsGpuCandidateDto> candidates;
+            for (const auto &gpu : GpuCatalog::forProvider(provider))
+                candidates.append({.index = gpu.index, .id = gpu.deviceId,
+                                   .displayName = gpu.description});
+            return candidates;
+        }
+
         ComputeDevicePublicValueDto publicComputeValue(const InferenceSettingsDto &inference) {
             return {
                 .executionProvider = inference.executionProvider,
@@ -783,19 +793,16 @@ namespace Automation {
                     available ? QString{}
                               : QStringLiteral("%1 is not available in this build").arg(name)));
             }
-            QList<SettingsGpuCandidateDto> gpuCandidates;
-            if (!configured.inference.selectedGpuId.isEmpty()) {
-                gpuCandidates.append({
-                    .index = configured.inference.selectedGpuIndex,
-                    .id = configured.inference.selectedGpuId,
-                    .displayName = configured.inference.selectedGpuId,
-                });
-            }
+            // The candidates come from an actual enumeration: per provider it uses the same
+            // enumerator that the GUI combo box and InferEngine resolve devices with, instead of
+            // filling them back from the currently selected item. Filling them from the selected
+            // item would leave the candidates always empty when no device is selected, and the
+            // gpu_id validation of settings.compute_device.update would always pass.
             result.computeDevice = ComputeDevicePublicSettingsDto{
                 .configured = publicComputeValue(configured.inference),
                 .effective = publicComputeValue(effectiveSettings.inference),
                 .providerCandidates = std::move(providerCandidates),
-                .gpuCandidates = std::move(gpuCandidates),
+                .gpuCandidates = gpuCandidatesFor(configured.inference.executionProvider),
             };
             if (configured.inference.executionProvider !=
                 effectiveSettings.inference.executionProvider) {
@@ -984,6 +991,19 @@ namespace Automation {
             return AutomationUnit{};
         }
 
+        // Preset timestamps are persisted as UTC ISO strings (applySpeakerMixPresets() below, and
+        // PublicAutomationRegistry). Qt parses a string without an offset as local time, because
+        // the ISO branch of QDateTime::fromString() starts from QTimeZone::LocalTime and replaces
+        // it only if the string ends in Z or contains an offset. A hand-edited or externally
+        // written value would therefore denote a different instant on each machine. A missing
+        // offset is interpreted as UTC, which matches the stored format.
+        QDateTime parsePresetTimestamp(const QString &value) {
+            auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
+            if (time.isValid() && time.timeSpec() == Qt::LocalTime)
+                time.setTimeZone(QTimeZone::UTC);
+            return time;
+        }
+
         QList<SpeakerMixPresetDto> captureSpeakerMixPresets(AppOptions *options) {
             const auto root = options->general()->speakerMixPresets.toObject();
             if (root.value(QStringLiteral("schemaVersion")).toInt(kSpeakerMixPresetSchemaVersion) !=
@@ -1000,10 +1020,10 @@ namespace Automation {
                     .singerId = object.value(QStringLiteral("singerId")).toString(),
                     .packageVersion = QVersionNumber::fromString(
                         object.value(QStringLiteral("packageVersion")).toString()),
-                    .createdAt = QDateTime::fromString(
-                        object.value(QStringLiteral("createdAt")).toString(), Qt::ISODateWithMs),
-                    .updatedAt = QDateTime::fromString(
-                        object.value(QStringLiteral("updatedAt")).toString(), Qt::ISODateWithMs),
+                    .createdAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("createdAt")).toString()),
+                    .updatedAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("updatedAt")).toString()),
                 };
                 for (const auto &sourceValue : object.value(QStringLiteral("sources")).toArray()) {
                     const auto source = sourceValue.toObject();
@@ -1111,6 +1131,7 @@ namespace Automation {
                 }
             });
         services.snapshot = [options] { return captureAll(options); };
+        services.gpuCandidates = gpuCandidatesFor;
         services.publicSnapshot = [options, effectiveSettings] {
             return capturePublicSettings(options, *effectiveSettings);
         };

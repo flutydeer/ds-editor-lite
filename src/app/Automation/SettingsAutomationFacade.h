@@ -19,8 +19,10 @@ namespace Automation {
         QMap<QString, QString> defaultLyrics;
         QStringList packageSearchPaths;
         QStringList recentProjectFiles;
-        QString gameDirectory;
-        QString pitchModelPath;
+        /// Selected analyzers, each identified as <package>:inference/<contribution>. GeneralOption
+        /// documents why these are references rather than paths.
+        QString noteAnalyzer;
+        QString pitchAnalyzer;
         QString libreSvipPath;
         bool drawParamWithFinger = false;
 
@@ -571,6 +573,7 @@ namespace Automation {
     struct SettingsRuntimeServices {
         std::function<SettingsSnapshotDto()> snapshot;
         std::function<PublicSettingsSnapshotDto()> publicSnapshot;
+        std::function<QList<SettingsGpuCandidateDto>(const QString &provider)> gpuCandidates;
         std::function<bool(const GeneralSettingsDto &)> applyGeneral;
         std::function<bool(const AppearanceSettingsDto &)> applyAppearance;
         std::function<bool(const InferenceSettingsDto &)> applyInference;

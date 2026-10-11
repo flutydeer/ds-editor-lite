@@ -1,0 +1,163 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "wolf-lang-packages",
+  "version-string": "0.1.2.0",
+  "description": [
+    "Public language resource packages published by wolf.",
+    "The archives contain data only and unpack into a Package search directory. No source is built."
+  ],
+  "homepage": "https://github.com/diffscope/wolf",
+  "supports": "!uwp",
+  "default-features": [
+    "cmn",
+    "jpn",
+    "yue",
+    "zxx"
+  ],
+  "features": {
+    "cmn": {
+      "description": "Language resources for cmn",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "pinyin"
+          ]
+        }
+      ]
+    },
+    "deu": {
+      "description": "Language resources for deu",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "eng": {
+      "description": "Language resources for eng",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "fil": {
+      "description": "Language resources for fil",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "fra": {
+      "description": "Language resources for fra",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "ita": {
+      "description": "Language resources for ita",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "jpn": {
+      "description": "Language resources for jpn"
+    },
+    "kor": {
+      "description": "Language resources for kor",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "multi": {
+      "description": "Shared multilingual G2P model backend (14 MiB)"
+    },
+    "pinyin": {
+      "description": "Shared cpp-pinyin G2P backend for cmn and yue (300 KiB)"
+    },
+    "por": {
+      "description": "Language resources for por",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "rus": {
+      "description": "Language resources for rus",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "spa": {
+      "description": "Language resources for spa",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "multi"
+          ]
+        }
+      ]
+    },
+    "yue": {
+      "description": "Language resources for yue",
+      "dependencies": [
+        {
+          "name": "wolf-lang-packages",
+          "default-features": false,
+          "features": [
+            "pinyin"
+          ]
+        }
+      ]
+    },
+    "zxx": {
+      "description": "Language resources for zxx"
+    }
+  }
+}

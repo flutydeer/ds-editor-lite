@@ -37,6 +37,7 @@ private slots:
     void changedTargetInputDropsResult_data();
 
     void speakerMixPresetPersistsThroughTheProductionStore();
+    void presetTimestampsWithoutOffsetsUseUtc();
     void publicSpeakerMixPresetsResolveAndPreserveAppliedVoices();
 
     void lyricRulesUseTheProductionRuntimeAndPersistence_data();
@@ -46,6 +47,12 @@ private slots:
 
     void projectBatchImportUsesRealLoaders();
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
+    void packageReloadReadsUpdatesWhilePipelineIsLeased();
+    void fillLyricPreservesSingerReservedMarkers();
+    void disjointModelPhonemesDisableLanguageCoverage();
+    void packageLanguageReadinessUsesTheCatalogSnapshot();
+    void singerSpeakerCatalogPreservesOrderAndAvailability_data();
+    void singerSpeakerCatalogPreservesOrderAndAvailability();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
     void publicProjectLoadChecksPlansAndParserFailures();
@@ -56,6 +63,7 @@ private slots:
     void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 
     void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
+    void pitchExtractionRejectsMisalignedVoicing();
     void extractionPreparationRejectsMissingResourcesAndChangedSources();
     void audioBatchFailurePolicy_data();
 
@@ -69,11 +77,15 @@ private slots:
     void audioBatchRejectsChangesBeforeCommit();
     void acousticCacheWriteFailureCanBeRetried();
     void cacheCleanupProtectsRestoredInference();
+    void jsonCacheLookupRetriesAcrossModelReload_data();
+    void jsonCacheLookupRetriesAcrossModelReload();
     void inferenceFailureAndCancellationAllowRetry_data();
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
+    void clearingSingerResetsPronunciationAndPhonemes_data();
+    void clearingSingerResetsPronunciationAndPhonemes();
     void builtInG2pConvertsDictionaryAndUnlistedWords();
-    void g2pOnnxSessionTranslatesInputsAndRecoversAfterFailure();
+    void g2pConversionRecoversAfterInvalidRoute();
     void publicAudioPathUpdatesPrepareCommitAndUndo_data();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 
@@ -84,6 +96,7 @@ private slots:
     void modelInferenceWaitsForEditingBeforeApplying();
     void editingParametersRestartsOnlyDependentInference_data();
     void editingParametersRestartsOnlyDependentInference();
+    void queuedCacheProbeCannotRestoreAudioAfterAnEdit_data();
     void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
     void changingSamplingSettingsRestartsRunningInference_data();
     void changingSamplingSettingsRestartsRunningInference();

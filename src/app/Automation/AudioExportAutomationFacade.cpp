@@ -306,6 +306,17 @@ namespace Automation {
                     if (!authorized)
                         return AutomationResult<TaskAcceptedResult>(authorized.getError());
                 }
+                // An export renders through the shared project mixer, so two exports of one
+                // document cannot run concurrently. A second request is rejected while the first
+                // is queued or running, and the error identifies the task that holds the mixer.
+                if (const auto active = activeExport(session.documentId())) {
+                    AutomationError error;
+                    error.code = AutomationErrorCode::Busy;
+                    error.taskId = *active;
+                    error.message = QStringLiteral(
+                        "Another audio export of this document is still queued or running");
+                    return AutomationResult<TaskAcceptedResult>(std::move(error));
+                }
                 if (validateOnly) {
                     return AutomationResult<TaskAcceptedResult>({
                         .document = session.version(),
@@ -351,6 +362,26 @@ namespace Automation {
                     execute();
                 return AutomationResult<TaskAcceptedResult>(accepted);
             });
+    }
+
+    std::optional<TaskId>
+        AudioExportAutomationFacade::activeExport(const DocumentId &documentId) const {
+        QList<TaskId> candidates;
+        {
+            const QMutexLocker locker(&m_jobsMutex);
+            for (auto it = m_jobs.cbegin(); it != m_jobs.cend(); ++it) {
+                if (it.value()->baseDocument.documentId == documentId)
+                    candidates.append(it.key());
+            }
+        }
+        // The task state is read outside the lock of the job table, so that the two locks are
+        // never held together.
+        for (const auto &taskId : std::as_const(candidates)) {
+            const auto task = m_tasks.get(documentId, taskId);
+            if (task && !terminal(task.get().state))
+                return taskId;
+        }
+        return std::nullopt;
     }
 
     AutomationResult<ApplicationMutationResult>

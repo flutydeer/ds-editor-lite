@@ -32,8 +32,8 @@ private:
 
     PathEditor *m_packageSearchPaths;
 
-    FileSelector *m_fsGameDir;
-    FileSelector *m_fsRmvpePath;
+    ComboBox *m_cbNoteAnalyzer;
+    ComboBox *m_cbPitchAnalyzer;
     FileSelector *m_fsLibreSVIPPath;
 
     SwitchButton *m_swFingerDrawParam;

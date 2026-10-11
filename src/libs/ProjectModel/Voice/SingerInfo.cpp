@@ -10,6 +10,7 @@ bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) c
            pitchUsesExpressiveness == other.pitchUsesExpressiveness &&
            vocoderPitchControllable == other.vocoderPitchControllable &&
            effectivePhonemes == other.effectivePhonemes &&
+           reservedPhonemes == other.reservedPhonemes &&
            phonemeConsistency == other.phonemeConsistency &&
            phonemeWarnings == other.phonemeWarnings && phonemeDegraded == other.phonemeDegraded &&
            effectiveLanguages == other.effectiveLanguages &&

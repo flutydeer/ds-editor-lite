@@ -1,5 +1,7 @@
 #include "InferPipeline.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "States/InferDurationState.h"
 #include "States/UpdateDurationState.h"
 #include "States/AwaitingEditSessionApplyState.h"
@@ -23,7 +25,7 @@
 
 InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
     : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested) {
-    qDebug() << "InferPipeline created: pieceId =" << m_piece.id();
+    qCDebug(logInferState) << "InferPipeline created: pieceId =" << m_piece.id();
     initStates();
     initTransitions();
 
@@ -31,7 +33,7 @@ InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
 }
 
 InferPipeline::~InferPipeline() {
-    qDebug() << "InferPipeline destroyed: pieceId =" << m_piece.id();
+    qCDebug(logInferState) << "InferPipeline destroyed: pieceId =" << m_piece.id();
 }
 
 int InferPipeline::pieceId() const {

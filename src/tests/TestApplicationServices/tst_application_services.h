@@ -6,6 +6,7 @@ class ApplicationServicesTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void audioExportSerializesPerDocument();
     void applicationInfoSnapshot();
     void terminationPreviewAndPolicies();
     void terminationHostErrors();
@@ -46,6 +47,7 @@ private slots:
     void audioDeviceSettingsFollowAvailableCandidates();
     void computeDeviceSettingsMatchAvailableGpuIdentity_data();
     void computeDeviceSettingsMatchAvailableGpuIdentity();
+    void computeDeviceSwitchValidatesTheTargetProvider();
     void packageVersionAndPathProjection();
     void packageRefreshPreviewAndResultProjection();
     void editorViewCommands_data();

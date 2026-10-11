@@ -808,7 +808,15 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
                        << invalidated.getError().message;
             return;
         }
-        ensureClipInferenceStarted(*clip);
+        if (clip->singerInfo().isEmpty()) {
+            // Voice-clearing path: without a singer ensureClipInferenceStarted returns right away,
+            // so the fallback branch of the language tasks is re-run instead, to clear the
+            // pronunciation and the phonemes derived from the singer (they must not survive voice
+            // clearing).
+            restartLanguageTasksAfterVoiceCleared(*clip);
+        } else {
+            ensureClipInferenceStarted(*clip);
+        }
         return;
     }
 
@@ -913,6 +921,24 @@ void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
     });
 }
 
+void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &clip) {
+    QPointer<SingingClip> guardedClip(&clip);
+    // The reason is the same as in ensureClipInferenceStarted: the model signal is emitted inside
+    // ActionSequence::execute(), so the document may only be modified after the committer has
+    // advanced the version.
+    QTimer::singleShot(0, this, [this, guardedClip] {
+        if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
+            return;
+
+        // Without a singer canStartClipInference blocks a normal inference start, so the
+        // pronunciation/phonemes from before the voice was cleared stay on the notes (both are
+        // derived from the singer and must be cleared together with it). The state produced by the
+        // fallback branch of the two language tasks is exactly the state a note without a voicebank
+        // should have: the pronunciation is the original word and the phonemes stay empty.
+        createAndRunGetPronTask(*guardedClip, true);
+    });
+}
+
 void InferControllerPrivate::scheduleRetryAllSingingClips() {
     if (m_retryAllScheduled)
         return;
@@ -968,8 +994,9 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
                 scheduleRetryAllSingingClips();
                 break;
             }
-            if (!resolution.clip->singerInfo().isEmpty())
-                createAndRunGetPhoneTask(*resolution.clip);
+            // Capture the revision after pronunciation commits, including the voice-clear
+            // fallback, so the two results cannot invalidate one another.
+            createAndRunGetPhoneTask(*resolution.clip, resolution.clip->singerInfo().isEmpty());
             break;
         }
         case InferenceApplyGate::Decision::Defer:
@@ -1058,8 +1085,7 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
                                             phase == "pending-flush" ? "edit-session-flush-apply"
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
-            if (!resolution.clip->singerInfo().isEmpty())
-                createAndRunGetPhoneTask(*resolution.clip);
+            createAndRunGetPhoneTask(*resolution.clip, resolution.clip->singerInfo().isEmpty());
             return PendingApplyResult::Applied;
         }
         case InferenceApplyGate::Decision::Drop:
@@ -1205,8 +1231,9 @@ void InferControllerPrivate::clearPendingForClip(const int clipId, const QString
     }
 }
 
-void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip,
+                                                     const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     if (clip.notes().count() <= 0) {
@@ -1229,8 +1256,9 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     m_getPronTasks.add(task);
 }
 
-void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip,
+                                                      const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     const auto clipId = clip.id();

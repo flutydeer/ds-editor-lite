@@ -67,6 +67,27 @@ namespace {
     }
 }
 
+void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
+    otter::Api::F0::L1::F0Result curve;
+    curve.f0 = {440.0f, 220.0f, 0.0f};
+    auto values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 57.0, 0.0}));
+    curve.voiced = {1, 0, 0};
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 0.0, 0.0}));
+    curve.voiced = {1, 0};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced = {1, 0, 0, 1};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.f0.clear();
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced.clear();
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values && values->isEmpty());
+}
+
 void ApplicationWorkflowTests::
     extractionPreparationRejectsMissingResourcesAndChangedSources_data() {
     QTest::addColumn<bool>("pitch");
@@ -91,13 +112,13 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         return restored.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
                restored.write(originalBytes) == originalBytes.size();
     };
-    const auto previousPitch = context->m_appOptions->general()->rmvpePath;
-    const auto previousMidi = context->m_appOptions->general()->gameDir;
+    const auto previousPitch = context->m_appOptions->general()->pitchAnalyzer;
+    const auto previousMidi = context->m_appOptions->general()->noteAnalyzer;
     std::unique_ptr<TestSupport::ThreadPoolBarrier> workers;
     QList<TaskId> attempts;
     const auto cleanup = qScopeGuard([&] {
-        context->m_appOptions->general()->rmvpePath = previousPitch;
-        context->m_appOptions->general()->gameDir = previousMidi;
+        context->m_appOptions->general()->pitchAnalyzer = previousPitch;
+        context->m_appOptions->general()->noteAnalyzer = previousMidi;
         if (workers)
             workers->resume();
         for (const auto &id : attempts)
@@ -112,8 +133,8 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         if (QTest::currentTestFailed())
             files.setAutoRemove(false);
     });
-    auto &modelPath = pitch ? context->m_appOptions->general()->rmvpePath
-                            : context->m_appOptions->general()->gameDir;
+    auto &modelPath = pitch ? context->m_appOptions->general()->pitchAnalyzer
+                            : context->m_appOptions->general()->noteAnalyzer;
     modelPath.clear();
     ClipDraftDto audio;
     audio.type = ClipDraftDto::Type::Audio;
@@ -168,7 +189,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
              qPrintable(unconfigured.getError().fieldPath + QStringLiteral(": ") +
                         unconfigured.getError().message));
     QCOMPARE(unconfigured.getError().fieldPath,
-             pitch ? QStringLiteral("rmvpe_model_path") : QStringLiteral("game_model_path"));
+             pitch ? QStringLiteral("pitch_analyzer") : QStringLiteral("note_analyzer"));
     modelPath = files.filePath(QStringLiteral("unavailable-model"));
     const auto missingModel = start();
     QVERIFY(!missingModel);
@@ -187,15 +208,11 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 
-    // Preparation only requires a resource path. Every accepted attempt stops before inference.
-    modelPath = files.filePath(pitch ? QStringLiteral("placeholder.onnx")
-                                     : QStringLiteral("placeholder-model"));
-    if (pitch) {
-        QFile placeholder(modelPath);
-        QVERIFY(placeholder.open(QIODevice::WriteOnly));
-    } else {
-        QVERIFY(QDir().mkpath(modelPath));
-    }
+    // The bundled package supplies valid analyzer declarations. No attempt opens their models:
+    // these cases stop during source snapshotting or cancellation.
+    const auto analyzerReference = pitch ? QStringLiteral("ci-fixture:inference/fixture-f0")
+                                         : QStringLiteral("ci-fixture:inference/fixture-note");
+    modelPath = QStringLiteral(" \t") + analyzerReference + QStringLiteral("\n ");
     int modelTasks = 0;
     QObject observations;
     connect(taskManager, &TaskManager::taskChanged, &observations,
@@ -212,6 +229,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         input.sourceAsset.pathInfo.sha512 = digest;
         const auto prepared = prepare(input);
         QVERIFY(prepared);
+        QCOMPARE(prepared.get().input.analyzer, analyzerReference);
         QVERIFY(QFile::remove(detachedSource));
         struct Outcome {
             std::optional<ExtractionBackendState> state;

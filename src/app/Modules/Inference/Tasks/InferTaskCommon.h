@@ -12,25 +12,42 @@
 #include <QList>
 #include <QString>
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
+#include <dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
+#include <dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
 
-#include <diffsinger/Session/ModelSetHandle.h>
+#include <synthrt/SVS/InferenceExecutive.h>
+
+#include <lite/SynthrtEngine/SingerPipeline.h>
 
 class InferWord;
 class InferParam;
 struct InferSpeakerMix;
 
+/// One of the five stages of a singer.
+using InferStage = lite::synthrt::SingerStage;
+
+/// The stage of one singer that the running task holds, so that stop() can reach its executive.
+///
+/// A stop request is not a failure of start(): a stopped run still returns a result shaped like the
+/// one of a completed run, so a caller that used the result would treat a partial phrase as a
+/// complete phrase. Every caller therefore tests state() against srt::ITask::Succeeded before it
+/// uses the result. A real failure of start() is already reported as an error, so the result itself
+/// needs no error check.
 class ActiveInference final {
 public:
-    /// Model — the {inference, importOptions} pair a DiffSinger task consumes.
-    /// B1b: previously a nested type of SingerModelSession; now defined locally
-    /// since ActiveInference adapts a ds::session::ModelSetHandle into this
-    /// shape via handle->load(kind) + handle->stages().find(kind)->options.
-    /// Field shape is unchanged so all 4 task call sites compile unchanged.
+    /// Inputs that a task requires to run one stage: the executive and the import options of
+    /// the singer for that stage.
+    ///
+    /// The two members have different sources and are independent. The executive belongs to the
+    /// pipeline, which builds it once per singer and shares it. The options are the import entry
+    /// of the singer, which contains the speaker mapping.
+    ///
+    /// \a executive has the base type because one member represents five stage types. The
+    /// requested stage determines the dynamic type, and the caller casts only to the executive
+    /// type of the requested stage.
     struct Model {
-        srt::core::NO<srt::svs::Inference> inference;
-        srt::core::NO<srt::svs::InferenceImportOptions> importOptions;
+        srt::InferenceExecutive *executive = nullptr;
+        const srt::ContribImportOptions *importOptions = nullptr;
     };
 
     class Handle final {
@@ -51,33 +68,31 @@ public:
         std::uint64_t m_generation;
     };
 
-    // B1b: acquire now takes a ModelSetHandle (from VoicebankSession::ensureModelSet)
-    // instead of a SingerModelSession. Internally load(kind) + model(kind) +
-    // stages().find(kind)->options build the equivalent {inference, importOptions}
-    // pair. Handle's public interface is unchanged, so the 4 DiffSinger task
-    // call sites continue to compile.
-    srt::core::Expected<Handle> acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
-                                        ds::infer::StageKind kind);
+    /// Opens one stage of \a pipeline and holds it, so that stop() can reach it.
+    ///
+    /// Opening is expensive, and the pipeline caches the opened stage. A second request for the
+    /// same stage therefore only returns a pointer.
+    srt::Expected<Handle> acquire(lite::synthrt::SingerPipeline &pipeline, InferStage stage);
     void stop();
 
 private:
     void clear(std::uint64_t generation);
 
     std::mutex m_mutex;
-    srt::core::NO<srt::svs::Inference> m_inference;
+    srt::InferenceExecutive *m_executive = nullptr;
     std::uint64_t m_generation = 0;
     bool m_stopRequested = false;
 };
 
-auto createParamInfo(std::string_view tag) -> srt::svs::Api::Common::L1::InputParameterInfo;
+auto createParamInfo(std::string_view tag) -> ds::Api::Common::L1::InputParameterInfo;
 
 auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
                        const InferSpeakerMix &speakerMix,
                        const std::map<std::string, std::string> &speakerMapping, QString &error)
-    -> std::vector<srt::svs::Api::Common::L1::InputWordInfo>;
+    -> std::vector<ds::Api::Common::L1::InputWordInfo>;
 
 // Serializes DirectML driver-facing inference and session lifecycle operations.
-// Construct it before ModelSetHandle/Inference references so their destruction
+// Construct it before any pipeline or executive reference so their destruction
 // also completes before the guard unlocks. It is a no-op for other providers.
 class InferDirectMLSerializationGuard final {
 public:
@@ -92,12 +107,12 @@ private:
 };
 
 auto convertInputParams(const QList<InferParam> &params)
-    -> std::vector<srt::svs::Api::Common::L1::InputParameterInfo>;
+    -> std::vector<ds::Api::Common::L1::InputParameterInfo>;
 
-auto createStaticSpeaker(const std::string &speaker) -> srt::svs::Api::Common::L1::InputSpeakerInfo;
+auto createStaticSpeaker(const std::string &speaker) -> ds::Api::Common::L1::InputSpeakerInfo;
 
 auto convertInputSpeakers(const InferSpeakerMix &speakerMix,
                           const std::map<std::string, std::string> &speakerMapping, QString &error)
-    -> std::vector<srt::svs::Api::Common::L1::InputSpeakerInfo>;
+    -> std::vector<ds::Api::Common::L1::InputSpeakerInfo>;
 
 #endif // INFERTASKCOMMON_H

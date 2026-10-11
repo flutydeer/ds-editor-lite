@@ -7,25 +7,12 @@ namespace {
 }
 
 QString ExecutionProviderUtils::toString(const ExecutionProvider provider) noexcept {
-    switch (provider) {
-        case ExecutionProvider::Cpu:
-            return QStringLiteral("CPU");
-        case ExecutionProvider::DirectML:
-            return QStringLiteral("DirectML");
-        case ExecutionProvider::Cuda:
-            return QStringLiteral("CUDA");
-    }
-    return QStringLiteral("CPU");
+    const auto name = lite::synthrt::backendName(provider);
+    return QString::fromLatin1(name.data(), static_cast<qsizetype>(name.size()));
 }
 
 std::optional<ExecutionProvider> ExecutionProviderUtils::fromString(const QString &value) noexcept {
-    if (value == QStringLiteral("CPU"))
-        return ExecutionProvider::Cpu;
-    if (value == QStringLiteral("DirectML"))
-        return ExecutionProvider::DirectML;
-    if (value == QStringLiteral("CUDA"))
-        return ExecutionProvider::Cuda;
-    return std::nullopt;
+    return lite::synthrt::parseBackendName(value.toStdString());
 }
 
 bool ExecutionProviderUtils::availableInBuild(const ExecutionProvider provider) noexcept {
@@ -46,6 +33,11 @@ bool ExecutionProviderUtils::availableInBuild(const ExecutionProvider provider) 
 #else
             return false;
 #endif
+        case ExecutionProvider::CoreML:
+            // The engine supports CoreML, but no editor build ships an ONNX Runtime with CoreML
+            // or offers it in the settings. A stored CoreML value therefore resolves to the CPU
+            // with a fallback reason and is not passed to the driver.
+            return false;
     }
     return false;
 }

@@ -1,18 +1,22 @@
 #include "InferAcousticCacheProbeTask.h"
 
+#include "Modules/Inference/InferLogging.h"
+
+#include "Model/AppOptions/AppOptions.h"
+
 #include <QDebug>
 
 #include <utility>
 
 InferAcousticCacheProbeTask::InferAcousticCacheProbeTask(
     InferAcousticTask::InferAcousticInput input)
-    : m_input(std::move(input)) {
+    : m_input(std::move(input)), m_cacheDirectory(appOptions->inference()->cacheDirectory) {
     TaskStatus status;
     status.title = tr("Probe Acoustic Cache");
     status.message = tr("Pending acoustic cache probe");
     status.isIndetermine = true;
     setStatus(status);
-    qDebug() << "Acoustic cache probe created"
+    qCDebug(logInferTask) << "Acoustic cache probe created"
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
@@ -36,7 +40,7 @@ bool InferAcousticCacheProbeTask::success() const {
 }
 
 bool InferAcousticCacheProbeTask::cacheHit() const {
-    return m_cacheHit.load(std::memory_order_acquire);
+    return m_cacheHit.load(std::memory_order_acquire) && m_lookup.isCurrent();
 }
 
 QString InferAcousticCacheProbeTask::result() const {
@@ -51,15 +55,15 @@ void InferAcousticCacheProbeTask::runTask() {
     newStatus.message = tr("Probing acoustic cache");
     setStatus(newStatus);
 
-    const auto cache = InferAcousticTask::lookupCache(m_input);
+    m_lookup = InferAcousticTask::lookupCache(m_input, m_cacheDirectory);
     if (isTerminateRequested())
         return;
 
-    if (cache.hit)
-        m_result = cache.outputCachePath;
-    m_cacheHit.store(cache.hit, std::memory_order_release);
+    if (m_lookup.hit)
+        m_result = m_lookup.outputCachePath;
+    m_cacheHit.store(m_lookup.hit, std::memory_order_release);
     m_success.store(true, std::memory_order_release);
-    qDebug() << "Acoustic cache probe finished"
-             << "hit:" << cache.hit << "clipId:" << clipId() << "pieceId:" << pieceId()
+    qCDebug(logInferTask) << "Acoustic cache probe finished"
+             << "hit:" << m_lookup.hit << "clipId:" << clipId() << "pieceId:" << pieceId()
              << "taskId:" << id();
 }

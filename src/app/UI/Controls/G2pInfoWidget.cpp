@@ -2,7 +2,6 @@
 
 #include <lite/Support/VersionUtils.h>
 
-#include <synthrt/G2P/Core/Manager.h>
 
 #include <QLoggingCategory>
 #include <QtGlobal>
@@ -69,43 +68,16 @@ namespace LangSetting {
 
     void G2pInfoWidget::setInfo(const QString &g2pId, const QString &context,
                                 const QVersionNumber &contextVersion) const {
-        // 用解析出的 (context, version) 取代硬编码 ""，使声库自定义 G2P
-        // 在调试/详情页能够正确加载。
-        // 当 context 为空且 version 为 null 时，与改造前 3 参数版本 task("g2p","",g2pId)
-        // 完全等价（走官方默认 context），避免依赖 stdc::VersionNumber(0,0,0,0).isEmpty()
-        // 的具体行为差异
-        const auto contextStd = context.toStdString();
-        srt::core::Expected<srt::core::NO<srt::g2p::Task>> g2pFactory;
-        if (context.isEmpty() && contextVersion.isNull()) {
-            g2pFactory =
-                srt::g2p::Manager::instance()->task("g2p", contextStd, g2pId.toStdString());
-        } else {
-            const auto versionStd = VersionUtils::qt_to_stdc(contextVersion);
-            g2pFactory = srt::g2p::Manager::instance()->task("g2p", contextStd, versionStd,
-                                                             g2pId.toStdString());
-        }
+        // Nothing is looked up. The older line addressed a G2P module by an identifier and a
+        // context and could ask a registry about it; on the main line a language is a linguist
+        // that a singer imports, so there is no module to resolve from an identifier alone and
+        // nothing to report beyond what the caller already passed in.
+        //
+        // This is a knowing downgrade rather than a port: what belongs here now is a language of
+        // the selected singer, which is a different widget and a different question.
+        Q_UNUSED(context)
+        Q_UNUSED(contextVersion)
 
-        if (!g2pFactory) {
-            // 路由加载失败时给出可诊断的 UI 提示，避免静默无反馈
-            // 补充分类日志，便于无控制台时排障
-            const auto contextDisplay = context.isEmpty() ? tr("(official)") : context;
-            const auto versionDisplay =
-                contextVersion.isNull() ? tr("N/A") : contextVersion.toString();
-            qCWarning(logLangSetting).nospace()
-                << "G2P config load failed g2pId='" << g2pId << "' context='" << context
-                << "' version=" << contextVersion.toString() << " reason='"
-                << QString::fromStdString(g2pFactory.error().message()) << "'";
-            m_label->setText(tr("G2P Config (Load Failed)"));
-            m_descriptionLabel->setText(tr("Failed to load g2p '%1' in context '%2' (version %3). "
-                                           "Check voicebank G2P package installation.")
-                                            .arg(g2pId, contextDisplay, versionDisplay));
-            return;
-        }
-
-        // 成功加载时重置可能的失败态 UI（避免前一次失败的文案残留）
-        // 已知限制：LangCore::Task 接口暂未提供 description/displayName/author，因此详细信息
-        // （语言/作者/描述、langConfig/g2pConfig 子控件）无法展示。
-        // 详见 docs/g2p-architecture/README.md §5 待办任务。
         m_label->setText(tr("G2P Config"));
         m_descriptionLabel->setText(tr("G2P '%1' loaded.").arg(g2pId));
     }

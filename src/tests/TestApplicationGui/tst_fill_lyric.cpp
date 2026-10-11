@@ -144,9 +144,11 @@ namespace {
                      splitMode == FillLyric::ByChar ? QStringLiteral("a") : lyric);
         if (splitMode != FillLyric::ByChar) {
             QVERIFY(!cells.first()->syllable().isEmpty());
-            QVERIFY2(!cells.first()->note()->g2pId.isEmpty() &&
-                         cells.first()->note()->g2pId != QLatin1String(kUnknownG2pId),
-                     "Preview must contain a successful language-service result");
+            const auto *preview = cells.first()->note();
+            QVERIFY(preview->g2pId.isEmpty());
+            QVERIFY(preview->language != QStringLiteral("unknown"));
+            QVERIFY2(preview->candidates.contains(cells.first()->syllable()),
+                     "Preview must preserve the language and pronunciation candidates");
         }
         if (singleWord) {
             const auto output = dialog.exportLangNotes();

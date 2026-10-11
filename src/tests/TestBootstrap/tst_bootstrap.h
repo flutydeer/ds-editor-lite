@@ -17,6 +17,9 @@ private slots:
     void initTestCase();
     void protocol();
     void identity();
+    void reusedPidDoesNotKeepAStaleLock();
+    void malformedLockRecovery_data();
+    void malformedLockRecovery();
     void automationBootstrap();
     void watcherLimit();
     void initialReadTimeout();

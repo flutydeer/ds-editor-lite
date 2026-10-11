@@ -1,5 +1,8 @@
 #include "GetPronunciationTask.h"
 
+#include "Modules/Inference/Utils/PronunciationText.h"
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
+
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QDebug>
@@ -11,71 +14,16 @@
 #include <utility>
 #include <vector>
 
-#include <synthrt/G2P/Base/LangCommon.h>
+#include <lite/SynthrtEngine/LanguageBridge.h>
 
 #include <lite/ProjectModel/AppModel/Note.h>
-#include <lite/Support/VersionUtils.h>
-#include <lite/Language/G2pConvertRunner.h>
-#include <lite/Language/G2pInputAdapter.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
 Q_LOGGING_CATEGORY(logInferPron, "infer.pronunciation")
 
 namespace {
-    std::string toUtf8(const QString &value) {
-        const auto bytes = value.toUtf8();
-        return {bytes.constData(), static_cast<size_t>(bytes.size())};
-    }
-
-    QString fromUtf8(const std::string &value) {
-        return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
-    }
-
-    /// Candidates from the g2p engine may be the split phoneme tokens of the
-    /// pronunciation itself (dict step) rather than true alternative
-    /// pronunciations. In that case collapse them to the whole pronunciation
-    /// so the UI never offers single phonemes as switchable candidates.
-    QStringList normalizePronunciationCandidates(const QString &pronunciation,
-                                                 QStringList candidates) {
-        if (pronunciation.isEmpty())
-            return candidates;
-        const auto pronTokens = pronunciation.split(u' ', Qt::SkipEmptyParts);
-        if (pronTokens.isEmpty())
-            return candidates;
-        for (auto &c : candidates)
-            c = c.trimmed();
-        candidates.removeAll(QString());
-        const bool allArePronTokens =
-            !candidates.isEmpty() &&
-            std::all_of(candidates.cbegin(), candidates.cend(), [&](const QString &c) {
-                return c.contains(u' ') ? c == pronunciation : pronTokens.contains(c);
-            });
-        if (allArePronTokens)
-            return {pronunciation};
-        return candidates;
-    }
-
-    /// Convert G2pErrorType to a readable string for log diagnostics.
-    QString g2pErrorTypeName(srt::g2p::G2pErrorType type) {
-        switch (type) {
-            case srt::g2p::NoError:
-                return QStringLiteral("NoError");
-            case srt::g2p::InvalidLyric:
-                return QStringLiteral("InvalidLyric");
-            case srt::g2p::ModelInferenceFailed:
-                return QStringLiteral("ModelInferenceFailed");
-            case srt::g2p::PhonemeGenerationFailed:
-                return QStringLiteral("PhonemeGenerationFailed");
-            case srt::g2p::DriverUnavailable:
-                return QStringLiteral("DriverUnavailable");
-            case srt::g2p::NotInitialized:
-                return QStringLiteral("NotInitialized");
-            case srt::g2p::UnknownError:
-                return QStringLiteral("UnknownError");
-            default:
-                return QStringLiteral("Unknown(%1)").arg(type);
-        }
-    }
+    using PronunciationText::fromUtf8;
+    using PronunciationText::toUtf8;
 }
 
 GetPronunciationTask::GetPronunciationTask(Automation::DocumentVersion documentVersion,
@@ -153,18 +101,19 @@ QList<PronunciationFetchResult>
         return pronResult;
     }
 
-    auto isSkippedNote = [](const NoteInferenceSnapshot &note) {
+    // A lyric that is a reserved phoneme of the singer is its own pronunciation.
+    const auto reservedPhonemes = ReservedPhonemes::of(m_singerInfo.identifier());
+    auto isSkippedNote = [&reservedPhonemes](const NoteInferenceSnapshot &note) {
         const auto lyric = note.lyric.trimmed();
-        if (lyric == "SP" || lyric == "AP" || Note::isSlurLyric(lyric))
+        if (reservedPhonemes.contains(lyric) || Note::isSlurLyric(lyric))
             return true;
         return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
-    // B1b-3: Group non-skipped notes by language (preserving first-seen order).
-    // Each language calls session().convertG2p once (internally routed by
-    // SingerRef.version, which fills g2pId/g2pContext/g2pContextVersion).
-    // The inference chain never falls back to official; on route/convert
-    // failure that language keeps the original lyric (ds-session.md §206).
+    // Group non-skipped notes by language (preserving first-seen order). Each language is
+    // converted in one call to the language layer, which wolf routes by singer and language
+    // without a G2P identifier. On a routing or conversion failure, the notes of that language
+    // keep the original lyric (ds-session.md §206).
     // language -> [(noteIndex, lyricUtf8), ...]
     std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
 
@@ -186,55 +135,38 @@ QList<PronunciationFetchResult>
     if (langGroups.empty())
         return pronResult;
 
-    auto &session = SynthrtEngine::instance().session();
     const auto identifier = m_singerInfo.identifier();
-    const auto packageId = identifier.packageId.toStdString();
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
 
     for (const auto &[language, entries] : langGroups) {
-        std::vector<srt::g2p::G2pInput> inputs;
-        inputs.reserve(entries.size());
+        std::vector<lite::synthrt::LanguageBridge::Word> words;
+        words.reserve(entries.size());
         for (const auto &entry : entries) {
-            srt::g2p::G2pInput input;
-            input.lyric = entry.second;
-            inputs.push_back(std::move(input));
+            words.push_back({entry.second, {}, {}, {}});
         }
 
-        // Ensure the G2P language module is loaded before conversion.
-        // convertG2p does not auto-initialize models; ensureLanguageReady
-        // loads them lazily on first call (cached internally by the session).
-        const auto langStd = toUtf8(language);
-        auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
-        if (!readyExp) {
-            qCWarning(logInferPron).nospace()
-                << "G2P language ready failed for lang='" << language
-                << "': " << fromUtf8(readyExp.error().message()) << ". Keeping original lyric.";
-            for (const auto &entry : entries)
-                pronResult[entry.first].candidates = {fromUtf8(entry.second)};
-            continue;
-        }
-
-        auto exp = session.convertG2p(identifier, langStd, inputs);
-        if (!exp) {
-            // The inference chain never silently falls back to official;
-            // original lyric is kept so users can manually adjust later in
-            // PronunciationView (ds-session.md §206).
+        // No preparation step is required, because wolf loads a language on its first
+        // conversion.
+        auto converted = SynthrtEngine::instance().convert(
+            identifier, language, words, lite::synthrt::LanguageBridge::Depth::Pronunciation);
+        if (!converted) {
+            // The inference chain never silently falls back to official; the original lyric is
+            // kept so users can adjust it later in PronunciationView (ds-session.md §206).
             qCWarning(logInferPron).nospace()
                 << "G2P conversion failed for lang='" << language
-                << "': " << fromUtf8(exp.error().message()) << ". Keeping original lyric.";
+                << "': " << fromUtf8(converted.error().toString()) << ". Keeping original lyric.";
             for (const auto &entry : entries)
                 pronResult[entry.first].candidates = {fromUtf8(entry.second)};
             continue;
         }
 
-        const auto &outcomes = *exp;
-        // Caller is responsible for result count validation; on mismatch the
-        // original lyric is kept (no Q_ASSERT: Debug-build abort conflicts
-        // with D11 precise error reporting).
+        const auto outcomes = converted.take();
+        // The caller validates the result count. On a mismatch, the original lyric is kept. No
+        // Q_ASSERT is used, because a Debug-build abort conflicts with D11 precise error
+        // reporting.
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
-                << "convertG2p returned " << outcomes.size() << " outcomes for " << entries.size()
-                << " requests; keeping original lyric for all convert notes";
+                << "the conversion returned " << outcomes.size() << " outcomes for "
+                << entries.size() << " requests; keeping original lyric for all convert notes";
             for (const auto &entry : entries) {
                 auto &res = pronResult[entry.first];
                 res.pronunciation = fromUtf8(entry.second);
@@ -246,30 +178,36 @@ QList<PronunciationFetchResult>
         for (size_t i = 0; i < outcomes.size(); i++) {
             const auto noteIdx = entries[i].first;
             auto &res = pronResult[noteIdx];
+
+            // A word that fails to convert keeps its position in the batch and carries its own
+            // error, so an unknown word does not affect the other words of the batch. A failed
+            // outcome carries no usable pronunciation or candidates, so the prefilled original
+            // lyric is kept instead of being overwritten, as the fill-lyric path also does
+            // (FillLyric/Utils/G2pService.cpp).
+            if (!outcomes[i].error.empty()) {
+                qCWarning(logInferPron).nospace()
+                    << "G2P conversion error note[" << noteIdx << "] lyric='"
+                    << qPrintable(fromUtf8(entries[i].second)) << "' reason='"
+                    << qPrintable(fromUtf8(outcomes[i].error)) << "'";
+                continue;
+            }
+
             res.pronunciation = fromUtf8(outcomes[i].pronunciation);
+            res.stage = outcomes[i].stage;
             QStringList rawCandidates;
             rawCandidates.reserve(static_cast<qsizetype>(outcomes[i].candidates.size()));
             for (const auto &candidate : outcomes[i].candidates)
                 rawCandidates.append(fromUtf8(candidate));
-            res.candidates = normalizePronunciationCandidates(res.pronunciation, rawCandidates);
+            res.candidates = PronunciationText::normalizeCandidates(res.pronunciation, rawCandidates);
 
-            // Failure diagnostics (non-blocking): on per-lyric failure LangCore
-            // already sets pronunciation=lyric (the only allowed behavior per
-            // ds-session.md §196 — no G2P fallback).
-            // Note: qPrintable() avoids Qt6 QDebug auto-quoting QString
-            // (otherwise empty strings display as "", causing context='""'
-            // which misleads debugging).
-            if (outcomes[i].errorType != srt::g2p::NoError) {
+            // A fallback is the last resort of the language module, so it is reported: the reading
+            // may not match how the word is pronounced, and no surface of the editor says where a
+            // pronunciation came from.
+            if (outcomes[i].stage == lite::synthrt::PronunciationStage::Fallback) {
                 qCWarning(logInferPron).nospace()
-                    << "G2P conversion error note[" << noteIdx << "] g2pId='"
-                    << qPrintable(fromUtf8(outcomes[i].g2pId)) << "' context='"
-                    << qPrintable(fromUtf8(outcomes[i].g2pContext))
-                    << "' source=" << qPrintable(fromUtf8(outcomes[i].g2pSource))
-                    << " errorType=" << outcomes[i].errorType << " ("
-                    << qPrintable(g2pErrorTypeName(outcomes[i].errorType)) << ") lyric='"
-                    << qPrintable(fromUtf8(inputs[i].lyric)) << "' pronunciation='"
-                    << qPrintable(fromUtf8(outcomes[i].pronunciation))
-                    << "' candidateCount=" << outcomes[i].candidates.size();
+                    << "G2P used the fallback for note[" << noteIdx << "] lyric='"
+                    << qPrintable(fromUtf8(entries[i].second)) << "' pronunciation='"
+                    << qPrintable(res.pronunciation) << "'";
             }
         }
     }

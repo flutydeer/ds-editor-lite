@@ -58,6 +58,25 @@ namespace {
 
 }
 
+void VoiceAndInferenceTests::singerSessionCacheRefreshPreservesSelection() {
+    FakeCache cache;
+    int destroyed = 0;
+    const auto id = makeIdentifier(QStringLiteral("singer"));
+    cache.retainOnly({id});
+    auto lease = cache.acquire(id, [&] { return std::make_shared<FakeHandle>(destroyed); });
+    lease.reset();
+    QCOMPARE(destroyed, 0);
+    auto retired = cache.clear(false);
+    retired.clear();
+    QCOMPARE(destroyed, 1);
+    QCOMPARE(cache.retainedIdentifiers(), QSet<SingerIdentifier>{id});
+    auto fresh = cache.acquire(id, [&] { return std::make_shared<FakeHandle>(destroyed); });
+    fresh.reset();
+    QCOMPARE(destroyed, 1);
+    cache.clear();
+    QCOMPARE(destroyed, 2);
+}
+
 void VoiceAndInferenceTests::singerSessionCacheRetainsOnlySelectedSingers() {
     FakeClock::reset();
     int creationCount = 0;

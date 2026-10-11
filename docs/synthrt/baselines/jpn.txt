@@ -1,0 +1,15 @@
+﻿a	a
+i	i
+u	u
+e	e
+o	o
+ka	k a
+ki	k i
+ku	k u
+ke	k e
+ko	k o
+sa	s a
+shi	sh i
+su	s u
+se	s e
+so	s o
