@@ -3,6 +3,7 @@
 #include "SingleInstanceIdentity.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEvent>
@@ -59,6 +60,8 @@ public:
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         m_server->setMaxPendingConnections(
             static_cast<int>(SingleInstanceProtocol::maxConnectionCount));
+        // On Windows, listen() can deliver pending connections before it returns.
+        connect(m_server, &QLocalServer::newConnection, this, [this] { acceptConnections(); });
         if (!m_server->listen(serverName)) {
             QLocalServer::removeServer(serverName);
             if (!m_server->listen(serverName)) {
@@ -66,7 +69,6 @@ public:
                 return false;
             }
         }
-        connect(m_server, &QLocalServer::newConnection, this, [this] { acceptConnections(); });
         return true;
     }
 
@@ -171,6 +173,8 @@ private:
                     dropConnection(socket);
             });
             initialReadTimer->start();
+            // A pending connection can already contain the initial frame.
+            readRequests(socket);
         }
     }
 
@@ -234,7 +238,8 @@ private:
     }
 
     void dispatchApplicationRequest(QLocalSocket *socket, const SingleInstanceRequest &request) {
-        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()}, true);
+        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()},
+                     true);
         QMetaObject::invokeMethod(
             m_coordinator,
             [coordinator = m_coordinator, request] { coordinator->receiveRequest(request); },
@@ -405,6 +410,7 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
                     .arg(connectionTimeoutMs / 1000);
         return false;
     }
+    const auto connectedMs = timer.elapsed();
 
     if (m_lockFile) {
         qint64 primaryProcessId = 0;
@@ -416,12 +422,19 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
 
     const auto message =
         SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(request));
-    if (socket.write(message) != message.size() ||
-        !socket.waitForBytesWritten(
-            qMax(1, connectionTimeoutMs - static_cast<int>(timer.elapsed())))) {
+    // The pipe may finish writing before the wait; the ACK below still confirms delivery.
+    const auto written = socket.write(message);
+    bool writeCompleted = true;
+    if (written == message.size() && socket.bytesToWrite() > 0) {
+        const auto waited = socket.waitForBytesWritten(
+            qMax(1, connectionTimeoutMs - static_cast<int>(timer.elapsed())));
+        writeCompleted = waited || socket.bytesToWrite() == 0;
+    }
+    if (written != message.size() || !writeCompleted) {
         error = tr("Failed to send the request to the running instance");
         return false;
     }
+    const auto writtenMs = timer.elapsed();
 
     QByteArray buffer;
     QByteArray payload;
@@ -440,6 +453,10 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
         }
     }
     if (payload.isEmpty()) {
+        qWarning() << "Single-instance ACK missing: connected_ms=" << connectedMs
+                   << "written_ms=" << writtenMs << "elapsed_ms=" << timer.elapsed()
+                   << "state=" << socket.state() << "error=" << socket.errorString()
+                   << "available=" << socket.bytesAvailable() << "buffered=" << buffer.size();
         error = tr("The running instance did not acknowledge the request");
         return false;
     }

@@ -74,6 +74,12 @@ bool ComboPopupTouchFilter::eventFilter(QObject *watched, QEvent *event) {
         return QObject::eventFilter(watched, event);
 
     switch (event->type()) {
+        case QEvent::Hide:
+            // A popup can close before the platform delivers the touch release.
+            m_streaming = false;
+            QScroller::scroller(m_viewport)->stop();
+            break;
+
         case QEvent::MouseButtonPress:
         case QEvent::MouseButtonRelease:
         case QEvent::MouseMove:
@@ -172,13 +178,13 @@ void ComboPopupTouchFilter::replayTap(const QPointF &position, const QPointF &gl
     if (m_viewport.isNull())
         return;
     // NotSynthesized so no other filter treats it as touch fallout.
-    QMouseEvent press(QEvent::MouseButtonPress, position, globalPosition,
-                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent press(QEvent::MouseButtonPress, position, globalPosition, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
     press.setTimestamp(timestamp);
     QCoreApplication::sendEvent(m_viewport.data(), &press);
 
-    QMouseEvent release(QEvent::MouseButtonRelease, position, globalPosition,
-                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, position, globalPosition, Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
     release.setTimestamp(timestamp);
     QCoreApplication::sendEvent(m_viewport.data(), &release);
 }

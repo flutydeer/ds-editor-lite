@@ -24,6 +24,7 @@
 #include <QMCore/qmsystem.h>
 #include <QHBoxLayout>
 #include <QLocale>
+#include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QTreeView>
 #include <QVBoxLayout>
@@ -56,13 +57,18 @@ DeveloperPage::DeveloperPage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void DeveloperPage::modifyOption() {
+    applyOptions();
+}
+
+bool DeveloperPage::applyOptions() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
-        return;
+        return false;
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
-        return;
-    auto settings = snapshot.get().developer;
+        return false;
+    const auto previous = snapshot.get().developer;
+    auto settings = previous;
     settings.enableDiagnostics = m_swEnableDiagnostics->value();
     settings.showLogWindow = m_swShowLogWindow->value();
     settings.showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
@@ -75,7 +81,28 @@ void DeveloperPage::modifyOption() {
                 static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental)
             ? Automation::EditorRenderBackend::RhiExperimental
             : Automation::EditorRenderBackend::Legacy;
-    runtime->settings().updateDeveloper({}, settings);
+    if (runtime->settings().updateDeveloper({}, settings))
+        return true;
+
+    const auto restoreSwitch = [](SwitchButton *control, bool value) {
+        const QSignalBlocker blocker(control);
+        control->setValue(value);
+    };
+    restoreSwitch(m_swEnableDiagnostics, previous.enableDiagnostics);
+    restoreSwitch(m_swShowLogWindow, previous.showLogWindow);
+    restoreSwitch(m_swShowTimelineDebugInfo, previous.showTimelineDebugInfo);
+    restoreSwitch(m_swShowClipDebugInfo, previous.showClipDebugInfo);
+    restoreSwitch(m_swLogTouchEvents, previous.logTouchEvents);
+    restoreSwitch(m_swEnablePanelDetach, previous.enablePanelDetach);
+    restoreSwitch(m_swEnableEmbeddedOptionsDialog, previous.enableEmbeddedOptionsDialog);
+    const auto backend =
+        previous.editorRenderBackend == Automation::EditorRenderBackend::RhiExperimental
+            ? DeveloperOption::EditorRenderBackend::RhiExperimental
+            : DeveloperOption::EditorRenderBackend::Legacy;
+    const QSignalBlocker blocker(m_cbxEditorRenderBackend);
+    m_cbxEditorRenderBackend->setCurrentIndex(
+        m_cbxEditorRenderBackend->findData(static_cast<int>(backend)));
+    return false;
 }
 
 QWidget *DeveloperPage::createContentWidget() {
@@ -101,8 +128,10 @@ QWidget *DeveloperPage::createContentWidget() {
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
     m_swEnableEmbeddedOptionsDialog = new SwitchButton(option->enableEmbeddedOptionsDialog);
+    m_swEnableEmbeddedOptionsDialog->setObjectName("developerEmbeddedOptionsDialog");
     connect(m_swEnableEmbeddedOptionsDialog, &SwitchButton::toggled, this, [this] {
-        modifyOption();
+        if (!applyOptions())
+            return;
         const auto message = tr("The embedded options dialog setting will take effect after "
                                 "restarting the app. Do you want to restart now?");
         const auto dialog = new RestartDialog(message, true, this);
@@ -119,7 +148,8 @@ QWidget *DeveloperPage::createContentWidget() {
     m_cbxEditorRenderBackend->setCurrentIndex(
         m_cbxEditorRenderBackend->findData(static_cast<int>(option->editorRenderBackend)));
     connect(m_cbxEditorRenderBackend, &ComboBox::currentIndexChanged, this, [this] {
-        modifyOption();
+        if (!applyOptions())
+            return;
         const auto message =
             tr("The editor rendering backend will change after restarting the app. Do you want to "
                "restart now?");
@@ -182,7 +212,7 @@ QWidget *DeveloperPage::createContentWidget() {
     inferStateCard->setTitle(tr("Inference Engine State"));
 
     auto treeView = new QTreeView();
-    auto stateModel = new QStandardItemModel();
+    auto stateModel = new QStandardItemModel(treeView);
     stateModel->setHorizontalHeaderLabels({tr("Key"), tr("Value")});
 
     // Root node

@@ -46,6 +46,8 @@ void BaseInferState::onExit(QEvent *event) {
 }
 
 void BaseInferState::onRunningInferenceStateEntered() {
+    if (m_pipeline.stopped())
+        return;
     qDebug() << "BaseInferState::onRunningInferenceStateEntered";
     if (currentTask) {
         currentTask->disconnect(this);
@@ -65,7 +67,9 @@ void BaseInferState::onRunningInferenceStateEntered() {
     ++m_preparationEpoch;
     buildTaskInput();
     auto *task = createTask();
-    connect(task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); });
+    connect(
+        task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); },
+        Qt::QueuedConnection);
     addTaskToController(task);
     currentTask = task;
 }

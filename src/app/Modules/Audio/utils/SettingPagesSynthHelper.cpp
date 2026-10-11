@@ -188,9 +188,11 @@ void SettingPageSynthHelper::initialize(
             });
     connect(AudioSystem::outputSystem()->context(),
             &talcs::AbstractOutputContext::sampleRateChanged, this,
-            [attackSpinBox, releaseSpinBox, this](const double sampleRate) {
+            [attackSpinBox, decaySpinBox, releaseSpinBox, this](const double sampleRate) {
                 m_testSynthesizer.setAttackTime(
                     AudioHelpers::msecToSample(attackSpinBox->value(), sampleRate));
+                m_testSynthesizer.setDecayTime(
+                    AudioHelpers::msecToSample(decaySpinBox->value(), sampleRate));
                 m_testSynthesizer.setReleaseTime(
                     AudioHelpers::msecToSample(releaseSpinBox->value(), sampleRate));
             });

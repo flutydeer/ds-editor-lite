@@ -219,33 +219,6 @@ namespace Automation {
             return false;
         }
 
-        bool validCurveDraft(const ParamInfo::Name name, const CurveDraftDto &curve,
-                             const int sourceStart, const int sourceEnd) {
-            const auto spec = ParamInfo::valueSpec(name);
-            const auto validValue = [&spec](const int value) {
-                return value >= spec.minimum && value <= spec.maximum &&
-                       (value - spec.minimum) % spec.step == 0;
-            };
-            if (curve.type == CurveDraftDto::Type::Draw) {
-                const auto end = static_cast<qint64>(curve.localStart) +
-                                 static_cast<qint64>(curve.step) * curve.values.size();
-                return curve.step > 0 && !curve.values.isEmpty() &&
-                       curve.localStart >= sourceStart && end <= sourceEnd &&
-                       std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
-            }
-            if (curve.nodes.size() < 2)
-                return false;
-            auto previous = std::numeric_limits<int>::min();
-            for (const auto &node : curve.nodes) {
-                if (node.position < sourceStart || node.position > sourceEnd ||
-                    node.position <= previous || !validValue(node.value)) {
-                    return false;
-                }
-                previous = node.position;
-            }
-            return true;
-        }
-
         bool validTransferPayload(const NoteTransferPayload &payload) {
             if (payload.notes.isEmpty() || payload.sourceStart < 0 ||
                 payload.sourceEnd <= payload.sourceStart) {
@@ -269,6 +242,8 @@ namespace Automation {
                 if (seenParameters.contains(key) || parameter.curves.isEmpty())
                     return false;
                 seenParameters.insert(key);
+                if (hasOverlappingAnchorCurves(parameter.curves))
+                    return false;
                 for (const auto &curve : parameter.curves) {
                     if (!validCurveDraft(parameter.name, curve, payload.sourceStart,
                                          payload.sourceEnd)) {
@@ -335,7 +310,12 @@ namespace Automation {
                     if (!caseSensitive)
                         options |= QRegularExpression::CaseInsensitiveOption;
                     expression.setPatternOptions(options);
-                    expression.setPattern(query);
+                    auto pattern = query;
+                    if (mode == QStringLiteral("exact"))
+                        pattern = QRegularExpression::anchoredPattern(pattern);
+                    else if (mode == QStringLiteral("starts_with"))
+                        pattern = QStringLiteral("\\A(?:") + pattern + QLatin1Char(')');
+                    expression.setPattern(pattern);
                     if (!expression.isValid()) {
                         return AutomationResult<QList<NoteSearchMatchDto>>(
                             AutomationError::invalidArgument(
@@ -348,12 +328,7 @@ namespace Automation {
                 for (const auto *note : clip->notes()) {
                     bool matches = false;
                     if (regularExpression) {
-                        const auto match = expression.match(note->lyric());
-                        matches =
-                            match.hasMatch() &&
-                            (mode != QStringLiteral("exact") ||
-                             match.capturedLength() == note->lyric().size()) &&
-                            (mode != QStringLiteral("starts_with") || match.capturedStart() == 0);
+                        matches = expression.match(note->lyric()).hasMatch();
                     } else if (mode == QStringLiteral("exact")) {
                         matches = note->lyric().compare(query, sensitivity) == 0;
                     } else if (mode == QStringLiteral("starts_with")) {

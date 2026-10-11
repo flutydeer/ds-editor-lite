@@ -1,4 +1,5 @@
 #include "SingleInstanceIdentity.h"
+#include "AppDataPaths.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -25,6 +26,8 @@ QString SingleInstanceIdentity::productIdentity() {
 }
 
 QString SingleInstanceIdentity::defaultDataDirectory() {
+    if (!AppDataPaths::testRoot().isEmpty())
+        return AppDataPaths::applicationData();
     return QDir(dataRoot())
         .filePath(
             QStringLiteral("%1/%2").arg(QString::fromLatin1(LiteProductMetadata::Publisher),

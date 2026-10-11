@@ -7,6 +7,8 @@
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 
+#include <QPointer>
+
 class QLabel;
 class QSplitter;
 class ParamEditorView;
@@ -53,7 +55,6 @@ public:
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated) const;
-    void refreshActiveClipTrackPresentation();
     void previewActiveClipTrackColor(int colorIndex) const;
     // Document switch: plays back the default viewport and tool state. The layout
     // and the active clip presentation keep whatever they currently show.
@@ -69,12 +70,15 @@ private:
     void moveToAudioClipState(const AudioClip *clip) const;
     void moveToNullClipState() const;
     void resetPianoRollViewportRange() const;
+    void refreshTrackPresentation();
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;
     QLabel *m_placeholderLabel;
     mutable bool m_hasActiveClip = false;
     QMetaObject::Connection m_trackColorConnection;
+    QMetaObject::Connection m_clipPropertyConnection;
+    QPointer<Track> m_presentationTrack;
 
     void reset();
     void applyTrackColor(int colorIndex) const;

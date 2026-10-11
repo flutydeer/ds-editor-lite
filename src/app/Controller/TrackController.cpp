@@ -200,8 +200,9 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
     decodeTask->tick = tick;
     const auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
-    connect(decodeTask, &Task::finished, this,
-            [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); });
+    connect(
+        decodeTask, &Task::finished, this,
+        [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); }, Qt::QueuedConnection);
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
@@ -251,10 +252,8 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
     std::optional<Automation::TrackId> targetTrackId;
     if (newTrackIndex >= 0 && newTrackIndex < appModel->tracks().size())
         targetTrackId = Automation::TrackId(appModel->tracks().at(newTrackIndex)->id());
-    const auto result = runtime->project().setClipProperties(
+    (void)runtime->project().setClipProperties(
         commandContext(*runtime), clipPropertiesDto(args), targetTrackId);
-    if (result && result.get().changed && targetTrackId && appStatus->activeClipId == args.id)
-        editorViewController->refreshActiveClipTrackPresentation();
 }
 
 void TrackController::onRemoveClips(const QList<int> &clipsId) {
@@ -337,33 +336,11 @@ void TrackController::cutSelectedClips() {
 }
 
 void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex) {
-    const auto &srcClips = info.clips;
     auto *runtime = automationRuntime();
-    if (!runtime || srcClips.isEmpty())
+    if (!runtime)
         return;
 
-    if (trackIndex < 0 || trackIndex >= appModel->tracks().count())
-        return;
-
-    int minStart = srcClips.first()->start();
-    for (const auto clip : srcClips)
-        minStart = qMin(minStart, clip->start());
-    const auto offset = tick - minStart;
-
-    QList<Automation::ClipInsertDto> inserts;
-
-    for (int i = 0; i < srcClips.count(); i++) {
-        const auto srcClip = srcClips.at(i);
-        if (!srcClip)
-            continue;
-        int targetTrackIndex = trackIndex + info.trackIndexOffsets.value(i, 0);
-        targetTrackIndex = qBound(0, targetTrackIndex, appModel->tracks().count() - 1);
-        auto draft = Automation::clipDraftDto(*srcClip);
-        draft.properties.start += offset;
-        const auto target = appModel->tracks().at(targetTrackIndex);
-        inserts.append({Automation::TrackId(target->id()), std::move(draft)});
-    }
-
+    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex);
     if (inserts.isEmpty())
         return;
     runtime->project().insertClips(commandContext(*runtime), inserts);
@@ -463,8 +440,10 @@ void TrackController::scheduleHashUpdate(const AudioClip *clip) {
         [hashTask] { hashTask->terminate(); });
     hashTask->automationTaskId = automationTask.taskId;
     runtime->automationTasks().markRunning(automationTask.taskId);
-    connect(hashTask, &Task::finished, trackController,
-            [hashTask] { trackController->handleComputeAudioHashTaskFinished(hashTask); });
+    connect(
+        hashTask, &Task::finished, trackController,
+        [hashTask] { trackController->handleComputeAudioHashTaskFinished(hashTask); },
+        Qt::QueuedConnection);
     taskManager->addTask(hashTask);
     taskManager->startTask(hashTask);
 }

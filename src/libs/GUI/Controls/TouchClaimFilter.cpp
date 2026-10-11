@@ -18,7 +18,10 @@ namespace {
 
 TouchClaimFilter::TouchClaimFilter(QWidget *target, HitTest hitTest, CancelNotice cancelNotice)
     : QObject(target), m_target(target), m_hitTest(std::move(hitTest)),
-      m_cancelNotice(std::move(cancelNotice)) {
+      m_cancelNotice(std::move(cancelNotice)),
+      m_replayDevice(QStringLiteral("Touch claim replay"), 0, QInputDevice::DeviceType::TouchScreen,
+                     QPointingDevice::PointerType::Finger, QInputDevice::Capability::Position, 1,
+                     1) {
 }
 
 void TouchClaimFilter::install(QWidget *target, HitTest hitTest, CancelNotice cancelNotice) {
@@ -42,8 +45,6 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
         return QObject::eventFilter(watched, event);
 
     const auto *touchEvent = static_cast<QTouchEvent *>(event);
-    if (touchEvent->points().isEmpty())
-        return true;
 
     // A stream the hit test turned away is not ours: every event of it has to
     // pass through untouched, or the ancestor scroller that took it over would
@@ -65,14 +66,20 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
         m_rejected = false;
     }
 
-    const auto &point = touchEvent->points().constFirst();
+    const auto &points = touchEvent->points();
+    if (points.isEmpty() && type != QEvent::TouchCancel)
+        return true;
+    // Qt system cancels have no points; close the claim at its last position.
+    const auto position = points.isEmpty() ? m_lastPosition : points.constFirst().position();
+    const auto globalPosition =
+        points.isEmpty() ? m_lastGlobalPosition : points.constFirst().globalPosition();
 
     QEvent::Type mouseType = QEvent::None;
     Qt::MouseButton button = Qt::NoButton;
     Qt::MouseButtons buttons = Qt::NoButton;
     switch (type) {
         case QEvent::TouchBegin:
-            if (m_hitTest && !m_hitTest(point.position())) {
+            if (m_hitTest && !m_hitTest(position)) {
                 m_rejected = true;
                 return QObject::eventFilter(watched, event);
             }
@@ -101,11 +108,13 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     if (mouseType == QEvent::None || (!m_pressed && mouseType != QEvent::MouseButtonPress))
         return true;
 
-    // The replay carries the touch device, not the primary pointer: the events
-    // genuinely originate from the touchscreen, and views distinguish a
-    // touch-initiated press from a mouse press by exactly this field.
-    QMouseEvent mouseEvent(mouseType, point.position(), point.globalPosition(), button, buttons,
-                           touchEvent->modifiers(), touchEvent->pointingDevice());
+    m_lastPosition = position;
+    m_lastGlobalPosition = globalPosition;
+
+    // QMouseEvent updates its device's point 0. Keep that state separate from
+    // the original touch stream while preserving the touchscreen classification.
+    QMouseEvent mouseEvent(mouseType, position, globalPosition, button, buttons,
+                           touchEvent->modifiers(), &m_replayDevice);
     mouseEvent.setTimestamp(touchEvent->timestamp());
     // A cancel of a claimed stream still ends as a replayed release - the
     // target's pressed state must not stick - but the target hears about it

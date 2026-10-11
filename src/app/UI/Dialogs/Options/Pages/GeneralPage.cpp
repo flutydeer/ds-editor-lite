@@ -20,6 +20,7 @@
 #include <QVBoxLayout>
 #include <QFileInfo>
 #include <QProcess>
+#include <QSignalBlocker>
 
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -32,7 +33,8 @@ void GeneralPage::modifyOption() {
     const auto snapshot = runtime->settings().getSettings();
     if (!snapshot)
         return;
-    auto settings = snapshot.get().general;
+    const auto previous = snapshot.get().general;
+    auto settings = previous;
     settings.uiLanguage = m_cbUiLanguage->currentData().toString();
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
@@ -41,7 +43,27 @@ void GeneralPage::modifyOption() {
     settings.pitchModelPath = m_fsRmvpePath->path();
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
-    runtime->settings().updateGeneral({}, settings);
+    if (runtime->settings().updateGeneral({}, settings))
+        return;
+
+    m_defaultLyrics = previous.defaultLyrics;
+    m_previousLanguage = previous.defaultSingingLanguage;
+    const QSignalBlocker uiLanguage(m_cbUiLanguage);
+    const QSignalBlocker singingLanguage(m_cbDefaultSingingLanguage);
+    const QSignalBlocker lyric(m_leDefaultLyric);
+    const QSignalBlocker gamePath(m_fsGameDir);
+    const QSignalBlocker pitchPath(m_fsRmvpePath);
+    const QSignalBlocker converterPath(m_fsLibreSVIPPath);
+    const QSignalBlocker fingerDrawing(m_swFingerDrawParam);
+    m_cbUiLanguage->setCurrentIndex(m_cbUiLanguage->findData(previous.uiLanguage));
+    m_cbDefaultSingingLanguage->setCurrentIndex(
+        m_cbDefaultSingingLanguage->findData(previous.defaultSingingLanguage));
+    m_leDefaultLyric->setText(
+        appOptions->general()->defaultLyricForLanguage(previous.defaultSingingLanguage));
+    m_fsGameDir->setPath(previous.gameDirectory);
+    m_fsRmvpePath->setPath(previous.pitchModelPath);
+    m_fsLibreSVIPPath->setPath(previous.libreSvipPath);
+    m_swFingerDrawParam->setValue(previous.drawParamWithFinger);
 }
 
 QWidget *GeneralPage::createContentWidget() {

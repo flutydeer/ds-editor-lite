@@ -1,0 +1,881 @@
+#include "tst_project_editing.h"
+
+#include "Automation/NoteTransfer.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
+#include "Model/ClipboardDataModel/NotesParamsInfo.h"
+#include "Model/ClipboardDataModel/ParameterCurvesJson.h"
+#include "TestRuntime.h"
+
+#include <lite/ProjectModel/AppModel/Track.h>
+
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+
+#include <QCoreApplication>
+#include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
+#include <QJsonDocument>
+#include <QScopeGuard>
+
+#include <limits>
+#include <optional>
+#include <utility>
+
+namespace {
+    using Automation::ClipId;
+    using Automation::CommandContext;
+    using Automation::CoreRuntime;
+    using Automation::CurveDraftDto;
+    using Automation::NoteId;
+    using Automation::TrackId;
+    using AutomationTestSupport::TestRuntime;
+
+    using TestSupport::expect;
+
+    CommandContext commandContext(const CoreRuntime &runtime) {
+        return {
+            .expected = runtime.documentVersion(),
+            .source = Automation::InvocationSource::Test,
+        };
+    }
+
+    Automation::TrackDraftDto trackDraft(const QString &name) {
+        Automation::TrackDraftDto result;
+        result.name = name;
+        result.defaultLanguage = QStringLiteral("en");
+        return result;
+    }
+
+    Automation::ClipDraftDto clipDraft(const QString &name) {
+        Automation::ClipDraftDto result;
+        result.type = Automation::ClipDraftDto::Type::Singing;
+        result.properties.name = name;
+        result.properties.length = 3840;
+        result.properties.clipLen = 3840;
+        result.defaultLanguage = QStringLiteral("en");
+        return result;
+    }
+
+    Automation::NoteDraftDto noteDraft(const int start, const int length, const int key,
+                                       const QString &lyric) {
+        Automation::NoteDraftDto result;
+        result.localStart = start;
+        result.length = length;
+        result.keyIndex = key;
+        result.lyric = lyric;
+        result.language = QStringLiteral("en");
+        return result;
+    }
+
+    CurveDraftDto draw(const int start, const int step, const QList<int> &values) {
+        CurveDraftDto result;
+        result.type = CurveDraftDto::Type::Draw;
+        result.localStart = start;
+        result.step = step;
+        result.values = values;
+        return result;
+    }
+
+    CurveDraftDto anchor(const QList<QPair<int, int>> &points) {
+        CurveDraftDto result;
+        result.type = CurveDraftDto::Type::Anchor;
+        for (const auto &[position, value] : points) {
+            result.nodes.append({
+                .position = position,
+                .value = value,
+                .interpolation = AnchorNode::Linear,
+            });
+        }
+        return result;
+    }
+
+    TrackId insertTrack(CoreRuntime &runtime, const QString &name) {
+        const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+        const auto index = project ? project.get().tracks.size() : 0;
+        const auto result =
+            runtime.project().insertTrack(commandContext(runtime), index, trackDraft(name));
+        return result && !result.get().affectedObjects.isEmpty()
+                   ? TrackId(result.get().affectedObjects.first().value)
+                   : TrackId{};
+    }
+
+    ClipId insertClip(CoreRuntime &runtime, const TrackId trackId, const QString &name) {
+        const auto result = runtime.project().insertClips(
+            commandContext(runtime), {
+                                         {.trackId = trackId, .clip = clipDraft(name)}
+        });
+        return result && !result.get().affectedObjects.isEmpty()
+                   ? ClipId(result.get().affectedObjects.first().value)
+                   : ClipId{};
+    }
+
+    QList<NoteId> insertTransferNotes(CoreRuntime &runtime, const ClipId clipId) {
+        const auto result =
+            runtime.notes().insertNotes(commandContext(runtime), clipId,
+                                        {noteDraft(100, 100, 60, QStringLiteral("a")),
+                                         noteDraft(300, 200, 62, QStringLiteral("b"))});
+        QList<NoteId> ids;
+        if (result) {
+            for (const auto &object : result.get().affectedObjects)
+                ids.append(NoteId(object.value));
+        }
+        return ids;
+    }
+
+    Automation::ParameterSnapshotDto parameter(CoreRuntime &runtime, const ClipId clipId,
+                                               const ParamInfo::Name name, const Param::Type type) {
+        const auto result = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                              clipId, name, type);
+        expect(static_cast<bool>(result), QStringLiteral("parameter query must succeed"));
+        return result ? result.get() : Automation::ParameterSnapshotDto{};
+    }
+
+    std::optional<int> drawValueAt(const Automation::ParameterSnapshotDto &parameter,
+                                   const int tick) {
+        for (const auto &curve : parameter.curves) {
+            if (curve.type != CurveDraftDto::Type::Draw || curve.step <= 0 ||
+                tick < curve.localStart) {
+                continue;
+            }
+            const auto offset = tick - curve.localStart;
+            if (offset % curve.step != 0)
+                continue;
+            const auto index = offset / curve.step;
+            if (index >= 0 && index < curve.values.size())
+                return curve.values.at(index);
+        }
+        return std::nullopt;
+    }
+
+    bool sameShape(const Automation::ParameterSnapshotDto &left,
+                   const Automation::ParameterSnapshotDto &right) {
+        if (left.curves.size() != right.curves.size())
+            return false;
+        for (qsizetype index = 0; index < left.curves.size(); ++index) {
+            const auto &a = left.curves.at(index);
+            const auto &b = right.curves.at(index);
+            if (a.type != b.type || a.localStart != b.localStart || a.step != b.step ||
+                a.values != b.values || a.nodes.size() != b.nodes.size()) {
+                return false;
+            }
+            for (qsizetype nodeIndex = 0; nodeIndex < a.nodes.size(); ++nodeIndex) {
+                const auto &an = a.nodes.at(nodeIndex);
+                const auto &bn = b.nodes.at(nodeIndex);
+                if (an.position != bn.position || an.value != bn.value ||
+                    an.interpolation != bn.interpolation) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    SingingClip *singingClip(TestRuntime &testRuntime, const ClipId id) {
+        Track *track = nullptr;
+        auto *clip = testRuntime.model().findClipById(id.value(), track);
+        return clip && clip->clipType() == Clip::Singing ? static_cast<SingingClip *>(clip)
+                                                         : nullptr;
+    }
+
+    void replace(CoreRuntime &runtime, const ClipId clipId, const ParamInfo::Name name,
+                 const Param::Type type, const QList<CurveDraftDto> &curves) {
+        const auto result = runtime.parameters().replaceParameter(commandContext(runtime), clipId,
+                                                                  name, type, curves);
+        expect(result && result.get().changed,
+               QStringLiteral("parameter fixture must be installed"));
+    }
+
+    void testDuplicateWithParameters() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto sourceTrack = insertTrack(runtime, QStringLiteral("Source"));
+        const auto targetTrack = insertTrack(runtime, QStringLiteral("Target"));
+        const auto sourceClip = insertClip(runtime, sourceTrack, QStringLiteral("Source Clip"));
+        const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
+        const auto guiTargetClip =
+            insertClip(runtime, targetTrack, QStringLiteral("GUI Target Clip"));
+        const auto noteIds = insertTransferNotes(runtime, sourceClip);
+        expect(noteIds.size() == 2, QStringLiteral("source notes must be created"));
+
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
+                {draw(0, 100, {6000, 6100, 6200, 6300, 6400, 6500, 6600})});
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Original,
+                {draw(100, 100, {7100, 7200, 7300, 7400})});
+        replace(runtime, sourceClip, ParamInfo::Energy, Param::Envelope,
+                {draw(100, 100, {-1000, -2000, -3000, -4000})});
+        replace(runtime, sourceClip, ParamInfo::Gender, Param::Edited,
+                {
+                    anchor({{150, -100}, {350, 100}}
+                    )
+        });
+        replace(runtime, sourceClip, ParamInfo::Tension, Param::Edited,
+                {
+                    anchor({{50, -500}, {250, 500}, {550, -500}}
+                    )
+        });
+        replace(runtime, sourceClip, ParamInfo::Breathiness, Param::Edited,
+                {
+                    anchor({{0, 0}, {std::numeric_limits<int>::max(), 0}}
+                    )
+        });
+
+        replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
+                {draw(0, 100,
+                      {5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010, 5011})});
+        replace(runtime, targetClip, ParamInfo::Pitch, Param::Original,
+                {draw(0, 100, {8000, 8001, 8002, 8003})});
+        replace(runtime, targetClip, ParamInfo::Energy, Param::Envelope,
+                {draw(0, 100,
+                      {-5000, -5001, -5002, -5003, -5004, -5005, -5006, -5007, -5008, -5009, -5010,
+                       -5011})});
+
+        const auto pitchBefore = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        const auto originalBefore =
+            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Original);
+        const auto energyBefore =
+            parameter(runtime, targetClip, ParamInfo::Energy, Param::Envelope);
+        const auto beforeVersion = runtime.documentVersion();
+        const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
+                                                              noteIds, targetClip, 603);
+        expect(duplicate && duplicate.get().changed &&
+                   runtime.documentVersion().revision == beforeVersion.revision + 1,
+               QStringLiteral("notes and parameters must commit as one document revision"));
+        expect(duplicate && duplicate.get().createdObjects.size() == 2,
+               QStringLiteral("duplicate must report both created notes"));
+
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        expect(targetNotes && targetNotes.get().size() == 2 &&
+                   targetNotes.get().at(0).data.localStart == 603 &&
+                   targetNotes.get().at(1).data.localStart == 803,
+               QStringLiteral("cross-clip duplicate must preserve relative note layout"));
+
+        const auto pitchAfter = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        expect(drawValueAt(pitchAfter, 500) == 5005 && drawValueAt(pitchAfter, 1100) == 5011,
+               QStringLiteral("target parameter values outside the pasted range must remain"));
+        expect(drawValueAt(pitchAfter, 603) == 6100 && drawValueAt(pitchAfter, 703) == 6200 &&
+                   drawValueAt(pitchAfter, 803) == 6300 && drawValueAt(pitchAfter, 903) == 6400,
+               QStringLiteral("cropped source draw curve must be translated into target range"));
+
+        const auto originalAfter =
+            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Original);
+        expect(sameShape(originalBefore, originalAfter),
+               QStringLiteral("inference-generated Original parameters must not be copied"));
+        const auto energyAfter = parameter(runtime, targetClip, ParamInfo::Energy, Param::Envelope);
+        expect(drawValueAt(energyAfter, 500) == -5005 && drawValueAt(energyAfter, 1100) == -5011 &&
+                   drawValueAt(energyAfter, 603) == -1000 && drawValueAt(energyAfter, 903) == -4000,
+               QStringLiteral("Envelope must copy while preserving its target exterior"));
+
+        const auto genderAfter = parameter(runtime, targetClip, ParamInfo::Gender, Param::Edited);
+        expect(genderAfter.curves.size() == 1 &&
+                   genderAfter.curves.first().type == CurveDraftDto::Type::Anchor &&
+                   genderAfter.curves.first().nodes.first().position == 653 &&
+                   genderAfter.curves.first().nodes.last().position == 853,
+               QStringLiteral("fully selected Anchor curves must remain editable anchors"));
+        const auto tensionAfter = parameter(runtime, targetClip, ParamInfo::Tension, Param::Edited);
+        expect(!tensionAfter.curves.isEmpty() &&
+                   tensionAfter.curves.first().type == CurveDraftDto::Type::Draw &&
+                   tensionAfter.curves.first().localStart == 603,
+               QStringLiteral("partially selected Anchor curves must be shape-safe sampled draws"));
+        const auto breathinessAfter =
+            parameter(runtime, targetClip, ParamInfo::Breathiness, Param::Edited);
+        expect(breathinessAfter.curves.size() == 1 &&
+                   breathinessAfter.curves.first().type == CurveDraftDto::Type::Draw &&
+                   breathinessAfter.curves.first().localStart == 603 &&
+                   breathinessAfter.curves.first().values.size() == 80,
+               QStringLiteral("note transfer must sample only the selected anchor intersection"));
+
+        const auto undo = runtime.history().undo(commandContext(runtime));
+        expect(undo && undo.get().changed,
+               QStringLiteral("one undo must revert the complete duplicate"));
+        const auto notesAfterUndo =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        expect(notesAfterUndo && notesAfterUndo.get().isEmpty(),
+               QStringLiteral("undo must remove all duplicated notes"));
+        expect(sameShape(pitchBefore,
+                         parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited)) &&
+                   sameShape(energyBefore,
+                             parameter(runtime, targetClip, ParamInfo::Energy, Param::Envelope)),
+               QStringLiteral("undo must restore every target parameter layer"));
+
+        const auto redo = runtime.history().redo(commandContext(runtime));
+        expect(redo && redo.get().changed,
+               QStringLiteral("one redo must restore the complete duplicate"));
+        const auto notesAfterRedo =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        expect(notesAfterRedo && notesAfterRedo.get().size() == 2 &&
+                   drawValueAt(parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited),
+                               603) == 6100,
+               QStringLiteral("redo must restore notes and parameter curves together"));
+
+        auto *sourceModel = singingClip(testRuntime, sourceClip);
+        expect(sourceModel != nullptr, QStringLiteral("source model clip must resolve"));
+        if (sourceModel) {
+            QList<Note *> sourceNotes;
+            for (const auto id : noteIds)
+                sourceNotes.append(sourceModel->findNoteById(id.value()));
+            NotesParamsInfo clipboard;
+            const auto captured = Automation::captureNoteTransfer(*sourceModel, sourceNotes);
+            expect(static_cast<bool>(captured),
+                   QStringLiteral("GUI transport capture must succeed"));
+            if (!captured)
+                return;
+            clipboard.payload = captured.get();
+            const auto encoded = NotesParamsInfo::serializeToJson(clipboard);
+            const auto decoded = NotesParamsInfo::deserializeFromJson(encoded);
+            expect(decoded.payload.notes.size() == clipboard.payload.notes.size() &&
+                       decoded.payload.parameters.size() == clipboard.payload.parameters.size() &&
+                       decoded.payload.sourceStart == clipboard.payload.sourceStart &&
+                       decoded.payload.sourceEnd == clipboard.payload.sourceEnd,
+                   QStringLiteral("GUI transport serialization must retain the domain payload"));
+
+            auto malformed = encoded;
+            auto malformedNotes = malformed.value(QStringLiteral("notes")).toArray();
+            auto malformedNote = malformedNotes.first().toObject();
+            malformedNote.insert(QStringLiteral("localStart"), std::numeric_limits<int>::max());
+            malformedNote.insert(QStringLiteral("length"), 1);
+            malformedNotes.replace(0, malformedNote);
+            malformed.insert(QStringLiteral("notes"), malformedNotes);
+            const auto rejected = NotesParamsInfo::deserializeFromJson(malformed);
+            expect(rejected.payload.notes.isEmpty() && rejected.payload.parameters.isEmpty(),
+                   QStringLiteral("GUI transport must discard overflowing note geometry"));
+
+            const auto paste = runtime.notes().pasteNotes(commandContext(runtime), guiTargetClip,
+                                                          1203, decoded.payload);
+            const auto pastedNotes =
+                runtime.notes().getNotes(runtime.documentVersion().documentId, guiTargetClip);
+            expect(
+                paste && paste.get().changed && pastedNotes && pastedNotes.get().size() == 2 &&
+                    pastedNotes.get().first().data.localStart == 1203 &&
+                    drawValueAt(parameter(runtime, guiTargetClip, ParamInfo::Pitch, Param::Edited),
+                                1203) == 6100,
+                QStringLiteral("GUI payload paste must use the same note-and-parameter commit"));
+        }
+    }
+
+    void testOversizedTargetTailIsRejected() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto sourceTrack = insertTrack(runtime, QStringLiteral("Source"));
+        const auto targetTrack = insertTrack(runtime, QStringLiteral("Target"));
+        const auto sourceClip = insertClip(runtime, sourceTrack, QStringLiteral("Source Clip"));
+        const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
+        const auto noteIds = insertTransferNotes(runtime, sourceClip);
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
+                {draw(100, 100, {6000, 6100, 6200, 6300})});
+        replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
+                {
+                    anchor({{0, 5000}, {1000000, 7000}}
+                    )
+        });
+
+        const auto before = runtime.documentVersion();
+        const auto targetBefore = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        auto previewContext = commandContext(runtime);
+        previewContext.validateOnly = true;
+        const auto preview =
+            runtime.notes().duplicateNotes(previewContext, sourceClip, noteIds, targetClip, 100);
+        const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
+                                                              noteIds, targetClip, 100);
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        const auto targetAfter = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        expect(!preview &&
+                   preview.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   !duplicate &&
+                   duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   runtime.documentVersion() == before && targetNotes &&
+                   targetNotes.get().isEmpty() && sameShape(targetBefore, targetAfter),
+               QStringLiteral(
+                   "an oversized retained curve tail must reject validation and the transfer"));
+    }
+
+    void testOversizedSourceCurveIsRejected() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto sourceTrack = insertTrack(runtime, QStringLiteral("Source"));
+        const auto targetTrack = insertTrack(runtime, QStringLiteral("Target"));
+        auto longClip = clipDraft(QStringLiteral("Source Clip"));
+        longClip.properties.length = 400000;
+        longClip.properties.clipLen = 400000;
+        const auto sourceClipResult = runtime.project().insertClips(
+            commandContext(runtime), {
+                                         {.trackId = sourceTrack, .clip = longClip}
+        });
+        const auto sourceClip =
+            sourceClipResult && !sourceClipResult.get().affectedObjects.isEmpty()
+                ? ClipId(sourceClipResult.get().affectedObjects.first().value)
+                : ClipId{};
+        const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
+        const auto inserted =
+            runtime.notes().insertNotes(commandContext(runtime), sourceClip,
+                                        {noteDraft(100, 399800, 60, QStringLiteral("long"))});
+        const auto noteId = inserted && !inserted.get().affectedObjects.isEmpty()
+                                ? NoteId(inserted.get().affectedObjects.first().value)
+                                : NoteId{};
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
+                {
+                    anchor({{0, 5000}, {400000, 7000}}
+                    )
+        });
+
+        const auto before = runtime.documentVersion();
+        const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
+                                                              {noteId}, targetClip, 0);
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        expect(!duplicate &&
+                   duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   runtime.documentVersion() == before && targetNotes &&
+                   targetNotes.get().isEmpty(),
+               QStringLiteral("an oversized source curve must reject the whole transfer"));
+    }
+
+} // namespace
+
+void ProjectEditingTests::insertingNotesCanRetryWithStableCreatedIdentities() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto clip = insertClip(runtime, insertTrack(runtime, "Lead"), "Phrase");
+    QVERIFY(clip.isValid());
+    auto first = noteDraft(120, 240, 60, QStringLiteral("la"));
+    first.clientRef = QStringLiteral("first-word");
+    first.pronunciation.original = QStringLiteral("la");
+    first.pronunciation.edited = QStringLiteral("lah");
+    first.pronunciationCandidates = {QStringLiteral("la"), QStringLiteral("lah")};
+    PhonemeName onset;
+    onset.language = QStringLiteral("en");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("en");
+    vowel.name = QStringLiteral("a");
+    first.phonemes.nameSeq.edited = {onset, vowel};
+    first.phonemes.offsetSeq.edited = {-40, 0};
+    auto second = noteDraft(480, 360, 64, QStringLiteral("mi"));
+    second.clientRef = QStringLiteral("second-word");
+    const QList<Automation::NoteDraftDto> notes{first, second};
+    fixture.history()->reset();
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("insert-phrase");
+    const auto inserted = runtime.notes().insertNotes(request, clip, notes);
+    QVERIFY(inserted && inserted.get().changed);
+    QCOMPARE(inserted.get().createdObjects.size(), 2);
+    const auto version = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    const auto retry = runtime.notes().insertNotes(request, clip, notes);
+    QVERIFY(retry);
+    QCOMPARE(retry.get().createdObjects.size(), inserted.get().createdObjects.size());
+    for (qsizetype index = 0; index < notes.size(); ++index) {
+        QCOMPARE(retry.get().createdObjects[index].clientRef, notes[index].clientRef);
+        QCOMPARE(retry.get().createdObjects[index].object,
+                 inserted.get().createdObjects[index].object);
+    }
+    auto changed = notes;
+    changed.first().pronunciation.edited = QStringLiteral("le");
+    const auto conflict = runtime.notes().insertNotes(request, clip, changed);
+    QVERIFY(!conflict);
+    QCOMPARE(conflict.getError().code, Automation::AutomationErrorCode::IdempotencyConflict);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    const auto stored = runtime.notes().getNotes(version.documentId, clip);
+    QVERIFY(stored);
+    QCOMPARE(stored.get().size(), 2);
+    QCOMPARE(stored.get().first().data.pronunciation.result(), first.pronunciation.result());
+    QCOMPARE(stored.get().first().data.phonemes.nameSeq.result(), first.phonemes.nameSeq.result());
+    QCOMPARE(stored.get().first().data.phonemes.offsetSeq.result(),
+             first.phonemes.offsetSeq.result());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.notes().getNotes(version.documentId, clip).get().isEmpty());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
+void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits_data() {
+    QTest::addColumn<bool>("clipboard");
+    QTest::newRow("duplicate-selected-notes") << false;
+    QTest::newRow("paste-captured-notes-and-curves") << true;
+}
+
+void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits() {
+    QFETCH(bool, clipboard);
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto track = insertTrack(runtime, "Lead");
+    const auto source = insertClip(runtime, track, "Source");
+    const auto target = insertClip(runtime, track, "Target");
+    const auto ids = insertTransferNotes(runtime, source);
+    QCOMPARE(ids.size(), 2);
+    replace(runtime, source, ParamInfo::Pitch, Param::Edited,
+            {draw(100, 100, {6000, 6100, 6200, 6300, 6400})});
+    auto *sourceModel = singingClip(fixture, source);
+    QVERIFY(sourceModel);
+    const auto captured = Automation::captureNoteTransfer(
+        *sourceModel, {sourceModel->findNoteById(ids.first().value()),
+                       sourceModel->findNoteById(ids.last().value())});
+    QVERIFY(captured && !captured.get().parameters.isEmpty());
+    fixture.history()->reset();
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("transfer-phrase");
+    const auto transfer = [&](int start) {
+        return clipboard ? runtime.notes().pasteNotes(request, target, start, captured.get())
+                         : runtime.notes().duplicateNotes(request, source, ids, target, start);
+    };
+    const auto committed = transfer(1200);
+    QVERIFY(committed && committed.get().changed);
+    QCOMPARE(committed.get().createdObjects.size(), 2);
+    const auto version = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    const auto curve = parameter(runtime, target, ParamInfo::Pitch, Param::Edited);
+    QCOMPARE(drawValueAt(curve, 1200), std::optional<int>{6000});
+    const auto retry = transfer(1200);
+    QVERIFY(retry);
+    QCOMPARE(retry.get().createdObjects.size(), committed.get().createdObjects.size());
+    for (qsizetype index = 0; index < committed.get().createdObjects.size(); ++index)
+        QCOMPARE(retry.get().createdObjects[index].object,
+                 committed.get().createdObjects[index].object);
+    const auto differentDestination = transfer(1800);
+    QVERIFY(!differentDestination);
+    QCOMPARE(differentDestination.getError().code,
+             Automation::AutomationErrorCode::IdempotencyConflict);
+    auto differentPayload = captured.get();
+    differentPayload.notes.first().lyric = QStringLiteral("changed");
+    const auto differentInput =
+        clipboard ? runtime.notes().pasteNotes(request, target, 1200, differentPayload)
+                  : runtime.notes().duplicateNotes(request, source, {ids.first()}, target, 1200);
+    QVERIFY(!differentInput);
+    QCOMPARE(differentInput.getError().code, Automation::AutomationErrorCode::IdempotencyConflict);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    const auto stored = runtime.notes().getNotes(version.documentId, target);
+    QVERIFY(stored && stored.get().size() == 2);
+    QCOMPARE(stored.get().first().data.localStart, 1200);
+    QVERIFY(sameShape(curve, parameter(runtime, target, ParamInfo::Pitch, Param::Edited)));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.notes().getNotes(version.documentId, target).get().isEmpty());
+    QVERIFY(parameter(runtime, target, ParamInfo::Pitch, Param::Edited).curves.isEmpty());
+    QCOMPARE(sourceModel->notes().count(), 2);
+    QCOMPARE(drawValueAt(parameter(runtime, source, ParamInfo::Pitch, Param::Edited), 100),
+             std::optional<int>{6000});
+    QVERIFY(!fixture.history()->canUndo());
+}
+
+void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
+    QTest::addColumn<int>("layer");
+    QTest::addColumn<bool>("hasNotes");
+    QTest::addColumn<bool>("multipleAnchors");
+    QTest::addColumn<QString>("fault");
+    QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true << false << QString{};
+    QTest::newRow("original-curves-without-notes")
+        << int(Param::Original) << false << false << QString{};
+    QTest::newRow("envelope-curves") << int(Param::Envelope) << true << false << QString{};
+    QTest::newRow("duplicate-parameter-group")
+        << int(Param::Original) << true << false << QStringLiteral("duplicate-parameter-group");
+    QTest::newRow("malformed-parameter-discriminators")
+        << int(Param::Original) << true << false
+        << QStringLiteral("malformed-parameter-discriminators");
+    QTest::newRow("malformed-curve-fields")
+        << int(Param::Edited) << true << false << QStringLiteral("malformed-curve-fields");
+    QTest::newRow("separate-anchor-curves") << int(Param::Edited) << true << true << QString{};
+    QTest::newRow("overlapping-anchor-curves")
+        << int(Param::Edited) << true << true << QStringLiteral("overlapping-anchor-ranges");
+    for (const auto &fault : {"duplicate-positions", "reversed-positions", "out-of-range-value",
+                              "draw-negative-start", "draw-out-of-range-value"})
+        QTest::newRow(fault) << int(Param::Edited) << true << false << QString::fromLatin1(fault);
+}
+
+void ProjectEditingTests::wholeClipParameterRoundTrip() {
+    QFETCH(int, layer);
+    QFETCH(bool, hasNotes);
+    QFETCH(bool, multipleAnchors);
+    QFETCH(QString, fault);
+    auto draft = clipDraft(QStringLiteral("Whole phrase"));
+    if (hasNotes)
+        draft.notes = {noteDraft(240, 120, 64, QStringLiteral("phrase"))};
+    auto anchored = anchor({
+        {0,   6400},
+        {480, 6500}
+    });
+    anchored.localStart = 720;
+    anchored.nodes.first().interpolation = AnchorNode::Cubic;
+    const auto type = static_cast<Param::Type>(layer);
+    draft.params = {
+        {.name = ParamInfo::Pitch,
+         .type = type,
+         .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
+    };
+    if (fault == QStringLiteral("duplicate-parameter-group") ||
+        fault == QStringLiteral("malformed-parameter-discriminators")) {
+        draft.params.append({.name = ParamInfo::Pitch,
+                             .type = Param::Edited,
+                             .curves = {draw(0, 120, {6700, 6720, 6680})}});
+        draft.params.append({.name = ParamInfo::Energy,
+                             .type = Param::Envelope,
+                             .curves = {draw(0, 120, {-1000, -3000})}});
+    }
+    const bool geometryFault = !fault.isEmpty() &&
+                               fault != QStringLiteral("duplicate-parameter-group") &&
+                               fault != QStringLiteral("malformed-parameter-discriminators") &&
+                               fault != QStringLiteral("malformed-curve-fields");
+    if (geometryFault)
+        draft.params.append({.name = ParamInfo::Energy,
+                             .type = Param::Envelope,
+                             .curves = {draw(0, 120, {-1000, -3000})}});
+    if (multipleAnchors)
+        draft.params.first().curves.append(anchor({
+            {600, 6400},
+            {960, 6500}
+        }));
+    const auto source = Automation::buildClip(draft, nullptr, Timeline{});
+    const ClipsInfo copied{{source.get()}, {0}};
+    const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
+    auto payload = QJsonDocument::fromJson(bytes).object();
+    if (fault == QStringLiteral("malformed-curve-fields")) {
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        auto parameters = clip.value(QStringLiteral("parameters")).toArray();
+        auto parameter = parameters.first().toObject();
+        auto curves = parameter.value(QStringLiteral("curves")).toArray();
+        const auto anchorTemplate = curves.last().toObject();
+        QJsonArray malformedGroups;
+        for (const auto &field : {QStringLiteral("position"), QStringLiteral("value"),
+                                  QStringLiteral("interpolation")}) {
+            auto malformed = anchorTemplate;
+            auto nodes = malformed.value(QStringLiteral("nodes")).toArray();
+            auto node = nodes.first().toObject();
+            node.remove(field);
+            nodes.replace(0, node);
+            malformed.insert(QStringLiteral("nodes"), nodes);
+            auto group = parameter;
+            group.insert(QStringLiteral("curves"), QJsonArray{malformed});
+            malformedGroups.append(group);
+        }
+        auto malformedDraw = curves.first().toObject();
+        auto values = malformedDraw.value(QStringLiteral("values")).toArray();
+        values.replace(0, QStringLiteral("invalid sample"));
+        malformedDraw.insert(QStringLiteral("values"), values);
+        parameter.insert(QStringLiteral("curves"), QJsonArray{malformedDraw});
+        malformedGroups.append(parameter);
+        for (const auto &valid : parameters)
+            malformedGroups.append(valid);
+        clip.insert(QStringLiteral("parameters"), malformedGroups);
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+    } else if (fault == QStringLiteral("malformed-parameter-discriminators")) {
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        auto parameters = clip.value(QStringLiteral("parameters")).toArray();
+        auto missing = parameters.first().toObject();
+        missing.remove(QStringLiteral("name"));
+        missing.remove(QStringLiteral("layer"));
+        auto curves = missing.value(QStringLiteral("curves")).toArray();
+        auto changed = curves.first().toObject();
+        changed.insert(QStringLiteral("values"), QJsonArray{7200, 7220, 7180});
+        curves.replace(0, changed);
+        missing.insert(QStringLiteral("curves"), curves);
+        auto wrongType = parameters.last().toObject();
+        wrongType.insert(QStringLiteral("layer"), QStringLiteral("envelope"));
+        auto fractional = parameters.at(1).toObject();
+        fractional.insert(QStringLiteral("name"), 0.5);
+        parameters.prepend(fractional);
+        parameters.prepend(wrongType);
+        parameters.prepend(missing);
+        clip.insert(QStringLiteral("parameters"), parameters);
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+    } else if (fault == QStringLiteral("duplicate-parameter-group")) {
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        auto parameters = clip.value(QStringLiteral("parameters")).toArray();
+        auto duplicate = parameters.first().toObject();
+        auto curves = duplicate.value(QStringLiteral("curves")).toArray();
+        auto changed = curves.first().toObject();
+        changed.insert(QStringLiteral("values"), QJsonArray{7200, 7220, 7180});
+        curves.replace(0, changed);
+        duplicate.insert(QStringLiteral("curves"), curves);
+        parameters.insert(1, duplicate);
+        clip.insert(QStringLiteral("parameters"), parameters);
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+    } else if (!fault.isEmpty()) {
+        const bool drawFault = fault.startsWith(QStringLiteral("draw-"));
+        const bool overlap = fault == QStringLiteral("overlapping-anchor-ranges");
+        if (drawFault) {
+            auto &curve = draft.params.first().curves.first();
+            if (fault == QStringLiteral("draw-negative-start"))
+                curve.localStart = -120;
+            else
+                curve.values.first() = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        } else {
+            auto &nodes = draft.params.first().curves.last().nodes;
+            if (overlap) {
+                nodes.first().position = 240;
+                nodes.last().position = 720;
+            } else if (fault == QStringLiteral("duplicate-positions"))
+                nodes.last().position = nodes.first().position;
+            else if (fault == QStringLiteral("reversed-positions"))
+                std::swap(nodes.first(), nodes.last());
+            else
+                nodes.first().value = ParamInfo::valueSpec(ParamInfo::Pitch).maximum + 1;
+        }
+        TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+        const auto track = insertTrack(runtime, QStringLiteral("Destination"));
+        QVERIFY(track.isValid());
+        fixture.history()->reset();
+        const auto before = runtime.documentVersion();
+        const auto rejected =
+            runtime.project().insertClips(commandContext(runtime), {
+                                                                       {track, draft}
+        });
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+        QCOMPARE(rejected.getError().fieldPath,
+                 overlap     ? QStringLiteral("clip.parameters.curves.nodes.position")
+                 : drawFault ? QStringLiteral("clip.parameters.curves")
+                             : QStringLiteral("clip.parameters.curves.nodes"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(fixture.model().tracks().first()->clips().count(), 0);
+        QVERIFY(!fixture.history()->canUndo());
+        auto clips = payload.value(QStringLiteral("clips")).toArray();
+        auto clip = clips.first().toObject();
+        clip.insert(QStringLiteral("parameters"),
+                    ClipboardDataModel::serializeParameters(draft.params));
+        clips.replace(0, clip);
+        payload.insert(QStringLiteral("clips"), clips);
+        draft.params.removeFirst();
+    }
+    const auto decoded = ClipsInfo::deserializeFromJson(payload);
+    const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
+    QCOMPARE(decoded.clips.size(), 1);
+    const auto restored = Automation::clipDraftDto(*decoded.clips.first());
+    QCOMPARE(restored.notes.size(), draft.notes.size());
+    QCOMPARE(restored.params.size(), draft.params.size());
+    for (qsizetype i = 0; i < draft.params.size(); ++i) {
+        QCOMPARE(restored.params.at(i).name, draft.params.at(i).name);
+        QCOMPARE(restored.params.at(i).type, draft.params.at(i).type);
+        QVERIFY(sameShape({.curves = draft.params.at(i).curves},
+                          {.curves = restored.params.at(i).curves}));
+    }
+}
+
+void ProjectEditingTests::wholeClipsPasteAcrossTracksAsOneEdit() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    for (const auto &name :
+         {QStringLiteral("Harmony"), QStringLiteral("Gap"), QStringLiteral("Lead")})
+        QVERIFY(insertTrack(runtime, name).isValid());
+    const auto tracks = testRuntime.model().tracks();
+    const SpeakerInfo soft(QStringLiteral("soft"), QStringLiteral("Soft"));
+    const SpeakerInfo strong(QStringLiteral("strong"), QStringLiteral("Strong"));
+    const SingerInfo singer(
+        {QStringLiteral("voice"), QStringLiteral("clipboard-fixture"), QVersionNumber(1, 2)},
+        QStringLiteral("Fixture voice"), {soft, strong});
+    tracks.first()->setSingerAndSpeakerInfo(singer, strong);
+
+    auto lead = clipDraft(QStringLiteral("Lead phrase"));
+    lead.properties.start = 1440;
+    lead.properties.clipStart = 120;
+    lead.properties.clipLen = 2400;
+    lead.notes = {noteDraft(240, 480, 64, QStringLiteral("世界"))};
+    lead.notes.first().pronunciation = {QStringLiteral("world"), QStringLiteral("werld")};
+    lead.params = {
+        {.name = ParamInfo::Pitch,
+         .type = Param::Edited,
+         .curves = {draw(0, 120, {6400, 6420, 6380})}    },
+        {.name = ParamInfo::Energy,
+         .type = Param::Envelope,
+         .curves = {anchor({{120, -1000}, {960, -3000}})}}
+    };
+    lead.usesTrackVoiceContext = false;
+    lead.ownSingerInfo = singer;
+    lead.ownSpeakerInfo = soft;
+    lead.ownSpeakerMixData.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+    lead.ownSpeakerMixData.sources = {{soft}, {strong}};
+    lead.ownSpeakerMixData.fixedWeights = {0.25};
+    lead.ownSpeakerMixData.dynamicKeyframes = {
+        {0,   {0.25}},
+        {480, {0.8} }
+    };
+    auto harmony = clipDraft(QStringLiteral("Harmony phrase"));
+    harmony.properties.start = 480;
+    harmony.notes = {noteDraft(120, 480, 60, QStringLiteral("ah"))};
+    const auto leadModel = Automation::buildClip(lead, nullptr, Timeline{});
+    const auto harmonyModel = Automation::buildClip(harmony, nullptr, Timeline{});
+    const ClipsInfo copied{
+        {leadModel.get(), harmonyModel.get()},
+        {0,               -2                }
+    };
+    const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
+    const auto decoded = ClipsInfo::deserializeFromJson(QJsonDocument::fromJson(bytes).object());
+    const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
+
+    const auto before = runtime.documentVersion();
+    const auto previousUndo = testRuntime.history()->nextUndoEntry();
+    const auto overflowingPaste =
+        decoded.preparePaste(tracks, std::numeric_limits<int>::max() - 480, 2);
+    QVERIFY(overflowingPaste.isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), previousUndo);
+    const auto result = runtime.project().insertClips(commandContext(runtime),
+                                                      decoded.preparePaste(tracks, 4800, 2));
+    QVERIFY(result);
+    QVERIFY(result.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(tracks.at(0)->clips().count(), 1);
+    QCOMPARE(tracks.at(1)->clips().count(), 0);
+    QCOMPARE(tracks.at(2)->clips().count(), 1);
+    const auto *pastedLead = dynamic_cast<SingingClip *>(*tracks.at(2)->clips().begin());
+    const auto *pastedHarmony = dynamic_cast<SingingClip *>(*tracks.at(0)->clips().begin());
+    QVERIFY(pastedLead);
+    QVERIFY(pastedHarmony);
+    QCOMPARE(pastedHarmony->start(), 4800);
+    QCOMPARE(pastedLead->start(), 5760);
+    QCOMPARE(pastedLead->clipStart(), 120);
+    QCOMPARE(pastedLead->clipLen(), 2400);
+    const auto restored = Automation::clipDraftDto(*pastedLead);
+    QCOMPARE(restored.notes.size(), 1);
+    QCOMPARE(restored.notes.first().localStart, 240);
+    QCOMPARE(restored.notes.first().length, 480);
+    QCOMPARE(restored.notes.first().keyIndex, 64);
+    QCOMPARE(restored.notes.first().lyric, QStringLiteral("世界"));
+    QCOMPARE(restored.notes.first().pronunciation.edited, QStringLiteral("werld"));
+    QCOMPARE(restored.params.size(), lead.params.size());
+    for (qsizetype i = 0; i < lead.params.size(); ++i) {
+        QCOMPARE(restored.params.at(i).name, lead.params.at(i).name);
+        QCOMPARE(restored.params.at(i).type, lead.params.at(i).type);
+        QVERIFY(sameShape({.curves = lead.params.at(i).curves},
+                          {.curves = restored.params.at(i).curves}));
+    }
+    QVERIFY(!pastedLead->usesTrackVoiceContext());
+    QVERIFY(pastedLead->singerIdentifier() == singer.identifier());
+    QCOMPARE(pastedLead->speakerId(), soft.id());
+    QCOMPARE(pastedLead->ownSpeakerMixData().mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QCOMPARE(pastedLead->ownSpeakerMixData().sources, lead.ownSpeakerMixData.sources);
+    QCOMPARE(pastedLead->ownSpeakerMixData().fixedWeights, QVector<double>{0.25});
+    const auto keyframes = pastedLead->ownSpeakerMixData().dynamicKeyframes;
+    QCOMPARE(keyframes.size(), 2);
+    QCOMPARE(keyframes.at(1).tick, 480);
+    QCOMPARE(keyframes.at(1).weights, QVector<double>{0.8});
+    QVERIFY(pastedHarmony->usesTrackVoiceContext());
+    QVERIFY(pastedHarmony->singerIdentifier() == singer.identifier());
+    QCOMPARE(pastedHarmony->speakerId(), strong.id());
+
+    const auto undone = runtime.history().undo(commandContext(runtime));
+    QVERIFY(undone);
+    QVERIFY(undone.get().changed);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), previousUndo);
+    for (const auto *track : tracks)
+        QCOMPARE(track->clips().count(), 0);
+}
+
+void ProjectEditingTests::duplicateWithParameters() {
+    testDuplicateWithParameters();
+}
+
+void ProjectEditingTests::oversizedTargetTailIsRejected() {
+    testOversizedTargetTailIsRejected();
+}
+
+void ProjectEditingTests::oversizedSourceCurveIsRejected() {
+    testOversizedSourceCurveIsRejected();
+}

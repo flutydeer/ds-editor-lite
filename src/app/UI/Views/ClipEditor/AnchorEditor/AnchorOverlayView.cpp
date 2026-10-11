@@ -1,4 +1,5 @@
 #include "AnchorOverlayView.h"
+#include "AnchorEditUtils.h"
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -9,6 +10,7 @@
 #include <QSet>
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 AnchorOverlayView::AnchorOverlayView(ValueMapper valueToSceneY, ValueMapper sceneYToValue)
     : m_valueToSceneY(std::move(valueToSceneY)), m_sceneYToValue(std::move(sceneYToValue)) {
@@ -189,40 +191,21 @@ void AnchorOverlayView::drawPreviewCurve(QPainter *painter) const {
     const double previewValue = sceneYToValue(scenePreviewPos.y());
 
     AnchorNode virtualNode(static_cast<int>(previewTick), static_cast<int>(previewValue));
-    if (std::any_of(nodes.cbegin(), nodes.cend(), [&virtualNode](const AnchorNode *node) {
-            return node->pos() == virtualNode.pos();
-        })) {
+    const auto insertion = AnchorEditor::anchorInsertionLayout(nodes, virtualNode.pos());
+    if (insertion.index < nodes.size() && nodes.at(insertion.index)->pos() == virtualNode.pos()) {
         return;
     }
 
     QList<AnchorNode *> allNodes = nodes;
-    auto it = std::lower_bound(allNodes.begin(), allNodes.end(), &virtualNode,
-                               [](AnchorNode *a, AnchorNode *b) { return a->pos() < b->pos(); });
-    int insertIdx = static_cast<int>(it - allNodes.begin());
-    allNodes.insert(it, &virtualNode);
-
-    AnchorNode::InterpMode savedLastMode = AnchorNode::Hermite;
-    AnchorNode *oldLastNode = nullptr;
-    bool isAppend = (insertIdx == allNodes.size() - 1);
-    if (isAppend) {
-        virtualNode.setInterpMode(AnchorNode::None);
-        oldLastNode = nodes.last();
-        savedLastMode = oldLastNode->interpMode();
-        if (savedLastMode == AnchorNode::None) {
-            auto idx = nodes.indexOf(oldLastNode);
-            auto predecessorMode = (idx > 0) ? nodes[idx - 1]->interpMode() : AnchorNode::Hermite;
-            oldLastNode->setInterpMode(predecessorMode);
-        }
-    } else {
-        auto mode = AnchorNode::Hermite;
-        for (int i = insertIdx - 1; i >= 0; i--) {
-            if (allNodes[i]->pos() < virtualNode.pos()) {
-                mode = allNodes[i]->interpMode();
-                break;
-            }
-        }
-        virtualNode.setInterpMode(mode);
+    std::optional<AnchorNode> previousNode;
+    if (insertion.previousInterpolation) {
+        const auto previousIndex = insertion.index - 1;
+        previousNode.emplace(*nodes.at(previousIndex));
+        previousNode->setInterpMode(*insertion.previousInterpolation);
+        allNodes[previousIndex] = &*previousNode;
     }
+    virtualNode.setInterpMode(insertion.interpolation);
+    allNodes.insert(insertion.index, &virtualNode);
 
     QColor previewColor = m_anchorPreviewColor;
     previewColor.setAlpha(PitchDisplayStrategy::anchorPreviewAlpha());
@@ -237,9 +220,6 @@ void AnchorOverlayView::drawPreviewCurve(QPainter *painter) const {
     painter->setPen(Qt::NoPen);
     painter->setBrush(previewColor);
     painter->drawEllipse(QPointF(cx, cy), 2.0, 2.0);
-
-    if (isAppend && oldLastNode)
-        oldLastNode->setInterpMode(savedLastMode);
 }
 
 void AnchorOverlayView::drawMergePreviewCurve(QPainter *painter) const {

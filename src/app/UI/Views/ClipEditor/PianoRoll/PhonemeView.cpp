@@ -2,6 +2,7 @@
 
 #include "NoteView.h"
 #include "Controller/ClipController.h"
+#include "Controller/Tasks/DecodeAudioTask.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
@@ -31,7 +32,6 @@ Q_LOGGING_CATEGORY(logPhonemeView, "phoneme.view")
 #include <QPointer>
 #include <QThreadPool>
 #include <TalcsFormat/FormatManager.h>
-#include <TalcsFormat/AbstractAudioFormatIO.h>
 
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);
@@ -790,6 +790,7 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
     m_pieceWaveforms[piece] = wf;
     invalidateWaveformCache();
     update();
+    emit waveformReady(pieceId);
 }
 
 void PhonemeView::loadWaveformAsync(InferPiece *piece) {
@@ -805,73 +806,13 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
         auto *fm = AudioContext::instance()->formatManager();
         if (!fm)
             return;
-        auto *io = fm->getFormatLoad(audioPath);
-        if (!io)
+        DecodeAudioTask decoder;
+        decoder.path = audioPath;
+        decoder.io = fm->getFormatLoad(audioPath);
+        static_cast<QRunnable &>(decoder).run();
+        if (!decoder.success)
             return;
-        if (!io->open(talcs::AbstractAudioFormatIO::Read)) {
-            delete io;
-            return;
-        }
-
-        AudioInfoModel info;
-        info.sampleRate = io->sampleRate();
-        info.channels = io->channelCount();
-        info.frames = io->length();
-        info.chunkSize = 128;
-        info.mipmapScale = 10;
-
-        std::vector<float> buffer(info.chunkSize * info.channels);
-        long long samplesRead = 0;
-        short min = 0, max = 0;
-        int chunkIndex = 0;
-        bool hasTail = false;
-
-        while (samplesRead < info.frames) {
-            const qint64 read = io->read(buffer.data(), info.chunkSize);
-            if (read <= 0)
-                break;
-            samplesRead += read;
-
-            double sampleMax = 0, sampleMin = 0;
-            for (qint64 i = 0; i < read; i++) {
-                double mono = 0.0;
-                for (int ch = 0; ch < info.channels; ch++)
-                    mono += buffer[i * info.channels + ch] / static_cast<double>(info.channels);
-                if (mono > sampleMax)
-                    sampleMax = mono;
-                if (mono < sampleMin)
-                    sampleMin = mono;
-            }
-
-            auto toShort = [](double d) -> short {
-                if (d < -1)
-                    d = -1;
-                else if (d > 1)
-                    d = 1;
-                return static_cast<short>(d * 32767);
-            };
-
-            info.peakCache.append(std::make_tuple(toShort(sampleMin), toShort(sampleMax)));
-
-            if ((chunkIndex + 1) % info.mipmapScale == 0) {
-                info.peakCacheMipmap.append(std::make_tuple(min, max));
-                min = 0;
-                max = 0;
-                hasTail = false;
-            } else {
-                if (toShort(sampleMin) < min)
-                    min = toShort(sampleMin);
-                if (toShort(sampleMax) > max)
-                    max = toShort(sampleMax);
-                hasTail = true;
-            }
-            chunkIndex++;
-        }
-        if (hasTail)
-            info.peakCacheMipmap.append(std::make_tuple(min, max));
-
-        io->close();
-        delete io;
+        const auto info = decoder.result();
 
         if (!self)
             return;

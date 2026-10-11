@@ -4,6 +4,7 @@
 
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
+#include <QGuiApplication>
 #include <QEvent>
 #include <QTabletEvent>
 
@@ -13,7 +14,7 @@
 
 namespace {
 
-    // Everything but Windows: the hover tablet event is expected to carry the
+    // Backends other than Windows QPA: the hover tablet event carries the
     // state, so no native code is needed here. That expectation comes from the
     // platform backends rather than from a measurement, and it has NOT been
     // verified on X11 or macOS hardware — see
@@ -161,10 +162,12 @@ EditorPenHoverWatcher *EditorPenHoverWatcher::instance() {
         return g_hoverWatcher;
     auto *app = QCoreApplication::instance();
 #ifdef Q_OS_WIN
-    g_hoverWatcher = new WindowsPenHoverWatcher(app);
-#else
-    g_hoverWatcher = new TabletEventPenHoverWatcher(app);
+    if (QGuiApplication::platformName() == QStringLiteral("windows")) {
+        g_hoverWatcher = new WindowsPenHoverWatcher(app);
+        return g_hoverWatcher;
+    }
 #endif
+    g_hoverWatcher = new TabletEventPenHoverWatcher(app);
     return g_hoverWatcher;
 }
 

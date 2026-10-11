@@ -13,7 +13,6 @@
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/GUI/Controls/AccentButton.h>
-// #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>
 #include <QScreen>
@@ -69,8 +68,6 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     FillLyric::TextTagger::setBuiltinEnabled(appOptions->fillLyric()->builtinTaggerEnabled);
     FillLyric::TextTagger::setCustomRules(appOptions->fillLyric()->customTaggerRules);
     FillLyric::TextTagger::setRuleOrder(appOptions->fillLyric()->taggerOrder);
-
-    // m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);

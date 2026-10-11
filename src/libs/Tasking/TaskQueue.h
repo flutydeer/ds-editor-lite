@@ -87,22 +87,19 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
         T *taskToCancel = current;
         m_currentCancellationPending = true;
 
+        QPointer<T> taskPtr(taskToCancel);
+        // Subscribe before observing completion so a worker finishing concurrently cannot be lost.
+        QObject::connect(
+            taskToCancel, &Task::finished, taskToCancel,
+            [this, taskPtr]() {
+                if (taskPtr)
+                    cleanupCancelledCurrent(taskPtr);
+            },
+            Qt::QueuedConnection);
         if (taskToCancel->stopped()) {
-            QPointer<T> taskPtr(taskToCancel);
             QMetaObject::invokeMethod(
                 taskToCancel,
                 [this, taskPtr] {
-                    if (taskPtr)
-                        cleanupCancelledCurrent(taskPtr);
-                },
-                Qt::QueuedConnection);
-        } else {
-            QPointer<T> taskPtr(taskToCancel);
-            // Wait for the task to actually finish before running the next one,
-            // to avoid concurrent access to shared inference resources.
-            QObject::connect(
-                taskToCancel, &Task::finished, taskToCancel,
-                [this, taskPtr]() {
                     if (taskPtr)
                         cleanupCancelledCurrent(taskPtr);
                 },

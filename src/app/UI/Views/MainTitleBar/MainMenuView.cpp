@@ -343,8 +343,7 @@ void MainMenuViewPrivate::onExtractPitchParam() {
     }
 
     ExtractPitchParamDialog dialog(clips);
-    dialog.exec();
-    if (dialog.selectedClipId == -1) {
+    if (dialog.exec() != QDialog::Accepted || dialog.selectedClipId == -1) {
         qDebug() << "User canceled get pitch param from audio clip";
         return;
     }

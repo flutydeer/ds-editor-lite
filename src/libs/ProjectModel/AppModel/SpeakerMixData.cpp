@@ -118,6 +118,36 @@ namespace SpeakerMixModel {
         return !(*this == other);
     }
 
+    QVector<double> interpolateSpeakerMixWeights(const QList<SpeakerMixKeyframe> &keyframes,
+                                                 const double tick) {
+        if (keyframes.isEmpty())
+            return {};
+        if (tick <= keyframes.first().tick)
+            return keyframes.first().weights;
+        if (tick >= keyframes.last().tick)
+            return keyframes.last().weights;
+
+        for (qsizetype index = 1; index < keyframes.size(); ++index) {
+            const auto &right = keyframes.at(index);
+            if (tick > right.tick)
+                continue;
+            const auto &left = keyframes.at(index - 1);
+            const auto span = right.tick - left.tick;
+            if (span <= 0)
+                return right.weights;
+            const auto ratio = (tick - left.tick) / span;
+            QVector<double> result;
+            result.reserve(left.weights.size());
+            for (qsizetype weight = 0; weight < left.weights.size(); ++weight) {
+                const auto leftWeight = left.weights.value(weight);
+                const auto rightWeight = right.weights.value(weight);
+                result.append(leftWeight + (rightWeight - leftWeight) * ratio);
+            }
+            return result;
+        }
+        return keyframes.last().weights;
+    }
+
     bool SpeakerMixData::operator==(const SpeakerMixData &other) const {
         return mode == other.mode && dynamicBypassed == other.dynamicBypassed &&
                sources == other.sources && fixedWeights == other.fixedWeights &&

@@ -120,21 +120,23 @@ void InferAcousticTask::runTask() {
     QString errorMessage;
     if (cache.hit) {
         qInfo() << "Use cached acoustic inference result:" << cache.outputCachePath;
-        m_result = cache.outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
         }
-        if (runInference(cache.model, cache.outputCachePath, errorMessage)) {
-            m_result = cache.outputCachePath;
-        } else {
+        if (!runInference(cache.model, cache.outputCachePath, errorMessage)) {
             qCritical() << "Task failed:" << errorMessage;
             return;
         }
     }
 
+    if (isTerminateRequested()) {
+        abort();
+        return;
+    }
+    m_result = cache.outputCachePath;
     m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();

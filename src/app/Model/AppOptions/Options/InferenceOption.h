@@ -2,6 +2,7 @@
 #define INFERENCEOPTION_H
 
 #include "Model/AppOptions/IOption.h"
+#include "Bootstrap/AppDataPaths.h"
 
 #include <QStandardPaths>
 
@@ -78,8 +79,7 @@ public:
     // timeline at runtime because inference engine operates on wall-clock time, not ticks.
     LITE_OPTION_ITEM(double, playbackLookaheadSeconds, 20.0)
     LITE_OPTION_ITEM(QString, cacheDirectory,
-                     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
-                         "/Cache")
+                     AppDataPaths::applicationData() + "/Cache")
     LITE_OPTION_ITEM(int, singerSessionCacheCapacity, kSingerSessionCacheCapacityDefault)
     LITE_OPTION_ITEM(int, singerSessionIdleTimeoutSeconds, kSingerSessionIdleTimeoutDefaultSeconds)
 

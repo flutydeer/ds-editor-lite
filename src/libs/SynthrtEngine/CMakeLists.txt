@@ -6,6 +6,7 @@ project(SynthrtEngine LANGUAGES CXX)
 # <lite/SynthrtEngine/Xxx.h>. Its singleton is registered by the app's
 # AppContext through the SingletonRegistry.
 find_package(synthrt CONFIG REQUIRED)
+find_package(srt-extract CONFIG REQUIRED)
 find_package(stdcorelib CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
@@ -22,6 +23,7 @@ target_link_libraries(SynthrtEngine PUBLIC
     srt::synthrt
     srt::diffsinger
     stdcorelib::stdcorelib
+    PRIVATE srt::extract
 )
 
 target_include_directories(SynthrtEngine PUBLIC

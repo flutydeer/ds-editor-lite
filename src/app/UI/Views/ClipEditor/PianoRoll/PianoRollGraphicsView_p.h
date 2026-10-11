@@ -117,6 +117,7 @@ public:
     void endPenEraseStroke();
 
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
+    [[nodiscard]] NoteView *noteViewForSelectionAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;
     // The error badge sits outside its note, so it cannot be reached through

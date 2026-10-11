@@ -91,9 +91,9 @@ void TimelineView::setQuantize(int quantize) {
 }
 
 void TimelineView::setDataContext(SingingClip *clip) {
+    if (m_clip)
+        disconnect(m_clip, nullptr, this, nullptr);
     if (!clip) {
-        if (m_clip)
-            disconnect(m_clip, nullptr, this, nullptr);
         onPiecesChanged({});
     } else {
         onPiecesChanged(clip->pieces());
@@ -144,6 +144,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     auto p3 = QPointF(centerX, marginTop + h);
     QPointF points[3]{p1, p2, p3};
     painter.drawPolygon(points, 3);
+    updatePulseTimer();
 }
 
 namespace {
@@ -772,10 +773,11 @@ void TimelineView::updatePulseTimer() {
             break;
         }
     }
-    if (hasRunning && !m_pulseTimer.isActive()) {
+    const bool needsAnimation = hasRunning || !m_transitions.isEmpty();
+    if (needsAnimation && !m_pulseTimer.isActive()) {
         m_pulseElapsed.start();
         m_pulseTimer.start();
-    } else if (!hasRunning && m_pulseTimer.isActive()) {
+    } else if (!needsAnimation && m_pulseTimer.isActive()) {
         m_pulseTimer.stop();
     }
 }

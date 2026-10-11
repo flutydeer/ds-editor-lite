@@ -1,0 +1,58 @@
+project(TestApplicationGui)
+
+lite_add_test(${PROJECT_NAME} SOURCES
+    test_main.cpp
+    tst_application_gui.h
+    tst_piano_roll.cpp
+    tst_ghost_notes.cpp
+    tst_pointer_delivery.cpp
+    tst_track_editing.cpp
+    tst_parameter_editing.cpp
+    tst_anchor_editing.cpp
+    tst_audio_export.cpp
+    tst_settings_pages.cpp
+    tst_public_settings.cpp
+    tst_project_import.cpp
+    tst_fill_lyric.cpp
+    tst_note_dialogs.cpp
+    tst_note_feedback.cpp
+    tst_dynamic_mix.cpp
+    tst_speaker_mix.cpp
+    tst_resources.cpp
+    tst_main_window.cpp
+    tst_log_window.cpp
+    tst_document_workflow.cpp
+    tst_tagger_settings.cpp
+    tst_piano_keyboard.cpp
+    tst_track_clipboard.cpp
+    tst_synth_preview.cpp
+    tst_audio_midi_settings.cpp
+    tst_track_controls.cpp
+    tst_playback_controls.cpp
+    tst_timeline_lanes.cpp
+    tst_pitch_modulation.cpp
+    tst_piano_clipboard_scroll.cpp
+    tst_lyric_grid.cpp
+    tst_track_menus.cpp
+)
+target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ole32)
+endif()
+# Reuse the workflow suite's external conversion subprocess fixture.
+add_dependencies(${PROJECT_NAME} DsEditorLite TestApplicationWorkflows)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    LITE_TEST_APPLICATION_CONFIG_ROOT="$<TARGET_FILE_DIR:DsEditorLite>/configs"
+    LITE_TEST_CONVERTER_FIXTURE="$<TARGET_FILE:TestApplicationWorkflows>")
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        BUILD_RPATH "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/Frameworks")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
+endif()
+if(APPLE)
+    # Exercise menu and touch focus restoration through the macOS window system.
+    lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 300)
+else()
+    lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 300)
+endif()

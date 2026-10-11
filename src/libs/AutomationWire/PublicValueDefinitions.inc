@@ -85,6 +85,8 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, DocumentsImport, "documents.import
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, DocumentsImportBatch, "documents.import_batch")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsImport, "audio_clips.import")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsImportBatch, "audio_clips.import_batch")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsRelocate, "audio_clips.relocate")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsConfirmPath, "audio_clips.confirm_path")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExportsMidiStart, "exports.midi.start")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExportsAudioStart, "exports.audio.start")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExtractPitchStart, "extract.pitch.start")

@@ -1,0 +1,153 @@
+#pragma once
+
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "../TestSupport/ProjectSnapshot.h"
+
+#include <QObject>
+#include <QTemporaryDir>
+
+#include <memory>
+
+class SingingClip;
+class InferPiece;
+class InferPipeline;
+class Note;
+
+class ApplicationWorkflowTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+    void audioExportRespectsRangeMixAndMute();
+    void separatedAudioExportRejectsCollisionsAndKeepsTrackSignals();
+    void encodedAudioExportsProduceReadableFiles_data();
+    void encodedAudioExportsProduceReadableFiles();
+    void cancelingAudioExportPreservesExistingFilesAndMixer();
+    void controlledPlaybackLoopsAndBuffers();
+    void audioClipRangeChangesWaitForActiveReads_data();
+    void audioClipRangeChangesWaitForActiveReads();
+    void audioClipTrimmingAndMovingPreserveRealtimeDurations();
+    void customExportPresetPersistsAndProducesIntegerWave();
+
+    void initTestCase();
+
+    void init();
+
+    void changedTargetInputDropsResult_data();
+
+    void speakerMixPresetPersistsThroughTheProductionStore();
+    void publicSpeakerMixPresetsResolveAndPreserveAppliedVoices();
+
+    void lyricRulesUseTheProductionRuntimeAndPersistence_data();
+    void lyricRulesUseTheProductionRuntimeAndPersistence();
+
+    void projectBatchImportUsesRealLoaders_data();
+
+    void projectBatchImportUsesRealLoaders();
+    void packageRefreshPreservesCatalogAndReportsInvalidRoots();
+    void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();
+    void localizedPackageMetadataLoadsAndUpdatesWithTheVersion();
+    void publicProjectLoadChecksPlansAndParserFailures();
+    void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument_data();
+    void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument();
+    void publicProjectLoadChecksPlansAndParserFailures_data();
+    void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();
+    void libreSvipProcessFailuresLeaveTheDocumentUntouched();
+
+    void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
+    void extractionPreparationRejectsMissingResourcesAndChangedSources();
+    void audioBatchFailurePolicy_data();
+
+    void audioBatchFailurePolicy();
+
+    void audioBatchCancellationReleasesRetry();
+    void audioBatchCancellationReleasesRetry_data();
+    void audioBatchValidationDoesNotStartTasks_data();
+    void audioBatchValidationDoesNotStartTasks();
+    void audioBatchRejectsChangesBeforeCommit_data();
+    void audioBatchRejectsChangesBeforeCommit();
+    void acousticCacheWriteFailureCanBeRetried();
+    void cacheCleanupProtectsRestoredInference();
+    void inferenceFailureAndCancellationAllowRetry_data();
+    void inferenceFailureAndCancellationAllowRetry();
+    void languageTasksKeepMixedResultsAligned();
+    void builtInG2pConvertsDictionaryAndUnlistedWords();
+    void g2pOnnxSessionTranslatesInputsAndRecoversAfterFailure();
+    void publicAudioPathUpdatesPrepareCommitAndUndo_data();
+    void publicAudioPathUpdatesPrepareCommitAndUndo();
+
+    void clipInferenceResultsRespectEditSession_data();
+
+    void clipInferenceResultsRespectEditSession();
+    void modelInferenceWaitsForEditingBeforeApplying_data();
+    void modelInferenceWaitsForEditingBeforeApplying();
+    void editingParametersRestartsOnlyDependentInference_data();
+    void editingParametersRestartsOnlyDependentInference();
+    void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
+    void changingSamplingSettingsRestartsRunningInference_data();
+    void changingSamplingSettingsRestartsRunningInference();
+    void changingSpeakerMixRefreshesExistingInference();
+    void playbackWindowPrioritizesAndSuspendsAcousticInference();
+    void playbackRecoversAfterPublicInferenceCancellation_data();
+    void playbackRecoversAfterPublicInferenceCancellation();
+    void voiceExportPreparationInterruptionsAllowRetry_data();
+    void voiceExportPreparationInterruptionsAllowRetry();
+    void movingInheritedVoiceReusesOrRebuildsInference_data();
+    void movingInheritedVoiceReusesOrRebuildsInference();
+
+    void unavailableInferenceProviderFallsBackAndExits();
+    void availableGpuSelectionInitializesAndExits();
+
+    void changedTargetInputDropsResult();
+
+    void removedTargetDropsResult_data();
+
+    void removedTargetDropsResult();
+
+    void unchangedInputSurvivesRevisionDrift_data();
+
+    void unchangedInputSurvivesRevisionDrift();
+
+    void editSessionControlsResultDeferral_data();
+
+    void editSessionControlsResultDeferral();
+
+    void restartInferenceReleasesReplacedTask();
+    void restartInferenceReleasesReplacedTask_data();
+
+    void publicInferenceStartsBeforeQueuedDocumentChanges_data();
+    void publicInferenceStartsBeforeQueuedDocumentChanges();
+    void publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges_data();
+    void publicParameterTransformsUseCapabilitiesAndPreserveOtherRanges();
+    void publicInferenceStatusAssociatesTasksWithTheirScope();
+
+    void offlineExportRestoresMixerState_data();
+
+    void offlineExportRestoresMixerState();
+
+    void cleanup();
+
+    void cleanupTestCase();
+
+private:
+    void prepareInferenceTarget(AppStatus::ModuleStatus &previousPackageStatus);
+    void prepareVoicebankTarget();
+    static bool inferenceSettled(const SingingClip *clip);
+
+    void verifyAcousticGate(InferPipeline &pipeline, bool immediateExpected, bool completeFirst);
+
+    Automation::CoreRuntime &runtime();
+
+    Automation::CommandContext commandContext();
+
+    QTemporaryDir dataRoot;
+    QByteArray previousDataRoot;
+    bool dataRootInstalled = false;
+    std::unique_ptr<AppContext> context;
+    Automation::TrackId trackId;
+    SingingClip *clip = nullptr;
+    SingingClip *otherClip = nullptr;
+    InferPiece *piece = nullptr;
+    Note *note = nullptr;
+};

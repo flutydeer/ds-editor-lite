@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QPointF>
 #include <QPointer>
+#include <QPointingDevice>
 
 #include <functional>
 
@@ -58,6 +59,9 @@ private:
     QPointer<QWidget> m_target;
     HitTest m_hitTest;
     CancelNotice m_cancelNotice;
+    QPointingDevice m_replayDevice;
+    QPointF m_lastPosition;
+    QPointF m_lastGlobalPosition;
     bool m_pressed = false;
     // Set when the hit test turned the current stream away, so its remaining
     // events are passed through instead of being consumed.
