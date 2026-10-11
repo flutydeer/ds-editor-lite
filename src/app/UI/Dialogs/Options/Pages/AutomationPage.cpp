@@ -15,6 +15,8 @@
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Controls/WheelEventPolicy.h>
 
@@ -26,6 +28,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QScrollBar>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -262,6 +265,12 @@ void AutomationPage::modifyOption() {
     refreshRuntimeStatus();
 }
 
+// The sub-pages carry their own insets so the toolset's inner scroll area can
+// span to the window's right edge (see contentMargins in the header).
+QMargins AutomationPage::contentMargins() const {
+    return {};
+}
+
 QWidget *AutomationPage::createContentWidget() {
     const auto pageHost = new QWidget;
     m_pageHostLayout = new QVBoxLayout(pageHost);
@@ -455,7 +464,7 @@ QWidget *AutomationPage::createContentWidget() {
     mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessControlSection, 0, Qt::AlignTop);
     mainLayout->addStretch();
-    mainLayout->setContentsMargins({});
+    mainLayout->setContentsMargins(16, 16, 16, 16);
     mainLayout->setSpacing(12);
     m_accessControlPage->setLayout(mainLayout);
     m_accessControlPage->setContentsMargins({});
@@ -472,7 +481,10 @@ QWidget *AutomationPage::createContentWidget() {
 QWidget *AutomationPage::createToolsetPage() {
     const auto page = new QWidget;
     const auto layout = new QVBoxLayout(page);
-    layout->setContentsMargins({});
+    // Right margin 0: the list scroll area below spans to the window edge so
+    // its overlay scrollbar pins there (the cards keep their inset via the
+    // scroll content's own right margin).
+    layout->setContentsMargins(16, 16, 0, 16);
     layout->setSpacing(6);
 
     auto *backButton = new ToolButton(page);
@@ -495,6 +507,21 @@ QWidget *AutomationPage::createToolsetPage() {
     headerLayout->addStretch();
     layout->addWidget(header);
 
+    // The category list scrolls inside its own scroll area so the header above
+    // stays pinned: the back button must be reachable even when the list is
+    // scrolled to the bottom.
+    const auto listContent = new QWidget;
+    listContent->setObjectName(QStringLiteral("automationToolsetListContent"));
+    // QScrollArea::setWidget() enables autoFillBackground on the content
+    // widget: without a transparent rule the gaps between the cards would be
+    // painted with the palette's base colour (near white).
+    listContent->setAttribute(Qt::WA_StyledBackground);
+    const auto listLayout = new QVBoxLayout(listContent);
+    // The cards' right inset lives in the scrollable content, so the scroll
+    // area (and its overlay scrollbar) can span edge to edge.
+    listLayout->setContentsMargins(0, 0, 16, 0);
+    listLayout->setSpacing(6);
+
     QStringList categoryOrder;
     for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
         if (const auto *contract = AutomationWire::findPublicTool(operationId);
@@ -510,7 +537,7 @@ QWidget *AutomationPage::createToolsetPage() {
         emptyCard->setTitleVisible(false);
         emptyCard->addItem(tr("No public tools available"),
                            tr("Public tools appear here when the automation manifest is ready"));
-        layout->addWidget(emptyCard);
+        listLayout->addWidget(emptyCard);
     } else {
         const auto *option = appOptions->automation();
         for (const auto &category : std::as_const(categoryOrder)) {
@@ -578,12 +605,28 @@ QWidget *AutomationPage::createToolsetPage() {
                         refreshCategoryPermissionSwitches();
                         modifyOption();
                     });
-            layout->addWidget(categoryCard);
+            listLayout->addWidget(categoryCard);
         }
         refreshCategoryPermissionSwitches();
     }
 
-    layout->addStretch();
+    listLayout->addStretch();
+
+    const auto listScroll = new QScrollArea(page);
+    listScroll->setObjectName(QStringLiteral("automationToolsetListScroll"));
+    listScroll->setWidgetResizable(true);
+    listScroll->setFrameShape(QFrame::NoFrame);
+    // The overlay bar is the only vertical scrollbar this list should show; a
+    // horizontal one would sit over the cards' bottom edge.
+    listScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    listScroll->setWidget(listContent);
+    // Same overlay scrollbar/smooth wheel treatment as the option pages
+    // themselves, so the list reads as part of the options UI.
+    OverlayScrollBar::install(listScroll, Qt::Vertical);
+    const auto listScroller = new SmoothScroller(listScroll);
+    listScroller->attachTo(listScroll);
+    layout->addWidget(listScroll, 1);
+
     return page;
 }
 
@@ -602,6 +645,9 @@ void AutomationPage::showAccessControlPage() {
     if (m_toolsetPage)
         m_toolsetPage->hide();
     m_accessControlPage->show();
+    // The two sub-pages need different heights: refit so the page follows the
+    // one now visible instead of keeping the previous height.
+    refitContent();
     verticalScrollBar()->setValue(0);
 }
 
@@ -612,6 +658,10 @@ void AutomationPage::showToolsetPage() {
     m_toolsetPageVisible = true;
     m_accessControlPage->hide();
     m_toolsetPage->show();
+    // The toolset list of category cards is much taller than the access
+    // control page: without this refit the page keeps the shorter height and
+    // the category cards get squeezed into it.
+    refitContent();
     verticalScrollBar()->setValue(0);
 }
 

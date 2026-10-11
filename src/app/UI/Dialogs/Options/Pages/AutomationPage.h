@@ -33,6 +33,10 @@ public:
 protected:
     void modifyOption() override;
     QWidget *createContentWidget() override;
+    // The sub-pages carry their own insets: the toolset's inner scroll area has
+    // to span to the window's right edge so its overlay scrollbar pins there
+    // like the option pages' own scrollbars.
+    [[nodiscard]] QMargins contentMargins() const override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:

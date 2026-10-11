@@ -1215,6 +1215,27 @@ IOptionPage {
     padding: 0px;
 }
 
+/* The custom toolset list scrolls inside the page so its header (back button +
+   title) stays pinned. It owns no padding of its own: the page already carries
+   the content margins, and any padding here would inset the cards against the
+   pinned header. */
+QScrollArea#automationToolsetListScroll {
+    background: transparent;
+    border: none;
+    padding: 0px;
+}
+
+/* QScrollArea::setWidget() turns on autoFillBackground for the content widget,
+   so it needs the same transparent rule as the option pages' own content
+   widget: otherwise the gaps between the cards show the palette base colour. */
+QWidget#automationToolsetListContent {
+    background: transparent;
+}
+
+QScrollArea#automationToolsetListScroll::viewport {
+    background: transparent;
+}
+
 QScrollArea::viewport {
     background: transparent;
 }
