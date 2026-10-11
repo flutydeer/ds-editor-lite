@@ -1535,14 +1535,15 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
     release.release();
     QTRY_VERIFY_WITH_TIMEOUT(
         currentPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(nextPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
-    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
-    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    // Task removal can precede the queued cache-probe state transition.
+    QTRY_COMPARE_WITH_TIMEOUT(nextPiece->state.get(), QStringLiteral("Acoustic.Awaiting"), 15000);
+    QTRY_COMPARE_WITH_TIMEOUT(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"), 15000);
+    QTRY_COMPARE_WITH_TIMEOUT(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"), 15000);
     QVERIFY(runtime().playback().setPosition(commandContext(), 3840));
     QVERIFY(runtime().playback().play(commandContext()));
     QTRY_VERIFY_WITH_TIMEOUT(
         nextPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE_WITH_TIMEOUT(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"), 15000);
     QTRY_COMPARE(audio->transport()->bufferingCounter(), 0);
     talcs::AudioBuffer buffer(2, 256);
     const auto position = audio->transport()->position();
@@ -1551,7 +1552,7 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
     QVERIFY(runtime().playback().setPosition(commandContext(), 10080));
     QTRY_VERIFY_WITH_TIMEOUT(
         farPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE_WITH_TIMEOUT(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"), 15000);
     QVERIFY(!registeredPieces.contains(pastPiece->id()));
 }
 
