@@ -3014,149 +3014,132 @@ void ProjectEditingTests::nonAdjacentAnchorMergePreservesDocument() {
 }
 
 void ProjectEditingTests::speakerMixEditing() {
-    TestRuntime testRuntime;
-    auto &runtime = testRuntime.runtime();
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
     const auto trackId = insertedTrack(runtime, QStringLiteral("Voice"));
     const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Voice Clip"));
-    testRuntime.history()->reset();
-
+    fixture.history()->reset();
     const auto speakerA = speaker(QStringLiteral("speaker-a"));
     const auto speakerB = speaker(QStringLiteral("speaker-b"));
     const auto singerA = singer(QStringLiteral("singer-a"), {speakerA, speakerB});
     const auto fixed = fixedMix(speakerA, speakerB);
     const auto dynamic = dynamicMix(speakerA, speakerB);
-
-    {
-        // Automation::OperationIds::tracks::set_voice / QStringLiteral("preview-commit-noop")
-
-        testRuntime.history()->reset();
-        const auto base = runtime.documentVersion();
-        const auto preview = runtime.parameters().selectTrackSingleSpeaker(
-            commandContext(runtime, true), trackId, singerA, speakerA);
-        QVERIFY2((preview && preview.get().changed && runtime.documentVersion() == base),
-                 qPrintable(QStringLiteral("track speaker preview must not mutate")));
-        const auto changed = runtime.parameters().selectTrackSingleSpeaker(
-            commandContext(runtime), trackId, singerA, speakerA);
-        const auto snapshot = trackSnapshot(runtime, trackId);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.singerInfo == singerA && snapshot->data.speakerInfo == speakerA),
-                 qPrintable(QStringLiteral("single track voice must round-trip")));
-        const auto noOp = runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime),
-                                                                        trackId, singerA, speakerA);
-        QVERIFY2((noOp && !noOp.get().changed),
-                 qPrintable(QStringLiteral("identical track speaker must be a no-op")));
+    const auto edit = [&](auto mutate) {
+        const auto version = runtime.documentVersion();
+        const auto before = TestSupport::projectSnapshot(fixture.model());
+        const auto *undoBefore = fixture.history()->nextUndoEntry();
+        const auto preview = mutate(commandContext(runtime, true));
+        QVERIFY(preview);
+        QVERIFY(preview.get().changed && preview.get().validatedOnly);
+        QCOMPARE(runtime.documentVersion(), version);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), before);
+        QCOMPARE(fixture.history()->nextUndoEntry(), undoBefore);
+        const auto committed = mutate(commandContext(runtime));
+        QVERIFY(committed && committed.get().changed && !committed.get().validatedOnly);
+        QCOMPARE(committed.get().current.documentId, version.documentId);
+        QCOMPARE(committed.get().current.revision, version.revision + 1);
+        const auto after = TestSupport::projectSnapshot(fixture.model());
+        QVERIFY(after != before);
+        const auto *undoAfter = fixture.history()->nextUndoEntry();
+        const auto repeated = mutate(commandContext(runtime));
+        QVERIFY(repeated && !repeated.get().changed);
+        QCOMPARE(runtime.documentVersion(), committed.get().current);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), after);
+        QCOMPARE(fixture.history()->nextUndoEntry(), undoAfter);
+        const auto undone = runtime.history().undo(commandContext(runtime));
+        QVERIFY(undone && undone.get().changed);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), before);
+        const auto redone = runtime.history().redo(commandContext(runtime));
+        QVERIFY(redone && redone.get().changed);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), after);
     };
 
-    {
-        // Automation::OperationIds::speaker_mix::track::apply /
-        // QStringLiteral("normalized-fixed-mix")
+    edit([&](const auto &context) {
+        return parameters.selectTrackSingleSpeaker(context, trackId, singerA, speakerA);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    auto track = trackSnapshot(runtime, trackId);
+    QVERIFY(track);
+    QCOMPARE(track->data.singerInfo, singerA);
+    QCOMPARE(track->data.speakerInfo, speakerA);
 
-        const auto base = runtime.documentVersion();
-        const auto changed = runtime.parameters().applyTrackSpeakerMix(
-            commandContext(runtime), trackId, singerA, speakerA, fixed);
-        const auto snapshot = trackSnapshot(runtime, trackId);
-        QVERIFY2(
-            (changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-             snapshot->data.speakerMixData.mode == SpeakerMixModel::SingerSourceMode::FixedMix &&
-             snapshot->data.speakerMixData.fixedWeights == QVector<double>({1.0}) &&
-             snapshot->data.speakerMixData.sourcePresetId == QStringLiteral("preset")),
-            qPrintable(QStringLiteral("track preset apply must normalize weights/metadata")));
-    };
+    edit([&](const auto &context) {
+        return parameters.applyTrackSpeakerMix(context, trackId, singerA, speakerA, fixed);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    track = trackSnapshot(runtime, trackId);
+    QVERIFY(track);
+    QCOMPARE(track->data.speakerMixData.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(track->data.speakerMixData.fixedWeights, QVector<double>({1.0}));
+    QCOMPARE(track->data.speakerMixData.sourcePresetId, QStringLiteral("preset"));
 
-    {
-        // Automation::OperationIds::speaker_mix::track::replace /
-        // QStringLiteral("preserve-voice-change-mix")
+    const auto trackBeforeReplacement = track->data;
+    edit([&](const auto &context) {
+        return parameters.replaceTrackSpeakerMix(context, trackId, dynamic);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    track = trackSnapshot(runtime, trackId);
+    QVERIFY(track);
+    QCOMPARE(track->data.singerInfo, trackBeforeReplacement.singerInfo);
+    QCOMPARE(track->data.speakerInfo, trackBeforeReplacement.speakerInfo);
+    QCOMPARE(track->data.speakerMixData.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QVERIFY(!track->data.speakerMixData.dynamicKeyframes.isEmpty());
+    QCOMPARE(track->data.speakerMixData.dynamicKeyframes.first().tick, 0);
 
-        const auto before = trackSnapshot(runtime, trackId);
-        const auto base = runtime.documentVersion();
-        const auto changed =
-            runtime.parameters().replaceTrackSpeakerMix(commandContext(runtime), trackId, dynamic);
-        const auto after = trackSnapshot(runtime, trackId);
-        QVERIFY2(
-            (changed && changed.get().current.revision == base.revision + 1 && before && after &&
-             after->data.singerInfo == before->data.singerInfo &&
-             after->data.speakerInfo == before->data.speakerInfo &&
-             after->data.speakerMixData.mode == SpeakerMixModel::SingerSourceMode::DynamicMix &&
-             after->data.speakerMixData.dynamicKeyframes.first().tick == 0),
-            qPrintable(QStringLiteral("track mix replacement must preserve voice and sort keys")));
-    };
+    edit([&](const auto &context) {
+        return parameters.selectClipSingleSpeaker(context, clipId, singerA, speakerB);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    auto clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QVERIFY(!clip->data.usesTrackVoiceContext);
+    QCOMPARE(clip->data.ownSingerInfo, singerA);
+    QCOMPARE(clip->data.ownSpeakerInfo, speakerB);
 
-    {
-        // Automation::OperationIds::clips::set_voice / QStringLiteral("owned-context")
+    edit([&](const auto &context) {
+        return parameters.applyClipSpeakerMix(context, clipId, singerA, speakerA, fixed);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QCOMPARE(clip->data.ownSpeakerMixData.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(clip->data.ownSpeakerMixData.fixedWeights, QVector<double>({1.0}));
 
-        const auto base = runtime.documentVersion();
-        const auto changed = runtime.parameters().selectClipSingleSpeaker(
-            commandContext(runtime), clipId, singerA, speakerB);
-        const auto snapshot = clipSnapshot(runtime, clipId);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  !snapshot->data.usesTrackVoiceContext &&
-                  snapshot->data.ownSingerInfo == singerA &&
-                  snapshot->data.ownSpeakerInfo == speakerB),
-                 qPrintable(QStringLiteral("clip speaker selection must establish owned context")));
-    };
+    edit([&](const auto &context) {
+        return parameters.enableClipDynamicSpeakerMix(context, clipId, singerA, speakerA, dynamic);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QCOMPARE(clip->data.ownSpeakerMixData.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QVERIFY(!clip->data.ownSpeakerMixData.dynamicKeyframes.isEmpty());
+    QCOMPARE(clip->data.ownSpeakerMixData.dynamicKeyframes.first().tick, 0);
 
-    {
-        // Automation::OperationIds::speaker_mix::clip::apply /
-        // QStringLiteral("apply-normalized-preset")
+    const auto clipBeforeReplacement = clip->data;
+    edit([&](const auto &context) {
+        return parameters.replaceClipSpeakerMix(context, clipId, fixed);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QCOMPARE(clip->data.ownSingerInfo, clipBeforeReplacement.ownSingerInfo);
+    QCOMPARE(clip->data.ownSpeakerInfo, clipBeforeReplacement.ownSpeakerInfo);
+    QCOMPARE(clip->data.ownSpeakerMixData.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
 
-        const auto base = runtime.documentVersion();
-        const auto changed = runtime.parameters().applyClipSpeakerMix(
-            commandContext(runtime), clipId, singerA, speakerA, fixed);
-        const auto snapshot = clipSnapshot(runtime, clipId);
-        QVERIFY2(
-            (changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-             snapshot->data.ownSpeakerMixData.mode == SpeakerMixModel::SingerSourceMode::FixedMix &&
-             snapshot->data.ownSpeakerMixData.fixedWeights == QVector<double>({1.0})),
-            qPrintable(QStringLiteral("clip preset apply must normalize mix")));
-    };
-
-    {
-        // Automation::OperationIds::speaker_mix::clip::enable_dynamic /
-        // QStringLiteral("dynamic-keyframes")
-
-        const auto base = runtime.documentVersion();
-        const auto changed = runtime.parameters().enableClipDynamicSpeakerMix(
-            commandContext(runtime), clipId, singerA, speakerA, dynamic);
-        const auto snapshot = clipSnapshot(runtime, clipId);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.ownSpeakerMixData.mode ==
-                      SpeakerMixModel::SingerSourceMode::DynamicMix &&
-                  snapshot->data.ownSpeakerMixData.dynamicKeyframes.first().tick == 0),
-                 qPrintable(QStringLiteral("dynamic clip mix must sort keyframes")));
-    };
-
-    {
-        // Automation::OperationIds::speaker_mix::clip::replace /
-        // QStringLiteral("preserve-owned-voice")
-
-        const auto before = clipSnapshot(runtime, clipId);
-        const auto base = runtime.documentVersion();
-        const auto changed =
-            runtime.parameters().replaceClipSpeakerMix(commandContext(runtime), clipId, fixed);
-        const auto after = clipSnapshot(runtime, clipId);
-        QVERIFY2(
-            (changed && changed.get().current.revision == base.revision + 1 && before && after &&
-             after->data.ownSingerInfo == before->data.ownSingerInfo &&
-             after->data.ownSpeakerInfo == before->data.ownSpeakerInfo &&
-             after->data.ownSpeakerMixData.mode == SpeakerMixModel::SingerSourceMode::FixedMix),
-            qPrintable(QStringLiteral("clip mix replacement must preserve owned voice")));
-    };
-
-    {
-        // Automation::OperationIds::clips::use_track_voice / QStringLiteral("inherit-noop")
-
-        const auto base = runtime.documentVersion();
-        const auto changed =
-            runtime.parameters().useTrackVoiceContext(commandContext(runtime), clipId);
-        const auto snapshot = clipSnapshot(runtime, clipId);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.usesTrackVoiceContext),
-                 qPrintable(QStringLiteral("clip must return to track inheritance")));
-        const auto noOp =
-            runtime.parameters().useTrackVoiceContext(commandContext(runtime), clipId);
-        QVERIFY2((noOp && !noOp.get().changed),
-                 qPrintable(QStringLiteral("already inherited context must be a no-op")));
-    };
+    edit([&](const auto &context) { return parameters.useTrackVoiceContext(context, clipId); });
+    if (QTest::currentTestFailed())
+        return;
+    clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QVERIFY(clip->data.usesTrackVoiceContext);
 }
 
 void ProjectEditingTests::clearingTrackVoicePreservesIndependentClips() {
