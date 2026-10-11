@@ -37,6 +37,7 @@ private slots:
     void changedTargetInputDropsResult_data();
 
     void speakerMixPresetPersistsThroughTheProductionStore();
+    void presetTimestampsWithoutOffsetsUseUtc();
     void publicSpeakerMixPresetsResolveAndPreserveAppliedVoices();
 
     void lyricRulesUseTheProductionRuntimeAndPersistence_data();
@@ -76,6 +77,8 @@ private slots:
     void audioBatchRejectsChangesBeforeCommit();
     void acousticCacheWriteFailureCanBeRetried();
     void cacheCleanupProtectsRestoredInference();
+    void jsonCacheLookupRetriesAcrossModelReload_data();
+    void jsonCacheLookupRetriesAcrossModelReload();
     void inferenceFailureAndCancellationAllowRetry_data();
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();

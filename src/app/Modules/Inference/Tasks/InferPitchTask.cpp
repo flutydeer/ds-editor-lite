@@ -78,26 +78,14 @@ void InferPitchTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    GenericInferModel model;
-    const auto input = m_input.toEngineModel();
-    m_inputHash = InferCacheUtils::inputHashForCurrentModels(input.hashData());
-    const auto cacheDir = QDir(m_cacheDirectory);
-    const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("pitch"), m_inputHash);
-    if (!cacheDir.exists())
-        cacheDir.mkpath(".");
-    const auto inputCachePath =
-        cacheDir.filePath(cacheNames.input);
-    if (!QFile(inputCachePath).exists())
-        JsonUtils::save(inputCachePath, input.serialize());
-    bool useCache = false;
-    const auto outputCachePath =
-        cacheDir.filePath(cacheNames.output);
-    if (QFile(outputCachePath).exists()) {
-        QJsonObject obj;
-        useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
-    }
+    auto cache = InferCacheUtils::lookupJsonCache(
+        QStringLiteral("pitch"), m_cacheDirectory, [this] { return m_input.toEngineModel(); });
+    const auto &input = cache.input;
+    auto model = std::move(cache.output);
+    m_inputHash = cache.inputHash;
+    const auto &outputCachePath = cache.outputCachePath;
 
-    if (useCache) {
+    if (cache.hit) {
         qInfo() << "Use cached pitch inference result:" << outputCachePath;
     } else {
         QString errorMessage;
