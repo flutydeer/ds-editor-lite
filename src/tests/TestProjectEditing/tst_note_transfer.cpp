@@ -612,6 +612,14 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
                              .type = Param::Envelope,
                              .curves = {draw(0, 120, {-1000, -3000})}});
     }
+    const bool geometryFault = !fault.isEmpty() &&
+                               fault != QStringLiteral("duplicate-parameter-group") &&
+                               fault != QStringLiteral("malformed-parameter-discriminators") &&
+                               fault != QStringLiteral("malformed-curve-fields");
+    if (geometryFault)
+        draft.params.append({.name = ParamInfo::Energy,
+                             .type = Param::Envelope,
+                             .curves = {draw(0, 120, {-1000, -3000})}});
     if (multipleAnchors)
         draft.params.first().curves.append(anchor({
             {600, 6400},
@@ -702,9 +710,6 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
             if (overlap) {
                 nodes.first().position = 240;
                 nodes.last().position = 720;
-                draft.params.append({.name = ParamInfo::Energy,
-                                     .type = Param::Envelope,
-                                     .curves = {draw(0, 120, {-1000, -3000})}});
             } else if (fault == QStringLiteral("duplicate-positions"))
                 nodes.last().position = nodes.first().position;
             else if (fault == QStringLiteral("reversed-positions"))
@@ -737,12 +742,7 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
                     ClipboardDataModel::serializeParameters(draft.params));
         clips.replace(0, clip);
         payload.insert(QStringLiteral("clips"), clips);
-        if (overlap)
-            draft.params.removeFirst();
-        else if (drawFault)
-            draft.params.first().curves.removeFirst();
-        else
-            draft.params.first().curves.removeLast();
+        draft.params.removeFirst();
     }
     const auto decoded = ClipsInfo::deserializeFromJson(payload);
     const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });

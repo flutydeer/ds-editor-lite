@@ -124,13 +124,17 @@ namespace ClipboardDataModel {
                 .name = static_cast<ParamInfo::Name>(name),
                 .type = static_cast<Param::Type>(layer),
             };
+            bool valid = true;
             for (const auto curveValue :
                  parameterObject.value(QStringLiteral("curves")).toArray()) {
                 auto curve = deserializeCurve(parameter.name, curveValue.toObject());
-                if (curve)
-                    parameter.curves.append(std::move(*curve));
+                if (!curve) {
+                    valid = false;
+                    break;
+                }
+                parameter.curves.append(std::move(*curve));
             }
-            if (!parameter.curves.isEmpty() &&
+            if (valid && !parameter.curves.isEmpty() &&
                 !Automation::hasOverlappingAnchorCurves(parameter.curves)) {
                 acceptedGroups.insert(key);
                 result.append(std::move(parameter));
