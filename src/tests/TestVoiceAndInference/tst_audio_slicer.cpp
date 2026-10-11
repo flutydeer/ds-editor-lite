@@ -33,6 +33,14 @@ namespace {
 
     constexpr int SOURCE_RATE = 44100;
 
+    class TruncatedAudioFormatIO final : public talcs::AudioFormatIO {
+    public:
+        using AudioFormatIO::AudioFormatIO;
+        qint64 length() const override {
+            return AudioFormatIO::length() + SOURCE_RATE;
+        }
+    };
+
     /// Builds alternating tone passages and silences. \a pattern specifies the length of each
     /// segment in seconds, starting with a tone passage.
     std::vector<float> build(const std::vector<double> &pattern, int sampleRate = SOURCE_RATE) {
@@ -190,6 +198,22 @@ namespace {
                                                   [] { return true; }, cancelledError);
         expect(!cancelled.has_value(), "a cancelled read produces nothing");
         expect(cancelledError.isEmpty(), "a cancelled read is not an error");
+
+        // A decoder can advertise more frames than it can return. talcs pads the missing
+        // frames, so the extraction boundary must detect the short read below the resampler.
+        for (const int rate : {SOURCE_RATE, WANTED_RATE}) {
+            QFile damagedFile(path);
+            expect(damagedFile.open(QIODevice::ReadOnly), "the fixture must be readable");
+            TruncatedAudioFormatIO damagedIo(&damagedFile);
+            QString damagedError;
+            auto damaged = Extractors::prepareAudio(&damagedIo, 0, 2500.0, rate,
+                                                    [] { return false; }, damagedError);
+            expect(!damaged, "a truncated selected region must not produce analysis input");
+            expect(!damagedError.isEmpty(), "a truncated stream must explain its decode failure");
+            auto prefix = Extractors::prepareAudio(&damagedIo, 0, 500.0, rate,
+                                                   [] { return false; }, damagedError);
+            expect(prefix.has_value(), "an intact selected prefix must still work: " + damagedError);
+        }
     }
 
     /// Checks that prepareAudio() fails on a stream that was not opened. talcs rejects an unopened

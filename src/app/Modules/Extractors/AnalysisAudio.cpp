@@ -49,6 +49,7 @@ namespace Extractors {
         }
 
         const auto channels = std::max(1, io->channelCount());
+        const auto inputLength = io->length();
         const auto available = source.length();
         const auto toFrames = [sampleRate](double ms) {
             return static_cast<qint64>(std::llround(ms / 1000.0 * sampleRate));
@@ -77,8 +78,11 @@ namespace Extractors {
             const auto wanted = std::min<qint64>(CHUNK, to - at);
             buffer.clear();
             const auto read = source.read(talcs::AudioSourceReadData(&buffer, 0, wanted));
+            if (cancelled && cancelled())
+                return std::nullopt;
             if (read <= 0) {
-                break;
+                error = tr("Audio decoding stopped before the selected region ended");
+                return std::nullopt;
             }
             for (qint64 i = 0; i < read; ++i) {
                 float sum = 0;
@@ -90,8 +94,12 @@ namespace Extractors {
             at += read;
         }
 
-        if (prepared.samples.empty()) {
-            error = tr("Failed to read the audio");
+        // talcs pads a short decoder read with zeroes and still returns the requested output
+        // length. Check the decoder's cursor too, while allowing normal resampler read-ahead.
+        const auto requiredInputEnd = std::min(
+            inputLength, static_cast<qint64>(std::llround(to * io->sampleRate() / sampleRate)));
+        if (io->pos() < requiredInputEnd) {
+            error = tr("Audio decoding stopped before the selected region ended");
             return std::nullopt;
         }
         return prepared;

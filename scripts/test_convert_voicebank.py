@@ -166,7 +166,11 @@ class ConvertVoicebankTest(VoicebankFixture):
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
     def test_malformed_dependencies_leave_the_package_and_clean_staging(self):
-        for dependencies in (None, {}, "dependency", 42, [None], ["dependency"], [[]]):
+        for dependencies in (None, {}, "dependency", 42, [None], ["dependency"], [[]],
+                             [{}], [{"id": "vendor/package"}], [{"version": "1.0"}],
+                             [{"id": "bad id", "version": "1.0"}],
+                             [{"id": "vendor/package", "version": "invalid"}],
+                             [{"id": [], "version": "1.0"}]):
             with self.subTest(dependencies=dependencies):
                 desc = read_json(self.package / "desc.json")
                 desc["dependencies"] = dependencies
@@ -179,6 +183,29 @@ class ConvertVoicebankTest(VoicebankFixture):
                 self.assertEqual(original, {path.relative_to(self.package): path.read_bytes()
                                            for path in self.package.rglob("*") if path.is_file()})
                 self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
+
+    def test_dependency_versions_are_normalized(self):
+        desc = read_json(self.package / "desc.json")
+        desc["dependencies"] = [{"id": "vendor/package", "version": "1.2"}]
+        write_json(self.package / "desc.json", desc)
+        output = self.destination("out")
+        code, text = self.run_script(self.package, "--output", output)
+        self.assertEqual(code, 0, text)
+        self.assertEqual(read_json(output / "desc.json")["dependencies"],
+                         [{"id": "vendor/package", "version": "1.2.0.0"}])
+
+    def test_malformed_declaration_identifiers_report_errors(self):
+        declaration = self.package / "inferences/acoustic/config.json"
+        original = read_json(declaration)
+        for key in ("id", "class"):
+            for value in (None, [], {}, False):
+                with self.subTest(key=key, value=value):
+                    write_json(declaration, {**original, key: value})
+                    code, text = self.run_script(self.package, "--in-place")
+                    self.assertEqual(code, 1, text)
+                    self.assertNotIn("Traceback", text)
+                    self.assertEqual(read_json(declaration), {**original, key: value})
+                    self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
     def test_converts_the_package(self):
         output = self.destination("out")
@@ -323,6 +350,7 @@ class ConvertVoicebankTest(VoicebankFixture):
                                      "--packages", self.work / "installed")
         self.assertEqual(code, 1, text)
         self.assertIn("must be an object that names a path", text)
+
         self.assertNotIn("Traceback", text)
 
         write_json(installed / "desc.json", {
@@ -339,6 +367,21 @@ class ConvertVoicebankTest(VoicebankFixture):
         self.assertEqual(code, 1, text)
         self.assertIn("an import must be an object that names a ref", text)
         self.assertNotIn("Traceback", text)
+
+    def test_installed_manifest_roots_must_be_objects(self):
+        installed = self.work / "installed" / "bad"
+        installed.mkdir(parents=True)
+        for value in (None, [], 1, "manifest"):
+            with self.subTest(value=value):
+                write_json(installed / "desc.json", value)
+                original = (self.package / "desc.json").read_bytes()
+                code, text = self.run_script(self.package, "--in-place",
+                                             "--packages", self.work / "installed")
+                self.assertEqual(code, 1, text)
+                self.assertIn("package manifest must be an object", text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual((self.package / "desc.json").read_bytes(), original)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
 
 class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
@@ -422,6 +465,23 @@ class ConvertVoicebankOnsetLayerTest(VoicebankFixture):
 
     def role_of(self, linguist: Path, role: str):
         return [item["ref"] for item in read_json(linguist)["imports"] if item["role"] == role]
+
+    def test_malformed_singer_languages_report_errors_and_clean_staging(self):
+        cases = [("languages", value) for value in
+                 (None, {}, "cmn", 42, [{}], [{"id": []}], ["cmn"])]
+        cases.append(("defaultLanguage", []))
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                self.write_singer([{"id": "cmn"}])
+                declaration = self.package / "characters/singer/config.json"
+                singer = read_json(declaration)
+                singer["configuration"][field] = value
+                write_json(declaration, singer)
+                code, text = self.run_script(self.package, "--in-place")
+                self.assertEqual(code, 1, text)
+                self.assertNotIn("Traceback", text)
+                self.assertEqual(read_json(declaration), singer)
+                self.assertFalse(self.package.with_name(self.package.name + ".converting").exists())
 
     def test_multiple_singers_keep_their_own_language_resources(self):
         self.stage_files()

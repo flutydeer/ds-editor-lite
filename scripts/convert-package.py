@@ -186,7 +186,7 @@ def read_23_package(package: Path, authority, report):
     if not desc_path.is_file():
         report.error(f"{package}: no desc.json")
         return None
-    desc = authority.read_json(desc_path, report)
+    desc = authority.read_json_object(desc_path, report, "package manifest")
     if desc is None:
         return None
     if "contributes" not in desc:

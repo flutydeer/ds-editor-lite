@@ -203,6 +203,17 @@ def read_json(path: Path, report: Report):
         return None
 
 
+def read_json_object(path: Path, report: Report, what: str = "declaration"):
+    """Read object-root JSON and distinguish a JSON null from a failed read."""
+    errors = report.errors
+    value = read_json(path, report)
+    if isinstance(value, dict):
+        return value
+    if report.errors == errors:
+        report.error(f"{path}: the {what} must be an object")
+    return None
+
+
 def write_json(path: Path, value) -> None:
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -300,7 +311,7 @@ def read_model_phonemes(root: Path, contributions: dict, report: Report) -> dict
     tables = {}
     for entry in contributions.get("inference", []):
         declaration_path = root / entry["path"]
-        declaration = read_json(declaration_path, report)
+        declaration = read_json_object(declaration_path, report)
         if declaration is None:
             continue
         configuration = read_object(declaration.get("configuration", {}), report,
@@ -441,10 +452,12 @@ def read_package_index(directory: Path, report: Report) -> dict:
         desc_path = package / "desc.json"
         if not desc_path.is_file():
             continue
-        desc = read_json(desc_path, report)
+        desc = read_json_object(desc_path, report, "package manifest")
         if desc is None:
             continue
         identifier = desc.get("id", "")
+        if not check_identifier(identifier, PACKAGE_ID, "package id", report, str(desc_path)):
+            continue
         declarations = {}
         categories = read_object(desc.get("contributions", {}), report, str(desc_path),
                                  "contributions")
@@ -454,8 +467,11 @@ def read_package_index(directory: Path, report: Report) -> dict:
                     report.error(f"{desc_path}: a contributions.{category} entry must be an "
                                  f"object that names a path")
                     continue
+                if not check_identifier(entry.get("id"), SEGMENT, "contribution id", report,
+                                        str(desc_path)):
+                    continue
                 declaration_path = package / entry["path"]
-                declaration = read_json(declaration_path, report)
+                declaration = read_json_object(declaration_path, report)
                 if declaration is None:
                     continue
                 declarations[f"{category}/{entry['id']}"] = declaration
@@ -1061,20 +1077,18 @@ def dropped_configuration_keys(configuration: dict) -> set:
 
 def convert_declaration(path: Path, report: Report):
     """Rewrites one module declaration in place. Returns (id, kind), or None on failure."""
-    declaration = read_json(path, report)
-    if not isinstance(declaration, dict):
-        report.error(f"{path}: the declaration must be an object")
+    declaration = read_json_object(path, report)
+    if declaration is None:
         return None
 
     kind_name = declaration.get("class")
-    if kind_name not in CONTRACTS:
+    if not isinstance(kind_name, str) or kind_name not in CONTRACTS:
         report.error(f"{path}: unknown class {kind_name!r}")
         return None
     interface, variant, kind = CONTRACTS[kind_name]
 
     identifier = declaration.get("id")
-    if not identifier:
-        report.error(f"{path}: the declaration has no id for its package contribution")
+    if not check_identifier(identifier, SEGMENT, "contribution id", report, str(path)):
         return None
 
     # The declaration is copied and then edited instead of being rebuilt from the known keys: 2.4
@@ -1165,7 +1179,7 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
                 named.add(entry["id"])
                 listed.append(entry)
 
-    declaration = read_json(path, report)
+    declaration = read_json_object(path, report)
     if declaration is None:
         return
 
@@ -1175,8 +1189,8 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
             report.error(f"{path}: an import must be an object")
             continue
         target = entry.get("inferenceId")
-        if not target:
-            report.error(f"{path}: an import has no inferenceId")
+        if not isinstance(target, str) or not target:
+            report.error(f"{path}: an import must name an inferenceId string")
             continue
         kind = kinds.get(target)
         if kind is None:
@@ -1195,13 +1209,18 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
 
     # The 2.3 per-language G2P settings describe a system that 2.4 does not have. Carrying them
     # over would leave unread keys, so they are removed, and the affected languages are reported.
-    declared = configuration.pop("languages", [])
+    declared = read_array(configuration.pop("languages", []), report, str(path),
+                          "configuration.languages")
     default_language = configuration.pop("defaultLanguage", None)
+    if default_language is not None and not isinstance(default_language, str):
+        report.error(f"{path}: configuration.defaultLanguage must be a string")
+        default_language = None
 
     bound = {}
     for entry in declared:
-        if not isinstance(entry, dict) or not entry.get("id"):
-            report.error(f"{path}: a declared language has no id")
+        if (not isinstance(entry, dict) or not isinstance(entry.get("id"), str)
+                or not entry["id"]):
+            report.error(f"{path}: a declared language must name an id string")
             continue
         handle = entry["id"]
 
@@ -1310,12 +1329,8 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
 def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
             report: Report) -> None:
     desc_path = root / "desc.json"
-    desc = read_json(desc_path, report)
+    desc = read_json_object(desc_path, report, "package manifest")
     if desc is None:
-        return
-
-    if not isinstance(desc, dict):
-        report.error(f"{desc_path}: the package manifest must be an object")
         return
 
     contributes = desc.get("contributes")
@@ -1435,6 +1450,13 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
         if not isinstance(entry, dict):
             report.error(f"{desc_path}: a dependency must be an object")
             continue
+        if not check_identifier(entry.get("id"), PACKAGE_ID, "dependency id", report,
+                                str(desc_path)):
+            continue
+        version = four_part(entry.get("version"), report,
+                            f"{desc_path}: dependency {entry['id']}")
+        if version is None:
+            continue
         # 2.4 reads an entry as the fields the loader allows and rejects the whole package for any
         # other field: a dependency entry is validated against an allow-list of `id` and `version`
         # and the loader reports "unknown dependency field" for the first other key (synthrt
@@ -1452,7 +1474,7 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
         if entry.get("required") is False:
             report.warn(f"{root.name}: dependency {entry.get('id')!r} was optional in 2.3 and "
                         f"is required in 2.4, which does not support optional dependencies")
-        dependencies.append({key: entry[key] for key in ("id", "version") if key in entry})
+        dependencies.append({"id": entry["id"], "version": version})
     for identifier, version in sorted(required.items()):
         minimum = tuple(map(int, version.split(".")))
         for entry in dependencies:
