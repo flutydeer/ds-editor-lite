@@ -7,6 +7,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Support/Log.h>
+#include <lite/Support/JsonUtils.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QDir>
 #include <QFile>
@@ -93,6 +95,38 @@ namespace InferCacheUtils {
             QStringLiteral("infer-%1-input-%2.json").arg(category, hash),
             QStringLiteral("infer-%1-output-%2.%3").arg(category, hash, outputSuffix),
         };
+    }
+
+    JsonCacheLookup lookupJsonCache(const QString &category, const QString &cacheDirectory,
+                                   const std::function<GenericInferModel()> &buildInput,
+                                   const QString &keySuffix) {
+        const QDir directory(cacheDirectory);
+        if (!directory.exists())
+            directory.mkpath(".");
+        for (;;) {
+            const auto generation = SynthrtEngine::instance().catalogGeneration();
+            JsonCacheLookup lookup;
+            lookup.input = buildInput();
+            auto modelHash = lookup.input.hashData();
+            if (!keySuffix.isEmpty())
+                modelHash = QCryptographicHash::hash(
+                                modelHash.toUtf8() + keySuffix.toUtf8(), QCryptographicHash::Sha1)
+                                .toHex();
+            lookup.inputHash = inputHashForCurrentModels(modelHash);
+            const auto names = cacheFileNames(category, lookup.inputHash);
+            const auto inputPath = directory.filePath(names.input);
+            if (!QFile::exists(inputPath))
+                JsonUtils::save(inputPath, lookup.input.serialize());
+            lookup.outputCachePath = directory.filePath(names.output);
+            if (QFile::exists(lookup.outputCachePath)) {
+                QJsonObject object;
+                lookup.hit = JsonUtils::load(lookup.outputCachePath, object) &&
+                             lookup.output.deserialize(object);
+            }
+            if (lookup.inputHash == inputHashForCurrentModels(modelHash) &&
+                generation == SynthrtEngine::instance().catalogGeneration())
+                return lookup;
+        }
     }
 
     CacheStats scanCache(const QString &cacheDir) {

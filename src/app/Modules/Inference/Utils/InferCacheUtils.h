@@ -6,6 +6,9 @@
 #include <QStringList>
 
 #include <QList>
+#include <functional>
+
+#include "Modules/Inference/Models/GenericInferModel.h"
 
 namespace InferCacheUtils {
 
@@ -29,6 +32,19 @@ namespace InferCacheUtils {
     /// naming scheme and is used by the tasks, by the registration of their files and by the
     /// cleanup.
     CacheFileNames cacheFileNames(const QString &category, const QString &hash);
+
+    struct JsonCacheLookup {
+        GenericInferModel input;
+        GenericInferModel output;
+        QString inputHash;
+        QString outputCachePath;
+        bool hit = false;
+    };
+
+    /// Rebuilds the input and retries if the model catalog or disk revision changes during lookup.
+    JsonCacheLookup lookupJsonCache(const QString &category, const QString &cacheDirectory,
+                                   const std::function<GenericInferModel()> &buildInput,
+                                   const QString &keySuffix = {});
 
     struct CacheFileInfo {
         QString fileName;

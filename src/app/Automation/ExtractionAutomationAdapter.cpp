@@ -348,7 +348,7 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            input.analyzer = options->general()->pitchAnalyzer;
+            input.analyzer = options->general()->pitchAnalyzer.trimmed();
             // options.model_id contains an analyzer reference as listed in the capability report.
             // Only the configured analyzer runs, so a different reference is rejected rather than
             // silently ignored.
@@ -378,7 +378,7 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            input.analyzer = options->general()->noteAnalyzer;
+            input.analyzer = options->general()->noteAnalyzer.trimmed();
             if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),

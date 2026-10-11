@@ -210,8 +210,9 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
 
     // The bundled package supplies valid analyzer declarations. No attempt opens their models:
     // these cases stop during source snapshotting or cancellation.
-    modelPath = pitch ? QStringLiteral("ci-fixture:inference/fixture-f0")
-                      : QStringLiteral("ci-fixture:inference/fixture-note");
+    const auto analyzerReference = pitch ? QStringLiteral("ci-fixture:inference/fixture-f0")
+                                         : QStringLiteral("ci-fixture:inference/fixture-note");
+    modelPath = QStringLiteral(" \t") + analyzerReference + QStringLiteral("\n ");
     int modelTasks = 0;
     QObject observations;
     connect(taskManager, &TaskManager::taskChanged, &observations,
@@ -228,6 +229,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         input.sourceAsset.pathInfo.sha512 = digest;
         const auto prepared = prepare(input);
         QVERIFY(prepared);
+        QCOMPARE(prepared.get().input.analyzer, analyzerReference);
         QVERIFY(QFile::remove(detachedSource));
         struct Outcome {
             std::optional<ExtractionBackendState> state;

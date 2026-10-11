@@ -27,6 +27,7 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/Support/JsonUtils.h>
 #include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
@@ -239,6 +240,48 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
         QCOMPARE(target->acousticInferStatus.get(), Success);
         QVERIFY(QFileInfo::exists(target->audioPath));
     }
+}
+
+void ApplicationWorkflowTests::jsonCacheLookupRetriesAcrossModelReload_data() {
+    QTest::addColumn<QString>("category");
+    for (const auto *category : {"duration", "pitch", "variance"})
+        QTest::newRow(category) << QString::fromLatin1(category);
+}
+
+void ApplicationWorkflowTests::jsonCacheLookupRetriesAcrossModelReload() {
+    QFETCH(QString, category);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto input =
+        InferControllerHelper::buildInferDurInput(*piece, piece->identifier).toEngineModel();
+    const auto suffix = category == QStringLiteral("variance")
+                            ? QStringLiteral(":variance-output-v2") : QString();
+    const auto build = [&] { return input; };
+    const auto first = InferCacheUtils::lookupJsonCache(category, directory.path(), build, suffix);
+    QVERIFY(!first.hit);
+    QVERIFY(JsonUtils::save(first.outputCachePath, input.serialize()));
+    QVERIFY(InferCacheUtils::lookupJsonCache(category, directory.path(), build, suffix).hit);
+    int builds = 0;
+    bool reloaded = false;
+    const auto duringReload = InferCacheUtils::lookupJsonCache(
+        category, directory.path(),
+        [&] {
+            if (++builds == 1)
+                reloaded = bool(packageManager->refreshInstalledPackages(
+                    appOptions->general()->packageSearchPaths));
+            return input;
+        },
+        suffix);
+    QVERIFY(reloaded);
+    QCOMPARE(builds, 2);
+    QVERIFY(!duringReload.hit);
+    QVERIFY(duringReload.inputHash != first.inputHash);
+    QVERIFY(QFile::exists(first.outputCachePath));
+    QVERIFY(JsonUtils::save(duringReload.outputCachePath, input.serialize()));
+    QVERIFY(InferCacheUtils::lookupJsonCache(category, directory.path(), build, suffix).hit);
 }
 
 void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
