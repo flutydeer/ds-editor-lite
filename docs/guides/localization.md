@@ -232,9 +232,10 @@ Qt 标准控件的中文翻译在构建时通过 `MERGE_QT_TRANSLATIONS` 合入�
 - [`src/app/Utils/UiLanguageManager.*`](../../src/app/Utils/UiLanguageManager.cpp)：语言解析和 translator 生命周期；
 - [`src/app/Model/AppOptions/Options/GeneralOption.*`](../../src/app/Model/AppOptions/Options/GeneralOption.cpp)：语言偏好持久化；
 - [`src/app/UI/Dialogs/Options/Pages/GeneralPage.*`](../../src/app/UI/Dialogs/Options/Pages/GeneralPage.cpp)：语言设置入口；
-- [`src/app/Modules/History/ActionSequence.*`](../../src/app/Modules/History/ActionSequence.cpp)：长期撤销历史名称的动态翻译；
+- [`src/libs/History/ActionSequence.*`](../../src/libs/History/ActionSequence.cpp)：长期撤销历史名称的动态翻译。
 - [`src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp`](../../src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp)：未命名工程的语义状态与动态翻译；
 - [`src/app/Resources/translate/translation_zh_CN.ts`](../../src/app/Resources/translate/translation_zh_CN.ts)：简体中文翻译源；
 - [`src/app/CMakeLists.txt`](../../src/app/CMakeLists.txt)：TS/QM 生成、资源嵌入和 Windows 部署规则；
-- [`src/tests/TestUiLanguage/main.cpp`](../../src/tests/TestUiLanguage/main.cpp)：语言解析和配置测试；
-- [`src/tests/TestDocumentWorkflow/main.cpp`](../../src/tests/TestDocumentWorkflow/main.cpp)：未命名工程和撤销历史的动态翻译测试。
+- [`src/tests/TestPreferences/tst_ui_language.cpp`](../../src/tests/TestPreferences/tst_ui_language.cpp)：语言解析、回退、配置和数字格式测试。
+- [`src/tests/TestDocumentIO/tst_history_and_paths.cpp`](../../src/tests/TestDocumentIO/tst_history_and_paths.cpp)：撤销历史名称的动态翻译和文档路径测试。
+- [`src/tests/TestApplicationGui/tst_settings_pages.cpp`](../../src/tests/TestApplicationGui/tst_settings_pages.cpp)：界面语言往返热切换及工程、选择和历史保留测试。
