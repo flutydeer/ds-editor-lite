@@ -97,6 +97,9 @@ void ApplicationServicesTests::lyricRuleCreation() {
     QFETCH(bool, tagger);
     ApplicationHarness harness;
     harness.lyricRulesSnapshot = {builtinSplitter()};
+    const auto originalSettings = harness.settings;
+    const auto version = harness.core().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
     Automation::LyricRuleDraftDto draft{
         .kind = tagger ? Automation::LyricRuleKind::Tagger : Automation::LyricRuleKind::Splitter,
         .name = QStringLiteral("custom"),
@@ -108,6 +111,16 @@ void ApplicationServicesTests::lyricRuleCreation() {
                           : QList<Automation::TaggerEntryDto>(),
         .position = 0,
     };
+    harness.settingsApplySucceeds = false;
+    const auto failed = harness.core().settings().createLyricRule(applicationContext(), draft);
+    harness.settingsApplySucceeds = true;
+    QVERIFY(!failed);
+    QCOMPARE(failed.getError().code, Automation::AutomationErrorCode::IoError);
+    QCOMPARE(failed.getError().operationId, Automation::OperationIds::settings::update_fill_lyric);
+    QCOMPARE(harness.settings, originalSettings);
+    QCOMPARE(harness.lyricWrites, 0);
+    QCOMPARE(harness.core().documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
     const auto created = harness.core().settings().createLyricRule(applicationContext(), draft);
     QVERIFY(created);
     QVERIFY(created.get().changed);
@@ -132,8 +145,6 @@ void ApplicationServicesTests::lyricRuleCreation() {
     }
     harness.lyricRulesSnapshot.prepend(created.get().rule);
     const auto persisted = harness.settings;
-    const auto version = harness.core().documentVersion();
-    const auto *undo = HistoryManager::instance()->nextUndoEntry();
     const auto verifyDuplicate = [&](const Automation::LyricRuleDraftDto &duplicate,
                                      const QString &field) {
         const auto result =
@@ -221,6 +232,27 @@ void ApplicationServicesTests::lyricRuleEnableAndOrder() {
     QCOMPARE(harness.settings.fillLyric.splitterOrder,
              (QStringList{QStringLiteral("custom"), QStringLiteral("builtin")}));
     QCOMPARE(harness.lyricWrites, 2);
+
+    Automation::LyricRuleDto builtinTagger{
+        .ruleId = QStringLiteral("builtin-tagger-eng"),
+        .kind = Automation::LyricRuleKind::Tagger,
+        .builtin = true,
+        .name = QStringLiteral("builtin"),
+        .language = QStringLiteral("eng"),
+        .enabled = true,
+    };
+    harness.lyricRulesSnapshot.append(builtinTagger);
+    const auto disabledTagger =
+        settings.setLyricRuleEnabled(applicationContext(), builtinTagger.ruleId, false);
+    QVERIFY(disabledTagger && disabledTagger.get().changed);
+    QCOMPARE(disabledTagger.get().rule.ruleId, builtinTagger.ruleId);
+    QVERIFY(!disabledTagger.get().rule.enabled);
+    QVERIFY(!harness.settings.fillLyric.builtinTaggerEnabled.value(QStringLiteral("eng"), true));
+    harness.lyricRulesSnapshot.last() = disabledTagger.get().rule;
+    const auto repeated =
+        settings.setLyricRuleEnabled(applicationContext(), builtinTagger.ruleId, false);
+    QVERIFY(repeated && !repeated.get().changed);
+    QCOMPARE(harness.lyricWrites, 3);
 }
 
 void ApplicationServicesTests::invalidLyricRuleEdits_data() {
@@ -270,6 +302,28 @@ void ApplicationServicesTests::lyricRuleDeletion() {
     QVERIFY(harness.settings.fillLyric.customSplitterRules.isEmpty());
     QVERIFY(harness.settings.fillLyric.customTaggerRules.isEmpty());
     QCOMPARE(harness.lyricWrites, 1);
+    harness.lyricRulesSnapshot.removeIf(
+        [&](const auto &entry) { return entry.ruleId == rule.ruleId; });
+    const auto persisted = harness.settings;
+    const auto version = harness.core().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    const auto attempts = harness.settingsWriteAttempts;
+    auto &settings = harness.core().settings();
+    const auto verifyDeleted = [](const auto &result) {
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code, Automation::AutomationErrorCode::NotFound);
+        QCOMPARE(result.getError().fieldPath, QStringLiteral("rule_id"));
+    };
+    verifyDeleted(settings.updateLyricRule(applicationContext(), rule.ruleId,
+                                           {.name = QStringLiteral("renamed")}));
+    verifyDeleted(settings.setLyricRuleEnabled(applicationContext(), rule.ruleId, false));
+    verifyDeleted(settings.moveLyricRule(applicationContext(), rule.ruleId, 0));
+    verifyDeleted(settings.deleteLyricRule(applicationContext(), rule.ruleId));
+    QCOMPARE(harness.settings, persisted);
+    QCOMPARE(harness.settingsWriteAttempts, attempts);
+    QCOMPARE(harness.lyricWrites, 1);
+    QCOMPARE(harness.core().documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }
 
 void ApplicationServicesTests::lyricRuleHostValidationFailure() {
