@@ -88,6 +88,26 @@ class VoicebankArchiveToolsTest(unittest.TestCase):
             with mock.patch.dict(control.__globals__, sha512_of=lambda _: "0" * 128):
                 self.assertFalse(control(temporary))
 
+    def test_comparison_replaces_a_same_sized_bad_cached_archive(self):
+        module = runpy.run_path(str(TOOLS / "compare-wolf-releases.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.zip"
+            source.write_bytes(b"good")
+            folder = root / "tag"
+            folder.mkdir()
+            cached = folder / "wolf-fixture-1.0.0.0.zip"
+            cached.write_bytes(b"bad!")
+            expected = hashlib.sha256(b"good").hexdigest()
+            asset = {"name": cached.name, "size": 4, "digest": "sha256:" + expected,
+                     "browser_download_url": source.as_uri()}
+            path, actual, advertised = module["ensure_archive"](root, "tag", asset)
+            self.assertEqual(Path(path).read_bytes(), b"good")
+            self.assertEqual(actual, expected)
+            self.assertEqual(advertised, expected)
+            asset["browser_download_url"] = "invalid://must-not-download"
+            self.assertEqual(module["ensure_archive"](root, "tag", asset)[1], expected)
+
     def test_fetch_report_cannot_replace_an_archive_or_authority(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -70,7 +70,9 @@ def ensure_archive(cache, tag, asset):
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, asset["name"])
     expected = (asset.get("digest") or "").replace("sha256:", "")
-    if not os.path.exists(path) or os.path.getsize(path) != asset["size"]:
+    actual = sha256_file(path) if os.path.isfile(path) else ""
+    if (not os.path.isfile(path) or os.path.getsize(path) != asset["size"]
+            or (expected and actual != expected)):
         req = urllib.request.Request(asset["browser_download_url"], headers={"User-Agent": "wolf-release-audit"})
         with urllib.request.urlopen(req, timeout=600) as resp, open(path, "wb") as handle:
             while True:
@@ -78,7 +80,7 @@ def ensure_archive(cache, tag, asset):
                 if not chunk:
                     break
                 handle.write(chunk)
-    actual = sha256_file(path)
+        actual = sha256_file(path)
     return path, actual, expected
 
 

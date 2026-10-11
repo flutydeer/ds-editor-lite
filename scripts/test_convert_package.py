@@ -34,6 +34,20 @@ class ConvertPackageTest(VoicebankFixture):
         self.assertIn("contribution(s) verified", text)
         self.assertTrue((output / "desc.json").is_file())
 
+    def test_rejects_non_object_manifest_roots_before_creating_output(self):
+        for value in (None, [], 1, "contributes", False):
+            with self.subTest(value=value):
+                manifest = self.package / "desc.json"
+                manifest.write_text(json.dumps(value), encoding="utf-8")
+                original = manifest.read_bytes()
+                output = self.destination("out")
+                code, text = self.run_wrapper(self.package, "--output", output)
+                self.assertEqual(code, 1, text)
+                self.assertIn("package manifest must be an object", text)
+                self.assertNotIn("Traceback", text)
+                self.assertFalse(output.exists())
+                self.assertEqual(manifest.read_bytes(), original)
+
     def test_refuses_an_existing_destination_without_touching_it(self):
         output = self.destination("out")
         output.mkdir(parents=True)
