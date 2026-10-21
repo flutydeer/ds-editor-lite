@@ -10,6 +10,8 @@ class AutomationProtocolTests final : public QObject {
 private slots:
     void openRpcContracts();
     void openRpcSchemaConversion();
+    void openRpcHttpDiscovery_data();
+    void openRpcHttpDiscovery();
     void canonicalJsonEncoding();
     void jsonSchema();
     void schemaValueDiagnostics_data();

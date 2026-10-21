@@ -1235,8 +1235,8 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="252"/>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="435"/>
-        <source>Limits MCP file access, such as opening, importing, saving, and exporting, to the listed folders</source>
-        <translation>将 MCP 的打开、导入、保存、导出等文件访问限制在所列文件夹内</translation>
+        <source>Limits automation file access, such as opening, importing, saving, and exporting, to the listed folders</source>
+        <translation>将自动化接口的打开、导入、保存、导出等文件访问限制在所列文件夹内</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="254"/>
@@ -1270,8 +1270,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="322"/>
-        <source>Enable MCP Server</source>
-        <translation>启用 MCP 服务器</translation>
+        <source>Enable Server</source>
+        <translation>启用服务器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="330"/>
@@ -1297,6 +1297,22 @@
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="347"/>
         <source>Connection Configurations</source>
         <translation>连接配置</translation>
+    </message>
+    <message>
+        <source>JSON-RPC</source>
+        <translation>JSON-RPC</translation>
+    </message>
+    <message>
+        <source>Copy API Description URL</source>
+        <translation>复制接口描述地址</translation>
+    </message>
+    <message>
+        <source>API description URL copied</source>
+        <translation>接口描述地址已复制</translation>
+    </message>
+    <message>
+        <source>Call automation methods directly, with an OpenRPC API description</source>
+        <translation>直接调用自动化接口，并提供 OpenRPC 接口描述</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="365"/>

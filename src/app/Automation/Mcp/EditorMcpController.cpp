@@ -37,7 +37,7 @@ namespace Automation {
         AutomationHttpRoutes desiredRoutes(const AppHostMode hostMode, const bool mcpEnabled) {
             return {
                 .mcp = mcpEnabled,
-                .native = hostMode == AppHostMode::Headless,
+                .native = mcpEnabled || hostMode == AppHostMode::Headless,
             };
         }
     }
@@ -86,7 +86,8 @@ namespace Automation {
         m_registry = std::make_unique<PublicAutomationRegistry>(
             runtime, m_accessPolicy, m_fileGuard, m_admissionController, std::move(hostServices));
         m_dispatcher = std::make_unique<McpRequestDispatcher>(*m_registry, editorServerInfo());
-        m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(*m_registry);
+        m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(
+            *m_registry, [this] { return nativeEndpoint(); });
         m_server = std::make_unique<McpHttpServer>(
             this,
             [this](const AutomationWire::Mcp::RequestEnvelope &request, const QString &clientId) {

@@ -229,12 +229,7 @@ namespace AutomationWire {
                 {QStringLiteral("errors"),
                  QJsonArray{QJsonObject{
                      {QStringLiteral("code"), -32000},
-                     {QStringLiteral("message"), QStringLiteral("Automation operation failed")},
-                     {QStringLiteral("x-ds-description"),
-                      QStringLiteral(
-                          "The response message describes the failure. error.data.code identifies "
-                          "the automation error. Invalid arguments use -32602, internal errors use "
-                          "-32603.")}}}},
+                     {QStringLiteral("message"), QStringLiteral("Automation operation failed")}}}},
                 {QStringLiteral("x-ds-input-schema"), contract.inputSchema},
                 {QStringLiteral("x-ds-tool"),
                  mcp.value(QStringLiteral("_meta"))

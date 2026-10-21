@@ -4,13 +4,16 @@
 #include <QJsonObject>
 #include <QJsonValue>
 
+#include <functional>
+
 namespace Automation {
 
     class PublicAutomationRegistry;
 
     class NativeJsonRpcDispatcher final {
     public:
-        explicit NativeJsonRpcDispatcher(PublicAutomationRegistry &registry);
+        explicit NativeJsonRpcDispatcher(PublicAutomationRegistry &registry,
+                                         std::function<QString()> endpoint = {});
 
         [[nodiscard]] QJsonObject dispatch(const QJsonValue &message,
                                            const QString &clientId) const;
@@ -19,6 +22,7 @@ namespace Automation {
 
     private:
         PublicAutomationRegistry &m_registry;
+        std::function<QString()> m_endpoint;
     };
 
 } // namespace Automation

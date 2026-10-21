@@ -966,12 +966,25 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     QVERIFY(page);
     auto *endpointCopy = page->findChild<Button *>("automationStreamableHttpEndpointCopyButton");
     auto *configCopy = page->findChild<Button *>("automationStreamableHttpConfigurationCopyButton");
+    auto *jsonRpcCopy = page->findChild<Button *>("automationJsonRpcEndpointCopyButton");
+    auto *descriptionCopy = page->findChild<Button *>("automationOpenRpcUrlCopyButton");
+    QVERIFY(jsonRpcCopy && descriptionCopy);
     auto *enabled = page->findChild<SwitchButton *>();
     auto *portEditor = page->findChild<QSpinBox *>();
     QVERIFY(enabled && portEditor);
     const auto configuredEndpoint = [&] {
         return QStringLiteral("http://127.0.0.1:%1/mcp").arg(options->controlPort);
     };
+    const auto configuredNativeEndpoint = [&] {
+        return QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(options->controlPort);
+    };
+    const auto checkNativeCopies = [&] {
+        clickOption(page, jsonRpcCopy);
+        QCOMPARE(QApplication::clipboard()->text(), configuredNativeEndpoint());
+        clickOption(page, descriptionCopy);
+        QCOMPARE(QApplication::clipboard()->text(), configuredNativeEndpoint() + "/openrpc.json");
+    };
+    checkNativeCopies();
     clickOption(page, endpointCopy);
     if (QTest::currentTestFailed())
         return;
@@ -1002,6 +1015,7 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
     QVERIFY(!visibleText(error));
     QCOMPARE(qApp->property(EndpointProperty).toString(), configuredEndpoint());
+    QCOMPARE(controller.nativeEndpoint(), configuredNativeEndpoint());
 
     QNetworkAccessManager network;
     network.setProxy(QNetworkProxy::NoProxy);
@@ -1043,6 +1057,30 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
                          .toString(),
                      QStringLiteral("permission_denied"));
         }
+        QNetworkRequest nativeRequest{QUrl(configuredNativeEndpoint())};
+        nativeRequest.setHeader(QNetworkRequest::ContentTypeHeader,
+                                QStringLiteral("application/json"));
+        nativeRequest.setRawHeader("Accept", "application/json");
+        const QJsonObject nativeMessage{
+            {"jsonrpc", "2.0"                                                     },
+            {"id",      1                                                         },
+            {"method",  "tracks.list"                                             },
+            {"params",  QJsonObject{{"document_id", before.documentId.toString()}}},
+        };
+        const QScopedPointer<QNetworkReply> nativeReply(network.post(
+            nativeRequest, QJsonDocument(nativeMessage).toJson(QJsonDocument::Compact)));
+        QTRY_VERIFY(nativeReply->isFinished());
+        QCOMPARE(nativeReply->error(), QNetworkReply::NoError);
+        const auto nativeResponse = QJsonDocument::fromJson(nativeReply->readAll()).object();
+        QCOMPARE(nativeResponse.contains("result"), allowed);
+        if (!allowed)
+            QCOMPARE(nativeResponse.value("error")
+                         .toObject()
+                         .value("data")
+                         .toObject()
+                         .value("code")
+                         .toString(),
+                     QStringLiteral("permission_denied"));
     };
     checkTrackAccess(true);
     if (QTest::currentTestFailed())
@@ -1081,6 +1119,8 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     QTRY_COMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerReady);
     QTRY_COMPARE(qApp->property(EndpointProperty).toString(), configuredEndpoint());
     QCOMPARE(options->controlPort, newPort);
+    QCOMPARE(controller.nativeEndpoint(), configuredNativeEndpoint());
+    checkNativeCopies();
     checkTrackAccess(true);
     if (QTest::currentTestFailed())
         return;
@@ -1103,6 +1143,7 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     QTRY_COMPARE(coordinator.automationState().state,
                  SingleInstanceAutomationState::ServerDisabled);
     QVERIFY(qApp->property(EndpointProperty).toString().isEmpty());
+    QVERIFY(controller.nativeEndpoint().isEmpty());
     QTcpServer stoppedPort;
     QVERIFY(stoppedPort.listen(QHostAddress::LocalHost, newPort));
 
@@ -1115,6 +1156,7 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     if (QTest::currentTestFailed())
         return;
     QVERIFY(options->controlPort != newPort);
+    checkNativeCopies();
     clickOption(page, endpointCopy);
     if (QTest::currentTestFailed())
         return;

@@ -9,6 +9,7 @@
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/AutomationWire/OpenRpc.h>
 #include <lite/ProductMetadata.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
@@ -34,6 +35,7 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QUrl>
 
 #include <algorithm>
 #include <utility>
@@ -269,7 +271,8 @@ void AutomationPage::modifyOption() {
     if (m_accessRootsItem) {
         m_accessRootsItem->setDescription(
             invalidAccessRoots.isEmpty()
-                ? tr("Limits MCP file access, such as opening, importing, saving, and exporting, "
+                ? tr("Limits automation file access, such as opening, importing, saving, and "
+                     "exporting, "
                      "to the listed folders")
                 : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidAccessRoots.join(QStringLiteral(", "))));
@@ -350,7 +353,7 @@ QWidget *AutomationPage::createContentWidget() {
     connect(m_controlLevel, &ComboBox::currentIndexChanged, this, &AutomationPage::modifyOption);
 
     m_serverCard = new OptionListCard(tr("Local Server"));
-    m_serverCard->addItem(tr("Enable MCP Server"),
+    m_serverCard->addItem(tr("Enable Server"),
                           settingDescription({}, m_effectiveConfig.mcpEnabledSource), m_mcpEnabled);
     auto *controlPortControl = new QWidget;
     auto *controlPortLayout = new QHBoxLayout(controlPortControl);
@@ -424,6 +427,27 @@ QWidget *AutomationPage::createContentWidget() {
         tr("Streamable HTTP"), tr("Connects directly to the editor's configured MCP endpoint"),
         QList<QWidget *>{streamableHttpEndpointCopyButton, streamableHttpCopyButton});
 
+    const auto jsonRpcUrl = [this](const char *path) {
+        QUrl url(currentMcpEndpoint());
+        url.setPath(QString::fromLatin1(path));
+        return url.toString();
+    };
+    auto *jsonRpcEndpointCopyButton = new Button(tr("Copy Endpoint"));
+    jsonRpcEndpointCopyButton->setObjectName(QStringLiteral("automationJsonRpcEndpointCopyButton"));
+    connect(jsonRpcEndpointCopyButton, &Button::clicked, this, [jsonRpcUrl] {
+        QGuiApplication::clipboard()->setText(jsonRpcUrl(AutomationWire::NativeRpcPath));
+        Toast::show(tr("Endpoint copied"));
+    });
+    auto *openRpcUrlCopyButton = new Button(tr("Copy API Description URL"));
+    openRpcUrlCopyButton->setObjectName(QStringLiteral("automationOpenRpcUrlCopyButton"));
+    connect(openRpcUrlCopyButton, &Button::clicked, this, [jsonRpcUrl] {
+        QGuiApplication::clipboard()->setText(jsonRpcUrl(AutomationWire::OpenRpcDocumentPath));
+        Toast::show(tr("API description URL copied"));
+    });
+    connectionCard->addItem(tr("JSON-RPC"),
+                            tr("Call automation methods directly, with an OpenRPC API description"),
+                            QList<QWidget *>{jsonRpcEndpointCopyButton, openRpcUrlCopyButton});
+
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
     m_customCategoryHeaderItems.clear();
@@ -462,11 +486,12 @@ QWidget *AutomationPage::createContentWidget() {
         accessControlCard->addItem(tr("Custom Toolset"), QString{},
                                    QList<QWidget *>{importControlLevelButton, openToolsetButton});
     refreshCustomToolsetSummary();
-    m_accessRootsItem = accessControlCard->addItem(
-        tr("File Access Permissions"),
-        tr("Limits MCP file access, such as opening, importing, saving, and exporting, to the "
-           "listed folders"),
-        m_accessRoots);
+    m_accessRootsItem =
+        accessControlCard->addItem(tr("File Access Permissions"),
+                                   tr("Limits automation file access, such as opening, importing, "
+                                      "saving, and exporting, to the "
+                                      "listed folders"),
+                                   m_accessRoots);
     m_accessRootsItem->setTextAreaAlignment(Qt::AlignTop);
 
     const auto accessControlSection = new QWidget;
