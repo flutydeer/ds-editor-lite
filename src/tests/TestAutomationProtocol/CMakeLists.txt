@@ -5,6 +5,7 @@ lite_add_test(${PROJECT_NAME}
         test_main.cpp
         tst_automation_protocol.h
         tst_wire.cpp
+        tst_openrpc.cpp
         tst_registry.cpp
         tst_public_workflows.cpp
         tst_http.cpp

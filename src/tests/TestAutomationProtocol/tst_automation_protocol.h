@@ -8,6 +8,8 @@ class AutomationProtocolTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void openRpcContracts();
+    void openRpcSchemaConversion();
     void canonicalJsonEncoding();
     void jsonSchema();
     void schemaValueDiagnostics_data();
