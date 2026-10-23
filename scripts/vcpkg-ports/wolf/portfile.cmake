@@ -10,7 +10,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/wolf.git
-    REF eda2b4880da39dee9d9e9cfd7e04caaf951993e7
+    REF ccb0bd1f46b60c96497e18cba8241f2380e2f169
     HEAD_REF spec2.4-uptake
 )
 
