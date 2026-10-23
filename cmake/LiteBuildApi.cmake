@@ -479,7 +479,7 @@ function(lite_deploy_application _target)
         )
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh
-                --normalize --pattern=lib*.so --except=libonnxruntime*.so
+                --normalize --pattern=lib*.so* --except=libonnxruntime*.so*
                 $<TARGET_FILE_DIR:${_target}>/../lib
                 $<TARGET_FILE_DIR:${_target}>/../lib
             COMMENT "Fix deployed plugin RPATHs"

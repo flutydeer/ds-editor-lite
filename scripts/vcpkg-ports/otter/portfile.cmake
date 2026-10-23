@@ -1,16 +1,10 @@
 # otter provides analyzer interpreters. Model packages are installed separately.
 
-set(_otter_platform_patches)
-if(VCPKG_TARGET_IS_OSX)
-    list(APPEND _otter_platform_patches macos-pipe-nosigpipe.patch)
-endif()
-
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/otter.git
-    REF e770ab94ac0a27a31c6cec502aeac765c9db70ef
+    REF 95e58bfc4dff9152807600368fd35d12e5183a09
     HEAD_REF spec2.4-uptake
-    PATCHES ${_otter_platform_patches}
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -46,5 +40,10 @@ file(REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/debug/share"
 )
 
-vcpkg_copy_pdbs()
+vcpkg_copy_pdbs(BUILD_PATHS
+    "${CURRENT_PACKAGES_DIR}/bin/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/bin/*.dll"
+    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+)
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")

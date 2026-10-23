@@ -231,6 +231,23 @@ int runAnalyzerPackages() {
 
     // Reuse preserves unchanged identities; explicit reload always republishes.
     const auto generation = engine->catalogGeneration();
+    const auto analyzersBeforeFailure = engine->analyzers().size();
+    for (const bool allocationFailure : {false, true}) {
+        const auto failReload = QObject::connect(
+            engine, &SynthrtEngine::voicebanksAboutToReload, engine,
+            [allocationFailure] {
+                if (allocationFailure)
+                    throw std::bad_alloc();
+                throw fs::filesystem_error("refresh failed", std::make_error_code(std::errc::io_error));
+            }, Qt::DirectConnection);
+        const auto disconnect = qScopeGuard([&] { QObject::disconnect(failReload); });
+        const auto rejected = engine->refreshVoicebanks({scanRoot});
+        expect(!rejected, "refresh exceptions must return an error to the caller");
+        expect(engine->catalogGeneration() == generation,
+               "a rejected refresh must retain the published generation");
+        expect(engine->analyzers().size() == analyzersBeforeFailure,
+               "a rejected refresh must retain its previous packages");
+    }
     {
         const auto reused = engine->refreshVoicebanks(
             {scanRoot}, nullptr, SynthrtEngine::RescanMode::ReuseLoaded);

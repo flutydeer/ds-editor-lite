@@ -132,34 +132,42 @@ void InferAcousticTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    const auto cache = lookupCache(m_input, m_cacheDirectory);
-    m_inputHash = cache.inputHash;
-    if (!QFile::exists(cache.inputCachePath))
-        JsonUtils::save(cache.inputCachePath, cache.model.serialize());
+    while (!isTerminateRequested()) {
+        const auto cache = lookupCache(m_input, m_cacheDirectory);
+        m_inputHash = cache.inputHash;
+        if (!QFile::exists(cache.inputCachePath))
+            JsonUtils::save(cache.inputCachePath, cache.model.serialize());
+        if (!cache.isCurrent())
+            continue;
 
-    QString errorMessage;
-    if (cache.hit) {
-        qInfo() << "Use cached acoustic inference result:" << cache.outputCachePath;
-    } else {
-        qCDebug(logInferTask) << "acoustic inference cache not found. Running inference...";
+        QString errorMessage;
+        if (cache.hit) {
+            qInfo() << "Use cached acoustic inference result:" << cache.outputCachePath;
+        } else {
+            qCDebug(logInferTask) << "acoustic inference cache not found. Running inference...";
+            if (isTerminateRequested()) {
+                abort();
+                return;
+            }
+            if (!runInference(cache.model, cache.outputCachePath, errorMessage)) {
+                qCritical() << "Task failed:" << errorMessage;
+                return;
+            }
+        }
+
         if (isTerminateRequested()) {
             abort();
             return;
         }
-        if (!runInference(cache.model, cache.outputCachePath, errorMessage)) {
-            qCritical() << "Task failed:" << errorMessage;
-            return;
-        }
-    }
-
-    if (isTerminateRequested()) {
-        abort();
+        if (!cache.isCurrent())
+            continue;
+        m_result = cache.outputCachePath;
+        m_success.store(true, std::memory_order_release);
+        qInfo() << "Success:"
+                << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
         return;
     }
-    m_result = cache.outputCachePath;
-    m_success.store(true, std::memory_order_release);
-    qInfo() << "Success:"
-            << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
+    abort();
 }
 
 bool InferAcousticTask::runInference(const GenericInferModel &model, const QString &outputPath,

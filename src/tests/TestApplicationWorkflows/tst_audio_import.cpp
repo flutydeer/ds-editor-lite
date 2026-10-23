@@ -9,6 +9,7 @@
 #include "Modules/Extractors/ExtractMidiTask.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -26,6 +27,7 @@
 #include <QtTest>
 
 #include <algorithm>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -34,6 +36,24 @@
 using namespace Automation;
 
 namespace {
+    class EmptyResultExtractTask final : public ExtractTask {
+    public:
+        using ExtractTask::ExtractTask;
+        bool placed = false;
+        bool analysed = false;
+
+        void runTask() override {
+            namespace F0 = otter::Api::F0::L1;
+            runAnalysis<F0::F0Executive, F0::F0Schema>(
+                QStringLiteral("pitch"),
+                [this](auto &, const auto &, auto) -> srt::Expected<std::shared_ptr<F0::F0Result>> {
+                    analysed = true;
+                    return std::shared_ptr<F0::F0Result>{};
+                },
+                [this](const auto &) { placed = true; });
+        }
+    };
+
     bool writeAudio(const QString &path) {
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly))
@@ -65,6 +85,40 @@ namespace {
             .clientRef = clientRef
         };
     }
+}
+
+void ApplicationWorkflowTests::extractionRejectsEmptyAnalyzerResult() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto root = files.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    // The fake start callback does not execute the graph, but analyzer creation needs a valid ONNX.
+    const auto model = QDir(root).filePath(QStringLiteral("test-placeholder.onnx"));
+    QVERIFY(QFile::remove(model));
+    QVERIFY(QFile::copy(QDir(root).filePath(QStringLiteral("inferences/acoustic/acoustic.onnx")), model));
+    const auto originalPaths = appOptions->general()->packageSearchPaths;
+    const auto restorePackages = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    QVERIFY(packageManager->refreshInstalledPackages({root}));
+    const auto path = files.filePath(QStringLiteral("audio.wav"));
+    QVERIFY(writeAudio(path));
+    ExtractTask::Input input;
+    input.audioPath = path;
+    input.analyzer = QStringLiteral("ci-fixture:inference/fixture-f0");
+    input.audioVisibleEndMs = 100;
+    EmptyResultExtractTask task(input);
+    task.runTask();
+    QVERIFY2(task.analysed, qPrintable(task.errorMessage()));
+    QVERIFY(!task.placed);
+    QCOMPARE(task.errorCode(), ExtractTask::ErrorCode::ModelRunFailed);
+    QCOMPARE(task.errorMessage(), QStringLiteral("The analyzer returned no result"));
 }
 
 void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {

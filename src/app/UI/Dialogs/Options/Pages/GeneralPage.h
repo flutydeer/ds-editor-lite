@@ -28,12 +28,9 @@ private:
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;
-    QMap<QString, QString> m_defaultLyrics;
     /// Baseline displayed text used to distinguish an actual edit from an unchanged effective
     /// value.
     QString m_displayedLyric;
-    /// Original entry restored when an edit returns to the baseline text.
-    QString m_storedLyric;
     /// Sparse language edits; empty values remove overrides.
     QMap<QString, QString> m_pendingLyrics;
 

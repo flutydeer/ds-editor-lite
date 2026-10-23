@@ -19,7 +19,7 @@
 
 具体提交、features 和资源摘要分别以各端口的 `portfile.cmake`、`vcpkg.json`、
 `assets.cmake` 为准。依赖安装目录是 `vcpkg/installed`，与 presets 保持一致。
-otter 的 macOS 管道补丁仍由端口应用，固定版本尚需该兼容适配。
+otter 固定版本已包含 macOS 管道修复，端口不再应用本地管道补丁。
 
 ## 2. 模型包与资源
 

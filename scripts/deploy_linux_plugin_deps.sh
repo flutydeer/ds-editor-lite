@@ -33,66 +33,83 @@ find_source() {
     return 1
 }
 
-# Preserve the symlink chain from the soname to the versioned library.
+# Track only files this script deploys. Older records also contain a source digest.
+RECORD="$DEPLOY_DIR/.plugin-deps"
+touch "$RECORD"
+declare -A managed=() used=() visited=()
+
+# Include every symlink and its final versioned library in ownership tracking.
+chain_files() {
+    local path="$1" link
+    while :; do
+        basename "$path"
+        [ -L "$path" ] || break
+        link="$(readlink "$path")"
+        case "$link" in
+            /*) path="$link" ;;
+            *) path="$(dirname "$path")/$link" ;;
+        esac
+    done
+}
+
+while read -r name _; do
+    case "$name" in
+        ''|.|..|*/*) echo "Invalid plugin dependency record: $name" >&2; exit 1 ;;
+    esac
+    while read -r file; do managed["$file"]=1; done < <(chain_files "$DEPLOY_DIR/$name")
+done < "$RECORD"
+
 copy_with_links() {
-    local source="$1" name target real
-    name="$(basename "$source")"
+    local source="$1" target link real
     real="$(readlink -f "$source")"
     cp -f "$real" "$DEPLOY_DIR/$(basename "$real")"
     target="$source"
     while [ -L "$target" ]; do
-        local link
         link="$(readlink "$target")"
         ln -sf "$(basename "$link")" "$DEPLOY_DIR/$(basename "$target")"
-        target="$(dirname "$target")/$link"
+        case "$link" in
+            /*) target="$link" ;;
+            *) target="$(dirname "$target")/$link" ;;
+        esac
     done
-    if [ ! -e "$DEPLOY_DIR/$name" ]; then
-        cp -f "$real" "$DEPLOY_DIR/$name"
-    fi
+    while read -r file; do used["$file"]=1; done < <(chain_files "$source")
 }
 
-# Store source SHA256 digests; deployed files may have their RPATH rewritten.
-RECORD="$DEPLOY_DIR/.plugin-deps"
-touch "$RECORD"
-
-recorded() {
-    awk -v name="$1" '$1 == name { $1 = ""; sub(/^ /, ""); print; exit }' "$RECORD"
-}
-
-record() {
-    local kept
-    kept="$(awk -v name="$1" '$1 != name' "$RECORD")"
-    { [ -n "$kept" ] && printf '%s\n' "$kept"; printf '%s %s\n' "$1" "$2"; } > "$RECORD"
-}
+# Old managed dependencies cannot be graph roots: they would keep one another alive forever.
+queue=()
+while IFS= read -r -d '' object; do
+    name="${object#"$DEPLOY_DIR/"}"
+    [ -n "${managed[$name]:-}" ] || queue+=("$object")
+done < <(find "$DEPLOY_DIR" -type f \( -name '*.so' -o -name '*.so.*' \) -print0)
+if [ -d "$DEPLOY_DIR/../bin" ]; then
+    while IFS= read -r -d '' object; do queue+=("$object"); done \
+        < <(find "$DEPLOY_DIR/../bin" -type f -print0)
+fi
 
 copied=0
-round=0
-while :; do
-    round=$((round + 1))
-    added=0
-    while IFS= read -r -d '' object; do
-        while read -r name; do
-            [ -n "$name" ] || continue
-            source="$(find_source "$name")" || continue
-            # Compare source content, since deployment rewrites the destination RPATH and
-            # timestamps.
-            signature="$(sha256sum "$(readlink -f "$source")" | awk '{print $1}')"
-            if [ -e "$DEPLOY_DIR/$name" ] && [ "$(recorded "$name")" = "$signature" ]; then
-                continue
-            fi
+for ((index = 0; index < ${#queue[@]}; index++)); do
+    object="${queue[index]}"
+    [ -z "${visited[$object]:-}" ] || continue
+    visited["$object"]=1
+    while read -r name; do
+        [ -n "$name" ] || continue
+        if source="$(find_source "$name")"; then
+            if [ -n "${used[$name]:-}" ]; then continue; fi
             copy_with_links "$source"
-            record "$name" "$signature"
-            added=$((added + 1))
             copied=$((copied + 1))
-        done < <(needed_of "$object")
-    done < <(find "$DEPLOY_DIR" -type f \( -name '*.so' -o -name '*.so.*' \) -print0)
-
-    [ "$added" -eq 0 ] && break
-    # Bound traversal of broken symlink cycles.
-    if [ "$round" -ge 16 ]; then
-        echo "deploy_linux_plugin_deps: stopped after $round rounds" >&2
-        break
-    fi
+            queue+=("$source")
+        elif [ -e "$DEPLOY_DIR/$name" ]; then
+            while read -r file; do
+                if [ -n "${managed[$file]:-}" ]; then used["$file"]=1; fi
+            done < <(chain_files "$DEPLOY_DIR/$name")
+            queue+=("$DEPLOY_DIR/$name")
+        fi
+    done < <(needed_of "$object")
 done
 
+for name in "${!managed[@]}"; do
+    if [ -z "${used[$name]:-}" ]; then rm -f -- "$DEPLOY_DIR/$name"; fi
+done
+: > "$RECORD"
+for name in "${!used[@]}"; do printf '%s\n' "$name" >> "$RECORD"; done
 echo "deploy_linux_plugin_deps: copied $copied librar$([ "$copied" = 1 ] && echo y || echo ies)"

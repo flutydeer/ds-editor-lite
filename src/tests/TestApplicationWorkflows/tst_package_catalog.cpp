@@ -504,6 +504,11 @@ void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability
     QTest::newRow("declaration-order") << QStringLiteral("ordered");
     QTest::newRow("tone-octave-overflow") << QStringLiteral("tone-overflow");
     QTest::newRow("tone-midi-boundaries") << QStringLiteral("tone-bounds");
+    QTest::newRow("tone-integer-overflow") << QStringLiteral("tone-integer-overflow");
+    QTest::newRow("tone-outside-midi") << QStringLiteral("tone-outside-midi");
+    QTest::newRow("tone-integer-boundaries") << QStringLiteral("tone-integer-bounds");
+    QTest::newRow("tone-reversed-integers") << QStringLiteral("tone-reversed-integers");
+    QTest::newRow("tone-reversed-strings") << QStringLiteral("tone-reversed-strings");
     QTest::newRow("missing-mapping-keys") << QStringLiteral("missing-keys");
     QTest::newRow("missing-model-targets") << QStringLiteral("missing-targets");
     QTest::newRow("speakerless-model") << QStringLiteral("speakerless");
@@ -539,13 +544,28 @@ void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability
         if (scenario.startsWith(QStringLiteral("tone-"))) {
             for (qsizetype i = 0; i < speakers.size(); ++i) {
                 auto speaker = speakers[i].toObject();
-                const auto low = scenario == QStringLiteral("tone-overflow")
-                                     ? (i == 0 ? QStringLiteral("C2147483647")
-                                               : QStringLiteral("C-2147483648"))
-                                     : QStringLiteral("C-1");
+                QJsonValue low = QStringLiteral("C-1");
+                QJsonValue high = QStringLiteral("G9");
+                if (scenario == QStringLiteral("tone-overflow"))
+                    low = i == 0 ? QStringLiteral("C2147483647") : QStringLiteral("C-2147483648");
+                else if (scenario == QStringLiteral("tone-integer-overflow"))
+                    low = i == 0 ? QJsonValue(qint64{4294967296}) : QJsonValue(qint64{-4294967296});
+                else if (scenario == QStringLiteral("tone-outside-midi")) {
+                    low = i == 0 ? -1 : 0;
+                    high = i == 0 ? 127 : 128;
+                } else if (scenario == QStringLiteral("tone-integer-bounds")) {
+                    low = 0;
+                    high = 127;
+                } else if (scenario == QStringLiteral("tone-reversed-integers")) {
+                    low = 64;
+                    high = 60;
+                } else if (scenario == QStringLiteral("tone-reversed-strings")) {
+                    low = QStringLiteral("E4");
+                    high = QStringLiteral("C4");
+                }
                 speaker.insert(QStringLiteral("toneRanges"),
                                QJsonObject{{QStringLiteral("min"), low},
-                                           {QStringLiteral("max"), QStringLiteral("G9")}});
+                                           {QStringLiteral("max"), high}});
                 speakers[i] = speaker;
             }
         }
@@ -603,10 +623,10 @@ void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability
         QCOMPARE(singer.speakers().first().id(), QStringLiteral("soft"));
         QCOMPARE(singer.speakers().last().id(), QStringLiteral("clear"));
         for (const auto &speaker : singer.speakers()) {
-            if (scenario == QStringLiteral("tone-overflow"))
-                QVERIFY(!speaker.toneRange());
-            else if (scenario == QStringLiteral("tone-bounds"))
+            if (scenario.endsWith(QStringLiteral("bounds")))
                 QCOMPARE(speaker.toneRange(), std::optional(std::make_pair(0, 127)));
+            else if (scenario.startsWith(QStringLiteral("tone-")))
+                QVERIFY(!speaker.toneRange());
         }
     } else {
         QVERIFY(singer.speakers().isEmpty());

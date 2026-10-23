@@ -25,17 +25,12 @@
 
 namespace {
 
-    /// Record only actual edits. Restoring displayed text restores its original entry; empty resets
-    /// it.
+    /// Record actual edits only; unchanged text must preserve concurrent settings updates.
     void recordDefaultLyricEdit(QMap<QString, QString> &pending, const QString &language,
-                                const QString &text, const QString &displayed,
-                                const QString &stored) {
+                                const QString &text, const QString &displayed) {
         const auto edited = text.trimmed();
         if (edited == displayed) {
-            if (stored.isEmpty())
-                pending[language] = QString();
-            else
-                pending[language] = stored;
+            pending.remove(language);
             return;
         }
         pending[language] = edited;
@@ -59,7 +54,7 @@ void GeneralPage::modifyOption() {
     settings.uiLanguage = m_cbUiLanguage->currentData().toString();
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     recordDefaultLyricEdit(m_pendingLyrics, settings.defaultSingingLanguage, m_leDefaultLyric->text(),
-                           m_displayedLyric, m_storedLyric);
+                           m_displayedLyric);
     // Apply only edited languages so concurrent automation changes are preserved.
     settings.defaultLyrics = previous.defaultLyrics;
     for (auto it = m_pendingLyrics.constBegin(); it != m_pendingLyrics.constEnd(); ++it) {
@@ -74,14 +69,11 @@ void GeneralPage::modifyOption() {
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
     if (runtime->settings().updateGeneral({}, settings)) {
         m_pendingLyrics.clear();
-        m_defaultLyrics = settings.defaultLyrics;
         m_displayedLyric = m_leDefaultLyric->text();
-        m_storedLyric = settings.defaultLyrics.value(settings.defaultSingingLanguage);
         return;
     }
 
     m_pendingLyrics.clear();
-    m_defaultLyrics = previous.defaultLyrics;
     m_previousLanguage = previous.defaultSingingLanguage;
     const QSignalBlocker uiLanguage(m_cbUiLanguage);
     const QSignalBlocker singingLanguage(m_cbDefaultSingingLanguage);
@@ -96,7 +88,6 @@ void GeneralPage::modifyOption() {
     m_leDefaultLyric->setText(
         appOptions->general()->defaultLyricForLanguage(previous.defaultSingingLanguage));
     m_displayedLyric = m_leDefaultLyric->text();
-    m_storedLyric = m_defaultLyrics.value(previous.defaultSingingLanguage);
     m_cbNoteAnalyzer->setCurrentIndex(m_cbNoteAnalyzer->findData(previous.noteAnalyzer));
     m_cbPitchAnalyzer->setCurrentIndex(m_cbPitchAnalyzer->findData(previous.pitchAnalyzer));
     m_fsLibreSVIPPath->setPath(previous.libreSvipPath);
@@ -106,7 +97,6 @@ void GeneralPage::modifyOption() {
 QWidget *GeneralPage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->general();
-    m_defaultLyrics = option->defaultLyrics;
 
     m_cbUiLanguage = new ComboBox;
     m_cbUiLanguage->addItem(tr("Auto Detect"), UiLanguageManager::System);
@@ -142,11 +132,10 @@ QWidget *GeneralPage::createContentWidget() {
     m_previousLanguage = langKey;
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
         recordDefaultLyricEdit(m_pendingLyrics, m_previousLanguage, m_leDefaultLyric->text(),
-                               m_displayedLyric, m_storedLyric);
+                               m_displayedLyric);
         const auto newLang = m_cbDefaultSingingLanguage->currentLanguage();
         m_leDefaultLyric->setText(appOptions->general()->defaultLyricForLanguage(newLang));
         m_displayedLyric = m_leDefaultLyric->text();
-        m_storedLyric = m_defaultLyrics.value(newLang);
         m_previousLanguage = newLang;
         modifyOption();
     });
@@ -155,7 +144,6 @@ QWidget *GeneralPage::createContentWidget() {
     m_leDefaultLyric->setFixedWidth(80);
     m_leDefaultLyric->setText(option->defaultLyricForLanguage(langKey));
     m_displayedLyric = m_leDefaultLyric->text();
-    m_storedLyric = m_defaultLyrics.value(langKey);
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));

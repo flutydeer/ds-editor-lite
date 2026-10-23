@@ -137,7 +137,12 @@ protected:
                 failSpan(kind, analysed.error());
                 return;
             }
-            place(*analysed.take());
+            const auto result = analysed.take();
+            if (!result) {
+                fail(ErrorCode::ModelRunFailed, tr("The analyzer returned no result"));
+                return;
+            }
+            place(*result);
             if (!success())
                 return;
         }

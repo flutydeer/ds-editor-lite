@@ -49,6 +49,7 @@ private slots:
     void packageRefreshPreservesCatalogAndReportsInvalidRoots();
     void packageReloadReadsUpdatesWhilePipelineIsLeased();
     void fillLyricPreservesSingerReservedMarkers();
+    void fillLyricReportsWordConversionFailures();
     void disjointModelPhonemesDisableLanguageCoverage();
     void packageLanguageReadinessUsesTheCatalogSnapshot();
     void defaultLyricComesFromTheVoicebank_data();
@@ -66,6 +67,7 @@ private slots:
 
     void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
     void pitchExtractionRejectsMisalignedVoicing();
+    void extractionRejectsEmptyAnalyzerResult();
     void pitchExtractionRejectsNonFiniteFrequencies();
     void pitchExtractionValidatesTiming_data();
     void pitchExtractionValidatesTiming();
@@ -81,6 +83,7 @@ private slots:
     void audioBatchRejectsChangesBeforeCommit_data();
     void audioBatchRejectsChangesBeforeCommit();
     void acousticCacheWriteFailureCanBeRetried();
+    void acousticCacheHitRetriesAfterModelInvalidation();
     void cacheCleanupProtectsRestoredInference();
     void jsonCacheLookupRetriesAcrossModelReload_data();
     void jsonCacheLookupRetriesAcrossModelReload();

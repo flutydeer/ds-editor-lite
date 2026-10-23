@@ -48,6 +48,7 @@
 
 目录刷新创建新的运行单元和快照。旧任务继续持有原有资源，新的任务从新目录取得流水线。
 包身份包含版本，多个版本的同名歌手不能共用一个流水线。
+扫描、语言刷新和返回数据准备完成后一起发布。准备过程抛出异常时返回错误并保留原有快照。
 
 缓存键包含模型修订。读取缓存及交付延迟探测结果时复核目录代次，
 同版本模型文件更新后也不能继续命中旧结果。并发刷新仅在路径与模式一致时合并。
@@ -65,6 +66,20 @@
 [InferParamCurve.h](../../src/app/Modules/Inference/Models/InferParamCurve.h)
 中的 `kParamCurveStepTicks` 定义。推理输入、输出和提取音高写回应使用同一网格。
 
+## 自动化与配置兼容性
+
+| 接口或配置 | 当前契约与客户端处理 |
+| --- | --- |
+| 分析器设置 | 配置文件及内部 `GeneralSettingsDto` 使用 `noteAnalyzer`、`pitchAnalyzer`，值为 `包ID:inference/贡献ID`。旧 `gameDirectory`、`pitchModelPath` 路径不能直接作为分析器引用使用，需安装模型包并重新选择。这些字段不属于公开 `settings.query` 的字段集。 |
+| 提取能力的 `models[]` | 按已安装分析器枚举，可能为空或包含多项。`id` 是上述贡献引用，不能硬编码为 `game` 或 `rmvpe`。传入 `options.model_id` 时须与当前配置的分析器相同，并检查能力与模型的 `available`。 |
+| 歌手语言的 `g2p_id` | 保留兼容字段，但始终为空。客户端以歌手身份、`language_id` 和 `g2p_ready` 判断语言路由，不再从 G2P ID 推断可用性。 |
+| 语言错误定位 | 语言选择错误使用 `language_id`，嵌套参数按实际字段路径定位。客户端应读取返回的错误字段，不再匹配旧的 `language` 名称。 |
+
+`packages.refresh` 区分刷新过程失败与单个包加载失败。过程失败的任务终态为 `failed`。
+扫描完成的任务为 `succeeded`，单包失败列在 `application_result.failures`，可同时存在成功加载的包。
+这一区分在迁移前已经存在。客户端等待 `succeeded`、`failed` 或 `canceled` 任一终态，再检查结果中的
+`failures`，不能以“是否存在坏包”预测任务终态。`packages.list` 也提供当前目录的失败列表。
+
 ## 插件与 ONNX Runtime 部署
 
 [DeployLayout.h](../../src/libs/SynthrtEngine/DeployLayout.h) 是路径定义来源，
@@ -81,11 +96,11 @@
 ONNX Runtime 位于驱动旁的 `plugins/dsinfer/inferencedrivers/onnx/runtime`。
 CUDA 载荷使用其独立子目录，不能覆盖默认载荷。宿主将运行时路径明确交给驱动。
 
-构建和安装按库替换插件树，避免已移除的插件残留。Linux 另复制动态插件的传递依赖，
+构建和安装按库替换插件树，避免已移除的插件残留。Linux 按当前依赖图复制传递依赖并清理已登记的旧库，
 macOS 将依赖部署到应用包。语言包部署检查实际目录及安装规则，并替换版本不同的旧包。
 
 Debug 和 RelWithDebInfo 安装保留依赖符号，其他配置去除符号。
-多配置生成器依据本次构建或安装的配置选择符号。
+三个 SDK 端口将 PDB 复制到普通 DLL 和插件 DLL 旁。多配置生成器依据本次构建或安装的配置选择符号。
 
 ## 错误与验证
 

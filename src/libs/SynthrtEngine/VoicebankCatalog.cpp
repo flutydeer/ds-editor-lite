@@ -192,13 +192,16 @@ namespace lite::synthrt {
                     return std::nullopt;
                 }
                 if (value->second.isInt()) {
-                    return static_cast<int>(value->second.toInt());
+                    const auto midi = value->second.toInt();
+                    if (midi < 0 || midi > 127)
+                        return std::nullopt;
+                    return static_cast<int>(midi);
                 }
                 return value->second.isString() ? midiOf(value->second.toString()) : std::nullopt;
             };
             const auto low = read("min");
             const auto high = read("max");
-            if (!low || !high) {
+            if (!low || !high || *low > *high) {
                 return std::nullopt;
             }
             return std::make_pair(*low, *high);

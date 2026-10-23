@@ -53,10 +53,7 @@ namespace FillLyric {
             return results;
         }
 
-        // Group by resolved language (preserving first-seen order):
-        // language -> [(noteIndex, lyricUtf8), ...].
-        // lyric has its trailing '+' stripped, matching the old implementation
-        // (which chopped the trailing '+' before fromRoute).
+        // Group by language and strip continuation markers before conversion.
         std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
         const auto reserved = ReservedPhonemes::of(m_singer);
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
@@ -111,7 +108,10 @@ namespace FillLyric {
 
                 const auto &outcome = outcomes[i];
                 if (!outcome.error.empty()) {
-                    continue; // This word keeps its original lyric; the rest of the batch stands.
+                    qCWarning(logFillG2p) << "Failed to convert lyric" << notes[noteIdx].lyric
+                                         << "for language" << language << ":"
+                                         << fromUtf8(outcome.error);
+                    continue;
                 }
                 result.pronunciation = fromUtf8(outcome.pronunciation);
                 QStringList rawCandidates;

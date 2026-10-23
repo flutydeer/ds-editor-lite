@@ -91,8 +91,8 @@ namespace lite::synthrt {
         /// No value means unknown coverage; an empty vector means no common phonemes.
         std::optional<std::vector<std::string>> singablePhonemes;
 
-        bool complete() const {
-            return acoustic && vocoder;
+        bool supportsEditorPipeline() const {
+            return duration && pitch && variance && acoustic && vocoder;
         }
     };
 

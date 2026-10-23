@@ -149,6 +149,10 @@ namespace {
             QVERIFY(preview->language != QStringLiteral("unknown"));
             QVERIFY2(preview->candidates.contains(cells.first()->syllable()),
                      "Preview must preserve the language and pronunciation candidates");
+            if (TestSupport::usingBundledVoicebank()) {
+                QCOMPARE(cells.first()->syllable(), QStringLiteral("la"));
+                QVERIFY(cells.first()->syllable() != lyric);
+            }
         }
         if (singleWord) {
             const auto output = dialog.exportLangNotes();
@@ -340,7 +344,8 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     QHash<int, QString> originalLyrics;
     for (const auto *note : singingClip->notes())
         originalLyrics.insert(note->id(), note->lyric());
-    const auto inputLyric = preserveSlurs ? QStringLiteral("hello") : TestSupport::fixtureLyric();
+    const auto inputLyric = !fromLrc && TestSupport::usingBundledVoicebank()
+                               ? QStringLiteral("啦") : TestSupport::fixtureLyric();
     bool interacted = false;
     QTimer operateDialog;
     operateDialog.setInterval(10);

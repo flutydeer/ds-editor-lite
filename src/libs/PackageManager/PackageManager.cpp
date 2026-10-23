@@ -256,8 +256,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             singerInfo.setCapability(summaryOf(singer.capabilities));
             // Spec 2.4 permits optional stages, but the editor currently runs all five stages.
             const auto &stages = singer.capabilities;
-            const bool complete = stages.duration && stages.pitch && stages.variance &&
-                                  stages.acoustic && stages.vocoder;
+            const bool complete = stages.supportsEditorPipeline();
             const bool addressable = !stages.speakers.empty() || stages.unaddressableSpeakers.empty();
             const bool usable = complete && addressable;
             singerInfo.setResolutionState(usable ? ResolutionState::Resolved

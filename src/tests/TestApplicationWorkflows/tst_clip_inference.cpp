@@ -6,6 +6,7 @@
 #include "Modules/Inference/Tasks/InferAcousticCacheProbeTask.h"
 #include "Modules/Inference/Tasks/GetPhonemeNameTask.h"
 #include "Modules/Inference/Tasks/GetPronunciationTask.h"
+#include "Modules/FillLyric/Utils/G2pService.h"
 #include "Modules/Inference/Utils/InferCacheUtils.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "Controller/PlaybackController.h"
@@ -374,6 +375,46 @@ void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
     for (auto it = protectedFiles.cbegin(); it != protectedFiles.cend(); ++it)
         QVERIFY(!QFileInfo::exists(it.key()));
     QVERIFY(QFileInfo::exists(unrelated));
+}
+
+void ApplicationWorkflowTests::acousticCacheHitRetriesAfterModelInvalidation() {
+    QTemporaryDir cacheDirectory;
+    QVERIFY(cacheDirectory.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = cacheDirectory.path();
+    const auto restoreCache = qScopeGuard([&] {
+        appOptions->inference()->cacheDirectory = previousCache;
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(
+        piece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
+    const auto input = InferControllerHelper::buildInferAcousticInput(*piece, clip->singerIdentifier());
+    const auto cached = InferAcousticTask::lookupCache(input, cacheDirectory.path());
+    QVERIFY(cached.hit);
+
+    static std::atomic_bool invalidated;
+    static QtMessageHandler previousHandler;
+    invalidated.store(false);
+    previousHandler = qInstallMessageHandler(
+        [](QtMsgType type, const QMessageLogContext &context, const QString &message) {
+            if (message.startsWith(QStringLiteral("Use cached acoustic inference result:")) &&
+                !invalidated.exchange(true))
+                InferCacheUtils::invalidateModelCaches();
+            if (previousHandler)
+                previousHandler(type, context, message);
+        });
+    const auto restoreHandler = qScopeGuard([&] { qInstallMessageHandler(previousHandler); });
+    InferAcousticTask task(input);
+    static_cast<QRunnable &>(task).run();
+    QVERIFY(invalidated.load());
+    QVERIFY(task.success());
+    QVERIFY(task.result() != cached.outputCachePath);
+    const auto current = InferAcousticTask::lookupCache(input, cacheDirectory.path());
+    QVERIFY(current.hit);
+    QCOMPARE(task.result(), current.outputCachePath);
 }
 
 void ApplicationWorkflowTests::acousticCacheWriteFailureCanBeRetried() {
@@ -811,6 +852,33 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
+}
+
+void ApplicationWorkflowTests::fillLyricReportsWordConversionFailures() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto singer = clip->singerInfo().identifier();
+    const auto invalid = QStringLiteral("two words");
+    const auto checked = SynthrtEngine::instance().convert(
+        singer, QStringLiteral("cmn"), {{invalid.toStdString(), {}, {}, {}}},
+        lite::synthrt::LanguageBridge::Depth::Pronunciation);
+    QVERIFY(checked);
+    QCOMPARE(checked->size(), size_t{1});
+    QVERIFY(!checked->front().error.empty());
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(
+        QStringLiteral("Failed to convert lyric .*two words.*for language .*cmn.*") +
+        QRegularExpression::escape(QString::fromStdString(checked->front().error))));
+    LangNote validNote;
+    validNote.language = QStringLiteral("cmn");
+    validNote.lyric = QStringLiteral("啦");
+    auto invalidNote = validNote;
+    invalidNote.lyric = invalid;
+    const auto converted = FillLyric::G2pService(singer).convert({validNote, invalidNote});
+    QCOMPARE(converted.size(), 2);
+    QCOMPARE(converted.first().pronunciation, QStringLiteral("la"));
+    QCOMPARE(converted.last().pronunciation, invalid);
+    QCOMPARE(converted.last().candidates, QStringList{invalid});
 }
 
 void ApplicationWorkflowTests::clearingSingerResetsPronunciationAndPhonemes_data() {

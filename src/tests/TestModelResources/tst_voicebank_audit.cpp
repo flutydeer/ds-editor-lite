@@ -379,7 +379,8 @@ int runVoicebankAudit() {
     std::cout << "  singer " << singer.packageId << ":singer/" << singer.contributionId << " v"
               << singer.packageVersion.toString() << "\n";
     const auto &capabilities = singer.capabilities;
-    expect(capabilities.complete(), "the singer has every stage required for synthesis");
+    expect(capabilities.supportsEditorPipeline(),
+           "the singer has every stage required by the editor");
     expect(capabilities.duration && capabilities.pitch && capabilities.variance,
            "the singer imports all three optional stages");
     std::vector<std::string> speakerNames;

@@ -40,5 +40,10 @@ file(REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/debug/share"
 )
 
-vcpkg_copy_pdbs()
+vcpkg_copy_pdbs(BUILD_PATHS
+    "${CURRENT_PACKAGES_DIR}/bin/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/bin/*.dll"
+    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+)
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")

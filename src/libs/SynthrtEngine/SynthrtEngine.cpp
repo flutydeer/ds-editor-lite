@@ -160,14 +160,14 @@ public:
 
     /// Write scan results to temporary containers for atomic publication.
     /// Associate exceptions with the search path that failed.
-    bool scanInto(const std::vector<fs::path> &paths,
+    bool scanInto(srt::SynthUnit &unit, const std::vector<fs::path> &paths,
                   std::vector<lite::synthrt::SingerEntry> &entries,
                   std::vector<srt::PackageHandle> &opened,
                   std::vector<lite::synthrt::PackageProblem> &problems) {
         bool complete = true;
         for (const auto &path : paths) {
             try {
-                auto scanned = lite::synthrt::scan(bootstrap->unit(), {path}, opened, problems);
+                auto scanned = lite::synthrt::scan(unit, {path}, opened, problems);
                 for (auto &entry : scanned) {
                     entries.push_back(std::move(entry));
                 }
@@ -214,18 +214,18 @@ public:
         std::vector<lite::synthrt::SingerEntry> entries;
         std::vector<srt::PackageHandle> opened;
         std::vector<lite::synthrt::PackageProblem> problems;
-        if (scanInto(toPaths(voicebankPaths), entries, opened, problems)) {
+        if (scanInto(bootstrap->unit(), toPaths(voicebankPaths), entries, opened, problems)) {
             catalog = std::move(entries);
             packages = std::move(opened);
         }
         language->refresh();
-        feedSingerPhonemes();
+        feedSingerPhonemes(*language, catalog);
         return true;
     }
 
     using PackageSet = std::set<std::tuple<std::string, std::string, std::string>>;
 
-    PackageSet packageSet() const {
+    static PackageSet packageSet(const std::vector<srt::PackageHandle> &packages) {
         PackageSet result;
         for (const auto &package : packages) {
             result.emplace(package.id(), package.version().toString(), package.path().string());
@@ -244,16 +244,14 @@ public:
     }
 
     /// Refresh phoneme coverage and readiness under the exclusive lifecycle lock.
-    void feedSingerPhonemes() {
-        if (!language) {
-            return;
-        }
-        lite::synthrt::feedSingerPhonemes(*language, catalog);
+    static void feedSingerPhonemes(lite::synthrt::LanguageBridge &language,
+                                  std::vector<lite::synthrt::SingerEntry> &catalog) {
+        lite::synthrt::feedSingerPhonemes(language, catalog);
         // Capture readiness with the singer metadata, rather than querying a newer catalog later.
         for (auto &entry : catalog) {
             entry.convertibleLanguages.clear();
             for (const auto &handle : entry.capabilities.languages) {
-                if (language->canConvert(
+                if (language.canConvert(
                         {entry.packageId, entry.contributionId, entry.packageVersion}, handle))
                     entry.convertibleLanguages.insert(handle);
             }
@@ -409,79 +407,67 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
                                      std::vector<lite::synthrt::PackageProblem> *problems,
                                      RescanMode mode,
                                      std::vector<lite::synthrt::PackageEntry> *packages) {
-    // Release idle app caches before taking the SDK lock: their DirectML teardown guard has the
-    // same lock order as an inference task (provider serialization, then SDK lifecycle).
-    if (mode == RescanMode::Reload)
-        emit voicebanksAboutToReload();
-    std::unique_lock lock(_impl->lifecycle);
-    if (!_impl->bootstrap) {
-        return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
-    }
-    std::shared_ptr<lite::synthrt::Bootstrap> reloaded;
-    if (mode == RescanMode::Reload) {
-        auto created = lite::synthrt::Bootstrap::create(
-            _impl->pluginDirectory, _impl->searchPathsFor(searchPaths), _impl->runtimeDirectory,
-            _impl->backend, _impl->driverDeviceIndex);
-        if (!created)
-            return created.takeError();
-        reloaded = created.take();
-    } else {
-        _impl->bootstrap->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
-    }
+    try {
+        // Cache teardown takes the provider lock before the SDK lifecycle lock.
+        if (mode == RescanMode::Reload)
+            emit voicebanksAboutToReload();
+        std::unique_lock lock(_impl->lifecycle);
+        if (!_impl->bootstrap)
+            return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
 
-    // Reload uses a fresh unit; active leases retain the previous unit.
-    const auto before = _impl->packageSet();
-
-    // Failed Reload leaves an empty catalog. Failed ReuseLoaded restores the previous handles
-    // and their matching catalog.
-    std::vector<srt::PackageHandle> previous;
-    std::vector<lite::synthrt::SingerEntry> previousCatalog;
-    if (mode == RescanMode::Reload) {
-        _impl->republish();
-        _impl->language.reset();
-        _impl->packages.clear();
-        _impl->catalog.clear();
-        _impl->bootstrap = std::move(reloaded);
-        _impl->language =
-            std::make_unique<lite::synthrt::LanguageBridge>(_impl->bootstrap->unit());
-    } else {
-        previous = std::move(_impl->packages);
-        previousCatalog = std::move(_impl->catalog);
-    }
-
-    // Publish handles and catalog together only after a successful scan.
-    std::vector<lite::synthrt::SingerEntry> entries;
-    std::vector<srt::PackageHandle> opened;
-    std::vector<lite::synthrt::PackageProblem> failures;
-    if (_impl->scanInto(searchPaths, entries, opened, failures)) {
-        _impl->catalog = std::move(entries);
-        _impl->packages = std::move(opened);
-        previous.clear();
-    } else if (mode == RescanMode::ReuseLoaded) {
-        _impl->catalog = std::move(previousCatalog);
-        _impl->packages = std::move(previous);
-    }
-
-    // Reload already invalidated every old pipeline, even if its package identity is unchanged.
-    if (mode == RescanMode::ReuseLoaded && _impl->packageSet() != before) {
-        _impl->republish();
-    }
-    if (problems != nullptr) {
-        *problems = std::move(failures);
-    }
-    if (_impl->language) {
-        _impl->language->refresh();
-        // Reapply phoneme inventories after refreshing the language catalog.
-        _impl->feedSingerPhonemes();
-    }
-    if (packages) {
-        packages->clear();
-        for (const auto &package : _impl->packages) {
-            packages->push_back({package.id(), package.version(), package.path(), package.vendor(),
-                                 package.description(), package.copyright(), package.url()});
+        auto runtime = _impl->bootstrap;
+        if (mode == RescanMode::Reload) {
+            auto created = lite::synthrt::Bootstrap::create(
+                _impl->pluginDirectory, _impl->searchPathsFor(searchPaths), _impl->runtimeDirectory,
+                _impl->backend, _impl->driverDeviceIndex);
+            if (!created)
+                return created.takeError();
+            runtime = created.take();
+        } else {
+            runtime->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
         }
+
+        std::vector<lite::synthrt::SingerEntry> entries;
+        std::vector<srt::PackageHandle> opened;
+        std::vector<lite::synthrt::PackageProblem> failures;
+        if (!_impl->scanInto(runtime->unit(), searchPaths, entries, opened, failures)) {
+            const auto error = srt::Error(std::make_error_code(std::errc::io_error),
+                                          failures.back().reason);
+            if (problems)
+                *problems = std::move(failures);
+            return error;
+        }
+        auto language = std::make_unique<lite::synthrt::LanguageBridge>(runtime->unit());
+        language->refresh();
+        Impl::feedSingerPhonemes(*language, entries);
+
+        std::vector<lite::synthrt::PackageEntry> metadata;
+        if (packages) {
+            for (const auto &package : opened) {
+                metadata.push_back({package.id(), package.version(), package.path(), package.vendor(),
+                                    package.description(), package.copyright(), package.url()});
+            }
+        }
+        auto result = entries;
+        // Finish all allocating SDK and result work before replacing the published state.
+        if (mode == RescanMode::Reload ||
+            Impl::packageSet(opened) != Impl::packageSet(_impl->packages))
+            _impl->republish();
+        _impl->language = std::move(language);
+        _impl->packages = std::move(opened);
+        _impl->catalog = std::move(entries);
+        _impl->bootstrap = std::move(runtime);
+        if (problems)
+            *problems = std::move(failures);
+        if (packages)
+            *packages = std::move(metadata);
+        return result;
+    } catch (const std::exception &e) {
+        return srt::Error(std::make_error_code(std::errc::io_error),
+                          std::string("voicebank refresh failed: ") + e.what());
+    } catch (...) {
+        return srt::Error(std::make_error_code(std::errc::io_error), "voicebank refresh failed");
     }
-    return _impl->catalog;
 }
 
 srt::Expected<void> SynthrtEngine::validatePackage(const fs::path &path) const {
