@@ -365,8 +365,6 @@
 | `settings.render.update` | L3 | C/S | 稀疏更新采样步数、深度、Vocoder CPU、自动推理、前瞻与音高平滑 |
 | `settings.singer_session_retention.update` | L3 | C/S | 稀疏更新会话容量与空闲释放时间 |
 
-`settings.singing.update` 的 `default_lyrics` 是**按语言稀疏**的映射：一次调用只覆盖它列出的语言，未列出的语言保持原样，**空串表示复位该语言**（回落编辑器内置值，不是回落成空字符串）。每个条目必须同时给出非空 `language_id` 与字符串 `lyric`，缺字段或类型不对的条目按 `invalid_argument` 拒绝，避免"只想改一个语言"的调用静默清掉其它被列出的语言。复位会让 `settings.query` 的 configured 与 effective 快照各少一个语言，`language_candidates` 同步变化。
-
 `settings.query` 可返回经访问根投影的 configured/effective 包搜索路径，但 MCP 不提供修改能力。
 
 ### 3.23 包信息（3）
