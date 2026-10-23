@@ -44,6 +44,45 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
     _lite_packaging_severity_rule(_severity)
     set(_stage_dir "${LITE_STAGED_LANG_PACKAGES_DIR}")
 
+    # Replace a package whose staged copy is not the version this configure resolved.
+    #
+    # Staging is additive: qmsetup's copy script leaves a file that already exists alone, and the
+    # release archives carry a fixed 1980 timestamp for reproducible hashes, so a newer release
+    # replaces nothing and the tree keeps the old files. The tree then records the new version
+    # nowhere and the old one everywhere, dependency resolution runs against the old compatibility
+    # floor, and a voicebank that names the new floor fails with a missing dependency that points at
+    # the language package rather than at the stale copy. Removing the directory before copying is
+    # therefore part of staging, not only of the check below.
+    if(expected AND source AND IS_DIRECTORY "${source}")
+        string(REPLACE "," ";" _expected_names "${expected}")
+        foreach(_name IN LISTS _expected_names)
+            set(_source_manifest "${source}/${_name}/desc.json")
+            if(NOT EXISTS "${_source_manifest}")
+                continue()
+            endif()
+            file(READ "${_source_manifest}" _source_text)
+            string(REGEX MATCH "\"version\"[ \t\r\n]*:[ \t\r\n]*\"([^\"]+)\"" _source_match "${_source_text}")
+            set(_source_version "${CMAKE_MATCH_1}")
+            set(_staged_version "")
+            set(_staged_manifest "${_stage_dir}/${_name}/desc.json")
+            if(EXISTS "${_staged_manifest}")
+                file(READ "${_staged_manifest}" _staged_text)
+                string(REGEX MATCH "\"version\"[ \t\r\n]*:[ \t\r\n]*\"([^\"]+)\"" _staged_match "${_staged_text}")
+                set(_staged_version "${CMAKE_MATCH_1}")
+            endif()
+            if(NOT _staged_version STREQUAL _source_version)
+                if(_staged_version STREQUAL "")
+                    set(_staged_version "absent")
+                endif()
+                message(STATUS
+                    "[lang-packages] Replacing ${_name} in '${_stage_dir}': staged "
+                    "${_staged_version}, source ${_source_version}")
+                file(REMOVE_RECURSE "${_stage_dir}/${_name}")
+                file(COPY "${source}/${_name}/" DESTINATION "${_stage_dir}/${_name}")
+            endif()
+        endforeach()
+    endif()
+
     # Classification of the entries in the land point. A package directory is a directory that
     # contains desc.json, because the loader scans this directory instead of reading a list of
     # names; every other entry resolves to no package.
