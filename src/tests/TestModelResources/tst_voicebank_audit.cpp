@@ -502,10 +502,21 @@ int runVoicebankAudit() {
              at = text.find("wolf/lang-", at + 1)) {
             ++declaredLanguages;
         }
-        expect(capabilities.languages.size() == declaredLanguages,
+        // Compared the other way round than an equality would: the promise is that every language
+        // the manifest depends on reaches a linguist, not that no other language does. A linguist
+        // that carries its own conversion modules, such as a voicebank's Korean one that uses the
+        // package's g2p-ko instead of wolf/lang-kor, reaches a language the manifest names no wolf
+        // dependency for. Equality refused such a package for being self-contained, so the extra
+        // language is reported instead of failed.
+        expect(capabilities.languages.size() >= declaredLanguages,
                "every language the package depends on reaches a linguist: declared "
                    + std::to_string(declaredLanguages) + ", reached "
                    + std::to_string(capabilities.languages.size()));
+        if (capabilities.languages.size() > declaredLanguages) {
+            std::cout << "  note   " << (capabilities.languages.size() - declaredLanguages)
+                      << " of the reached language(s) come(s) from a linguist that carries its own "
+                         "modules, the manifest names no wolf package for it\n";
+        }
     }
 
     // The identifiers held by a host are the speaker identifiers of the singer: the identifiers in
@@ -527,10 +538,22 @@ int runVoicebankAudit() {
     for (const auto &[from, to] : declaration.mapping) {
         std::cout << "  maps       " << from << " -> " << to << "\n";
     }
-    expect(!declared.empty(), "the singer declaration lists its speakers");
-    expect(offered == declared,
-           "the speakers offered to a host are the declared speakers of the singer"
-               + (offered == declared ? std::string() : ": offered " + join(offered)));
+    // A package that names no speaker is a single-speaker package: the models carry one voice and
+    // the host has nothing to choose between, which the loader represents by offering none. Such a
+    // package is not a defect, so an empty declaration is reported and not failed. What is still
+    // checked is that the host is offered nothing either: an offer that exists while the
+    // declaration names none would be an identifier a host shows and cannot look up.
+    if (declared.empty()) {
+        std::cout << "  note   the declaration names no speaker, so the package is single-speaker "
+                     "and the host is offered none\n";
+        expect(offered.empty(),
+               "a package that names no speaker is offered none either"
+                   + (offered.empty() ? std::string() : ": offered " + join(offered)));
+    } else {
+        expect(offered == declared,
+               "the speakers offered to a host are the declared speakers of the singer"
+                   + (offered == declared ? std::string() : ": offered " + join(offered)));
+    }
     for (const auto &speaker : capabilities.speakers) {
         // The same lookup that a synthesis performs with this identifier (see above): an identifier
         // that is not a key of the import mapping, such as a model speaker name, fails it.
