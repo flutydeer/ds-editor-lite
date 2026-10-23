@@ -4,6 +4,7 @@
 
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
+#include "Model/AppOptions/Options/DefaultLyricRules.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
@@ -2768,8 +2769,11 @@ namespace Automation {
             if (language.isEmpty() && settings)
                 language = settings.get().general.defaultSingingLanguage;
             if (settings)
+                // The default lyric is resolved with the same rules the editor uses. A stored map
+                // without an entry for this language, and one whose entry is empty, both yield the
+                // built-in lyric here as they do in the editor.
                 defaultLyric =
-                    settings.get().general.defaultLyrics.value(language, QStringLiteral("la"));
+                    DefaultLyricRules::resolve(settings.get().general.defaultLyrics, language);
             QList<NoteDraftDto> notes;
             QList<ResolvedValue> resolvedValues;
             const auto inputNotes = arguments.value(QStringLiteral("notes")).toArray();

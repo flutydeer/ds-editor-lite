@@ -119,6 +119,12 @@ namespace {
                 language.setName(toQString(name->second.text()));
                 language.setLocalizedNames(toLocalizedTextMap(name->second));
             }
+            // The default lyric is stated by the linguist module of that language rather than by the
+            // settings, so it travels with the language entry and the editor resolves it later.
+            if (const auto lyric = capabilities.defaultLyrics.find(handle);
+                lyric != capabilities.defaultLyrics.end()) {
+                language.setDefaultLyric(toQString(lyric->second));
+            }
             result.append(std::move(language));
         }
         return result;

@@ -1,4 +1,5 @@
 #include "tst_application_workflows.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Utils/InferCacheUtils.h"
@@ -27,6 +28,104 @@
 #include <atomic>
 #include <future>
 #include <chrono>
+
+namespace {
+    bool copyTree(const QString &from, const QString &to) {
+        if (!QDir().mkpath(to)) {
+            return false;
+        }
+        const QDir source(from);
+        for (const auto &entry : source.entryInfoList(QDir::Files | QDir::NoDotAndDotDot)) {
+            if (!QFile::copy(entry.absoluteFilePath(), QDir(to).filePath(entry.fileName()))) {
+                return false;
+            }
+        }
+        for (const auto &entry : source.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (!copyTree(entry.absoluteFilePath(), QDir(to).filePath(entry.fileName()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    QJsonObject readJsonObject(const QString &path) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        return QJsonDocument::fromJson(file.readAll()).object();
+    }
+
+    bool writeJsonObject(const QString &path, const QJsonObject &value) {
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) {
+            return false;
+        }
+        return file.write(QJsonDocument(value).toJson()) > 0;
+    }
+}
+
+void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        const auto result = packageManager->refreshInstalledPackages(originalPaths);
+        QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+    });
+
+    // A default lyric is stated by the voicebank, so the measurement needs one that declares it. The
+    // fixture in the tree is copied and doctored rather than changed, and the copy receives a
+    // different package id so it cannot be mistaken for the fixture itself.
+    QTemporaryDir staging;
+    QVERIFY(staging.isValid());
+    const auto doctored = staging.filePath(QStringLiteral("default-lyric-fixture@1.0.0"));
+    QVERIFY2(copyTree(TestSupport::voicebankRoot(), doctored),
+             qPrintable(QStringLiteral("The fixture voicebank must be copyable to %1").arg(doctored)));
+    auto description = readJsonObject(doctored + QStringLiteral("/desc.json"));
+    QVERIFY(!description.isEmpty());
+    description.insert(QStringLiteral("id"), QStringLiteral("default-lyric-fixture"));
+    QVERIFY(writeJsonObject(doctored + QStringLiteral("/desc.json"), description));
+    for (const auto *module : {"cmn-pinyin", "eng-arpabet"}) {
+        const auto path =
+            QStringLiteral("%1/linguists/%2/linguist.json").arg(doctored, QString::fromLatin1(module));
+        auto declaration = readJsonObject(path);
+        QVERIFY2(!declaration.isEmpty(), qPrintable(QStringLiteral("Cannot read %1").arg(path)));
+        // Two different values, so the measurement cannot pass by reading one language twice.
+        declaration.insert(QStringLiteral("defaultLyric"),
+                           QString::fromLatin1(module) == QStringLiteral("eng-arpabet")
+                               ? QJsonValue(QStringLiteral("laa"))
+                               : QJsonValue(QStringLiteral("la")));
+        QVERIFY(writeJsonObject(path, declaration));
+    }
+
+    const auto refreshed = packageManager->refreshInstalledPackages(
+        {staging.path(), TestSupport::voicebankRoot()});
+    QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
+
+    SingerInfo declared;
+    SingerInfo fixture;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (package.id() == QStringLiteral("default-lyric-fixture")) {
+                declared = candidate;
+            } else if (package.id().startsWith(QStringLiteral("ci-fixture"))) {
+                fixture = candidate;
+            }
+        }
+    }
+    QVERIFY2(!declared.isEmpty(), "The doctored package must be installed and contribute a singer");
+    QVERIFY(!fixture.isEmpty());
+
+    // The editor reads the default lyric each language of the voicebank declares. This is the whole
+    // read path of the editor, and nothing else consumes it yet.
+    QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("cmn")), QStringLiteral("la"));
+    QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("eng")), QStringLiteral("laa"));
+    // A language the modules do not declare stays empty, and so does a voicebank that declares none.
+    QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("jpn")), QString());
+    QCOMPARE(fixture.defaultLyricForLanguage(QStringLiteral("cmn")), QString());
+    QCOMPARE(fixture.defaultLyricForLanguage(QStringLiteral("eng")), QString());
+}
 
 void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRoots() {
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,

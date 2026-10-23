@@ -116,6 +116,14 @@ namespace lite::synthrt {
         std::map<std::string, srt::DisplayText> languageNames;
         std::string defaultLanguage;
 
+        /// Default lyric of each declared language, as stated by that language's linguist module.
+        ///
+        /// The value belongs to whoever writes the module, so a voicebank that writes its own
+        /// linguist states its own default and a language served by a language package's linguist
+        /// states the value of that package. The field is optional and is not a matching key, so a
+        /// language without an entry leaves the choice to the caller.
+        std::map<std::string, std::string> defaultLyrics;
+
         /// Phoneme tokens that a lyric may specify directly and that no language produces.
         ///
         /// Examples are a breath, a glottal stop and a hum. The author writes the token itself in

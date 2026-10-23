@@ -21,6 +21,12 @@
 # them without re-verifying:
 # documents.new requires unsaved_policy, ids must be read back through tracks.list / clips.list,
 # and rendering is awaited by polling notes.list rather than by a fixed sleep.
+#
+# Isolation: the run directory holds the editor's configuration and its inference cache. The cache
+# needs an explicit redirect (see the comment on $config): the APPDATA override alone does not move
+# the editor's data directory on Windows. A caller that judges inference results rather than G2P text
+# should still require `Use cached` = 0 in the editor's console log, because a cache hit answers
+# without running the graph.
 
 param(
     [Parameter(Mandatory = $true)][string]$EditorExe,
@@ -58,6 +64,12 @@ New-Item -ItemType Directory -Force -Path $editorData, $local | Out-Null
 $config = [ordered]@{
     automation = [ordered]@{ accessRoots = @(($OutRoot -replace '\\', '/')) }
     general    = [ordered]@{ packageSearchPaths = @($SingersRoot) }
+    # The inference cache is NOT moved by the APPDATA/LOCALAPPDATA overrides below: the editor
+    # resolves its data directory through QStandardPaths (AppDataPaths.h -> applicationData()), which
+    # on Windows reads the roaming known folder, not the environment. Left alone, a run would read and
+    # write the real cache, and a repeated lyric set would answer "Use cached" instead of driving the
+    # graph — a false green. The cache directory is a persisted option, so it is redirected here.
+    inference  = [ordered]@{ cacheDirectory = (($OutRoot -replace '\\', '/') + '/Cache') }
 }
 $config | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $editorData 'appConfig.json') -Encoding UTF8
 

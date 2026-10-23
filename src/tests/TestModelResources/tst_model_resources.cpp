@@ -28,6 +28,7 @@ int runAnalyzerPackages();
 int runOtterExtraction();
 int runVoicebankLanguages();
 int runVoicebankAudit();
+int runDefaultLyricDeclaration();
 
 namespace {
     class NativeClient final {
@@ -275,6 +276,11 @@ private slots:
         if (result == 77)
             QSKIP("Set LITE_AUDIT_VOICEBANK and LITE_AUDIT_LANGUAGE_PACKAGES");
         QCOMPARE(result, 0);
+    }
+
+    void defaultLyricDeclaration() {
+        // No skip gate: the measurement uses the voicebank fixture in the tree.
+        QCOMPARE(runDefaultLyricDeclaration(), 0);
     }
 
 

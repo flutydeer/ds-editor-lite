@@ -65,16 +65,6 @@ namespace Automation {
             return result;
         }
 
-        QMap<QString, QString> decodeDefaultLyrics(const QJsonArray &lyrics) {
-            QMap<QString, QString> result;
-            for (const auto &value : lyrics) {
-                const auto object = value.toObject();
-                result.insert(object.value(QStringLiteral("language_id")).toString(),
-                              object.value(QStringLiteral("lyric")).toString());
-            }
-            return result;
-        }
-
         QJsonObject encodeAudioValue(const AudioDevicePublicValueDto &value) {
             return {
                 {QStringLiteral("driver_name"),                value.driverName             },
@@ -629,8 +619,41 @@ namespace Automation {
                                arguments.value(QStringLiteral("default_language")).toString();
                        }
                        if (arguments.contains(QStringLiteral("default_lyrics"))) {
-                           patch.defaultLyrics = decodeDefaultLyrics(
-                               arguments.value(QStringLiteral("default_lyrics")).toArray());
+                           // The patch is sparse per language and an empty lyric resets that
+                           // language, so an entry that omits the lyric would silently reset a
+                           // language the caller never named. Both fields are therefore required.
+                           const auto lyrics = arguments.value(QStringLiteral("default_lyrics"));
+                           if (!lyrics.isArray()) {
+                               return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
+                                   QStringLiteral("default_lyrics"),
+                                   QStringLiteral("default_lyrics must be an array")));
+                           }
+                           const auto entries = lyrics.toArray();
+                           QMap<QString, QString> decoded;
+                           for (qsizetype index = 0; index < entries.size(); ++index) {
+                               const auto entry = entries.at(index);
+                               if (!entry.isObject()) {
+                                   return AutomationResult<QJsonObject>(
+                                       AutomationError::invalidArgument(
+                                           QStringLiteral("default_lyrics.%1").arg(index),
+                                           QStringLiteral("each entry must be an object with a "
+                                                          "language_id and a lyric")));
+                               }
+                               const auto object = entry.toObject();
+                               const auto language = object.value(QStringLiteral("language_id"));
+                               const auto lyric = object.value(QStringLiteral("lyric"));
+                               if (!language.isString() || language.toString().isEmpty() ||
+                                   !lyric.isString()) {
+                                   return AutomationResult<QJsonObject>(
+                                       AutomationError::invalidArgument(
+                                           QStringLiteral("default_lyrics.%1").arg(index),
+                                           QStringLiteral("each entry needs a non-empty language_id "
+                                                          "and a lyric, where an empty lyric resets "
+                                                          "that language")));
+                               }
+                               decoded.insert(language.toString(), lyric.toString());
+                           }
+                           patch.defaultLyrics = decoded;
                        }
                        return updateSetting(m_runtime, m_fileGuard, arguments, invocation,
                                             QStringLiteral("singing"), std::move(patch),

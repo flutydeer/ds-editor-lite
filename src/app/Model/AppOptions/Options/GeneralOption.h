@@ -16,16 +16,34 @@ public:
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
     void setPackageSearchPathsAndNotify(QStringList paths);
+
+    /// Resolves the default lyric a new note receives in \a language.
+    ///
+    /// Precedence: a user override in the settings wins, then \a declared, which is the value an
+    /// installed singer states for that language, then the built-in value, then "la" for a language
+    /// nothing knows about. A stored value that equals the built-in value of that language is not
+    /// an override, because the settings ship with those values and they must not shadow a singer.
     QString defaultLyricForLanguage(const QString &language) const;
+
+    /// Returns whether the user overrode the default lyric of \a language.
+    ///
+    /// An empty stored value means "use the default" rather than "use an empty lyric", so it is not
+    /// an override either.
+    bool hasDefaultLyricOverride(const QString &language) const;
+
+    /// Returns the built-in default lyric of \a language, or an empty string when none is known.
+    static QString builtinDefaultLyricForLanguage(const QString &language);
+
+    /// Returns the built-in default lyric of every language the editor ships a value for.
+    ///
+    /// This table is a fallback, never a user setting: the stored map starts as a copy of it only
+    /// so that a profile written by an older build keeps its shape, and hasDefaultLyricOverride()
+    /// ignores the entries that still equal it.
+    static const QMap<QString, QString> &builtinDefaultLyrics();
 
     QString defaultSingingLanguage = "cmn";
     QString uiLanguage = "system";
-    QMap<QString, QString> defaultLyrics{
-        {"cmn", "啦"},
-        {"eng", "la"},
-        {"jpn", "ら"},
-        {"yue", "啦"}
-    };
+    QMap<QString, QString> defaultLyrics = builtinDefaultLyrics();
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;

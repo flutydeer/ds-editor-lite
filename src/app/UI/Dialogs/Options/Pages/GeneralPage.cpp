@@ -23,6 +23,32 @@
 #include <QProcess>
 #include <QSignalBlocker>
 
+namespace {
+
+    /// Records one default lyric edit.
+    ///
+    /// The edit field shows the effective value, which may be a user override, the value a singer
+    /// states for that language, or the built-in one. Storing whatever the field merely displays
+    /// would turn that value into an explicit user override and shadow a singer that states the same
+    /// language later, so only a real edit is recorded. Editing the text back to what the page put
+    /// there restores the entry it came from, which is what makes an intermediate edit reversible.
+    /// An empty field asks for the default again.
+    void recordDefaultLyricEdit(QMap<QString, QString> &pending, const QString &language,
+                                const QString &text, const QString &displayed,
+                                const QString &stored) {
+        const auto edited = text.trimmed();
+        if (edited == displayed) {
+            if (stored.isEmpty())
+                pending[language] = QString();
+            else
+                pending[language] = stored;
+            return;
+        }
+        pending[language] = edited;
+    }
+
+}
+
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
 }
@@ -38,15 +64,32 @@ void GeneralPage::modifyOption() {
     auto settings = previous;
     settings.uiLanguage = m_cbUiLanguage->currentData().toString();
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
-    m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
-    settings.defaultLyrics = m_defaultLyrics;
+    recordDefaultLyricEdit(m_pendingLyrics, settings.defaultSingingLanguage, m_leDefaultLyric->text(),
+                           m_displayedLyric, m_storedLyric);
+    // The stored table can change while the dialog is open, for example through the automation
+    // surface, so only the entries this page changed are applied to the table as it stands.
+    settings.defaultLyrics = previous.defaultLyrics;
+    for (auto it = m_pendingLyrics.constBegin(); it != m_pendingLyrics.constEnd(); ++it) {
+        if (it.value().isEmpty())
+            settings.defaultLyrics.remove(it.key());
+        else
+            settings.defaultLyrics.insert(it.key(), it.value());
+    }
     settings.noteAnalyzer = m_cbNoteAnalyzer->currentData().toString();
     settings.pitchAnalyzer = m_cbPitchAnalyzer->currentData().toString();
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
-    if (runtime->settings().updateGeneral({}, settings))
+    if (runtime->settings().updateGeneral({}, settings)) {
+        // The page now shows what the table holds, so the next edit is compared against this state
+        // rather than against what the field displayed before the edit was stored.
+        m_pendingLyrics.clear();
+        m_defaultLyrics = settings.defaultLyrics;
+        m_displayedLyric = m_leDefaultLyric->text();
+        m_storedLyric = settings.defaultLyrics.value(settings.defaultSingingLanguage);
         return;
+    }
 
+    m_pendingLyrics.clear();
     m_defaultLyrics = previous.defaultLyrics;
     m_previousLanguage = previous.defaultSingingLanguage;
     const QSignalBlocker uiLanguage(m_cbUiLanguage);
@@ -61,6 +104,8 @@ void GeneralPage::modifyOption() {
         m_cbDefaultSingingLanguage->findData(previous.defaultSingingLanguage));
     m_leDefaultLyric->setText(
         appOptions->general()->defaultLyricForLanguage(previous.defaultSingingLanguage));
+    m_displayedLyric = m_leDefaultLyric->text();
+    m_storedLyric = m_defaultLyrics.value(previous.defaultSingingLanguage);
     m_cbNoteAnalyzer->setCurrentIndex(m_cbNoteAnalyzer->findData(previous.noteAnalyzer));
     m_cbPitchAnalyzer->setCurrentIndex(m_cbPitchAnalyzer->findData(previous.pitchAnalyzer));
     m_fsLibreSVIPPath->setPath(previous.libreSvipPath);
@@ -105,9 +150,12 @@ QWidget *GeneralPage::createContentWidget() {
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
     m_previousLanguage = langKey;
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
-        m_defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
+        recordDefaultLyricEdit(m_pendingLyrics, m_previousLanguage, m_leDefaultLyric->text(),
+                               m_displayedLyric, m_storedLyric);
         const auto newLang = m_cbDefaultSingingLanguage->currentLanguage();
-        m_leDefaultLyric->setText(m_defaultLyrics.value(newLang, QStringLiteral("la")));
+        m_leDefaultLyric->setText(appOptions->general()->defaultLyricForLanguage(newLang));
+        m_displayedLyric = m_leDefaultLyric->text();
+        m_storedLyric = m_defaultLyrics.value(newLang);
         m_previousLanguage = newLang;
         modifyOption();
     });
@@ -115,6 +163,8 @@ QWidget *GeneralPage::createContentWidget() {
     m_leDefaultLyric = new LineEdit;
     m_leDefaultLyric->setFixedWidth(80);
     m_leDefaultLyric->setText(option->defaultLyricForLanguage(langKey));
+    m_displayedLyric = m_leDefaultLyric->text();
+    m_storedLyric = m_defaultLyrics.value(langKey);
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));

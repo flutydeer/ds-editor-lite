@@ -51,6 +51,7 @@ private slots:
     void fillLyricPreservesSingerReservedMarkers();
     void disjointModelPhonemesDisableLanguageCoverage();
     void packageLanguageReadinessUsesTheCatalogSnapshot();
+    void defaultLyricComesFromTheVoicebank();
     void singerSpeakerCatalogPreservesOrderAndAvailability_data();
     void singerSpeakerCatalogPreservesOrderAndAvailability();
     void localizedPackageMetadataLoadsAndUpdatesWithTheVersion_data();

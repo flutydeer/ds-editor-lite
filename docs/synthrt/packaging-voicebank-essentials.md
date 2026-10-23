@@ -29,7 +29,8 @@
 - 归档**扁平**：`desc.json` 与 `assets/`、`characters/`、`inferences/`、`linguists/` 直接在根，不套一层同名目录。
 - **不要把依赖的语言包塞进声库 zip**。依赖由插件根的包目录提供，声库只声明依赖，见
   [developer-repro.md](developer-repro.md) 的获取与落点步骤。
-- 成员名安全：拒绝绝对路径、盘符、反斜杠、`..`、重复名与非 ASCII 名，工具内已含负向自检
+- 成员名安全：拒绝绝对路径、盘符、反斜杠、`..` 与重复名；非 ASCII 名按 UTF-8 写入并回读校验，
+  中文文档名可原样保留。工具内已含负向自检，以及"非 ASCII 成员名被接受"这一项的自证
   （[tools/pack-voicebank-zip.py](tools/pack-voicebank-zip.py)）。
 - 放对搜索根：成品直接放本机声库搜索根下（该目录不入库），编辑器即能识别（本仓成品就是这样验证的）。
 - 交付前自证：解包成员数、`SHA256` 与字节数逐条比对，打包脚本写完 zip 后自动跑这项校验。
@@ -93,8 +94,18 @@
 ### 4.2 判"这次词典更新算不算不兼容"的仪器（已建成并标定）
 
 方法已固化成脚本：[tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1)。它自包含地启动一个隔离的
-无头实例（`--headless --no-mcp --control-level l3`，隔离 `APPDATA` 并把 `packageSearchPaths` 指向声库根），
-按固定歌词集建文档与音符，等引擎渲染完成后读回逐音符音素，输出 `歌词<TAB>音素` 便于两次运行直接 diff：
+无头实例（`--headless --no-mcp --control-level l3`，隔离 `APPDATA`/`LOCALAPPDATA`、把 `packageSearchPaths`
+指向声库根，并把 `inference.cacheDirectory` 指到运行目录），按固定歌词集建文档与音符，等引擎渲染完成后
+读回逐音符音素，输出 `歌词<TAB>音素` 便于两次运行直接 diff：
+
+**缓存不在 `APPDATA` 覆盖范围内（2026-10-13 实测）**：编辑器的数据目录由
+`QStandardPaths::writableLocation(AppDataLocation)` 解析（`src/app/Bootstrap/AppDataPaths.h:18-26`），
+Windows 上取的是漫游已知文件夹而非环境变量，所以只覆盖 `APPDATA` 时推理缓存仍会读写真实的
+`%APPDATA%\OpenVPI\DS Editor Lite\Cache`。后果是同一歌词集重跑会被缓存命中：实测第二次运行得到
+`Use cached`=4、`Running inference`=0，四类任务照样"全绿"。因此脚本现在显式重定向
+`inference.cacheDirectory`（该键是持久化选项，默认值见
+`src/app/Model/AppOptions/Options/InferenceOption.h:81-82`），并且**判读推理结果的调用方仍须要求
+`Use cached` = 0**。
 
 ```
 pwsh -File measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRoot <Singers 目录> `

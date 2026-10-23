@@ -452,8 +452,15 @@ namespace lite::synthrt {
             result.languages.reserve(value.entries.size());
             for (const auto &entry : value.entries) {
                 result.languages.push_back(entry.language);
-                if (const auto *linguist = targetOf(singer, entry.role))
+                if (const auto *linguist = targetOf(singer, entry.role)) {
                     result.languageNames.emplace(entry.language, linguist->name());
+                    // The default lyric is a category-added root field of the linguist module, so it
+                    // is read here rather than through the capability report of the singer.
+                    if (const auto *spec = linguist->as<wolf::LinguistSpec>();
+                        spec != nullptr && !spec->defaultLyric().empty()) {
+                        result.defaultLyrics.emplace(entry.language, spec->defaultLyric());
+                    }
+                }
             }
             result.defaultLanguage = value.defaultLanguage;
         }

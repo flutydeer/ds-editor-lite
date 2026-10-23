@@ -84,6 +84,13 @@ public:
     QList<SpeakerInfo> speakers() const;
     QList<LanguageInfo> languages() const;
     QString g2pId(const QString &language) const;
+
+    /// The default lyric the singer states for \a language, or an empty string when it states none.
+    ///
+    /// The statement comes from the linguist module of that language, so a language served by a
+    /// language package's module reports the value of that package. A user setting takes precedence
+    /// over it, and the built-in table of the editor is the last fallback.
+    QString defaultLyricForLanguage(const QString &language) const;
     QString defaultLanguage() const;
     QString defaultG2pId() const;
     QString defaultDict() const;

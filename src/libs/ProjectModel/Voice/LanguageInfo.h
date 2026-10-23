@@ -17,7 +17,7 @@ public:
     LanguageInfo();
     explicit LanguageInfo(QString id, QString name = {}, QString g2p = {}, QString dict = {},
                           QString s2pMode = {}, QString onsetMode = {}, QString s2pFile = {},
-                          QString onsetFile = {});
+                          QString onsetFile = {}, QString defaultLyric = {});
 
     LanguageInfo(const LanguageInfo &other);
     LanguageInfo(LanguageInfo &&other) noexcept;
@@ -39,6 +39,14 @@ public:
     QString s2pFile() const;
     QString onsetFile() const;
 
+    /// The default lyric of this language as the singer's linguist module states it, or an empty
+    /// string when the module states none.
+    ///
+    /// The value is a lyric in the notation this language uses, so whether it can be pronounced
+    /// depends on the phoneme table of the singer that declares it. It is a per-language statement
+    /// of the singer, not a user setting, and a user setting takes precedence over it.
+    QString defaultLyric() const;
+
     // g2pPackageVersion：用 bool hasG2pPackageVersion + QString 组合实现 std::optional<QString>
     // 语义
     bool hasG2pPackageVersion() const;
@@ -54,6 +62,7 @@ public:
     void setOnsetMode(const QString &onsetMode);
     void setS2pFile(const QString &s2pFile);
     void setOnsetFile(const QString &onsetFile);
+    void setDefaultLyric(const QString &defaultLyric);
 
     void setG2pPackageVersion(const QString &v);
     void clearG2pPackageVersion();
@@ -76,7 +85,7 @@ public:
     LanguageInfoData();
     explicit LanguageInfoData(QString id, QString name = {}, QString g2p = {}, QString dict = {},
                               QString s2pMode = {}, QString onsetMode = {}, QString s2pFile = {},
-                              QString onsetFile = {});
+                              QString onsetFile = {}, QString defaultLyric = {});
     LanguageInfoData(const LanguageInfoData &other);
     ~LanguageInfoData();
 
@@ -94,6 +103,7 @@ public:
     QString onsetMode;
     QString s2pFile;
     QString onsetFile;
+    QString defaultLyric;
 
     bool hasG2pPackageVersion = false;
     QString g2pPackageVersion;

@@ -1,7 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "wolf-lang-packages",
-  "version-string": "0.1.2.0",
+  "version-string": "1.0.0.0",
+  "port-version": 1,
   "description": [
     "Public language resource packages published by wolf.",
     "The archives contain data only and unpack into a Package search directory. No source is built."

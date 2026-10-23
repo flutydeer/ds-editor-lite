@@ -114,9 +114,7 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     auto expected = before;
     expected.general.uiLanguage = QStringLiteral("en_US");
     expected.general.defaultSingingLanguage = QStringLiteral("eng");
-    expected.general.defaultLyrics = {
-        {QStringLiteral("eng"), QStringLiteral("la")}
-    };
+    expected.general.defaultLyrics.insert(QStringLiteral("eng"), QStringLiteral("la"));
     expected.appearance.themeId = QStringLiteral("dark");
     expected.audio.deviceGain = 0.75;
     expected.audio.devicePan = -0.25;
@@ -130,6 +128,15 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     expected.inference.singerSessionCacheCapacity = 2;
     expected.inference.singerSessionIdleTimeoutSeconds = 120;
     QVERIFY(harness.settings == expected);
+
+    // default_lyrics is a sparse patch per language: an empty lyric resets one language and leaves
+    // the others, which lets a caller undo one override without resending the whole table.
+    const auto reset = runtime.settings().updateSinging(
+        applicationContext(),
+        {.defaultLyrics = QMap<QString, QString>{{QStringLiteral("eng"), QString()}}});
+    QVERIFY(reset);
+    QVERIFY(!harness.settings.general.defaultLyrics.contains(QStringLiteral("eng")));
+    QVERIFY(harness.settings.general.defaultLyrics.contains(QStringLiteral("cmn")));
 }
 
 void ApplicationServicesTests::sparseSettingsPreviewAndFailure() {

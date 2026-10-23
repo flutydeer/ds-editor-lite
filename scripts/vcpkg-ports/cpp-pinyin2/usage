@@ -1,0 +1,33 @@
+cpp-pinyin2 provides CMake targets:
+
+  find_package(cpp-pinyin2 CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE cpp-pinyin2::cpp-pinyin2)
+
+The dictionary tables are installed next to the package config, at `share/cpp-pinyin2/dict`, and the library
+expects a dictionary root at run time. It never guesses one: `cppp2_open` / `Engine::open` take the directory
+as an argument. Three ways a host provides it, in the order this port recommends:
+
+1. ASK. `cppp2_dict_dir_candidate()` (C ABI, static string, no ownership) reports where THIS build installed
+   the tables, resolved against the library's own module directory -- so an application that is relocated keeps
+   working. A CMake consumer already has the same answer as the variable `CPP_PINYIN2_DICT_DIR`. Pass that path on.
+
+2. COPY the tables next to your executable at build time, if the application ships its own directory tree
+   (an installer needs the files anyway):
+
+     add_custom_command(TARGET main POST_BUILD
+         COMMAND "${CMAKE_COMMAND}" -E copy_directory
+           "${cpp-pinyin2_DIR}/dict"
+           "$<TARGET_FILE_DIR:main>/dict")
+
+3. EMBED them, for a single-file deployment (one .exe, an AppImage, a plugin DLL with no sidecar data):
+   build the library with `-DCPP_PINYIN2_EMBED_DICTS=ON` (or `=mandarin` for one dialect). The tables become
+   part of the library, and a request for a path that does not exist is answered from that copy. This port does
+   not build that way by default -- it is a consumer decision, not a packaging one.
+
+A directory that a path points at ALWAYS wins over an embedded copy, so an application can still override at
+run time (unset the path and the embedded tables answer).
+
+The same tables are also available through pkg-config (cpp-pinyin2.pc, `dictdir=`) for non-CMake builds.
+
+Note: this port is `cpp-pinyin2`. The 1.x line is a separate port (`cpp-pinyin`, frozen at 1.0.2) with a
+different package name, target name and header layout; the two can be installed at the same time.

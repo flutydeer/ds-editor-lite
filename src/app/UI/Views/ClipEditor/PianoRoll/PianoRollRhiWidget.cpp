@@ -1208,7 +1208,9 @@ public:
         if (field == InlineEditField::Lyric) {
             auto lyric = text.trimmed();
             if (lyric.isEmpty())
-                lyric = appOptions->general()->defaultLyricForLanguage(note->language());
+                // An empty inline edit asks for the default lyric of the language the note actually
+                // sings in, which resolves an unset language through the clip and the singer.
+                lyric = appOptions->general()->defaultLyricForLanguage(note->effectiveLanguage());
             if (lyric != note->lyric())
                 clipController->onNoteLyricEdited(noteId, lyric);
         } else if (field == InlineEditField::Pronunciation) {

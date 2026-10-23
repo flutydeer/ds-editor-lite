@@ -6,6 +6,7 @@
 #include "Automation/Mcp/McpRequestDispatcher.h"
 #include "Automation/Native/NativeJsonRpcDispatcher.h"
 #include "Automation/OperationIds.h"
+#include "Model/AppOptions/Options/DefaultLyricRules.h"
 #include "TestRuntime.h"
 #include "Utils/UiLanguageManager.h"
 
@@ -652,6 +653,25 @@ namespace {
         expect(!emptyUpdate &&
                    emptyUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("settings updates must reject an empty patch"));
+        // An entry that omits the lyric would reset that language under the sparse semantics of the
+        // patch, so an incomplete entry is rejected instead of silently clearing an entry that the
+        // caller never named.
+        const auto lyricWithoutValue = registry.invoke(
+            QStringLiteral("settings.singing.update"),
+            QJsonObject{
+                {QStringLiteral("default_lyrics"),
+                 QJsonArray{QJsonObject{{QStringLiteral("language_id"), QStringLiteral("en")}}}}
+        });
+        expect(!lyricWithoutValue &&
+                   lyricWithoutValue.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("a default lyric entry must name both the language and the lyric, "
+                              "rejected with: %1")
+                   .arg(lyricWithoutValue
+                            ? QStringLiteral("(the update was accepted)")
+                            : QStringLiteral("%1 at %2")
+                                  .arg(int(lyricWithoutValue.getError().code))
+                                  .arg(lyricWithoutValue.getError().fieldPath)));
         const auto unknownDomain = registry.invoke(
             QStringLiteral("settings.query"),
             QJsonObject{
@@ -2070,6 +2090,40 @@ namespace {
         QVERIFY(voiceClip);
         QCOMPARE(voiceClip->notes().count(), 1);
         QCOMPARE((*voiceClip->notes().begin())->lyric(), QStringLiteral("ra"));
+
+        // A stored table with no entry for the language is the state the settings page and
+        // settings.singing.update leave behind when a lyric is reset. The editor falls back to the
+        // built-in lyric, and this path must resolve the same way rather than to a literal "la".
+        auto settingsWithoutLyrics = runtime.settings().getSettings();
+        QVERIFY(settingsWithoutLyrics);
+        auto generalWithoutLyrics = settingsWithoutLyrics.get().general;
+        generalWithoutLyrics.defaultLyrics.clear();
+        QVERIFY(runtime.settings().updateGeneral({}, generalWithoutLyrics));
+        QVERIFY(invokeChangedOnce(
+            registry, runtime, QStringLiteral("notes.insert"),
+            {
+                {QStringLiteral("clip_id"), voiceClipId.value()            },
+                {QStringLiteral("notes"),
+                 QJsonArray{QJsonObject{{QStringLiteral("local_start"), 240},
+                                        {QStringLiteral("length"), 120},
+                                        {QStringLiteral("key_index"), 62}}}}
+        },
+            QStringLiteral("clip-singer-builtin-default-lyric"),
+            QStringLiteral("a reset default lyric falls back to the built-in value")));
+        const auto resetLyrics = runtime.settings().getSettings();
+        QVERIFY(resetLyrics);
+        QCOMPARE(resetLyrics.get().general.defaultLyrics.value(QStringLiteral("jpn")), QString());
+        QCOMPARE(voiceClip->notes().count(), 2);
+        // The registry must resolve a language exactly as the editor does, so the expectation is
+        // the editor's own resolution rather than a value written into this test.
+        const auto resetExpected =
+            DefaultLyricRules::resolve({}, voiceClip->effectiveDefaultLanguage());
+        qsizetype resetLyricCount = 0;
+        for (const auto *note : voiceClip->notes()) {
+            if (note->lyric() == resetExpected)
+                ++resetLyricCount;
+        }
+        QCOMPARE(resetLyricCount, 1);
 
         const auto independentVoice = voiceSelection(singer, singer.speakers().first());
         QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_voice"),

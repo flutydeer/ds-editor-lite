@@ -29,6 +29,7 @@
 #include "SingerPipeline.h"
 #include "SynthrtBootstrap.h"
 #include "VoicebankCatalog.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 namespace fs = std::filesystem;
 using namespace lite::synthrt;
@@ -195,11 +196,21 @@ namespace {
     srt::JsonValue readJson(const fs::path &path) {
         std::ifstream file(path);
         if (!file.is_open()) {
+            // Silence here is what made a whole reader look like it worked: the callers treat a
+            // missing file as "declares nothing", which is indistinguishable from a file that
+            // declares an empty list. The path is printed so the two can be told apart.
+            std::cout << "  unreadable: " << path.string() << " (cannot open)\n";
             return srt::JsonValue::fromJson("null", true);
         }
         const std::string text((std::istreambuf_iterator<char>(file)),
                                std::istreambuf_iterator<char>());
-        return srt::JsonValue::fromJson(text, true);
+        auto value = srt::JsonValue::fromJson(text, true);
+        // A parse that yields neither an object nor an array is a failure too, and it used to be
+        // silent in the same way: the callers treat it as "declares nothing".
+        if (!value.isObject() && !value.isArray()) {
+            std::cout << "  unparsed: " << path.string() << "\n";
+        }
+        return value;
     }
 
     /// Speaker declaration of the singer.
@@ -910,7 +921,13 @@ int runVoicebankAudit() {
         fs::remove_all(staging, ec);
         const auto doctored = staging / voicebank.filename();
         bool ready = mirror(voicebank, doctored);
-        ready = ready && doctor(doctored / "desc.json", "\"id\": \"", "\"id\": \"doctored-");
+        // The anchor carries the leading newline and the two spaces of a root-level key. A bare
+        // `"id": "` is not enough: desc.json is written with its keys in alphabetical order, so the
+        // first match is the id of the first dependency, and renaming that one leaves the modules
+        // importing a package the declaration no longer lists, which the loader refuses before it
+        // ever looks at the reserved phonemes this check is about.
+        ready = ready && doctor(doctored / "desc.json", "\n  \"id\": \"",
+                                "\n  \"id\": \"doctored-");
         // A token that no phoneme table can contain, so the rejection cannot result from a
         // coincidental match.
         ready = ready && doctor(anyCharacterConfig(doctored),
@@ -948,5 +965,101 @@ int runVoicebankAudit() {
     // The session and the bridge hold executives that reference the packages, so they must be
     // destroyed first. They are declared after `opened` for this reason. The wrong order causes a
     // crash in unrelated code; the facade exists to enforce this order.
+    return failures == 0 ? 0 : 1;
+}
+
+// Measures the read path of the default lyric, which is what the editor follows for a new note:
+// wolf parses the linguist declaration, and lite derives the singer capabilities from it.
+//
+// The voicebank is the fixture in the tree, so the measurement runs everywhere and needs neither a
+// published voicebank nor any environment. A copy is doctored instead of the fixture itself, and
+// the unmodified fixture is measured as well: a voicebank that declares nothing has to report
+// nothing, because that is what leaves the editor on its built-in value.
+int runDefaultLyricDeclaration() {
+    const fs::path voicebank(TestSupport::voicebankRoot().toStdString());
+    const fs::path pluginRoot(TEST_PLUGIN_ROOT);
+    const fs::path runtimePath(TEST_ONNXRUNTIME_DIR);
+
+    if (!fs::is_regular_file(voicebank / "desc.json")) {
+        std::cerr << "no voicebank fixture at " << voicebank << "\n";
+        return 1;
+    }
+
+    // The fixture binds the linguist of a language package for cmn, so the language packages that
+    // the build installs have to be on the package paths as well.
+    fs::path languagePackages = pluginRoot / "wolf" / "packages";
+    if (!fs::is_directory(languagePackages)) {
+        languagePackages = pluginRoot.parent_path() / "wolf" / "packages";
+    }
+
+    auto bootstrap = Bootstrap::create(pluginRoot, {languagePackages, voicebank.parent_path()},
+                                       runtimePath, Backend::Cpu, -1);
+    expect(static_cast<bool>(bootstrap), "the unit bootstraps: " + why(bootstrap));
+    if (!bootstrap) {
+        return 1;
+    }
+    auto unit = bootstrap.take();
+
+    std::cout << "\n== default lyric declared by a linguist module ==\n";
+    std::error_code ec;
+    const auto staging = fs::temp_directory_path() / "lite-default-lyric";
+    fs::remove_all(staging, ec);
+    const auto doctored = staging / voicebank.filename();
+    bool ready = fs::create_directories(staging, ec) || fs::is_directory(staging);
+    ready = ready && mirror(voicebank, doctored);
+    ready = ready && doctor(doctored / "desc.json", "\n  \"id\": \"", "\n  \"id\": \"default-lyric-");
+    std::vector<fs::path> declarations;
+    for (const auto &entry : fs::recursive_directory_iterator(doctored, ec)) {
+        if (entry.path().filename() == "linguist.json") {
+            declarations.push_back(entry.path());
+        }
+    }
+    expect(!declarations.empty(), "the fixture declares at least one linguist module");
+    for (const auto &declaration : declarations) {
+        ready = ready && doctor(declaration, "\"language\": \"",
+                                "\"defaultLyric\": \"la\",\n  \"language\": \"");
+    }
+    expect(ready, "the doctored copy is prepared");
+
+    if (ready) {
+        std::vector<srt::PackageHandle> opened;
+        std::vector<PackageProblem> problems;
+        const auto singers = scan(unit->unit(), {staging}, opened, problems);
+        for (const auto &problem : problems) {
+            std::cout << "  note  " << problem.path << ": " << problem.reason << "\n";
+        }
+        expect(!singers.empty(), "the doctored package loads and contributes a singer");
+        if (!singers.empty()) {
+            const auto &capabilities = singers.front().capabilities;
+            expect(!capabilities.languages.empty(), "the doctored singer declares languages");
+            for (const auto &language : capabilities.languages) {
+                const auto lyric = capabilities.defaultLyrics.find(language);
+                const bool reported =
+                    lyric != capabilities.defaultLyrics.end() && lyric->second == "la";
+                std::cout << "  " << language << " -> " << (reported ? "la" : "(nothing)") << "\n";
+                expect(reported,
+                       "language " + language +
+                           " reports the default lyric its own module declares");
+            }
+        }
+        // The handles reference the packages, so they are released before the unit.
+        opened.clear();
+    }
+    fs::remove_all(staging, ec);
+
+    {
+        std::vector<srt::PackageHandle> opened;
+        std::vector<PackageProblem> problems;
+        const auto singers = scan(unit->unit(), {voicebank.parent_path()}, opened, problems);
+        for (const auto &problem : problems) {
+            std::cout << "  note  " << problem.path << ": " << problem.reason << "\n";
+        }
+        expect(!singers.empty(), "the fixture itself contributes a singer");
+        if (!singers.empty()) {
+            expect(singers.front().capabilities.defaultLyrics.empty(),
+                   "a voicebank that declares no default lyric reports none");
+        }
+    }
+
     return failures == 0 ? 0 : 1;
 }

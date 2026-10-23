@@ -848,8 +848,19 @@ namespace Automation {
             [patch](SettingsSnapshotDto &target) -> AutomationResult<AutomationUnit> {
                 if (patch.defaultLanguage)
                     target.general.defaultSingingLanguage = patch.defaultLanguage->trimmed();
-                if (patch.defaultLyrics)
-                    target.general.defaultLyrics = *patch.defaultLyrics;
+                if (patch.defaultLyrics) {
+                    // The patch is sparse per language: a language it does not name keeps its
+                    // value, and an empty lyric resets that language to the value the editor
+                    // resolves for it, which lets a caller undo one override without clearing the
+                    // others.
+                    for (auto it = patch.defaultLyrics->constBegin();
+                         it != patch.defaultLyrics->constEnd(); ++it) {
+                        if (it.value().trimmed().isEmpty())
+                            target.general.defaultLyrics.remove(it.key());
+                        else
+                            target.general.defaultLyrics.insert(it.key(), it.value());
+                    }
+                }
                 return AutomationUnit{};
             },
             [](const SettingsSnapshotDto &target) { return validatePublicSinging(target.general); },

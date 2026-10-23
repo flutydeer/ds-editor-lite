@@ -10,11 +10,15 @@ they are not the convention for a 2.4 deliverable.
 
 Verification compares every member against the directory on disk by content hash, and refuses an
 archive whose member names are unsafe (absolute, drive-lettered, containing a backslash or a
-dot-dot segment, duplicated, or outside ASCII), or whose member set differs from the directory.
+dot-dot segment, duplicated), or whose member set differs from the directory. Non-ASCII names are
+allowed and expected: a package ships its documentation under the names the supplier gave them,
+zipfile writes such names with the UTF-8 flag, and the verifier reads them back under the same
+names.
 
-The verifier proves itself before it is trusted: a negative control builds a probe archive, verifies
-it clean, then corrupts one stored byte and requires the verification to fail. A run whose negative
-control misbehaves aborts with exit code 2 instead of producing a deliverable that nothing checked.
+The verifier proves itself before it is trusted: a negative control builds a probe archive that
+carries one member with a non-ASCII name, verifies it clean, then corrupts one stored byte and
+requires the verification to fail. A run whose negative control misbehaves aborts with exit code 2
+instead of producing a deliverable that nothing checked.
 """
 
 import argparse
@@ -24,6 +28,10 @@ import sys
 import tempfile
 import zlib
 import zipfile
+
+# The non-ASCII probe member of the negative control, spelled in escapes so this file stays ASCII:
+# U+8BF4 U+660E U+4E66 is "instructions", so the name reads "instructions.txt".
+UTF8_PROBE_NAME = "\u8bf4\u660e\u4e66.txt"
 
 
 def member_name(root, path):
@@ -63,10 +71,6 @@ def unsafe(name):
         return "backslash separator"
     if any(part in ("", ".", "..") for part in name.split("/")):
         return "empty or dot segment"
-    try:
-        name.encode("ascii")
-    except UnicodeEncodeError:
-        return "non-ASCII name"
     return None
 
 
@@ -118,9 +122,15 @@ def negative_control():
         payload = os.path.join(root, "payload.bin")
         with open(payload, "wb") as handle:
             handle.write(bytes(range(256)) * 8)
+        # The clean probe carries a non-ASCII name as well: the verifier has to read that member back
+        # under the same name, which is what allows a package to keep its documentation names.
+        utf8_payload = os.path.join(root, UTF8_PROBE_NAME)
+        with open(utf8_payload, "w", encoding="utf-8") as handle:
+            handle.write("probe\n")
         archive = os.path.join(tmp, "probe.zip")
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as zf:
             zf.write(payload, "payload.bin")
+            zf.write(utf8_payload, UTF8_PROBE_NAME)
         _, clean = verify(root, archive)
         with open(archive, "r+b") as handle:
             raw = handle.read()
@@ -129,6 +139,8 @@ def negative_control():
             handle.write(b"\xff\xfe\xfd\xfc")
         _, dirty = verify(root, archive)
         print("SELFTEST clean-probe problems : %d" % len(clean), flush=True)
+        print("SELFTEST non-ascii member     : %s" % (
+            "accepted" if len(clean) == 0 else "REJECTED"), flush=True)
         print("SELFTEST corrupted-probe      : %d problems" % len(dirty), flush=True)
         return len(clean) == 0 and len(dirty) > 0
 

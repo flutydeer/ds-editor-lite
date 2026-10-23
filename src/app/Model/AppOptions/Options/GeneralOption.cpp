@@ -2,6 +2,8 @@
 
 #include "GeneralOption.h"
 
+#include "DefaultLyricRules.h"
+
 #include <lite/SynthrtEngine/AnalyzerReference.h>
 
 namespace {
@@ -118,8 +120,18 @@ void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
 }
 
+const QMap<QString, QString> &GeneralOption::builtinDefaultLyrics() {
+    return DefaultLyricRules::builtinDefaultLyrics();
+}
+
+QString GeneralOption::builtinDefaultLyricForLanguage(const QString &language) {
+    return DefaultLyricRules::builtinDefaultLyricForLanguage(language);
+}
+
+bool GeneralOption::hasDefaultLyricOverride(const QString &language) const {
+    return DefaultLyricRules::isOverride(defaultLyrics, language);
+}
+
 QString GeneralOption::defaultLyricForLanguage(const QString &language) const {
-    if (auto it = defaultLyrics.find(language); it != defaultLyrics.end())
-        return it.value();
-    return "la";
+    return DefaultLyricRules::resolve(defaultLyrics, language);
 }

@@ -140,6 +140,14 @@ QString SingerInfo::g2pId(const QString &language) const {
     return QStringLiteral("unknown");
 }
 
+QString SingerInfo::defaultLyricForLanguage(const QString &language) const {
+    for (const auto &lang : d->languages) {
+        if (language == lang.id())
+            return lang.defaultLyric();
+    }
+    return {};
+}
+
 QString SingerInfo::defaultLanguage() const {
     return d->defaultLanguage;
 }

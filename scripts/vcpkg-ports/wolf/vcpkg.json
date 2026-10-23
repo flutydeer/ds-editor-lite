@@ -22,7 +22,7 @@
     "stdcorelib-plugin",
     "blake3",
     "re2",
-    "cpp-pinyin",
+    "cpp-pinyin2",
     "luajit"
   ],
   "features": {

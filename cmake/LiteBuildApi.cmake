@@ -239,8 +239,13 @@ function(lite_deploy_application _target)
 
     if(WIN32)
         set(_lite_plugin_destination ".")
+        # wolf's pinyin plugin links cpp-pinyin2 and is the only consumer of it in the deployment:
+        # the editor itself links neither the 1.x nor the 2.x line, so the copy exists solely so
+        # that the plugin can be loaded. The 1.x library is no longer installed, because nothing
+        # that ships here links it and leaving it in the tree only invited a second, older G2P
+        # engine to be loaded by accident.
         qm_add_copy_command(${_target}
-            SOURCES $<TARGET_FILE:cpp-pinyin::cpp-pinyin>
+            SOURCES $<TARGET_FILE:cpp-pinyin2::cpp-pinyin2>
             DESTINATION .
             ${_install_copy_args}
         )
