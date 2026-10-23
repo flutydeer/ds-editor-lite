@@ -35,8 +35,7 @@ void ExtractPitchTask::runTask() {
             const auto values = pitchValues(curve);
             if (!values) {
                 fail(ErrorCode::ModelRunFailed,
-                     tr("The pitch analyzer returned invalid timing or mismatched frequency and "
-                        "voicing frames"));
+                     tr("The pitch analyzer returned invalid timing, frequency, or voicing frames"));
                 return;
             }
             auto placed =
@@ -67,6 +66,8 @@ std::optional<QList<double>> ExtractPitchTask::pitchValues(const F0::F0Result &c
     QList<double> values;
     values.reserve(static_cast<qsizetype>(curve.f0.size()));
     for (std::size_t frame = 0; frame < curve.f0.size(); ++frame) {
+        if (!std::isfinite(curve.f0[frame]))
+            return std::nullopt;
         const bool voiced = hasVoicing ? curve.voiced[frame] != 0 : curve.f0[frame] > 0;
         values.append(voiced ? freqToMidi(curve.f0[frame]) : 0.0);
     }

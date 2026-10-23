@@ -24,6 +24,17 @@
 
 namespace {
 
+    class ProgressExtractTask final : public ExtractTask {
+    public:
+        ProgressExtractTask() : ExtractTask(Input{}) {
+        }
+        using ExtractTask::progressFor;
+
+    private:
+        void runTask() override {
+        }
+    };
+
     int failures = 0;
 
     void expect(bool condition, const QString &what) {
@@ -337,4 +348,24 @@ void VoiceAndInferenceTests::extractedMidiNoteTimingAcrossTempoChanges() {
     QCOMPARE(ticks->second, 336);
     input.audioMaterialOriginMs = std::numeric_limits<double>::infinity();
     QVERIFY(!ExtractMidiTask::noteTicks(input, 0.4, 0.6));
+}
+
+void VoiceAndInferenceTests::extractorProgressHandlesInvalidFractions() {
+    ProgressExtractTask task;
+    const auto progress = task.progressFor(1, 4, QStringLiteral("audio.wav"));
+    QVERIFY(progress(0.5));
+    QCOMPARE(task.status().progress, 37);
+    for (const auto invalid : {std::numeric_limits<double>::quiet_NaN(),
+                               std::numeric_limits<double>::infinity(),
+                               -std::numeric_limits<double>::infinity()}) {
+        QVERIFY(progress(invalid));
+        QCOMPARE(task.status().progress, 37);
+    }
+    QVERIFY(progress(-std::numeric_limits<double>::max()));
+    QCOMPARE(task.status().progress, 25);
+    QVERIFY(progress(std::numeric_limits<double>::max()));
+    QCOMPARE(task.status().progress, 50);
+    task.terminate();
+    QVERIFY(!progress(std::numeric_limits<double>::quiet_NaN()));
+    QCOMPARE(task.status().progress, 50);
 }

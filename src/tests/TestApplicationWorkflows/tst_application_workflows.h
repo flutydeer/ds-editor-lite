@@ -66,6 +66,7 @@ private slots:
 
     void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
     void pitchExtractionRejectsMisalignedVoicing();
+    void pitchExtractionRejectsNonFiniteFrequencies();
     void pitchExtractionValidatesTiming_data();
     void pitchExtractionValidatesTiming();
     void extractionPreparationRejectsMissingResourcesAndChangedSources();

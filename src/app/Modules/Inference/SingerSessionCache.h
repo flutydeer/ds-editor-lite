@@ -36,6 +36,7 @@ public:
         // the mutex is released. Closing the models that the handle owns must not happen under a
         // lock on which every other caller of this cache waits.
         std::vector<std::shared_ptr<Handle>> displaced;
+        std::size_t generation = 0;
 
         // Returns the handle of a live entry and is called under the lock by both passes below.
         // Reuse updates the timestamp, so that a second caller shares the handle of the first caller
@@ -62,6 +63,7 @@ public:
             if (auto existing = reuse(identifier)) {
                 return existing;
             }
+            generation = m_generation;
         }
 
         // The handle is built without holding the mutex. A handle opens the five models of the
@@ -80,6 +82,10 @@ public:
 
         {
             std::lock_guard lock(m_mutex);
+            // A reload can clear the cache while the factory runs. Its caller may finish with
+            // this lease, but the old lease must not become resident again or replace a new entry.
+            if (generation != m_generation || result->isStale())
+                return result;
             if (auto existing = reuse(identifier)) {
                 return existing;
             }
@@ -183,6 +189,7 @@ public:
                 }
             }
             m_entries.clear();
+            ++m_generation;
         }
         return handles;
     }
@@ -197,6 +204,7 @@ private:
     mutable std::mutex m_mutex;
     QSet<SingerIdentifier> m_retainedIdentifiers;
     QHash<SingerIdentifier, Entry> m_entries;
+    std::size_t m_generation = 0;
 };
 
 #endif // SINGERSESSIONCACHE_H

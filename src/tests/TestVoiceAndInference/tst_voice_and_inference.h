@@ -16,6 +16,7 @@ private slots:
     void extractedMidiNoteTiming_data();
     void extractedMidiNoteTiming();
     void extractedMidiNoteTimingAcrossTempoChanges();
+    void extractorProgressHandlesInvalidFractions();
     void speakerMixWeightConversions();
     void speakerMixWeightInterpolation_data();
     void speakerMixWeightInterpolation();
@@ -60,6 +61,8 @@ private slots:
     void singerSessionCacheRetainsOnlySelectedSingers();
     void singerSessionCacheLatestRetainedIdentifiers();
     void singerSessionCacheRefreshPreservesSelection();
+    void singerSessionCacheRejectsInvalidatedFactoryResults_data();
+    void singerSessionCacheRejectsInvalidatedFactoryResults();
     void singerSessionCacheActiveCallerAndStaleReplacement();
     void singerSessionCacheLeastRecentlyUsedEviction();
     void singerSessionCacheIdleEvictionAndActiveReuse();

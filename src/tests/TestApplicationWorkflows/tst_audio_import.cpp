@@ -89,6 +89,21 @@ void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
     QVERIFY(values && values->isEmpty());
 }
 
+void ApplicationWorkflowTests::pitchExtractionRejectsNonFiniteFrequencies() {
+    for (const float invalid : {std::numeric_limits<float>::quiet_NaN(),
+                                std::numeric_limits<float>::infinity(),
+                                -std::numeric_limits<float>::infinity()}) {
+        otter::Api::F0::L1::F0Result curve;
+        curve.interval = 0.01;
+        curve.f0 = {invalid, 440.0f};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+        curve.voiced = {0, 1};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+        curve.voiced = {1, 1};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    }
+}
+
 void ApplicationWorkflowTests::pitchExtractionValidatesTiming_data() {
     QTest::addColumn<double>("start");
     QTest::addColumn<double>("interval");

@@ -7,6 +7,9 @@
 
 #include <otter/Analysis/AnalysisError.h>
 
+#include <algorithm>
+#include <cmath>
+
 std::optional<SynthrtEngine::AnalyzerLease> ExtractTask::createAnalyzer(const QString &kind) {
     auto newStatus = status();
     newStatus.message = tr("Loading model, please wait...");
@@ -101,6 +104,10 @@ std::function<bool(double)> ExtractTask::progressFor(const std::size_t index,
                                        .arg(static_cast<qlonglong>(count))
                                  : status().message;
     return [this, base, share, named](double fraction) {
+        // Progress is advisory. Ignore invalid reports without hiding a cancellation request.
+        if (!std::isfinite(fraction))
+            return !isTerminateRequested();
+        fraction = std::clamp(fraction, 0.0, 1.0);
         auto progressStatus = status();
         progressStatus.progress = static_cast<int>((base + fraction * share) * 100);
         progressStatus.message = named;
