@@ -793,11 +793,8 @@ namespace Automation {
                     available ? QString{}
                               : QStringLiteral("%1 is not available in this build").arg(name)));
             }
-            // The candidates come from an actual enumeration: per provider it uses the same
-            // enumerator that the GUI combo box and InferEngine resolve devices with, instead of
-            // filling them back from the currently selected item. Filling them from the selected
-            // item would leave the candidates always empty when no device is selected, and the
-            // gpu_id validation of settings.compute_device.update would always pass.
+            // Enumerate actual provider devices so gpu_id validation also works without a current
+            // selection.
             result.computeDevice = ComputeDevicePublicSettingsDto{
                 .configured = publicComputeValue(configured.inference),
                 .effective = publicComputeValue(effectiveSettings.inference),
@@ -991,12 +988,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        // Preset timestamps are persisted as UTC ISO strings (applySpeakerMixPresets() below, and
-        // PublicAutomationRegistry). Qt parses a string without an offset as local time, because
-        // the ISO branch of QDateTime::fromString() starts from QTimeZone::LocalTime and replaces
-        // it only if the string ends in Z or contains an offset. A hand-edited or externally
-        // written value would therefore denote a different instant on each machine. A missing
-        // offset is interpreted as UTC, which matches the stored format.
+        // Treat offset-less preset timestamps as UTC, matching the persisted format.
         QDateTime parsePresetTimestamp(const QString &value) {
             auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
             if (time.isValid() && time.timeSpec() == Qt::LocalTime)

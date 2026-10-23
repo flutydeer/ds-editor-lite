@@ -21,22 +21,10 @@ public:
     [[nodiscard]] QString currentLanguage() const;
     void setCurrentLanguage(const QString &language);
 
-    // The language codes in `unavailable` are always rendered as greyed-out items that cannot be
-    // clicked, rather than left out of the list, and cover two cases:
-    //   a) the host knows the language, but this singer does not declare it — if the clip itself
-    //      uses it, the UI has to state which one is lost;
-    //   b) the singer declares the language, but its G2P cannot be converted (a failure on the
-    //      engine side) — only this one is disabled, the other languages stay selectable.
-    // A disabled code that is declared in `languages` keeps the package's localized name, an
-    // undeclared one uses the generic name.
-    // `unavailableReasons` gives the original reason text per language code (an entry may be
-    // missing or empty): a non-empty original text is copied verbatim — only the loader/engine
-    // knows why it refused, the same convention as SingerMenuUnavailablePackages — otherwise a
-    // translated fallback wording is used. Whether an item is disabled is decided by `unavailable`
-    // alone, and the reason table only supplies text. When the current language is itself a
-    // disabled one, this widget's tooltip is temporarily changed to that reason too; switching
-    // back to an available language restores the tooltip the caller set, and in the normal state
-    // this widget never touches the tooltip.
+    // List unavailable languages as disabled while preserving their names and any current
+    // selection.
+    // Show the engine's reason or translated fallback text. A disabled selection also overrides
+    // this widget's tooltip until an available language is selected.
     QString setLanguages(const QList<LanguageInfo> &languages, const QString &currentLanguage,
                          const QString &preferredLanguage = {},
                          const QStringList &unavailable = {},
@@ -44,13 +32,8 @@ public:
     QString setLanguageCodes(const QStringList &languageCodes, const QString &currentLanguage,
                              bool preserveUnknownCurrent = true);
 
-    // Computes which languages "should be disabled" for a singer, for setLanguages: a) as above
-    // (the host knows it but the singer does not declare it, no reason is available); b) the
-    // singer declares it, but the engine reports the code as not convertible, and the reasons
-    // are collected into \a reasons. The returned list is ordered (host list first, package
-    // declaration order after). Only a resolved (ResolutionState::Resolved) singer is queried
-    // against the engine: the engine has no answer for an unresolved singer, and the query
-    // would only produce noise. This function loads no model and no package.
+    // Return undeclared or unconvertible languages, with available failure reasons.
+    // Preserve host order followed by singer declaration order; only probe resolved singers.
     static QStringList unavailableLanguages(const SingerInfo &singerInfo,
                                             QHash<QString, QString> &reasons);
 

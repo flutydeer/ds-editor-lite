@@ -18,8 +18,7 @@
 
 namespace Automation {
     namespace {
-        /// How often an export that waits for inference polls the inference status and triggers
-        /// the pending acoustic inference, in milliseconds.
+        /// Inference polling interval in milliseconds.
         constexpr int kInferencePollIntervalMs = 25;
     }
 

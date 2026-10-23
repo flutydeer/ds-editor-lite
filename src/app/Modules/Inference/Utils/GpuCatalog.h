@@ -6,19 +6,10 @@
 #include <QList>
 #include <QString>
 
-// The in-process cache of GPU enumeration, shared by the automation interfaces (the gpus of
-// settings.query and the devices of inference.get_capabilities). The enumeration logic and the rule
-// "which enumerator to use per provider" are defined only here, so that call sites do not probe
-// separately and the startup path does not probe at all (see
-// docs/design/async-project-loading-design.md). The actual probing is done by DmlGpuUtils (DXGI)
-// and CudaGpuUtils (nvidia-smi).
+// Shared GPU enumeration cache using DXGI for DirectML and nvidia-smi for CUDA.
 class GpuCatalog {
 public:
-    // providerId uses the spelling of ExecutionProviderUtils::toString ("CPU" / "DirectML" /
-    // "CUDA"). CPU or an unknown provider returns an empty list, consistent with the GUI combo box
-    // and with the per-provider device distinction in InferEngine. Results (including empty lists)
-    // expire after five seconds, so later queries discover hardware changes without probing on
-    // every UI refresh.
+    // CPU and unknown providers return no devices. Cached results expire after five seconds.
     static QList<GpuInfo> forProvider(const QString &providerId);
 };
 

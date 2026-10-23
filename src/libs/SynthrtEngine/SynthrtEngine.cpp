@@ -65,12 +65,6 @@ namespace {
 
 namespace {
 
-    /// Returns the language layer's address for a singer, including the package version.
-    ///
-    /// The version is included because the specification allows two versions of one package to be
-    /// loaded at the same time, and a module reference cannot distinguish them. A lookup without
-    /// the version succeeds only while exactly one version is installed, and silently returns no
-    /// result if two versions are installed.
     lite::synthrt::LanguageBridge::Singer singerOf(const SingerIdentifier &identifier) {
         const auto [packageId, contributionId] = identifier.contribution();
         return {packageId, contributionId, VersionUtils::qt_to_stdc(identifier.packageVersion)};
@@ -80,12 +74,7 @@ namespace {
 
 class SynthrtEngine::Impl {
 public:
-    /// Guards the engine state against a concurrent shutdown.
-    ///
-    /// Held shared while the unit is in use, and exclusively while the unit is replaced or
-    /// destroyed. It corresponds to the runtime lifecycle lock of the refactor line and exists for
-    /// the same reason: a package handle, a pipeline and a conversion all borrow from the unit,
-    /// and none of them tolerates the destruction of the unit during use.
+    /// Shared during SDK use, exclusive during runtime replacement or shutdown.
     mutable std::shared_mutex lifecycle;
 
     std::shared_ptr<lite::synthrt::Bootstrap> bootstrap;
@@ -109,15 +98,11 @@ public:
     }
     std::unique_ptr<lite::synthrt::LanguageBridge> language;
 
-    /// The packages that the last scan loaded. The handles keep them loaded until a refresh.
+    /// Package handles for the published catalog.
     std::vector<srt::PackageHandle> packages;
     std::vector<lite::synthrt::SingerEntry> catalog;
 
-    /// The pipelines currently held by callers, keyed by the editor's singer identity: package,
-    /// version and contribution. The key includes the version for the same reason as singerOf():
-    /// two versions of one package may be loaded at the same time, and a pipeline built from one
-    /// version must not be returned for the other. The pointers are weak because the holders own
-    /// the pipelines; the table only allows two holders to share a pipeline.
+    /// Weak pipeline cache keyed by package, version, and contribution; callers own the pipelines.
     using PipelineKey = std::tuple<std::string, std::string, std::string>;
     std::map<PipelineKey, std::weak_ptr<lite::synthrt::SingerPipeline>> pipelines;
 
@@ -127,8 +112,6 @@ public:
                 contributionId};
     }
 
-    /// Incremented on every republication of the catalog, so that a caller holding a pipeline
-    /// can detect that the pipeline describes an earlier catalog.
     std::atomic_uint64_t generation = 0;
 
     std::atomic_bool initialized = false;
@@ -138,16 +121,8 @@ public:
     mutable std::mutex doneMutex;
     mutable std::condition_variable done;
 
-    /// Returns the catalog entry of a singer, or null if no entry matches. The caller holds the
+    /// Find an exact version, or the highest loaded version when unspecified. Requires the
     /// lifecycle lock.
-    ///
-    /// The version is part of the identity if the identifier specifies a version, for the same
-    /// reason that pipelineKey() and singerOf() include it: two versions of one package may be
-    /// loaded at the same time, and the entry of the other version would report the languages,
-    /// speakers and directory of a different voicebank. An identifier without a version resolves
-    /// to the highest loaded version, so that the result does not depend on the order of the
-    /// directory scan. Every lookup of the engine uses this rule, including pipelineFor() and the
-    /// language calls.
     const lite::synthrt::SingerEntry *find(const SingerIdentifier &identifier) const {
         const auto [packageId, contributionId] = identifier.contribution();
         const auto wanted = identifier.packageVersion.isNull()
@@ -171,8 +146,7 @@ public:
         return best;
     }
 
-    /// Returns \a identifier with the version of the entry that find() selects, or unchanged if
-    /// no entry matches. The caller holds the lifecycle lock.
+    /// Resolve the version or preserve an unmatched identifier. Requires the lifecycle lock.
     SingerIdentifier resolved(const SingerIdentifier &identifier) const {
         if (!identifier.packageVersion.isNull()) {
             return identifier;
@@ -184,26 +158,8 @@ public:
         return result;
     }
 
-    /// Scans \a paths into the caller's containers and logs every package that failed to open.
-    ///
-    /// The results are written to \a entries and \a opened rather than to the members, so that a
-    /// scan that fails halfway leaves no half-batch of handles behind: a handle keeps its package
-    /// loaded, and a catalog that describes a different set of packages than the handles held is a
-    /// state no caller can use. The caller commits the containers only if this function returns
-    /// true; see refreshVoicebanks().
-    ///
-    /// scan() reports filesystem failures as problems. An exception from a lower layer is also
-    /// caught here, because the scan runs on a worker thread where an uncaught exception
-    /// terminates the process, and the contents of a voicebank directory must not terminate the
-    /// process.
-    ///
-    /// The search paths are scanned one by one, so that an exception can name the path it came
-    /// from; the problem recorded for it must carry the path, because the UI shows it as the
-    /// "voicebank that cannot be opened" line. Calling scan() once per path is equivalent to a
-    /// single call over all of them: scan() appends to \a opened and problems path by path, in
-    /// order, so the entries, the handles, and the content and order of the problems are unchanged.
-    ///
-    /// \return true if every path was scanned; false if a path raised an exception.
+    /// Write scan results to temporary containers for atomic publication.
+    /// Associate exceptions with the search path that failed.
     bool scanInto(const std::vector<fs::path> &paths,
                   std::vector<lite::synthrt::SingerEntry> &entries,
                   std::vector<srt::PackageHandle> &opened,
@@ -251,16 +207,10 @@ public:
         language = std::make_unique<lite::synthrt::LanguageBridge>(bootstrap->unit());
 
         if (!bootstrap->hasDriver()) {
-            // Initialization continues in a degraded state rather than failing: voicebanks are
-            // still listed and projects still open, and a warning serves the user better than an
-            // editor that refuses to start.
             qWarning() << "SynthrtEngine: no ONNX driver was found; inference is unavailable";
         }
 
-        // The scan at initialization has no previous state to recover: both members are empty to
-        // begin with, so a failure means the same as a failed Reload and lands in the same empty
-        // state — the local containers release the half batch of handles when they are destroyed,
-        // and the members stay empty.
+        // Failed initialization leaves an empty catalog and releases temporary handles.
         std::vector<lite::synthrt::SingerEntry> entries;
         std::vector<srt::PackageHandle> opened;
         std::vector<lite::synthrt::PackageProblem> problems;
@@ -273,7 +223,6 @@ public:
         return true;
     }
 
-    /// The identity of every package the engine holds, as package id, version and directory.
     using PackageSet = std::set<std::tuple<std::string, std::string, std::string>>;
 
     PackageSet packageSet() const {
@@ -284,8 +233,7 @@ public:
         return result;
     }
 
-    /// Releases the handles of the language session for every cataloged singer, so that a
-    /// subsequent rescan reads their packages from disk instead of reusing the loaded packages.
+    /// Release language-session handles before reopening packages from disk.
     void releaseLanguageHandles() {
         if (!language) {
             return;
@@ -295,21 +243,13 @@ public:
         }
     }
 
-    /// Supplies the phoneme table that the catalog derived for every singer to the language layer,
-    /// so that it reports the coverage of a language instead of an unknown coverage.
-    ///
-    /// The table comes from the catalog rather than from a read of the voicebank here, because the
-    /// derivation is a property of the singer and belongs beside the other capabilities. The call
-    /// follows every refresh() of the language layer, because a table survives a refresh only for
-    /// a singer that the new catalog still holds. The caller holds the lifecycle lock exclusively,
-    /// like every caller of refresh(), and the language layer synchronizes its own state.
+    /// Refresh phoneme coverage and readiness under the exclusive lifecycle lock.
     void feedSingerPhonemes() {
         if (!language) {
             return;
         }
         lite::synthrt::feedSingerPhonemes(*language, catalog);
-        // Readiness belongs to the same snapshot as the singer metadata. Callers must not have
-        // to query a newer live catalog while converting an older package scan result.
+        // Capture readiness with the singer metadata, rather than querying a newer catalog later.
         for (auto &entry : catalog) {
             entry.convertibleLanguages.clear();
             for (const auto &handle : entry.capabilities.languages) {
@@ -320,11 +260,8 @@ public:
         }
     }
 
-    /// Marks every pipeline taken so far as describing an earlier catalog.
     void republish() {
-        // A pipeline that is still held keeps its own package handle and remains valid. The
-        // table of shared pipelines is cleared so that the next request builds a pipeline from
-        // the new scan instead of sharing a pipeline from an earlier scan.
+        // Active callers keep their pipelines; new requests must use the new catalog.
         pipelines.clear();
         generation.fetch_add(1, std::memory_order_release);
     }
@@ -357,10 +294,7 @@ fs::path SynthrtEngine::defaultPluginRoot() {
     if (!testRoot.isEmpty() && QDir::isAbsolutePath(testRoot))
         return StringUtils::qstr_to_path(testRoot);
 #endif
-    // The returned directory contains the plugin tree and is not the tree itself. Each of the
-    // three packages installs under plugins/<library>/<category> below this directory, and
-    // Bootstrap appends the remaining components. This directory must therefore be their common
-    // parent; otherwise every derived path is off by one level.
+    // Return the parent of plugins/, as required by the shared deployment layout.
 #if defined(Q_OS_MAC)
     return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
@@ -371,9 +305,6 @@ fs::path SynthrtEngine::defaultPluginRoot() {
 }
 
 fs::path SynthrtEngine::defaultRuntimePath() {
-    // The build deploys ONNX Runtime beside the driver plugin. The path is specified rather than
-    // searched for, because the choice of the ONNX Runtime copy is a deployment decision, and a
-    // driver that searches may load a different copy from the shipped copy.
     return defaultPluginRoot() / lite::synthrt::layout::ONNX_RUNTIME_DIR;
 }
 
@@ -402,9 +333,7 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths, const QStringL
         return announce(
             _impl->start(voicebankPaths, packagePaths, ep, deviceIndex, pluginRoot, runtimePath));
     } catch (const std::exception &e) {
-        // Threads blocked in waitForInitialization() must receive the result, so a failure
-        // reported as an exception is announced like any other failure instead of leaving the
-        // waiting threads to time out.
+        // Complete the initialization attempt even when the SDK throws, releasing waiters.
         qCritical().noquote() << "SynthrtEngine: initialization failed:" << e.what();
         return announce(false);
     }
@@ -500,18 +429,11 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         _impl->bootstrap->unit().setPackagePaths(_impl->searchPathsFor(searchPaths));
     }
 
-    // A fresh unit cannot reuse old same-identity package handles. Active pipeline/analyzer leases
-    // retain the previous unit until their executives finish, while this scan reads current files.
-    // ReuseLoaded keeps using the current unit for the inexpensive startup rescan.
+    // Reload uses a fresh unit; active leases retain the previous unit.
     const auto before = _impl->packageSet();
 
-    // The failure semantics must differ by mode, because the two modes differ in whether the
-    // previous state can be recovered:
-    //   * Reload publishes an empty new unit before the scan. An exceptional scan leaves that
-    //     consistent empty state, with no partially scanned packages attached to the catalog.
-    //   * ReuseLoaded moves the old handles and the matching old catalog into previous together and
-    //     holds them throughout the scan, so no package is released, and a failure can restore both
-    //     as they were: the user still sees the voicebank list from before the scan.
+    // Failed Reload leaves an empty catalog. Failed ReuseLoaded restores the previous handles
+    // and their matching catalog.
     std::vector<srt::PackageHandle> previous;
     std::vector<lite::synthrt::SingerEntry> previousCatalog;
     if (mode == RescanMode::Reload) {
@@ -527,9 +449,7 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         previousCatalog = std::move(_impl->catalog);
     }
 
-    // The only commit point: the scan writes to local containers only, and they are committed in
-    // one step only if everything succeeded. On failure the half batch of handles stays in the
-    // local containers and is released with their destruction, never attached to the members.
+    // Publish handles and catalog together only after a successful scan.
     std::vector<lite::synthrt::SingerEntry> entries;
     std::vector<srt::PackageHandle> opened;
     std::vector<lite::synthrt::PackageProblem> failures;
@@ -541,8 +461,6 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         _impl->catalog = std::move(previousCatalog);
         _impl->packages = std::move(previous);
     }
-    // After a failed Reload both members were cleared above (the consistent empty state); problems
-    // always hold the reasons found by this scan.
 
     // Reload already invalidated every old pipeline, even if its package identity is unchanged.
     if (mode == RescanMode::ReuseLoaded && _impl->packageSet() != before) {
@@ -553,10 +471,7 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     }
     if (_impl->language) {
         _impl->language->refresh();
-        // A table survives a refresh only for a singer that the new catalog still holds, so the
-        // tables are supplied again for the catalog that was just committed. The caller holds the
-        // lifecycle lock exclusively, exactly as it does for the refresh above, and the helper
-        // takes no lock of its own.
+        // Reapply phoneme inventories after refreshing the language catalog.
         _impl->feedSingerPhonemes();
     }
     if (packages) {
@@ -618,8 +533,7 @@ srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
     if (!_impl->bootstrap) {
         return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
     }
-    // An identifier without a version is resolved as find() resolves it, so that the pipeline
-    // and the catalog entry that describes it belong to the same package version.
+    // Resolve the same package version for metadata and pipeline lookup.
     const auto key = Impl::pipelineKey(_impl->resolved(identifier));
     if (const auto it = _impl->pipelines.find(key); it != _impl->pipelines.end()) {
         if (auto held = it->second.lock()) {
@@ -629,9 +543,7 @@ srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
     }
     const auto &[packageId, packageVersion, contributionId] = key;
 
-    // The declaration is obtained through the package handle rather than stored in the catalog.
-    // A ContribSpec belongs to its package, and the pipeline stores the handle so that the
-    // declaration remains valid across refreshes for the lifetime of the pipeline.
+    // Borrow the declaration through a retained package handle.
     srt::ContribSpec *spec = nullptr;
     const srt::PackageHandle *owner = nullptr;
     for (auto &package : _impl->packages) {
@@ -669,8 +581,7 @@ std::vector<lite::synthrt::AnalyzerEntry>
     SynthrtEngine::analyzers(const QString &interfaceName) const {
     std::shared_lock lock(_impl->lifecycle);
     auto found = lite::synthrt::analyzersOf(_impl->packages);
-    // A reference specifies no version, so only the version that createAnalyzer() runs is listed.
-    // Listing the other versions would produce several entries for the same stored setting.
+    // Deduplicate versionless analyzer references using the version createAnalyzer() selects.
     std::sort(found.begin(), found.end(), [](const auto &a, const auto &b) {
         return std::tie(a.packageId, a.contributionId, b.packageVersion) <
                std::tie(b.packageId, b.contributionId, a.packageVersion);
@@ -694,14 +605,10 @@ std::vector<lite::synthrt::AnalyzerEntry>
 
 srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference,
                                               const srt::PackageHandle **package) const {
-    // The caller holds the lifecycle lock.
     const auto parsed = lite::synthrt::AnalyzerReference::parse(reference.toStdString());
     if (!parsed) {
         return nullptr;
     }
-    // A reference specifies no version. Of the loaded versions that contain the analyzer, the
-    // highest version is used, as analyzers() lists it, so that the choice does not depend on the
-    // scan order.
     srt::ContribSpec *best = nullptr;
     const srt::PackageHandle *bestPackage = nullptr;
     for (const auto &candidate : _impl->packages) {
@@ -712,8 +619,6 @@ srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference,
             continue;
         }
         auto *spec = candidate.contribution(srt::InferenceCategory::NAME, parsed->contributionId);
-        // An inference module with any other contract is not an analyzer, regardless of the
-        // reference.
         if (spec != nullptr && lite::synthrt::isAnalysisContract(spec->interface())) {
             best = spec;
             bestPackage = &candidate;
@@ -735,9 +640,6 @@ srt::Expected<SynthrtEngine::AnalyzerLease>
                           "no installed package holds the analyzer "
                               + reference.toStdString());
     }
-    // Each contract creates its own executive type, so the contract table selects the factory.
-    // findAnalyzer() accepts only contracts in that table. The check below prevents a contract
-    // without a factory from being created as another contract if the two ever diverge.
     const auto *contract = lite::synthrt::findAnalysisContract(spec->interface());
     auto *inference = spec->as<srt::InferenceSpec>();
     if (contract == nullptr || inference == nullptr) {
@@ -767,10 +669,7 @@ bool SynthrtEngine::canConvert(const SingerIdentifier &identifier, const QString
 
 QString SynthrtEngine::languageUnavailableReason(const SingerIdentifier &identifier,
                                                  const QString &language) const {
-    // The lock and the precondition match canConvert() exactly: canConvert() returns false when the
-    // engine is not initialized, and this call treats that the same way, as "no route is
-    // available". The reason text, however, can only come from wolf, and this layer invents none,
-    // so an empty string is returned (the UI has a fallback text).
+    // Leave fallback wording to the UI when no language layer is available.
     std::shared_lock lock(_impl->lifecycle);
     if (!_impl->language) {
         return QString();
@@ -782,8 +681,6 @@ QString SynthrtEngine::languageUnavailableReason(const SingerIdentifier &identif
 
 std::optional<lite::synthrt::LanguageBridge::Depth>
     SynthrtEngine::maxDepth(const SingerIdentifier &identifier, const QString &language) const {
-    // The lock and the precondition match canConvert(): without a language layer the query means
-    // the same as the false of canConvert(), and an empty value is returned.
     std::shared_lock lock(_impl->lifecycle);
     if (!_impl->language) {
         return std::nullopt;
@@ -805,12 +702,7 @@ srt::Expected<std::vector<lite::synthrt::LanguageBridge::Result>>
                                              language.toStdString(), words, depth);
     }
     if (!converted) {
-        // The notification is emitted outside the lock: the receiving slot queries language
-        // availability again, and that query takes the same lifecycle lock, which a direct
-        // connection in the same thread would re-enter. Emitting through the singleton rather than
-        // through this object is not a workaround: the engine is only ever constructed by
-        // SingletonRegistry (see the friend declaration in the header), so instance() is this
-        // object whenever convert() runs, and convert() stays const.
+        // Emit outside the lifecycle lock: receivers may query language availability immediately.
         emit SynthrtEngine::instance().languageRouteFailed(language);
     }
     return converted;
@@ -824,10 +716,6 @@ std::vector<std::string> SynthrtEngine::reservedPhonemesOf(const SingerIdentifie
 }
 
 srt::SynthUnit *SynthrtEngine::unitIfReady() noexcept {
-    // The returned pointer remains valid only until shutdown(), so the lock protects only the
-    // read: it prevents the read below from racing the reset in shutdown(), and the documented
-    // lifetime covers later use. Returning nullptr instead of terminating the process allows a
-    // caller that may run before initialize() or after shutdown() to handle the absence.
     std::shared_lock lock(_impl->lifecycle);
     return _impl->bootstrap ? &_impl->bootstrap->unit() : nullptr;
 }

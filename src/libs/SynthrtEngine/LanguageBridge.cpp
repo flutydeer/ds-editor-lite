@@ -15,15 +15,9 @@ namespace lite::synthrt {
 
         wolf::SingerRef refOf(const LanguageBridge::Singer &singer) {
             wolf::SingerRef reference;
-            // The category is a field of the reference grammar, so it is specified explicitly and
-            // not derived from the type name.
             reference.locator = srt::ContribLocator(singer.packageId, srt::SingerCategory::NAME,
                                                     singer.contributionId);
-            // The version is set here because a module reference cannot carry a version. The
-            // specification binds a module reference to the version that the dependency graph
-            // resolved and allows two versions of a package to be loaded at the same time. An
-            // empty version selects the only loaded version, which fails if two versions are
-            // installed.
+            // ContribLocator is versionless; bind the singer's package version separately.
             reference.version = singer.version;
             return reference;
         }
@@ -40,12 +34,8 @@ namespace lite::synthrt {
             return LinguistApi::Depth::Onsets;
         }
 
-        /// Mirrors the layer the language module reports for a language, so that the caller does not
-        /// read the language module's API. An unknown value maps to the deepest layer this editor
-        /// asks for, the opposite default of depthOf() above, because the result decides whether a
-        /// phoneme conversion is requested at all: folding an unknown value into Pronunciation would
-        /// skip that conversion and report success, while requesting Onsets leaves the outcome to the
-        /// conversion itself.
+        /// Request the deepest supported layer for unknown values, so conversion still reports
+        /// errors.
         LanguageBridge::Depth depthFrom(LinguistApi::Depth depth) {
             switch (depth) {
                 case LinguistApi::Depth::Pronunciation:
@@ -58,8 +48,6 @@ namespace lite::synthrt {
             return LanguageBridge::Depth::Onsets;
         }
 
-        /// Mirrors the stage the language module reported for a word, so that the result type does
-        /// not expose the language module's API.
         PronunciationStage stageOf(const LinguistApi::HitStage stage) {
             switch (stage) {
                 case LinguistApi::HitStage::Dict:
@@ -78,7 +66,6 @@ namespace lite::synthrt {
             return PronunciationStage::Unspecified;
         }
 
-        /// Returns the user-facing message for a per-word error, or an empty string for none.
         std::string describe(wolf::Api::G2P::L1::Error error) {
             using E = wolf::Api::G2P::L1::Error;
             switch (error) {
@@ -109,8 +96,7 @@ namespace lite::synthrt {
 
         wolf::LinguistSession session;
 
-        // Handed to every conversion, with copies sharing one state, so that cancelling the token
-        // would reach every conversion already running. Nothing cancels it today.
+        // Shared cancellation token for language conversions.
         std::mutex mutex;
         wolf::CancelToken token;
     };
@@ -146,19 +132,14 @@ namespace lite::synthrt {
     }
 
     bool LanguageBridge::canConvert(const Singer &singer, const std::string &language) const {
-        // probe() loads nothing and creates no executive, so this call is safe during list
-        // rendering. Cold readiness indicates that the route is resolved and only the resources
-        // remain to be loaded, so a cold route counts as existing.
+        // Cold routes are available; probe() does not load their resources.
         const auto status = _impl->session.probe(refOf(singer), language);
         return status.readiness != wolf::Readiness::Unavailable;
     }
 
     std::string LanguageBridge::unavailableReason(const Singer &singer,
                                                   const std::string &language) const {
-        // The same call as canConvert(): probe() loads no resource and creates no executive, so it
-        // is safe to call during list rendering. Only a definite Unavailable carries a reason; an
-        // empty reason yields an empty string, and the fallback text is provided by the UI, because
-        // this layer invents no words.
+        // Only Unavailable supplies a failure reason. The UI provides any fallback text.
         const auto status = _impl->session.probe(refOf(singer), language);
         if (status.readiness != wolf::Readiness::Unavailable) {
             return {};
@@ -168,16 +149,9 @@ namespace lite::synthrt {
 
     std::optional<LanguageBridge::Depth> LanguageBridge::maxDepth(const Singer &singer,
                                                                  const std::string &language) const {
-        // The same call as canConvert() / unavailableReason(): probe() loads no resource and
-        // creates no executive, so the depth limit of the combination can be read even for a
-        // language that was never converted.
         const auto status = _impl->session.probe(refOf(singer), language);
         if (status.readiness == wolf::Readiness::Unavailable) {
-            // An unavailable route reaches no layer, and no Depth value expresses that, so an empty
-            // value is returned and the caller applies the semantics of canConvert()
-            // (unavailableReason() gives the reason). It is not folded into Pronunciation, which
-            // would make the caller read "the route is unavailable" as "this combination has no
-            // onset layer".
+            // No value distinguishes an unusable route from a shallow but valid one.
             return std::nullopt;
         }
         return depthFrom(status.maxDepth);
@@ -206,8 +180,7 @@ namespace lite::synthrt {
             LinguistApi::LinguistWordInput one;
             one.lyric = word.lyric;
             one.pronunciation = word.pronunciation;
-            // Phonemes and onsets must have the same length. The contract therefore holds both in
-            // one optional, and an editor state with only one of them is a bug, not a valid state.
+            // Phonemes and onsets must be supplied together with matching lengths.
             if (word.phonemes && word.onsets) {
                 LinguistApi::LockedPhonemes locked;
                 locked.phonemes = *word.phonemes;

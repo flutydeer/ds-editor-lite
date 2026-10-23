@@ -26,11 +26,7 @@ namespace FillLyric {
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
                                          const std::vector<std::string> &priorityLanguages) const {
 
-        // Pre-fill results: all notes default to original lyric preservation
-        // (pronunciation=lyric, candidates={lyric}) per ds-session.md §206.
-        // This guarantees the returned list is the same length as the input so
-        // callers do not go out of bounds. G2P fallback is forbidden by
-        // ds-session.md §196; on failure the host only preserves the lyric.
+        // Preserve result indices and original lyrics when conversion fails.
         QList<G2pResult> results;
         results.reserve(notes.size());
         for (const auto &note : notes) {
@@ -81,9 +77,7 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // One call per language. Which linguist answers it is decided by the singer's own
-        // language map, so nothing here has to know a route; a language that cannot be converted
-        // leaves its notes with the original lyric (ds-session.md §206).
+        // Convert once per language; failed conversions preserve the original lyrics.
         for (const auto &[language, entries] : langGroups) {
             std::vector<lite::synthrt::LanguageBridge::Word> words;
             words.reserve(entries.size());

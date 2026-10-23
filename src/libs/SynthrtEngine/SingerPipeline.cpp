@@ -18,17 +18,13 @@ namespace lite::synthrt {
             : package(std::move(package)), singer(&singer), pipeline(std::move(pipeline)) {
         }
 
-        /// Declared first so that it is released last, because the declaration and every
-        /// executive below borrow from this package.
+        /// Keep the package alive until all borrowed declarations and executives are destroyed.
         srt::PackageHandle package;
 
-        /// Borrowed from the package, which the handle above keeps alive.
+        /// Borrowed declaration, kept alive by package.
         srt::SingerSpec *singer;
 
-        /// Creates a stage once and caches the executive, or a declaration failure.
-        ///
-        /// A missing stage is cached to avoid querying the same absent declaration per phrase.
-        /// Initialization errors are retried, allowing repaired model files to recover.
+        /// Cache absent stages, but retry model initialization failures after files are repaired.
         template <class Executive, class Options, class InitArgs, class Make>
         srt::Expected<Executive *> stage(Executive *&slot, bool &tried, std::string &why,
                                          Make make) {
@@ -47,13 +43,9 @@ namespace lite::synthrt {
                 return created.takeError();
             }
             auto *executive = created.take();
-            // Creating an executive selects the model, and initializing it opens the model. Both
-            // steps happen here so that the returned executive is ready to run, because a separate
-            // initialization step is easily omitted by a caller.
             if (auto started = executive->initialize(InitArgs{}); !started) {
                 why = started.error().toString();
-                // Files and drivers can recover between explicit retries. Keep only successful
-                // initialization; a repaired model must be opened again on the next request.
+                // Do not cache initialization failures; explicit retries may follow a model repair.
                 tried = false;
                 return started.takeError();
             }
@@ -88,9 +80,7 @@ namespace lite::synthrt {
         auto *extension =
             srt::ContribSpecExtension::findFromSpec<Ds::DiffSingerPipelineExecutive>(singer);
         if (extension == nullptr) {
-            // No interpreter implements the contract of this singer, so no pipeline extension is
-            // attached. Every voicebank for another engine reaches this branch, so the error is
-            // reported as an unsupported feature rather than as a broken package.
+            // A missing pipeline extension means the singer contract is unsupported.
             return srt::Error(srt::Error::FeatureNotSupported,
                               "no installed provider implements the contract of this singer");
         }

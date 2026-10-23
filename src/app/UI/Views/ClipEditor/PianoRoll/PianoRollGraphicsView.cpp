@@ -1590,8 +1590,7 @@ void PianoRollGraphicsViewPrivate::applyLyricEdit(const int noteId, const QStrin
 
     auto lyric = text.trimmed();
     if (lyric.isEmpty())
-        // An empty inline edit asks for the default lyric of the language the note actually sings
-        // in, which resolves an unset language through the clip and the singer.
+        // Empty edits restore the default for the note's effective singing language.
         lyric = appOptions->general()->defaultLyricForLanguage(note->effectiveLanguage());
     if (lyric == note->lyric())
         return;

@@ -5,18 +5,8 @@ param(
     [string]$InnoSetupPath = "",
     [string]$VcRedistPath = "",
 
-    # Directory of unpacked wolf language packages to stage: one subdirectory per package, each
-    # containing its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake
-    # configuration of such a tree fails if no source for the packages is set. If this parameter is
-    # empty, the script passes no -D option and CMake resolves the packages from the
-    # WOLF_LANG_PACKAGES_SOURCE environment variable, an installed wolf-lang-packages package or,
-    # if LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK is ON, a sibling wolf checkout. If this parameter
-    # is set, LITE_WOLF_LANG_PACKAGES takes precedence over all of those sources.
-    # The parameter controls only whether the -D option is passed. The script does not clear the
-    # CMake cache of the build directory, so a cache that already contains LITE_WOLF_LANG_PACKAGES
-    # keeps supplying the value in the binaryDir of this preset (build\PackageDmlRelease) even
-    # on a default run. Deleting that cache, or configuring once with an explicit empty
-    # -DLITE_WOLF_LANG_PACKAGES=, restores the resolution by convention.
+    # Optional unpacked package root, passed as LITE_WOLF_LANG_PACKAGES.
+    # Omission preserves a cached override; clear that CMake entry to restore automatic discovery.
     [string]$WolfLangPackages = "",
 
     [switch]$SkipVcpkgInstall,
@@ -235,7 +225,7 @@ function Write-InnoScript {
     Set-Content -LiteralPath $DestinationPath -Value $script -Encoding UTF8
 }
 
-# Reads the deployed layout from src/libs/SynthrtEngine/DeployLayout.h (cmake/LiteBuildApi.cmake).
+# Read deployment paths from SynthrtEngine/DeployLayout.h.
 function Get-DeployLayout {
     $header = Join-Path $RepoRoot "src\libs\SynthrtEngine\DeployLayout.h"
     $layout = @{}
@@ -253,19 +243,9 @@ function Get-DeployLayout {
 }
 
 function Assert-StagingLayout {
-    # The plugins\<library> entries are the host plugin trees. cmake/LiteBuildApi.cmake
-    # copies each tree only if the vcpkg tree contains it and only warns if it is absent. Without
-    # these entries an installer could be built and shipped without an entire plugin tree
-    # (dsinfer, wolf or otter) while every step reports success. The library names are not repeated
-    # here: they are read from DeployLayout.h (PLUGIN_LIBRARIES), the same definition
-    # cmake/LiteBuildApi.cmake reads, so the deployed and the verified library sets cannot diverge.
-    # build-portable.ps1 verifies the same list below its $AppDir.
+    # Verify the plugin libraries declared by the shared deployment layout.
     $pluginTreePaths = $DeployLayout.PLUGIN_LIBRARIES -split ' ' |
         ForEach-Object { "bin\plugins\$_" }
-    # The ONNX Runtime payload is the second deployment input CMake reads from a package it cannot
-    # verify itself: a missing payload only warns unless LITE_INSTALL is set, which turns it into a
-    # configure error. The path below is the default flavor, which every build carries; the CUDA
-    # flavor subdirectory is the additional one and is asserted against -EnableCuda further down.
     $requiredPaths = @(
         "bin\$($ProductMetadata.executableBaseName).exe",
         "bin\plugins",
@@ -277,12 +257,7 @@ function Assert-StagingLayout {
         "bin\$($DeployLayout.ONNX_RUNTIME_DIR)"
     )
 
-    # Every directory that DeployLayout.h records below plugins\<library>\ must exist in the staged
-    # tree. cmake/LiteBuildApi.cmake checks the same directories in the vcpkg source tree at
-    # configure time and only warns, so this check covers the tree that is about to be shipped.
-    # The names come from the parsed layout: a category constant already carries its
-    # plugins\<library>\ prefix, so the library-to-category mapping is derived here rather than
-    # restated.
+    # Verify the category directories in the staged package.
     foreach ($layoutEntry in $DeployLayout.GetEnumerator()) {
         if ($layoutEntry.Value -match '^plugins\\[^\\]+\\[^\\]+$') {
             $requiredPaths += "bin\$($layoutEntry.Value)"
@@ -447,10 +422,6 @@ if (-not $NoBuild) {
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
         if ($WolfLangPackages) {
-            # Passed only if the caller sets a value. Omitting the option leaves the CMake
-            # resolution chain (the environment variable, the port, the sibling checkout) in
-            # effect. It does not clear a cache that already contains the value (see the
-            # parameter help).
             $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
         }
         Invoke-Process "cmake" $configureArgs

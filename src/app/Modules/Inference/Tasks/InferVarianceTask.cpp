@@ -155,9 +155,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
     auto exp = inferenceVariance->start(input);
     if (!exp) {
-        // The caller logs this error at the end of the task, so the error records the complete
-        // error chain rather than only the outermost message. The innermost cause reported by
-        // the interpreter is usually the actionable cause.
+        // Preserve the full SDK error chain for the task's error report.
         error = QString::fromUtf8(exp.error().toString());
         qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "
                                         << identifier << ": " << error;
@@ -170,7 +168,6 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         }
     }
 
-    // A stopped run still returns a result, so state() decides: see ActiveInference.
     if (inferenceVariance->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferVariance: the variance inference for " << identifier
                                         << " did not finish";
@@ -220,7 +217,6 @@ QString InferVarianceTask::InferVarianceInput::semanticSignature() const {
 GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
     auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
-    // The curves are sampled on the frames of the model of this stage.
     const auto interval = InferFrameLayout::inputInterval(identifier, InferStage::Variance);
     for (const auto &word : words)
         totalLength += word.length();

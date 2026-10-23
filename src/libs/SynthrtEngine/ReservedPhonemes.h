@@ -9,21 +9,13 @@
 
 namespace lite::synthrt {
 
-    /// The phonemes that the editor always treats as reserved, independently of the voicebank.
-    ///
-    /// A reserved phoneme is a token that a lyric may contain directly and that no language
-    /// produces. A singer declares its reserved phonemes in the reservedPhonemes field of its
-    /// declaration, which synthrt exposes as SingerSpec::reservedPhonemes(). The editor
-    /// additionally reserves SP (silence) and AP (breath), because the project model and the
-    /// inference input depend on them. A task uses the union of both sets, which
-    /// SynthrtEngine::reservedPhonemesOf() returns.
+    /// SP and AP are always reserved. Singer-declared markers are added by reservedPhonemesOf().
     inline constexpr std::array<std::string_view, 2> FORCED_RESERVED_PHONEMES{"SP", "AP"};
 
-    /// The reserved phoneme that pads a phrase, and fills a gap between notes, with silence.
+    /// Silence token used for phrase padding and gaps.
     inline constexpr std::string_view SILENCE_PHONEME = FORCED_RESERVED_PHONEMES[0];
 
-    /// Returns the forced reserved phonemes followed by those of \a declared that are not among
-    /// them, in their declared order.
+    /// Merge declared markers after the forced markers, preserving order and removing duplicates.
     inline std::vector<std::string> withForcedReservedPhonemes(
         const std::vector<std::string> &declared) {
         std::vector<std::string> result(FORCED_RESERVED_PHONEMES.begin(),

@@ -676,8 +676,8 @@ namespace Automation {
             deadline.setSingleShot(true);
             connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
             deadline.start(2000);
-            // Futures may already be finished while their response writes are still queued on
-            // this thread. Wait until each responder has handed its bytes to the socket first.
+            // Wait for queued response writes to reach their sockets, even if the futures have
+            // finished.
             m_responseDrain = &drainLoop;
             if (m_pendingResponses != 0)
                 drainLoop.exec(QEventLoop::ExcludeUserInputEvents);
@@ -1077,8 +1077,8 @@ namespace Automation {
                             if (handler)
                                 responseObject = handler(validated, clientId);
                         } catch (const std::exception &e) {
-                            // The client receives a generic internal error, so the cause is
-                            // recorded here, where it can still be found.
+                            // Log details that are omitted from the client's generic internal
+                            // error.
                             qCritical().noquote()
                                 << "MCP handler threw an exception for" << validated.method
                                 << ":" << e.what();

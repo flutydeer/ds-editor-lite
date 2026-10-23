@@ -17,7 +17,6 @@ namespace InferCacheUtils {
     QString inputHashForCurrentModels(const QString &inputHash);
     void invalidateModelCaches();
 
-    /// Names of the two cache files of one task input: the serialized input and the result.
     struct CacheFileNames {
         QString input;
         QString output;
@@ -27,10 +26,7 @@ namespace InferCacheUtils {
         }
     };
 
-    /// Returns the cache file names of a task of \a category ("acoustic", "duration", "pitch" or
-    /// "variance") whose input hashes to \a hash. This function is the single definition of the
-    /// naming scheme and is used by the tasks, by the registration of their files and by the
-    /// cleanup.
+    /// Cache filenames for a stage category and its input hash.
     CacheFileNames cacheFileNames(const QString &category, const QString &hash);
 
     struct JsonCacheLookup {

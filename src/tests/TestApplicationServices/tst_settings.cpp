@@ -129,8 +129,7 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     expected.inference.singerSessionIdleTimeoutSeconds = 120;
     QVERIFY(harness.settings == expected);
 
-    // default_lyrics is a sparse patch per language: an empty lyric resets one language and leaves
-    // the others, which lets a caller undo one override without resending the whole table.
+    // An empty lyric resets only its named language.
     const auto reset = runtime.settings().updateSinging(
         applicationContext(),
         {.defaultLyrics = QMap<QString, QString>{{QStringLiteral("eng"), QString()}}});

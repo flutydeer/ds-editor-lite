@@ -23,28 +23,13 @@ class InferWord;
 class InferParam;
 struct InferSpeakerMix;
 
-/// One of the five stages of a singer.
 using InferStage = lite::synthrt::SingerStage;
 
-/// The stage of one singer that the running task holds, so that stop() can reach its executive.
-///
-/// A stop request is not a failure of start(): a stopped run still returns a result shaped like the
-/// one of a completed run, so a caller that used the result would treat a partial phrase as a
-/// complete phrase. Every caller therefore tests state() against srt::ITask::Succeeded before it
-/// uses the result. A real failure of start() is already reported as an error, so the result itself
-/// needs no error check.
+/// Hold a stage for cancellation. A stopped start() can still return partial output;
+/// consume it only when state() is srt::ITask::Succeeded.
 class ActiveInference final {
 public:
-    /// Inputs that a task requires to run one stage: the executive and the import options of
-    /// the singer for that stage.
-    ///
-    /// The two members have different sources and are independent. The executive belongs to the
-    /// pipeline, which builds it once per singer and shares it. The options are the import entry
-    /// of the singer, which contains the speaker mapping.
-    ///
-    /// \a executive has the base type because one member represents five stage types. The
-    /// requested stage determines the dynamic type, and the caller casts only to the executive
-    /// type of the requested stage.
+    /// Borrowed stage executive and import options, valid while the pipeline lease is held.
     struct Model {
         srt::InferenceExecutive *executive = nullptr;
         const srt::ContribImportOptions *importOptions = nullptr;
@@ -68,10 +53,7 @@ public:
         std::uint64_t m_generation;
     };
 
-    /// Opens one stage of \a pipeline and holds it, so that stop() can reach it.
-    ///
-    /// Opening is expensive, and the pipeline caches the opened stage. A second request for the
-    /// same stage therefore only returns a pointer.
+    /// Open or reuse a pipeline stage and register it for cancellation.
     srt::Expected<Handle> acquire(lite::synthrt::SingerPipeline &pipeline, InferStage stage);
     void stop();
 

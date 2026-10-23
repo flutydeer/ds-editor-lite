@@ -1,6 +1,4 @@
-# dsinfer comes from synthrt's onnx feature and is required: without it there is no inference
-# backend. An imported target is visible only in the directory that created it, so every directory
-# that links it calls find_package here; only the report is made once.
+# Repeat find_package in each consumer directory because imported targets are directory-scoped.
 
 find_package(dsinfer CONFIG QUIET)
 

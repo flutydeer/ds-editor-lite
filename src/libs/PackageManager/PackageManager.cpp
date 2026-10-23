@@ -36,9 +36,7 @@ namespace {
                 QStringLiteral("The refresh was not committed for this request")};
     }
 
-    /// Copies all translations of a synthrt DisplayText into a Qt map (language tag -> text, keys
-    /// kept verbatim per ds-spec 2.4), so that the host can re-resolve the display text per UI
-    /// language without rescanning the voicebank.
+    /// Preserve all locale keys so the UI can change language without rescanning.
     QMap<QString, QString> toLocalizedTextMap(const srt::DisplayText &text) {
         QMap<QString, QString> map;
         for (const auto &locale : text.locales()) {
@@ -62,17 +60,7 @@ namespace {
         return result;
     }
 
-    /// Returns the capability summary of a singer, derived from the exports of its loaded models.
-    ///
-    /// The previous implementation re-read the configuration file of each model and reconciled the
-    /// four files. The models of a loaded package have already been interpreted and its imports
-    /// validated, so each capability is read from the model exports and cannot contradict them.
-    ///
-    /// Three former fields cannot be derived and keep their "unknown" value.
-    /// `vocoderPitchControllable` is a vocoder configuration key that no model exports.
-    /// `effectivePhonemes` was the intersection of the four phoneme tables and only feeds a
-    /// change-detection hash. The consistency levels described a reconciliation that no longer
-    /// takes place, because a voicebank with inconsistent models fails to load.
+    /// Map parsed singer capabilities to the editor's capability summary.
     SingerCapabilitySummary summaryOf(const lite::synthrt::SingerCapabilities &capabilities) {
         SingerCapabilitySummary summary;
         for (const auto &speaker : capabilities.speakers) {
@@ -96,13 +84,10 @@ namespace {
             info.setLocalizedNames(toLocalizedTextMap(speaker.name));
             if (speaker.toneRange) {
                 info.setToneRange(*speaker.toneRange);
-                // The string pair is the serialized form and is kept consistent with the numbers.
                 info.setToneMin(QString::number(speaker.toneRange->first));
                 info.setToneMax(QString::number(speaker.toneRange->second));
             }
-            // Every speaker that the acoustic model accepts can be mixed with every other speaker,
-            // because all of them belong to that model and no separate list of mixable speakers
-            // exists.
+            // All acoustic model speakers share the same mixing capability.
             info.setMixable(true);
             result.append(std::move(info));
         }
@@ -119,8 +104,7 @@ namespace {
                 language.setName(toQString(name->second.text()));
                 language.setLocalizedNames(toLocalizedTextMap(name->second));
             }
-            // The default lyric is stated by the linguist module of that language rather than by the
-            // settings, so it travels with the language entry and the editor resolves it later.
+            // Preserve the linguist's default lyric as language metadata.
             if (const auto lyric = capabilities.defaultLyrics.find(handle);
                 lyric != capabilities.defaultLyrics.end()) {
                 language.setDefaultLyric(toQString(lyric->second));
@@ -171,10 +155,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 m_refreshSearchPaths == searchPathsQt) {
                 auto result = m_lastRefreshResult;
                 lock.unlock();
-                // The leading refresh has already committed, and this caller shares its result.
-                // The gate still determines whether the caller may use the result, so a caller
-                // whose request is no longer current receives the rejection rather than the
-                // declined result.
+                // Sharing a committed refresh does not bypass the follower's commit gate.
                 if (result && commitGate && !commitGate())
                     return commitRejectedError();
                 return result;
@@ -211,13 +192,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             searchPaths.push_back(path);
         }
 
-        // InferEngine initializes the engine asynchronously, so the first scan may start before
-        // the engine exists. The scan waits instead of failing, so that a package list at startup
-        // shows the packages rather than a transient error.
-        //
-        // Initialization has one stage. The previous implementation split initialization into
-        // two stages so that a package scan did not wait for model loading. Models are now loaded
-        // only when a synthesis requires them, so no second stage exists.
+        // Wait for asynchronous engine initialization before the first package scan.
         if (!SynthrtEngine::instance().initializationDone()) {
             if (!SynthrtEngine::instance().waitForInitialization()) {
                 return GetInstalledPackagesError{
@@ -247,16 +222,12 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
         const auto singers = scanned.take();
 
-        // A package that failed to open is listed with its reason rather than omitted, so that a
-        // user who installed the voicebank sees the cause of the failure.
         for (const auto &problem : problems) {
             result.failedPackages.emplace_back(StringUtils::path_to_qstr(problem.path),
                                                QString::fromStdString(problem.reason));
         }
 
-        // Packages are listed even if they only contribute analyzers, models or languages. Grouping
-        // uses the package identity rather than the path, because two directories may contain
-        // the same package and the loader has already selected one of the two directories.
+        // Keep packages without singers and group by the identity selected by the loader.
         QList<PackageInfo> packages;
         QHash<QString, qsizetype> packageAt;
         for (const auto &entry : scannedPackages) {
@@ -294,9 +265,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             if (!complete)
                 qWarning() << "Singer" << toQString(singer.contributionId) << "in" << packageId
                            << "is missing stages required by the editor inference pipeline";
-            // Speakers that the acoustic model cannot address are excluded from the singer rather
-            // than offered and rejected later, so they are reported here. Without this warning, a
-            // voicebank with this defect is indistinguishable from a voicebank with fewer speakers.
+            // Report declared speakers that could not be mapped to the acoustic model.
             for (const auto &id : singer.capabilities.unaddressableSpeakers) {
                 qWarning() << "Speaker" << toQString(id) << "of singer"
                            << toQString(singer.contributionId) << "in" << packageId
@@ -346,10 +315,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     }
     m_refreshCompleted.notify_all();
     if (completed && !commitRejected) {
-        // A refresh runs on a worker thread, and the receivers of this signal are widgets and
-        // controllers of the application thread. The signal is emitted from the thread of the
-        // manager, so that every receiver observes it in a consistent order relative to the other
-        // signals of the manager and no receiver is invoked on the worker thread.
+        // Emit from the manager's thread so UI receivers observe signals in order.
         QMetaObject::invokeMethod(
             this,
             [this, refreshedPackages = std::move(refreshedPackages)] {

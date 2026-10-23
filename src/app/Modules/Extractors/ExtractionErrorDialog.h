@@ -5,10 +5,7 @@
 
 namespace Extractors {
 
-    /// Shows a modal dialog that reports a failed extraction.
-    ///
-    /// The title and the button text are passed translated, so that each controller keeps its own
-    /// translation context.
+    /// Dialog title and button text are translated by the caller.
     void showErrorDialog(const QString &title, const QString &closeText, const QString &message);
 
 }

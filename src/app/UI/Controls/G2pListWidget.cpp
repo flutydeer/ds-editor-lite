@@ -48,9 +48,7 @@ namespace LangSetting {
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this, SmoothScroller::TouchKinetic::Disabled);
 
-        // The list is left empty. It used to be filled from a registry of G2P modules, which
-        // the main line does not have: a language is a linguist a singer imports, so there is no
-        // list of them to browse independently of a voicebank.
+        // Language routes belong to singers, so there is no standalone G2P module list.
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 
@@ -83,9 +81,6 @@ namespace LangSetting {
     G2pListWidget::~G2pListWidget() = default;
 
     QString G2pListWidget::currentG2pId() const {
-        // R2/TD-2: 列表为空时 currentItem() 返回 nullptr，直接解引用会崩溃
-        // （G2pPage::update() 与 shown 信号槽会调用本函数）。空时返回空 QString，
-        // 由 G2pInfoWidget::setInfo 显示占位文案。
         const auto *item = m_gListWidget->currentItem();
         if (!item)
             return {};

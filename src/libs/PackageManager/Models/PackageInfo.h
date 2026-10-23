@@ -47,21 +47,11 @@ public:
     QString path() const;
     QList<SingerInfo> singers() const;
 
-    /// Returns the reason why this package could not be opened, or an empty string if the package
-    /// loaded.
-    ///
-    /// A package that fails to open is still listed, so that a user who installed it sees the
-    /// reason for the failure instead of a missing entry. The text is the loader's diagnostic,
-    /// passed through unchanged, because only the loader has the details of the rejection.
+    /// Loader failure reason, or empty for a loaded package.
     [[nodiscard]] QString unavailableReason() const;
     [[nodiscard]] bool isUnavailable() const;
 
-    /// Returns whether a package that the loader rejected is listed, based on the rejection
-    /// \a reason.
-    ///
-    /// A rejection without a reason is not listed anywhere, because a row without a reason
-    /// provides no explanation. This function is the single point of that decision, so the package
-    /// manager and the singer menus always list the same failures.
+    /// Whether a rejected package has a nonempty reason that can be shown to the user.
     [[nodiscard]] static bool isFailureReportable(const QString &reason);
 
     void setId(const QString &id);
@@ -78,12 +68,7 @@ public:
 
     void addSinger(const SingerInfo &singer);
 
-    /// Returns the listing of a package that failed to open, built from its directory \a path
-    /// and the loader's \a reason.
-    ///
-    /// The identifier cannot be read from a package that failed to load. The directory name, from
-    /// which the packaging tools derive the package name, therefore serves as the title, and the
-    /// path identifies the package.
+    /// Build a failed-package entry using its directory as the title and identity.
     static PackageInfo unavailable(const QString &path, const QString &reason);
 
     bool isEmpty() const;

@@ -54,15 +54,7 @@ public:
     QString inferenceRuntimePath() const;
     QString inferenceInterpreterPath() const;
 
-    /// Lease on the pipeline of one singer, which keeps the pipeline alive while the lease is held.
-    ///
-    /// The pipeline is shared with the other holders in SynthrtEngine and owns its package. A task
-    /// that still holds a lease after a voicebank rescan therefore completes on a valid pipeline
-    /// instead of a dangling pointer. Releasing the last lease closes the five models, which are
-    /// the only resources here with significant memory cost. A lease records the catalog
-    /// generation in which it was acquired. The cache uses the generation to detect a resident
-    /// lease that describes a voicebank from a previous scan, and acquires a new lease instead of
-    /// returning the stale lease.
+    /// Retain a singer pipeline across refreshes and track its catalog generation.
     class SingerPipelineLease final {
     public:
         SingerPipelineLease(std::shared_ptr<lite::synthrt::SingerPipeline> pipeline,
@@ -73,7 +65,6 @@ public:
 
         lite::synthrt::SingerPipeline *pipeline() const noexcept;
 
-        /// Returns whether the catalog was republished after the lease was acquired.
         bool isStale() const;
 
     private:
@@ -103,9 +94,7 @@ private:
     void releaseSingerSessionsAsync(SingerSessionHandleList handles);
     void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles);
 
-    /// Options read by initialization, copied on the application thread when initialization
-    /// starts. AppOptions belongs to the application thread, and initialize() runs on a task
-    /// thread.
+    /// Snapshot AppOptions on the application thread before worker initialization.
     struct StartOptions {
         QString executionProvider;
         QString selectedGpuId;

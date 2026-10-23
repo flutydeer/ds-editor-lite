@@ -210,10 +210,6 @@ void PackageManagerDialog::loadPackageList() {
     for (const auto &package : packageResult.get())
         packages.append(fromAutomationDto(package));
 
-    // A package that would not open is listed after the ones that did, marked unavailable and
-    // carrying the loader's own reason: someone who installed a voicebank and cannot see it needs
-    // to be told why rather than shown nothing. Without a reason to show it is not listed at all,
-    // because an unnamed row would explain nothing.
     const auto failureResult = runtime->packages().getInstalledPackageFailures();
     if (failureResult) {
         for (const auto &failure : failureResult.get()) {

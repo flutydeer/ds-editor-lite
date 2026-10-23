@@ -619,9 +619,8 @@ namespace Automation {
                                arguments.value(QStringLiteral("default_language")).toString();
                        }
                        if (arguments.contains(QStringLiteral("default_lyrics"))) {
-                           // The patch is sparse per language and an empty lyric resets that
-                           // language, so an entry that omits the lyric would silently reset a
-                           // language the caller never named. Both fields are therefore required.
+                           // Both fields are required: an omitted lyric must not reset a language
+                           // override.
                            const auto lyrics = arguments.value(QStringLiteral("default_lyrics"));
                            if (!lyrics.isArray()) {
                                return AutomationResult<QJsonObject>(AutomationError::invalidArgument(

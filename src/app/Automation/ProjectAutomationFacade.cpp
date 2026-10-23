@@ -1513,12 +1513,8 @@ namespace Automation {
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
-                // A language that the voicebank does not declare is answered with a warning rather
-                // than a rejection: when notes follow the singer language, the conversion chain
-                // silently falls back to Copy, and this warning is the only hint that the default
-                // language will not be sung. The validate_only and unchanged branches carry the
-                // same warning, so that the three branches return the same result (the caller
-                // predicts the real write from it).
+                // Return the unsupported-language warning consistently for writes, no-ops, and
+                // validation.
                 QStringList warnings;
                 QStringList declaredIds;
                 const auto declaredLanguages = clip->singerInfo().languages();

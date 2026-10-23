@@ -55,26 +55,17 @@ namespace LangSetting {
     }
 
     void G2pInfoWidget::setInfo(const QString &g2pId) const {
-        // R2/TD-2: 列表为空时 currentG2pId() 返回空 QString，显示占位文案而非
-        // 走 task 查找（避免误导性的 "Load Failed" 提示）
         if (g2pId.isEmpty()) {
             m_label->setText(tr("G2P Config"));
             m_descriptionLabel->setText(tr("(no G2P preset selected)"));
             return;
         }
-        // 保持原签名行为，走默认（官方）context
         setInfo(g2pId, QString(), QVersionNumber());
     }
 
     void G2pInfoWidget::setInfo(const QString &g2pId, const QString &context,
                                 const QVersionNumber &contextVersion) const {
-        // Nothing is looked up. The older line addressed a G2P module by an identifier and a
-        // context and could ask a registry about it; on the main line a language is a linguist
-        // that a singer imports, so there is no module to resolve from an identifier alone and
-        // nothing to report beyond what the caller already passed in.
-        //
-        // This is a knowing downgrade rather than a port: what belongs here now is a language of
-        // the selected singer, which is a different widget and a different question.
+        // Standalone G2P lookup is unavailable; display the metadata supplied by the caller.
         Q_UNUSED(context)
         Q_UNUSED(contextVersion)
 

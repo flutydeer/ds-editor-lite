@@ -32,10 +32,8 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
-    Property<QString>
-        languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
-    // The concrete reason why the inference engine failed to start, published by the initialization
-    // task thread for a one-shot notice in the main window; runtime state, not persisted
+    Property<QString> languageModuleError;
+    // Initialization failure reason for the main-window notice; not persisted.
     Property<QString> inferenceEngineError;
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
     // Runtime-only: the execution provider named in appConfig.json that this

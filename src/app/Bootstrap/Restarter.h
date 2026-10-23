@@ -9,10 +9,7 @@ class Restarter {
 public:
     explicit Restarter(const QString &workingDir);
 
-    /// Waits, for a bounded time, until the process this one was started to replace has exited.
-    ///
-    /// Called before the single-instance lock is taken. Does nothing when this process was not
-    /// started by a restart.
+    /// Wait for the restart predecessor before taking the instance lock. No-op for normal launches.
     static void waitForPredecessor();
 
     int restartOrExit(int exitCode) const;

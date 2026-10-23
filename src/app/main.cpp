@@ -41,11 +41,7 @@ int main(int argc, char *argv[]) {
     mstimer.start();
 
 #if !defined(Q_OS_WIN)
-    // A restarted instance inherits its predecessor's standard streams. When those are pipes held
-    // by whoever started the predecessor, they close the moment it exits, and the first console
-    // log line the successor writes would kill it with SIGPIPE. Writes to a closed pipe then fail
-    // with EPIPE and are ignored by the logger, which is what a host process wants; sockets were
-    // never affected, since Qt sends on them without the signal.
+    // Ignore SIGPIPE from inherited output pipes that close when the restart predecessor exits.
     signal(SIGPIPE, SIG_IGN);
 #endif
     const auto hostMode = StartupArguments::preparseHostMode(argc, argv);

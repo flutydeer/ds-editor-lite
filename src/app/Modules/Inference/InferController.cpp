@@ -809,10 +809,8 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
             return;
         }
         if (clip->singerInfo().isEmpty()) {
-            // Voice-clearing path: without a singer ensureClipInferenceStarted returns right away,
-            // so the fallback branch of the language tasks is re-run instead, to clear the
-            // pronunciation and the phonemes derived from the singer (they must not survive voice
-            // clearing).
+            // Without a singer, run language fallbacks to clear singer-derived pronunciation and
+            // phonemes.
             restartLanguageTasksAfterVoiceCleared(*clip);
         } else {
             ensureClipInferenceStarted(*clip);
@@ -923,18 +921,12 @@ void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
 
 void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &clip) {
     QPointer<SingingClip> guardedClip(&clip);
-    // The reason is the same as in ensureClipInferenceStarted: the model signal is emitted inside
-    // ActionSequence::execute(), so the document may only be modified after the committer has
-    // advanced the version.
+    // Defer document edits until ActionSequence has advanced the revision.
     QTimer::singleShot(0, this, [this, guardedClip] {
         if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
             return;
 
-        // Without a singer canStartClipInference blocks a normal inference start, so the
-        // pronunciation/phonemes from before the voice was cleared stay on the notes (both are
-        // derived from the singer and must be cleared together with it). The state produced by the
-        // fallback branch of the two language tasks is exactly the state a note without a voicebank
-        // should have: the pronunciation is the original word and the phonemes stay empty.
+        // Voice clearing restores lyric-as-pronunciation and empty phonemes.
         createAndRunGetPronTask(*guardedClip, true);
     });
 }

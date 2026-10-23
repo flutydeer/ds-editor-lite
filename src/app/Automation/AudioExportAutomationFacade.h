@@ -130,7 +130,6 @@ namespace Automation {
         struct PendingJobState;
         struct JobRecord;
 
-        /// Returns the audio export of \a documentId that is queued or running, if any.
         [[nodiscard]] std::optional<TaskId> activeExport(const DocumentId &documentId) const;
 
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,

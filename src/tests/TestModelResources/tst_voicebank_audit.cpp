@@ -1,14 +1,4 @@
-// Audits a real voicebank against the complete chain in both directions.
-//
-// The other tests in this set use fixtures built for them. This test runs the complete chain on a
-// voicebank that was not written for the test (a published package in the 2.3 format, converted)
-// and reports the result in both directions: which stages open, which languages route, and which
-// part of the phoneme inventory declared by each language the singer can sing.
-//
-// The audit runs in both directions intentionally. The chain checking the voicebank is the
-// ordinary direction and detects a faulty conversion. The voicebank checking the chain detects the
-// less obvious defects: a phoneme inventory that the chain routes to but that the models do not
-// contain yields a route that loads without error and produces no sound.
+// Validate a configured spec 2.4 voicebank's declarations, language routes, and model coverage.
 
 #include <algorithm>
 #include <filesystem>
@@ -46,21 +36,12 @@ namespace {
         }
     }
 
-    /// Reports a finding: a property of the voicebank that the chain cannot correct and must not
-    /// hide.
-    ///
-    /// Findings are kept separate from failures intentionally. A failure indicates that the two
-    /// sides disagree on something the tooling controls, and requires a code change. A finding
-    /// indicates that a declaration of the voicebank does not hold. Detecting such declarations is
-    /// the purpose of running the chain on a real voicebank, and failing on them would discourage
-    /// running this test.
+    /// Record voicebank-specific findings separately from failed host-contract assertions.
     void finding(const std::string &what) {
         std::cout << "  NOTE  " << what << "\n";
         ++findings;
     }
 
-    /// Returns the error text of \a value, or "(no error)" if \a value holds a value. Calling
-    /// error() on a successful Expected reads the wrong union member.
     template <class T>
     std::string why(const srt::Expected<T> &value) {
         return value ? std::string("(no error)") : value.error().toString();
@@ -77,11 +58,7 @@ namespace {
         return result;
     }
 
-    /// Returns the path of the phoneme table that the models of the directory \a directory use.
-    ///
-    /// Current conversions name a table after the model (`<model>.phonemes.json`); older
-    /// conversions name it `phonemes.json`. The audit concerns the table content rather than the
-    /// file name, so either name is accepted.
+    /// Accept phonemes.json and model-specific *.phonemes.json tables.
     fs::path phonemeTable(const fs::path &directory) {
         std::error_code ec;
         for (const auto &entry : fs::directory_iterator(directory, ec)) {
@@ -93,12 +70,7 @@ namespace {
         return directory / "phonemes.json";
     }
 
-    /// Returns the keys of the phoneme table of a model exactly as the file writes them, language
-    /// prefixes included.
-    ///
-    /// The audit needs the written form for one purpose: to take a keyed entry of the package and
-    /// check that the catalog derived its bare token. Every other use of the table goes through
-    /// singerPhonemes(), which removes the prefix.
+    /// Read raw table keys, retaining language prefixes for normalization checks.
     std::vector<std::string> tableKeys(const fs::path &table) {
         std::ifstream file(table);
         if (!file.is_open()) {
@@ -117,23 +89,13 @@ namespace {
         return result;
     }
 
-    /// Returns \a key with the language prefix removed.
-    ///
-    /// A table of a model is keyed `<language>/<phoneme>`, and only the first prefix is removed,
-    /// because the rest of the key is the phoneme and may contain a slash of its own. A key without
-    /// a prefix is a language independent token such as a breath and is returned unchanged.
+    /// Remove the first language/ prefix only.
     std::string barePhoneme(const std::string &key) {
         const auto slash = key.find('/');
         return slash == std::string::npos ? key : key.substr(slash + 1);
     }
 
-    /// Returns the phonemes contained in one model of the singer, as the editor reads them.
-    ///
-    /// wolf does not open voicebank formats, so reading the table is the responsibility of the
-    /// host. Only the host has the information that the table is keyed `<language>/<phoneme>` with
-    /// bare markers. The result is one list per table instead of one list per language, which is
-    /// the form the session accepts: a phoneme is either in the model or not, regardless of the
-    /// requesting language.
+    /// Read a model's phoneme inventory without language prefixes.
     std::vector<std::string> singerPhonemes(const fs::path &table) {
         std::set<std::string> distinct;
         for (const auto &key : tableKeys(table)) {
@@ -142,20 +104,13 @@ namespace {
         return {distinct.begin(), distinct.end()};
     }
 
-    /// Returns the phonemes that every model of \a package contains, read from the package.
-    ///
-    /// This is the independent side of the cross-check of the table the catalog derives: the same
-    /// files, read a second way, without the catalog. Every frame model is read and the result is
-    /// their intersection, because the derivation supplies the intersection, and a comparison
-    /// against one model alone would hold only for a voicebank whose models agree.
+    /// Independently read model-table intersections for comparison with the production catalog.
     std::vector<std::string> modelPhonemes(const fs::path &package) {
         std::set<std::string> result;
         bool started = false;
         for (const auto *stage : {"duration", "pitch", "variance", "acoustic"}) {
             const auto table = singerPhonemes(phonemeTable(package / "inferences" / stage));
             if (table.empty()) {
-                // A model that declares no table constrains nothing, which is the rule the
-                // derivation applies as well.
                 continue;
             }
             const std::set<std::string> one(table.begin(), table.end());
@@ -175,12 +130,7 @@ namespace {
         return {result.begin(), result.end()};
     }
 
-    /// Returns the path of the first character declaration in the package, or an empty path if
-    /// none exists.
-    ///
-    /// The doctoring below requires one declaration to edit, and the character that the
-    /// declaration belongs to does not affect the result: a reserved phoneme missing from the
-    /// models must cause the package to be rejected, regardless of which character declares it.
+    /// Find a character declaration to modify in the package copy.
     fs::path anyCharacterConfig(const fs::path &package) {
         std::error_code ec;
         for (const auto &entry : fs::directory_iterator(package / "characters", ec)) {
@@ -192,39 +142,26 @@ namespace {
         return {};
     }
 
-    /// Reads a JSON file. Returns a null value if the file cannot be opened.
     srt::JsonValue readJson(const fs::path &path) {
         std::ifstream file(path);
         if (!file.is_open()) {
-            // Silence here is what made a whole reader look like it worked: the callers treat a
-            // missing file as "declares nothing", which is indistinguishable from a file that
-            // declares an empty list. The path is printed so the two can be told apart.
             std::cout << "  unreadable: " << path.string() << " (cannot open)\n";
             return srt::JsonValue::fromJson("null", true);
         }
         const std::string text((std::istreambuf_iterator<char>(file)),
                                std::istreambuf_iterator<char>());
         auto value = srt::JsonValue::fromJson(text, true);
-        // A parse that yields neither an object nor an array is a failure too, and it used to be
-        // silent in the same way: the callers treat it as "declares nothing".
         if (!value.isObject() && !value.isArray()) {
             std::cout << "  unparsed: " << path.string() << "\n";
         }
         return value;
     }
 
-    /// Speaker declaration of the singer.
-    ///
-    /// Read directly from the character manifest instead of through the catalog, because the
-    /// comparison is only meaningful if both sides are read independently. Otherwise a catalog
-    /// that named speakers after the model instead of the singer would match itself and mismatch
-    /// the package.
+    /// Read speaker metadata independently of the production catalog.
     struct SpeakerDeclaration {
-        /// Speaker identifiers held by a host, in declaration order.
         std::vector<std::string> ids;
 
-        /// Mapping that the acoustic import applies to the identifiers. Empty if no mapping is
-        /// declared; the engine then treats each identifier as a speaker name of the model.
+        /// Absent acoustic speaker mappings use model names directly.
         std::map<std::string, std::string> mapping;
     };
 
@@ -282,8 +219,6 @@ namespace {
         return result;
     }
 
-    /// Returns the speaker names accepted by the acoustic model, which are the targets of the
-    /// speaker mapping of the singer.
     std::vector<std::string> acousticModelSpeakers(const fs::path &config) {
         std::vector<std::string> result;
         const auto parsed = readJson(config);
@@ -307,8 +242,6 @@ namespace {
         return result;
     }
 
-    /// Links \a target to \a source by symbolic link if the platform permits it, otherwise by
-    /// hard link. Returns whether either link was created.
     bool link(const fs::path &source, const fs::path &target, std::error_code &ec) {
         ec.clear();
         fs::create_symlink(source, target, ec);
@@ -324,12 +257,7 @@ namespace {
         return false;
     }
 
-    /// Mirrors a package, copying the JSON declarations and linking all other files. Returns
-    /// whether the mirror is complete.
-    ///
-    /// The models are hundreds of megabytes and are not under test; the declarations are small and
-    /// are under test. Linking the models and copying the declarations produces a package that is
-    /// equivalent for this test, in the time needed to traverse the directory.
+    /// Copy editable JSON declarations and link model files to avoid duplicating large weights.
     bool mirror(const fs::path &from, const fs::path &to) {
         std::error_code ec;
         fs::create_directories(to, ec);
@@ -341,10 +269,8 @@ namespace {
             } else if (entry.path().extension() == ".json") {
                 fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
             } else if (!link(entry.path(), target, ec)) {
-                // Copying is the fallback if neither link is available: Windows grants the
-                // symlink privilege only to administrators, and a hard link requires both paths
-                // on one volume, which is not guaranteed for the voicebank and the staging
-                // directory.
+                // Fall back to copying when symlink permissions or cross-volume paths prevent
+                // linking.
                 fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing, ec);
             }
             if (ec) {
@@ -354,9 +280,7 @@ namespace {
         return !ec;
     }
 
-    /// Replaces the first occurrence of \a what in a file with \a with (the doctoring). Returns
-    /// false if \a what does not occur or the file cannot be read or written, because a doctoring
-    /// that silently changed nothing would pass the test by loading an unmodified package.
+    /// Fail if the replacement anchor is absent, so an unchanged package cannot satisfy the test.
     bool doctor(const fs::path &path, const std::string &what, const std::string &with) {
         std::ifstream in(path);
         if (!in.is_open()) {
@@ -409,10 +333,7 @@ namespace {
 int runVoicebankAudit() {
     failures = 0;
     findings = 0;
-    // A published voicebank is hundreds of megabytes and cannot be stored in the tree, so the test
-    // takes the voicebank path from the command line or the build configuration and is skipped if
-    // no voicebank exists there. Skipping instead of failing is correct, because nothing is broken
-    // if the machine has no voicebank.
+    // Optional external voicebank configured through LITE_AUDIT_VOICEBANK.
     const fs::path voicebank(TEST_VOICEBANK_DIR);
     const fs::path languagePackages(TEST_LANGUAGE_PACKAGES);
     const fs::path pluginRoot(TEST_PLUGIN_ROOT);
@@ -430,9 +351,7 @@ int runVoicebankAudit() {
 
     std::cout << "voicebank: " << voicebank << "\n";
 
-    // Dependencies are resolved through the package paths, which differ from the scan roots. The
-    // parent directory of the voicebank is included because packages are looked up by id in these
-    // paths.
+    // Include the voicebank's parent when resolving package dependencies.
     auto bootstrap = Bootstrap::create(pluginRoot,
                                        {languagePackages, voicebank.parent_path()},
                                        runtimePath, Backend::Cpu, -1);
@@ -476,7 +395,6 @@ int runVoicebankAudit() {
                                           capabilities.transitionControls.end()}) << "\n";
     std::cout << "  languages  " << join(capabilities.languages) << " (default "
               << capabilities.defaultLanguage << ")\n";
-    // The frame grids and the audio rate the inference tasks use, read from the configurations.
     std::cout << "  frames     duration " << capabilities.durationFrameWidth << " s, pitch "
               << capabilities.pitchFrameWidth << " s, variance " << capabilities.varianceFrameWidth
               << " s, acoustic " << capabilities.acousticFrameWidth << " s; vocoder "
@@ -485,15 +403,10 @@ int runVoicebankAudit() {
                capabilities.varianceFrameWidth > 0 && capabilities.acousticFrameWidth > 0,
            "every stage declares its frame width");
     expect(capabilities.vocoderSampleRate > 0, "the vocoder declares its sample rate");
-    // Read from the singer declaration instead of agreed out of band, which is the purpose of the
-    // key: the loader has already rejected the package if its models lack any of these phonemes.
     const auto &markers = capabilities.reservedPhonemes;
     std::cout << "  reserved   " << join(markers, 20) << "\n";
     expect(!markers.empty(),
            "the singer declaration lists the phonemes that a lyric may specify directly");
-    // Counted from the package: the languages available to a singer are the language packages that
-    // its manifest depends on, so a voicebank converted with a different language set still passes
-    // the audit.
     {
         std::ifstream manifest(voicebank / "desc.json");
         const std::string text((std::istreambuf_iterator<char>(manifest)),
@@ -503,12 +416,7 @@ int runVoicebankAudit() {
              at = text.find("wolf/lang-", at + 1)) {
             ++declaredLanguages;
         }
-        // Compared the other way round than an equality would: the promise is that every language
-        // the manifest depends on reaches a linguist, not that no other language does. A linguist
-        // that carries its own conversion modules, such as a voicebank's Korean one that uses the
-        // package's g2p-ko instead of wolf/lang-kor, reaches a language the manifest names no wolf
-        // dependency for. Equality refused such a package for being self-contained, so the extra
-        // language is reported instead of failed.
+        // Required language dependencies must resolve; self-contained linguists may add languages.
         expect(capabilities.languages.size() >= declaredLanguages,
                "every language the package depends on reaches a linguist: declared "
                    + std::to_string(declaredLanguages) + ", reached "
@@ -520,12 +428,7 @@ int runVoicebankAudit() {
         }
     }
 
-    // The identifiers held by a host are the speaker identifiers of the singer: the identifiers in
-    // its declaration, which are the keys of its import mapping. The speaker names of the acoustic
-    // model are the targets of that mapping. With the mapping `base -> xuanyi-base` of the club
-    // voicebank, a catalog that offered the model names placed a speaker in the menu that every
-    // synthesis then failed to look up, because the lookup table is keyed by the singer
-    // identifiers.
+    // Validate singer-side speaker IDs against the acoustic import mapping.
     const auto declaration = readSpeakerDeclaration(singer.packagePath / "characters" /
                                                     singer.contributionId / "config.json");
     const auto modelSpeakers =
@@ -539,11 +442,6 @@ int runVoicebankAudit() {
     for (const auto &[from, to] : declaration.mapping) {
         std::cout << "  maps       " << from << " -> " << to << "\n";
     }
-    // A package that names no speaker is a single-speaker package: the models carry one voice and
-    // the host has nothing to choose between, which the loader represents by offering none. Such a
-    // package is not a defect, so an empty declaration is reported and not failed. What is still
-    // checked is that the host is offered nothing either: an offer that exists while the
-    // declaration names none would be an identifier a host shows and cannot look up.
     if (declared.empty()) {
         std::cout << "  note   the declaration names no speaker, so the package is single-speaker "
                      "and the host is offered none\n";
@@ -556,8 +454,6 @@ int runVoicebankAudit() {
                    + (offered == declared ? std::string() : ": offered " + join(offered)));
     }
     for (const auto &speaker : capabilities.speakers) {
-        // The same lookup that a synthesis performs with this identifier (see above): an identifier
-        // that is not a key of the import mapping, such as a model speaker name, fails it.
         expect(declaration.mapping.empty() || declaration.mapping.count(speaker.id) != 0,
                "speaker " + speaker.id +
                    " is a key of the acoustic mapping, which synthesis uses for the lookup");
@@ -596,14 +492,10 @@ int runVoicebankAudit() {
     }
 
     std::cout << "\n== the voicebank reading the chain ==\n";
-    // The independent side of the cross-check below: the package's four tables, read by this file.
     const auto fromFiles = modelPhonemes(singer.packagePath);
     expect(!fromFiles.empty(), "the phoneme tables of the models are readable");
     std::cout << "  the models contain " << fromFiles.size() << " distinct phoneme(s)\n";
 
-    // The table the chain measures a coverage with comes from the catalog, and the audit supplies it
-    // through the production entry point rather than reading a file of its own. Everything asserted
-    // below therefore describes what the editor runs.
     expect(capabilities.singablePhonemes.has_value(), "the singer declares a phoneme table");
     const auto derived = capabilities.singablePhonemes.value_or(std::vector<std::string>{});
     expect(!derived.empty(),
@@ -615,9 +507,7 @@ int runVoicebankAudit() {
                       ? std::string()
                       : ": derived " + std::to_string(derived.size()) + ", read "
                             + std::to_string(fromFiles.size())));
-    // Necessary condition that does not reimplement the intersection: a symbol absent from any
-    // model must be absent from the derived table, because the chain would then sing it without a
-    // frame from that model.
+    // A phoneme missing from any model must be absent from the shared inventory.
     for (const auto *stage : {"duration", "pitch", "variance", "acoustic"}) {
         const auto one = singerPhonemes(phonemeTable(singer.packagePath / "inferences" / stage));
         if (one.empty()) {
@@ -633,9 +523,7 @@ int runVoicebankAudit() {
                                     + " model, whose table is not the source of these: "
                                     + join(outside));
     }
-    // Rule pin: a table key is `<language>/<phoneme>`, and the prefix is not part of a phoneme. A
-    // keyed token matches no phoneme of any language and would measure a coverage of zero, so the
-    // pin takes a keyed entry of this package and requires its bare token in the derived table.
+    // Verify that catalog inventory tokens omit the language prefix.
     {
         const auto keys = tableKeys(phonemeTable(singer.packagePath / "inferences/acoustic"));
         const auto keyed = std::find_if(keys.begin(), keys.end(), [](const std::string &key) {
@@ -665,8 +553,6 @@ int runVoicebankAudit() {
         srt::ContribLocator(singer.packageId, "singer", singer.contributionId),
         singer.packageVersion,
     };
-    // The catalog supplies the session, exactly as the engine does after every refresh. A key that
-    // the session does not hold is discarded with a warning, and the coverage then stays unknown.
     feedSingerPhonemes(session, singers);
     session.setReservedMarkers(markers);
 
@@ -690,11 +576,7 @@ int runVoicebankAudit() {
             }
             expect(status.readiness != wolf::Readiness::Unavailable,
                    language.handle + " has a usable route");
-            // The domain contract excludes reserved markers from the declared inventory: a marker
-            // is resolved before grapheme-to-phoneme conversion and is never a phoneme that a host
-            // must support. A marker left in the inventory makes every host that measures singer
-            // coverage report a nonexistent gap; the `um` entry of the club voicebank caused such
-            // a gap before the converter implemented this rule.
+            // Reserved markers must not appear in ordinary language phoneme inventories.
             std::vector<std::string> declaredMarkers;
             for (const auto &marker : markers) {
                 if (std::find(language.phonemes.begin(), language.phonemes.end(), marker)
@@ -705,9 +587,6 @@ int runVoicebankAudit() {
             expect(declaredMarkers.empty(),
                    language.handle + " declares no reserved marker as a phoneme"
                        + (declaredMarkers.empty() ? "" : ", found " + join(declaredMarkers)));
-            // The silence of such a phoneme is described in the file header. After the exclusion of
-            // reserved phonemes, every remaining missing phoneme is a declaration of the voicebank
-            // that the models cannot sing.
             if (!status.missingPhonemes.empty()) {
                 finding(language.handle + " declares " + join(status.missingPhonemes)
                         + ", which no model of this singer contains: the chain can produce these "
@@ -719,9 +598,6 @@ int runVoicebankAudit() {
     std::cout << "\n== conversions, end to end ==\n";
     LanguageBridge bridge(unit->unit());
     bridge.refresh();
-    // The catalog supplies the bridge through the production entry point, exactly as the engine does
-    // after every refresh: the bridge wraps the same session, and a table that the session does not
-    // hold is discarded with a warning instead of being measured.
     feedSingerPhonemes(bridge, singers);
     bridge.setReservedMarkers(markers);
 
@@ -731,11 +607,7 @@ int runVoicebankAudit() {
         {"jpn", {{"\xe3\x81\x93", {}, {}, {}}, {"\xe3\x82\x93", {}, {}, {}}}},
     };
 
-    // The layer limit of every probed language, read from the language module before a conversion,
-    // which is the order the editor uses now (GetPhonemeNameTask). A composition without an onset
-    // member stops at Phonemes, and a request for a deeper layer returns the shallower result
-    // without an error, so the audit reports the limit beside the conversions below: the limit is
-    // what decides how far those conversions can go.
+    // Probe supported depth before testing conversion results.
     const auto depthName = [](LanguageBridge::Depth depth) -> const char * {
         switch (depth) {
             case LanguageBridge::Depth::Pronunciation:
@@ -759,11 +631,7 @@ int runVoicebankAudit() {
         }
     }
 
-    // The three depths on the same words (U-05). The wolf contract defines one cut depth instead of
-    // a set of switches, and a composition may legitimately return a shallower result than
-    // requested. The assertions below therefore check the shape guaranteed by each depth instead of
-    // the shape of a switch: Pronunciation includes no phonemes, Phonemes includes no onsets, and
-    // onsets, if present, align with the phonemes.
+    // Check result shape at each requested depth, allowing shallower results.
     struct DepthCase {
         LanguageBridge::Depth depth;
         const char *name;
@@ -802,15 +670,11 @@ int runVoicebankAudit() {
                     } else if (depthCase.depth == LanguageBridge::Depth::Phonemes) {
                         expect(result.onsets.empty(), where + " stops before onsets");
                     } else {
-                        // The contract permits a shallower result but not an unaligned result.
                         expect(result.onsets.empty()
                                    || result.onsets.size() == result.phonemes.size(),
                                where + " has one onset per phoneme or no onsets");
-                        // A composition that reaches no onset layer marks no onset, but it does
-                        // return one flag per phoneme with all of them false, so the presence of the
-                        // list says nothing: only a set flag contradicts the limit read above. A
-                        // language whose limit is unknown, because its route is not usable, is left
-                        // unchecked rather than treated as a composition that reaches no onset.
+                        // An absent onset layer may return an aligned all-false mask, but no true
+                        // onset flags.
                         const auto reached = limits.find(probe.language);
                         if (reached != limits.end()
                             && reached->second == LanguageBridge::Depth::Phonemes
@@ -832,8 +696,7 @@ int runVoicebankAudit() {
             }
             ++depthIndex;
         }
-        // A deeper conversion must not change the result of a shallower depth. The contract does
-        // not guarantee this, so a change is reported as a finding instead of a failure.
+        // Cross-depth differences are findings because the contract does not guarantee equality.
         if (perDepth[0].size() == perDepth[1].size() && !perDepth[0].empty()) {
             for (std::size_t i = 0; i < perDepth[0].size(); ++i) {
                 if (perDepth[0][i].pronunciation != perDepth[1][i].pronunciation) {
@@ -848,10 +711,7 @@ int runVoicebankAudit() {
         }
     }
 
-    // The stage says how the language module produced a reading: a dictionary entry, a model, a rule
-    // or the last resort. It is diagnostic, so only its propagation is asserted: the bridge carries
-    // it out of the conversion instead of discarding it, and a module that reports nothing stays
-    // Unspecified.
+    // Verify propagation of diagnostic pronunciation stages, including Unspecified.
     expect(staged > 0,
            "the conversion reports the stage that produced its reading: " + std::to_string(staged) +
                " of " + std::to_string(counted) + " words");
@@ -890,8 +750,6 @@ int runVoicebankAudit() {
                    probe.language + " word " + std::to_string(i) + " reached phonemes");
             expect(result.onsets.size() == result.phonemes.size(),
                    probe.language + " word " + std::to_string(i) + " has an onset per phoneme");
-            // Final link: every phoneme the chain produces must be one the models contain (see the
-            // file header).
             std::vector<std::string> unsingable;
             for (const auto &phoneme : result.phonemes) {
                 if (known.find(phoneme) == known.end()) {
@@ -905,11 +763,7 @@ int runVoicebankAudit() {
         }
     }
 
-    // A marker bypasses grapheme-to-phoneme conversion (the rule above), so it is returned
-    // unchanged for every language, regardless of whether a dictionary contains it. The check uses
-    // the bridge instead of the session because the editor calls the bridge. The interception
-    // applies only to markers registered by the host through setReservedMarkers(), which is the
-    // reason the setter exists.
+    // Reserved markers must pass through language conversion unchanged.
     std::cout << "\n== reserved markers (bypass grapheme-to-phoneme) ==\n";
     for (const auto &marker : markers) {
         auto answered = bridge.convert({singer.packageId, singer.contributionId, singer.packageVersion},
@@ -931,13 +785,7 @@ int runVoicebankAudit() {
         expect(copied, marker + " is returned unchanged as one phoneme with one onset");
     }
 
-    // Counterpart of the reserved phoneme declaration: a singer that reserves a phoneme missing
-    // from its models must not load. The check uses this voicebank instead of a fixture, because
-    // it verifies that the loader check covers real models: four separate tables with hundreds of
-    // entries each.
-    //
-    // The package is mirrored with its models linked instead of copied, and then doctored. The
-    // copy receives a different id, so the unit does not hold two packages with the same id.
+    // Copy and rename the package before injecting an unsupported reserved phoneme.
     std::cout << "\n== rejection of a reserved phoneme missing from the models ==\n";
     {
         const auto staging = fs::temp_directory_path() / "lite-audit-doctored";
@@ -945,15 +793,9 @@ int runVoicebankAudit() {
         fs::remove_all(staging, ec);
         const auto doctored = staging / voicebank.filename();
         bool ready = mirror(voicebank, doctored);
-        // The anchor carries the leading newline and the two spaces of a root-level key. A bare
-        // `"id": "` is not enough: desc.json is written with its keys in alphabetical order, so the
-        // first match is the id of the first dependency, and renaming that one leaves the modules
-        // importing a package the declaration no longer lists, which the loader refuses before it
-        // ever looks at the reserved phonemes this check is about.
+        // Match the root package ID, not an indented dependency ID.
         ready = ready && doctor(doctored / "desc.json", "\n  \"id\": \"",
                                 "\n  \"id\": \"doctored-");
-        // A token that no phoneme table can contain, so the rejection cannot result from a
-        // coincidental match.
         ready = ready && doctor(anyCharacterConfig(doctored),
                                 "\"reservedPhonemes\": [",
                                 "\"reservedPhonemes\": [\n      \"zz-not-a-phoneme\",");
@@ -972,7 +814,6 @@ int runVoicebankAudit() {
                                + " as lacking the token: " + reason);
                 }
             } else {
-                // The package opened despite the doctoring; release it before the unit.
                 refused.take().reset();
             }
         }
@@ -986,19 +827,11 @@ int runVoicebankAudit() {
     }
     std::cout << "\n";
 
-    // The session and the bridge hold executives that reference the packages, so they must be
-    // destroyed first. They are declared after `opened` for this reason. The wrong order causes a
-    // crash in unrelated code; the facade exists to enforce this order.
+    // Destroy language executives before releasing their package handles.
     return failures == 0 ? 0 : 1;
 }
 
-// Measures the read path of the default lyric, which is what the editor follows for a new note:
-// wolf parses the linguist declaration, and lite derives the singer capabilities from it.
-//
-// The voicebank is the fixture in the tree, so the measurement runs everywhere and needs neither a
-// published voicebank nor any environment. A copy is doctored instead of the fixture itself, and
-// the unmodified fixture is measured as well: a voicebank that declares nothing has to report
-// nothing, because that is what leaves the editor on its built-in value.
+// Verify declared and absent default-lyric metadata without modifying the source package.
 int runDefaultLyricDeclaration() {
     failures = 0;
     findings = 0;
@@ -1011,8 +844,7 @@ int runDefaultLyricDeclaration() {
         return 1;
     }
 
-    // The fixture binds the linguist of a language package for cmn, so the language packages that
-    // the build installs have to be on the package paths as well.
+    // Include deployed language packages when resolving fixture dependencies.
     fs::path languagePackages = pluginRoot / "wolf" / "packages";
     if (!fs::is_directory(languagePackages)) {
         languagePackages = pluginRoot.parent_path() / "wolf" / "packages";

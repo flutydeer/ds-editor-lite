@@ -23,11 +23,7 @@ void InitInferEngineTask::runTask() {
         success.store(false, std::memory_order_release);
         qCritical().noquote().nospace()
             << "Failed to initialize inference engine: " << errorMessage;
-        // An initialization failure is still a hard failure, but the reason has to reach the user.
-        // runTask() runs on a thread-pool thread while AppStatus is owned by the application
-        // thread, so, in the same shape as InferEngine publishing unavailableExecutionProvider, a
-        // queued invocation bounces the assignment back to the application thread, and the main
-        // window then shows a one-shot notice.
+        // Publish initialization failure on AppStatus's application thread.
         QMetaObject::invokeMethod(
             qApp, [message = errorMessage] { appStatus->inferenceEngineError = message; },
             Qt::QueuedConnection);

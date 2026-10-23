@@ -266,7 +266,7 @@ private slots:
     }
 
     void defaultLyricDeclaration() {
-        // A failed measurement must not poison the next entry in this process.
+        // A failed audit must not affect the next entry in the same process.
         QTemporaryDir invalid;
         QVERIFY(invalid.isValid());
         const auto package = invalid.filePath(QStringLiteral("empty@1.0.0"));
@@ -292,7 +292,6 @@ private slots:
             qputenv("DSEL_TEST_VOICEBANK_ROOT", package.toUtf8());
             QCOMPARE(runDefaultLyricDeclaration(), 1);
         }
-        // No skip gate: the healthy measurement uses the existing voicebank fixture.
         QCOMPARE(runDefaultLyricDeclaration(), 0);
     }
 

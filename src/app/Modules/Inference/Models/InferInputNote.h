@@ -11,7 +11,7 @@ class Note;
 
 class InferInputNote {
 public:
-    /// A note whose lyric is in \a reservedPhonemes is a rest; see ReservedPhonemes::of().
+    /// Notes with reserved-phoneme lyrics are rests.
     explicit InferInputNote(const Note &note,
                             const QSet<QString> &reservedPhonemes = ReservedPhonemes::forced());
 

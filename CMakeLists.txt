@@ -101,16 +101,7 @@ if(LITE_TEST_COVERAGE)
     endif()
 endif()
 
-# ----------------------------------
-# The main line's dependency root
-# ----------------------------------
-# The editor builds against the main line of synthrt together with wolf and otter. No public
-# registry provides these three packages: the ports in scripts/vcpkg-ports provide them, and only
-# scripts/vcpkg-manifest/vcpkg.json requests them. A dependency tree installed from another
-# manifest lacks them, and find_package would then fail in a subdirectory with the generic vcpkg
-# advice to extend CMAKE_PREFIX_PATH, which does not address the cause. The three packages are
-# therefore checked once at this point, and a missing package produces a diagnostic that names the
-# required installation.
+# Check the dependencies installed by this repository's vcpkg manifest.
 foreach(_lite_required IN ITEMS synthrt wolf otter)
     find_package(${_lite_required} CONFIG QUIET)
     if(NOT ${_lite_required}_FOUND)

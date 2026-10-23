@@ -485,9 +485,6 @@ namespace Automation {
                 .effective = settings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
-            // The fallback snapshot taken while the service is unavailable performs no GPU probe:
-            // the real candidates come from the regular snapshot of AppOptionsAutomationAdapter,
-            // which returns only the configured GPU here.
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!settings.inference.selectedGpuId.isEmpty()) {
                 gpuCandidates.append({
@@ -849,10 +846,7 @@ namespace Automation {
                 if (patch.defaultLanguage)
                     target.general.defaultSingingLanguage = patch.defaultLanguage->trimmed();
                 if (patch.defaultLyrics) {
-                    // The patch is sparse per language: a language it does not name keeps its
-                    // value, and an empty lyric resets that language to the value the editor
-                    // resolves for it, which lets a caller undo one override without clearing the
-                    // others.
+                    // Only named languages change; an empty lyric removes that language's override.
                     for (auto it = patch.defaultLyrics->constBegin();
                          it != patch.defaultLyrics->constEnd(); ++it) {
                         if (it.value().trimmed().isEmpty())

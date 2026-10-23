@@ -34,9 +34,7 @@ bool ExecutionProviderUtils::availableInBuild(const ExecutionProvider provider) 
             return false;
 #endif
         case ExecutionProvider::CoreML:
-            // The engine supports CoreML, but no editor build ships an ONNX Runtime with CoreML
-            // or offers it in the settings. A stored CoreML value therefore resolves to the CPU
-            // with a fallback reason and is not passed to the driver.
+            // CoreML is not shipped by the editor; report the fallback to CPU.
             return false;
     }
     return false;

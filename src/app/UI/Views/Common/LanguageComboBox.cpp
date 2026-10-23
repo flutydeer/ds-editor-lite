@@ -29,20 +29,11 @@ namespace {
         return id;
     }
 
-    // Disabling convention: Qt::UserRole - 1 is the slot in which Qt 6 QStandardItemModel stores
-    // the item flags, and writing 0 there clears ItemIsEnabled/ItemIsSelectable — the item then
-    // shows greyed out in the popup, the mouse cannot click it and the arrow keys skip it. A value
-    // in that slot means "disabled", and every item disabled by this change is written through the
-    // same place, markUnavailableItem().
+    // QStandardItemModel stores item flags in Qt::UserRole - 1.
     constexpr int kUnavailableFlagsRole = Qt::UserRole - 1;
-    // The original reason text is stored in the Qt::UserRole + 2 slot of the item data; an empty
-    // string means "no original text, use the fallback wording".
     constexpr int kUnavailableReasonRole = Qt::UserRole + 2;
 
-    // The original reason comes from the loader/engine and is copied verbatim, not translated: only
-    // it knows why it refused, the same convention as SingerMenuUnavailablePackages. The fallback
-    // wording is used only when there is no original text (for example "the singer does not declare
-    // this language").
+    // Use translated fallback text only when the engine supplied no reason.
     QString unavailableToolTipText(const QString &reason) {
         const auto trimmed = reason.trimmed();
         if (!trimmed.isEmpty())
@@ -57,8 +48,6 @@ LanguageComboBox::LanguageComboBox(const QString &langKey, const WheelEventPolic
     setLanguageCodes(AppGlobal::languageNames, langKey);
     connect(this, &QComboBox::currentIndexChanged, this, [this](int index) {
         if (index >= 0) {
-            // When the selection becomes (or stops being) a disabled language, the widget tooltip
-            // has to follow or be restored
             refreshCurrentToolTip();
             emit currentLanguageChanged(itemData(index).toString());
         }
@@ -82,11 +71,7 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
     clear();
     m_languages = languages;
 
-    // A key being present means disabled, and its value is the original reason for that language
-    // (may be empty = use the fallback wording). Whether an item is disabled is decided by
-    // `unavailable` alone, and the reason table only supplies the original text, so a call site
-    // that gives reasons only for languages "the engine reports an error for" still disables every
-    // item it must.
+    // Availability comes from the unavailable set; reasons only supply tooltip text.
     QHash<QString, QString> disabled;
     for (const auto &code : unavailable) {
         const auto id = code.trimmed();
@@ -94,8 +79,7 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
             disabled.insert(id, unavailableReasons.value(id).trimmed());
     }
 
-    // Whether "Follow singer" is inserted depends on the number of selectable items, not on the
-    // number of items: when every language is unavailable the fallback is needed as well.
+    // Offer 'Follow singer' when no language is selectable.
     int selectable = 0;
     QSet<QString> addedIds;
     for (const auto &language : languages) {
@@ -106,8 +90,6 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         addItem(displayName(id, language.displayName(UiLanguageManager::currentBcp47Candidates())),
                 id);
         setItemData(count() - 1, language.name(), Qt::UserRole + 1);
-        // A declared language may also be unavailable (its G2P cannot be converted): it is disabled
-        // in the same way, only its localized name and the engine reason are kept
         if (disabled.contains(id)) {
             markUnavailableItem(count() - 1, disabled.value(id));
         } else {
@@ -115,9 +97,7 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         }
     }
 
-    // Undeclared disabled languages are listed with their generic name; `unknown` is a sentinel and
-    // never listed as a selectable item. Both disabling cases and the reason convention are in the
-    // header.
+    // Keep undeclared languages visible, but never offer the unknown sentinel.
     for (const auto &code : unavailable) {
         const auto id = code.trimmed();
         if (id.isEmpty() || id == QStringLiteral("unknown") || addedIds.contains(id))
@@ -150,8 +130,6 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
     }
     setCurrentIndex(selectedIndex);
     adjustWidthToContent();
-    // When the selected item is a disabled one, the closed combo box itself has to give the reason
-    // as well (the tooltip of that row inside the popup is a separate matter)
     refreshCurrentToolTip();
     return currentData().toString();
 }
@@ -187,8 +165,6 @@ void LanguageComboBox::refreshCurrentToolTip() {
     const int index = currentIndex();
     const bool unavailable = index >= 0 && itemData(index, kUnavailableFlagsRole).isValid();
     if (!unavailable) {
-        // The current language is available: hand the tooltip back to the caller (for example a
-        // description like "Clip Default Language"), instead of holding on to it
         if (!m_reasonToolTip.isEmpty()) {
             setToolTip(m_baseToolTip);
             m_reasonToolTip.clear();
@@ -215,21 +191,16 @@ QStringList LanguageComboBox::unavailableLanguages(const SingerInfo &singerInfo,
     }
 
     QStringList unavailable;
-    // a) the host knows it, but the singer does not declare it: list it as before (otherwise it
-    // would be silently replaced by another language), and the fallback wording is the only
-    // reason available
+    // Keep undeclared languages visible so an explicit selection is not silently replaced.
     for (const auto &code : AppGlobal::languageNames) {
         if (!declared.contains(code))
             unavailable.append(code);
     }
 
-    // For an unresolved singer (a fallback-constructed dspx, a voicebank that was not matched) the
-    // engine has no answer, and the query would only produce noise
+    // Only resolved singers have language routes to probe.
     if (singerInfo.resolutionState() != ResolutionState::Resolved)
         return unavailable;
 
-    // b) declared, but the engine says it cannot be converted: disable only this one, and copy the
-    // engine reason verbatim (an empty original leaves the fallback wording)
     const auto identifier = singerInfo.identifier();
     QSet<QString> queried;
     for (const auto &language : singerInfo.languages()) {
@@ -263,9 +234,7 @@ void LanguageComboBox::refreshDisplayNames() {
             }
         }
         setItemText(index, displayName(id, packageName));
-        // The tooltip is item data, so setting the text again on a language change does not touch
-        // it; the fallback wording, however, has to follow the translation, so it is recomputed for
-        // the current language
+        // Recompute translated fallback tooltips when the UI language changes.
         if (itemData(index, kUnavailableFlagsRole).isValid()) {
             const auto reason = itemData(index, kUnavailableReasonRole).toString();
             setItemData(index, unavailableToolTipText(reason), Qt::ToolTipRole);

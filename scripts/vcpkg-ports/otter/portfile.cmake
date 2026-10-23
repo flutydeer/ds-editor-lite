@@ -1,15 +1,5 @@
-# otter: the analysis domain that the editor uses to extract pitch and notes. Its analysers are
-# inference modules, and their interpreters install under lib/plugins/otter/inferenceinterpreters,
-# beside the interpreters of dsinfer and wolf.
-#
-# The analyzer packages are data and are not provided by this port. The model weights are too large
-# for a port to carry, and the user selects the analyzer among the installed packages.
+# otter provides analyzer interpreters. Model packages are installed separately.
 
-# A fetch by commit requires no archive hash. The pin is a commit so that a rebuild uses the same
-# sources. HEAD_REF names the branch that contains the commit.
-#
-# The pinned revision needs the Darwin pipe-write adaptation below. The dependency and runtime
-# contracts are described in docs/plans/synthrt-main-migration.md.
 set(_otter_platform_patches)
 if(VCPKG_TARGET_IS_OSX)
     list(APPEND _otter_platform_patches macos-pipe-nosigpipe.patch)
@@ -28,9 +18,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         onnx WITH_ONNX
 )
 
-# The contract library requires neither dsinfer nor a driver; only the interpreters require them.
-# otter finds dsinfer with a QUIET find_package. Without the feature, dsinfer is therefore disabled
-# explicitly, independent of any other port that installed dsinfer into the tree.
+# Disable optional dsinfer discovery when the feature is off, even if another port installed it.
 set(_otter_disable_dsinfer ON)
 if(WITH_ONNX)
     set(_otter_disable_dsinfer OFF)
@@ -50,8 +38,7 @@ vcpkg_cmake_config_fixup(
     CONFIG_PATH lib/cmake/otter
 )
 
-# The interpreters are plugins located by name at run time and are not link targets. On Windows
-# they install their DLLs under lib/plugins.
+# Plugins install DLLs under lib/plugins and are loaded dynamically.
 set(VCPKG_POLICY_ALLOW_DLLS_IN_LIB enabled)
 
 file(REMOVE_RECURSE

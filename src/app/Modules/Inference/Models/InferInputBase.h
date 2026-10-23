@@ -37,8 +37,7 @@ public:
     Timeline timeline;
     QList<InferInputNote> notes;
 
-    /// Reserved phonemes of the singer, used to classify the notes. A note whose lyric is a
-    /// reserved phoneme is a rest, and a reserved phoneme has no offset of its own.
+    /// Reserved-phoneme notes are rests and have no phoneme offset.
     QSet<QString> reservedPhonemes = ReservedPhonemes::forced();
 
     QString speaker;
@@ -55,8 +54,7 @@ public:
         const InferParamCurve &curve, int frames,
         double intervalSeconds = InferFrameLayout::kDefaultInputInterval,
                                                       double emptyValue = 0.0) const;
-    /// Samples a pitch curve at the inference frames without blending a voiced value with the
-    /// unvoiced marker. See PitchSampling::resample(); an empty curve yields unvoiced frames.
+    /// Resample without blending unvoiced markers into voiced pitch; empty input stays unvoiced.
     [[nodiscard]] QList<double> resamplePitchToFrames(
         const InferParamCurve &curve, int frames,
         double intervalSeconds = InferFrameLayout::kDefaultInputInterval) const;

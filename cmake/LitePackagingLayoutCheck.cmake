@@ -1,22 +1,5 @@
-# Packaging layout check for the wolf language packages staged by a build.
-#
-# Runs as the last POST_BUILD command on the application target, after the copy commands that it
-# verifies. It receives their destination (the land point) and the package names resolved at
-# configure time, and rejects a tree in which the runtime would find no package.
-#
-# No other step detects these failures: the qmsetup copy script (modules/scripts/copy.cmake) copies
-# an empty set and exits with 0 when a source directory globbed at configure time is removed before
-# the build, so the build reports success without staging any package. A tree that resolved none is
-# allowed and does not fail the build, and the configure-time warning for it is easily missed.
-#
-# The install tree does not exist while the build runs, so the install rules generated at configure
-# time are checked for the same land point instead.
-#
-# Every finding is reported through the two functions below, so the severity depends only on the
-# layout: FATAL_ERROR by default and WARNING under LITE_INSTALL_DIR_USE_DEBUG_PREFIX, which the
-# packaging scripts cannot package but which is not an error to build.
-#
-# The invocation from cmake/LiteBuildApi.cmake is documented at the end of this file.
+# Check the staged language packages and their install rules after deployment.
+# Use warnings for the development-only debug-prefix layout, errors otherwise.
 
 function(_lite_packaging_severity_rule _out)
     if(LITE_INSTALL_DIR_USE_DEBUG_PREFIX)
@@ -26,7 +9,6 @@ function(_lite_packaging_severity_rule _out)
     endif()
 endfunction()
 
-# Reports a finding with the given severity; see the severity rule in the file header.
 function(_lite_packaging_verdict _severity _message)
     if(_severity STREQUAL "FATAL_ERROR")
         message(FATAL_ERROR "${_message}")
@@ -35,24 +17,12 @@ function(_lite_packaging_verdict _severity _message)
     endif()
 endfunction()
 
-# ------------------------------------------------------------------------------------------------
 # Staged build tree
-#
-# Verification of the land point in the build tree against the package names resolved at configure
-# time (see the file header).
 if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
     _lite_packaging_severity_rule(_severity)
     set(_stage_dir "${LITE_STAGED_LANG_PACKAGES_DIR}")
 
-    # Replace a package whose staged copy is not the version this configure resolved.
-    #
-    # Staging is additive: qmsetup's copy script leaves a file that already exists alone, and the
-    # release archives carry a fixed 1980 timestamp for reproducible hashes, so a newer release
-    # replaces nothing and the tree keeps the old files. The tree then records the new version
-    # nowhere and the old one everywhere, dependency resolution runs against the old compatibility
-    # floor, and a voicebank that names the new floor fails with a missing dependency that points at
-    # the language package rather than at the stale copy. Removing the directory before copying is
-    # therefore part of staging, not only of the check below.
+    # Replace changed package versions: fixed archive timestamps defeat timestamp-based copying.
     if(expected AND source AND IS_DIRECTORY "${source}")
         string(REPLACE "," ";" _expected_names "${expected}")
         foreach(_name IN LISTS _expected_names)
@@ -83,9 +53,6 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         endforeach()
     endif()
 
-    # Classification of the entries in the land point. A package directory is a directory that
-    # contains desc.json, because the loader scans this directory instead of reading a list of
-    # names; every other entry resolves to no package.
     file(GLOB _stage_entries "${_stage_dir}/*")
     set(_staged "")
     set(_staged_without_manifest "")
@@ -105,16 +72,12 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         set(source "(no source named)")
     endif()
     if(NOT hint)
-        # Built with string(CONCAT) instead of set() with one argument per line: set() would join
-        # the arguments with ';', which would appear in the printed text.
         string(CONCAT hint
             "Set LITE_WOLF_LANG_PACKAGES, or the WOLF_LANG_PACKAGES_SOURCE environment variable, "
             "to the directory of unpacked packages.")
     endif()
 
     if(NOT expected)
-        # No package tree was resolved for this build. The warnings report the consequence and
-        # any packages from an earlier configure that remain in the tree and mask the failure.
         if(NOT problem)
             set(problem "no package tree was resolved at configure time")
         endif()
@@ -136,17 +99,13 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         return()
     endif()
 
-    # Package names that this build stages. The caller separates the names with ',' because a
-    # ';'-separated CMake list would reach this script as one argument per package.
     string(REPLACE "," ";" _expected_names "${expected}")
     list(LENGTH _expected_names _expected_count)
     list(LENGTH _staged _staged_count)
 
     set(_missing "")
     foreach(_name IN LISTS _expected_names)
-        # list(FIND) instead of IN_LIST: this file also runs in script mode (-P), in which no
-        # project() has run and the policy that enables the IN_LIST operator (CMP0057) is not in
-        # effect.
+        # Use list(FIND) in script mode, where CMP0057 may not enable IN_LIST.
         list(FIND _staged "${_name}" _staged_at)
         if(_staged_at EQUAL -1)
             list(APPEND _missing "${_name}")
@@ -196,10 +155,7 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
         "[lang-packages] Staged ${_staged_count} wolf language package(s) from '${source}' into "
         "'${_stage_dir}', each with a desc.json.")
 
-    # The install rules are checked here as well (see the file header: the install tree does not
-    # exist during the build). They must install the same packages to the same land point below the
-    # install prefix. The qmsetup install copies report their own failures, but only for registered
-    # copies; a package absent from the install rules is silently not installed.
+    # Validate generated install rules because the install tree does not exist during the build.
     if(NOT install_enabled)
         message(STATUS
             "[lang-packages] No install rules were requested (LITE_INSTALL is off, or the caller "
@@ -239,14 +195,3 @@ if(DEFINED LITE_STAGED_LANG_PACKAGES_DIR)
     endif()
     return()
 endif()
-
-# ------------------------------------------------------------------------------------------------
-# Usage from cmake/LiteBuildApi.cmake, after the copy commands:
-#
-#   cmake -D "LITE_STAGED_LANG_PACKAGES_DIR=<build runtime dir>/wolf/packages" ^
-#         -D "expected=wolf-g2p-pinyin,wolf-lang-cmn" -D "land_point=wolf/packages" ^
-#         -D "source=<the package tree this build resolved>" ^
-#         -D "problem=<reason no package tree was resolved, if none was>" ^
-#         -D "hint=<how to fix it>" -D "install_enabled=ON" ^
-#         -D "install_script=<build>/cmake_install.cmake" ^
-#         -P cmake/LitePackagingLayoutCheck.cmake

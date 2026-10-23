@@ -159,7 +159,7 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         qCritical() << "inferDuration: Import options not found";
         return false;
     }
-    // The duration input has no frame level speakers, so only the words are converted.
+    // Duration inputs have word-level speakers only.
     std::vector<ds::Api::Common::L1::InputSpeakerInfo> unusedSpeakers;
     if (!convertStageWords(model, *speakerMapping, false, input.words, unusedSpeakers, error)) {
         qCritical() << "inferDuration:" << error;
@@ -187,7 +187,6 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         }
     }
 
-    // A stopped run still returns a result, so state() decides: see ActiveInference.
     if (inferenceDuration->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferDuration: the duration inference for " << identifier
                                         << " did not finish";
@@ -293,7 +292,6 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
         if (note.isRest || note.isSlur)
             continue;
 
-        // Skip consecutive reserved phonemes, which belong to rests and padding.
         while (phoneIndex < outputPhones.size() &&
                m_input.reservedPhonemes.contains(outputPhones.at(phoneIndex).token)) {
             phoneIndex++;

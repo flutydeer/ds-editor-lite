@@ -43,14 +43,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        /// Checks that \a reference identifies an installed analyzer that implements
-        /// \a interfaceName.
-        ///
-        /// The check queries the engine rather than the filesystem. An analyzer is a contribution
-        /// of a package, so its availability depends on the installed packages and its suitability
-        /// depends on the contract it declares. The existence of a file at a path indicates
-        /// neither. A path-based check would accept a note model for pitch extraction and report
-        /// the mismatch only at run time.
+        /// Require an installed analyzer implementing the requested contract.
         AutomationResult<lite::synthrt::AnalyzerEntry> validateAnalyzer(
             const QString &reference, const QString &interfaceName, const QString &fieldPath,
             const QString &displayName) {
@@ -119,9 +112,7 @@ namespace Automation {
             result.audioPath = input.snapshotPath.isEmpty() ? input.audioPath : input.snapshotPath;
             result.displayAudioPath = input.audioPath;
             result.analyzer = input.analyzer;
-            // The language resolved above, from the request or from the default singing language
-            // of the editor, is passed to the task. Without a language, a multilingual note model
-            // transcribes without language conditioning.
+            // Pass the resolved singing language to condition multilingual transcription.
             result.language = input.defaultLanguage;
             result.timeline = input.timeline;
             result.audioClipStartTick = input.audioClipStartTick;
@@ -147,8 +138,6 @@ namespace Automation {
             return task;
         }
 
-        /// Differences between the pitch and MIDI extraction jobs: the types, and the conversion
-        /// of a finished task's result into the backend result.
         struct PitchJobTraits {
             using Job = IPitchExtractionJob;
             using Input = PitchExtractionInput;
@@ -175,8 +164,6 @@ namespace Automation {
             }
         };
 
-        /// Runs one extraction: snapshots the source audio, checks it against the clip, runs the
-        /// extraction task and reports the result once.
         template <class Traits>
         class ExtractionJobAdapter final
             : public Traits::Job,
@@ -316,8 +303,7 @@ namespace Automation {
             }
 
             Input m_input;
-            // Guarded because a finished task is delivered through the event queue and may arrive
-            // after teardown has drained the task manager.
+            // Queued completion may arrive after runtime teardown.
             QPointer<TaskManager> m_taskManager;
             std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             ComputeAudioHashTask *m_hashTask = nullptr;
@@ -349,9 +335,7 @@ namespace Automation {
             if (!valid)
                 return valid.getError();
             input.analyzer = options->general()->pitchAnalyzer.trimmed();
-            // options.model_id contains an analyzer reference as listed in the capability report.
-            // Only the configured analyzer runs, so a different reference is rejected rather than
-            // silently ignored.
+            // Reject model_id when it differs from the configured analyzer reference.
             if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),
@@ -390,12 +374,7 @@ namespace Automation {
                                                    QStringLiteral("The note analyzer"));
             if (!analyzer)
                 return analyzer.getError();
-            // The language that the transcription uses labels the new notes, clip and track. A
-            // request without a language uses the default that the analyzer declares, and a
-            // language that the analyzer does not declare is replaced by that default, matching
-            // the replacement in the task. If the analyzer distinguishes no languages, the label
-            // is the requested language or, if none is requested, the default singing language of
-            // the editor.
+            // Label extracted notes with the same effective language used by the analyzer.
             input.defaultLanguage = QString::fromStdString(
                 analyzer.get().effectiveLanguage(input.defaultLanguage.toStdString()));
             if (input.defaultLanguage.isEmpty())

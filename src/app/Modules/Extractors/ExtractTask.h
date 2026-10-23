@@ -20,13 +20,7 @@
 #include "AnalysisAudio.h"
 #include "AudioSlicer.h"
 
-/// Common base of the extraction tasks. It opens the selected analyzer, reads its input format,
-/// prepares and slices the audio, and runs the spans in sequence with progress reporting and
-/// cancellation.
-///
-/// A derived task supplies the contract types and two callables: one that builds the input of a
-/// span and one that places the result of a span. The shared implementation prevents the pitch
-/// and MIDI tasks from diverging, so that a fix applies to both.
+/// Shared analyzer setup, audio preparation, slicing, progress, and cancellation.
 class ExtractTask : public Task {
     Q_OBJECT
 
@@ -45,8 +39,7 @@ public:
         /// Analyzer to run, identified as <package>:inference/<contribution>.
         QString analyzer;
 
-        /// Transcription language, if the analyzer distinguishes languages. If empty, the
-        /// analyzer selects the language; a monolingual analyzer behaves identically in both cases.
+        /// Transcription language; empty selects the analyzer's default.
         QString language;
         Timeline timeline;
         int singingClipStartTick = 0;
@@ -77,8 +70,8 @@ public:
 
     void terminate() override {
         Task::terminate();
-        // The mutex is held across the call. runAnalysis() clears the pointer under this mutex
-        // before the executive is destroyed, so a non-null pointer refers to a live executive.
+        // Keep the executive alive throughout stop(); ActiveAnalyzer clears it under the same
+        // mutex.
         QMutexLocker locker(&m_analyzerMutex);
         if (m_analyzer) {
             (void) m_analyzer->stop();
@@ -95,16 +88,9 @@ protected:
         double startTime;
     };
 
-    /// Runs the analyzer selected by the input over the visible audio, span by span.
-    ///
-    /// \a Executive is the executive type of the contract and \a Schema its exports type. \a Schema
-    /// must provide \c sampleRate and \c maxSegmentDuration. \a start(executive, span, progress)
-    /// runs one span and returns the result of the contract, and \a place(result) stores the
-    /// result. This function sets the error code and message for every failure; a derived task
-    /// stores the results or reports invalid result data with fail().
-    ///
-    /// This template contains only the steps that depend on the contract types. All other steps
-    /// are member functions in ExtractTask.cpp.
+    /// Run visible audio spans using Schema::sampleRate and Schema::maxSegmentDuration.
+    /// start(executive, span, progress) returns a result; place(result) stores or rejects it.
+    /// Failures set the task error.
     template <class Executive, class Schema, class Start, class Place>
     void runAnalysis(const QString &kind, Start start, Place place) {
         auto lease = createAnalyzer(kind);
@@ -123,8 +109,6 @@ protected:
             return;
         }
 
-        // Input format of the analyzer, read from its declaration rather than assumed. The sample
-        // rate and the maximum span length differ between analyzers.
         const auto *exports = lease->spec->exports();
         const auto *schema = exports ? exports->template as<Schema>() : nullptr;
         if (schema == nullptr || schema->sampleRate <= 0) {
@@ -159,39 +143,27 @@ protected:
         }
     }
 
-    /// Opens the analyzer selected by the input. Returns \c std::nullopt with the error set on
-    /// failure.
-    ///
-    /// The analyzer is identified by name rather than by a path on disk because it is a
-    /// contribution of an installed package, selected by the user and stored in the project. The
-    /// lease keeps the package of the analyzer loaded while it is held, so a package rescan during
-    /// extraction cannot unload the declaration.
+    /// Open the configured analyzer and retain its package. On failure, set the error and return no
+    /// value.
     std::optional<SynthrtEngine::AnalyzerLease> createAnalyzer(const QString &kind);
 
-    /// Returns the audio as the status messages name it: the display path when the caller supplied
-    /// one, and the path of the file otherwise.
+    /// Display path when supplied, otherwise the audio file path.
     QString displayPath() const;
 
-    /// Decodes the visible region of the audio at \a sampleRate. Returns \c std::nullopt with the
-    /// error or the termination set on failure.
+    /// Decode the visible region at sampleRate, setting failure or cancellation on error.
     std::optional<Extractors::PreparedAudio> prepareAudio(int sampleRate);
 
-    /// Splits the prepared audio into spans no longer than \a maxSegmentDuration seconds.
     std::vector<Extractors::SampleSpan> sliceAudio(const Extractors::PreparedAudio &prepared,
                                                    double maxSegmentDuration) const;
 
-    /// Returns the span of \a prepared that \a slice selects, with its start in seconds from the
-    /// start of the file.
+    /// Select a sample span with a file-relative start time in seconds.
     static Span spanAt(const Extractors::PreparedAudio &prepared,
                        const Extractors::SampleSpan &slice);
 
-    /// Returns the progress callback for span \a index of \a count passages. \a audio names the
-    /// audio in the message, so that a run over a region the host had to cut says how many passages
-    /// it is made of. The callback returns whether the analysis continues.
+    /// Create a passage progress callback. Returning false requests cancellation.
     std::function<bool(double)> progressFor(std::size_t index, std::size_t count,
                                             const QString &audio);
 
-    /// Records the failure of one span, or a termination if the execution was stopped.
     void failSpan(const QString &kind, const srt::Error &error);
 
     void fail(ErrorCode code, const QString &message);

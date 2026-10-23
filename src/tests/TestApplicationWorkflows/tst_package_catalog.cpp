@@ -81,9 +81,7 @@ void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
         QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
     });
 
-    // A default lyric is stated by the voicebank, so the measurement needs one that declares it. The
-    // fixture in the tree is copied and doctored rather than changed, and the copy receives a
-    // different package id so it cannot be mistaken for the fixture itself.
+    // Modify a copy with a distinct package ID, leaving the bundled fixture unchanged.
     QTemporaryDir staging;
     QVERIFY(staging.isValid());
     const auto doctored = staging.filePath(QStringLiteral("default-lyric-fixture@1.0.0"));
@@ -151,11 +149,8 @@ void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
     }
     QVERIFY2(!declared.isEmpty(), "The doctored package must be installed and contribute a singer");
 
-    // The editor reads the default lyric each language of the voicebank declares. This is the whole
-    // read path of the editor, and nothing else consumes it yet.
     QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("cmn")), QStringLiteral("la"));
     QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("eng")), QStringLiteral("laa"));
-    // A language the modules do not declare stays empty, and so does a voicebank that declares none.
     QCOMPARE(declared.defaultLyricForLanguage(QStringLiteral("jpn")), QString());
     QCOMPARE(fixture.defaultLyricForLanguage(QStringLiteral("cmn")), QString());
     QCOMPARE(fixture.defaultLyricForLanguage(QStringLiteral("eng")), QString());

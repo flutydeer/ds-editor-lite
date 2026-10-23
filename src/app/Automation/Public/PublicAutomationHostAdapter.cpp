@@ -1379,17 +1379,11 @@ namespace Automation {
                                                  QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
-            // Configured indicates that an analyzer is selected. Ready, below, indicates that an
-            // analyzer implementing the contract is installed. The two flags are separate so that
-            // a missing selection and a selected analyzer that is no longer installed are reported
-            // as different conditions.
+            // Configured selection and installed readiness are separate states.
             const bool pitchConfigured =
                 settings && !settings.get().general.pitchAnalyzer.trimmed().isEmpty();
             const bool midiConfigured =
                 settings && !settings.get().general.noteAnalyzer.trimmed().isEmpty();
-            // The configured reference is only usable while an installed analyzer still carries it:
-            // the reference lives in the settings, the analyzer comes from a package, so a package
-            // removed after a selection leaves the reference behind.
             const auto configuredAnalyzer =
                 [&engine, &settings](const QString &contract, const QString &reference)
                 -> std::optional<lite::synthrt::AnalyzerEntry> {
@@ -1402,11 +1396,8 @@ namespace Automation {
                 }
                 return std::nullopt;
             };
-            // The languages available to MIDI extraction are the languages of the configured note
-            // analyzer, regardless of the languages of the singer of the source track. If no note
-            // analyzer is configured or the analyzer distinguishes no languages, the list consists
-            // of the languages of the track's singer and the default singing language of the
-            // editor.
+            // Prefer the note analyzer's language choices; otherwise use singer languages and the
+            // editor default.
             const auto configuredNote =
                 configuredAnalyzer(lite::synthrt::noteContract(),
                                    settings ? settings.get().general.noteAnalyzer : QString());
@@ -1418,9 +1409,6 @@ namespace Automation {
                        !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            // Ready indicates that an analyzer implementing the contract is installed. An analyzer
-            // is a package contribution, so readiness depends on the installed packages rather
-            // than on a model loaded by the engine.
             const bool pitchModuleReady =
                 engine && !engine->analyzers(lite::synthrt::f0Contract()).empty();
             const bool midiModuleReady =
@@ -1449,9 +1437,6 @@ namespace Automation {
                                                                         : configurationReason},
                 };
             };
-            // Lists one entry per installed analyzer of the contract, identified by the reference
-            // stored in the settings, so that a host can determine the installed analyzers and the
-            // selected analyzer. An extraction runs the selected analyzer.
             const auto installedModels = [&engine, &model](const QString &contract,
                                                            const QString &chosen,
                                                            const QString &notChosenReason) {
@@ -1469,8 +1454,6 @@ namespace Automation {
             const QString chosenPitch =
                 settings ? settings.get().general.pitchAnalyzer : QString();
             const QString chosenNote = settings ? settings.get().general.noteAnalyzer : QString();
-            // A selection whose package was removed is a third condition, next to "nothing is
-            // selected" and "no analyzer of the contract is installed".
             const bool pitchAnalyzerInstalled =
                 configuredAnalyzer(lite::synthrt::f0Contract(), chosenPitch).has_value();
             const bool midiAnalyzerInstalled = configuredNote.has_value();
@@ -2154,8 +2137,6 @@ namespace Automation {
                         {QStringLiteral("unavailable_reason"), QString()                  },
                     });
                 }
-                // devices are the candidate devices of the current provider, from the same source
-                // as the gpus of settings.query.
                 for (const auto &gpu : GpuCatalog::forProvider(inference.executionProvider)) {
                     devices.append(QJsonObject{
                         {QStringLiteral("id"),                 gpu.deviceId   },

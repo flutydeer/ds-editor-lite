@@ -184,7 +184,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     input.steps = model.steps;
 
     InferDirectMLSerializationGuard dmlGuard;
-    // The pipeline of the acoustic stage also supplies the vocoder, so both run on one pipeline.
+    // Use the same pipeline for acoustic synthesis and vocoding.
     std::shared_ptr<InferEngine::SingerPipelineLease> lease;
     // Infer acoustic
     std::shared_ptr<ds::ITensor> mel;
@@ -241,7 +241,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             }
         }
 
-        // A stopped run still returns a result, so state() decides: see ActiveInference.
         if (inferenceAcoustic->state() != srt::ITask::Succeeded) {
             qCritical().noquote().nospace() << "inferAcoustic: the acoustic inference for "
                                             << identifier << " did not finish";
@@ -263,7 +262,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         if (!stage)
             return false;
         auto *inferenceVocoder = stage->executive<Vo::VocoderExecutive>();
-        // The audio is written at the output sample rate declared in the vocoder configuration.
         const auto *vocoderConfig = static_cast<const Vo::VocoderConfiguration *>(
             inferenceVocoder->spec().configuration());
         if (!vocoderConfig || vocoderConfig->sampleRate <= 0) {
@@ -284,9 +282,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         auto originalF0Exp =
             ds::Tensor::create(ds::ITensor::Float, acousticF0->shape());
         if (!originalF0Exp) {
-            // The label and the cause are concatenated instead of being combined into one
-            // translated string. The label is translated, and the error chain is a runtime
-            // message that remains in English in either case.
+            // Translate the label and preserve the SDK error chain verbatim.
             error = tr("Failed to create the vocoder f0 tensor") + ": " +
                     QString::fromUtf8(originalF0Exp.error().toString());
             qCritical().noquote().nospace()
@@ -323,7 +319,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             }
         }
 
-        // A stopped run still returns a result, so state() decides: see ActiveInference.
         if (inferenceVocoder->state() != srt::ITask::Succeeded) {
             qCritical().noquote().nospace() << "inferAcoustic: the vocoder inference for "
                                             << identifier << " did not finish";
@@ -397,7 +392,6 @@ QString InferAcousticTask::InferAcousticInput::semanticSignature() const {
 GenericInferModel InferAcousticTask::InferAcousticInput::toEngineModel() const {
     auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
-    // The curves are sampled on the frames of the model of this stage.
     const auto interval = InferFrameLayout::inputInterval(identifier, InferStage::Acoustic);
     for (const auto &word : words)
         totalLength += word.length();

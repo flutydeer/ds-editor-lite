@@ -41,8 +41,7 @@ namespace Extractors {
         }
 
         talcs::AudioFormatInputSource source(io, false);
-        // read() returns frames at the rate passed to open(). Resampling therefore happens here,
-        // and the positions below are counted in frames at the analyzer's rate.
+        // read() resamples to the rate passed to open(); positions below use that frame rate.
         if (!source.open(CHUNK, sampleRate)) {
             error = tr("Failed to resample the audio to the rate the analyzer needs");
             return std::nullopt;
@@ -63,9 +62,7 @@ namespace Extractors {
 
         PreparedAudio prepared;
         prepared.sampleRate = sampleRate;
-        // Computed from the first frame actually read rather than from the requested start. The
-        // two differ if the request is clamped, and an analyzer anchors its result to this value,
-        // so using the requested start would shift the result.
+        // Anchor results to the first frame actually read after clamping the requested region.
         prepared.startMs = static_cast<double>(from) / sampleRate * 1000.0;
         prepared.samples.reserve(static_cast<std::size_t>(to - from));
 

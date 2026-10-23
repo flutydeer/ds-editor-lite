@@ -12,9 +12,7 @@
 
 namespace {
 
-    /// The environment variable through which a restarting process names itself to its
-    /// successor. An environment variable rather than an argument, so that the successor starts
-    /// with exactly the arguments the person gave, which is what a restart promises.
+    /// Pass the predecessor PID without changing the user's command-line arguments.
     constexpr char PREDECESSOR_VARIABLE[] = "DS_EDITOR_LITE_RESTART_PREDECESSOR";
 
 }
@@ -26,17 +24,13 @@ void Restarter::waitForPredecessor() {
     const auto value = qEnvironmentVariable(PREDECESSOR_VARIABLE);
     if (value.isEmpty())
         return;
-    // Cleared first, so that a restart of this process names this process and not the one that
-    // started it.
+    // Do not pass the predecessor's PID to a subsequent restart.
     qunsetenv(PREDECESSOR_VARIABLE);
     bool ok = false;
     const auto pid = value.toLongLong(&ok);
     if (!ok || pid <= 0)
         return;
-    // The predecessor is on its way out but may still hold the single-instance lock and the
-    // ports this process is about to claim. Starting before it has let go would make this
-    // process a secondary instance of a dying primary, which is the one thing a restart must not
-    // become. Bounded, so a predecessor that does not exit cannot pin this one forever.
+    // Wait for the predecessor to release its lock and ports before claiming them.
     QElapsedTimer timer;
     timer.start();
     while (ProcessProbe::isAlive(pid) && timer.elapsed() < 30000)

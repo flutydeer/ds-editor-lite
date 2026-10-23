@@ -65,10 +65,7 @@ InferEngine::InferEngine(QObject *parent) : QObject(parent) {
     srt::Logger::setLogCallback(log_report_callback);
     m_singerSessionReleasePool.setMaxThreadCount(1);
 
-    // The engine is not disposed on QCoreApplication::aboutToQuit. That signal is emitted when
-    // the event loop exits, while inference and extraction tasks may still be running, and
-    // shutting down the runtime under those tasks causes a crash. The destructor of AppContext
-    // drains the task manager first and destroys this engine afterwards; only this order is safe.
+    // AppContext must drain tasks before destroying the engine; aboutToQuit is too early.
 
     m_singerSessionEvictionTimer.setInterval(kSingerSessionScanIntervalMilliseconds);
     m_singerSessionEvictionTimer.setTimerType(Qt::CoarseTimer);
@@ -88,8 +85,7 @@ void InferEngine::startInitialization() {
         connect(&SynthrtEngine::instance(), &SynthrtEngine::voicebanksAboutToReload, this,
                 [this] {
                     InferCacheUtils::invalidateModelCaches();
-                    // The reload waits for idle model handles to close before reopening packages.
-                    // Active tasks keep their own leases; selection policy survives the reload.
+                    // Release idle model handles before reload; active tasks retain their leases.
                     auto handles = m_singerSessions.clear(false);
                     InferDirectMLSerializationGuard dmlGuard;
                     handles.clear();
@@ -117,7 +113,6 @@ void InferEngine::startInitialization() {
                 if (languageReady) {
                     appStatus->languageModuleError = QString();
                     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
-                    // wolf loads each language on its first conversion.
                 } else {
                     appStatus->languageModuleError = initTask->errorMessage;
                     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
@@ -251,15 +246,10 @@ bool InferEngine::initialize(QString &error) {
         }
         packagePathsQt.append(pathQt);
     }
-    // Search paths for dependencies, which differ from the directories of the voicebank scan. A
-    // language package that a voicebank declares as a dependency is resolved through these paths.
+    // Dependency lookup paths are separate from voicebank scan roots.
     const QStringList languagePackagePaths{
         StringUtils::path_to_qstr(SynthrtEngine::defaultLanguagePackagePath())};
-    // Each runtime flavor is deployed in its own subdirectory, because the CUDA payload contains
-    // DLLs with the same names as the DirectML payload. The CUDA execution provider therefore
-    // uses its own subdirectory, and every other provider uses the flavor deployed at the runtime
-    // root. The runtime gate verifies this layout at build and install time
-    // (cmake/OrtRuntimeGate.cmake).
+    // CUDA uses a separate runtime directory because its DLL names overlap the default payload.
     const auto runtimePath = resolution.provider == ExecutionProvider::Cuda
                                  ? SynthrtEngine::defaultCudaRuntimePath()
                                  : SynthrtEngine::defaultRuntimePath();
@@ -269,8 +259,7 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
-    // These paths are displayed on the settings page. They are read from the list that the engine
-    // registered, so that the displayed paths are the searched paths.
+    // Display the paths actually registered with the engine.
     const auto directoriesOf = [&pluginRootDir](const std::string &category) {
         QStringList result;
         for (const auto &entry : lite::synthrt::pluginCategories(pluginRootDir)) {
@@ -319,17 +308,13 @@ bool InferEngine::SingerPipelineLease::isStale() const {
 
 std::shared_ptr<InferEngine::SingerPipelineLease>
     InferEngine::acquireSingerSession(const SingerIdentifier &identifier) const {
-    // The engines are queried instead of AppStatus, because this function runs on inference task
-    // threads and AppStatus belongs to the application thread. InferEngine is initialized only
-    // after SynthrtEngine, which is the condition that the Ready status reports.
+    // Worker threads query the engine directly; AppStatus belongs to the application thread.
     if (!initialized() || !SynthrtEngine::instance().initialized()) {
         qCritical() << "acquireSingerSession: inference runtime is not ready" << identifier;
         return {};
     }
     return m_singerSessions.acquire(identifier, [&identifier] {
-        // The generation is read before the pipeline. A rescan that completes in between
-        // therefore marks the lease stale, and the cache replaces the lease instead of keeping a
-        // pipeline of the previous scan.
+        // Read the generation first so a concurrent rescan makes the acquired lease stale.
         const auto generation = SynthrtEngine::instance().catalogGeneration();
         auto built = SynthrtEngine::instance().pipelineFor(identifier);
         if (!built) {
@@ -368,9 +353,7 @@ void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
 }
 
 void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles) {
-    // Releasing the leases is sufficient; loaded packages are not unloaded. A loaded package
-    // consists of its declarations and imports, which occupy negligible memory. The five models,
-    // which are the expensive resources, are released with the pipeline of the lease.
+    // Releasing the last pipeline lease closes its models; package metadata may remain loaded.
     const auto releasedSessions = handles.size();
     m_singerSessionReleasePool.start([handles = std::move(handles), releasedSessions]() mutable {
         InferDirectMLSerializationGuard dmlGuard;

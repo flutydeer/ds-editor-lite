@@ -46,10 +46,7 @@ struct SingerIdentifier {
         return singerId.isEmpty() && packageId.isEmpty() && packageVersion.isNull();
     }
 
-    /// The package and contribution ids this names, as the framework spells them.
-    ///
-    /// The version is deliberately not part of it. The framework carries one, and two versions of
-    /// one voicebank are not both loaded here; the day that changes, this is where it starts.
+    /// Package and contribution IDs only; packageVersion is carried separately.
     inline std::pair<std::string, std::string> contribution() const {
         return {packageId.toStdString(), singerId.toStdString()};
     }

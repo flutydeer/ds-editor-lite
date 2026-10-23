@@ -28,12 +28,7 @@ private:
     void runTask() override;
     static double freqToMidi(double frequency);
 
-    /// Places one span's curve on the project timeline.
-    ///
-    /// \a startMs is the position of the first frame of the span in the audio file. \a intervalMs
-    /// is the frame interval of the analyzer, read from the analyzer result rather than assumed,
-    /// because the two shipped analyzers use different intervals and a wrong value silently
-    /// stretches the curve.
+    /// Place the curve using the analyzer's file-relative start and frame interval in milliseconds.
     ResultSegment placeOnTimeline(const QList<double> &values, double startMs,
                                   double intervalMs) const;
 };

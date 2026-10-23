@@ -88,7 +88,6 @@ namespace InferCacheUtils {
     }
 
     CacheFileNames cacheFileNames(const QString &category, const QString &hash) {
-        // Only the acoustic task renders audio; every other task stores its result as JSON.
         const auto outputSuffix =
             category == QStringLiteral("acoustic") ? QStringLiteral("wav") : QStringLiteral("json");
         return {

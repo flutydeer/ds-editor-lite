@@ -164,7 +164,6 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         }
     }
 
-    // A stopped run still returns a result, so state() decides: see ActiveInference.
     if (inferencePitch->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferPitch: the pitch inference for " << identifier
                                         << " did not finish";
@@ -210,7 +209,6 @@ QString InferPitchTask::InferPitchInput::semanticSignature() const {
 GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
     auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
-    // The curves are sampled on the frames of the model of this stage.
     const auto interval = InferFrameLayout::inputInterval(identifier, InferStage::Pitch);
     for (const auto &word : words)
         totalLength += word.length();

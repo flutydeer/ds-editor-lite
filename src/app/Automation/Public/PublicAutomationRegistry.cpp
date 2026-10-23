@@ -2503,9 +2503,8 @@ namespace Automation {
                         bool defaultG2pReady = false;
                         for (const auto &language : singer.info.languages()) {
                             const auto languageId = language.id();
-                            // The languages of a singer are converted by wolf linguists, which
-                            // have no G2P identifier. Readiness is therefore the existence of a
-                            // conversion route, not the presence of a G2P identifier.
+                            // Language readiness depends on the wolf route, not on a G2P
+                            // identifier.
                             const bool g2pReady =
                                 resolved && singer.convertibleLanguages.contains(languageId);
                             languageIds.append(languageId);
@@ -2517,9 +2516,7 @@ namespace Automation {
                                  language.localizedNames())},
                                 {QStringLiteral("localized_names"),
                                  encodePublicLocalizedText(language.localizedNames())},
-                                // Deprecated and always empty. The language layer addresses a
-                                // wolf linguist by language_id, so no G2P identifier exists. The
-                                // field is kept because the public contract requires it.
+                                // Deprecated compatibility field, always empty.
                                 {QStringLiteral("g2p_id"), QString()},
                                 {QStringLiteral("g2p_ready"), g2pReady},
                                 {QStringLiteral("default"), languageId == defaultLanguage},
@@ -2769,9 +2766,7 @@ namespace Automation {
             if (language.isEmpty() && settings)
                 language = settings.get().general.defaultSingingLanguage;
             if (settings)
-                // The default lyric is resolved with the same rules the editor uses. A stored map
-                // without an entry for this language, and one whose entry is empty, both yield the
-                // built-in lyric here as they do in the editor.
+                // Use the same default-lyric resolution as the editor.
                 defaultLyric =
                     DefaultLyricRules::resolve(settings.get().general.defaultLyrics, language);
             QList<NoteDraftDto> notes;

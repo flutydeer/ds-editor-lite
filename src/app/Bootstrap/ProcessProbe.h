@@ -10,11 +10,7 @@
 #  include <csignal>
 #endif
 
-/// Answers whether a process id names a live process.
-///
-/// Used where the editor has to reason about another instance of itself: the predecessor a
-/// restart replaces, and the holder a single-instance lock records. A process that has exited
-/// but not been reaped still counts as alive on Unix, which is the conservative answer for both.
+/// Check process liveness. Unreaped Unix processes still count as alive.
 namespace ProcessProbe {
 
     inline bool isAlive(const qint64 pid) {

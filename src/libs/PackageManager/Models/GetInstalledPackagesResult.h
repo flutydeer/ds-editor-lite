@@ -10,8 +10,7 @@
 
 enum class GetInstalledPackagesErrorType {
     MetadataBackendNotInitialized,
-    /// The commit gate of the caller declined the result, so the catalog was not replaced for
-    /// that caller.
+    /// The caller declined publication of the scan result.
     CommitRejected,
     Unknown
 };

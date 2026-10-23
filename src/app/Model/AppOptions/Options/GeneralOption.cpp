@@ -82,9 +82,7 @@ void GeneralOption::load(const QJsonObject &object) {
 
     load_drawParamWithFinger(object);
 
-    // A reference saved in the legacy analysis category identifies the same package and
-    // contribution, and is therefore upgraded rather than discarded. The next save writes the
-    // upgraded form.
+    // Normalize legacy analysis-category references before the next save.
     const auto analyzer = [&object](const QString &key) {
         return QString::fromStdString(lite::synthrt::AnalyzerReference::upgrade(
             object[key].toString().toStdString()));

@@ -113,8 +113,7 @@ namespace Automation {
     }
 
     ExtractionAutomationFacade::~ExtractionAutomationFacade() {
-        // The jobs outlive the facade if a finished task is still queued. The jobs are therefore
-        // cancelled, and the expiry of m_lifetime below turns their late callbacks into no-ops.
+        // Cancel queued jobs and expire their callbacks before destroying the facade.
         m_lifetime.reset();
         for (auto &record : m_jobs)
             record.job->cancel();
@@ -266,8 +265,7 @@ namespace Automation {
 
                 const auto *audio = static_cast<const AudioClip *>(resolvedAudio.get().clip);
                 const auto &timeline = session.model()->timeline();
-                // The same span as in the pitch path. Without it, the task would read the file
-                // from its first sample and place the notes as if the clip started at zero.
+                // Pass the visible file span and its project origin, as for pitch extraction.
                 const int visibleStartTick = audio->start() + audio->clipStart();
                 const double visibleStartMs = timeline.tickToMs(visibleStartTick);
                 const double trimStartMs = audio->hasRealTimeAnchor()
@@ -401,11 +399,8 @@ namespace Automation {
             return;
         }
         if (!m_tasks.markRunning(taskId)) {
-            // The failure path must be finished off, otherwise the observer never sees finished:
-            // markRunning returns false when the record does not exist or its state is no longer
-            // Queued (for example when a give-up request arrives after the guard and before this
-            // point), so, in the same shape as the abandoned branch above, it lands in the terminal
-            // state and dispatches the notification.
+            // A concurrent cancellation may reject markRunning; still notify the observer of
+            // completion.
             m_tasks.cancel(taskId);
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -441,11 +436,8 @@ namespace Automation {
             return;
         }
         if (!m_tasks.markRunning(taskId)) {
-            // The failure path must be finished off, otherwise the observer never sees finished:
-            // markRunning returns false when the record does not exist or its state is no longer
-            // Queued (for example when a give-up request arrives after the guard and before this
-            // point), so, in the same shape as the abandoned branch above, it lands in the terminal
-            // state and dispatches the notification.
+            // A concurrent cancellation may reject markRunning; still notify the observer of
+            // completion.
             m_tasks.cancel(taskId);
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -560,9 +552,7 @@ namespace Automation {
         QList<NoteDraftDto> extractedNotes;
         int createdNoteIndex = 0;
         for (const auto &note : result.notes) {
-            // A zero-length note would reach the interval tree of the project model as an empty
-            // interval, which the tree rejects by throwing. Such notes are therefore filtered here
-            // regardless of the backend result.
+            // The project interval tree rejects zero-length notes.
             if (note.localStart < 0 || note.length <= 0 ||
                 (input.minimumNoteLength && note.length < *input.minimumNoteLength))
                 continue;

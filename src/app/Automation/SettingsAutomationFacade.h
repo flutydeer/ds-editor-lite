@@ -19,8 +19,7 @@ namespace Automation {
         QMap<QString, QString> defaultLyrics;
         QStringList packageSearchPaths;
         QStringList recentProjectFiles;
-        /// Selected analyzers, each identified as <package>:inference/<contribution>. GeneralOption
-        /// documents why these are references rather than paths.
+        /// Selected analyzers use package:inference/contribution references.
         QString noteAnalyzer;
         QString pitchAnalyzer;
         QString libreSvipPath;

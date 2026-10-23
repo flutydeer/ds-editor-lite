@@ -77,9 +77,7 @@ void GetPronunciationTask::runTask() {
 
 QList<PronunciationFetchResult>
     GetPronunciationTask::getPronunciationResults(const QList<NoteInferenceSnapshot> &notes) const {
-    // Pre-fill with original lyric: when the language module is not ready or
-    // G2P fails later, the original lyric is kept as the pronunciation
-    // (ds-session.md §206: G2P failure preserves lyric; no G2P fallback).
+    // Preserve original lyrics when the language module is unavailable or conversion fails.
     QList<PronunciationFetchResult> pronResult;
     pronResult.resize(notes.count());
     for (int i = 0; i < notes.count(); i++) {
@@ -101,7 +99,6 @@ QList<PronunciationFetchResult>
         return pronResult;
     }
 
-    // A lyric that is a reserved phoneme of the singer is its own pronunciation.
     const auto reservedPhonemes = ReservedPhonemes::of(m_singerInfo.identifier());
     auto isSkippedNote = [&reservedPhonemes](const NoteInferenceSnapshot &note) {
         const auto lyric = note.lyric.trimmed();
@@ -110,11 +107,7 @@ QList<PronunciationFetchResult>
         return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
-    // Group non-skipped notes by language (preserving first-seen order). Each language is
-    // converted in one call to the language layer, which wolf routes by singer and language
-    // without a G2P identifier. On a routing or conversion failure, the notes of that language
-    // keep the original lyric (ds-session.md §206).
-    // language -> [(noteIndex, lyricUtf8), ...]
+    // Batch notes by language in first-seen order. Preserve lyrics on conversion failure.
     std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
 
     for (int i = 0; i < notes.count(); i++) {
@@ -144,13 +137,9 @@ QList<PronunciationFetchResult>
             words.push_back({entry.second, {}, {}, {}});
         }
 
-        // No preparation step is required, because wolf loads a language on its first
-        // conversion.
         auto converted = SynthrtEngine::instance().convert(
             identifier, language, words, lite::synthrt::LanguageBridge::Depth::Pronunciation);
         if (!converted) {
-            // The inference chain never silently falls back to official; the original lyric is
-            // kept so users can adjust it later in PronunciationView (ds-session.md §206).
             qCWarning(logInferPron).nospace()
                 << "G2P conversion failed for lang='" << language
                 << "': " << fromUtf8(converted.error().toString()) << ". Keeping original lyric.";
@@ -160,9 +149,7 @@ QList<PronunciationFetchResult>
         }
 
         const auto outcomes = converted.take();
-        // The caller validates the result count. On a mismatch, the original lyric is kept. No
-        // Q_ASSERT is used, because a Debug-build abort conflicts with D11 precise error
-        // reporting.
+        // Preserve original lyrics if the result count does not match the request.
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
                 << "the conversion returned " << outcomes.size() << " outcomes for "
@@ -179,11 +166,7 @@ QList<PronunciationFetchResult>
             const auto noteIdx = entries[i].first;
             auto &res = pronResult[noteIdx];
 
-            // A word that fails to convert keeps its position in the batch and carries its own
-            // error, so an unknown word does not affect the other words of the batch. A failed
-            // outcome carries no usable pronunciation or candidates, so the prefilled original
-            // lyric is kept instead of being overwritten, as the fill-lyric path also does
-            // (FillLyric/Utils/G2pService.cpp).
+            // A per-word error must not replace the original lyric with empty pronunciation data.
             if (!outcomes[i].error.empty()) {
                 qCWarning(logInferPron).nospace()
                     << "G2P conversion error note[" << noteIdx << "] lyric='"
@@ -200,9 +183,7 @@ QList<PronunciationFetchResult>
                 rawCandidates.append(fromUtf8(candidate));
             res.candidates = PronunciationText::normalizeCandidates(res.pronunciation, rawCandidates);
 
-            // A fallback is the last resort of the language module, so it is reported: the reading
-            // may not match how the word is pronounced, and no surface of the editor says where a
-            // pronunciation came from.
+            // Report fallback readings because they may not match the intended pronunciation.
             if (outcomes[i].stage == lite::synthrt::PronunciationStage::Fallback) {
                 qCWarning(logInferPron).nospace()
                     << "G2P used the fallback for note[" << noteIdx << "] lyric='"

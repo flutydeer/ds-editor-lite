@@ -8,12 +8,7 @@ namespace Extractors {
 
     namespace {
 
-        /// Returns the offset from \a begin to the first smallest element, or 0 for an empty range.
-        ///
-        /// The empty case returns zero rather than asserting or returning a negative value because
-        /// the caller adds the result to a start index without a bounds check. The ranges passed
-        /// by the caller are non-empty in the normal flow. The zero result prevents a clamped
-        /// parameter from causing an out-of-bounds access.
+        /// Offset of the first minimum, or zero for an empty range.
         template <typename Iterator>
         int64_t smallest(const Iterator &begin, const Iterator &end) {
             if (begin == end) {
@@ -45,7 +40,6 @@ namespace Extractors {
             return output;
         }
 
-        /// Divides any span longer than \a limit into equal pieces.
         std::vector<SampleSpan> capped(const std::vector<SampleSpan> &spans, int64_t limit) {
             if (limit <= 0) {
                 return spans;
@@ -61,8 +55,8 @@ namespace Extractors {
                 const auto pieces = (length + limit - 1) / limit;
                 auto at = span.begin;
                 for (int64_t i = 0; i < pieces; ++i) {
-                    // Recomputed from the ends rather than accumulated, so rounding cannot leave a
-                    // gap or an overlap between adjacent pieces.
+                    // Derive adjacent boundaries from the endpoints to avoid rounding gaps or
+                    // overlaps.
                     const auto to = span.begin + (length * (i + 1)) / pieces;
                     result.push_back({at, to});
                     at = to;
@@ -92,8 +86,6 @@ namespace Extractors {
             return capped({whole}, limit);
         }
 
-        // The lengths the algorithm compares are counted in analysis frames, so they are converted
-        // once here rather than at every comparison.
         const auto minimumFrames = inFrames(minimumLength, sampleRate) / hopSize;
         const auto intervalFrames = inFrames(minimumInterval, sampleRate) / hopSize;
         const auto silenceFrames = inFrames(maximumSilence, sampleRate) / hopSize;
@@ -163,20 +155,13 @@ namespace Extractors {
             spans.push_back({silences[i].end * hopSize, silences[i + 1].begin * hopSize});
         }
         if (silences.back().end < frames) {
-            // The last span extends to the end of the samples rather than to the end of the frame
-            // grid. The grid contains whole hops only, so `frames * hopSize` can fall up to one hop
-            // short of the audio end. That final hop lies at the end of the take and commonly
-            // contains a held note. Only this span may extend that far. Every other span ends at a
-            // silence that the pass detected, and extending such a span would pull the silence into
-            // the preceding passage.
+            // Extend only the final passage to include samples beyond the last complete hop.
             spans.push_back({silences.back().end * hopSize, total});
         }
         if (spans.empty()) {
             return capped({whole}, limit);
         }
-        // A trailing silence is recorded one frame past the grid so that the branch above treats it
-        // as reaching the end. No span may extend past the samples, regardless of the frame
-        // arithmetic.
+        // Clamp the final passage to the sample count, including a trailing partial hop.
         if (spans.back().end > total) {
             spans.back().end = total;
         }

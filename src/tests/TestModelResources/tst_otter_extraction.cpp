@@ -1,13 +1,6 @@
 #include <QScopeGuard>
-// Tests the two extraction tasks against real otter executives.
-//
-// The otter fixtures are synthetic models with deterministic output: fixture-rmvpe returns a pitch
-// for every 10 ms frame, and fixture-note transcribes one note every 0.2 s with keys ascending from
-// 60. This output makes the placement of the result on the project timeline checkable, which the
-// unit tests cannot cover. The audio of a clip starts at the material origin, the visible region
-// may be trimmed, and the result must be returned in clip-local ticks through the tempo map. A
-// task with an error in any of these steps still produces plausible curves and notes; therefore
-// the placement is asserted exactly.
+// Verify extraction timing through real otter executives with deterministic fixture models.
+// Pitch frames are 10 ms apart; notes advance chromatically from MIDI 60 every 0.2 s.
 
 #include <algorithm>
 #include <cmath>
@@ -51,8 +44,7 @@ namespace {
         return fs::path(TEST_OTTER_FIXTURES);
     }
 
-    /// Writes a 220 Hz tone of \a seconds, or that tone followed by \a gapSeconds of silence and
-    /// the tone again. A gap of zero writes the single tone the other cases read.
+    /// Write tone segments with an optional silent gap, in seconds.
     bool writeTone(const fs::path &path, int sampleRate, double seconds, double gapSeconds = 0.0) {
         SndfileHandle file(path.string().c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT, 1,
                            sampleRate);
@@ -73,14 +65,11 @@ namespace {
                static_cast<sf_count_t>(samples.size());
     }
 
-    // Runs a task on the current thread, as a worker of the task manager does.
     void runTask(Task &task) {
         static_cast<QRunnable &>(task).run();
     }
 
-    // An audio clip that starts at tick 480 (500 ms at 120 BPM) with its first 400 ms trimmed, so
-    // the visible region starts at 900 ms and the material origin, the project time of the first
-    // sample of the file, is 500 ms. The file is 2 s long and fully visible after the trim.
+    // At 120 BPM, material origin is 500 ms and a 400 ms trim makes visible start 900 ms.
     constexpr int kClipStartTick = 480;
     constexpr double kMaterialOriginMs = 500;
     constexpr double kTrimMs = 400;
@@ -100,9 +89,7 @@ namespace {
         return input;
     }
 
-    // An audio clip that covers the whole file and starts where the file does: the material origin
-    // and the project time of the first sample are both zero, so no trim and no tempo map stand
-    // between the samples and the analyzed region.
+    // Untrimmed audio with a zero material origin.
     ExtractTask::Input wholeInput(const Timeline &timeline, const fs::path &audio,
                                   const QString &analyzer, double seconds) {
         ExtractTask::Input input;
@@ -132,8 +119,7 @@ int runOtterExtraction() {
         return 77;
     }
 
-    // The fixtures are copied instead of scanned in place, so that the scan finds only these two
-    // packages and no other output of the otter build.
+    // Isolate the two fixture packages from other otter build output.
     const fs::path scratch = fs::temp_directory_path() /
                              ("dsh-otter-extraction-" +
                               std::to_string(QCoreApplication::applicationPid()));
@@ -164,9 +150,7 @@ int runOtterExtraction() {
     const auto pitchAnalyzers = engine->analyzers(lite::synthrt::f0Contract());
     const auto noteAnalyzers = engine->analyzers(lite::synthrt::noteContract());
     if (pitchAnalyzers.empty() || noteAnalyzers.empty()) {
-        // The fixtures come from an otter build, which may be a different revision from the otter
-        // linked by this editor. A declaration that the linked otter cannot load is not an editor
-        // defect.
+        // External fixtures must be compatible with the linked otter revision.
         std::cerr << "the otter fixtures did not load with the linked otter; skipping\n";
         fs::remove_all(scratch);
         return 77;
@@ -179,8 +163,7 @@ int runOtterExtraction() {
     });
     const double visibleStartMs = kMaterialOriginMs + kTrimMs;
 
-    // Pitch: one frame every 10 ms from the visible start, placed on the 5-tick grid of the
-    // singing clip, which starts where the audio clip does.
+    // Map 10 ms pitch frames to the singing clip's 5-tick grid.
     {
         std::cout << "pitch extraction\n";
         ExtractPitchTask task(clipInput(timeline, audio, pitchReference));
@@ -214,8 +197,7 @@ int runOtterExtraction() {
             const auto voiced = std::count_if(segment.values.begin(), segment.values.end(),
                                               [](double value) { return value > 0; });
             expect(voiced > 0, "the fixture reports voiced frames");
-            // Every point is either a pitch returned by the fixture or the unvoiced marker: the
-            // placement does not blend across a voicing boundary.
+            // Do not interpolate across voiced/unvoiced boundaries.
             double lowest = 1e9;
             for (const auto value : segment.values) {
                 if (value > 0) {
@@ -231,10 +213,8 @@ int runOtterExtraction() {
         }
     }
 
-    // MIDI: the fixture estimator returns a chromatic run from middle C, one note per 0.2 s of the
-    // analyzed audio, so the key of a note identifies its 0.2 s step. The presence cutoff, which
-    // the editor leaves at its default, drops some notes without moving the others. The notes are
-    // returned in ticks local to the audio clip, so the first step is at the trim, not at zero.
+    // The fixture emits chromatic notes every 0.2 s. Presence filtering may omit notes;
+    // remaining note starts must still include the clip's trim.
     {
         std::cout << "MIDI extraction\n";
         ExtractMidiTask task(clipInput(timeline, audio, noteReference));
@@ -260,9 +240,6 @@ int runOtterExtraction() {
             }
         }
         expect(placed, "every note is placed on its 0.2 s step in clip-local ticks");
-        // The model reports a confidence per note, and the extraction carries it out instead of
-        // dropping it. The field is diagnostic today; a later change can present it without
-        // plumbing it again.
         const auto confident =
             std::count_if(task.result.begin(), task.result.end(),
                           [](const ExtractMidiNote &note) { return note.confidence > 0; });
@@ -276,10 +253,7 @@ int runOtterExtraction() {
                "the first note starts at the trim, not at the start of the clip");
     }
 
-    // A region the host has to cut: the analyzer is called once per passage, the result carries one
-    // segment per passage, and the progress names the passage. Without the name, a run over one
-    // long passage and a run over several short ones look the same to the user, because neither the
-    // bar nor the result says how many calls the selection produced.
+    // Verify segmentation and passage labels for audio with a silence cut.
     {
         std::cout << "cut region\n";
         const auto gapped = scratch / "two-passages.wav";
@@ -317,7 +291,6 @@ int runOtterExtraction() {
                "the progress names the second passage of two");
     }
 
-    // Cancellation before the run: the task reports a termination, not a failure.
     {
         std::cout << "cancellation\n";
         ExtractMidiTask task(clipInput(timeline, audio, noteReference));
@@ -327,9 +300,7 @@ int runOtterExtraction() {
                "a task terminated before it runs reports Terminated");
     }
 
-    // Cancellation during the analysis: the first progress report of the analyzer stops the task,
-    // the analyzer returns AnalysisError::Cancelled, and the task reports a termination rather
-    // than an analyzer failure.
+    // Cancel on the first analyzer progress callback.
     {
         ExtractMidiTask task(clipInput(timeline, audio, noteReference));
         bool analysing = false;

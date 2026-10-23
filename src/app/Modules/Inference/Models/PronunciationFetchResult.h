@@ -10,8 +10,7 @@ class PronunciationFetchResult {
 public:
     QString pronunciation;
     QStringList candidates;
-    /// How the language module produced \c pronunciation. Diagnostic only: no surface of the editor
-    /// displays it.
+    /// Diagnostic source of the pronunciation.
     lite::synthrt::PronunciationStage stage = lite::synthrt::PronunciationStage::Unspecified;
 };
 

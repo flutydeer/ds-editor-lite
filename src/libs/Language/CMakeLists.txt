@@ -1,9 +1,6 @@
 project(Language LANGUAGES CXX)
 
-# G2P (grapheme-to-phoneme) language support.
-#
-# Pure domain (no Qt Widgets); the language-settings widgets live in the app.
-# Consumed as <lite/Language/.../Xxx.h>.
+# Language-domain services without Qt Widgets.
 find_package(synthrt CONFIG REQUIRED)
 find_package(wolf CONFIG REQUIRED)
 

@@ -75,8 +75,7 @@ std::optional<QList<double>> ExtractPitchTask::pitchValues(const F0::F0Result &c
 }
 
 double ExtractPitchTask::freqToMidi(const double frequency) {
-    // Zero indicates a frame without pitch and is preserved, because consumers of the curve treat
-    // zero as an unvoiced frame rather than as a note.
+    // Zero is the unvoiced sentinel.
     return frequency > 0 ? 69 + 12 * std::log2(frequency / 440.0) : 0;
 }
 
@@ -98,9 +97,7 @@ ExtractPitchTask::ResultSegment ExtractPitchTask::placeOnTimeline(const QList<do
     if (overlapEndMs < overlapStartMs)
         return result;
 
-    // Every point is converted through the timeline rather than by applying a single tempo to the
-    // whole span. If the tempo changes, a single conversion causes a drift that grows with the
-    // take length and misaligns the curve with the corresponding notes.
+    // Convert every position through the tempo map to preserve alignment across tempo changes.
     const double firstGlobalTick = m_input.timeline.msToTick(overlapStartMs);
     const double lastGlobalTick = m_input.timeline.msToTick(overlapEndMs);
     constexpr int step = kParamCurveStepTicks;

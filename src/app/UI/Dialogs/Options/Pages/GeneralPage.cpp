@@ -25,14 +25,8 @@
 
 namespace {
 
-    /// Records one default lyric edit.
-    ///
-    /// The edit field shows the effective value, which may be a user override, the value a singer
-    /// states for that language, or the built-in one. Storing whatever the field merely displays
-    /// would turn that value into an explicit user override and shadow a singer that states the same
-    /// language later, so only a real edit is recorded. Editing the text back to what the page put
-    /// there restores the entry it came from, which is what makes an intermediate edit reversible.
-    /// An empty field asks for the default again.
+    /// Record only actual edits. Restoring displayed text restores its original entry; empty resets
+    /// it.
     void recordDefaultLyricEdit(QMap<QString, QString> &pending, const QString &language,
                                 const QString &text, const QString &displayed,
                                 const QString &stored) {
@@ -66,8 +60,7 @@ void GeneralPage::modifyOption() {
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     recordDefaultLyricEdit(m_pendingLyrics, settings.defaultSingingLanguage, m_leDefaultLyric->text(),
                            m_displayedLyric, m_storedLyric);
-    // The stored table can change while the dialog is open, for example through the automation
-    // surface, so only the entries this page changed are applied to the table as it stands.
+    // Apply only edited languages so concurrent automation changes are preserved.
     settings.defaultLyrics = previous.defaultLyrics;
     for (auto it = m_pendingLyrics.constBegin(); it != m_pendingLyrics.constEnd(); ++it) {
         if (it.value().isEmpty())
@@ -80,8 +73,6 @@ void GeneralPage::modifyOption() {
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
     if (runtime->settings().updateGeneral({}, settings)) {
-        // The page now shows what the table holds, so the next edit is compared against this state
-        // rather than against what the field displayed before the edit was stored.
         m_pendingLyrics.clear();
         m_defaultLyrics = settings.defaultLyrics;
         m_displayedLyric = m_leDefaultLyric->text();
@@ -187,11 +178,7 @@ QWidget *GeneralPage::createContentWidget() {
     packagePathsCard->setTitle(tr("Package Search Paths (needs restart)"));
     packagePathsCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    // An analyzer is chosen from what is installed rather than pointed at on disk: it is a
-    // contribution of a package, so the list of them is something the editor knows and a person
-    // should not have to know. A reference the editor stored and can no longer find is kept in
-    // the list, marked, so that it shows as a choice that has gone rather than silently becoming
-    // whatever happens to be first.
+    // Keep a missing analyzer selection visible instead of silently selecting another analyzer.
     const auto fillAnalyzers = [this](ComboBox *box, const QString &interfaceName,
                                       const QString &chosen) {
         box->setMinimumWidth(480);

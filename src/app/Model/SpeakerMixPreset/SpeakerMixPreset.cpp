@@ -35,10 +35,7 @@ namespace {
         return {SpeakerInfo(obj["id"].toString(), obj["name"].toString())};
     }
 
-    // Same rule as the automation adapter's own preset decoding: toJson() writes UTC ISO strings,
-    // but Qt reads an offset-less string back as local time (QDateTime::fromString()'s ISO branch
-    // starts from QTimeZone::LocalTime), so such a value would depend on the reading machine's
-    // time zone. A missing offset means UTC.
+    // Treat offset-less preset timestamps as UTC, matching the persisted format.
     QDateTime parsePresetTimestamp(const QString &value) {
         auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
         if (time.isValid() && time.timeSpec() == Qt::LocalTime)

@@ -306,9 +306,7 @@ namespace Automation {
                     if (!authorized)
                         return AutomationResult<TaskAcceptedResult>(authorized.getError());
                 }
-                // An export renders through the shared project mixer, so two exports of one
-                // document cannot run concurrently. A second request is rejected while the first
-                // is queued or running, and the error identifies the task that holds the mixer.
+                // Serialize exports per document because they share the project mixer.
                 if (const auto active = activeExport(session.documentId())) {
                     AutomationError error;
                     error.code = AutomationErrorCode::Busy;
@@ -374,8 +372,7 @@ namespace Automation {
                     candidates.append(it.key());
             }
         }
-        // The task state is read outside the lock of the job table, so that the two locks are
-        // never held together.
+        // Read task state without holding the job-table lock.
         for (const auto &taskId : std::as_const(candidates)) {
             const auto task = m_tasks.get(documentId, taskId);
             if (task && !terminal(task.get().state))

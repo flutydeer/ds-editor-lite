@@ -9,10 +9,7 @@
 namespace Co = ds::Api::Common::L1;
 
 namespace {
-    // Serializes stage creation across tasks that share one pipeline. The guard of the pipeline
-    // is a plain lock and would suffice for the pipeline itself, but the underlying driver is not
-    // always reentrant, and concurrent opening of two models by two tasks has caused failures
-    // before. A stage is opened once per singer, so this mutex is not a bottleneck.
+    // Serialize model creation because the inference driver is not always reentrant.
     std::mutex g_modelLoadMutex;
 
     bool mapSpeakerName(const std::string &speakerName,
@@ -107,8 +104,7 @@ srt::Expected<ActiveInference::Handle>
         if (m_stopRequested)
             toStop = m_executive;
     }
-    // A stop requested while the model was opening is applied now. Otherwise the task would run
-    // to completion despite the cancellation request.
+    // Apply cancellation requested while the model was opening.
     if (toStop)
         (void) toStop->stop();
     return Handle(*this, std::move(model), generation);
@@ -121,10 +117,8 @@ void ActiveInference::clear(std::uint64_t generation) {
 }
 
 void ActiveInference::stop() {
-    // The mutex is held across the call. The handle clears the pointer under this mutex before
-    // the task releases the pipeline that owns the executive, so a non-null pointer here always
-    // refers to a live object. stop() only sets a flag and returns, so the lock does not block
-    // other callers for long.
+    // Hold the mutex through stop(); Handle clears the pointer under the same mutex before
+    // teardown.
     std::lock_guard lock(m_mutex);
     m_stopRequested = true;
     if (m_executive)

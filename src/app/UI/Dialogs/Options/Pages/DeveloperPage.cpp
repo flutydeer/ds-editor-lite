@@ -226,9 +226,6 @@ QWidget *DeveloperPage::createContentWidget() {
             return str_;
         };
         const auto &packagePaths = appOptions->general()->packageSearchPaths;
-        // What the last scan found, rather than a walk of the unit's categories: the engine has
-        // already worked out which contributions are singers and what each one can do, and this
-        // page shows exactly that.
         const auto singers = SynthrtEngine::instance().singers();
 
         const auto languageManager = UiLanguageManager::instance();
@@ -293,8 +290,6 @@ QWidget *DeveloperPage::createContentWidget() {
         }
         packageRoot->appendRow(packagePathRoot);
 
-        // Loaded packages, named by the singers they hold: a package with no singer contributes
-        // nothing this page can show, and a package with several appears once.
         auto packageLoadedRoot = new QStandardItem(tr("loaded packages"));
         QStringList listedPackages;
         for (const auto &singer : singers) {
@@ -327,9 +322,6 @@ QWidget *DeveloperPage::createContentWidget() {
             row(tr("package"), packageId + QLatin1Char('@') + packageVersion);
             row(tr("path"), StringUtils::path_to_qstr(singer.packagePath));
 
-            // Which stages this singer imports, which is what decides what it can be asked to do.
-            // The older page listed the inference modules themselves; on this line a stage is
-            // reached through an import and what matters about it is whether it is there.
             const auto &can = singer.capabilities;
             auto stageRoot = new QStandardItem(tr("stages"));
             const auto stage = [stageRoot, this](const QString &name, bool present) {

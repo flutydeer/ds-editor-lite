@@ -36,9 +36,7 @@ void PackageDetailsContent::moveToNullPackageState() const {
 }
 
 void PackageDetailsContent::moveToPackageState(const PackageInfo &package) const {
-    // A package that would not open has no description and no readme to read; the reason it was
-    // refused takes the card instead, in full and unedited, because that is the whole of what
-    // there is to say about it.
+    // Show the loader's failure reason when package metadata is unavailable.
     if (package.isUnavailable()) {
         descriptionCard->setTitle(tr("Unavailable"));
         descriptionCard->onDataContextChanged(package.unavailableReason());

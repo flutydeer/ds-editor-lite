@@ -32,12 +32,10 @@ public:
     enum class ModuleStatus { Loading, Ready, Error };
     using RefreshCommitGate = std::function<bool()>;
 
-    /// Package loading mode of a refresh.
     enum class ScanMode {
-        /// Loads a fresh runtime catalog so that changes on disk take effect.
+        /// Read changed package files through a fresh runtime catalog.
         Reload,
-        /// Reuses the packages that the engine loaded from the same paths during initialization,
-        /// so that the first listing does not load every package a second time.
+        /// Reuse the packages already loaded during initialization.
         ReuseLoaded,
     };
 

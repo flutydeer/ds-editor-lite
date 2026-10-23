@@ -36,8 +36,7 @@ QList<float> PitchRouting::midiPitchToF0(const QList<double> &pitch,
     for (qsizetype i = 0; i < targetFrames; ++i)
         targetPositions.append(static_cast<double>(i) * targetIntervalSeconds);
 
-    // A frame between a voiced and an unvoiced sample takes the nearer sample, so the result is
-    // either a sung pitch or the unvoiced marker and never a value in between.
+    // Use nearest-neighbor sampling at voiced/unvoiced boundaries.
     const auto resampled = PitchSampling::resample(pitch, sourcePositions, targetPositions);
     if (resampled.size() != targetFrames)
         return {};

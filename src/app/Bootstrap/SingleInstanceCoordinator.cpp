@@ -28,10 +28,7 @@
 namespace {
     constexpr int connectionTimeoutMs = 3000;
     constexpr int connectionAttemptMs = 100;
-    // A served connection is closed only after it has been quiet for this long. The peer's own
-    // write completion and its read of the response land after ours, and Windows reports that
-    // pending I/O as failed the moment the pipe goes away, so closing the very instant the
-    // response drains turns a request that was delivered and served into a reported send failure.
+    // Let the peer finish pending pipe I/O before closing a served connection on Windows.
     constexpr int responseLingerMs = 100;
 
     QString executablePath() {
@@ -196,9 +193,7 @@ private:
         }
     }
 
-    // A connection that has already been served and is only waiting out its linger gives up its
-    // slot before a newcomer is turned away: the linger is a courtesy to the peer that has its
-    // response, while the newcomer has nothing yet.
+    // Reclaim served connections in their linger period before rejecting a new connection.
     bool releaseLingeringConnection() {
         for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
             if (!it->lingerTimer || !it->lingerTimer->isActive())
@@ -332,8 +327,6 @@ private:
         if (it == m_connections.end() || it->activeWriteBytes > 0)
             return;
         if (it->writeQueue.isEmpty()) {
-            // The response is out; the peer is left a moment to finish with the connection
-            // before the pipe is closed under it.
             if (it->closeWhenDrained && it->lingerTimer && !it->lingerTimer->isActive())
                 it->lingerTimer->start();
             return;
@@ -402,15 +395,13 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
     }
 
     m_lockFile = std::make_unique<QLockFile>(SingleInstanceIdentity::lockFilePath(m_dataDirectory));
-    // Disable age-based expiry for long-running editors. QLockFile::tryLock still checks the PID
-    // and process name (including PID reuse); the liveness check below is an additional fallback.
+    // Disable age expiry for long-running editors; Qt still checks PID and process name.
     m_lockFile->setStaleLockTime(0);
     if (!m_lockFile->tryLock(0)) {
         if (m_lockFile->error() != QLockFile::LockFailedError) {
             m_error = tr("Failed to access the single-instance lock file");
             return StartResult::Error;
         }
-        // A holder that died without unlocking left its lock behind; it is nobody's now.
         qint64 holder = 0;
         QString host;
         QString application;
@@ -421,16 +412,13 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
             !ProcessProbe::isAlive(holder)) {
             m_lockFile->removeStaleLockFile();
         } else if (!readable) {
-            // A crash while writing can leave no usable PID. Allow Qt's normal stale-file
-            // recovery for this case, without expiring readable locks held by long-lived editors.
+            // Allow Qt's stale-file recovery for malformed locks without expiring valid live locks.
             m_lockFile->setStaleLockTime(30000);
             recovered = m_lockFile->tryLock(0);
             m_lockFile->setStaleLockTime(0);
         }
-        // A holder on its way out keeps the lock until its last step, and a launch that lands in
-        // that moment, a restart's successor or a host started right after the previous one was
-        // told to exit, is not a second instance. Bounded, so that a real second instance still
-        // forwards its request promptly.
+        // Allow a bounded wait for an exiting lock holder before forwarding as a secondary
+        // instance.
         if (!recovered && !m_lockFile->tryLock(750)) {
             if (m_lockFile->error() == QLockFile::LockFailedError)
                 return StartResult::Secondary;

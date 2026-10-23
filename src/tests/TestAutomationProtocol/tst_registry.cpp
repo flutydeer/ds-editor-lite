@@ -653,9 +653,7 @@ namespace {
         expect(!emptyUpdate &&
                    emptyUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("settings updates must reject an empty patch"));
-        // An entry that omits the lyric would reset that language under the sparse semantics of the
-        // patch, so an incomplete entry is rejected instead of silently clearing an entry that the
-        // caller never named.
+        // Missing fields must not silently reset an override.
         const auto lyricWithoutValue = registry.invoke(
             QStringLiteral("settings.singing.update"),
             QJsonObject{
@@ -2091,9 +2089,7 @@ namespace {
         QCOMPARE(voiceClip->notes().count(), 1);
         QCOMPARE((*voiceClip->notes().begin())->lyric(), QStringLiteral("ra"));
 
-        // A stored table with no entry for the language is the state the settings page and
-        // settings.singing.update leave behind when a lyric is reset. The editor falls back to the
-        // built-in lyric, and this path must resolve the same way rather than to a literal "la".
+        // Missing stored entries must resolve to the language's built-in lyric.
         auto settingsWithoutLyrics = runtime.settings().getSettings();
         QVERIFY(settingsWithoutLyrics);
         auto generalWithoutLyrics = settingsWithoutLyrics.get().general;
@@ -2114,8 +2110,6 @@ namespace {
         QVERIFY(resetLyrics);
         QCOMPARE(resetLyrics.get().general.defaultLyrics.value(QStringLiteral("jpn")), QString());
         QCOMPARE(voiceClip->notes().count(), 2);
-        // The registry must resolve a language exactly as the editor does, so the expectation is
-        // the editor's own resolution rather than a value written into this test.
         const auto resetExpected =
             DefaultLyricRules::resolve({}, voiceClip->effectiveDefaultLanguage());
         qsizetype resetLyricCount = 0;

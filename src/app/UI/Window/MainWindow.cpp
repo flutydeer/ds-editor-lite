@@ -132,8 +132,8 @@ MainWindow::MainWindow() {
     connect(appStatus, &AppStatus::unavailableExecutionProviderChanged, this,
             [showUnavailableProviderNotice](const QString &) { showUnavailableProviderNotice(); });
     showUnavailableProviderNotice();
-    // Inference engine startup is a hard failure, and its reason may be published before
-    // or after this window is built; report it once and consume it.
+    // Report and consume the initialization failure once, including failures before window
+    // creation.
     const auto showInferenceEngineErrorNotice = [this] {
         const auto error = appStatus->inferenceEngineError.get();
         if (error.isEmpty())

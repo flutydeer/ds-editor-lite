@@ -77,10 +77,7 @@ namespace Automation {
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;
-        /// Position of the first sample of the audio material on the project timeline, and the
-        /// span of the material that the clip shows. The meaning is the same as in
-        /// PitchExtractionInput: the task reads the visible span of the file and places the result
-        /// relative to the origin.
+        /// Audio material origin and visible span in project milliseconds.
         double audioMaterialOriginMs = 0.0;
         double audioVisibleStartMs = 0.0;
         double audioVisibleEndMs = 0.0;
@@ -188,9 +185,7 @@ namespace Automation {
         void discardDocumentGeneration(const DocumentId &documentId);
 
     private:
-        /// Expires when the facade is destroyed. Every callback that a job or the scheduler may
-        /// run later holds a weak reference and returns without effect once it has expired,
-        /// because a queued completion can arrive after the runtime has been torn down.
+        /// Weak callback guard that expires with the facade.
         std::shared_ptr<int> m_lifetime = std::make_shared<int>(0);
 
         struct JobRecord {

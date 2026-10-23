@@ -32,9 +32,7 @@ QList<GpuInfo> GpuCatalog::forProvider(const QString &providerId) {
             return cached->devices;
     }
 
-    // The probe runs outside the lock: DXGI has to walk the adapters and nvidia-smi has to start a
-    // process, which may take hundreds of milliseconds, and that must not block other threads. With
-    // concurrent calls the same provider may be probed more than once.
+    // Probe outside the mutex because device enumeration can block.
     QList<GpuInfo> enumerated;
     if (providerId == ExecutionProviderUtils::toString(ExecutionProvider::Cuda))
         enumerated = CudaGpuUtils::getGpuList();

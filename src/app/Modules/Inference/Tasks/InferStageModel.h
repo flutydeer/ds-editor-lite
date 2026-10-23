@@ -16,50 +16,35 @@
 
 class GenericInferModel;
 
-/// Model of one stage of a singer, held for one inference run.
-///
-/// Encapsulates the steps that the four inference tasks share before building their stage input:
-/// checking the engine, leasing the pipeline of the singer, opening the stage through
-/// ActiveInference so that stop() can reach it, and reading the import options of the stage. The
-/// lease is declared before the handle. The handle, which clears the executive from
-/// ActiveInference, is therefore destroyed first, and the pipeline that owns the executive last.
-///
-/// The caller constructs its InferDirectMLSerializationGuard before calling acquire(), so that the
-/// destruction of the stage also completes before the guard unlocks.
+/// Own one stage for an inference run. Destroy its active handle before the pipeline lease.
+/// Construct InferDirectMLSerializationGuard before acquiring the stage so teardown stays
+/// serialized.
 class InferStageModel final {
 public:
-    /// Acquires \a stage of the singer \a identifier. Returns no value if the engine is not
-    /// initialized, the pipeline cannot be leased or the model cannot be opened. The reason is
-    /// logged with \a taskName as its prefix and, if the engine reports an error, stored in
-    /// \a error.
+    /// Acquire a stage or return no value, logging the task name and filling error when supplied.
     static std::optional<InferStageModel> acquire(ActiveInference &activeInference,
                                                   const SingerIdentifier &identifier,
                                                   InferStage stage, const char *taskName,
                                                   QString &error);
 
-    /// Acquires \a stage from the pipeline that \a lease already holds, so that two stages of one
-    /// run, such as acoustic and vocoder, come from the same pipeline.
+    /// Acquire another stage from the same pipeline lease.
     static std::optional<InferStageModel>
         acquire(ActiveInference &activeInference,
                 std::shared_ptr<InferEngine::SingerPipelineLease> lease,
                 const SingerIdentifier &identifier, InferStage stage, const char *taskName,
                 QString &error);
 
-    /// Returns the lease of the pipeline from which the stage was acquired.
     const std::shared_ptr<InferEngine::SingerPipelineLease> &lease() const {
         return m_lease;
     }
 
-    /// Returns the executive of the stage. The requested stage determines the dynamic type,
-    /// because acquire() returns only the requested stage. The caller therefore casts to the
-    /// executive type of the stage that it requested.
+    /// Cast to the executive type matching the acquired stage.
     template <class Executive>
     Executive *executive() const {
         return static_cast<Executive *>(m_model.executive);
     }
 
-    /// Missing optional import options mean identity mapping. A present value of the wrong type
-    /// remains an error. The caller specifies the import options type of its stage.
+    /// Absent import options mean identity mapping; a present value of the wrong type is an error.
     template <class ImportOptions>
     std::optional<std::map<std::string, std::string>> speakerMapping() const {
         const auto *options = m_model.importOptions;
@@ -77,13 +62,11 @@ private:
 
     std::shared_ptr<InferEngine::SingerPipelineLease> m_lease;
     std::optional<ActiveInference::Handle> m_handle;
-    /// Executive and import options held by the handle, read once at construction.
     ActiveInference::Model m_model;
 };
 
-/// Converts the words of \a model, and its speakers if \a withSpeakers is true, with the speaker
-/// names of the singer mapped through \a speakerMapping. Returns false and sets \a error on
-/// failure. The duration stage has no frame-level speakers and passes \a withSpeakers as false.
+/// Convert input words and optionally frame speakers using the singer-to-model mapping.
+/// Return false and set error on failure.
 bool convertStageWords(const GenericInferModel &model,
                        const std::map<std::string, std::string> &speakerMapping, bool withSpeakers,
                        std::vector<ds::Api::Common::L1::InputWordInfo> &words,

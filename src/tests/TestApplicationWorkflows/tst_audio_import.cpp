@@ -260,8 +260,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 
-    // The bundled package supplies valid analyzer declarations. No attempt opens their models:
-    // these cases stop during source snapshotting or cancellation.
+    // Use valid analyzer declarations; these cases stop before opening model weights.
     const auto analyzerReference = pitch ? QStringLiteral("ci-fixture:inference/fixture-f0")
                                          : QStringLiteral("ci-fixture:inference/fixture-note");
     modelPath = QStringLiteral(" \t") + analyzerReference + QStringLiteral("\n ");

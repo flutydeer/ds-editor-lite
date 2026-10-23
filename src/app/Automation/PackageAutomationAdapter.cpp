@@ -21,9 +21,6 @@
 
 namespace Automation {
     namespace {
-        /// Both failure lists in this file pass through the loader's error text unchanged. The
-        /// loader is the only component with the rejection reason, and a reworded reason could
-        /// be inaccurate.
         PackageRefreshFailureDto failureDto(
             const GetInstalledPackagesResult::FailedPackage &failure) {
             return {
@@ -200,20 +197,9 @@ namespace Automation {
                 result.append(failureDto(failure));
             return result;
         };
-        // Validation loads the package and releases it immediately. This check is stronger than
-        // a schema check because every interpreter reads its configuration and every import
-        // validator runs. The report is less detailed: the loader returns one error with its
-        // causes rather than a list of findings with severities and recommendations, so a report
-        // contains at most one item and never a warning.
-        //
-        // The reduced report detail is intentional. An itemized report requires the loader to
-        // collect all findings instead of returning at the first error, which is a change to
-        // synthrt and cannot be reconstructed by the host.
+        // SDK validation returns at most one error with its cause chain, rather than itemized
+        // findings.
         services.validatePackage = [](const QString &path) {
-            // Validation before the engine starts or after it shuts down returns a ModuleNotReady
-            // error. unitIfReady() retrieves and checks the unit in one call, instead of testing an
-            // initialization flag first and retrieving the unit afterwards, which would leave a
-            // race window between the two calls.
             auto *unit = SynthrtEngine::instance().unitIfReady();
             if (unit == nullptr) {
                 AutomationError error;

@@ -11,8 +11,7 @@ struct ExtractMidiNote {
     int note = 0;
     int start = 0;
     int duration = 0;
-    /// Confidence the model reported for the note, in the inclusive range from zero to one. It is
-    /// diagnostic: no surface of the editor displays it yet.
+    /// Model-reported confidence in [0, 1].
     double confidence = 0;
 };
 

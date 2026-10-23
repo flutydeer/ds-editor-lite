@@ -3,12 +3,7 @@
 
 #include <QList>
 
-/// Spacing, in ticks, between the points of a parameter curve.
-///
-/// The project model samples every drawn curve at this spacing (the default step of DrawCurve).
-/// The integration layer reads and writes curves on the same grid: the inference input and
-/// output, and the placement of an extracted pitch curve. Keep this grid aligned with the
-/// default step of DrawCurve.
+/// Parameter-curve spacing in ticks. Keep inference and extraction aligned with DrawCurve's step.
 inline constexpr int kParamCurveStepTicks = 5;
 
 class InferParamCurve {

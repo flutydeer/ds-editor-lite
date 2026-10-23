@@ -232,13 +232,10 @@ void Log::f(const QString &tag, const QString &msg) {
 }
 
 QString Log::timeStr() {
-    // The log file name stays local time (see the constructor), but the in-line stamp carries the
-    // UTC offset, so that a log written on one machine and read on another can be lined up with
-    // the reader's clock instead of looking like a second, disagreeing one.
+    // Include the UTC offset in log entries for cross-machine comparison.
     const auto now = QDateTime::currentDateTime();
     const auto offsetSeconds = now.offsetFromUtc();
     const auto absoluteSeconds = offsetSeconds < 0 ? -offsetSeconds : offsetSeconds;
-    // QString::toString() has no placeholder for the offset, so compose it by hand.
     const auto offsetText = QStringLiteral("%1%2:%3")
                                 .arg(offsetSeconds < 0 ? QChar(u'-') : QChar(u'+'))
                                 .arg(absoluteSeconds / 3600, 2, 10, QLatin1Char('0'))

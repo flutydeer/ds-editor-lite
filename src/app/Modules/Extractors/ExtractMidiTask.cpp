@@ -32,8 +32,7 @@ std::optional<std::pair<int, int>> ExtractMidiTask::noteTicks(
         !std::isfinite(durationTicks) || durationTicks < 0)
         return std::nullopt;
 
-    // Round in floating point first: qRound already converts to int and cannot be used to check
-    // whether that conversion is representable. The project also stores start + duration as int.
+    // Round before range checking, without converting to int. start + duration must also fit int.
     const auto start = std::round(startTick);
     const auto duration = std::round(durationTicks);
     constexpr auto minimum = std::numeric_limits<int>::min();
@@ -53,13 +52,8 @@ void ExtractMidiTask::runTask() {
             input.audio.samples.assign(span.samples.begin() + span.begin,
                                        span.samples.begin() + span.end);
             input.audio.startTime = span.startTime;
-            // The language only conditions the model, which produces notes for any language. A
-            // language that the model does not declare is therefore replaced by the declared
-            // default rather than passed through, because the model rejects an undeclared
-            // language and the extraction would fail.
+            // Use the analyzer's default for unsupported languages.
             const auto wanted = m_input.language.toStdString();
-            // exports and a non-empty schema have already been checked by the guard in
-            // ExtractTask::runAnalysis
             const auto *schema = notes.spec().exports()->as<Note::NoteSchema>();
             if (!wanted.empty() && schema &&
                 std::find(schema->languages.begin(), schema->languages.end(), wanted) !=
@@ -70,13 +64,7 @@ void ExtractMidiTask::runTask() {
             return notes.start(input);
         },
         [this](const Note::NoteResult &transcription) {
-            // Seconds are converted to ticks for each note through the timeline. If the tempo
-            // changes, applying a single tempo to the whole take causes a drift that grows with
-            // the take length and misaligns the notes with the audio.
-            //
-            // Ticks are relative to the audio clip because the notes are inserted into a singing
-            // clip with the same start as the audio clip, and a note start is measured from the
-            // start of its clip.
+            // Convert each note through the tempo map, relative to the audio clip's start tick.
             result.reserve(result.size() + transcription.notes.size());
             for (const auto &note : transcription.notes) {
                 const auto ticks = noteTicks(m_input, note.start, note.duration);
@@ -86,9 +74,8 @@ void ExtractMidiTask::runTask() {
                     return;
                 }
                 const auto [start, length] = *ticks;
-                // A note shorter than half a tick rounds to zero length. The project model stores
-                // notes in an interval tree that rejects empty intervals, so such a note is
-                // dropped here rather than inserted.
+                // Drop sub-tick notes that round to zero length; the project interval tree rejects
+                // them.
                 if (length <= 0) {
                     continue;
                 }
