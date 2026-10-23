@@ -22,7 +22,7 @@ endif()
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/otter.git
-    REF e770ab94ac0a27a31c6cec502aeac765c9db70ef
+    REF 740133aa917b3cc822a1e6a2365b8321d6d7165c
     HEAD_REF spec2.4-uptake
     PATCHES ${_otter_platform_patches}
 )
