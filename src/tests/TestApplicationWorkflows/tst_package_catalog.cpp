@@ -65,7 +65,14 @@ namespace {
     }
 }
 
+void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank_data() {
+    QTest::addColumn<bool>("inferenceLanguageTarget");
+    QTest::newRow("linguist-metadata") << false;
+    QTest::newRow("non-linguist-language-target") << true;
+}
+
 void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
+    QFETCH(bool, inferenceLanguageTarget);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
@@ -99,6 +106,24 @@ void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
         QVERIFY(writeJsonObject(path, declaration));
     }
 
+    if (inferenceLanguageTarget) {
+        const auto path = doctored + QStringLiteral("/characters/fixture/config.json");
+        auto declaration = readJsonObject(path);
+        auto imports = declaration.value(QStringLiteral("imports")).toArray();
+        bool changed = false;
+        for (qsizetype index = 0; index < imports.size(); ++index) {
+            auto entry = imports[index].toObject();
+            if (entry.value(QStringLiteral("role")) == QStringLiteral("lang/eng")) {
+                entry.insert(QStringLiteral("ref"), QStringLiteral(":inference/acoustic"));
+                imports[index] = entry;
+                changed = true;
+            }
+        }
+        QVERIFY(changed);
+        declaration.insert(QStringLiteral("imports"), imports);
+        QVERIFY(writeJsonObject(path, declaration));
+    }
+
     const auto refreshed = packageManager->refreshInstalledPackages(
         {staging.path(), TestSupport::voicebankRoot()});
     QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
@@ -114,8 +139,17 @@ void ApplicationWorkflowTests::defaultLyricComesFromTheVoicebank() {
             }
         }
     }
-    QVERIFY2(!declared.isEmpty(), "The doctored package must be installed and contribute a singer");
     QVERIFY(!fixture.isEmpty());
+    if (inferenceLanguageTarget) {
+        QVERIFY(declared.isEmpty());
+        const auto &failures = refreshed.get().failedPackages;
+        QVERIFY(std::any_of(failures.cbegin(), failures.cend(), [&](const auto &failure) {
+            return QDir::fromNativeSeparators(failure.path) == doctored &&
+                   failure.reason.contains(QStringLiteral("not a linguist contribution"));
+        }));
+        return;
+    }
+    QVERIFY2(!declared.isEmpty(), "The doctored package must be installed and contribute a singer");
 
     // The editor reads the default lyric each language of the voicebank declares. This is the whole
     // read path of the editor, and nothing else consumes it yet.

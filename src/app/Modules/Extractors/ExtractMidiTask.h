@@ -2,6 +2,8 @@
 #define EXTRACTMIDITASK_H
 
 #include <vector>
+#include <optional>
+#include <utility>
 
 #include "ExtractTask.h"
 
@@ -19,6 +21,11 @@ class ExtractMidiTask final : public ExtractTask {
 
 public:
     explicit ExtractMidiTask(Input input);
+
+    /// Converts file-relative seconds to clip-local start and duration ticks. A zero duration is
+    /// valid and can be dropped; malformed times or an unrepresentable note return no value.
+    [[nodiscard]] static std::optional<std::pair<int, int>>
+        noteTicks(const Input &input, double startSeconds, double durationSeconds);
 
     std::vector<ExtractMidiNote> result;
 

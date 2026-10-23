@@ -8,9 +8,11 @@
 
 #include "Modules/Extractors/AnalysisAudio.h"
 #include "Modules/Extractors/AudioSlicer.h"
+#include "Modules/Extractors/ExtractMidiTask.h"
 
 #include <cmath>
 #include <vector>
+#include <limits>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -277,4 +279,62 @@ int runAudioSlicer() {
 
 void VoiceAndInferenceTests::audioSlicingBoundariesAndResampling() {
     QCOMPARE(runAudioSlicer(), 0);
+}
+
+void VoiceAndInferenceTests::extractedMidiNoteTiming_data() {
+    QTest::addColumn<double>("startSeconds");
+    QTest::addColumn<double>("durationSeconds");
+    QTest::addColumn<bool>("valid");
+    QTest::addColumn<int>("startTick");
+    QTest::addColumn<int>("durationTicks");
+    const auto nan = std::numeric_limits<double>::quiet_NaN();
+    const auto infinity = std::numeric_limits<double>::infinity();
+    const double maximum = std::numeric_limits<int>::max();
+    const double minimum = std::numeric_limits<int>::min();
+    QTest::newRow("ordinary-note") << 0.5 << 0.25 << true << 480 << 240;
+    QTest::newRow("sub-tick-note") << 0.5 << 0.0001 << true << 480 << 0;
+    QTest::newRow("nan-start") << nan << 0.25 << false << 0 << 0;
+    QTest::newRow("infinite-start") << infinity << 0.25 << false << 0 << 0;
+    QTest::newRow("negative-infinite-start") << -infinity << 0.25 << false << 0 << 0;
+    QTest::newRow("nan-duration") << 0.5 << nan << false << 0 << 0;
+    QTest::newRow("infinite-duration") << 0.5 << infinity << false << 0 << 0;
+    QTest::newRow("negative-duration") << 0.5 << -0.25 << false << 0 << 0;
+    QTest::newRow("millisecond-overflow")
+        << std::numeric_limits<double>::max() << 0.25 << false << 0 << 0;
+    QTest::newRow("tick-overflow") << 1e300 << 0.25 << false << 0 << 0;
+    QTest::newRow("start-overflow") << (maximum + 10) / 960.0 << 0.25 << false << 0 << 0;
+    QTest::newRow("start-underflow") << (minimum - 10) / 960.0 << 0.25 << false << 0 << 0;
+    QTest::newRow("duration-overflow") << 0.0 << (maximum + 10) / 960.0 << false << 0 << 0;
+    QTest::newRow("end-overflow") << maximum / 960.0 << 1.0 / 960.0 << false << 0 << 0;
+    QTest::newRow("representable-boundary")
+        << maximum / 960.0 << 0.0 << true << std::numeric_limits<int>::max() << 0;
+}
+
+void VoiceAndInferenceTests::extractedMidiNoteTiming() {
+    QFETCH(double, startSeconds);
+    QFETCH(double, durationSeconds);
+    QFETCH(bool, valid);
+    QFETCH(int, startTick);
+    QFETCH(int, durationTicks);
+    ExtractTask::Input input;
+    input.timeline.setTempos({{0, 120}});
+    const auto ticks = ExtractMidiTask::noteTicks(input, startSeconds, durationSeconds);
+    QCOMPARE(ticks.has_value(), valid);
+    if (ticks) {
+        QCOMPARE(ticks->first, startTick);
+        QCOMPARE(ticks->second, durationTicks);
+    }
+}
+
+void VoiceAndInferenceTests::extractedMidiNoteTimingAcrossTempoChanges() {
+    ExtractTask::Input input;
+    input.timeline.setTempos({{0, 120}, {960, 60}});
+    input.audioMaterialOriginMs = 500;
+    input.audioClipStartTick = 480;
+    const auto ticks = ExtractMidiTask::noteTicks(input, 0.4, 0.6);
+    QVERIFY(ticks);
+    QCOMPARE(ticks->first, 384);
+    QCOMPARE(ticks->second, 336);
+    input.audioMaterialOriginMs = std::numeric_limits<double>::infinity();
+    QVERIFY(!ExtractMidiTask::noteTicks(input, 0.4, 0.6));
 }

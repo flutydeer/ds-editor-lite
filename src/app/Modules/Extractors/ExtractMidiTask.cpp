@@ -1,6 +1,8 @@
 #include "ExtractMidiTask.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 #include <otter/Api/Note/1/NoteApiL1.h>
 
@@ -11,6 +13,34 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     status.title = tr("Extract MIDI");
     status.message = tr("Pending infer: %1").arg(displayPath());
     setStatus(status);
+}
+
+std::optional<std::pair<int, int>> ExtractMidiTask::noteTicks(
+    const Input &input, const double startSeconds, const double durationSeconds) {
+    if (!std::isfinite(startSeconds) || !std::isfinite(durationSeconds) || durationSeconds < 0 ||
+        !std::isfinite(input.audioMaterialOriginMs))
+        return std::nullopt;
+
+    const auto startMs = input.audioMaterialOriginMs + startSeconds * 1000.0;
+    const auto endMs = startMs + durationSeconds * 1000.0;
+    if (!std::isfinite(startMs) || !std::isfinite(endMs))
+        return std::nullopt;
+    const auto startTick = input.timeline.msToTick(startMs) - input.audioClipStartTick;
+    const auto endTick = input.timeline.msToTick(endMs) - input.audioClipStartTick;
+    const auto durationTicks = endTick - startTick;
+    if (!std::isfinite(startTick) || !std::isfinite(endTick) ||
+        !std::isfinite(durationTicks) || durationTicks < 0)
+        return std::nullopt;
+
+    // Round in floating point first: qRound already converts to int and cannot be used to check
+    // whether that conversion is representable. The project also stores start + duration as int.
+    const auto start = std::round(startTick);
+    const auto duration = std::round(durationTicks);
+    constexpr auto minimum = std::numeric_limits<int>::min();
+    constexpr auto maximum = std::numeric_limits<int>::max();
+    if (start < minimum || start > maximum || duration > maximum || start + duration > maximum)
+        return std::nullopt;
+    return std::pair{static_cast<int>(start), static_cast<int>(duration)};
 }
 
 void ExtractMidiTask::runTask() {
@@ -49,13 +79,13 @@ void ExtractMidiTask::runTask() {
             // start of its clip.
             result.reserve(result.size() + transcription.notes.size());
             for (const auto &note : transcription.notes) {
-                const auto startMs = m_input.audioMaterialOriginMs + note.start * 1000.0;
-                const auto endMs = startMs + note.duration * 1000.0;
-                const auto startTick =
-                    m_input.timeline.msToTick(startMs) - m_input.audioClipStartTick;
-                const auto endTick = m_input.timeline.msToTick(endMs) - m_input.audioClipStartTick;
-                const auto start = static_cast<int>(qRound(startTick));
-                const auto length = static_cast<int>(qRound(endTick - startTick));
+                const auto ticks = noteTicks(m_input, note.start, note.duration);
+                if (!ticks) {
+                    fail(ErrorCode::ModelRunFailed,
+                         tr("The note analyzer returned invalid note timing"));
+                    return;
+                }
+                const auto [start, length] = *ticks;
                 // A note shorter than half a tick rounds to zero length. The project model stores
                 // notes in an interval tree that rejects empty intervals, so such a note is
                 // dropped here rather than inserted.

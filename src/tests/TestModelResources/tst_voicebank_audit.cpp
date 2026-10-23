@@ -407,6 +407,8 @@ namespace {
 }
 
 int runVoicebankAudit() {
+    failures = 0;
+    findings = 0;
     // A published voicebank is hundreds of megabytes and cannot be stored in the tree, so the test
     // takes the voicebank path from the command line or the build configuration and is skipped if
     // no voicebank exists there. Skipping instead of failing is correct, because nothing is broken
@@ -998,6 +1000,8 @@ int runVoicebankAudit() {
 // the unmodified fixture is measured as well: a voicebank that declares nothing has to report
 // nothing, because that is what leaves the editor on its built-in value.
 int runDefaultLyricDeclaration() {
+    failures = 0;
+    findings = 0;
     const fs::path voicebank(TestSupport::voicebankRoot().toStdString());
     const fs::path pluginRoot(TEST_PLUGIN_ROOT);
     const fs::path runtimePath(TEST_ONNXRUNTIME_DIR);

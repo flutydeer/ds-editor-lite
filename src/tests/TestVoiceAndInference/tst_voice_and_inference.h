@@ -13,6 +13,9 @@ class VoiceAndInferenceTests final : public QObject {
 
 private slots:
     void audioSlicingBoundariesAndResampling();
+    void extractedMidiNoteTiming_data();
+    void extractedMidiNoteTiming();
+    void extractedMidiNoteTimingAcrossTempoChanges();
     void speakerMixWeightConversions();
     void speakerMixWeightInterpolation_data();
     void speakerMixWeightInterpolation();

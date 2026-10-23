@@ -69,6 +69,7 @@ namespace {
 
 void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
     otter::Api::F0::L1::F0Result curve;
+    curve.interval = 0.01;
     curve.f0 = {440.0f, 220.0f, 0.0f};
     auto values = ExtractPitchTask::pitchValues(curve);
     QVERIFY(values);
@@ -86,6 +87,42 @@ void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
     curve.voiced.clear();
     values = ExtractPitchTask::pitchValues(curve);
     QVERIFY(values && values->isEmpty());
+}
+
+void ApplicationWorkflowTests::pitchExtractionValidatesTiming_data() {
+    QTest::addColumn<double>("start");
+    QTest::addColumn<double>("interval");
+    QTest::addColumn<bool>("valid");
+    const auto nan = std::numeric_limits<double>::quiet_NaN();
+    const auto inf = std::numeric_limits<double>::infinity();
+    const auto max = std::numeric_limits<double>::max();
+    QTest::newRow("ordinary") << 0.0 << 0.01 << true;
+    QTest::newRow("offset") << 1.5 << 0.005 << true;
+    QTest::newRow("zero-interval") << 0.0 << 0.0 << false;
+    QTest::newRow("negative-interval") << 0.0 << -0.01 << false;
+    QTest::newRow("nan-interval") << 0.0 << nan << false;
+    QTest::newRow("infinite-interval") << 0.0 << inf << false;
+    QTest::newRow("nan-start") << nan << 0.01 << false;
+    QTest::newRow("infinite-start") << inf << 0.01 << false;
+    QTest::newRow("negative-infinite-start") << -inf << 0.01 << false;
+    QTest::newRow("start-ms-overflow") << max << 0.01 << false;
+    QTest::newRow("interval-ms-overflow") << 0.0 << max << false;
+    QTest::newRow("end-ms-overflow") << 0.0 << max / 1500.0 << false;
+}
+
+void ApplicationWorkflowTests::pitchExtractionValidatesTiming() {
+    QFETCH(double, start);
+    QFETCH(double, interval);
+    QFETCH(bool, valid);
+    otter::Api::F0::L1::F0Result curve;
+    curve.startTime = start;
+    curve.interval = interval;
+    curve.f0 = {440.0f, 440.0f, 440.0f};
+    QCOMPARE(ExtractPitchTask::pitchValues(curve).has_value(), valid);
+    // An analyzer may legitimately return no frames with its default zero interval.
+    curve = {};
+    const auto empty = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(empty && empty->isEmpty());
 }
 
 void ApplicationWorkflowTests::

@@ -454,11 +454,12 @@ namespace lite::synthrt {
                 result.languages.push_back(entry.language);
                 if (const auto *linguist = targetOf(singer, entry.role)) {
                     result.languageNames.emplace(entry.language, linguist->name());
-                    // The default lyric is a category-added root field of the linguist module, so it
-                    // is read here rather than through the capability report of the singer.
-                    if (const auto *spec = linguist->as<wolf::LinguistSpec>();
-                        spec != nullptr && !spec->defaultLyric().empty()) {
-                        result.defaultLyrics.emplace(entry.language, spec->defaultLyric());
+                    // LinguistSpec is the category type, independent of the provider's interface
+                    // and API level. ContribSpec::as() requires checking that category first.
+                    if (linguist->locator().category() == wolf::LINGUIST_CATEGORY) {
+                        const auto *spec = linguist->as<wolf::LinguistSpec>();
+                        if (!spec->defaultLyric().empty())
+                            result.defaultLyrics.emplace(entry.language, spec->defaultLyric());
                     }
                 }
             }

@@ -35,7 +35,8 @@ void ExtractPitchTask::runTask() {
             const auto values = pitchValues(curve);
             if (!values) {
                 fail(ErrorCode::ModelRunFailed,
-                     tr("The pitch analyzer returned mismatched frequency and voicing frames"));
+                     tr("The pitch analyzer returned invalid timing or mismatched frequency and "
+                        "voicing frames"));
                 return;
             }
             auto placed =
@@ -53,6 +54,14 @@ std::optional<QList<double>> ExtractPitchTask::pitchValues(const F0::F0Result &c
     const bool hasVoicing = !curve.voiced.empty();
     if (hasVoicing && curve.voiced.size() != curve.f0.size())
         return std::nullopt;
+    if (!curve.f0.empty()) {
+        const double startMs = curve.startTime * 1000.0;
+        const double intervalMs = curve.interval * 1000.0;
+        const double endMs = startMs + (curve.f0.size() - 1) * intervalMs;
+        if (!std::isfinite(startMs) || !std::isfinite(intervalMs) || intervalMs <= 0 ||
+            !std::isfinite(endMs))
+            return std::nullopt;
+    }
     // An interpolated unvoiced frame can have a positive frequency, so only an absent mask
     // permits inferring voicing from F0.
     QList<double> values;

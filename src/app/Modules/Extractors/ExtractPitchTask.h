@@ -18,7 +18,7 @@ public:
 
     explicit ExtractPitchTask(Input input);
 
-    /// Converts aligned analyzer frames; an absent voicing mask is inferred from nonzero F0.
+    /// Converts aligned frames with valid timing; an absent mask is inferred from nonzero F0.
     [[nodiscard]] static std::optional<QList<double>>
         pitchValues(const otter::Api::F0::L1::F0Result &curve);
 

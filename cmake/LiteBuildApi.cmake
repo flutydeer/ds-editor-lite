@@ -684,9 +684,14 @@ function(lite_deploy_application _target)
     # declaration looked up above. The symbols of the "default" flavor are staged in the runtime
     # directory itself because its payload is staged there; the symbols of every other flavor are
     # staged in the subdirectory that contains its payload.
-    if(NOT APPLE AND CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$" AND
+    if(NOT APPLE AND (CMAKE_CONFIGURATION_TYPES OR
+       CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$") AND
        _ort_runtimes_rel AND DEFINED ONNXRUNTIME_BUILDS_FLAVORS)
         set(_ort_build_sym_commands "")
+        # Multi-config generators choose the configuration at build time. cmake -E true is a
+        # no-op for the other configurations, including its unused source/destination arguments.
+        set(_ort_symbol_copy_command
+            "$<IF:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,copy_if_different,true>")
         foreach(_flavor IN LISTS ONNXRUNTIME_BUILDS_FLAVORS)
             if(_flavor STREQUAL "cuda" AND NOT LITE_ENABLE_CUDA)
                 continue()
@@ -714,13 +719,14 @@ function(lite_deploy_application _target)
             foreach(_ort_sym_file IN LISTS _ort_build_sym_files)
                 get_filename_component(_ort_sym_name "${_ort_sym_file}" NAME)
                 list(APPEND _ort_build_sym_commands COMMAND "${CMAKE_COMMAND}" -E
-                    copy_if_different "${_ort_sym_file}" "${_ort_build_sym_dst}/${_ort_sym_name}")
+                    "${_ort_symbol_copy_command}"
+                    "${_ort_sym_file}" "${_ort_build_sym_dst}/${_ort_sym_name}")
             endforeach()
         endforeach()
         if(_ort_build_sym_commands)
             add_custom_command(TARGET ${_target} POST_BUILD
                 ${_ort_build_sym_commands}
-                COMMENT "Stage ONNX Runtime ${CMAKE_BUILD_TYPE} symbols into the build tree"
+                COMMENT "Stage ONNX Runtime symbols for the selected build configuration"
                 VERBATIM
             )
         endif()
@@ -741,8 +747,8 @@ function(lite_deploy_application _target)
     # The remaining warning covers an absent declaration. It names the
     # onnxruntime-builds package, not the synthrt package, which carries no
     # flavor declaration.
-    if(LITE_INSTALL AND
-       CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
+    if(LITE_INSTALL AND (CMAKE_CONFIGURATION_TYPES OR
+       CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$"))
         if(NOT _ort_runtimes_rel)
             message(WARNING
                 "No ONNX Runtime runtime directory is named (_lite_ort_relative is empty); "
@@ -772,22 +778,24 @@ function(lite_deploy_application _target)
                     set(_ort_flavor_rel "/${_flavor}")
                 endif()
                 install(CODE "
-                    set(_dst \"${_lite_install_root}/${_ort_runtimes_rel}${_ort_flavor_rel}\")
-                    set(_sym_dir \"${_ort_symbol_dir}\")
-                    if(EXISTS \"\${_dst}\" AND EXISTS \"\${_sym_dir}\")
-                        file(GLOB _ort_symbol_entries \"\${_sym_dir}/*\")
-                        foreach(_ort_entry IN LISTS _ort_symbol_entries)
-                            get_filename_component(_ort_entry_name \"\${_ort_entry}\" NAME)
-                            if(NOT EXISTS \"\${_dst}/\${_ort_entry_name}\")
-                                if(IS_DIRECTORY \"\${_ort_entry}\")
-                                    file(INSTALL DESTINATION \"\${_dst}\" TYPE DIRECTORY
-                                        FILES \"\${_ort_entry}\")
-                                else()
-                                    file(INSTALL DESTINATION \"\${_dst}\" TYPE FILE
-                                        FILES \"\${_ort_entry}\")
+                    if(CMAKE_INSTALL_CONFIG_NAME MATCHES \"^(Debug|RelWithDebInfo)$\")
+                        set(_dst \"${_lite_install_root}/${_ort_runtimes_rel}${_ort_flavor_rel}\")
+                        set(_sym_dir \"${_ort_symbol_dir}\")
+                        if(EXISTS \"\${_dst}\" AND EXISTS \"\${_sym_dir}\")
+                            file(GLOB _ort_symbol_entries \"\${_sym_dir}/*\")
+                            foreach(_ort_entry IN LISTS _ort_symbol_entries)
+                                get_filename_component(_ort_entry_name \"\${_ort_entry}\" NAME)
+                                if(NOT EXISTS \"\${_dst}/\${_ort_entry_name}\")
+                                    if(IS_DIRECTORY \"\${_ort_entry}\")
+                                        file(INSTALL DESTINATION \"\${_dst}\" TYPE DIRECTORY
+                                            FILES \"\${_ort_entry}\")
+                                    else()
+                                        file(INSTALL DESTINATION \"\${_dst}\" TYPE FILE
+                                            FILES \"\${_ort_entry}\")
+                                    endif()
                                 endif()
-                            endif()
-                        endforeach()
+                            endforeach()
+                        endif()
                     endif()
                 ")
             endforeach()
@@ -800,19 +808,20 @@ function(lite_deploy_application _target)
     # Release-family installs sweep them (and any macOS dSYM bundles) to
     # honor the symbol-free installer spec — the same config-driven spirit
     # as the ort gate above.
-    if(LITE_INSTALL AND
-       NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
+    if(LITE_INSTALL)
         install(CODE "
-            file(GLOB_RECURSE _lite_plugin_pdbs
-                \"${_lite_plugins_root}/*.pdb\")
-            foreach(_lite_plugin_pdb IN LISTS _lite_plugin_pdbs)
-                file(REMOVE \"\${_lite_plugin_pdb}\")
-            endforeach()
-            file(GLOB_RECURSE _lite_plugin_dsyms
-                \"${_lite_plugins_root}/*.dSYM\")
-            foreach(_lite_plugin_dsym IN LISTS _lite_plugin_dsyms)
-                file(REMOVE_RECURSE \"\${_lite_plugin_dsym}\")
-            endforeach()
+            if(NOT CMAKE_INSTALL_CONFIG_NAME MATCHES \"^(Debug|RelWithDebInfo)$\")
+                file(GLOB_RECURSE _lite_plugin_pdbs
+                    \"${_lite_plugins_root}/*.pdb\")
+                foreach(_lite_plugin_pdb IN LISTS _lite_plugin_pdbs)
+                    file(REMOVE \"\${_lite_plugin_pdb}\")
+                endforeach()
+                file(GLOB_RECURSE _lite_plugin_dsyms LIST_DIRECTORIES true
+                    \"${_lite_plugins_root}/*.dSYM\")
+                foreach(_lite_plugin_dsym IN LISTS _lite_plugin_dsyms)
+                    file(REMOVE_RECURSE \"\${_lite_plugin_dsym}\")
+                endforeach()
+            endif()
         ")
     endif()
 

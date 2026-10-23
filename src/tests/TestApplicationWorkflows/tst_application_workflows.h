@@ -51,6 +51,7 @@ private slots:
     void fillLyricPreservesSingerReservedMarkers();
     void disjointModelPhonemesDisableLanguageCoverage();
     void packageLanguageReadinessUsesTheCatalogSnapshot();
+    void defaultLyricComesFromTheVoicebank_data();
     void defaultLyricComesFromTheVoicebank();
     void singerSpeakerCatalogPreservesOrderAndAvailability_data();
     void singerSpeakerCatalogPreservesOrderAndAvailability();
@@ -65,6 +66,8 @@ private slots:
 
     void extractionPreparationRejectsMissingResourcesAndChangedSources_data();
     void pitchExtractionRejectsMisalignedVoicing();
+    void pitchExtractionValidatesTiming_data();
+    void pitchExtractionValidatesTiming();
     void extractionPreparationRejectsMissingResourcesAndChangedSources();
     void audioBatchFailurePolicy_data();
 

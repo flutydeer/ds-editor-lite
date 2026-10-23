@@ -15,6 +15,8 @@
 #include <QNetworkProxy>
 #include <QTcpServer>
 #include <QtTest>
+#include <QScopeGuard>
+#include <QTemporaryDir>
 
 #include <sndfile.h>
 
@@ -264,7 +266,33 @@ private slots:
     }
 
     void defaultLyricDeclaration() {
-        // No skip gate: the measurement uses the voicebank fixture in the tree.
+        // A failed measurement must not poison the next entry in this process.
+        QTemporaryDir invalid;
+        QVERIFY(invalid.isValid());
+        const auto package = invalid.filePath(QStringLiteral("empty@1.0.0"));
+        QVERIFY(QDir().mkpath(package));
+        QFile descriptor(QDir(package).filePath(QStringLiteral("desc.json")));
+        QVERIFY(descriptor.open(QIODevice::WriteOnly));
+        const QByteArray data = R"({
+  "id": "empty",
+  "version": "1.0.0.0",
+  "$version": "1.0",
+  "contributions": {}
+})";
+        QCOMPARE(descriptor.write(data), data.size());
+        descriptor.close();
+        {
+            const auto previous = qgetenv("DSEL_TEST_VOICEBANK_ROOT");
+            const auto restore = qScopeGuard([&] {
+                if (previous.isNull())
+                    qunsetenv("DSEL_TEST_VOICEBANK_ROOT");
+                else
+                    qputenv("DSEL_TEST_VOICEBANK_ROOT", previous);
+            });
+            qputenv("DSEL_TEST_VOICEBANK_ROOT", package.toUtf8());
+            QCOMPARE(runDefaultLyricDeclaration(), 1);
+        }
+        // No skip gate: the healthy measurement uses the existing voicebank fixture.
         QCOMPARE(runDefaultLyricDeclaration(), 0);
     }
 
