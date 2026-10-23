@@ -1,5 +1,9 @@
 # wolf 语言包的两个发行：真实历史比对
 
+> 历史记录：本轮已移除转换、下载审计、G2P 测量和声库 ZIP 工具。下文的工具命令仅对应
+> [移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)，不再是当前使用步骤。
+> 当前回归直接使用已升级为 spec 2.4 的 CI 假声库，入口见 [README](README.md#当前验证入口)。
+
 > 快照：2026-10-07。数据来源是 `github.com/diffscope/wolf` 的 releases（`lang-v0.1.0.0` 与 `lang-v0.1.2.0`），
 > 29 个归档全部下载、逐文件 SHA256 与 API 提供的 `digest` 比对相符（0 个不符）。
 > 这份比对回答一个问题：**wolf 实际是怎么表达"语言包变了"的**，从而判断声库能不能靠版本号自保。
@@ -41,13 +45,13 @@
 - 依赖声明只能表达"装哪个包"，**表达不了"发音不许变"**。目标点机制（`dependencies[].version`）解决的是可装载性。
 - 想稳定演唱结果，只能靠这三件事之一：**锁定（vendoring）实际使用的包版本**、
   **每次更新后跑音素门禁**（见 [packaging-voicebank-essentials.md](packaging-voicebank-essentials.md) 第 4 节与
-  [tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1)）、或**双边约定提供方在读音变化时抬 `compatVersion`**。
+  [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1)）、或**双边约定提供方在读音变化时抬 `compatVersion`**。
 - 第三条是本项目给 wolf 的建议（用户已确认按此推进）：**当变化会改变读音／发音时，抬 `compatVersion`，
   让老目标点失效，迫使消费者显式决定**。第 1 条结论说明这条纪律目前并未执行。
 
 ## 5. 复现方式
 
-用 [tools/compare-wolf-releases.py](tools/compare-wolf-releases.py) 一条命令即可，它把上面所有比对内置了：
+用 [tools/compare-wolf-releases.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/compare-wolf-releases.py) 一条命令即可，它把上面所有比对内置了：
 
 ```
 # 负控：同一个 tag 自比，必须 0 差异（会打印实际比较了多少个包）
@@ -114,6 +118,6 @@ python tools/compare-wolf-releases.py --releases <发行清单.json> --cache <�
 
 1. **看内容**：记录提供方词典文件的哈希。本项目已把**在用**的词典文件哈希记进
    [baselines/dict-hashes.txt](baselines/dict-hashes.txt)，**任何一行变化都视为"可能不兼容"**。
-2. **测影响**：用 [tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1) 跑门禁词表，
+2. **测影响**：用 [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1) 跑门禁词表，
    看这次变化是否触及声库实际会唱的词。注意门禁的覆盖面等于它的词表 ——
    上面那 1 行改动就落在当时的 4 词基线之外，所以本项目已把基线加宽到 cmn 18 字、eng 9 词、jpn 15 音节，**词表仍应随声库用途继续加宽**。

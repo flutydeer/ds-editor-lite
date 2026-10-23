@@ -417,9 +417,8 @@ int runVoicebankAudit() {
     const fs::path runtimePath(TEST_ONNXRUNTIME_DIR);
 
     if (voicebank.empty() || !fs::is_regular_file(voicebank / "desc.json")) {
-        std::cerr << "no converted voicebank at " << voicebank << "; skipping. Set "
-                  << "LITE_AUDIT_VOICEBANK to a voicebank converted by "
-                     "scripts/convert-voicebank.py\n";
+        std::cerr << "no spec 2.4 voicebank at " << voicebank << "; skipping. Set "
+                  << "LITE_AUDIT_VOICEBANK to a published spec 2.4 voicebank\n";
         return 77;
     }
     if (!fs::is_directory(languagePackages)) {

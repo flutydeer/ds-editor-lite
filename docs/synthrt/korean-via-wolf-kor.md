@@ -1,7 +1,11 @@
 # 用 wolf 的 `wolf-lang-kor` 给 2.4 声库补韩语：链路跑通，音素不可用（实测记录）
 
+> 历史记录：本轮已移除转换、下载审计、G2P 测量和声库 ZIP 工具。下文的工具命令仅对应
+> [移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)，不再是当前使用步骤。
+> 当前回归直接使用已升级为 spec 2.4 的 CI 假声库，入口见 [README](README.md#当前验证入口)。
+
 > **更正（2026-10-07，后续实测）**：本文原先说"韩语可配音、实测通过"，**那只表示链路跑通并导出了波形**，
-> **不代表音素正确**。后续用 [tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1) 读回音素后发现：
+> **不代表音素正确**。后续用 [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1) 读回音素后发现：
 > `wolf-lang-kor` 的词典键是**字母串**（形如 `ㄱㅏ`），而链条里没有"谚文/罗马字 → 字母"的分解步骤，
 > 导致常用词大多命中不了词典、落到 multig2p 模型回退，输出为退化产物。**结论修正为：韩语链路可用但
 > 音素质量不可用，不能声称支持韩语。** 详见文末"实测更正"一节。

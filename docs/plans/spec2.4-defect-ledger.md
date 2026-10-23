@@ -1,5 +1,9 @@
 # spec 2.4 四仓缺陷收敛台账
 
+> 工具清理说明：本文引用的声库转换、下载审计、G2P 测量与 ZIP 工具及其专属测试已移除。
+> 相关记录与行号仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前运行时回归使用仓库内已升级为 spec 2.4 的 `voicebank-fixture.zip`，不依赖转换器。
+
 > 快照：wolf `3fb6faf`、synthrt `fd4d916`、ds-editor-lite `ec119377e`、otter `6db876b`（均 `spec2.4-uptake`）。
 > 实测数据来自本轮：vcpkg 重装到 `wolf-lang-packages@1.0.0.0`、三套 2.4 声库 `Load` 实测、wolf lint 全量跑。
 > 前序报告：[通用审计](spec2.4-audit-report.md)、[兼容性审计](spec2.4-compat-audit-report.md)、[收口方案](spec2.4-compat-remediation-plan.md)。

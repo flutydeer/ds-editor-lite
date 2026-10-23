@@ -1,5 +1,9 @@
 # 迁移到 synthrt main 线 + wolf + otter：增量台账
 
+> **2026-10-23 工具清理**：本轮新增的转换、下载审计、G2P 测量、声库 ZIP 工具及专属测试已移除。
+> 下文关于这些工具的记录仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前测试入口与夹具维护方式见 §7，历史工具记录不再作为使用步骤或待办。
+
 > 状态：进行中。**本文是本分支相对 `main` 的增量事项唯一台账**：部署形态、模块映射、验证范围、
 > 统一待办（§8）、已关闭记录（§9）、wolf 现状（§10）、推送与分支就绪（§11）、未证实清单（§12）、
 > 复现命令（§13）与本地专属材料索引（§14）都在这里。原先分散的调研、缺陷档案与待改清单已并入本文，
@@ -318,7 +322,17 @@ refactor 线对接时暴露的三处缺陷已随本次迁移消失（旧线已�
 - **行号引用的漂移**：本轮的收敛会移动转换器里的行号，任何按行号引用它的文档都需要自行刷新。按符号名核对
   更稳（`declarations_from_model`、`overlapping`、`word_div` / `word_dur` 判据常量）。
 
-## 7. 转换脚本三件套与回归三层
+## 7. 资源回归与历史转换记录
+
+当前回归直接使用 `src/tests/resources/voicebank-fixture.zip`。这是测试体系原有的 CI 假声库，
+其包清单、模型与语言声明已经升级为 spec 2.4。CMake 只负责解压，测试不依赖 Python 转换器。
+`TestModelResources` 保留加载、G2P、合成和导出回归，真实声库检查仍可通过
+`LITE_AUDIT_VOICEBANK` 与 `LITE_AUDIT_LANGUAGE_PACKAGES` 启用。
+
+迁移前已有的 `scripts/convert_phoneme_symbols.py` 恢复原实现。本轮新增辅助工具及其 Python
+测试、C++ 转换产物测试已删除，原来的脚本复现命令不再适用。
+
+### 历史转换流程（已移除）
 
 `LITE_AUDIT_VOICEBANK` 指向的 2.4 声库由 `python3 scripts/convert-voicebank.py <源声库> --output <目标目录>`
 生成（目标目录须在源包之外，语言绑定另需 `--packages <已安装语言包目录>`，否则该语言会被丢弃并告警）。
@@ -436,7 +450,7 @@ PowerShell 解析检查，以及文档里 7 条命令与工具参数表的逐条
 | F-16 | P3 | wolf `ExecutiveTask::start()` 无重复启动/状态前置校验 | 开放（未再复核） |
 | F-17 | P3 | wolf 槽位借出/归还手工配对，非 RAII | 开放（未再复核） |
 | F-18 | P2（推断） | CUDA 固定 `HEURISTIC`，放弃 cuDNN 自动调优 | 开放（未实测，推断项，不当既定缺陷排期） |
-| F-19 | P3 | `convert-voicebank.py` 的路径校验与加载器不同构（漏 NUL 与 map 值路径解析） | 开放（窄场景） |
+| F-19 | P3 | 已移除转换器的路径校验问题 | 随工具移除关闭 |
 | F-20 | P3 | 契约三元组 `(interface, variant, kind)` 无单一真相源 | 开放 |
 | F-21 | P3 | 音高回写只校验溢出与有限性，不校验段是否落在片段内/值是否为空/点数是否有界 | 开放 |
 | F-22 | P2 | wolf lua 插件装载期执行脚本无打断路径（`while true do end` 可永久挂死加载） | 开放（wolf 域，另见 §10） |

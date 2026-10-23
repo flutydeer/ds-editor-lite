@@ -1,5 +1,9 @@
 # 打包声库要点（2.4 迁移交接）
 
+> 历史记录：本轮已移除转换、下载审计、G2P 测量和声库 ZIP 工具。下文的工具命令仅对应
+> [移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)，不再是当前使用步骤。
+> 当前回归直接使用已升级为 spec 2.4 的 CI 假声库，入口见 [README](README.md#当前验证入口)。
+
 > 快照：2026-10-07。事实性结论都带来源，观点与未定项在最后一节单独放。规范引用一律以
 > `ds-spec-2.4.md` 为准，版本机制的实测见 [conformance-yousa-2.4.md](conformance-yousa-2.4.md) 第 2.5、2.6 节。
 
@@ -31,7 +35,7 @@
   [developer-repro.md](developer-repro.md) 的获取与落点步骤。
 - 成员名安全：拒绝绝对路径、盘符、反斜杠、`..` 与重复名；非 ASCII 名按 UTF-8 写入并回读校验，
   中文文档名可原样保留。工具内已含负向自检，以及"非 ASCII 成员名被接受"这一项的自证
-  （[tools/pack-voicebank-zip.py](tools/pack-voicebank-zip.py)）。
+  （[tools/pack-voicebank-zip.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/pack-voicebank-zip.py)）。
 - 放对搜索根：成品直接放本机声库搜索根下（该目录不入库），编辑器即能识别（本仓成品就是这样验证的）。
 - 交付前自证：解包成员数、`SHA256` 与字节数逐条比对，打包脚本写完 zip 后自动跑这项校验。
 - **词级 duration predictor 必须声明词级输入，`dur_type` 的取值由 predictor 架构决定**（openvpi/DiffSinger#343）：
@@ -39,7 +43,7 @@
   **零词级输入**，既不声明也不消费 `word_div`。上游对**每个** duration 模型都写该键，**不存在"只声明 `word_div`"
   这一档**，`{word_div}` 单独出现属非法形状（同理 `{word_dur}` 单独出现），转换器两种都报错。源包里已存在的
   `dur_type` 与模型推断不一致时同样报错，取值非法会被解释器拒绝。转换器
-  [../../scripts/convert-voicebank.py](../../scripts/convert-voicebank.py) 按 **predictor 的 onnx 输入名**写这个字段
+  [../../scripts/convert-voicebank.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/scripts/convert-voicebank.py) 按 **predictor 的 onnx 输入名**写这个字段
   （`declarations_from_model`），判据只能是模型：2.3 的 `predict_dur` 描述的是 encoder，
   而 word encoder 的 predictor 通常只吃 `encoder_out`（本机 4 份真实包都是这种形状，按 #343 它们都写 `abs`）。
   `rel` 形状的包缺这个字段的表现是 **装上以后不能合**：运行期报 `missing input names: "word_div", "word_dur"`
@@ -93,7 +97,7 @@
 
 ### 4.2 判"这次词典更新算不算不兼容"的仪器（已建成并标定）
 
-方法已固化成脚本：[tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1)。它自包含地启动一个隔离的
+方法已固化成脚本：[tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1)。它自包含地启动一个隔离的
 无头实例（`--headless --no-mcp --control-level l3`，隔离 `APPDATA`/`LOCALAPPDATA`、把 `packageSearchPaths`
 指向声库根，并把 `inference.cacheDirectory` 指到运行目录），按固定歌词集建文档与音符，等引擎渲染完成后
 读回逐音符音素，输出 `歌词<TAB>音素` 便于两次运行直接 diff：
@@ -175,7 +179,7 @@ pwsh -File tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRo
 
 **当变化会改变读音时抬 `compatVersion`**，让老目标点解析失败，迫使消费方显式决定接受新读音还是留在旧包。
 落点现成：`make-lang-release.py` 已有"归档变了必须改包版本"的门禁，延伸一档即可。
-落实情况可用 [tools/compare-wolf-releases.py](tools/compare-wolf-releases.py) 随发行复核，
+落实情况可用 [tools/compare-wolf-releases.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/compare-wolf-releases.py) 随发行复核，
 它会在"内容变了而版本没变"时给出明确告警（`--fail-on-violation` 可让 CI 直接失败）。
 只涨 `version` 不动 `compatVersion`（目前的实际做法）会让声库在毫无提示的情况下改唱法。
 
@@ -185,4 +189,4 @@ pwsh -File tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRo
 2. **要稳定就锁定来源**：需要长期不变的唱法时，把实际使用的提供方包**固定下来（vendoring）**，
    并注明取自哪条供给路径（release 归档与 vcpkg port 的实现并不相同，见 release history §6.3）。
 3. **每次更新跑门禁**：先比词典文件哈希（任何变化即触发），再用
-   [tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1) 跑宽词表，看是否触及实际会唱的词。
+   [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1) 跑宽词表，看是否触及实际会唱的词。

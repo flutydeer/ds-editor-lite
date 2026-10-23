@@ -1,5 +1,9 @@
 # wolf 语言就绪缺口：对抗复核报告
 
+> 工具清理说明：本文引用的声库转换、下载审计、G2P 测量与 ZIP 工具及其专属测试已移除。
+> 相关记录与行号仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前运行时回归使用仓库内已升级为 spec 2.4 的 `voicebank-fixture.zip`，不依赖转换器。
+
 > 状态：**进行中**（2026-10-05）。对抗复核、spec 2.4 合规台账与 F1 端到端实测均已完成（§10）。**wolf 侧修复按用户裁定暂缓**（"暂不改 wolf，先把台账落盘"），续写落点见 §10.4 与 §10.3。lite 侧消费改动：D4（失败后呈现重算）已实施并通过全量测试，D5（音素表喂给 wolf）实施中。
 
 - **快照（2026-10-05 更新）**：lite `HEAD=b0bf3c9b`（分支 `synthrt/inferutil-binary-read`）。wolf 侧以本地仓 `<wolf 检出>`（`3a3f4a0` ＝ 端口 `scripts/vcpkg-ports/wolf/portfile.cmake` 的 REF ＝ buildtrees 树内容，仅 CRLF 差异）为准，故同一条行号对"实际链接版本"与"可改仓库"同时有效（版本澄清见 §10）。初版所记的 lite `f37fb4b9` 与 buildtrees 路径已过时。

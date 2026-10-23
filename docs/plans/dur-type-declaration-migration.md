@@ -1,5 +1,9 @@
 # duration 的词级声明：从两个布尔量改成 `dur_type: abs/rel`（调研报告）
 
+> 工具清理说明：本文引用的声库转换、下载审计、G2P 测量与 ZIP 工具及其专属测试已移除。
+> 相关记录与行号仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前运行时回归使用仓库内已升级为 spec 2.4 的 `voicebank-fixture.zip`，不依赖转换器。
+
 > **阅读提示（2026-10-08 追加）**：§2 与 §4 的取证是**改动前**的快照，其中引用的行号（如 `convert-voicebank.py:153`、`:870`、`:924-925`）指当时代码所在位置，改动后已漂移，复核时请按名字检索而不要按行号。§5 及之后是实施与实测记录，行号按改动后的现状写就。
 >
 > **上游词汇对照（2026-10-08 追加，来自 DiffSinger `feat/attn-dp-mulaw`）**：这两个取值正对应上游 #339（`ebc6638`）的两种架构形态——`abs` 是「predicts **absolute phoneme durations**」，只消费 `word_div`（用于词内位置）；`rel` 是「**word-level frame allocation**」，把每个词的音素变成在该词帧预算上的分布、输出整数帧数且每词之和恰等于该词预算，因此额外消费 `word_dur`。上游 #340（`1364e59`）的立意与本次一致：「**the architecture itself decides what the model consumes**」，消费者只读类别声明的 `needs_word_div` / `needs_word_dur`（`modules/fastspeech/variance_encoder.py:68-69`、`deployment/exporters/variance_exporter.py:272-273`、图内 `deployment/modules/fastspeech2.py:223,230`）。`dur_type` 就是把这两个声明位在运行时合并成一个文字字段，使非法组合（要 `word_dur` 不要 `word_div`）无法表达。

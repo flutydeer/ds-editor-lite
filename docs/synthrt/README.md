@@ -1,21 +1,20 @@
 # synthrt 交接材料索引
 
-本目录存放迁移到 synthrt 的交接文档与随附工具。面向的读者是**本地没有任何声库、没有 wolf 构建产物**
-的开发者，以及接手 synthrt 侧集成的人。本目录不改动任何上游原文档。
+本目录保存迁移到 synthrt 的交接文档与历史验收记录。本仓不再提供声库转换、独立下载、
+声库 ZIP 打包和 G2P 测量脚本。开发回归使用已升级为 spec 2.4 的仓库假声库，语言包由 vcpkg 安装。
 
 ## 阅读顺序
 
 | 文档 | 内容 |
 | :-- | :-- |
 | 本文件 | 索引与一页结论 |
-| [developer-repro.md](developer-repro.md) | 从零取 wolf 语言包到打包并加载 2.4 声库的完整配方（可照做） |
+| [developer-repro.md](developer-repro.md) | 历史转换与验收流程，相关辅助工具已移除 |
 | [conformance-yousa-2.4.md](conformance-yousa-2.4.md) | `yousa-2.4@1.65.1.0` 的合规核对、实测证据与未证实项 |
 | [korean-via-wolf-kor.md](korean-via-wolf-kor.md) | 用 wolf 的 `wolf-lang-kor` 给 2.4 声库补韩语：做法、踩坑与实测记录（结论修正为：链路可用、音素不可用） |
 | [packaging-voicebank-essentials.md](packaging-voicebank-essentials.md) | 打包声库要点：提供方版本字段怎么填、清单纪律、依赖声明与词典型内容变更的波及面 |
 | [wolf-release-history.md](wolf-release-history.md) | wolf 两个语言包发行的真实比对：版本与兼容声明的实际纪律、词典差异、供给路径差异 |
 | [PLAN.md](PLAN.md) | 本批工作的方案与决策台账（含每个决策的来源轮次） |
-| `tools/` | 随附脚本：取依赖、打包声库、测 G2P 输出以便判断词典是否兼容、审计 wolf 发行的版本纪律 |
-| `baselines/` | 音素基线快照（cmn 18 字、eng 9 词、jpn 15 音节）与在用词典文件哈希清单：判断语言包更新是否改变演唱内容 |
+| `baselines/` | 历史音素与词典哈希快照，不作为当前 CI 的固定输出 |
 
 ## 一页结论
 
@@ -51,23 +50,19 @@
    提供方维持低位 `compatVersion`。**不要在该字段写 `1.0.0 <= x < 2.0.0` 这类范围表达式**，见
    [conformance-yousa-2.4.md](conformance-yousa-2.4.md) 第 2.5 节。
 
-## 随附工具
+## 当前验证入口
 
-```powershell
-# 取依赖：按 assets.cmake 取全组归档并逐条校验 SHA512
-python docs/synthrt/tools/fetch-wolf-release.py --assets scripts/vcpkg-ports/wolf-lang-packages/assets.cmake --out <归档目录>
+依赖安装与 VS、Qt 环境准备遵循仓库根的 `AGENTS.md`。准备完成后运行：
 
-# 打包声库：扁平 zip，并逐成员校验与磁盘内容一致
-python docs/synthrt/tools/pack-voicebank-zip.py <声库目录> <目标 zip>
-
-# 测 G2P 输出：判断语言包（词典）更新是否改变演唱内容，两次运行直接 diff
-pwsh -File docs/synthrt/tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> `
-     -SingersRoot <Singers 目录> -OutRoot <临时目录> -Out before.txt -Words "你 好" `
-     -Speaker <说话人> -SingerPackage yousa -SingerPackageVersion 1.65.1 -SingerId yousa
+```sh
+cmake --preset tests
+cmake --build --preset tests --target TestModelResources
+ctest --test-dir build/Tests -R "^TestModelResources$" --output-on-failure
 ```
 
-Python 侧三个脚本都只用标准库，其中取依赖与打包两个各自**先跑一次自证**（取依赖脚本用负控证明
-哈希校验不是空转，打包脚本用负控证明成员校验能抓出被篡改的字节），自证失败即中止。
+测试直接解压 `src/tests/resources/voicebank-fixture.zip`，覆盖资源加载、G2P、合成和导出，
+不先生成旧格式声库再转换。夹具说明见 [测试资源说明](../../src/tests/resources/README.md)。
+真实声库验收可另外指定 `LITE_AUDIT_VOICEBANK` 与 `LITE_AUDIT_LANGUAGE_PACKAGES`。
 
 ## 未证实与待办
 

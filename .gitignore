@@ -79,6 +79,3 @@ setup-vcpkg-temp*
 /update-vcpkg*
 
 docs/architecture/*
-
-# Python bytecode
-__pycache__/

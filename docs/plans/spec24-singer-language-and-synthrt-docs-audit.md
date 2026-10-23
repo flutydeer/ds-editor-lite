@@ -1,5 +1,9 @@
 # spec 2.4 语言字段与 docs/synthrt 文档核对
 
+> 工具清理说明：本文引用的声库转换、下载审计、G2P 测量与 ZIP 工具及其专属测试已移除。
+> 相关记录与行号仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前运行时回归使用仓库内已升级为 spec 2.4 的 `voicebank-fixture.zip`，不依赖转换器。
+
 > 快照：lite `c2ed02eb7`、synthrt `0e97662`、wolf `38ad5b0`、cpp-pinyin v2 `e7aacb7`（2026-10-21 实测）。
 > 本文所有行号均为当轮现场读取，未构建、未运行、未联网。
 > 标注：**事实**＝我本人回读代码/文档确认；**转述**＝子代理报告且我未逐条回读；**未证实**＝读不到或超预算。

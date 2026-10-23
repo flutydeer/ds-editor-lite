@@ -1,5 +1,9 @@
 # 迁移到 synthrt 的交接与声库打包（方案 V1）
 
+> 历史记录：本轮已移除转换、下载审计、G2P 测量和声库 ZIP 工具。下文的工具命令仅对应
+> [移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)，不再是当前使用步骤。
+> 当前回归直接使用已升级为 spec 2.4 的 CI 假声库，入口见 [README](README.md#当前验证入口)。
+
 > 状态：**已完成**（2026-10-07 落盘）。本文是该目标的方案与决策台账，按你的指示落在新建的 `docs/synthrt/`。
 > 9 个阶段全部完成（见第 5 节），唯一未闭合项在 wolf 侧：韩语词典键与链条不匹配，见
 > [korean-via-wolf-kor.md](korean-via-wolf-kor.md)。本文刻意留在本目录而不归档到 `docs/archive/`，
@@ -77,7 +81,7 @@
 | P5 | 交接文档落盘（本目录），按第 4 节形状写成可执行配方 | **已完成**：文档与工具清单见 [README.md](README.md)（本表不重复计数） |
 | P6 | 照文档从零复现一遍（本目标的最终验收） | **已完成**：下载 ok=15、0 不一致、4 个 linguist、qixuan 真加载与导出均通过 |
 | P7 | 韩语（kor）补齐与实测 | **已完成（结论为当前不可用）**：链路跑通但音素不可用，见 [korean-via-wolf-kor.md](korean-via-wolf-kor.md) |
-| P8 | 词典不兼容的判据：仪器、标定与流程演练 | **已完成**：见 [packaging-voicebank-essentials.md](packaging-voicebank-essentials.md) 第 4 节与 [tools/measure-g2p-output.ps1](tools/measure-g2p-output.ps1) |
+| P8 | 词典不兼容的判据：仪器、标定与流程演练 | **已完成**：见 [packaging-voicebank-essentials.md](packaging-voicebank-essentials.md) 第 4 节与 [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1) |
 | P9 | 提供方政策（D-8）与阈值（D-9）落盘 | **已完成**：政策写入 [packaging-voicebank-essentials.md](packaging-voicebank-essentials.md) 第 6 节，真实发行证据见 [wolf-release-history.md](wolf-release-history.md) |
 
 ## 6. 未证实与边界

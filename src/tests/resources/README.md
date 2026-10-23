@@ -22,3 +22,7 @@
 CMake 将 ZIP 解压至构建目录，测试默认使用它。`DSEL_TEST_VOICEBANK_ROOT` 可覆盖为
 本机真实声库目录，同时必须提供 `DSEL_TEST_SINGER_ID`、`DSEL_TEST_LANGUAGE` 和
 `DSEL_TEST_LYRIC`。配置的资源失效或推理失败均报告失败。
+
+这份夹具沿用 CI 最初引入的假声库，包清单、模型声明和语言绑定已直接升级为 spec 2.4。
+测试只解压并加载它，不调用声库转换器。后续格式调整应同步维护 ZIP 内的声明，继续通过
+资源加载、G2P、合成和导出用例验证。

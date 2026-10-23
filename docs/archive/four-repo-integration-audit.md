@@ -1,5 +1,9 @@
 # 四仓联合增量审计报告：lite / synthrt / wolf / otter
 
+> 工具清理说明：本文引用的声库转换、下载审计、G2P 测量与 ZIP 工具及其专属测试已移除。
+> 相关记录与行号仅适用于[移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)。
+> 当前运行时回归使用仓库内已升级为 spec 2.4 的 `voicebank-fixture.zip`，不依赖转换器。
+
 > **本文为历史归档（2026-09-30 快照），正文保留不改。现行台账见
 > [`../plans/synthrt-main-migration.md`](../plans/synthrt-main-migration.md)**（发现项的处置状态与唯一编号在该文。
 > 本文不再作为待办来源）。
