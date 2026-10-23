@@ -327,9 +327,7 @@ Invoke-Step "Validate staging flavor" {
     }
 }
 
-# UTC with second precision, because local-time stamps with minute precision can collide across
-# time zones, and the Move-Item -Force below would then silently overwrite the earlier package.
-$Timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss")
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
 $ZipBaseName = "DsEditorLite-$Timestamp-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-portable"
 $ZipPath = Join-Path $ResolvedOutputDir "$ZipBaseName.zip"
 

@@ -102,7 +102,7 @@ C:\Program Files\OpenVPI\DS Editor Lite
   各 vcpkg 依赖的 PDB（此逻辑刻意留在打包脚本里，不进 CMake，保持构建系统
   不感知 vcpkg）。
 - zip 会校验 DsEditorLite.exe 与至少一个 PDB 存在，否则报错退出。
-- 文件名为 `DsEditorLite-<yyyyMMdd-HHmmss>-win-x64-dml-portable.zip`（UTC 时间戳、秒级，**不含版本号**）。
+- 文件名为 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-portable.zip`（时间戳，**不含版本号**）。
 - 建议用 **pwsh**（PowerShell 7）运行；从 git-bash 调 Windows PowerShell 5.1
   会出现 `Get-FileHash is not recognized` 环境问题。
 - 产物目录：`dist\portable\`，脚本输出路径、大小与 SHA-256。
