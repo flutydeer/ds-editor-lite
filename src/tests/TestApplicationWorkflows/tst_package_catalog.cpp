@@ -507,6 +507,8 @@ void ApplicationWorkflowTests::packageLanguageReadinessUsesTheCatalogSnapshot() 
 void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability_data() {
     QTest::addColumn<QString>("scenario");
     QTest::newRow("declaration-order") << QStringLiteral("ordered");
+    QTest::newRow("tone-octave-overflow") << QStringLiteral("tone-overflow");
+    QTest::newRow("tone-midi-boundaries") << QStringLiteral("tone-bounds");
     QTest::newRow("missing-mapping-keys") << QStringLiteral("missing-keys");
     QTest::newRow("missing-model-targets") << QStringLiteral("missing-targets");
     QTest::newRow("speakerless-model") << QStringLiteral("speakerless");
@@ -537,8 +539,21 @@ void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability
     };
     rewrite(QStringLiteral("characters/fixture/config.json"), [&](QJsonObject &object) {
         auto configuration = object.value(QStringLiteral("configuration")).toObject();
-        const auto speakers = configuration.value(QStringLiteral("speakers")).toArray();
+        auto speakers = configuration.value(QStringLiteral("speakers")).toArray();
         QCOMPARE(speakers.size(), 2);
+        if (scenario.startsWith(QStringLiteral("tone-"))) {
+            for (qsizetype i = 0; i < speakers.size(); ++i) {
+                auto speaker = speakers[i].toObject();
+                const auto low = scenario == QStringLiteral("tone-overflow")
+                                     ? (i == 0 ? QStringLiteral("C2147483647")
+                                               : QStringLiteral("C-2147483648"))
+                                     : QStringLiteral("C-1");
+                speaker.insert(QStringLiteral("toneRanges"),
+                               QJsonObject{{QStringLiteral("min"), low},
+                                           {QStringLiteral("max"), QStringLiteral("G9")}});
+                speakers[i] = speaker;
+            }
+        }
         configuration.insert(QStringLiteral("speakers"),
                              scenario == QStringLiteral("speakerless")
                                  ? QJsonArray{} : QJsonArray{speakers[1], speakers[0]});
@@ -587,11 +602,17 @@ void ApplicationWorkflowTests::singerSpeakerCatalogPreservesOrderAndAvailability
     const auto singers = loaded.get().successfulPackages.first().singers();
     QVERIFY(!singers.isEmpty());
     const auto &singer = singers.first();
-    if (scenario == QStringLiteral("ordered")) {
+    if (scenario == QStringLiteral("ordered") || scenario.startsWith(QStringLiteral("tone-"))) {
         QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
         QCOMPARE(singer.speakers().size(), 2);
         QCOMPARE(singer.speakers().first().id(), QStringLiteral("soft"));
         QCOMPARE(singer.speakers().last().id(), QStringLiteral("clear"));
+        for (const auto &speaker : singer.speakers()) {
+            if (scenario == QStringLiteral("tone-overflow"))
+                QVERIFY(!speaker.toneRange());
+            else if (scenario == QStringLiteral("tone-bounds"))
+                QCOMPARE(speaker.toneRange(), std::optional(std::make_pair(0, 127)));
+        }
     } else {
         QVERIFY(singer.speakers().isEmpty());
         QCOMPARE(singer.resolutionState(), scenario == QStringLiteral("speakerless")

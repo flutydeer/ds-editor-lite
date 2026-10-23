@@ -204,11 +204,11 @@ namespace lite::synthrt {
                 return std::nullopt;
             }
             // Middle C is C4 and MIDI 60; therefore octave -1 is the lowest octave.
-            const auto midi = value + (octave + 1) * 12;
+            const auto midi = value + (static_cast<long long>(octave) + 1) * 12;
             if (midi < 0 || midi > 127) {
                 return std::nullopt;
             }
-            return midi;
+            return static_cast<int>(midi);
         }
 
         std::optional<std::pair<int, int>> toneRangeOf(const srt::JsonObject &speaker) {
