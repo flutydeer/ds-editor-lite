@@ -1,192 +1,57 @@
-# 打包声库要点（2.4 迁移交接）
+# spec 2.4 声库要求
 
-> 历史记录：本轮已移除转换、下载审计、G2P 测量和声库 ZIP 工具。下文的工具命令仅对应
-> [移除前快照](https://github.com/flutydeer/ds-editor-lite/tree/10c1f19827239cb2072d1e5616ae5232be589728)，不再是当前使用步骤。
-> 当前回归直接使用已升级为 spec 2.4 的 CI 假声库，入口见 [README](README.md#当前验证入口)。
+编辑器加载已完成声明和资源组织的 spec 2.4 声库。
+格式权威为所用 synthrt 版本的 `ds-spec-2.4.md`，模型与语言模块还需符合各自接口契约。
 
-> 快照：2026-10-07。事实性结论都带来源，观点与未定项在最后一节单独放。规范引用一律以
-> `ds-spec-2.4.md` 为准，版本机制的实测见 [conformance-yousa-2.4.md](conformance-yousa-2.4.md) 第 2.5、2.6 节。
+## 包清单与贡献
 
-## 1. 声库作为"提供方"时，版本字段怎么填
+- 包根目录包含 `desc.json`。`$version` 表示清单格式版本，与 spec 版本不是同一个字段。
+- `version`、`compatVersion` 和 `runtimeLevel` 分别描述包版本、兼容下限和运行时能力。
+- `contributions` 按 `inference`、`singer`、`linguist` 等类别列出贡献，每项提供 ID 和声明路径。
+- 贡献使用 `interface`、`level`、`variant` 标识接口，导入通过唯一角色和模块引用连接。
+- 模型与资源的相对路径以其声明文件所在目录为基准，不应从目录名推断贡献类别。
 
-声库同时也是 Package 提供方，它的 `desc.json` 同样受兼容承诺约束：
+可运行示例见 [CI 假声库](../../src/tests/resources/voicebank-fixture.zip)。
 
-| 字段 | 含义（来源） | 声库该怎么填 |
-| :-- | :-- | :-- |
-| `$version` | 清单格式版本（`ds-spec-2.4.md:149`、`:163`） | 保持与所用格式一致，不随产品版本变 |
-| `version` | 本次发布的版本（`:183`） | 每次发布递增 |
-| `compatVersion` | 承诺兼容的最低目标版本（`:149`、`:183-186`） | 见下方两条判定 |
-| `runtimeLevel` | 依赖的运行时能力，不是软件版本（`:204`、`:208`） | 只换模型或词典**不要**动它 |
-| `dependencies[].version` | 要求对方兼容到的**目标点**（`:157-161`） | 见第 3 节 |
+## 合成模型与声线
 
-区间内**必须保持**的公开表面（`:189-198`）：说话人与说话人集合、语言句柄与其路由、贡献的
-`id`/`interface`/`level`/`variant`、音素表语义、`reservedPhonemes`。
-区间内**允许变更**：模型与算法、私有 `configuration`、不改变公开表面的实现细节（`:198`）。
+歌手导入声学与声码器模块，并按需要提供时长、音高和唱法参数模块。
+导出的能力必须与实际模型输入输出一致。
 
-由此两条填法（推断，本仓采用）：
+duration 的 `dur_type` 由 predictor 架构决定：
+`rel` 模型消费 `word_div` 与 `word_dur`，`abs` 模型不消费词级输入。
+不能根据 encoder 是否使用词级输入猜测 predictor 的声明。
 
-1. 新增语言或说话人、改动音素表或音素语义 ⇒ 把 `compatVersion` 抬到本次 `version`（即不向下兼容）。
-2. 只替换模型权重、只改内部实现 ⇒ 保持 `compatVersion` 不变，只涨 `version`。
+声线对外 ID 与模型内部声线名称可以不同，通过 `speakerMapping` 建立对应关系。
+没有多声线声明的模型可使用默认声线，不能凭空创建一个模型不认识的声线 ID。
 
-## 2. 打包清单要点
+## 语言与音素
 
-- 归档**扁平**：`desc.json` 与 `assets/`、`characters/`、`inferences/`、`linguists/` 直接在根，不套一层同名目录。
-- **不要把依赖的语言包塞进声库 zip**。依赖由插件根的包目录提供，声库只声明依赖，见
-  [developer-repro.md](developer-repro.md) 的获取与落点步骤。
-- 成员名安全：拒绝绝对路径、盘符、反斜杠、`..` 与重复名；非 ASCII 名按 UTF-8 写入并回读校验，
-  中文文档名可原样保留。工具内已含负向自检，以及"非 ASCII 成员名被接受"这一项的自证
-  （[tools/pack-voicebank-zip.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/pack-voicebank-zip.py)）。
-- 放对搜索根：成品直接放本机声库搜索根下（该目录不入库），编辑器即能识别（本仓成品就是这样验证的）。
-- 交付前自证：解包成员数、`SHA256` 与字节数逐条比对，打包脚本写完 zip 后自动跑这项校验。
-- **词级 duration predictor 必须声明词级输入，`dur_type` 的取值由 predictor 架构决定**（openvpi/DiffSinger#343）：
-  `"rel"` 是 attn 预测器，声明并消费 `word_div` 与 `word_dur` **两者**。`"abs"` 是其它架构（fs2 / resnet 等卷积），
-  **零词级输入**，既不声明也不消费 `word_div`。上游对**每个** duration 模型都写该键，**不存在"只声明 `word_div`"
-  这一档**，`{word_div}` 单独出现属非法形状（同理 `{word_dur}` 单独出现），转换器两种都报错。源包里已存在的
-  `dur_type` 与模型推断不一致时同样报错，取值非法会被解释器拒绝。转换器
-  [../../scripts/convert-voicebank.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/scripts/convert-voicebank.py) 按 **predictor 的 onnx 输入名**写这个字段
-  （`declarations_from_model`），判据只能是模型：2.3 的 `predict_dur` 描述的是 encoder，
-  而 word encoder 的 predictor 通常只吃 `encoder_out`（本机 4 份真实包都是这种形状，按 #343 它们都写 `abs`）。
-  `rel` 形状的包缺这个字段的表现是 **装上以后不能合**：运行期报 `missing input names: "word_div", "word_dur"`
-  （2026-10-07 实测，`1007_wolf_club`）。语义上这两张量就是 encoder 收到的那两张（`int64 [1, n_words]`，
-  逐字段一致），所以声明之后两个模型不可能对词切分或词内预算各说各话。
+歌手的语言句柄绑定到具体 linguist。linguist 再组合 G2P、S2P 与 onset 模块，
+其中声库私有的音素映射和起音规则可以随声库提供。
 
-## 3. 依赖声明要点（声库 → wolf 语言包）
+需要完整歌词合成的语言应提供所需的音素和起音深度。公共 G2P 引擎本身不等于完整 linguist。
+语言句柄、记号体系和模型音素表应互相对应。
 
-- 每个支持的语言一条依赖，写**目标点**，不写范围表达式（实测结论见 conformance 第 2.6 节 B 组）。
-- 目标点取该语言包发布件的 `compatVersion`，**不要抄归档名的 `.4` 修订号**（理由见 conformance 第 2.5 节）。
-- 新增语言的 linguist 句柄必须与模型音素表前缀一致，做法见 [korean-via-wolf-kor.md](korean-via-wolf-kor.md)。
+`reservedPhonemes` 用于声明绕过普通 G2P 的标记，声明的标记须得到模型支持。
+普通音素库存不应把这些标记当作正常语言输出。模型缺失符号时应修正声库声明或资源，
+不能只以语言路由存在判定模型可唱。
 
-## 4. 词典型内容变更会怎样波及本声库（本次实测清点）
+## 依赖与版本
 
-对端口安装目录下 15 个语言包逐个清点"声明文件"（`desc.json`、`linguist.json`、`inference.json`）
-与"影响行为的内容文件"（其余全部）：
+`dependencies[].version` 是要求提供方兼容到的目标版本，不是范围表达式。
+候选包需满足 `compatVersion <= 目标版本 <= version`。
+目标版本应体现实际使用的能力，不能仅照抄归档文件名或打包修订号。
 
-| 包 | version | compatVersion | 声明 | 内容文件 | 内容字节 | 主要内容 |
-| :-- | :-- | :-- | --: | --: | --: | :-- |
-| wolf-g2p-multi | 1.0.0.4 | 1.0.0.0 | 2 | 6 | 18 839 155 | 4 个 int8 编解码 ONNX |
-| **wolf-g2p-pinyin** | **1.0.2.4** | **1.0.2.0** | 2 | **12** | 634 511 | `dict/mandarin/word.txt`、`phrases_dict.txt`、`dict/cantonese/word.txt` 等 |
-| wolf-lang-cmn | 1.0.1.4 | 1.0.1.0 | 2 | 1 | 5 879 | `assets/ds-zh-pinyin-lite.txt` |
-| wolf-lang-yue | 1.0.1.4 | 1.0.1.0 | 2 | 1 | 6 258 | `assets/jyutping_dict.txt` |
-| wolf-lang-eng | 1.0.0.4 | 1.0.0.0 | 4 | 1 | 3 268 789 | `inferences/g2p/ds_cmudict-07b.txt` |
-| wolf-lang-kor | 1.0.0.4 | 1.0.0.0 | 4 | 1 | 2 145 556 | `inferences/g2p/kor_dict.txt` |
-| wolf-lang-rus | 1.0.0.4 | 1.0.0.0 | 2 | 1 | 4 412 764 | `inferences/g2p/rus_dict.txt` |
-| wolf-lang-deu / fil / fra / ita / por / spa / jpn | 1.0.0.4 或 0.0.1.4 | 同左 | 2~4 | 1 | 0.2~1.0 MB | 各自的 `*_dict.txt` 或 `kana2romaji.txt` |
-| wolf-lang-zxx | 1.0.0.0 | 1.0.0.0 | 4 | 0 | 0 | 纯声明，无内容 |
+语言依赖需要完整闭包，包括语言包依赖的共享 G2P 后端。
+编辑器通过部署的 `wolf/packages` 解析它们，版本与下载摘要以数据端口为准。
+模型或词典更新可能改变输出，版本解析成功不能替代行为回归。
 
-三条结论（事实）：
+## 归档与验收
 
-1. **词典全部住在提供方包里，声库不携带任何词典** ⇒ 词典一变，声库自己无法自保，只能靠提供方的承诺与自己的目标点。
-2. **cpp-pinyin 后端就是 `wolf-g2p-pinyin`**，它同时服务普通话与粤语（词典目录 `mandarin/` 与 `cantonese/`）⇒
-   它一变，**波及 `cmn` 与 `yue` 两类语言的声库**，而 `wolf/lang-cmn` 只是经由依赖边把它拉进来。
-3. 该包当前的 `compatVersion` 为 `1.0.2.0`，**高于同批其它包的 `1.0.0.x` 一档**。推断它曾经历过一次
-   不兼容变更并抬过承诺（推断，未查证历史发行）。
+用于本项目交付的 ZIP 将 `desc.json` 与资源目录放在归档根。
+成员名使用 UTF-8 和正斜杠，不包含绝对路径、盘符、反斜杠、空路径段、`.`、`..` 或重复成员。
+归档只包含普通文件和目录。归档路径约束不等于声明内资源路径的语义，两者需分别校验。
 
-### 4.1 词典的真实来源与本仓的发行链（事实）
-
-- 词典**不在 wolf 源码树里**（`git -C <wolf 仓库> ls-files` 查不到任何 `word.txt` 或词典条目）⇒
-  它只是发行归档里的数据，改词典必须走重新发版。
-- 本仓 `scripts/vcpkg-ports/wolf-lang-packages/` 是 wolf 同名端口的副本：`make-lang-release.py` 生成
-  `assets.cmake`，端口按 `<包版本>` 拼发行标签，从
-  `github.com/diffscope/wolf/releases/download/lang-v<bundle version>` 下载归档并校验 SHA512。
-- wolf 侧**已经有一道版本一致性门禁**：`make-lang-release.py` 在"归档变了但包版本没变"时拒绝改写
-  `assets.cmake`（见该端口 `portfile.cmake` 顶部注释）。要把"词典不兼容必须抬承诺"制度化，这里是
-  最自然的落点，不必新造机制。
-- 端口刻意不做凭据处理，无网环境用 `WOLF_LANG_PACKAGES_SOURCE`（本仓另认 `LITE_WOLF_LANG_PACKAGES`）
-  指向本地已解包副本。
-- 端口也说明归档按**目录**解包，而不是单个 `dspk` 文件，原因是主线的包加载器只接受目录（该注释的口径）。
-
-### 4.2 判"这次词典更新算不算不兼容"的仪器（已建成并标定）
-
-方法已固化成脚本：[tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1)。它自包含地启动一个隔离的
-无头实例（`--headless --no-mcp --control-level l3`，隔离 `APPDATA`/`LOCALAPPDATA`、把 `packageSearchPaths`
-指向声库根，并把 `inference.cacheDirectory` 指到运行目录），按固定歌词集建文档与音符，等引擎渲染完成后
-读回逐音符音素，输出 `歌词<TAB>音素` 便于两次运行直接 diff：
-
-**缓存不在 `APPDATA` 覆盖范围内（2026-10-13 实测）**：编辑器的数据目录由
-`QStandardPaths::writableLocation(AppDataLocation)` 解析（`src/app/Bootstrap/AppDataPaths.h:18-26`），
-Windows 上取的是漫游已知文件夹而非环境变量，所以只覆盖 `APPDATA` 时推理缓存仍会读写真实的
-`%APPDATA%\OpenVPI\DS Editor Lite\Cache`。后果是同一歌词集重跑会被缓存命中：实测第二次运行得到
-`Use cached`=4、`Running inference`=0，四类任务照样"全绿"。因此脚本现在显式重定向
-`inference.cacheDirectory`（该键是持久化选项，默认值见
-`src/app/Model/AppOptions/Options/InferenceOption.h:81-82`），并且**判读推理结果的调用方仍须要求
-`Use cached` = 0**。
-
-```
-pwsh -File measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRoot <Singers 目录> `
-     -OutRoot <临时目录> -Out before.txt -Words "你 好" -Speaker <说话人> `
-     -SingerPackage yousa -SingerPackageVersion 1.65.1 -SingerId yousa
-```
-
-判读方式：替换提供方词典后重跑并对 diff。脚本可信度已按三项检查标定（见下），负向对照（伪造歌手）
-会明确报 `The selected singer is not installed`，不会静默产出。
-
-**标定结果（2026-10-07，三项全部通过）**：
-
-| 检查 | 操作 | 结果 |
-| :-- | :-- | :-- |
-| 自洽 | 同输入连跑两次 | `ni → [n i]`、`hao → [h ao]`，两次完全一致 |
-| 灵敏度 | 把提供方 `word.txt` 里 `你:nǐ` 改成 `你:mǔ`（只改 1 行） | `你 → [m u]`（**变了**），`好 → [h ao]`（未变） |
-| 可还原 | 从端口安装源逐字节还原 | 还原成功，落点 70 个文件与安装源 0 差异 |
-
-**基线快照（本仓 `baselines/`）**：cmn 18 字、eng 9 词、jpn 15 音节，全部是**词典命中词**，将来直接 diff 即可。
-另外 `baselines/dict-hashes.txt` 记录**在用词典文件**的 SHA256，任何一行变化即视为"可能不兼容"（判据见第 6 节）。
-词表与语言必须照抄，否则基线不可比：
-
-```
-pwsh -File tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRoot <Singers 目录> `
-     -OutRoot <临时目录> -Out baselines/cmn.txt -Words "你 好 世 界 中 国 人 民 音 乐 声 音 生 命 天 空 时 间" -Language cmn -Speaker <说话人> `
-     -SingerPackage yousa -SingerPackageVersion 1.65.1 -SingerId yousa
-pwsh -File tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRoot <Singers 目录> `
-     -OutRoot <临时目录> -Out baselines/eng.txt -Words "hello world sing music voice sound life sky time" -Language eng -Speaker <说话人> `
-     -SingerPackage yousa -SingerPackageVersion 1.65.1 -SingerId yousa
-pwsh -File tools/measure-g2p-output.ps1 -EditorExe <DsEditorLite.exe> -SingersRoot <Singers 目录> `
-     -OutRoot <临时目录> -Out baselines/jpn.txt -Words "a i u e o ka ki ku ke ko sa shi su se so" -Language jpn -Speaker <说话人> `
-     -SingerPackage yousa -SingerPackageVersion 1.65.1 -SingerId yousa
-```
-
-韩语**没有**基线文件，原因见 [korean-via-wolf-kor.md](korean-via-wolf-kor.md) 的实测更正一节：
-它的输出大多来自不可复现的模型回退，无法作为比较基准。
-
-**与 speaker 无关（已实测）**：同一词表只换说话人（`Yousa_Normal` → `Yousa_Bright`），音素**完全一致**（差异 0 条）。
-所以门禁结果与 `-Speaker` 无关，命令里的 `<说话人>` 填该歌手实际存在的任意说话人即可，不必固定。
-
-**门禁的适用边界（实测教训）**：门禁歌词集必须是**词典命中词**。模型回退路径的输出不保证可复现
-（实测：韩文 OOV 词 `zzq` 三次运行中出现过两种音素），拿它当判据会把模型的不确定性误判成词典变更。
-
-**由此实测证实的一点**：词典改一行，**版本号完全没变**，声库演唱的音素就已经变了，而加载器不会也无法发现
-（`ds-spec-2.4.md:198` 明确允许在兼容区间内修改"模型与算法"）。这就是"词典不兼容必须由提供方的版本承诺
-来表达"的实测依据，也是依赖方无法自保的直接证据。
-
-词典构成（事实）：`wolf-g2p-pinyin` 的普通话表以**汉字**为键，`word.txt` 17,502 行（形如 `你:nǐ`），
-`phrases_dict.txt` 为词组表（形如 `一个样:yī,ge,yàng`），另有 `trans_word.txt`、`phrases_map.txt`、
-`user_dict.txt`。ASCII 拼音歌词（`ni`）与汉字歌词（`你`）解析到同一结果（`[n i]`），
-说明拼音输入另有一条解析路径，具体由哪张表承担**未查证**。
-
-- **门禁仪器已标定，阈值不再作为判据**：仪器（§4.2）已通过自洽、灵敏度、可还原三项检查。原计划用两个
-  **真实**词典修订跑同一批词的音素差异率来定"差异率达到多少算不兼容"，但实测发现两个真实发行之间
-  `trans_word.txt` 只差 1 行，差异率分不出"算不算不兼容"⇒ 按决策 D-9 改为"词典文件任何变化即视为
-  可能不兼容，再用门禁测影响"，见 §6 与 [wolf-release-history.md](wolf-release-history.md)。
-- `wolf-g2p-pinyin` 高一档 `compatVersion` 的历史原因未查证。
-- 政策选择已定稿，见第 6 节（决策 D-8，用户 2026-10-07 确认）。
-
-## 6. 词典变更的处置政策（用户已确认按本方案推进）
-
-**事实基础见 [wolf-release-history.md](wolf-release-history.md)**：wolf 的两个真实发行里，
-`compatVersion` 从未被抬过，而词典确实变过（`trans_word.txt` +1 行），
-`wolf-lang-zxx` 甚至内容变了而版本号一个字符没动。
-
-### 提供方（wolf）侧的建议
-
-**当变化会改变读音时抬 `compatVersion`**，让老目标点解析失败，迫使消费方显式决定接受新读音还是留在旧包。
-落点现成：`make-lang-release.py` 已有"归档变了必须改包版本"的门禁，延伸一档即可。
-落实情况可用 [tools/compare-wolf-releases.py](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/compare-wolf-releases.py) 随发行复核，
-它会在"内容变了而版本没变"时给出明确告警（`--fail-on-violation` 可让 CI 直接失败）。
-只涨 `version` 不动 `compatVersion`（目前的实际做法）会让声库在毫无提示的情况下改唱法。
-
-### 消费方（本项目／第三方编辑器）侧的三件事
-
-1. **声明用目标点，不用精确版本**：`dependencies[].version` 写目标点，交给提供方的区间去满足。
-2. **要稳定就锁定来源**：需要长期不变的唱法时，把实际使用的提供方包**固定下来（vendoring）**，
-   并注明取自哪条供给路径（release 归档与 vcpkg port 的实现并不相同，见 release history §6.3）。
-3. **每次更新跑门禁**：先比词典文件哈希（任何变化即触发），再用
-   [tools/measure-g2p-output.ps1](https://github.com/flutydeer/ds-editor-lite/blob/10c1f19827239cb2072d1e5616ae5232be589728/docs/synthrt/tools/measure-g2p-output.ps1) 跑宽词表，看是否触及实际会唱的词。
+交付前解包核对声明与资源，再通过编辑器执行加载、G2P 和合成。
+验收步骤见 [验证指南](developer-repro.md)。

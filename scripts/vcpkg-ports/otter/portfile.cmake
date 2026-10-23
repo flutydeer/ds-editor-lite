@@ -8,12 +8,8 @@
 # A fetch by commit requires no archive hash. The pin is a commit so that a rebuild uses the same
 # sources. HEAD_REF names the branch that contains the commit.
 #
-# The earlier pin was held at a rollback because the fixed revision did not build; the rollback was
-# dropped once the cause was fixed upstream and the move had passed a local fetch/rebuild plus build
-# and test gate. Why the earlier pin was wrong, and what "resolved" required, are recorded in the
-# migration ledger docs/plans/synthrt-main-migration.md (history in docs/archive/
-# four-repo-integration-audit.md); this comment deliberately repeats neither gate results nor any
-# commit id beyond the pin below.
+# The pinned revision needs the Darwin pipe-write adaptation below. The dependency and runtime
+# contracts are described in docs/plans/synthrt-main-migration.md.
 set(_otter_platform_patches)
 if(VCPKG_TARGET_IS_OSX)
     list(APPEND _otter_platform_patches macos-pipe-nosigpipe.patch)
