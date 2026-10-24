@@ -27,6 +27,7 @@ namespace StartupArguments {
 
     struct AutomationOverrides {
         std::optional<bool> mcpEnabled;
+        std::optional<bool> rpcEnabled;
         std::optional<quint16> controlPort;
         std::optional<AutomationOption::ControlLevel> controlLevel;
 
@@ -49,9 +50,11 @@ namespace StartupArguments {
 
     struct EffectiveAutomationConfig {
         bool mcpEnabled = false;
+        bool rpcEnabled = false;
         quint16 controlPort = AutomationOption::kRandomControlPortMinimum;
         AutomationOption::ControlLevel controlLevel = AutomationOption::ControlLevel::L1;
         ConfigSource mcpEnabledSource = ConfigSource::Persisted;
+        ConfigSource rpcEnabledSource = ConfigSource::Persisted;
         ConfigSource controlPortSource = ConfigSource::Persisted;
         ConfigSource controlLevelSource = ConfigSource::Persisted;
     };

@@ -29,7 +29,7 @@ namespace StartupArguments {
     } // namespace
 
     bool AutomationOverrides::isEmpty() const {
-        return !mcpEnabled && !controlPort && !controlLevel;
+        return !mcpEnabled && !rpcEnabled && !controlPort && !controlLevel;
     }
 
     bool ParsedArguments::isValid() const {
@@ -62,28 +62,24 @@ namespace StartupArguments {
                 continue;
             }
 
-            if (!positionalOnly && argument == QStringLiteral("--mcp")) {
-                if (result.automation.mcpEnabled && !*result.automation.mcpEnabled) {
-                    return fail(
-                        std::move(result), ParseErrorCode::ConflictingOptions, argument,
-                        QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
-                }
-                result.automation.mcpEnabled = true;
-                continue;
-            }
-
             if (!positionalOnly && argument == QStringLiteral("--headless")) {
                 result.hostMode = AppHostMode::Headless;
                 continue;
             }
 
-            if (!positionalOnly && argument == QStringLiteral("--no-mcp")) {
-                if (result.automation.mcpEnabled && *result.automation.mcpEnabled) {
-                    return fail(
-                        std::move(result), ParseErrorCode::ConflictingOptions, argument,
-                        QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
+            if (!positionalOnly &&
+                (argument == QStringLiteral("--mcp") || argument == QStringLiteral("--no-mcp") ||
+                 argument == QStringLiteral("--rpc") || argument == QStringLiteral("--no-rpc"))) {
+                const auto rpc = argument.endsWith(QStringLiteral("rpc"));
+                const auto enabled = !argument.startsWith(QStringLiteral("--no-"));
+                auto &enabledOverride =
+                    rpc ? result.automation.rpcEnabled : result.automation.mcpEnabled;
+                if (enabledOverride && *enabledOverride != enabled) {
+                    return fail(std::move(result), ParseErrorCode::ConflictingOptions, argument,
+                                QStringLiteral("Options --%1 and --no-%1 cannot be used together.")
+                                    .arg(rpc ? QStringLiteral("rpc") : QStringLiteral("mcp")));
                 }
-                result.automation.mcpEnabled = false;
+                enabledOverride = enabled;
                 continue;
             }
 
@@ -175,12 +171,17 @@ namespace StartupArguments {
                                                         const AutomationOverrides &overrides) {
         EffectiveAutomationConfig result;
         result.mcpEnabled = persisted.mcpEnabled;
+        result.rpcEnabled = persisted.rpcEnabled;
         result.controlPort = persisted.controlPort;
         result.controlLevel = persisted.controlLevel;
 
         if (overrides.mcpEnabled) {
             result.mcpEnabled = *overrides.mcpEnabled;
             result.mcpEnabledSource = ConfigSource::CommandLine;
+        }
+        if (overrides.rpcEnabled) {
+            result.rpcEnabled = *overrides.rpcEnabled;
+            result.rpcEnabledSource = ConfigSource::CommandLine;
         }
         if (overrides.controlPort) {
             result.controlPort = *overrides.controlPort;

@@ -23,6 +23,10 @@ void BootstrapTests::invalidArguments_data() {
         << QStringList{"--control-level", "--mcp"} << int(Error::MissingValue);
     QTest::newRow("conflicting-mcp")
         << QStringList{"--mcp", "--no-mcp"} << int(Error::ConflictingOptions);
+    QTest::newRow("conflicting-rpc")
+        << QStringList{"--rpc", "--no-rpc"} << int(Error::ConflictingOptions);
+    QTest::newRow("conflicting-rpc-reversed")
+        << QStringList{"--no-rpc", "--rpc"} << int(Error::ConflictingOptions);
     QTest::newRow("conflicting-port")
         << QStringList{"--control-port=1", "--control-port=2"} << int(Error::ConflictingOptions);
     QTest::newRow("conflicting-level") << QStringList{"--control-level=l1", "--control-level=l2"}
@@ -57,12 +61,14 @@ void BootstrapTests::validPort() {
 void BootstrapTests::flagsDoNotBecomeProjectPaths() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    const auto parsed = StartupArguments::parseArguments(
-        {"--headless", "--mcp", "--control-port=65535", "--control-level", "custom", "song.dspx"},
-        directory.path());
+    const auto parsed =
+        StartupArguments::parseArguments({"--headless", "--mcp", "--rpc", "--control-port=65535",
+                                          "--control-level", "custom", "song.dspx"},
+                                         directory.path());
     QVERIFY(parsed.isValid());
     QCOMPARE(parsed.hostMode, AppHostMode::Headless);
     QCOMPARE(parsed.automation.mcpEnabled, std::optional(true));
+    QCOMPARE(parsed.automation.rpcEnabled, std::optional(true));
     QCOMPARE(parsed.automation.controlLevel, std::optional(AutomationOption::ControlLevel::Custom));
     QCOMPARE(parsed.projectFilePaths, QStringList{directory.filePath("song.dspx")});
 }
@@ -77,11 +83,13 @@ void BootstrapTests::delimiterAndPreparseAgree() {
     QCOMPARE(StartupArguments::preparseHostMode(3, positionalArguments), AppHostMode::Gui);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    const auto parsed = StartupArguments::parseArguments({"--", "--headless"}, directory.path());
+    const auto parsed =
+        StartupArguments::parseArguments({"--", "--headless", "--rpc"}, directory.path());
     QVERIFY(parsed.isValid());
     QVERIFY(parsed.automation.isEmpty());
     QCOMPARE(parsed.hostMode, AppHostMode::Gui);
-    QCOMPARE(parsed.projectFilePaths, QStringList{directory.filePath("--headless")});
+    QCOMPARE(parsed.projectFilePaths,
+             (QStringList{directory.filePath("--headless"), directory.filePath("--rpc")}));
 }
 
 void BootstrapTests::identicalOptionsCanRepeat() {
@@ -95,22 +103,51 @@ void BootstrapTests::identicalOptionsCanRepeat() {
 void BootstrapTests::runtimeOverridesDoNotMutatePersistence() {
     AutomationOption persisted;
     persisted.mcpEnabled = false;
+    persisted.rpcEnabled = true;
     persisted.controlPort = 1234;
     persisted.controlLevel = AutomationOption::ControlLevel::L1;
     persisted.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
     StartupArguments::AutomationOverrides overrides;
     overrides.mcpEnabled = true;
+    overrides.rpcEnabled = false;
     overrides.controlPort = 4321;
     overrides.controlLevel = AutomationOption::ControlLevel::Custom;
     const auto effective = StartupArguments::effectiveAutomationConfig(persisted, overrides);
     QVERIFY(effective.mcpEnabled);
+    QVERIFY(!effective.rpcEnabled);
     QCOMPARE(effective.controlPort, quint16(4321));
     QCOMPARE(effective.controlLevel, AutomationOption::ControlLevel::Custom);
     QCOMPARE(effective.mcpEnabledSource, StartupArguments::ConfigSource::CommandLine);
+    QCOMPARE(effective.rpcEnabledSource, StartupArguments::ConfigSource::CommandLine);
     QCOMPARE(effective.controlPortSource, StartupArguments::ConfigSource::CommandLine);
     QCOMPARE(effective.controlLevelSource, StartupArguments::ConfigSource::CommandLine);
     QVERIFY(!persisted.mcpEnabled);
+    QVERIFY(persisted.rpcEnabled);
     QCOMPARE(persisted.controlPort, quint16(1234));
     QCOMPARE(persisted.controlLevel, AutomationOption::ControlLevel::L1);
     QVERIFY(persisted.customPermissionEnabled(QStringLiteral("notes.list")));
+}
+
+void BootstrapTests::protocolFlagsAreIndependent() {
+    for (const bool mcp : {false, true}) {
+        for (const bool rpc : {false, true}) {
+            const QStringList flags{mcp ? "--mcp" : "--no-mcp", rpc ? "--rpc" : "--no-rpc"};
+            const auto parsed = StartupArguments::parseArguments(flags + flags);
+            QVERIFY(parsed.isValid());
+            QVERIFY(parsed.projectFilePaths.isEmpty());
+            QCOMPARE(parsed.automation.mcpEnabled, std::optional(mcp));
+            QCOMPARE(parsed.automation.rpcEnabled, std::optional(rpc));
+        }
+    }
+    const auto rpcOnly = StartupArguments::parseArguments({"--rpc"});
+    QVERIFY(rpcOnly.isValid());
+    QVERIFY(!rpcOnly.automation.isEmpty());
+    QVERIFY(!rpcOnly.automation.mcpEnabled.has_value());
+    AutomationOption persisted;
+    persisted.mcpEnabled = true;
+    const auto effective =
+        StartupArguments::effectiveAutomationConfig(persisted, rpcOnly.automation);
+    QVERIFY(effective.mcpEnabled && effective.rpcEnabled);
+    QCOMPARE(effective.mcpEnabledSource, StartupArguments::ConfigSource::Persisted);
+    QCOMPARE(effective.rpcEnabledSource, StartupArguments::ConfigSource::CommandLine);
 }

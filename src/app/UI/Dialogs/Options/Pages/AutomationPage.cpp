@@ -239,6 +239,8 @@ void AutomationPage::modifyOption() {
     auto *option = appOptions->automation();
     if (m_effectiveConfig.mcpEnabledSource == StartupArguments::ConfigSource::Persisted)
         option->mcpEnabled = m_mcpEnabled->value();
+    if (m_effectiveConfig.rpcEnabledSource == StartupArguments::ConfigSource::Persisted)
+        option->rpcEnabled = m_rpcEnabled->value();
     if (m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted)
         option->controlPort = static_cast<quint16>(m_controlPort->value());
     if (m_effectiveConfig.controlLevelSource == StartupArguments::ConfigSource::Persisted) {
@@ -314,9 +316,16 @@ QWidget *AutomationPage::createContentWidget() {
                                            : StartupArguments::AutomationOverrides{});
 
     m_mcpEnabled = new SwitchButton(m_effectiveConfig.mcpEnabled);
+    m_mcpEnabled->setObjectName(QStringLiteral("automationMcpEnabled"));
     m_mcpEnabled->setEnabled(m_effectiveConfig.mcpEnabledSource ==
                              StartupArguments::ConfigSource::Persisted);
     connect(m_mcpEnabled, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
+
+    m_rpcEnabled = new SwitchButton(m_effectiveConfig.rpcEnabled);
+    m_rpcEnabled->setObjectName(QStringLiteral("automationRpcEnabled"));
+    m_rpcEnabled->setEnabled(m_effectiveConfig.rpcEnabledSource ==
+                             StartupArguments::ConfigSource::Persisted);
+    connect(m_rpcEnabled, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
 
     m_randomizeControlPort = new Button(tr("Randomize"));
     m_controlPort = new SVS::ExpressionSpinBox;
@@ -353,8 +362,10 @@ QWidget *AutomationPage::createContentWidget() {
     connect(m_controlLevel, &ComboBox::currentIndexChanged, this, &AutomationPage::modifyOption);
 
     m_serverCard = new OptionListCard(tr("Local Server"));
-    m_serverCard->addItem(tr("Enable Server"),
+    m_serverCard->addItem(tr("Enable MCP Server"),
                           settingDescription({}, m_effectiveConfig.mcpEnabledSource), m_mcpEnabled);
+    m_serverCard->addItem(tr("Enable JSON-RPC Server"),
+                          settingDescription({}, m_effectiveConfig.rpcEnabledSource), m_rpcEnabled);
     auto *controlPortControl = new QWidget;
     auto *controlPortLayout = new QHBoxLayout(controlPortControl);
     controlPortLayout->setContentsMargins({});

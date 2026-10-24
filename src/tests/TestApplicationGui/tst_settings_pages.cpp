@@ -950,6 +950,7 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     const auto port = occupiedPort.serverPort();
     auto *options = appOptions->automation();
     options->mcpEnabled = false;
+    options->rpcEnabled = false;
     options->controlPort = port;
     options->accessRoots = {directory.path()};
     options->controlLevel = AutomationOption::ControlLevel::L1;
@@ -969,9 +970,10 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     auto *jsonRpcCopy = page->findChild<Button *>("automationJsonRpcEndpointCopyButton");
     auto *descriptionCopy = page->findChild<Button *>("automationOpenRpcUrlCopyButton");
     QVERIFY(jsonRpcCopy && descriptionCopy);
-    auto *enabled = page->findChild<SwitchButton *>();
+    auto *enabled = page->findChild<SwitchButton *>("automationMcpEnabled");
+    auto *rpcEnabled = page->findChild<SwitchButton *>("automationRpcEnabled");
     auto *portEditor = page->findChild<QSpinBox *>();
-    QVERIFY(enabled && portEditor);
+    QVERIFY(enabled && rpcEnabled && portEditor);
     const auto configuredEndpoint = [&] {
         return QStringLiteral("http://127.0.0.1:%1/mcp").arg(options->controlPort);
     };
@@ -1015,10 +1017,58 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
     QVERIFY(!visibleText(error));
     QCOMPARE(qApp->property(EndpointProperty).toString(), configuredEndpoint());
-    QCOMPARE(controller.nativeEndpoint(), configuredNativeEndpoint());
+    QVERIFY(controller.nativeEndpoint().isEmpty());
 
     QNetworkAccessManager network;
     network.setProxy(QNetworkProxy::NoProxy);
+    const auto checkRoutes = [&](const bool mcp, const bool rpc) {
+        for (const bool native : {false, true}) {
+            QNetworkRequest request{
+                QUrl(native ? configuredNativeEndpoint() : configuredEndpoint())};
+            request.setTransferTimeout(5000);
+            request.setHeader(QNetworkRequest::ContentTypeHeader,
+                              QStringLiteral("application/json"));
+            request.setRawHeader("Accept", "application/json");
+            const auto method = native ? QStringLiteral("application.get_status")
+                                       : QString::fromLatin1(Mcp::ToolsListMethod);
+            if (!native) {
+                request.setRawHeader("Accept", "application/json, text/event-stream");
+                request.setRawHeader("MCP-Protocol-Version", Mcp::ProtocolVersion);
+                request.setRawHeader("Mcp-Method", Mcp::ToolsListMethod);
+            }
+            const auto message = Mcp::makeRequest(method, {}, {}, 1);
+            const QScopedPointer<QNetworkReply> reply(
+                network.post(request, QJsonDocument(message).toJson(QJsonDocument::Compact)));
+            QTRY_VERIFY(reply->isFinished());
+            QCOMPARE(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(),
+                     (native ? rpc : mcp) ? 200 : 404);
+        }
+        QNetworkRequest description{QUrl(configuredNativeEndpoint() + "/openrpc.json")};
+        description.setTransferTimeout(5000);
+        description.setRawHeader("Accept", "application/json");
+        const QScopedPointer<QNetworkReply> reply(network.get(description));
+        QTRY_VERIFY(reply->isFinished());
+        QCOMPARE(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(),
+                 rpc ? 200 : 404);
+    };
+    checkRoutes(true, false);
+    clickOption(page, rpcEnabled);
+    QTRY_COMPARE(controller.nativeEndpoint(), configuredNativeEndpoint());
+    checkRoutes(true, true);
+    clickOption(page, enabled);
+    QTRY_COMPARE(coordinator.automationState().state,
+                 SingleInstanceAutomationState::ServerDisabled);
+    QVERIFY(qApp->property(EndpointProperty).toString().isEmpty());
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
+    QVERIFY(options->rpcEnabled && !options->mcpEnabled);
+    checkNativeCopies();
+    checkRoutes(false, true);
+    clickOption(page, enabled);
+    QTRY_COMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerReady);
+    checkRoutes(true, true);
+    if (QTest::currentTestFailed())
+        return;
+
     const auto checkTrackAccess = [&](const bool allowed) {
         QNetworkRequest request{QUrl(configuredEndpoint())};
         request.setTransferTimeout(5000);
@@ -1139,12 +1189,27 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(QApplication::clipboard()->text(), configuredEndpoint());
+    clickOption(page, rpcEnabled);
+    QTRY_VERIFY(controller.nativeEndpoint().isEmpty());
+    QCOMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerReady);
+    checkRoutes(true, false);
     clickOption(page, enabled);
     QTRY_COMPARE(coordinator.automationState().state,
                  SingleInstanceAutomationState::ServerDisabled);
     QVERIFY(qApp->property(EndpointProperty).toString().isEmpty());
     QVERIFY(controller.nativeEndpoint().isEmpty());
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server disabled")));
     QTcpServer stoppedPort;
+    QVERIFY(stoppedPort.listen(QHostAddress::LocalHost, newPort));
+    stoppedPort.close();
+    clickOption(page, rpcEnabled);
+    QTRY_COMPARE(controller.nativeEndpoint(), configuredNativeEndpoint());
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
+    QCOMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerDisabled);
+    checkRoutes(false, true);
+    clickOption(page, rpcEnabled);
+    QTRY_VERIFY(controller.nativeEndpoint().isEmpty());
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server disabled")));
     QVERIFY(stoppedPort.listen(QHostAddress::LocalHost, newPort));
 
     Button *randomize = nullptr;

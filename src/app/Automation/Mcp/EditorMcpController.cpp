@@ -34,10 +34,12 @@ namespace Automation {
             };
         }
 
-        AutomationHttpRoutes desiredRoutes(const AppHostMode hostMode, const bool mcpEnabled) {
+        AutomationHttpRoutes
+            desiredRoutes(const AppHostMode hostMode,
+                          const StartupArguments::EffectiveAutomationConfig &config) {
             return {
-                .mcp = mcpEnabled,
-                .native = mcpEnabled || hostMode == AppHostMode::Headless,
+                .mcp = config.mcpEnabled,
+                .native = config.rpcEnabled || hostMode == AppHostMode::Headless,
             };
         }
     }
@@ -163,7 +165,7 @@ namespace Automation {
                               enabledCustomOperations(*m_options.automation()));
 
         const auto roots = m_fileGuard.setConfiguredRoots(m_options.automation()->accessRoots);
-        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig);
         if (!routes.mcp && !routes.native) {
             transitionAfterStop(PendingTransition::Disabled);
             return;
@@ -284,7 +286,7 @@ namespace Automation {
     }
 
     void EditorMcpController::startServer() {
-        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig);
         if (routes.mcp)
             publishStatus(SingleInstanceAutomationState::ServerStarting, true);
         QString error;
@@ -336,8 +338,12 @@ namespace Automation {
     void EditorMcpController::publishStatus(const SingleInstanceAutomationState state,
                                             const bool enabled, QString endpoint, QString error) {
         if (auto *application = QCoreApplication::instance()) {
+            const auto runtimeState = state == SingleInstanceAutomationState::ServerDisabled &&
+                                              !nativeEndpoint().isEmpty()
+                                          ? SingleInstanceAutomationState::ServerReady
+                                          : state;
             application->setProperty(AutomationRuntimeStatus::StateProperty,
-                                     SingleInstanceProtocol::automationStateName(state));
+                                     SingleInstanceProtocol::automationStateName(runtimeState));
             application->setProperty(AutomationRuntimeStatus::EndpointProperty, endpoint);
             application->setProperty(AutomationRuntimeStatus::ErrorProperty, error);
         }

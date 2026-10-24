@@ -1270,8 +1270,12 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="322"/>
-        <source>Enable Server</source>
-        <translation>启用服务器</translation>
+        <source>Enable MCP Server</source>
+        <translation>启用 MCP 服务器</translation>
+    </message>
+    <message>
+        <source>Enable JSON-RPC Server</source>
+        <translation>启用 JSON-RPC 服务器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="330"/>
