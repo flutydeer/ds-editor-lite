@@ -169,7 +169,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     }
 
     bool commitRejected = false;
-    auto completed =
+    auto runScan =
         [this, &searchPathsQt, &commitGate, &commitRejected,
          mode]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
         QElapsedTimer timer;
@@ -294,6 +294,23 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             }
         }
         return result;
+    };
+
+    // The scan opens packages and reads their files, so it can throw. Automation runs this refresh
+    // on a bare QThreadPool, where an escaping exception terminates the process, and the
+    // bookkeeping below would never clear m_refreshing, which leaves every later refresh waiting
+    // forever. Converting the exception into a failed refresh keeps both properties intact.
+    Expected<GetInstalledPackagesResult, GetInstalledPackagesError> completed =
+        [&runScan]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
+        try {
+            return runScan();
+        } catch (const std::exception &error) {
+            return GetInstalledPackagesError{GetInstalledPackagesErrorType::Unknown,
+                                             QString::fromUtf8(error.what())};
+        } catch (...) {
+            return GetInstalledPackagesError{GetInstalledPackagesErrorType::Unknown,
+                                             QStringLiteral("Unknown error")};
+        }
     }();
 
     std::optional<GetInstalledPackagesResult> retainedResult;
