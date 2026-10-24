@@ -147,11 +147,19 @@ namespace {
             const auto *preview = cells.first()->note();
             QVERIFY(preview->g2pId.isEmpty());
             QVERIFY(preview->language != QStringLiteral("unknown"));
-            QVERIFY2(preview->candidates.contains(cells.first()->syllable()),
-                     "Preview must preserve the language and pronunciation candidates");
             if (TestSupport::usingBundledVoicebank()) {
                 QCOMPARE(cells.first()->syllable(), QStringLiteral("la"));
                 QVERIFY(cells.first()->syllable() != lyric);
+                QVERIFY2(preview->candidates.contains(cells.first()->syllable()),
+                         "Preview must preserve the language and pronunciation candidates");
+            } else {
+                // The containment above is satisfied by the fallback value as well, so it cannot
+                // tell a converted preview from one that echoed the input. With an external
+                // fixture voicebank the conversion does run, so the preview must carry a
+                // pronunciation that differs from the lyric it replaced.
+                QVERIFY(!preview->candidates.isEmpty());
+                QVERIFY2(preview->candidates.first() != lyric,
+                         "the preview must carry the converted pronunciation, not the input lyric");
             }
         }
         if (singleWord) {

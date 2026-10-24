@@ -11,6 +11,7 @@
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/Inference/Utils/PronunciationText.h"
 #include "Modules/Inference/Utils/ReservedPhonemes.h"
+#include <lite/Language/EditorMarkers.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
@@ -59,6 +60,9 @@ namespace FillLyric {
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
         for (int i = 0; i < commonCount; i++) {
             if (reserved.contains(notes[i].lyric))
+                continue;
+
+            if (Language::isEditorMarker(notes[i].lyric))
                 continue;
             const auto language = notes[i].language == QStringLiteral("unknown")
                                       ? fromUtf8(taggerRes[i].language)

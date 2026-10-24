@@ -15,6 +15,7 @@
 #include <QNetworkProxy>
 #include <QTcpServer>
 #include <QtTest>
+#include <lite/Language/EditorMarkers.h>
 #include <QScopeGuard>
 #include <QTemporaryDir>
 
@@ -247,6 +248,16 @@ public:
     QString editorPath;
 
 private slots:
+    /// The slur and the rest marker travel through the editor untouched, so the language backend
+    /// never receives them as lyrics.
+    void editorMarkers() {
+        QVERIFY(Language::isEditorMarker(QStringLiteral("-")));
+        QVERIFY(Language::isEditorMarker(QStringLiteral("AP")));
+        QVERIFY(!Language::isEditorMarker(QStringLiteral("la")));
+        QVERIFY(!Language::isEditorMarker(QString()));
+        QVERIFY(!Language::isEditorMarker(QStringLiteral("ap")));
+    }
+
     void analyzerPackages() {
         qputenv("DSEL_TEST_PLUGIN_ROOT", QByteArray(TEST_PLUGIN_ROOT));
         QCOMPARE(runAnalyzerPackages(), 0);
