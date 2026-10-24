@@ -5,13 +5,21 @@
 编辑器的自动化 HTTP 服务只监听 `127.0.0.1`。两个协议共用配置端口、公共 Registry、控制层级、
 自定义权限、文件访问范围及传输限制。
 
-| 宿主 | 关闭服务器 | 启用服务器 |
+| 宿主 | MCP | JSON-RPC |
 |---|---|---|
-| GUI | 不监听自动化 HTTP | 同时提供 MCP 和 JSON-RPC |
-| Headless | 保留 JSON-RPC，关闭 MCP | 同时提供 MCP 和 JSON-RPC |
+| GUI | 由 MCP 开关控制 | 由 JSON-RPC 开关控制 |
+| Headless | 由 MCP 开关控制 | 始终开启 |
 
-`--headless` 强制开启 JSON-RPC，启动失败仍按致命错误处理。`--mcp` 和 `--no-mcp` 以及已有
-`mcpEnabled` 配置键保持兼容。在 GUI 中它们同时控制两个协议，在 Headless 中只控制 MCP。
+设置面板分别提供“启用 MCP 服务器”和“启用 JSON-RPC 服务器”，对应 `mcpEnabled` 和
+`rpcEnabled` 配置键，默认均关闭。旧配置缺少 `rpcEnabled` 时按关闭处理，不跟随 MCP 开关。
+GUI 中两个开关都关闭时停止监听，任一协议开启时共用同一个 HTTP 监听器。
+
+`--mcp` / `--no-mcp` 和 `--rpc` / `--no-rpc` 分别覆盖对应协议的持久化设置，只影响本次启动。
+被命令行覆盖的设置项会锁定，不回写配置。相反的同协议参数不能同时使用，不同协议可以自由组合。
+例如 `--rpc --no-mcp` 只开放 JSON-RPC，`--mcp --no-rpc` 在 GUI 中只开放 MCP。
+
+`--headless` 强制开启 JSON-RPC，即使配置关闭或传入 `--no-rpc` 也仍然开启，启动失败按致命错误
+处理。MCP 继续由自身开关控制。两个协议仍共用 `--control-port` 和 `--control-level`。
 QLocal Bootstrap 的 `server_endpoint` 继续指向 MCP，避免改变 Connector 的发现协议。
 
 | HTTP 入口 | 用途 |
