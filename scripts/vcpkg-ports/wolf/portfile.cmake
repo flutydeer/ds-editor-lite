@@ -3,7 +3,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/wolf.git
-    REF ccb0bd1f46b60c96497e18cba8241f2380e2f169
+    REF a6f94af8d7de0b588b8e3bb5d69ed6025e395121
     HEAD_REF spec2.4-uptake
 )
 
@@ -40,10 +40,15 @@ file(REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/debug/share"
 )
 
+# Plugins install into lib/plugins/<library>/<category>/, so a single-level glob matches nothing
+# and silently leaves the plugin DLLs without debug symbols. Collect them recursively instead.
+file(GLOB_RECURSE _plugin_dlls
+    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+)
 vcpkg_copy_pdbs(BUILD_PATHS
     "${CURRENT_PACKAGES_DIR}/bin/*.dll"
     "${CURRENT_PACKAGES_DIR}/debug/bin/*.dll"
-    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
-    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+    ${_plugin_dlls}
 )
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")

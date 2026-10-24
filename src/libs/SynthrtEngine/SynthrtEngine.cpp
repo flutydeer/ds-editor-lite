@@ -445,7 +445,7 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
         if (packages) {
             for (const auto &package : opened) {
                 metadata.push_back({package.id(), package.version(), package.path(), package.vendor(),
-                                    package.description(), package.copyright(), package.url()});
+                                    package.description(), package.license(), package.url()});
             }
         }
         auto result = entries;
@@ -605,7 +605,7 @@ srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference,
             continue;
         }
         auto *spec = candidate.contribution(srt::InferenceCategory::NAME, parsed->contributionId);
-        if (spec != nullptr && lite::synthrt::isAnalysisContract(spec->interface())) {
+        if (spec != nullptr && lite::synthrt::isAnalysisContract(spec->interfaceId())) {
             best = spec;
             bestPackage = &candidate;
         }
@@ -626,12 +626,12 @@ srt::Expected<SynthrtEngine::AnalyzerLease>
                           "no installed package holds the analyzer "
                               + reference.toStdString());
     }
-    const auto *contract = lite::synthrt::findAnalysisContract(spec->interface());
+    const auto *contract = lite::synthrt::findAnalysisContract(spec->interfaceId());
     auto *inference = spec->as<srt::InferenceSpec>();
     if (contract == nullptr || inference == nullptr) {
         return srt::Error(srt::Error::FeatureNotSupported,
                           "the editor does not run analyzers of the contract " +
-                              spec->interface());
+                              spec->interfaceId());
     }
     auto created = contract->create(*inference);
     if (!created) {

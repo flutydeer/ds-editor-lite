@@ -3,7 +3,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/otter.git
-    REF 95e58bfc4dff9152807600368fd35d12e5183a09
+    REF 6c9b8a0b8f59f2f7dd77f8cc6941f803658275bd
     HEAD_REF spec2.4-uptake
 )
 
@@ -40,10 +40,15 @@ file(REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/debug/share"
 )
 
+# Plugins install into lib/plugins/<library>/<category>/, so a single-level glob matches nothing
+# and silently leaves the plugin DLLs without debug symbols. Collect them recursively instead.
+file(GLOB_RECURSE _plugin_dlls
+    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+)
 vcpkg_copy_pdbs(BUILD_PATHS
     "${CURRENT_PACKAGES_DIR}/bin/*.dll"
     "${CURRENT_PACKAGES_DIR}/debug/bin/*.dll"
-    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
-    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+    ${_plugin_dlls}
 )
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")

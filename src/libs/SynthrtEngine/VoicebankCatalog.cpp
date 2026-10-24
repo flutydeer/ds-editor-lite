@@ -54,7 +54,7 @@ namespace lite::synthrt {
         template <class Configuration>
         const Configuration *configurationOf(const srt::ContribSpec *target,
                                              std::string_view interfaceName) {
-            if (target == nullptr || target->interface() != interfaceName ||
+            if (target == nullptr || target->interfaceId() != interfaceName ||
                 target->configuration() == nullptr) {
                 return nullptr;
             }
@@ -454,7 +454,7 @@ namespace lite::synthrt {
                     package.name(),
                     package.vendor(),
                     package.description(),
-                    package.copyright(),
+                    package.license(),
                     package.url(),
                 });
             }
@@ -554,19 +554,19 @@ namespace lite::synthrt {
         std::vector<AnalyzerEntry> result;
         for (const auto &package : opened) {
             for (auto *spec : package.contributions(srt::InferenceCategory::NAME)) {
-                if (!isAnalysisContract(spec->interface())) {
+                if (!isAnalysisContract(spec->interfaceId())) {
                     continue;
                 }
                 AnalyzerEntry entry{
                     package.id(),
                     package.version(),
                     spec->locator().contributionId(),
-                    spec->interface(),
+                    spec->interfaceId(),
                     spec->variant(),
                     spec->name(),
                 };
                 // Check the contract before downcasting analyzer exports.
-                if (spec->interface() == otter::Api::Note::L1::API_INTERFACE) {
+                if (spec->interfaceId() == otter::Api::Note::L1::API_INTERFACE) {
                     if (const auto *schema = exportsOf<otter::Api::Note::L1::NoteSchema>(spec)) {
                         entry.languages = schema->languages;
                         entry.defaultLanguage = schema->defaultLanguage;

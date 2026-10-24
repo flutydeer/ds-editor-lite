@@ -3,7 +3,7 @@
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://github.com/diffscope/synthrt.git
-    REF ec52820c60829cd3735e2510a6948b0ee22c1c87
+    REF 3d82829ad8aed396e232765a40663d3b764c9907
     HEAD_REF spec2.4-uptake
 )
 
@@ -66,10 +66,15 @@ file(REMOVE_RECURSE
     "${CURRENT_PACKAGES_DIR}/debug/share"
 )
 
+# Plugins install into lib/plugins/<library>/<category>/, so a single-level glob matches nothing
+# and silently leaves the plugin DLLs without debug symbols. Collect them recursively instead.
+file(GLOB_RECURSE _plugin_dlls
+    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
+    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+)
 vcpkg_copy_pdbs(BUILD_PATHS
     "${CURRENT_PACKAGES_DIR}/bin/*.dll"
     "${CURRENT_PACKAGES_DIR}/debug/bin/*.dll"
-    "${CURRENT_PACKAGES_DIR}/lib/plugins/*.dll"
-    "${CURRENT_PACKAGES_DIR}/debug/lib/plugins/*.dll"
+    ${_plugin_dlls}
 )
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")
