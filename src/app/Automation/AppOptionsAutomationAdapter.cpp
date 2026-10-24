@@ -10,6 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/Inference/ExecutionProvider.h"
+#include "Modules/Inference/Utils/GpuCatalog.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
@@ -25,6 +26,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
+#include <QTimeZone>
 
 #include <algorithm>
 #include <iterator>
@@ -46,8 +48,8 @@ namespace Automation {
                 .defaultLyrics = value->defaultLyrics,
                 .packageSearchPaths = value->packageSearchPaths,
                 .recentProjectFiles = value->recentProjectFiles,
-                .gameDirectory = value->gameDir,
-                .pitchModelPath = value->rmvpePath,
+                .noteAnalyzer = value->noteAnalyzer,
+                .pitchAnalyzer = value->pitchAnalyzer,
                 .libreSvipPath = value->libreSVIPPath,
                 .drawParamWithFinger = value->drawParamWithFinger,
             };
@@ -60,8 +62,8 @@ namespace Automation {
             target->defaultLyrics = value.defaultLyrics;
             target->packageSearchPaths = value.packageSearchPaths;
             target->recentProjectFiles = value.recentProjectFiles;
-            target->gameDir = value.gameDirectory;
-            target->rmvpePath = value.pitchModelPath;
+            target->noteAnalyzer = value.noteAnalyzer;
+            target->pitchAnalyzer = value.pitchAnalyzer;
             target->libreSVIPPath = value.libreSvipPath;
             target->drawParamWithFinger = value.drawParamWithFinger;
         }
@@ -615,6 +617,14 @@ namespace Automation {
 
         bool audioRuntimeAvailable();
 
+        QList<SettingsGpuCandidateDto> gpuCandidatesFor(const QString &provider) {
+            QList<SettingsGpuCandidateDto> candidates;
+            for (const auto &gpu : GpuCatalog::forProvider(provider))
+                candidates.append({.index = gpu.index, .id = gpu.deviceId,
+                                   .displayName = gpu.description});
+            return candidates;
+        }
+
         ComputeDevicePublicValueDto publicComputeValue(const InferenceSettingsDto &inference) {
             return {
                 .executionProvider = inference.executionProvider,
@@ -783,19 +793,13 @@ namespace Automation {
                     available ? QString{}
                               : QStringLiteral("%1 is not available in this build").arg(name)));
             }
-            QList<SettingsGpuCandidateDto> gpuCandidates;
-            if (!configured.inference.selectedGpuId.isEmpty()) {
-                gpuCandidates.append({
-                    .index = configured.inference.selectedGpuIndex,
-                    .id = configured.inference.selectedGpuId,
-                    .displayName = configured.inference.selectedGpuId,
-                });
-            }
+            // Enumerate actual provider devices so gpu_id validation also works without a current
+            // selection.
             result.computeDevice = ComputeDevicePublicSettingsDto{
                 .configured = publicComputeValue(configured.inference),
                 .effective = publicComputeValue(effectiveSettings.inference),
                 .providerCandidates = std::move(providerCandidates),
-                .gpuCandidates = std::move(gpuCandidates),
+                .gpuCandidates = gpuCandidatesFor(configured.inference.executionProvider),
             };
             if (configured.inference.executionProvider !=
                 effectiveSettings.inference.executionProvider) {
@@ -984,6 +988,14 @@ namespace Automation {
             return AutomationUnit{};
         }
 
+        // Treat offset-less preset timestamps as UTC, matching the persisted format.
+        QDateTime parsePresetTimestamp(const QString &value) {
+            auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
+            if (time.isValid() && time.timeSpec() == Qt::LocalTime)
+                time.setTimeZone(QTimeZone::UTC);
+            return time;
+        }
+
         QList<SpeakerMixPresetDto> captureSpeakerMixPresets(AppOptions *options) {
             const auto root = options->general()->speakerMixPresets.toObject();
             if (root.value(QStringLiteral("schemaVersion")).toInt(kSpeakerMixPresetSchemaVersion) !=
@@ -1000,10 +1012,10 @@ namespace Automation {
                     .singerId = object.value(QStringLiteral("singerId")).toString(),
                     .packageVersion = QVersionNumber::fromString(
                         object.value(QStringLiteral("packageVersion")).toString()),
-                    .createdAt = QDateTime::fromString(
-                        object.value(QStringLiteral("createdAt")).toString(), Qt::ISODateWithMs),
-                    .updatedAt = QDateTime::fromString(
-                        object.value(QStringLiteral("updatedAt")).toString(), Qt::ISODateWithMs),
+                    .createdAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("createdAt")).toString()),
+                    .updatedAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("updatedAt")).toString()),
                 };
                 for (const auto &sourceValue : object.value(QStringLiteral("sources")).toArray()) {
                     const auto source = sourceValue.toObject();
@@ -1111,6 +1123,7 @@ namespace Automation {
                 }
             });
         services.snapshot = [options] { return captureAll(options); };
+        services.gpuCandidates = gpuCandidatesFor;
         services.publicSnapshot = [options, effectiveSettings] {
             return capturePublicSettings(options, *effectiveSettings);
         };

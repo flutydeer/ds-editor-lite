@@ -78,6 +78,8 @@ void InferenceProviderTests::providerResolution_data() {
         << QStringLiteral("CUDA") << false << ExecutionProvider::Cpu << true;
     QTest::newRow("unknown") << QStringLiteral("BogusEP") << true << ExecutionProvider::Cpu << true;
     QTest::newRow("empty") << QString() << true << ExecutionProvider::Cpu << true;
+    QTest::newRow("unsupported-coreml")
+        << QStringLiteral("CoreML") << true << ExecutionProvider::Cpu << true;
 }
 
 void InferenceProviderTests::providerResolution() {
@@ -98,7 +100,8 @@ void InferenceProviderTests::providerResolution() {
 
 void InferenceProviderTests::providerNamesRoundTrip() {
     for (const auto provider :
-         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda,
+          ExecutionProvider::CoreML}) {
         QCOMPARE(ExecutionProviderUtils::fromString(ExecutionProviderUtils::toString(provider)),
                  std::optional<ExecutionProvider>(provider));
     }

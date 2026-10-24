@@ -3,12 +3,17 @@
 
 #include <lite/ProjectModel/AppModel/Phonemes.h>
 #include <QList>
+#include <QSet>
+
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
 
 class Note;
 
 class InferInputNote {
 public:
-    explicit InferInputNote(const Note &note);
+    /// Notes with reserved-phoneme lyrics are rests.
+    explicit InferInputNote(const Note &note,
+                            const QSet<QString> &reservedPhonemes = ReservedPhonemes::forced());
 
     int id = -1;
     int start = 0;

@@ -66,6 +66,7 @@ public:
     static int trailingSyllabificationCount(const QString &lyric);
     static bool isSyllabificationLyric(const QString &lyric);
     bool isSyllabification() const;
+    bool isReservedPhoneme() const;
     bool canEditPhonemes() const;
 
     QMap<QString, QJsonObject> workspace() const;

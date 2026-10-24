@@ -21,13 +21,13 @@ find_package(QWindowKit CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(re2 CONFIG REQUIRED)
-find_package(cpp-pinyin CONFIG REQUIRED)
+find_package(cpp-pinyin2 CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
-find_package(dsinfer CONFIG REQUIRED)
 find_package(synthrt CONFIG REQUIRED)
-find_package(srt-audio CONFIG REQUIRED)
-find_package(srt-extract CONFIG REQUIRED)
+find_package(wolf CONFIG REQUIRED)
+find_package(otter CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(SndFile CONFIG REQUIRED)
 
 set(_platform_links)
@@ -103,12 +103,11 @@ target_link_libraries(EditorRuntime PUBLIC
         lite::AutomationWire
         lite::GUI
         unofficial::tinyexpr::tinyexpr
-        srt::synthrt
-        srt::diffsinger
-        srt::audio
-        srt::extract
-        SndFile::sndfile
+        synthrt::synthrt
+        wolf::wolf
+        otter::otter
         dsinfer::dsinfer
+        SndFile::sndfile
         re2::re2
 )
 

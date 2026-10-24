@@ -12,6 +12,11 @@ class VoiceAndInferenceTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void audioSlicingBoundariesAndResampling();
+    void extractedMidiNoteTiming_data();
+    void extractedMidiNoteTiming();
+    void extractedMidiNoteTimingAcrossTempoChanges();
+    void extractorProgressHandlesInvalidFractions();
     void speakerMixWeightConversions();
     void speakerMixWeightInterpolation_data();
     void speakerMixWeightInterpolation();
@@ -27,6 +32,8 @@ private slots:
     void voiceContextSingerCapabilityCopiesAreIndependent();
     void inputConversionPieceSpeakerMix_data();
     void inputConversionPieceSpeakerMix();
+    void inputConversionTrimsReservedLyrics_data();
+    void inputConversionTrimsReservedLyrics();
     void inputConversionWordSpeakerMapping_data();
     void inputConversionWordSpeakerMapping();
     void inputConversionFrameSpeakerMapping_data();
@@ -53,6 +60,9 @@ private slots:
     void inputConversionSurvivingMixCurvesAreRenormalized();
     void singerSessionCacheRetainsOnlySelectedSingers();
     void singerSessionCacheLatestRetainedIdentifiers();
+    void singerSessionCacheRefreshPreservesSelection();
+    void singerSessionCacheRejectsInvalidatedFactoryResults_data();
+    void singerSessionCacheRejectsInvalidatedFactoryResults();
     void singerSessionCacheActiveCallerAndStaleReplacement();
     void singerSessionCacheLeastRecentlyUsedEviction();
     void singerSessionCacheIdleEvictionAndActiveReuse();

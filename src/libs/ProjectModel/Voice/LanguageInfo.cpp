@@ -6,16 +6,17 @@ LanguageInfoData::LanguageInfoData() = default;
 
 LanguageInfoData::LanguageInfoData(QString id, QString name, QString g2p, QString dict,
                                    QString s2pMode, QString onsetMode, QString s2pFile,
-                                   QString onsetFile)
+                                   QString onsetFile, QString defaultLyric)
     : id(std::move(id)), name(std::move(name)), g2p(std::move(g2p)), dict(std::move(dict)),
       s2pMode(std::move(s2pMode)), onsetMode(std::move(onsetMode)), s2pFile(std::move(s2pFile)),
-      onsetFile(std::move(onsetFile)) {
+      onsetFile(std::move(onsetFile)), defaultLyric(std::move(defaultLyric)) {
 }
 
 LanguageInfoData::LanguageInfoData(const LanguageInfoData &other)
     : QSharedData(other), id(other.id), name(other.name), g2p(other.g2p), dict(other.dict),
       s2pMode(other.s2pMode), onsetMode(other.onsetMode), s2pFile(other.s2pFile),
-      onsetFile(other.onsetFile), localizedNames(other.localizedNames),
+      onsetFile(other.onsetFile), defaultLyric(other.defaultLyric),
+      localizedNames(other.localizedNames),
       hasG2pPackageVersion(other.hasG2pPackageVersion), g2pPackageVersion(other.g2pPackageVersion),
       g2pPackagePaths(other.g2pPackagePaths) {
 }
@@ -26,7 +27,8 @@ bool LanguageInfoData::operator==(const LanguageInfoData &other) const {
     return id == other.id && name == other.name && g2p == other.g2p && dict == other.dict &&
            s2pMode == other.s2pMode && onsetMode == other.onsetMode &&
            localizedNames == other.localizedNames && s2pFile == other.s2pFile &&
-           onsetFile == other.onsetFile && hasG2pPackageVersion == other.hasG2pPackageVersion &&
+           onsetFile == other.onsetFile && defaultLyric == other.defaultLyric &&
+           hasG2pPackageVersion == other.hasG2pPackageVersion &&
            g2pPackageVersion == other.g2pPackageVersion && g2pPackagePaths == other.g2pPackagePaths;
 }
 
@@ -43,10 +45,11 @@ LanguageInfo::LanguageInfo() : d(new LanguageInfoData()) {
 }
 
 LanguageInfo::LanguageInfo(QString id, QString name, QString g2p, QString dict, QString s2pMode,
-                           QString onsetMode, QString s2pFile, QString onsetFile)
+                           QString onsetMode, QString s2pFile, QString onsetFile,
+                           QString defaultLyric)
     : d(new LanguageInfoData(std::move(id), std::move(name), std::move(g2p), std::move(dict),
                              std::move(s2pMode), std::move(onsetMode), std::move(s2pFile),
-                             std::move(onsetFile))) {
+                             std::move(onsetFile), std::move(defaultLyric))) {
 }
 
 LanguageInfo::LanguageInfo(const LanguageInfo &other) = default;
@@ -149,6 +152,14 @@ void LanguageInfo::setS2pFile(const QString &s2pFile) {
 
 void LanguageInfo::setOnsetFile(const QString &onsetFile) {
     d->onsetFile = onsetFile;
+}
+
+QString LanguageInfo::defaultLyric() const {
+    return d->defaultLyric;
+}
+
+void LanguageInfo::setDefaultLyric(const QString &defaultLyric) {
+    d->defaultLyric = defaultLyric;
 }
 
 bool LanguageInfo::hasG2pPackageVersion() const {

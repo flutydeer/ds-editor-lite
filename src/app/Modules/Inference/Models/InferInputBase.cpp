@@ -2,6 +2,8 @@
 
 #include <lite/Support/MathUtils.h>
 
+#include "Modules/Inference/Utils/PitchSampling.h"
+
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QVersionNumber>
@@ -121,7 +123,8 @@ QList<double> InferInputBase::curveSampleSeconds(const InferParamCurve &curve) c
     positions.reserve(curve.values.size());
     const double pieceStartSeconds = timeline.tickToSec(pieceStartTick);
     for (qsizetype i = 0; i < curve.values.size(); ++i) {
-        const int globalTick = clipStartTick + curve.localStartTick + static_cast<int>(i) * 5;
+        const int globalTick =
+            clipStartTick + curve.localStartTick + static_cast<int>(i) * kParamCurveStepTicks;
         positions.append(timeline.tickToSec(globalTick) - pieceStartSeconds);
     }
     return positions;
@@ -152,6 +155,19 @@ QList<double> InferInputBase::resampleCurveToFrames(const InferParamCurve &curve
     return MathUtils::resample(curve.values, curveSampleSeconds(curve), targets);
 }
 
+QList<double> InferInputBase::resamplePitchToFrames(const InferParamCurve &curve, const int frames,
+                                                    const double intervalSeconds) const {
+    const auto targets = frameSampleSeconds(frames, intervalSeconds);
+    if (targets.isEmpty())
+        return {};
+    if (curve.values.isEmpty()) {
+        QList<double> result;
+        result.fill(0.0, targets.size());
+        return result;
+    }
+    return PitchSampling::resample(curve.values, curveSampleSeconds(curve), targets);
+}
+
 InferParamCurve InferInputBase::resampleFramesToCurve(const QList<double> &values,
                                                       const double intervalSeconds) const {
     InferParamCurve result;
@@ -160,9 +176,10 @@ InferParamCurve InferInputBase::resampleFramesToCurve(const QList<double> &value
 
     const int localPieceStart = pieceStartTick - clipStartTick;
     const int localPieceEnd = pieceEndTick - clipStartTick;
-    result.localStartTick = qRound(static_cast<double>(localPieceStart) / 5.0) * 5;
-    const int targetCount =
-        qMax(1, qCeil(static_cast<double>(localPieceEnd - result.localStartTick) / 5.0));
+    result.localStartTick =
+        qRound(static_cast<double>(localPieceStart) / kParamCurveStepTicks) * kParamCurveStepTicks;
+    const int targetCount = qMax(1, qCeil(static_cast<double>(localPieceEnd - result.localStartTick) /
+                                          kParamCurveStepTicks));
 
     QList<double> sourcePositions;
     sourcePositions.reserve(values.size());
@@ -173,7 +190,7 @@ InferParamCurve InferInputBase::resampleFramesToCurve(const QList<double> &value
     targetPositions.reserve(targetCount);
     const double pieceStartSeconds = timeline.tickToSec(pieceStartTick);
     for (int i = 0; i < targetCount; ++i) {
-        const int globalTick = clipStartTick + result.localStartTick + i * 5;
+        const int globalTick = clipStartTick + result.localStartTick + i * kParamCurveStepTicks;
         targetPositions.append(timeline.tickToSec(globalTick) - pieceStartSeconds);
     }
     result.values = MathUtils::resample(values, sourcePositions, targetPositions);

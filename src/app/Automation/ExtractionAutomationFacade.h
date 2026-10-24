@@ -56,7 +56,8 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// Analyzer to run, identified as <package>:inference/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int singingClipStartTick = 0;
         double audioMaterialOriginMs = 0.0;
@@ -71,10 +72,15 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// Analyzer to run, identified as <package>:inference/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;
+        /// Audio material origin and visible span in project milliseconds.
+        double audioMaterialOriginMs = 0.0;
+        double audioVisibleStartMs = 0.0;
+        double audioVisibleEndMs = 0.0;
         QString defaultLanguage;
         QString defaultLyric;
         QString clientRef;
@@ -156,6 +162,10 @@ namespace Automation {
                                    ParameterAutomationFacade &parameters,
                                    ProjectAutomationFacade &project, NoteAutomationFacade &notes,
                                    ExtractionRuntimeServices services = {});
+        ~ExtractionAutomationFacade();
+
+        ExtractionAutomationFacade(const ExtractionAutomationFacade &) = delete;
+        ExtractionAutomationFacade &operator=(const ExtractionAutomationFacade &) = delete;
 
         AutomationResult<TaskAcceptedResult> startPitch(const CommandContext &context,
                                                         ClipId audioClipId, ClipId singingClipId,
@@ -175,6 +185,9 @@ namespace Automation {
         void discardDocumentGeneration(const DocumentId &documentId);
 
     private:
+        /// Weak callback guard that expires with the facade.
+        std::shared_ptr<int> m_lifetime = std::make_shared<int>(0);
+
         struct JobRecord {
             DocumentVersion baseDocument;
             std::shared_ptr<IExtractionJob> job;

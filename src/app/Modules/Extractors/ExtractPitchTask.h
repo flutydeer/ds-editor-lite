@@ -1,11 +1,11 @@
 #ifndef EXTRACTPITCHTASK_H
 #define EXTRACTPITCHTASK_H
 
+#include <QList>
+#include <optional>
+#include <otter/Api/F0/1/F0ApiL1.h>
+
 #include "ExtractTask.h"
-
-#include <synthrt/Extract/PitchExtractor.h>
-
-#include <QMutex>
 
 class ExtractPitchTask final : public ExtractTask {
     Q_OBJECT
@@ -18,16 +18,18 @@ public:
 
     explicit ExtractPitchTask(Input input);
 
-    void terminate() override;
+    /// Converts aligned, finite frames with valid timing; an absent mask is inferred from F0.
+    [[nodiscard]] static std::optional<QList<double>>
+        pitchValues(const otter::Api::F0::L1::F0Result &curve);
 
     QList<ResultSegment> result;
 
 private:
     void runTask() override;
-    static std::vector<float> freqToMidi(const std::vector<float> &frequencies);
-    ResultSegment processOutput(const QList<double> &values, double frameOffsetMs) const;
+    static double freqToMidi(double frequency);
 
-    mutable QMutex m_extractorMutex;
-    srt::core::NO<srt::extract::PitchExtractor> m_extractor;
+    /// Place the curve using the analyzer's file-relative start and frame interval in milliseconds.
+    ResultSegment placeOnTimeline(const QList<double> &values, double startMs,
+                                  double intervalMs) const;
 };
 #endif // EXTRACTPITCHTASK_H

@@ -2,6 +2,7 @@ project(TestPreferences)
 
 lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp
+    tst_general_option.cpp
     tst_inference_settings.cpp
     tst_preferences.h
     tst_automation_option.cpp

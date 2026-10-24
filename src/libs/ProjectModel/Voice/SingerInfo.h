@@ -47,6 +47,7 @@ struct SingerCapabilitySummary {
     std::optional<bool> vocoderPitchControllable;
 
     QList<QString> effectivePhonemes; ///< non-vocoder stage intersection
+    QStringList reservedPhonemes; ///< singer-specific rest / breath markers
     int phonemeConsistency = 0;
     QStringList phonemeWarnings;
     bool phonemeDegraded = false;
@@ -83,6 +84,9 @@ public:
     QList<SpeakerInfo> speakers() const;
     QList<LanguageInfo> languages() const;
     QString g2pId(const QString &language) const;
+
+    /// Linguist-declared default lyric metadata for the language, empty when unspecified.
+    QString defaultLyricForLanguage(const QString &language) const;
     QString defaultLanguage() const;
     QString defaultG2pId() const;
     QString defaultDict() const;

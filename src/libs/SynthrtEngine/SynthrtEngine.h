@@ -1,50 +1,40 @@
-//
-// SynthrtEngine - v2 component facade.
-//
-// Combines the independent synthrt v2 components (VoicebankSession,
-// LanguageService, Runtime + ONNX driver) into a single facade that the lite
-// module layer (PackageManager / InferEngine / Language modules) delegates to.
-//
-// VoicebankSession is the synthrt v2 chokepoint for voicebank scanning,
-// language metadata, ensureModelSet / convertG2p / convertS2p. SynthrtEngine
-// owns the Runtime and LanguageService lifetimes and borrows them to the
-// session via SessionResources.
-//
-// v3 changes vs v2:
-//   - Removed PackageCatalog: VoicebankSession.snapshot() is the single source
-//     of truth for package/singer/manifest queries.
-//   - Removed SingerModelSession: InferEngine acquires ModelSetHandle directly
-//     via VoicebankSession::ensureModelSet().
-//   - VoicebankSession.refresh() handles voicebank scanning + LanguageService
-//     metadata initialization in one call.
-//
-// Design reference: docs/design/design-guidelines.md (ARCH-03, ARCH-04)
-//
-
 #ifndef SYNTHRT_ENGINE_H
 #define SYNTHRT_ENGINE_H
 
-#include <atomic>
-#include <condition_variable>
-#include <memory>
+#include <cstdint>
 #include <filesystem>
-#include <shared_mutex>
+#include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include <QObject>
 #include <QString>
 #include <QStringList>
 
-#include <synthrt/Core/Core/Runtime.h>
-#include <synthrt/Core/Support/Expected.h>
-#include <synthrt/SVS/Inference.h>
-#include <synthrt/SVS/InferenceContrib.h>
-
-#include <synthrt/G2P/LanguageService.h>
-#include <diffsinger/Session/VoicebankSession.h>
-#include <synthrt/Driver/OnnxSetup.h>
+#include <synthrt/Core/SynthUnit.h>
+#include <synthrt/Support/Expected.h>
 
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
+
+#include "LanguageBridge.h"
+#include "VoicebankCatalog.h"
+
+// Include AnalysisExecutive.h where an AnalyzerLease is destroyed.
+namespace otter {
+    class AnalysisExecutive;
+}
+
+namespace lite::synthrt {
+
+    class SingerPipeline;
+    class Bootstrap;
+
+    QString f0Contract();
+
+    QString noteContract();
+
+}
 
 class SynthrtEngine final : public QObject {
     Q_OBJECT
@@ -55,179 +45,140 @@ private:
     ~SynthrtEngine() override;
 
 public:
-    class RuntimeOperationLease {
-    public:
-        RuntimeOperationLease() = default;
-        RuntimeOperationLease(RuntimeOperationLease &&) noexcept = default;
-        RuntimeOperationLease &operator=(RuntimeOperationLease &&) noexcept = default;
-
-        Q_DISABLE_COPY(RuntimeOperationLease)
-
-        explicit operator bool() const noexcept;
-        srt::core::Runtime &runtime() const;
-
-    private:
-        friend class SynthrtEngine;
-        RuntimeOperationLease(std::shared_lock<std::shared_mutex> lock,
-                              srt::core::Runtime *runtime);
-
-        std::shared_lock<std::shared_mutex> m_lock;
-        srt::core::Runtime *m_runtime = nullptr;
-    };
-
     static SynthrtEngine &instance();
 
     Q_DISABLE_COPY_MOVE(SynthrtEngine)
 
-    // === Initialization (call once at startup) ===
-    //
-    // Sets up Runtime and extractor discovery before the package catalog and
-    // LanguageService. Extraction therefore remains available if package or
-    // language initialization fails.
-    //
-    // voicebankPaths  — directories containing voicebank packages (desc.json)
-    // g2pPackagePaths — official G2P package paths
-    // ep              — ONNX execution provider ("CPU" / "DirectML" / "CUDA" / "CoreML")
-    // deviceIndex     — GPU device index (ignored for CPU)
-    // deferLanguageModels — if true, skip Stage 2 (loading all G2P ONNX
-    //   sessions) during startup. The first actual G2P conversion then loads
-    //   models lazily via LanguageService::initializeModels() (idempotent,
-    //   guarded by Manager's internal mutex), triggered from
-    //   VoicebankSession::ensureLanguageReady() on first use.
-    bool initialize(const QStringList &voicebankPaths, const QStringList &g2pPackagePaths,
+    // Initialize with voicebank scan roots, dependency search paths, and deployment directories.
+    // Voicebank roots are scanned one level deep; packagePaths is used for dependency resolution.
+    bool initialize(const QStringList &voicebankPaths, const QStringList &packagePaths,
                     const QString &ep = QStringLiteral("CPU"), int deviceIndex = 0,
-                    bool deferLanguageModels = false);
+                    const std::filesystem::path &pluginRoot = defaultPluginRoot(),
+                    const std::filesystem::path &runtimePath = defaultRuntimePath());
 
-    bool initialized() const;
-    /// True when initialization finishes, including rejected host prerequisites or shutdown.
+    bool initialized() const noexcept;
+
+    /// Metadata and dictionary-only languages remain usable without an ONNX driver.
+    bool inferenceReady() const;
+
+    /// True once initialization was attempted, including a failed attempt.
     bool initializationDone() const noexcept;
-    /// Releases initialization waiters when the host cannot start the shared runtime.
+
+    /// Releases waiters when initialization is rejected by the host or during shutdown.
     void completeInitializationAttempt() noexcept;
-    /// Block until initialize() has been attempted (success or failure), or
-    /// \p timeoutMs elapses. Returns true if initialization finished within
-    /// the timeout (check initialized() afterwards to see if it succeeded),
-    /// false on timeout. Uses a condition variable internally — no polling.
-    /// Safe to call from multiple threads concurrently.
-    bool waitForInitialization(int timeoutMs = 30000) const;
-    /// True once VoicebankSession has completed Stage 1 (voicebank scan +
-    /// LanguageService metadata). PackageManager and other snapshot consumers
-    /// can query VoicebankSnapshot via refreshVoicebanks() / singerSnapshot()
-    /// once this returns true, even while Stage 2 (ONNX model loading) is
-    /// still in progress.
-    bool sessionReady() const noexcept;
-    /// Block until the session is ready or initialization finishes, fails, or is shut down.
-    /// Returns false on timeout; callers must still check session readiness after true.
-    bool waitForSession(int timeoutMs = 30000) const;
-    bool runtimeInitialized() const noexcept;
-    bool pitchExtractionReady() const noexcept;
-    bool midiExtractionReady() const noexcept;
+
+    static constexpr int kDefaultInitializationTimeoutMs = 30'000;
+
+    /// Wait for an initialization attempt. Returns false on timeout; check initialized() for
+    /// success.
+    bool waitForInitialization(int timeoutMs = kDefaultInitializationTimeoutMs) const;
+
     bool isAboutToQuit() const noexcept;
     void shutdown() noexcept;
 
-    static std::filesystem::path pluginRoot();
+    static std::filesystem::path defaultPluginRoot();
 
-    [[nodiscard]] RuntimeOperationLease acquirePitchExtractionOperation();
-    [[nodiscard]] RuntimeOperationLease acquireMidiExtractionOperation();
+    static std::filesystem::path defaultRuntimePath();
 
-    // === Voicebank snapshot (delegates to VoicebankSession) ===
-    //
-    // Re-scan voicebank directories and retain per-package diagnostics.
-    // VoicebankSession handles voicebank scanning, LanguageService metadata
-    // update, and atomic snapshot publication internally.
-    srt::core::Expected<ds::session::RefreshResult>
-        refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths);
+    /// CUDA payload directory below defaultRuntimePath().
+    static std::filesystem::path defaultCudaRuntimePath();
 
-    /// Cached singer snapshot from the current VoicebankSession snapshot.
-    srt::core::Expected<ds::bank::SingerSnapshot>
-        singerSnapshot(const SingerIdentifier &identifier) const;
+    static std::filesystem::path defaultLanguagePackagePath();
 
-    /// Lookup SingerIdentifier by singerId (scans all packages).
-    srt::core::Expected<SingerIdentifier> findSinger(const QString &singerId) const;
 
-    /// Exact package directory for a versioned singer identifier.
-    std::filesystem::path packageDirectory(const SingerIdentifier &identifier) const;
+    enum class RescanMode {
+        /// Scan with a fresh unit. Existing leases retain the old unit until they finish.
+        Reload,
+        /// Reuse loaded handles when scanning, including the initial post-initialize scan.
+        ReuseLoaded,
+    };
 
-    // === VoicebankSession (synthrt v2 chokepoint) ===
-    //
-    // VoicebankSession provides ensureModelSet() / ensureLanguageReady() /
-    // convertG2p() / convertS2p() with version-aware routing. InferEngine,
-    // G2pService and the DiffSinger S2P/G2P tasks delegate to session().
-    // The session borrows m_runtime and m_langSvc via SessionResources;
-    // SynthrtEngine owns their lifetime.
-    ds::session::VoicebankSession &session();
-    const ds::session::VoicebankSession &session() const;
+    /// Publish a catalog and report packages that failed to open.
+    /// Reload advances catalogGeneration(); ReuseLoaded advances it when package identities change.
+    srt::Expected<std::vector<lite::synthrt::SingerEntry>>
+        refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths,
+                          std::vector<lite::synthrt::PackageProblem> *problems = nullptr,
+                          RescanMode mode = RescanMode::Reload,
+                          std::vector<lite::synthrt::PackageEntry> *packages = nullptr);
 
-    // === Language service (replaces G2pConvertRunner / S2pMgr / OnsetMarkerMgr) ===
-    //
-    // Resolve the language route (G2P context + S2P resource + onset) for a
-    // singer + language combination.
-    srt::core::Expected<srt::g2p::LanguageRoute>
-        resolveLanguageRoute(const SingerIdentifier &identifier, const QString &languageId) const;
+    /// Validate in an isolated unit without changing the live catalog.
+    srt::Expected<void> validatePackage(const std::filesystem::path &path) const;
 
-    const srt::g2p::LanguageService &languageService() const noexcept;
+    std::vector<lite::synthrt::SingerEntry> singers() const;
 
-    // Resolve the S2P LanguageResource independently (cached). Use this when
-    // the user edits pronunciation after G2P has already run and only S2P
-    // needs to re-execute. Returns shared_ptr so callers can call convert()
-    // directly without managing resource lifetime.
-    srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
-        resolveS2pResource(const SingerIdentifier &identifier, const QString &languageId) const;
+    /// Resolve an exact package version, or the highest loaded version when unspecified.
+    srt::Expected<lite::synthrt::SingerEntry> singer(const SingerIdentifier &identifier) const;
 
-    // Ensure G2P language models are loaded (idempotent, thread-safe via
-    // synthrt's Manager init lock). When called after initialize() ran with
-    // deferLanguageModels=true, this kicks off the deferred Stage 2 load so
-    // the first G2P conversion does not stall the calling thread. Intended to
-    // be invoked from a background thread (e.g. QThreadPool::globalInstance())
-    // right after startup so the FillLyric dialog and inference tasks find
-    // models ready.
-    bool warmUpLanguageModels();
 
-    // === Runtime access ===
-    srt::core::Runtime &runtime();
-    const srt::core::Runtime &runtime() const;
+    /// Lazily create a shared pipeline. Active holders retain its package across refreshes.
+    /// The engine holds only a weak reference; the last holder releases the models.
+    srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
+        pipelineFor(const SingerIdentifier &identifier);
+
+    /// Catalog revision used to invalidate cached model data.
+    std::uint64_t catalogGeneration() const noexcept;
+
+
+    /// List the highest loaded version of each analyzer, sorted by package and contribution.
+    /// An empty interfaceName selects all supported contracts.
+    std::vector<lite::synthrt::AnalyzerEntry>
+        analyzers(const QString &interfaceName = QString()) const;
+
+    /// Own the runtime, package, and executive in destruction-safe order.
+    struct AnalyzerLease {
+        /// Declared first so the executive and package are destroyed before their runtime.
+        std::shared_ptr<lite::synthrt::Bootstrap> unitOwner;
+        srt::PackageHandle package;
+        /// Borrowed declaration, valid while the package is held.
+        const srt::ContribSpec *spec = nullptr;
+        std::unique_ptr<otter::AnalysisExecutive> executive;
+    };
+
+    /// Create an uncached analyzer using the highest loaded package version.
+    srt::Expected<AnalyzerLease> createAnalyzer(const QString &reference);
+
+
+    /// Query language availability without loading models or packages.
+    bool canConvert(const SingerIdentifier &identifier, const QString &language) const;
+
+    /// Failure reason, or an empty string for an available route.
+    QString languageUnavailableReason(const SingerIdentifier &identifier,
+                                      const QString &language) const;
+
+    /// Deepest usable conversion layer, or no value. See LanguageBridge::maxDepth().
+    std::optional<lite::synthrt::LanguageBridge::Depth> maxDepth(const SingerIdentifier &identifier,
+                                                                 const QString &language) const;
+
+    srt::Expected<std::vector<lite::synthrt::LanguageBridge::Result>>
+        convert(const SingerIdentifier &identifier, const QString &language,
+                const std::vector<lite::synthrt::LanguageBridge::Word> &words,
+                lite::synthrt::LanguageBridge::Depth depth =
+                    lite::synthrt::LanguageBridge::Depth::Onsets) const;
+
+    /// Forced SP/AP markers plus the singer's declared markers, without duplicates.
+    std::vector<std::string> reservedPhonemesOf(const SingerIdentifier &identifier) const;
+
+
+    /// Borrowed unit pointer, or null before initialization and after shutdown.
+    /// Valid only until the next reload or shutdown; prefer the scoped operations above.
+    srt::SynthUnit *unitIfReady() noexcept;
+
+signals:
+    /// Synchronous cache invalidation before a reload releases and reopens package handles.
+    /// Emitted before acquiring the SDK lifecycle lock so model teardown can serialize safely.
+    void voicebanksAboutToReload();
+
+    /// Emitted for route/executive failures, not per-word failures.
+    /// Consumers must refresh cached language availability.
+    void languageRouteFailed(const QString &language);
 
 private:
-    std::atomic<bool> m_initialized{false};
-    std::atomic<bool> m_initializationDone{false};
-    std::atomic<bool> m_runtimeInitialized{false};
-    std::atomic<bool> m_pitchExtractionReady{false};
-    std::atomic<bool> m_midiExtractionReady{false};
-    std::atomic<bool> m_aboutToQuit{false};
+    /// Look up a declaration and optionally its package handle. Requires the lifecycle lock.
+    srt::ContribSpec *findAnalyzer(const QString &reference,
+                                   const srt::PackageHandle **package = nullptr) const;
 
-    // Signaled when initialize() finishes (success or failure). Paired with
-    // m_initializationDone as the predicate. PackageManager and other consumers
-    // wait on this instead of polling.
-    mutable std::mutex m_initDoneMutex;
-    mutable std::condition_variable m_initDoneCv;
-    // Signaled when VoicebankSession becomes ready (Stage 1 complete). Paired
-    // with m_sessionInitialized. PackageManager waits on this so it can query
-    // the snapshot without blocking on Stage 2 (ONNX model loading).
-    mutable std::mutex m_sessionReadyMutex;
-    mutable std::condition_variable m_sessionReadyCv;
-
-    // Components (v3 architecture: VoicebankSession is the single chokepoint)
-    // Shared_ptr so SessionResources can borrow the LanguageService without
-    // extending its lifetime (SynthrtEngine owns both m_langSvc and m_session;
-    // the session does not outlive the engine).
-    std::shared_ptr<srt::g2p::LanguageService> m_langSvc =
-        std::make_shared<srt::g2p::LanguageService>();
-    srt::core::Runtime m_runtime;
-    // VoicebankSession: the synthrt v2 chokepoint for voicebank scanning,
-    // ensureModelSet / convertG2p / convertS2p / ensureLanguageReady.
-    // Default-constructed until initialize() move-assigns a resource-injected
-    // instance. VoicebankSession handles internal locking; no external mutex
-    // is needed for refreshVoicebanks().
-    ds::session::VoicebankSession m_session;
-    bool m_sessionInitialized = false;
-
-    mutable std::mutex m_stateMutex;
-    mutable std::shared_mutex m_runtimeLifecycleMutex;
-
-    // Internal helpers
-    bool initializeRuntime(const std::filesystem::path &pluginRoot, const QString &ep,
-                           int deviceIndex);
-    void initializeExtractors(const std::filesystem::path &pluginRoot);
-    bool initializeG2pOnnxDriver();
+    class Impl;
+    std::unique_ptr<Impl> _impl;
 };
 
 #endif // SYNTHRT_ENGINE_H

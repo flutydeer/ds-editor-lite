@@ -845,8 +845,16 @@ namespace Automation {
             [patch](SettingsSnapshotDto &target) -> AutomationResult<AutomationUnit> {
                 if (patch.defaultLanguage)
                     target.general.defaultSingingLanguage = patch.defaultLanguage->trimmed();
-                if (patch.defaultLyrics)
-                    target.general.defaultLyrics = *patch.defaultLyrics;
+                if (patch.defaultLyrics) {
+                    // Only named languages change; an empty lyric removes that language's override.
+                    for (auto it = patch.defaultLyrics->constBegin();
+                         it != patch.defaultLyrics->constEnd(); ++it) {
+                        if (it.value().trimmed().isEmpty())
+                            target.general.defaultLyrics.remove(it.key());
+                        else
+                            target.general.defaultLyrics.insert(it.key(), it.value());
+                    }
+                }
                 return AutomationUnit{};
             },
             [](const SettingsSnapshotDto &target) { return validatePublicSinging(target.general); },
@@ -1016,11 +1024,14 @@ namespace Automation {
                         QStringLiteral("execution_provider"),
                         QStringLiteral("Inference provider is unavailable"));
                 }
+                const auto candidates = m_services.gpuCandidates
+                                            ? m_services.gpuCandidates(target.inference.executionProvider)
+                                            : publicSnapshot.computeDevice
+                                                  ? publicSnapshot.computeDevice->gpuCandidates
+                                                  : QList<SettingsGpuCandidateDto>{};
                 if (target.inference.executionProvider != QStringLiteral("CPU") &&
-                    publicSnapshot.computeDevice &&
-                    !publicSnapshot.computeDevice->gpuCandidates.isEmpty() &&
+                    (m_services.gpuCandidates || !candidates.isEmpty()) &&
                     !target.inference.selectedGpuId.isEmpty()) {
-                    const auto &candidates = publicSnapshot.computeDevice->gpuCandidates;
                     const auto found = std::any_of(
                         candidates.cbegin(), candidates.cend(), [&](const auto &candidate) {
                             return candidate.available &&

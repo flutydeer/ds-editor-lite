@@ -3,6 +3,9 @@
 
 #include <QList>
 
+/// Parameter-curve spacing in ticks. Keep inference and extraction aligned with DrawCurve's step.
+inline constexpr int kParamCurveStepTicks = 5;
+
 class InferParamCurve {
 
 public:

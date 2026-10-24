@@ -3,6 +3,8 @@
 #include "Global/AppGlobal.h"
 #include "Utils/UiLanguageManager.h"
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
+#include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QEvent>
 #include <QSet>
@@ -26,6 +28,18 @@ namespace {
             return packageName.trimmed();
         return id;
     }
+
+    // QStandardItemModel stores item flags in Qt::UserRole - 1.
+    constexpr int kUnavailableFlagsRole = Qt::UserRole - 1;
+    constexpr int kUnavailableReasonRole = Qt::UserRole + 2;
+
+    // Use translated fallback text only when the engine supplied no reason.
+    QString unavailableToolTipText(const QString &reason) {
+        const auto trimmed = reason.trimmed();
+        if (!trimmed.isEmpty())
+            return trimmed;
+        return LanguageComboBox::tr("This singer does not serve this language");
+    }
 }
 
 LanguageComboBox::LanguageComboBox(const QString &langKey, const WheelEventPolicy wheelEventPolicy,
@@ -33,8 +47,10 @@ LanguageComboBox::LanguageComboBox(const QString &langKey, const WheelEventPolic
     : ComboBox(wheelEventPolicy, parent) {
     setLanguageCodes(AppGlobal::languageNames, langKey);
     connect(this, &QComboBox::currentIndexChanged, this, [this](int index) {
-        if (index >= 0)
+        if (index >= 0) {
+            refreshCurrentToolTip();
             emit currentLanguageChanged(itemData(index).toString());
+        }
     });
 }
 
@@ -48,11 +64,23 @@ void LanguageComboBox::setCurrentLanguage(const QString &language) {
 
 QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
                                        const QString &currentLanguage,
-                                       const QString &preferredLanguage) {
+                                       const QString &preferredLanguage,
+                                       const QStringList &unavailable,
+                                       const QHash<QString, QString> &unavailableReasons) {
     QSignalBlocker blocker(this);
     clear();
     m_languages = languages;
 
+    // Availability comes from the unavailable set; reasons only supply tooltip text.
+    QHash<QString, QString> disabled;
+    for (const auto &code : unavailable) {
+        const auto id = code.trimmed();
+        if (!id.isEmpty())
+            disabled.insert(id, unavailableReasons.value(id).trimmed());
+    }
+
+    // Offer 'Follow singer' when no language is selectable.
+    int selectable = 0;
     QSet<QString> addedIds;
     for (const auto &language : languages) {
         const auto id = language.id().trimmed();
@@ -62,23 +90,48 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         addItem(displayName(id, language.displayName(UiLanguageManager::currentBcp47Candidates())),
                 id);
         setItemData(count() - 1, language.name(), Qt::UserRole + 1);
+        if (disabled.contains(id)) {
+            markUnavailableItem(count() - 1, disabled.value(id));
+        } else {
+            ++selectable;
+        }
     }
 
-    if (count() == 0) {
+    // Keep undeclared languages visible, but never offer the unknown sentinel.
+    for (const auto &code : unavailable) {
+        const auto id = code.trimmed();
+        if (id.isEmpty() || id == QStringLiteral("unknown") || addedIds.contains(id))
+            continue;
+        addedIds.insert(id);
+        addItem(displayName(id, QString()), id);
+        setItemData(count() - 1, QString(), Qt::UserRole + 1);
+        markUnavailableItem(count() - 1, disabled.value(id));
+    }
+
+    if (selectable == 0) {
         // no selectable languages (usually no singer) -> show "Follow singer" (auto/unspecified),
         // id is empty
-        addItem(tr("Follow singer"), QString());
+        insertItem(0, tr("Follow singer"), QString());
         setItemData(0, QString(), Qt::UserRole + 1);
     }
 
-    auto selected = currentLanguage;
-    if (findData(selected) < 0)
-        selected = preferredLanguage;
-    if (findData(selected) < 0)
-        selected = itemData(0).toString();
-    setCurrentIndex(findData(selected));
+    auto selectedIndex = findData(currentLanguage);
+    if (selectedIndex < 0) {
+        selectedIndex = findData(preferredLanguage);
+        if (selectedIndex < 0 || disabled.contains(itemData(selectedIndex).toString())) {
+            selectedIndex = -1;
+            for (int index = 0; index < count(); ++index) {
+                if (!disabled.contains(itemData(index).toString())) {
+                    selectedIndex = index;
+                    break;
+                }
+            }
+        }
+    }
+    setCurrentIndex(selectedIndex);
     adjustWidthToContent();
-    return selected;
+    refreshCurrentToolTip();
+    return currentData().toString();
 }
 
 QString LanguageComboBox::setLanguageCodes(const QStringList &languageCodes,
@@ -102,6 +155,67 @@ QString LanguageComboBox::setLanguageCodes(const QStringList &languageCodes,
     return selected;
 }
 
+void LanguageComboBox::markUnavailableItem(const int index, const QString &reason) {
+    setItemData(index, 0, kUnavailableFlagsRole);
+    setItemData(index, reason.trimmed(), kUnavailableReasonRole);
+    setItemData(index, unavailableToolTipText(reason), Qt::ToolTipRole);
+}
+
+void LanguageComboBox::refreshCurrentToolTip() {
+    const int index = currentIndex();
+    const bool unavailable = index >= 0 && itemData(index, kUnavailableFlagsRole).isValid();
+    if (!unavailable) {
+        if (!m_reasonToolTip.isEmpty()) {
+            setToolTip(m_baseToolTip);
+            m_reasonToolTip.clear();
+        }
+        return;
+    }
+
+    const auto text = unavailableToolTipText(itemData(index, kUnavailableReasonRole).toString());
+    if (toolTip() != m_reasonToolTip) // caller just set its own tooltip: keep it, restore it later
+        m_baseToolTip = toolTip();
+    m_reasonToolTip = text;
+    setToolTip(text);
+}
+
+QStringList LanguageComboBox::unavailableLanguages(const SingerInfo &singerInfo,
+                                                   QHash<QString, QString> &reasons) {
+    reasons.clear();
+
+    QSet<QString> declared;
+    for (const auto &language : singerInfo.languages()) {
+        const auto id = language.id().trimmed();
+        if (!id.isEmpty())
+            declared.insert(id);
+    }
+
+    QStringList unavailable;
+    // Keep undeclared languages visible so an explicit selection is not silently replaced.
+    for (const auto &code : AppGlobal::languageNames) {
+        if (!declared.contains(code))
+            unavailable.append(code);
+    }
+
+    // Only resolved singers have language routes to probe.
+    if (singerInfo.resolutionState() != ResolutionState::Resolved)
+        return unavailable;
+
+    const auto identifier = singerInfo.identifier();
+    QSet<QString> queried;
+    for (const auto &language : singerInfo.languages()) {
+        const auto id = language.id().trimmed();
+        if (id.isEmpty() || queried.contains(id))
+            continue;
+        queried.insert(id);
+        if (SynthrtEngine::instance().canConvert(identifier, id))
+            continue;
+        unavailable.append(id);
+        reasons.insert(id, SynthrtEngine::instance().languageUnavailableReason(identifier, id));
+    }
+    return unavailable;
+}
+
 void LanguageComboBox::changeEvent(QEvent *event) {
     ComboBox::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -120,7 +234,13 @@ void LanguageComboBox::refreshDisplayNames() {
             }
         }
         setItemText(index, displayName(id, packageName));
+        // Recompute translated fallback tooltips when the UI language changes.
+        if (itemData(index, kUnavailableFlagsRole).isValid()) {
+            const auto reason = itemData(index, kUnavailableReasonRole).toString();
+            setItemData(index, unavailableToolTipText(reason), Qt::ToolTipRole);
+        }
     }
+    refreshCurrentToolTip();
     adjustWidthToContent();
 }
 

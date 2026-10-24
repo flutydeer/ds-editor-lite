@@ -2,9 +2,8 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
-#include "UI/Dialogs/Base/Dialog.h"
+#include "ExtractionErrorDialog.h"
 
-#include <lite/GUI/Controls/AccentButton.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
@@ -14,14 +13,7 @@ namespace {
     }
 
     void showExtractionError(const QString &message) {
-        Dialog dialog;
-        dialog.setTitle(PitchExtractController::tr("Task Failed"));
-        dialog.setMessage(message);
-        dialog.setModal(true);
-        const auto close = new AccentButton(PitchExtractController::tr("Close"));
-        QObject::connect(close, &Button::clicked, &dialog, &Dialog::accept);
-        dialog.setPositiveButton(close);
-        dialog.exec();
+        Extractors::showErrorDialog(PitchExtractController::tr("Task Failed"), PitchExtractController::tr("Close"), message);
     }
 }
 

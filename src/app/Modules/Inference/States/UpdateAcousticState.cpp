@@ -1,5 +1,7 @@
 #include "UpdateAcousticState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <QTimer>
 
 #include "Modules/Inference/InferenceAutomationBridge.h"
@@ -10,7 +12,7 @@ UpdateAcousticState::UpdateAcousticState(InferPipeline &pipeline, QState *parent
 }
 
 void UpdateAcousticState::onEntry(QEvent *event) {
-    qDebug() << "UpdateAcousticState::onEntry";
+    qCDebug(logInferState) << "UpdateAcousticState::onEntry";
     QState::onEntry(event);
 
     const auto gate = m_pipeline.resolveApplyContext();
@@ -44,6 +46,6 @@ void UpdateAcousticState::onEntry(QEvent *event) {
 }
 
 void UpdateAcousticState::onExit(QEvent *event) {
-    qDebug() << "UpdateAcousticState::onExit";
+    qCDebug(logInferState) << "UpdateAcousticState::onExit";
     QState::onExit(event);
 }
