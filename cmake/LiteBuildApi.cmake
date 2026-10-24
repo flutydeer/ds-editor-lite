@@ -636,9 +636,11 @@ function(lite_deploy_application _target)
         endif()
     endif()
 
-    # Plugin binaries come from the vcpkg tree, where the synthrt port keeps
-    # PDBs next to the plugin DLLs (vcpkg_copy_pdbs covers lib/plugins), so
-    # the directory copy above stages them for Debug/RelWithDebInfo installs.
+    # Plugin binaries come from the vcpkg tree, where the ports keep PDBs next
+    # to the plugin DLLs. They collect the DLLs recursively because plugins
+    # install into lib/plugins/<library>/<category>/ and a single-level glob
+    # matches nothing. The directory copy above stages what it finds for
+    # Debug/RelWithDebInfo installs.
     # Release-family installs sweep them (and any macOS dSYM bundles) to
     # honor the symbol-free installer spec — the same config-driven spirit
     # as the ort gate above.
@@ -650,10 +652,17 @@ function(lite_deploy_application _target)
                 foreach(_lite_plugin_pdb IN LISTS _lite_plugin_pdbs)
                     file(REMOVE \"\${_lite_plugin_pdb}\")
                 endforeach()
+                # GLOB_RECURSE with LIST_DIRECTORIES true also returns the directories it
+                # traversed, so anything that is not a dSYM bundle must be dropped before
+                # the removal, or the sweep would delete the plugin trees themselves.
                 file(GLOB_RECURSE _lite_plugin_dsyms LIST_DIRECTORIES true
                     \"${_lite_plugins_root}/*.dSYM\")
                 foreach(_lite_plugin_dsym IN LISTS _lite_plugin_dsyms)
-                    file(REMOVE_RECURSE \"\${_lite_plugin_dsym}\")
+                    get_filename_component(_lite_plugin_dsym_ext
+                        \"\${_lite_plugin_dsym}\" LAST_EXT)
+                    if(_lite_plugin_dsym_ext STREQUAL \".dSYM\")
+                        file(REMOVE_RECURSE \"\${_lite_plugin_dsym}\")
+                    endif()
                 endforeach()
             endif()
         ")
