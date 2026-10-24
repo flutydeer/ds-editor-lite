@@ -33,6 +33,7 @@ public:
     [[nodiscard]] static quint16 generateRandomControlPort(quint16 previousPort = 0);
 
     bool mcpEnabled = false;
+    bool rpcEnabled = false;
     quint16 controlPort;
     ControlLevel controlLevel = ControlLevel::L1;
     QMap<QString, bool> customPermissions;

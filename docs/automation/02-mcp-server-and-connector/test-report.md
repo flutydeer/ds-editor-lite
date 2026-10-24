@@ -43,7 +43,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
 - 176 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
   在 handler 前失败；output Schema 由确定性契约测试覆盖，运行时不逐次 assert；
-- L0、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；L0 固有工具始终可用、不进入 Custom 列表，Connector exclude 也不能移除；
+- L0、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；L0 固有工具始终可用，在 Custom 工具集页只读展示（开关禁用、不持久化），Connector exclude 也不能移除；
 - L0 的 `application.request_exit/restart` 只接受可选 `discard_changes`；dirty 默认拒绝并指向该字段，显式丢弃或 clean 工程返回动作明确的 accepted 结果；
 - 动态 `value_sources` 只服务显式发现；正常 invocation 不自动回查 provider；
 - 标准 MCP `tools/list` 提供工具目录和完整 Schema，`application.get_status` 提供全局工具集版本、

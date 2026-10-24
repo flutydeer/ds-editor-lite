@@ -1,15 +1,12 @@
 #ifndef BUTTON_H
 #define BUTTON_H
 
-#include <lite/GUI/Utils/DropShadow.h>
 #include <lite/GUI/Controls/WheelEventPolicy.h>
 
-#include <QGraphicsDropShadowEffect>
 #include <QPushButton>
 
 class Button : public QPushButton, public WheelEventPolicySupport {
     Q_OBJECT
-    DROP_SHADOW_EFFECT
 
 public:
     explicit Button(QWidget *parent = nullptr);

@@ -5,6 +5,7 @@
 #include "IOptionPage.h"
 
 #include <QMap>
+#include <QSet>
 #include <QStringList>
 
 class ComboBox;
@@ -16,6 +17,7 @@ class OptionsCardItem;
 class PathEditor;
 class SwitchButton;
 class QVBoxLayout;
+class OptionSubPageStack;
 
 namespace SVS {
     class ExpressionSpinBox;
@@ -33,6 +35,10 @@ public:
 protected:
     void modifyOption() override;
     QWidget *createContentWidget() override;
+    // The sub-pages carry their own insets: the toolset's inner scroll area has
+    // to span to the window's right edge so its overlay scrollbar pins there
+    // like the option pages' own scrollbars.
+    [[nodiscard]] QMargins contentMargins() const override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -51,6 +57,7 @@ private:
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
+    SwitchButton *m_rpcEnabled = nullptr;
     Button *m_randomizeControlPort = nullptr;
     SVS::ExpressionSpinBox *m_controlPort = nullptr;
     ComboBox *m_controlLevel = nullptr;
@@ -60,6 +67,9 @@ private:
     QMap<QString, OptionsCardItem *> m_customCategoryHeaderItems;
     QMap<QString, QStringList> m_customCategoryOperationIds;
     QStringList m_customPermissionOperationIds;
+    // Operation IDs of the intrinsic L0 layer: always allowed, listed in the
+    // toolset page for reference and never persisted as a custom permission.
+    QSet<QString> m_intrinsicOperationIds;
     OptionListCard *m_serverCard = nullptr;
     QLabel *m_runtimeStateValue = nullptr;
     QLabel *m_runtimeErrorValue = nullptr;
@@ -67,6 +77,7 @@ private:
     OptionsCardItem *m_customToolsetItem = nullptr;
     OptionsCardItem *m_accessRootsItem = nullptr;
     QVBoxLayout *m_pageHostLayout = nullptr;
+    OptionSubPageStack *m_subPageStack = nullptr;
     QWidget *m_accessControlPage = nullptr;
     QWidget *m_toolsetPage = nullptr;
     bool m_toolsetPageVisible = false;

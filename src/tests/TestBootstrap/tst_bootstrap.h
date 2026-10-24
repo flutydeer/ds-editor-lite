@@ -13,6 +13,7 @@ private slots:
     void flagsDoNotBecomeProjectPaths();
     void delimiterAndPreparseAgree();
     void identicalOptionsCanRepeat();
+    void protocolFlagsAreIndependent();
     void runtimeOverridesDoNotMutatePersistence();
     void initTestCase();
     void protocol();

@@ -1,5 +1,7 @@
 #include "AutomationPage.h"
 
+#include "OptionSubPageStack.h"
+
 #include "Automation/Mcp/McpClientConfiguration.h"
 #include "Automation/EditorAutomationRuntimeStatus.h"
 #include "Global/AppOptionsGlobal.h"
@@ -7,6 +9,7 @@
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/AutomationWire/OpenRpc.h>
 #include <lite/ProductMetadata.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
@@ -15,6 +18,8 @@
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Controls/WheelEventPolicy.h>
 
@@ -26,9 +31,11 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QScrollBar>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QUrl>
 
 #include <algorithm>
 #include <utility>
@@ -147,13 +154,28 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
     for (auto it = m_customCategorySwitches.constBegin(); it != m_customCategorySwitches.constEnd();
          ++it) {
         const auto operationIds = m_customCategoryOperationIds.value(it.key());
-        const auto enabledCount = std::count_if(
-            operationIds.cbegin(), operationIds.cend(), [this](const QString &operationId) {
-                const auto operation = m_customPermissionSwitches.value(operationId);
-                return operation && operation->value();
-            });
+        auto enabledCount = 0;
+        auto configurableCount = 0;
+        auto configurableEnabledCount = 0;
+        for (const auto &operationId : operationIds) {
+            if (m_intrinsicOperationIds.contains(operationId)) {
+                // The intrinsic L0 layer is allowed at every control level, so it
+                // always counts as enabled even though it owns no permission entry.
+                ++enabledCount;
+                continue;
+            }
+            ++configurableCount;
+            const auto operation = m_customPermissionSwitches.value(operationId);
+            if (operation && operation->value()) {
+                ++configurableEnabledCount;
+                ++enabledCount;
+            }
+        }
         const QSignalBlocker blocker(it.value());
-        it.value()->setValue(enabledCount > 0);
+        // The group switch drives the configurable tools only: a group holding
+        // intrinsic tools can never be switched off completely, and a group without
+        // configurable tools stays on (its switch is disabled when it is built).
+        it.value()->setValue(configurableEnabledCount > 0 || configurableCount == 0);
         if (auto *header = m_customCategoryHeaderItems.value(it.key())) {
             header->setTitle(tr("%1 (%L2/%L3 enabled)")
                                  .arg(categoryDisplayName(it.key()))
@@ -217,6 +239,8 @@ void AutomationPage::modifyOption() {
     auto *option = appOptions->automation();
     if (m_effectiveConfig.mcpEnabledSource == StartupArguments::ConfigSource::Persisted)
         option->mcpEnabled = m_mcpEnabled->value();
+    if (m_effectiveConfig.rpcEnabledSource == StartupArguments::ConfigSource::Persisted)
+        option->rpcEnabled = m_rpcEnabled->value();
     if (m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted)
         option->controlPort = static_cast<quint16>(m_controlPort->value());
     if (m_effectiveConfig.controlLevelSource == StartupArguments::ConfigSource::Persisted) {
@@ -249,7 +273,8 @@ void AutomationPage::modifyOption() {
     if (m_accessRootsItem) {
         m_accessRootsItem->setDescription(
             invalidAccessRoots.isEmpty()
-                ? tr("Limits MCP file access, such as opening, importing, saving, and exporting, "
+                ? tr("Limits automation file access, such as opening, importing, saving, and "
+                     "exporting, "
                      "to the listed folders")
                 : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidAccessRoots.join(QStringLiteral(", "))));
@@ -262,11 +287,21 @@ void AutomationPage::modifyOption() {
     refreshRuntimeStatus();
 }
 
+// The sub-pages carry their own insets so the toolset's inner scroll area can
+// span to the window's right edge (see contentMargins in the header).
+QMargins AutomationPage::contentMargins() const {
+    return {};
+}
+
 QWidget *AutomationPage::createContentWidget() {
     const auto pageHost = new QWidget;
     m_pageHostLayout = new QVBoxLayout(pageHost);
     m_pageHostLayout->setContentsMargins({});
     m_pageHostLayout->setSpacing(0);
+    // The two sub-pages live in a stack that owns their geometry, so switching
+    // between them can run the slide-in transition instead of a plain show/hide.
+    m_subPageStack = new OptionSubPageStack(pageHost);
+    m_pageHostLayout->addWidget(m_subPageStack);
     m_accessControlPage = new QWidget;
     m_toolsetPage = nullptr;
     m_serverCard = nullptr;
@@ -281,9 +316,16 @@ QWidget *AutomationPage::createContentWidget() {
                                            : StartupArguments::AutomationOverrides{});
 
     m_mcpEnabled = new SwitchButton(m_effectiveConfig.mcpEnabled);
+    m_mcpEnabled->setObjectName(QStringLiteral("automationMcpEnabled"));
     m_mcpEnabled->setEnabled(m_effectiveConfig.mcpEnabledSource ==
                              StartupArguments::ConfigSource::Persisted);
     connect(m_mcpEnabled, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
+
+    m_rpcEnabled = new SwitchButton(m_effectiveConfig.rpcEnabled);
+    m_rpcEnabled->setObjectName(QStringLiteral("automationRpcEnabled"));
+    m_rpcEnabled->setEnabled(m_effectiveConfig.rpcEnabledSource ==
+                             StartupArguments::ConfigSource::Persisted);
+    connect(m_rpcEnabled, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
 
     m_randomizeControlPort = new Button(tr("Randomize"));
     m_controlPort = new SVS::ExpressionSpinBox;
@@ -322,6 +364,8 @@ QWidget *AutomationPage::createContentWidget() {
     m_serverCard = new OptionListCard(tr("Local Server"));
     m_serverCard->addItem(tr("Enable MCP Server"),
                           settingDescription({}, m_effectiveConfig.mcpEnabledSource), m_mcpEnabled);
+    m_serverCard->addItem(tr("Enable JSON-RPC Server"),
+                          settingDescription({}, m_effectiveConfig.rpcEnabledSource), m_rpcEnabled);
     auto *controlPortControl = new QWidget;
     auto *controlPortLayout = new QHBoxLayout(controlPortControl);
     controlPortLayout->setContentsMargins({});
@@ -394,6 +438,27 @@ QWidget *AutomationPage::createContentWidget() {
         tr("Streamable HTTP"), tr("Connects directly to the editor's configured MCP endpoint"),
         QList<QWidget *>{streamableHttpEndpointCopyButton, streamableHttpCopyButton});
 
+    const auto jsonRpcUrl = [this](const char *path) {
+        QUrl url(currentMcpEndpoint());
+        url.setPath(QString::fromLatin1(path));
+        return url.toString();
+    };
+    auto *jsonRpcEndpointCopyButton = new Button(tr("Copy Endpoint"));
+    jsonRpcEndpointCopyButton->setObjectName(QStringLiteral("automationJsonRpcEndpointCopyButton"));
+    connect(jsonRpcEndpointCopyButton, &Button::clicked, this, [jsonRpcUrl] {
+        QGuiApplication::clipboard()->setText(jsonRpcUrl(AutomationWire::NativeRpcPath));
+        Toast::show(tr("Endpoint copied"));
+    });
+    auto *openRpcUrlCopyButton = new Button(tr("Copy API Description URL"));
+    openRpcUrlCopyButton->setObjectName(QStringLiteral("automationOpenRpcUrlCopyButton"));
+    connect(openRpcUrlCopyButton, &Button::clicked, this, [jsonRpcUrl] {
+        QGuiApplication::clipboard()->setText(jsonRpcUrl(AutomationWire::OpenRpcDocumentPath));
+        Toast::show(tr("API description URL copied"));
+    });
+    connectionCard->addItem(tr("JSON-RPC"),
+                            tr("Call automation methods directly, with an OpenRPC API description"),
+                            QList<QWidget *>{jsonRpcEndpointCopyButton, openRpcUrlCopyButton});
+
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
     m_customCategoryHeaderItems.clear();
@@ -432,11 +497,12 @@ QWidget *AutomationPage::createContentWidget() {
         accessControlCard->addItem(tr("Custom Toolset"), QString{},
                                    QList<QWidget *>{importControlLevelButton, openToolsetButton});
     refreshCustomToolsetSummary();
-    m_accessRootsItem = accessControlCard->addItem(
-        tr("File Access Permissions"),
-        tr("Limits MCP file access, such as opening, importing, saving, and exporting, to the "
-           "listed folders"),
-        m_accessRoots);
+    m_accessRootsItem =
+        accessControlCard->addItem(tr("File Access Permissions"),
+                                   tr("Limits automation file access, such as opening, importing, "
+                                      "saving, and exporting, to the "
+                                      "listed folders"),
+                                   m_accessRoots);
     m_accessRootsItem->setTextAreaAlignment(Qt::AlignTop);
 
     const auto accessControlSection = new QWidget;
@@ -455,16 +521,19 @@ QWidget *AutomationPage::createContentWidget() {
     mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessControlSection, 0, Qt::AlignTop);
     mainLayout->addStretch();
-    mainLayout->setContentsMargins({});
+    mainLayout->setContentsMargins(16, 16, 16, 16);
     mainLayout->setSpacing(12);
     m_accessControlPage->setLayout(mainLayout);
     m_accessControlPage->setContentsMargins({});
-    m_pageHostLayout->addWidget(m_accessControlPage);
+    m_subPageStack->addPage(m_accessControlPage);
 
     if (m_toolsetPageVisible) {
         ensureToolsetPage();
-        m_accessControlPage->hide();
-        m_toolsetPage->show();
+        m_subPageStack->setCurrentPage(m_toolsetPage, OptionSubPageStack::Direction::Forward,
+                                       false);
+    } else {
+        m_subPageStack->setCurrentPage(m_accessControlPage, OptionSubPageStack::Direction::Forward,
+                                       false);
     }
     return pageHost;
 }
@@ -472,7 +541,11 @@ QWidget *AutomationPage::createContentWidget() {
 QWidget *AutomationPage::createToolsetPage() {
     const auto page = new QWidget;
     const auto layout = new QVBoxLayout(page);
-    layout->setContentsMargins({});
+    // Right and bottom margins are 0: the list scroll area below spans to the
+    // window edge (its overlay scrollbar pins to the right edge, and the rows
+    // are clipped by the bottom edge instead of stopping short of it). The
+    // cards keep their insets via the scroll content's own margins.
+    layout->setContentsMargins(16, 16, 0, 0);
     layout->setSpacing(6);
 
     auto *backButton = new ToolButton(page);
@@ -495,22 +568,50 @@ QWidget *AutomationPage::createToolsetPage() {
     headerLayout->addStretch();
     layout->addWidget(header);
 
+    // The category list scrolls inside its own scroll area so the header above
+    // stays pinned: the back button must be reachable even when the list is
+    // scrolled to the bottom.
+    const auto listContent = new QWidget;
+    listContent->setObjectName(QStringLiteral("automationToolsetListContent"));
+    // QScrollArea::setWidget() enables autoFillBackground on the content
+    // widget: without a transparent rule the gaps between the cards would be
+    // painted with the palette's base colour (near white).
+    listContent->setAttribute(Qt::WA_StyledBackground);
+    const auto listLayout = new QVBoxLayout(listContent);
+    // The cards' right and bottom insets live in the scrollable content, so the
+    // scroll area (and its overlay scrollbar) can span edge to edge while the
+    // last card still has breathing room when the list is scrolled to the end.
+    listLayout->setContentsMargins(0, 0, 16, 16);
+    listLayout->setSpacing(6);
+
     QStringList categoryOrder;
-    for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
-        if (const auto *contract = AutomationWire::findPublicTool(operationId);
-            contract && !contract->category.isEmpty()) {
-            if (!m_customCategoryOperationIds.contains(contract->category))
-                categoryOrder.append(contract->category);
-            m_customCategoryOperationIds[contract->category].append(operationId);
-        }
+    const auto collectOperation = [&](const QString &operationId) {
+        const auto *contract = AutomationWire::findPublicTool(operationId);
+        if (!contract || contract->category.isEmpty())
+            return;
+        if (!m_customCategoryOperationIds.contains(contract->category))
+            categoryOrder.append(contract->category);
+        m_customCategoryOperationIds[contract->category].append(operationId);
+    };
+    // The intrinsic L0 layer is exposed at every control level and cannot be
+    // disabled, so it has no custom permission entry: it is listed alongside the
+    // configurable tools for reference only.
+    m_intrinsicOperationIds.clear();
+    for (const auto &contract : AutomationWire::publicToolContracts()) {
+        if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
+            continue;
+        m_intrinsicOperationIds.insert(contract.operationId);
+        collectOperation(contract.operationId);
     }
+    for (const auto &operationId : std::as_const(m_customPermissionOperationIds))
+        collectOperation(operationId);
 
     if (m_customPermissionOperationIds.isEmpty()) {
         const auto emptyCard = new OptionListCard;
         emptyCard->setTitleVisible(false);
         emptyCard->addItem(tr("No public tools available"),
                            tr("Public tools appear here when the automation manifest is ready"));
-        layout->addWidget(emptyCard);
+        listLayout->addWidget(emptyCard);
     } else {
         const auto *option = appOptions->automation();
         for (const auto &category : std::as_const(categoryOrder)) {
@@ -542,20 +643,33 @@ QWidget *AutomationPage::createToolsetPage() {
             m_customCategoryHeaderItems.insert(category, headerItem);
 
             QList<OptionsCardItem *> operationItems;
+            auto configurableCount = 0;
             for (const auto &operationId : operationIds) {
+                const bool intrinsic = m_intrinsicOperationIds.contains(operationId);
                 auto *permissionSwitch =
-                    new SwitchButton(option->customPermissionEnabled(operationId));
+                    new SwitchButton(intrinsic || option->customPermissionEnabled(operationId));
                 permissionSwitch->setObjectName(
                     QStringLiteral("automationCustomTool_%1").arg(operationId));
-                m_customPermissionSwitches.insert(operationId, permissionSwitch);
-                connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
-                    refreshCategoryPermissionSwitches();
-                    modifyOption();
-                });
+                if (intrinsic) {
+                    // Display only: the switch mirrors the intrinsic state, stays
+                    // disabled and never writes a permission.
+                    permissionSwitch->setEnabled(false);
+                } else {
+                    ++configurableCount;
+                    m_customPermissionSwitches.insert(operationId, permissionSwitch);
+                    connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
+                        refreshCategoryPermissionSwitches();
+                        modifyOption();
+                    });
+                }
                 auto *item = categoryCard->addItem(operationId, permissionSwitch);
                 categoryCard->setItemVisible(item, false);
                 operationItems.append(item);
             }
+            // A group made of intrinsic tools only has nothing to switch: keep its
+            // group control on and inert instead of showing a dead switch.
+            if (configurableCount == 0)
+                categorySwitch->setEnabled(false);
 
             connect(expandButton, &QPushButton::toggled, this,
                     [this, categoryCard, expandButton, operationItems](const bool expanded) {
@@ -578,40 +692,59 @@ QWidget *AutomationPage::createToolsetPage() {
                         refreshCategoryPermissionSwitches();
                         modifyOption();
                     });
-            layout->addWidget(categoryCard);
+            listLayout->addWidget(categoryCard);
         }
         refreshCategoryPermissionSwitches();
     }
 
-    layout->addStretch();
+    listLayout->addStretch();
+
+    const auto listScroll = new QScrollArea(page);
+    listScroll->setObjectName(QStringLiteral("automationToolsetListScroll"));
+    listScroll->setWidgetResizable(true);
+    listScroll->setFrameShape(QFrame::NoFrame);
+    // The overlay bar is the only vertical scrollbar this list should show; a
+    // horizontal one would sit over the cards' bottom edge.
+    listScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    listScroll->setWidget(listContent);
+    // Same overlay scrollbar/smooth wheel treatment as the option pages
+    // themselves, so the list reads as part of the options UI.
+    OverlayScrollBar::install(listScroll, Qt::Vertical);
+    const auto listScroller = new SmoothScroller(listScroll);
+    listScroller->attachTo(listScroll);
+    layout->addWidget(listScroll, 1);
+
     return page;
 }
 
 void AutomationPage::ensureToolsetPage() {
-    if (m_toolsetPage || !m_pageHostLayout)
+    if (m_toolsetPage || !m_subPageStack)
         return;
     m_toolsetPage = createToolsetPage();
-    m_pageHostLayout->addWidget(m_toolsetPage);
-    m_toolsetPage->hide();
+    m_subPageStack->addPage(m_toolsetPage);
 }
 
 void AutomationPage::showAccessControlPage() {
-    if (!m_accessControlPage)
+    if (!m_accessControlPage || !m_subPageStack)
         return;
     m_toolsetPageVisible = false;
-    if (m_toolsetPage)
-        m_toolsetPage->hide();
-    m_accessControlPage->show();
+    m_subPageStack->setCurrentPage(m_accessControlPage, OptionSubPageStack::Direction::Backward);
+    // The two sub-pages need different heights: refit so the page follows the
+    // one now visible instead of keeping the previous height.
+    refitContent();
     verticalScrollBar()->setValue(0);
 }
 
 void AutomationPage::showToolsetPage() {
     ensureToolsetPage();
-    if (!m_accessControlPage || !m_toolsetPage)
+    if (!m_accessControlPage || !m_toolsetPage || !m_subPageStack)
         return;
     m_toolsetPageVisible = true;
-    m_accessControlPage->hide();
-    m_toolsetPage->show();
+    m_subPageStack->setCurrentPage(m_toolsetPage, OptionSubPageStack::Direction::Forward);
+    // The toolset list of category cards is much taller than the access
+    // control page: without this refit the page keeps the shorter height and
+    // the category cards get squeezed into it.
+    refitContent();
     verticalScrollBar()->setValue(0);
 }
 

@@ -1,5 +1,7 @@
 # 三期 Headless 契约矩阵
 
+服务开关和 Native 发现机制的后续变更见 [JSON-RPC 接口描述与服务器开关](../openrpc.md)。
+
 ## 1. 口径
 
 本矩阵只记录三期相对[二期公共 MCP 工具矩阵](../02-mcp-server-and-connector/public-tool-matrix.md)

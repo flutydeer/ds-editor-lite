@@ -1,7 +1,12 @@
 #include "tst_automation_protocol.h"
 #include "Automation/Mcp/McpHttpServer.h"
+#include "Automation/Mcp/McpRequestDispatcher.h"
+#include "Automation/Native/NativeJsonRpcDispatcher.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
+#include "TestRuntime.h"
 
 #include <lite/AutomationWire/McpProtocol.h>
+#include <lite/AutomationWire/OpenRpc.h>
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -1131,6 +1136,85 @@ void AutomationProtocolTests::responseSurvivesShutdown() {
                      .toString() == payload,
              "Shutdown must deliver the complete response payload");
     QVERIFY(waitForStop(server));
+}
+
+void AutomationProtocolTests::openRpcHttpDiscovery_data() {
+    QTest::addColumn<QString>("hostMode");
+    QTest::newRow("gui") << QStringLiteral("gui");
+    QTest::newRow("headless") << QStringLiteral("headless");
+}
+
+void AutomationProtocolTests::openRpcHttpDiscovery() {
+    QFETCH(QString, hostMode);
+    AutomationTestSupport::TestRuntime runtime;
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard files;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(runtime.runtime(), access, files, admission,
+                                                  {.hostMode = hostMode});
+    QString endpoint;
+    Automation::NativeJsonRpcDispatcher native(registry, [&] { return endpoint; });
+    Automation::McpRequestDispatcher mcp(registry, {"Test", "1"});
+    Automation::McpHttpServer server(
+        this,
+        [&](const Mcp::RequestEnvelope &request, const QString &client) {
+            return mcp.dispatch(request, client);
+        },
+        [&](const QJsonValue &request, const QString &client) {
+            return native.dispatch(request, client);
+        });
+    QString error;
+    QVERIFY2(server.start(0, {.mcp = true, .native = true}, error), qPrintable(error));
+    endpoint = server.nativeEndpoint();
+    QUrl descriptionUrl(endpoint);
+    descriptionUrl.setPath(QString::fromLatin1(AutomationWire::OpenRpcDocumentPath));
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    QNetworkRequest descriptionRequest(descriptionUrl);
+    descriptionRequest.setRawHeader("Accept", "application/json");
+    const QJsonObject discovery{
+        {"jsonrpc", "2.0"         },
+        {"id",      5             },
+        {"method",  "rpc.discover"}
+    };
+    for (const auto level : {AutomationWire::ControlLevel::L3, AutomationWire::ControlLevel::L1,
+                             AutomationWire::ControlLevel::Custom}) {
+        access.update(level, {QStringLiteral("tracks.list")});
+        const auto response = send(manager, descriptionRequest, {}, HttpMethod::Get);
+        QCOMPARE(response.status, 200);
+        QCOMPARE(response.cacheControl, QByteArray("no-store"));
+        QVERIFY(response.contentType.startsWith("application/json"));
+        const auto document = bodyObject(response);
+        QCOMPARE(document.value("servers").toArray().first().toObject().value("url").toString(),
+                 endpoint);
+        const auto rpc =
+            send(manager, nativeRequest(QUrl(endpoint)), QJsonDocument(discovery).toJson());
+        QCOMPARE(rpc.status, 200);
+        QCOMPARE(bodyObject(rpc).value("result").toObject(), document);
+        QSet<QString> expected{QStringLiteral("rpc.discover")};
+        for (const auto &contract : registry.enabledContracts())
+            expected.insert(contract.operationId);
+        QSet<QString> actual;
+        for (const auto &value : document.value("methods").toArray())
+            actual.insert(value.toObject().value("name").toString());
+        QCOMPARE(actual, expected);
+    }
+    auto invalidDiscovery = discovery;
+    invalidDiscovery.insert("params", QJsonObject{
+                                          {"unexpected", true}
+    });
+    QCOMPARE(jsonRpcErrorCode(send(manager, nativeRequest(QUrl(endpoint)),
+                                   QJsonDocument(invalidDiscovery).toJson())),
+             -32602);
+    QCOMPARE(send(manager, descriptionRequest).status, 405);
+    auto foreignOrigin = descriptionRequest;
+    foreignOrigin.setRawHeader("Origin", "https://example.com");
+    QCOMPARE(send(manager, foreignOrigin, {}, HttpMethod::Get).status, 403);
+    QVERIFY2(server.setRoutes({.mcp = true, .native = false}, error), qPrintable(error));
+    QCOMPARE(send(manager, descriptionRequest, {}, HttpMethod::Get).status, 404);
+    QVERIFY2(server.setRoutes({.mcp = false, .native = true}, error), qPrintable(error));
+    QCOMPARE(send(manager, descriptionRequest, {}, HttpMethod::Get).status, 200);
+    server.stop();
 }
 
 void AutomationProtocolTests::nativeRequestValidation() {
