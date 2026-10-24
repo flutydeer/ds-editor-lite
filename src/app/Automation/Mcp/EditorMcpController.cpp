@@ -34,10 +34,12 @@ namespace Automation {
             };
         }
 
-        AutomationHttpRoutes desiredRoutes(const AppHostMode hostMode, const bool mcpEnabled) {
+        AutomationHttpRoutes
+            desiredRoutes(const AppHostMode hostMode,
+                          const StartupArguments::EffectiveAutomationConfig &config) {
             return {
-                .mcp = mcpEnabled,
-                .native = hostMode == AppHostMode::Headless,
+                .mcp = config.mcpEnabled,
+                .native = config.rpcEnabled || hostMode == AppHostMode::Headless,
             };
         }
     }
@@ -86,7 +88,8 @@ namespace Automation {
         m_registry = std::make_unique<PublicAutomationRegistry>(
             runtime, m_accessPolicy, m_fileGuard, m_admissionController, std::move(hostServices));
         m_dispatcher = std::make_unique<McpRequestDispatcher>(*m_registry, editorServerInfo());
-        m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(*m_registry);
+        m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(
+            *m_registry, [this] { return nativeEndpoint(); });
         m_server = std::make_unique<McpHttpServer>(
             this,
             [this](const AutomationWire::Mcp::RequestEnvelope &request, const QString &clientId) {
@@ -162,7 +165,7 @@ namespace Automation {
                               enabledCustomOperations(*m_options.automation()));
 
         const auto roots = m_fileGuard.setConfiguredRoots(m_options.automation()->accessRoots);
-        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig);
         if (!routes.mcp && !routes.native) {
             transitionAfterStop(PendingTransition::Disabled);
             return;
@@ -283,7 +286,7 @@ namespace Automation {
     }
 
     void EditorMcpController::startServer() {
-        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig);
         if (routes.mcp)
             publishStatus(SingleInstanceAutomationState::ServerStarting, true);
         QString error;
@@ -335,8 +338,12 @@ namespace Automation {
     void EditorMcpController::publishStatus(const SingleInstanceAutomationState state,
                                             const bool enabled, QString endpoint, QString error) {
         if (auto *application = QCoreApplication::instance()) {
+            const auto runtimeState = state == SingleInstanceAutomationState::ServerDisabled &&
+                                              !nativeEndpoint().isEmpty()
+                                          ? SingleInstanceAutomationState::ServerReady
+                                          : state;
             application->setProperty(AutomationRuntimeStatus::StateProperty,
-                                     SingleInstanceProtocol::automationStateName(state));
+                                     SingleInstanceProtocol::automationStateName(runtimeState));
             application->setProperty(AutomationRuntimeStatus::EndpointProperty, endpoint);
             application->setProperty(AutomationRuntimeStatus::ErrorProperty, error);
         }

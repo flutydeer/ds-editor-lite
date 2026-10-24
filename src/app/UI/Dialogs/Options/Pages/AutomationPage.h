@@ -57,6 +57,7 @@ private:
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
+    SwitchButton *m_rpcEnabled = nullptr;
     Button *m_randomizeControlPort = nullptr;
     SVS::ExpressionSpinBox *m_controlPort = nullptr;
     ComboBox *m_controlLevel = nullptr;

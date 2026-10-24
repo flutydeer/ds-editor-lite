@@ -11,6 +11,7 @@
 namespace {
 
     constexpr auto kMcpEnabledKey = "mcpEnabled";
+    constexpr auto kRpcEnabledKey = "rpcEnabled";
     constexpr auto kControlPortKey = "controlPort";
     constexpr auto kControlLevelKey = "controlLevel";
     constexpr auto kCustomPermissionsKey = "customPermissions";
@@ -50,6 +51,7 @@ AutomationOption::AutomationOption() : IOption("automation"), controlPort(genera
 
 void AutomationOption::load(const QJsonObject &object) {
     mcpEnabled = false;
+    rpcEnabled = false;
     controlPort = generateRandomControlPort(controlPort);
     controlLevel = ControlLevel::L1;
     customPermissions.clear();
@@ -61,6 +63,7 @@ void AutomationOption::load(const QJsonObject &object) {
     const auto enabledValue = object.value(QLatin1String(kMcpEnabledKey));
     if (enabledValue.isBool())
         mcpEnabled = enabledValue.toBool();
+    rpcEnabled = object.value(QLatin1String(kRpcEnabledKey)).toBool(false);
 
     const auto portValue = object.value(QLatin1String(kControlPortKey));
     if (portValue.isDouble()) {
@@ -89,10 +92,11 @@ void AutomationOption::save(QJsonObject &object) {
         permissions.insert(it.key(), it.value());
 
     object = {
-        {QLatin1String(kMcpEnabledKey),        mcpEnabled                              },
-        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)           },
-        {QLatin1String(kControlLevelKey),      controlLevelToString(controlLevel)      },
-        {QLatin1String(kCustomPermissionsKey), permissions                             },
+        {QLatin1String(kMcpEnabledKey),        mcpEnabled                             },
+        {QLatin1String(kRpcEnabledKey),        rpcEnabled                             },
+        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)          },
+        {QLatin1String(kControlLevelKey),      controlLevelToString(controlLevel)     },
+        {QLatin1String(kCustomPermissionsKey), permissions                            },
         {QLatin1String(kAccessRootsKey),       QJsonArray::fromStringList(accessRoots)},
     };
 }

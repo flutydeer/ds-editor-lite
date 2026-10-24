@@ -1,5 +1,7 @@
 # 三期：真正 Headless 与原生 JSON-RPC 实施计划
 
+服务开关和 Native 发现机制的后续变更见 [JSON-RPC 接口描述与服务器开关](../openrpc.md)。
+
 ## 1. 交付目标与边界
 
 三期在[二期 MCP Server 与 DS Connector Lite](../02-mcp-server-and-connector/implementation-plan.md)

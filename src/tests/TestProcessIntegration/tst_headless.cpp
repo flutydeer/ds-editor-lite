@@ -644,8 +644,9 @@ namespace {
         editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
         editor.setProcessChannelMode(QProcess::SeparateChannels);
         editor.start(editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
-                                  QStringLiteral("--control-level"), QStringLiteral("l3"),
-                                  QStringLiteral("--control-port"), QString::number(controlPort)});
+                                  QStringLiteral("--no-rpc"), QStringLiteral("--control-level"),
+                                  QStringLiteral("l3"), QStringLiteral("--control-port"),
+                                  QString::number(controlPort)});
         if (!editor.waitForStarted(10000)) {
             return fail(
                 QStringLiteral("Headless editor failed to start: %1").arg(editor.errorString()));

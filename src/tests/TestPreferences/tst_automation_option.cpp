@@ -25,6 +25,7 @@ void PreferencesTests::automationOptionDefaults() {
             ? QStringList{}
             : QStringList{QDir::cleanPath(QDir::fromNativeSeparators(canonicalDocuments))};
     QVERIFY2((!option.mcpEnabled), qPrintable(QStringLiteral("MCP should default to disabled")));
+    QVERIFY(!option.rpcEnabled);
     QVERIFY2((option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
               option.controlPort <= AutomationOption::kRandomControlPortMaximum),
              qPrintable(
@@ -37,7 +38,12 @@ void PreferencesTests::automationOptionDefaults() {
              qPrintable(QStringLiteral("file roots should default to the user documents folder")));
 
     AutomationOption loaded;
-    loaded.load({});
+    loaded.rpcEnabled = true;
+    loaded.load({
+        {QStringLiteral("mcpEnabled"), true}
+    });
+    QVERIFY(loaded.mcpEnabled);
+    QVERIFY(!loaded.rpcEnabled);
     QVERIFY2((loaded.accessRoots == defaultRoots),
              qPrintable(QStringLiteral("missing file root settings should use defaults")));
 
@@ -74,11 +80,21 @@ void PreferencesTests::automationOptionRoundTrip() {
              qPrintable(QStringLiteral("new operations should stay disabled in Custom")));
     QVERIFY2((reloaded.accessRoots == option.accessRoots),
              qPrintable(QStringLiteral("file roots should round-trip")));
+    for (const bool mcp : {false, true}) {
+        for (const bool rpc : {false, true}) {
+            option.mcpEnabled = mcp;
+            option.rpcEnabled = rpc;
+            reloaded.load(option.value());
+            QCOMPARE(reloaded.mcpEnabled, mcp);
+            QCOMPARE(reloaded.rpcEnabled, rpc);
+        }
+    }
 }
 
 void PreferencesTests::automationOptionInvalidValuesUseSafeDefaults() {
     AutomationOption option;
     option.mcpEnabled = true;
+    option.rpcEnabled = true;
     option.controlPort = 42;
     option.controlLevel = AutomationOption::ControlLevel::L2;
     option.customPermissions.insert(QStringLiteral("old.operation"), true);
@@ -86,6 +102,7 @@ void PreferencesTests::automationOptionInvalidValuesUseSafeDefaults() {
 
     option.load(QJsonObject{
         {QStringLiteral("mcpEnabled"),        QStringLiteral("true")                               },
+        {QStringLiteral("rpcEnabled"),        QStringLiteral("true")                               },
         {QStringLiteral("controlPortMode"),   QStringLiteral("invalid")                            },
         {QStringLiteral("controlPort"),       65536                                                },
         {QStringLiteral("controlLevel"),      QStringLiteral("L2")                                 },
@@ -97,6 +114,7 @@ void PreferencesTests::automationOptionInvalidValuesUseSafeDefaults() {
 
     QVERIFY2((!option.mcpEnabled),
              qPrintable(QStringLiteral("invalid MCP value should use disabled default")));
+    QVERIFY(!option.rpcEnabled);
     QVERIFY2((option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
               option.controlPort <= AutomationOption::kRandomControlPortMaximum),
              qPrintable(QStringLiteral("invalid port settings should generate a concrete port")));

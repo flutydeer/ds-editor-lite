@@ -4,6 +4,8 @@
 #include "Automation/Public/PublicAutomationRegistry.h"
 
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/AutomationWire/OpenRpc.h>
+#include <lite/ProductMetadata.h>
 
 #include <QJsonArray>
 #include <QSet>
@@ -66,8 +68,9 @@ namespace Automation {
         }
     }
 
-    NativeJsonRpcDispatcher::NativeJsonRpcDispatcher(PublicAutomationRegistry &registry)
-        : m_registry(registry) {
+    NativeJsonRpcDispatcher::NativeJsonRpcDispatcher(PublicAutomationRegistry &registry,
+                                                     std::function<QString()> endpoint)
+        : m_registry(registry), m_endpoint(std::move(endpoint)) {
     }
 
     QJsonObject NativeJsonRpcDispatcher::dispatch(const QJsonValue &message,
@@ -119,6 +122,27 @@ namespace Automation {
                     {QStringLiteral("field_path"), QStringLiteral("params")                  },
                     {QStringLiteral("message"),    QStringLiteral("params must be an object")}
             });
+        }
+        if (method == QLatin1StringView(AutomationWire::OpenRpcDiscoverMethod)) {
+            if (!paramsValue.toObject().isEmpty())
+                return errorResponse(responseId, InvalidParams, QStringLiteral("Invalid params"));
+            QString error;
+            const auto document = AutomationWire::makeOpenRpcDocument(
+                m_registry.enabledContracts(),
+                {QString::fromLatin1(LiteProductMetadata::ProductName),
+                 QString::fromLatin1(LiteProductMetadata::Version),
+                 m_endpoint ? m_endpoint() : QString{}},
+                &error);
+            if (!document)
+                return errorResponse(responseId, InternalError, QStringLiteral("Internal error"),
+                                     QJsonObject{
+                                         {QStringLiteral("reason"), error}
+                });
+            return {
+                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
+                {QStringLiteral("id"),      responseId           },
+                {QStringLiteral("result"),  *document            },
+            };
         }
         if (!AutomationWire::findPublicTool(method)) {
             return errorResponse(responseId, MethodNotFound, QStringLiteral("Method not found"),

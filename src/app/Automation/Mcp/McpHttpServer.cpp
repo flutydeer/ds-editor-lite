@@ -1,5 +1,7 @@
 #include "McpHttpServer.h"
 
+#include <lite/AutomationWire/OpenRpc.h>
+
 #include <QCryptographicHash>
 #include <QEventLoop>
 #include <QFuture>
@@ -610,8 +612,14 @@ namespace Automation {
             }
             if (m_nativeHandler) {
                 httpServer->route(
-                    QStringLiteral("/automation/v1"), QHttpServerRequest::Method::AnyKnown,
+                    QString::fromLatin1(AutomationWire::NativeRpcPath),
+                    QHttpServerRequest::Method::AnyKnown,
                     [this](QHttpServerRequest request) { return handleNativeRequest(request); });
+                httpServer->route(QString::fromLatin1(AutomationWire::OpenRpcDocumentPath),
+                                  QHttpServerRequest::Method::AnyKnown,
+                                  [this](QHttpServerRequest request) {
+                                      return handleNativeRequest(request, true);
+                                  });
             }
             httpServer->addAfterRequestHandler(
                 this, [](const QHttpServerRequest &, QHttpServerResponse &response) {
@@ -1094,7 +1102,8 @@ namespace Automation {
             return admission.future;
         }
 
-        QFuture<QHttpServerResponse> handleNativeRequest(const QHttpServerRequest &request) {
+        QFuture<QHttpServerResponse> handleNativeRequest(const QHttpServerRequest &request,
+                                                         const bool description = false) {
             if (auto rejection =
                     commonRejection(request, McpHttpTransportState::Protocol::Native)) {
                 return readyResponse(std::move(*rejection));
@@ -1104,21 +1113,26 @@ namespace Automation {
                     QStringLiteral("route_unavailable"),
                     QStringLiteral("Native automation route is disabled"), StatusCode::NotFound));
             }
-            if (request.method() != QHttpServerRequest::Method::Post) {
+            const auto expectedMethod =
+                description ? QHttpServerRequest::Method::Get : QHttpServerRequest::Method::Post;
+            if (request.method() != expectedMethod) {
                 auto response = transportError(
                     QStringLiteral("method_not_allowed"),
-                    QStringLiteral("Native automation endpoint accepts POST requests"),
+                    description
+                        ? QStringLiteral("OpenRPC description accepts GET requests")
+                        : QStringLiteral("Native automation endpoint accepts POST requests"),
                     StatusCode::MethodNotAllowed);
                 auto headers = response.headers();
                 headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::Allow,
-                                        QStringLiteral("POST"));
+                                        description ? QStringLiteral("GET")
+                                                    : QStringLiteral("POST"));
                 response.setHeaders(std::move(headers));
                 return readyResponse(std::move(response));
             }
 
             const auto contentType =
                 uniqueHeader(request.headers(), QByteArrayLiteral("Content-Type"));
-            if (!contentType || !isJsonContentType(*contentType)) {
+            if (!description && (!contentType || !isJsonContentType(*contentType))) {
                 return readyResponse(transportError(
                     QStringLiteral("unsupported_media_type"),
                     QStringLiteral("Native automation requests require application/json"),
@@ -1139,19 +1153,28 @@ namespace Automation {
                     StatusCode::PayloadTooLarge));
             }
 
-            QJsonParseError parseError;
-            QByteArray wrapped;
-            wrapped.reserve(request.body().size() + 2);
-            wrapped.append('[');
-            wrapped.append(request.body());
-            wrapped.append(']');
-            const auto document = QJsonDocument::fromJson(wrapped, &parseError);
-            if (parseError.error != QJsonParseError::NoError || !document.isArray() ||
-                document.array().size() != 1) {
-                return readyResponse(jsonResponse(
-                    nativeProtocolError(-32700, QStringLiteral("Parse error")), StatusCode::Ok));
+            QJsonValue message = QJsonObject{
+                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")          },
+                {QStringLiteral("id"),      QStringLiteral("openrpc")      },
+                {QStringLiteral("method"),
+                 QString::fromLatin1(AutomationWire::OpenRpcDiscoverMethod)},
+            };
+            if (!description) {
+                QJsonParseError parseError;
+                QByteArray wrapped;
+                wrapped.reserve(request.body().size() + 2);
+                wrapped.append('[');
+                wrapped.append(request.body());
+                wrapped.append(']');
+                const auto document = QJsonDocument::fromJson(wrapped, &parseError);
+                if (parseError.error != QJsonParseError::NoError || !document.isArray() ||
+                    document.array().size() != 1) {
+                    return readyResponse(
+                        jsonResponse(nativeProtocolError(-32700, QStringLiteral("Parse error")),
+                                     StatusCode::Ok));
+                }
+                message = document.array().at(0);
             }
-            const auto message = document.array().at(0);
             if (!withinJsonLimits(message, m_limits.maximumJsonDepth, m_limits.maximumJsonNodes)) {
                 const auto response = nativeProtocolError(
                     -32600, QStringLiteral("Invalid Request"), QJsonValue(QJsonValue::Null),
@@ -1197,7 +1220,7 @@ namespace Automation {
                 QMetaObject::invokeMethod(
                     m_handlerContext.data(),
                     [state = m_transportState, pendingId, handler = m_nativeHandler, message,
-                     clientId, requestId, limits = m_limits]() mutable {
+                     clientId, requestId, description, limits = m_limits]() mutable {
                         if (!state->beginHandling(pendingId))
                             return;
                         QJsonObject responseObject;
@@ -1215,9 +1238,19 @@ namespace Automation {
                             responseObject = nativeProtocolError(
                                 -32603, QStringLiteral("Internal error"), requestId);
                         }
+                        auto status = StatusCode::Ok;
+                        if (description) {
+                            if (responseObject.contains(QStringLiteral("result")))
+                                responseObject =
+                                    responseObject.value(QStringLiteral("result")).toObject();
+                            else
+                                status = StatusCode::InternalServerError;
+                        }
                         auto responseBytes =
                             QJsonDocument(responseObject).toJson(QJsonDocument::Compact);
                         if (responseBytes.size() > limits.maximumResponseBytes) {
+                            if (description)
+                                status = StatusCode::InternalServerError;
                             responseObject = nativeProtocolError(
                                 -32603,
                                 QStringLiteral("Automation response exceeds the configured limit"),
@@ -1235,13 +1268,15 @@ namespace Automation {
                                     StatusCode::InternalServerError));
                             return;
                         }
-                        state->complete(pendingId, jsonResponse(responseObject, StatusCode::Ok));
+                        state->complete(pendingId, jsonResponse(responseObject, status));
                     },
                     Qt::QueuedConnection);
             if (!invoked) {
                 const auto response = nativeProtocolError(
                     -32603, QStringLiteral("Automation handler context is unavailable"), requestId);
-                m_transportState->complete(pendingId, jsonResponse(response, StatusCode::Ok));
+                m_transportState->complete(
+                    pendingId, jsonResponse(response, description ? StatusCode::InternalServerError
+                                                                  : StatusCode::Ok));
             }
             return admission.future;
         }
@@ -1459,7 +1494,9 @@ namespace Automation {
     QString McpHttpServer::nativeEndpoint() const {
         if (!isListening() || !m_routes.native)
             return {};
-        return QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(m_port);
+        return QStringLiteral("http://127.0.0.1:%1%2")
+            .arg(m_port)
+            .arg(QString::fromLatin1(AutomationWire::NativeRpcPath));
     }
 
     AutomationHttpRoutes McpHttpServer::routes() const {
