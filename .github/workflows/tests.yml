@@ -42,7 +42,8 @@ jobs:
     timeout-minutes: 120
     env:
       QT_VERSION: '6.11.2'
-      DEV_SCRIPTS_REF: main
+      # The commit of https://github.com/stdware/dev-scripts whose vcpkg-workspace.cmake runs
+      DEV_SCRIPTS_REF: eb7f52786b09128f50523f14d58b193f83c9a0fa
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
       VCPKG_MAX_CONCURRENCY: '2'
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
