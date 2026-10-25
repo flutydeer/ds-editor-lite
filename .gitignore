@@ -50,7 +50,7 @@ cache
 out/
 dist/
 CMakeSettings.json
-/vcpkg
+/deps
 /data
 /*.natvis
 

@@ -122,7 +122,8 @@ switch ($Mode) {
         Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $testCommand
     }
     "Dependencies" {
-        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir ".\vcpkg\vcpkg.exe install --x-manifest-root=scripts/vcpkg-manifest --x-install-root=vcpkg/installed --triplet=x64-windows"
+        # vcpkg-workspace.cmake comes from https://github.com/stdware/dev-scripts and is ignored by git
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir "cmake -P scripts/vcpkg-workspace.cmake install --triplet x64-windows"
     }
     "Configure" {
         Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $configureCommand

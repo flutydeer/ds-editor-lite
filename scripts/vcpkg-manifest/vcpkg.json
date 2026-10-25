@@ -61,14 +61,5 @@
       ],
       "supports": "!osx & !arm & !arm64"
     }
-  },
-  "vcpkg-configuration": {
-    "overlay-ports": [
-      "../vcpkg-project/ports",
-      "../vcpkg/ports"
-    ],
-    "overlay-triplets": [
-      "../vcpkg/triplets"
-    ]
   }
 }

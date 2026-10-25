@@ -2,7 +2,7 @@
 
 ## 1. 范围与优先级
 
-此目录优先于共享 `scripts/vcpkg/ports`，仅承载当前应用必须使用、共享端口尚未包含的修复。vcpkg 覆盖端口需要完整配方，因此保留原依赖和构建选项。每个库仍只链接一份，不维护平行库实现。
+此目录优先于共享覆盖仓库 vcpkg-overlay 的 `ports`（检出于 `deps/vcpkg-overlay`），仅承载当前应用必须使用、共享端口尚未包含的修复。vcpkg 覆盖端口需要完整配方，因此保留原依赖和构建选项。每个库仍只链接一份，不维护平行库实现。
 
 ## 2. talcs
 
@@ -27,4 +27,4 @@
 
 补丁随端口配方参与 vcpkg ABI 和缓存判断。调整后须实际准备依赖、构建产品并运行对应音频、驱动或进程回归，不能只重新配置 CMake。
 
-共享或上游端口包含等价修复并经应用验证后，移除对应项目补丁或覆盖配方。目录不再包含覆盖时，同时移除 manifest 中的项目覆盖路径。应用层 SynthrtEngine/PackageManager 的适配修改不属于 synthrt 源码补丁，已知未修复依赖问题见[四期测试报告](../../docs/automation/04-testing-and-ci/test-report.md#6-遗留问题与明确边界)。
+共享或上游端口包含等价修复并经应用验证后，移除对应项目补丁或覆盖配方。目录不再包含覆盖时，同时移除 `scripts/vcpkg-sources.json` 中的项目覆盖条目。应用层 SynthrtEngine/PackageManager 的适配修改不属于 synthrt 源码补丁，已知未修复依赖问题见[四期测试报告](../../docs/automation/04-testing-and-ci/test-report.md#6-遗留问题与明确边界)。

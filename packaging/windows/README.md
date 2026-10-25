@@ -86,7 +86,7 @@ C:\Program Files\OpenVPI\DS Editor Lite
   windeployqt `--pdb`）、插件及其运行时的 PDB（vcpkg 侧 `vcpkg_copy_pdbs`
   覆盖插件目录；ort/DirectML 运行时的 PDB 由 install 层按配置从
   `share/onnxruntime-builds/pdb/<flavor>` 补齐，Release 安装包则不带任何
-  PDB）；脚本随后从 `vcpkg\installed\x64-windows\bin` 按名补齐
+  PDB）；脚本随后从 `deps\vcpkg\installed\x64-windows\bin` 按名补齐
   各 vcpkg 依赖的 PDB（此逻辑刻意留在打包脚本里，不进 CMake，保持构建系统
   不感知 vcpkg）。
 - zip 会校验 DsEditorLite.exe 与至少一个 PDB 存在，否则报错退出。
