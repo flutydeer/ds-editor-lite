@@ -42,6 +42,7 @@ jobs:
     timeout-minutes: 120
     env:
       QT_VERSION: '6.11.2'
+      DEV_SCRIPTS_REF: main
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
       VCPKG_MAX_CONCURRENCY: '2'
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
@@ -83,19 +84,34 @@ jobs:
       - name: Dependency cache environment
         id: cache-environment
         run: printf 'image=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+      # vcpkg-workspace.cmake is not part of the repository, see scripts/.gitignore. The checkout
+      # precedes the cache restore, so that the key covers the ports of the shared overlay.
+      - name: Check out vcpkg and the overlays
+        run: |
+          curl -fsSL -o scripts/vcpkg-workspace.cmake \
+            "https://raw.githubusercontent.com/stdware/dev-scripts/${DEV_SCRIPTS_REF}/scripts/vcpkg-workspace.cmake"
+          cmake -P scripts/vcpkg-workspace.cmake fetch
       - name: Restore dependency packages
         id: packages
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
           # Image changes can require new compiler or SDK ABIs even with an unchanged manifest.
-          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-project/ports/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-${{ hashFiles('scripts/vcpkg-sources.json', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-project/ports/**', 'deps/vcpkg-overlay/ports/**', 'deps/vcpkg-overlay/triplets/**') }}
           restore-keys: |
             ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-
             ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
         id: dependencies
-        run: python scripts/ci/bootstrap-vcpkg.py --triplet '${{ matrix.triplet }}' 2>&1 | tee build/test-results/dependencies.log
+        env:
+          Qt6GuiTools_DIR: ${{ env.QT_ROOT_DIR }}/lib/cmake/Qt6GuiTools
+          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
+          # vcpkg-workspace.cmake adds QT_DIR and Qt6_DIR from --qt-dir
+          VCPKG_KEEP_ENV_VARS: Qt6GuiTools_DIR;CMAKE_PREFIX_PATH
+        run: |
+          cmake -P scripts/vcpkg-workspace.cmake install --qt-dir "$QT_ROOT_DIR" \
+            --triplet '${{ matrix.triplet }}' -- --clean-buildtrees-after-build 2>&1 \
+            | tee build/test-results/dependencies.log
       - name: Save dependency packages
         if: steps.packages.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
@@ -113,7 +129,7 @@ jobs:
           {
             git rev-parse HEAD
             git submodule status
-            git -C vcpkg rev-parse HEAD
+            cmake -P scripts/vcpkg-workspace.cmake status
             python -c "import platform; print(platform.platform(), platform.machine())"
             cmake --version
             ninja --version
@@ -181,7 +197,7 @@ jobs:
             build/test-results
             build/*/Testing/Temporary
             build/*/CMakeFiles/CMakeConfigureLog.yaml
-            vcpkg/buildtrees/**/*.log
+            deps/vcpkg/buildtrees/**/*.log
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 14
