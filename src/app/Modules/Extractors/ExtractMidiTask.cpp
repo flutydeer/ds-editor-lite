@@ -1,198 +1,88 @@
 #include "ExtractMidiTask.h"
 
-#include "ExtractorUtils.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
-#include "AppContext.h"
-#include <lite/ProjectModel/AppModel/AppModel.h>
-#include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/StringUtils.h>
+#include <otter/Api/Note/1/NoteApiL1.h>
 
-#include <synthrt/Core/Plugin/PluginFactory.h>
-#include <synthrt/Extract/MidiExtractorPlugin.h>
-
-#include <QDebug>
-#include <QDir>
-#include <QMutexLocker>
-#include <QScopeGuard>
-#include <utility>
+namespace Note = otter::Api::Note::L1;
 
 ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
-    status.title = tr("Extract Midi");
-    status.message = tr("Pending infer: %1")
-                         .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
-                                                                : m_input.displayAudioPath);
+    status.title = tr("Extract MIDI");
+    status.message = tr("Pending infer: %1").arg(displayPath());
     setStatus(status);
 }
 
-void ExtractMidiTask::runTask() {
-    const auto terminateTask = [this] {
-        m_errorCode = ErrorCode::Terminated;
-        m_errorMessage = tr("Task terminated.");
-    };
+std::optional<std::pair<int, int>> ExtractMidiTask::noteTicks(
+    const Input &input, const double startSeconds, const double durationSeconds) {
+    if (!std::isfinite(startSeconds) || !std::isfinite(durationSeconds) || durationSeconds < 0 ||
+        !std::isfinite(input.audioMaterialOriginMs))
+        return std::nullopt;
 
-    // 1. Load model in background thread (avoid blocking UI)
-    auto newStatus = status();
-    newStatus.message = tr("Loading model, please wait...");
-    newStatus.isIndetermine = true;
-    setStatus(newStatus);
+    const auto startMs = input.audioMaterialOriginMs + startSeconds * 1000.0;
+    const auto endMs = startMs + durationSeconds * 1000.0;
+    if (!std::isfinite(startMs) || !std::isfinite(endMs))
+        return std::nullopt;
+    const auto startTick = input.timeline.msToTick(startMs) - input.audioClipStartTick;
+    const auto endTick = input.timeline.msToTick(endMs) - input.audioClipStartTick;
+    const auto durationTicks = endTick - startTick;
+    if (!std::isfinite(startTick) || !std::isfinite(endTick) ||
+        !std::isfinite(durationTicks) || durationTicks < 0)
+        return std::nullopt;
 
-    auto *synthrtEngine = AppContext::instance<SynthrtEngine>();
-    auto runtimeLease = synthrtEngine ? synthrtEngine->acquireMidiExtractionOperation()
-                                      : SynthrtEngine::RuntimeOperationLease{};
-    if (!runtimeLease) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("MIDI extraction is not available");
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    const auto modelPath = StringUtils::qstr_to_path(m_input.modelPath);
-
-    if (modelPath.empty() || !exists(modelPath) || !is_directory(modelPath)) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage =
-            tr("Invalid GAME model dir: ") +
-            (m_input.modelPath.isEmpty() ? QString("Dir is Empty.") : m_input.modelPath);
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    // Obtain the game MidiExtractor plugin and create an extractor instance.
-    auto &runtime = runtimeLease.runtime();
-    auto *plugins = runtime.services().get<srt::core::PluginFactory>();
-    if (!plugins) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("PluginFactory is not available");
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    auto *gamePlugin = plugins->plugin<srt::extract::MidiExtractorPlugin>("game");
-    if (!gamePlugin) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("GAME MidiExtractor plugin not found");
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    auto extractorExp = gamePlugin->createExtractor(&runtime);
-    if (!extractorExp) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(extractorExp.error().message());
-        m_errorMessage = tr("Failed to create GAME extractor: ") + reason;
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-    auto extractor = extractorExp.take();
-    {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor = extractor;
-    }
-    const auto clearExtractor = qScopeGuard([this] {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
-    });
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    if (auto exp = extractor->open(modelPath); !exp) {
-        if (isTerminateRequested()) {
-            terminateTask();
-            return;
-        }
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(exp.error().message());
-        m_errorMessage = tr("Failed to create GAME session: ") + reason;
-        qCritical().noquote() << "Error:" << errorMessage();
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
-        return;
-    }
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    // 2. Run inference
-    newStatus = status();
-    newStatus.message = tr("Running inference: %1")
-                            .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
-                                                                   : m_input.displayAudioPath);
-    newStatus.isIndetermine = false;
-    newStatus.maximum = 100;
-    newStatus.progress = 0;
-    setStatus(newStatus);
-
-    QString decodeError;
-    auto audio = ExtractorUtils::decodeAudio(
-        m_input.audioPath, [this] { return isTerminateRequested(); }, decodeError);
-    if (!audio) {
-        if (isTerminateRequested()) {
-            terminateTask();
-            return;
-        }
-        m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage = decodeError;
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    // Configure extraction options (tempo from input; thresholds/language use defaults
-    // that match the model's config.json — the plugin may override internally).
-    srt::extract::MidiExtractOptions options;
-    options.tempo = static_cast<float>(m_input.timeline.tempoAt(0));
-
-    auto resultExp =
-        extractor->extract(audio->buffer, audio->sampleRate, options, [this](const int progress) {
-            auto progressStatus = status();
-            progressStatus.progress = progress;
-            setStatus(progressStatus);
-        });
-
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    if (resultExp) {
-        m_errorCode = ErrorCode::Success;
-        m_errorMessage = tr("Successfully extracted midi.");
-        auto midiResult = resultExp.take();
-        result.reserve(midiResult.notes.size());
-        for (const auto &note : midiResult.notes) {
-            if (isTerminateRequested()) {
-                terminateTask();
-                result.clear();
-                return;
-            }
-            result.push_back({note.note, note.start, note.duration});
-        }
-    } else {
-        m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage =
-            tr("GAME model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
-        qCritical().noquote() << "Error:" << errorMessage();
-    }
+    // Round before range checking, without converting to int. start + duration must also fit int.
+    const auto start = std::round(startTick);
+    const auto duration = std::round(durationTicks);
+    constexpr auto minimum = std::numeric_limits<int>::min();
+    constexpr auto maximum = std::numeric_limits<int>::max();
+    if (start < minimum || start > maximum || duration > maximum || start + duration > maximum)
+        return std::nullopt;
+    return std::pair{static_cast<int>(start), static_cast<int>(duration)};
 }
 
-void ExtractMidiTask::terminate() {
-    ExtractTask::terminate();
-
-    srt::core::NO<srt::extract::MidiExtractor> extractor;
-    {
-        QMutexLocker locker(&m_extractorMutex);
-        extractor = m_extractor;
-    }
-    if (extractor) {
-        extractor->terminate();
+void ExtractMidiTask::runTask() {
+    runAnalysis<Note::NoteExecutive, Note::NoteSchema>(
+        tr("Note"),
+        [this](Note::NoteExecutive &notes, const Span &span, const auto &progress) {
+            Note::NoteStartInput input;
+            input.audio.sampleRate = span.sampleRate;
+            input.audio.channelCount = 1;
+            input.audio.samples.assign(span.samples.begin() + span.begin,
+                                       span.samples.begin() + span.end);
+            input.audio.startTime = span.startTime;
+            // Use the analyzer's default for unsupported languages.
+            const auto wanted = m_input.language.toStdString();
+            const auto *schema = notes.spec().exports()->as<Note::NoteSchema>();
+            if (!wanted.empty() && schema &&
+                std::find(schema->languages.begin(), schema->languages.end(), wanted) !=
+                    schema->languages.end()) {
+                input.language = wanted;
+            }
+            input.progress = progress;
+            return notes.start(input);
+        },
+        [this](const Note::NoteResult &transcription) {
+            // Convert each note through the tempo map, relative to the audio clip's start tick.
+            result.reserve(result.size() + transcription.notes.size());
+            for (const auto &note : transcription.notes) {
+                const auto ticks = noteTicks(m_input, note.start, note.duration);
+                if (!ticks) {
+                    fail(ErrorCode::ModelRunFailed,
+                         tr("The note analyzer returned invalid note timing"));
+                    return;
+                }
+                const auto [start, length] = *ticks;
+                // Drop sub-tick notes that round to zero length; the project interval tree rejects
+                // them.
+                if (length <= 0) {
+                    continue;
+                }
+                result.push_back({note.key, start, length, note.confidence});
+            }
+        });
+    if (!success()) {
+        result.clear();
     }
 }

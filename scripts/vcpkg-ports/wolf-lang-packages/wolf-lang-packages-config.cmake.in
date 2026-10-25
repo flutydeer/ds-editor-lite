@@ -1,0 +1,11 @@
+# Export the installed package search root relative to this config file.
+
+get_filename_component(_wolf_lang_prefix "${CMAKE_CURRENT_LIST_DIR}" DIRECTORY) # share/
+get_filename_component(_wolf_lang_prefix "${_wolf_lang_prefix}" DIRECTORY)      # prefix
+
+set(WOLF_LANG_PACKAGES_DIR "${_wolf_lang_prefix}/@WOLF_LANG_PACKAGES_SUBDIR@")
+set(WOLF_LANG_PACKAGES_BUNDLE_VERSION "@WOLF_LANG_PACKAGES_BUNDLE_VERSION@")
+set(WOLF_LANG_PACKAGES_INSTALLED "@WOLF_LANG_PACKAGES_INSTALLED@")
+set(WOLF_LANG_PACKAGES_FOUND TRUE)
+
+unset(_wolf_lang_prefix)

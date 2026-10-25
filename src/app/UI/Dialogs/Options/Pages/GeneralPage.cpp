@@ -11,6 +11,7 @@
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Utils/UiLanguageManager.h"
@@ -21,6 +22,21 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QSignalBlocker>
+
+namespace {
+
+    /// Record actual edits only; unchanged text must preserve concurrent settings updates.
+    void recordDefaultLyricEdit(QMap<QString, QString> &pending, const QString &language,
+                                const QString &text, const QString &displayed) {
+        const auto edited = text.trimmed();
+        if (edited == displayed) {
+            pending.remove(language);
+            return;
+        }
+        pending[language] = edited;
+    }
+
+}
 
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -37,22 +53,33 @@ void GeneralPage::modifyOption() {
     auto settings = previous;
     settings.uiLanguage = m_cbUiLanguage->currentData().toString();
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
-    m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
-    settings.defaultLyrics = m_defaultLyrics;
-    settings.gameDirectory = m_fsGameDir->path();
-    settings.pitchModelPath = m_fsRmvpePath->path();
+    recordDefaultLyricEdit(m_pendingLyrics, settings.defaultSingingLanguage, m_leDefaultLyric->text(),
+                           m_displayedLyric);
+    // Apply only edited languages so concurrent automation changes are preserved.
+    settings.defaultLyrics = previous.defaultLyrics;
+    for (auto it = m_pendingLyrics.constBegin(); it != m_pendingLyrics.constEnd(); ++it) {
+        if (it.value().isEmpty())
+            settings.defaultLyrics.remove(it.key());
+        else
+            settings.defaultLyrics.insert(it.key(), it.value());
+    }
+    settings.noteAnalyzer = m_cbNoteAnalyzer->currentData().toString();
+    settings.pitchAnalyzer = m_cbPitchAnalyzer->currentData().toString();
     settings.libreSvipPath = m_fsLibreSVIPPath->path();
     settings.drawParamWithFinger = m_swFingerDrawParam->value();
-    if (runtime->settings().updateGeneral({}, settings))
+    if (runtime->settings().updateGeneral({}, settings)) {
+        m_pendingLyrics.clear();
+        m_displayedLyric = m_leDefaultLyric->text();
         return;
+    }
 
-    m_defaultLyrics = previous.defaultLyrics;
+    m_pendingLyrics.clear();
     m_previousLanguage = previous.defaultSingingLanguage;
     const QSignalBlocker uiLanguage(m_cbUiLanguage);
     const QSignalBlocker singingLanguage(m_cbDefaultSingingLanguage);
     const QSignalBlocker lyric(m_leDefaultLyric);
-    const QSignalBlocker gamePath(m_fsGameDir);
-    const QSignalBlocker pitchPath(m_fsRmvpePath);
+    const QSignalBlocker noteAnalyzer(m_cbNoteAnalyzer);
+    const QSignalBlocker pitchAnalyzer(m_cbPitchAnalyzer);
     const QSignalBlocker converterPath(m_fsLibreSVIPPath);
     const QSignalBlocker fingerDrawing(m_swFingerDrawParam);
     m_cbUiLanguage->setCurrentIndex(m_cbUiLanguage->findData(previous.uiLanguage));
@@ -60,8 +87,9 @@ void GeneralPage::modifyOption() {
         m_cbDefaultSingingLanguage->findData(previous.defaultSingingLanguage));
     m_leDefaultLyric->setText(
         appOptions->general()->defaultLyricForLanguage(previous.defaultSingingLanguage));
-    m_fsGameDir->setPath(previous.gameDirectory);
-    m_fsRmvpePath->setPath(previous.pitchModelPath);
+    m_displayedLyric = m_leDefaultLyric->text();
+    m_cbNoteAnalyzer->setCurrentIndex(m_cbNoteAnalyzer->findData(previous.noteAnalyzer));
+    m_cbPitchAnalyzer->setCurrentIndex(m_cbPitchAnalyzer->findData(previous.pitchAnalyzer));
     m_fsLibreSVIPPath->setPath(previous.libreSvipPath);
     m_swFingerDrawParam->setValue(previous.drawParamWithFinger);
 }
@@ -69,7 +97,6 @@ void GeneralPage::modifyOption() {
 QWidget *GeneralPage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->general();
-    m_defaultLyrics = option->defaultLyrics;
 
     m_cbUiLanguage = new ComboBox;
     m_cbUiLanguage->addItem(tr("Auto Detect"), UiLanguageManager::System);
@@ -104,9 +131,11 @@ QWidget *GeneralPage::createContentWidget() {
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
     m_previousLanguage = langKey;
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
-        m_defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
+        recordDefaultLyricEdit(m_pendingLyrics, m_previousLanguage, m_leDefaultLyric->text(),
+                               m_displayedLyric);
         const auto newLang = m_cbDefaultSingingLanguage->currentLanguage();
-        m_leDefaultLyric->setText(m_defaultLyrics.value(newLang, QStringLiteral("la")));
+        m_leDefaultLyric->setText(appOptions->general()->defaultLyricForLanguage(newLang));
+        m_displayedLyric = m_leDefaultLyric->text();
         m_previousLanguage = newLang;
         modifyOption();
     });
@@ -114,6 +143,7 @@ QWidget *GeneralPage::createContentWidget() {
     m_leDefaultLyric = new LineEdit;
     m_leDefaultLyric->setFixedWidth(80);
     m_leDefaultLyric->setText(option->defaultLyricForLanguage(langKey));
+    m_displayedLyric = m_leDefaultLyric->text();
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
@@ -136,20 +166,32 @@ QWidget *GeneralPage::createContentWidget() {
     packagePathsCard->setTitle(tr("Package Search Paths (needs restart)"));
     packagePathsCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
+    // Keep a missing analyzer selection visible instead of silently selecting another analyzer.
+    const auto fillAnalyzers = [this](ComboBox *box, const QString &interfaceName,
+                                      const QString &chosen) {
+        box->setMinimumWidth(480);
+        box->addItem(tr("(none)"), QString());
+        for (const auto &entry : SynthrtEngine::instance().analyzers(interfaceName)) {
+            const auto reference = QString::fromStdString(entry.reference());
+            box->addItem(QString::fromStdString(entry.name.text()) + QStringLiteral(" (") +
+                             QString::fromStdString(entry.packageId) + QLatin1Char(')'),
+                         reference);
+        }
+        auto index = box->findData(chosen);
+        if (index < 0 && !chosen.isEmpty()) {
+            box->addItem(tr("%1 (not installed)").arg(chosen), chosen);
+            index = box->count() - 1;
+        }
+        box->setCurrentIndex(index < 0 ? 0 : index);
+        connect(box, &ComboBox::currentIndexChanged, this, &GeneralPage::modifyOption);
+    };
 
-    m_fsGameDir = new FileSelector;
-    m_fsGameDir->setMinimumWidth(480);
-    m_fsGameDir->setFilter(tr("Directories"));
-    m_fsGameDir->setDirMode(true);
-    m_fsGameDir->setPath(option->gameDir);
-    connect(m_fsGameDir, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
-    m_fsRmvpePath = new FileSelector;
-    m_fsRmvpePath->setMinimumWidth(480);
-    m_fsRmvpePath->setFilter(onnxFilesFilter);
-    m_fsRmvpePath->setFileDropExtensions({"onnx"});
-    m_fsRmvpePath->setPath(option->rmvpePath);
-    connect(m_fsRmvpePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
+    m_cbNoteAnalyzer = new ComboBox;
+    fillAnalyzers(m_cbNoteAnalyzer, lite::synthrt::noteContract(),
+                  option->noteAnalyzer);
+    m_cbPitchAnalyzer = new ComboBox;
+    fillAnalyzers(m_cbPitchAnalyzer, lite::synthrt::f0Contract(),
+                  option->pitchAnalyzer);
     m_fsLibreSVIPPath = new FileSelector;
     m_fsLibreSVIPPath->setMinimumWidth(480);
     m_fsLibreSVIPPath->setFilter(tr("Executable (*.exe)"));
@@ -157,8 +199,8 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_fsLibreSVIPPath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
-    modelCard->addItem(tr("Game Model Dir"), m_fsGameDir);
-    modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
+    modelCard->addItem(tr("Note Analyzer"), m_cbNoteAnalyzer);
+    modelCard->addItem(tr("Pitch Analyzer"), m_cbPitchAnalyzer);
     modelCard->addItem(tr("LibreSVIP Path"), m_fsLibreSVIPPath);
 
     const auto mainLayout = new QVBoxLayout;

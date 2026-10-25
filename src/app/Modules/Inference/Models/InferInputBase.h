@@ -6,6 +6,8 @@
 #include "InferParamCurve.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "InferInputNote.h"
+#include "Modules/Inference/Utils/InferFrameLayout.h"
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include <QList>
@@ -35,6 +37,9 @@ public:
     Timeline timeline;
     QList<InferInputNote> notes;
 
+    /// Reserved-phoneme notes are rests and have no phoneme offset.
+    QSet<QString> reservedPhonemes = ReservedPhonemes::forced();
+
     QString speaker;
     InferSpeakerMix speakerMix;
     SingerIdentifier identifier;
@@ -45,9 +50,14 @@ public:
     [[nodiscard]] QJsonObject semanticObject(const QString &taskType) const;
     [[nodiscard]] QString semanticSignature(const QString &taskType,
                                             const QJsonObject &extra = {}) const;
-    [[nodiscard]] QList<double> resampleCurveToFrames(const InferParamCurve &curve, int frames,
-                                                      double intervalSeconds = 0.01,
+    [[nodiscard]] QList<double> resampleCurveToFrames(
+        const InferParamCurve &curve, int frames,
+        double intervalSeconds = InferFrameLayout::kDefaultInputInterval,
                                                       double emptyValue = 0.0) const;
+    /// Resample without blending unvoiced markers into voiced pitch; empty input stays unvoiced.
+    [[nodiscard]] QList<double> resamplePitchToFrames(
+        const InferParamCurve &curve, int frames,
+        double intervalSeconds = InferFrameLayout::kDefaultInputInterval) const;
     [[nodiscard]] InferParamCurve resampleFramesToCurve(const QList<double> &values,
                                                         double intervalSeconds) const;
 

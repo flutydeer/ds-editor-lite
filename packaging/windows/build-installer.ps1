@@ -5,6 +5,10 @@ param(
     [string]$InnoSetupPath = "",
     [string]$VcRedistPath = "",
 
+    # Optional unpacked package root, passed as LITE_WOLF_LANG_PACKAGES.
+    # Omission preserves a cached override; clear that CMake entry to restore automatic discovery.
+    [string]$WolfLangPackages = "",
+
     [switch]$SkipVcpkgInstall,
     # Build the CUDA flavor: installs onnxruntime-builds[cuda12] and configures
     # LITE_ENABLE_CUDA=ON. Default is the DirectML (DML) flavor.
@@ -221,15 +225,44 @@ function Write-InnoScript {
     Set-Content -LiteralPath $DestinationPath -Value $script -Encoding UTF8
 }
 
+# Read deployment paths from SynthrtEngine/DeployLayout.h.
+function Get-DeployLayout {
+    $header = Join-Path $RepoRoot "src\libs\SynthrtEngine\DeployLayout.h"
+    $layout = @{}
+    foreach ($line in Select-String -LiteralPath $header -Pattern 'inline constexpr char ([A-Z_]+)\[\] = "([^"]*)";') {
+        $groups = $line.Matches[0].Groups
+        $layout[$groups[1].Value] = $groups[2].Value -replace '/', '\'
+    }
+    foreach ($name in @("ONNX_RUNTIME_DIR", "CUDA_RUNTIME_SUBDIR", "LANGUAGE_PACKAGES_DIR",
+        "PLUGIN_LIBRARIES")) {
+        if (-not $layout.ContainsKey($name)) {
+            throw "DeployLayout.h does not define $name in the form this script parses"
+        }
+    }
+    return $layout
+}
+
 function Assert-StagingLayout {
+    # Verify the plugin libraries declared by the shared deployment layout.
+    $pluginTreePaths = $DeployLayout.PLUGIN_LIBRARIES -split ' ' |
+        ForEach-Object { "bin\plugins\$_" }
     $requiredPaths = @(
         "bin\$($ProductMetadata.executableBaseName).exe",
         "bin\plugins",
-        "bin\plugins\platforms",
+        "bin\plugins\platforms"
+    ) + $pluginTreePaths + @(
         "bin\Resources",
         "bin\configs",
-        "bin\plugins\srt-g2p\G2pPackages"
+        "bin\$($DeployLayout.LANGUAGE_PACKAGES_DIR)",
+        "bin\$($DeployLayout.ONNX_RUNTIME_DIR)"
     )
+
+    # Verify the category directories in the staged package.
+    foreach ($layoutEntry in $DeployLayout.GetEnumerator()) {
+        if ($layoutEntry.Value -match '^plugins\\[^\\]+\\[^\\]+$') {
+            $requiredPaths += "bin\$($layoutEntry.Value)"
+        }
+    }
 
     foreach ($path in $requiredPaths) {
         $fullPath = Join-Path $ResolvedStageDir $path
@@ -254,7 +287,8 @@ function Assert-StagingLayout {
     # Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
     # runtime gate already enforces this at build/install time; this is the
     # packaging-boundary net so a stale vcpkg tree can never slip through.
-    $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaRuntimeDir = Join-Path $ResolvedStageDir (
+        "bin\$($DeployLayout.ONNX_RUNTIME_DIR)\$($DeployLayout.CUDA_RUNTIME_SUBDIR)")
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
         throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
@@ -332,6 +366,7 @@ New-Item -ItemType Directory -Force -Path $ResolvedOutputDir, $WorkDir | Out-Nul
 
 $MetadataPath = Join-Path $WorkDir "product-metadata.json"
 $ProductMetadata = Get-ProductMetadata -DestinationPath $MetadataPath
+$DeployLayout = Get-DeployLayout
 
 if (-not $VcRedistPath) {
     $VcRedistPath = $env:VC_REDIST_X64
@@ -385,6 +420,9 @@ if (-not $NoBuild) {
             # switch overrides it so this script and the CMake runtime gate
             # agree on one source of truth.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
+        }
+        if ($WolfLangPackages) {
+            $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
         }
         Invoke-Process "cmake" $configureArgs
     }

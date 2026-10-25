@@ -8,7 +8,6 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include <synthrt/G2P/Core/Manager.h>
 
 #include <lite/GUI/Controls/SmoothScroller.h>
 
@@ -34,8 +33,6 @@ namespace LangSetting {
     }
 
     GListWidget::GListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto g2pMgr = srt::g2p::Manager::instance();
-
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
         this->setSelectionBehavior(SelectRows);
@@ -51,12 +48,7 @@ namespace LangSetting {
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this, SmoothScroller::TouchKinetic::Disabled);
 
-        // TODO g2pMgr->g2ps() bug
-        // for (const auto &g2pId : langOrder) {
-        //     const auto &g2p = g2pMgr->g2p(g2pId);
-        //     this->addItem(g2p->displayName());
-        //     this->item(this->count() - 1)->setData(Qt::UserRole, g2p->id());
-        // }
+        // Language routes belong to singers, so there is no standalone G2P module list.
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 
@@ -89,9 +81,6 @@ namespace LangSetting {
     G2pListWidget::~G2pListWidget() = default;
 
     QString G2pListWidget::currentG2pId() const {
-        // R2/TD-2: 列表为空时 currentItem() 返回 nullptr，直接解引用会崩溃
-        // （G2pPage::update() 与 shown 信号槽会调用本函数）。空时返回空 QString，
-        // 由 G2pInfoWidget::setInfo 显示占位文案。
         const auto *item = m_gListWidget->currentItem();
         if (!item)
             return {};

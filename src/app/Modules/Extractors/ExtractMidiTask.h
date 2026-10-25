@@ -1,17 +1,18 @@
 #ifndef EXTRACTMIDITASK_H
 #define EXTRACTMIDITASK_H
 
+#include <vector>
+#include <optional>
+#include <utility>
+
 #include "ExtractTask.h"
 
-#include <synthrt/Extract/MidiExtractor.h>
-
-#include <QMutex>
-
-/// Local MIDI note struct, decoupled from synthrt types.
 struct ExtractMidiNote {
     int note = 0;
     int start = 0;
     int duration = 0;
+    /// Model-reported confidence in [0, 1].
+    double confidence = 0;
 };
 
 class ExtractMidiTask final : public ExtractTask {
@@ -20,14 +21,14 @@ class ExtractMidiTask final : public ExtractTask {
 public:
     explicit ExtractMidiTask(Input input);
 
-    void terminate() override;
+    /// Converts file-relative seconds to clip-local start and duration ticks. A zero duration is
+    /// valid and can be dropped; malformed times or an unrepresentable note return no value.
+    [[nodiscard]] static std::optional<std::pair<int, int>>
+        noteTicks(const Input &input, double startSeconds, double durationSeconds);
 
     std::vector<ExtractMidiNote> result;
 
 private:
     void runTask() override;
-
-    mutable QMutex m_extractorMutex;
-    srt::core::NO<srt::extract::MidiExtractor> m_extractor;
 };
 #endif // EXTRACTMIDITASK_H

@@ -13,7 +13,6 @@
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
 namespace FillLyric {
-    // R16: UI 层统一 QStringList，调用 G2pService/LyricSplitter 时转 std::vector<std::string>
     static std::vector<std::string> toStdVector(const QStringList &qsl) {
         std::vector<std::string> v;
         v.reserve(static_cast<size_t>(qsl.size()));
@@ -25,10 +24,9 @@ namespace FillLyric {
     }
 
     LyricTab::LyricTab(const QList<LangNote> &langNotes, SingerIdentifier singer,
-                       const srt::g2p::LanguageService &languageService,
                        const QStringList &priorityLanguages, const LyricTabConfig &config,
                        QWidget *parent)
-        : QWidget(parent), m_g2pService(std::move(singer), languageService) {
+        : QWidget(parent), m_g2pService(std::move(singer)) {
         m_priorityLanguages = priorityLanguages;
         for (const auto &langNote : langNotes)
             m_langNotes.append(new LangNote(langNote));

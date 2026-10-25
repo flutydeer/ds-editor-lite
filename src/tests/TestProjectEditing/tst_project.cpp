@@ -1532,7 +1532,7 @@ void ProjectEditingTests::trackEditing() {
         const auto base = runtime.documentVersion();
         const auto empty = runtime.project().setTrackDefaultLanguage(commandContext(runtime), third,
                                                                      QStringLiteral("  "));
-        QVERIFY2((isError(empty, AutomationErrorCode::InvalidArgument, QStringLiteral("language"))),
+        QVERIFY2((isError(empty, AutomationErrorCode::InvalidArgument, QStringLiteral("language_id"))),
                  qPrintable(QStringLiteral("blank language must be rejected")));
         const auto changed = runtime.project().setTrackDefaultLanguage(
             commandContext(runtime), third, QStringLiteral("zh-汉字"));
@@ -1782,7 +1782,7 @@ void ProjectEditingTests::singingClipEditing() {
         testRuntime.history()->reset();
         const auto blank = runtime.project().setSingingClipDefaultLanguage(
             commandContext(runtime), clip, QStringLiteral(""));
-        QVERIFY2((isError(blank, AutomationErrorCode::InvalidArgument, QStringLiteral("language"))),
+        QVERIFY2((isError(blank, AutomationErrorCode::InvalidArgument, QStringLiteral("language_id"))),
                  qPrintable(QStringLiteral("empty clip language must be rejected")));
         const auto base = runtime.documentVersion();
         const auto changed = runtime.project().setSingingClipDefaultLanguage(

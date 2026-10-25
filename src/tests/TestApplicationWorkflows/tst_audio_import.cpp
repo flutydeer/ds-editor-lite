@@ -9,6 +9,7 @@
 #include "Modules/Extractors/ExtractMidiTask.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -26,6 +27,7 @@
 #include <QtTest>
 
 #include <algorithm>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -34,6 +36,24 @@
 using namespace Automation;
 
 namespace {
+    class EmptyResultExtractTask final : public ExtractTask {
+    public:
+        using ExtractTask::ExtractTask;
+        bool placed = false;
+        bool analysed = false;
+
+        void runTask() override {
+            namespace F0 = otter::Api::F0::L1;
+            runAnalysis<F0::F0Executive, F0::F0Schema>(
+                QStringLiteral("pitch"),
+                [this](auto &, const auto &, auto) -> srt::Expected<std::shared_ptr<F0::F0Result>> {
+                    analysed = true;
+                    return std::shared_ptr<F0::F0Result>{};
+                },
+                [this](const auto &) { placed = true; });
+        }
+    };
+
     bool writeAudio(const QString &path) {
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly))
@@ -67,6 +87,113 @@ namespace {
     }
 }
 
+void ApplicationWorkflowTests::extractionRejectsEmptyAnalyzerResult() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto root = files.filePath(QStringLiteral("ci-fixture"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY(!error);
+    // The fake start callback does not execute the graph, but analyzer creation needs a valid ONNX.
+    const auto model = QDir(root).filePath(QStringLiteral("test-placeholder.onnx"));
+    QVERIFY(QFile::remove(model));
+    QVERIFY(QFile::copy(QDir(root).filePath(QStringLiteral("inferences/acoustic/acoustic.onnx")), model));
+    const auto originalPaths = appOptions->general()->packageSearchPaths;
+    const auto restorePackages = qScopeGuard([&] {
+        QVERIFY(packageManager->refreshInstalledPackages(originalPaths));
+    });
+    QVERIFY(packageManager->refreshInstalledPackages({root}));
+    const auto path = files.filePath(QStringLiteral("audio.wav"));
+    QVERIFY(writeAudio(path));
+    ExtractTask::Input input;
+    input.audioPath = path;
+    input.analyzer = QStringLiteral("ci-fixture:inference/fixture-f0");
+    input.audioVisibleEndMs = 100;
+    EmptyResultExtractTask task(input);
+    task.runTask();
+    QVERIFY2(task.analysed, qPrintable(task.errorMessage()));
+    QVERIFY(!task.placed);
+    QCOMPARE(task.errorCode(), ExtractTask::ErrorCode::ModelRunFailed);
+    QCOMPARE(task.errorMessage(), QStringLiteral("The analyzer returned no result"));
+}
+
+void ApplicationWorkflowTests::pitchExtractionRejectsMisalignedVoicing() {
+    otter::Api::F0::L1::F0Result curve;
+    curve.interval = 0.01;
+    curve.f0 = {440.0f, 220.0f, 0.0f};
+    auto values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 57.0, 0.0}));
+    curve.voiced = {1, 0, 0};
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values);
+    QCOMPARE(*values, (QList<double>{69.0, 0.0, 0.0}));
+    curve.voiced = {1, 0};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced = {1, 0, 0, 1};
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.f0.clear();
+    QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    curve.voiced.clear();
+    values = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(values && values->isEmpty());
+}
+
+void ApplicationWorkflowTests::pitchExtractionRejectsNonFiniteFrequencies() {
+    for (const float invalid : {std::numeric_limits<float>::quiet_NaN(),
+                                std::numeric_limits<float>::infinity(),
+                                -std::numeric_limits<float>::infinity()}) {
+        otter::Api::F0::L1::F0Result curve;
+        curve.interval = 0.01;
+        curve.f0 = {invalid, 440.0f};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+        curve.voiced = {0, 1};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+        curve.voiced = {1, 1};
+        QVERIFY(!ExtractPitchTask::pitchValues(curve));
+    }
+}
+
+void ApplicationWorkflowTests::pitchExtractionValidatesTiming_data() {
+    QTest::addColumn<double>("start");
+    QTest::addColumn<double>("interval");
+    QTest::addColumn<bool>("valid");
+    const auto nan = std::numeric_limits<double>::quiet_NaN();
+    const auto inf = std::numeric_limits<double>::infinity();
+    const auto max = std::numeric_limits<double>::max();
+    QTest::newRow("ordinary") << 0.0 << 0.01 << true;
+    QTest::newRow("offset") << 1.5 << 0.005 << true;
+    QTest::newRow("zero-interval") << 0.0 << 0.0 << false;
+    QTest::newRow("negative-interval") << 0.0 << -0.01 << false;
+    QTest::newRow("nan-interval") << 0.0 << nan << false;
+    QTest::newRow("infinite-interval") << 0.0 << inf << false;
+    QTest::newRow("nan-start") << nan << 0.01 << false;
+    QTest::newRow("infinite-start") << inf << 0.01 << false;
+    QTest::newRow("negative-infinite-start") << -inf << 0.01 << false;
+    QTest::newRow("start-ms-overflow") << max << 0.01 << false;
+    QTest::newRow("interval-ms-overflow") << 0.0 << max << false;
+    QTest::newRow("end-ms-overflow") << 0.0 << max / 1500.0 << false;
+}
+
+void ApplicationWorkflowTests::pitchExtractionValidatesTiming() {
+    QFETCH(double, start);
+    QFETCH(double, interval);
+    QFETCH(bool, valid);
+    otter::Api::F0::L1::F0Result curve;
+    curve.startTime = start;
+    curve.interval = interval;
+    curve.f0 = {440.0f, 440.0f, 440.0f};
+    QCOMPARE(ExtractPitchTask::pitchValues(curve).has_value(), valid);
+    // An analyzer may legitimately return no frames with its default zero interval.
+    curve = {};
+    const auto empty = ExtractPitchTask::pitchValues(curve);
+    QVERIFY(empty && empty->isEmpty());
+}
+
 void ApplicationWorkflowTests::
     extractionPreparationRejectsMissingResourcesAndChangedSources_data() {
     QTest::addColumn<bool>("pitch");
@@ -91,13 +218,13 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         return restored.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
                restored.write(originalBytes) == originalBytes.size();
     };
-    const auto previousPitch = context->m_appOptions->general()->rmvpePath;
-    const auto previousMidi = context->m_appOptions->general()->gameDir;
+    const auto previousPitch = context->m_appOptions->general()->pitchAnalyzer;
+    const auto previousMidi = context->m_appOptions->general()->noteAnalyzer;
     std::unique_ptr<TestSupport::ThreadPoolBarrier> workers;
     QList<TaskId> attempts;
     const auto cleanup = qScopeGuard([&] {
-        context->m_appOptions->general()->rmvpePath = previousPitch;
-        context->m_appOptions->general()->gameDir = previousMidi;
+        context->m_appOptions->general()->pitchAnalyzer = previousPitch;
+        context->m_appOptions->general()->noteAnalyzer = previousMidi;
         if (workers)
             workers->resume();
         for (const auto &id : attempts)
@@ -112,8 +239,8 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         if (QTest::currentTestFailed())
             files.setAutoRemove(false);
     });
-    auto &modelPath = pitch ? context->m_appOptions->general()->rmvpePath
-                            : context->m_appOptions->general()->gameDir;
+    auto &modelPath = pitch ? context->m_appOptions->general()->pitchAnalyzer
+                            : context->m_appOptions->general()->noteAnalyzer;
     modelPath.clear();
     ClipDraftDto audio;
     audio.type = ClipDraftDto::Type::Audio;
@@ -168,7 +295,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
              qPrintable(unconfigured.getError().fieldPath + QStringLiteral(": ") +
                         unconfigured.getError().message));
     QCOMPARE(unconfigured.getError().fieldPath,
-             pitch ? QStringLiteral("rmvpe_model_path") : QStringLiteral("game_model_path"));
+             pitch ? QStringLiteral("pitch_analyzer") : QStringLiteral("note_analyzer"));
     modelPath = files.filePath(QStringLiteral("unavailable-model"));
     const auto missingModel = start();
     QVERIFY(!missingModel);
@@ -187,15 +314,10 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 
-    // Preparation only requires a resource path. Every accepted attempt stops before inference.
-    modelPath = files.filePath(pitch ? QStringLiteral("placeholder.onnx")
-                                     : QStringLiteral("placeholder-model"));
-    if (pitch) {
-        QFile placeholder(modelPath);
-        QVERIFY(placeholder.open(QIODevice::WriteOnly));
-    } else {
-        QVERIFY(QDir().mkpath(modelPath));
-    }
+    // Use valid analyzer declarations; these cases stop before opening model weights.
+    const auto analyzerReference = pitch ? QStringLiteral("ci-fixture:inference/fixture-f0")
+                                         : QStringLiteral("ci-fixture:inference/fixture-note");
+    modelPath = QStringLiteral(" \t") + analyzerReference + QStringLiteral("\n ");
     int modelTasks = 0;
     QObject observations;
     connect(taskManager, &TaskManager::taskChanged, &observations,
@@ -212,6 +334,7 @@ void ApplicationWorkflowTests::extractionPreparationRejectsMissingResourcesAndCh
         input.sourceAsset.pathInfo.sha512 = digest;
         const auto prepared = prepare(input);
         QVERIFY(prepared);
+        QCOMPARE(prepared.get().input.analyzer, analyzerReference);
         QVERIFY(QFile::remove(detachedSource));
         struct Outcome {
             std::optional<ExtractionBackendState> state;

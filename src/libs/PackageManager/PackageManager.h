@@ -17,10 +17,6 @@
 #include <QReadWriteLock>
 #include <QStringList>
 
-namespace srt::core {
-    class Error;
-}
-
 class PackageManager final : public QObject {
     Q_OBJECT
 
@@ -36,13 +32,21 @@ public:
     enum class ModuleStatus { Loading, Ready, Error };
     using RefreshCommitGate = std::function<bool()>;
 
+    enum class ScanMode {
+        /// Read changed package files through a fresh runtime catalog.
+        Reload,
+        /// Reuse the packages already loaded during initialization.
+        ReuseLoaded,
+    };
+
     // searchPaths: directories to scan for packages. Supplied by the app (from
     // its settings) so the library does not depend on AppOptions.
     void initialize(const QStringList &searchPaths);
 
     [[nodiscard]]
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
-        refreshInstalledPackages(const QStringList &searchPaths, RefreshCommitGate commitGate = {});
+        refreshInstalledPackages(const QStringList &searchPaths, RefreshCommitGate commitGate = {},
+                                 ScanMode mode = ScanMode::Reload);
 
     GetInstalledPackagesResult installedPackages() const;
     PackageInfo findPackageByIdentifier(const SingerIdentifier &identifier) const;
@@ -55,12 +59,12 @@ Q_SIGNALS:
     void moduleStatusChanged(PackageManager::ModuleStatus status);
 
 private:
-    static QString srtErrorToString(const srt::core::Error &error);
-
     std::once_flag m_initialized{};
     mutable std::mutex m_refreshMutex;
     std::condition_variable m_refreshCompleted;
     bool m_refreshing = false;
+    QStringList m_refreshSearchPaths;
+    ScanMode m_refreshMode = ScanMode::Reload;
     bool m_lastRefreshCommitRejected = false;
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> m_lastRefreshResult;
     mutable QReadWriteLock m_resultRwLock;

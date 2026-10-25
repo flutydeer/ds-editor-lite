@@ -274,7 +274,7 @@ animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 **Step 4** — i18n：新增串 `Enable animations`，删除旧串 `Full/Decreased/None/Level`（AppearancePage 上下文），执行 i18n 流水线（规范见 ds-editor-lite skill references/i18n-lupdate-workflow.md）：
 
 ```bash
-cd /d/GitRepos/ds-editor-lite && lupdate src/app -ts src/app/Resources/translate/translation_zh_CN.ts
+cd <lite 检出> && lupdate src/app -ts src/app/Resources/translate/translation_zh_CN.ts
 ```
 
 然后用 Python（native open）把 `<source>Enable animations</source>` 的 translation 填上 `启用动画` 标记 `type=""`。旧的 Full/Decreased/None/Level 条目会自动标为 obsolete（保留无害；如需彻底清理可用 `lupdate ... -no-obsolete`，谨慎——会连其它上下文一并清理）。
@@ -311,7 +311,7 @@ void testEffectiveDurationPolicy() {
 
 ```bash
 # 全量（新增头文件删除/改动需要 configure + build）
-cd /d/GitRepos/ds-editor-lite && powershell -NoProfile -ExecutionPolicy Bypass \
+cd <lite 检出> && powershell -NoProfile -ExecutionPolicy Bypass \
   -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset debug
 ```
 

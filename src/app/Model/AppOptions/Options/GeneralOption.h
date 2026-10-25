@@ -1,8 +1,6 @@
 #ifndef GENERALOPTION_H
 #define GENERALOPTION_H
 
-// #include <QVersionNumber>
-
 #include <QJsonValue>
 #include <QMap>
 
@@ -18,16 +16,20 @@ public:
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
     void setPackageSearchPathsAndNotify(QStringList paths);
+
+    /// Resolve the user override, then the built-in default, then 'la'.
     QString defaultLyricForLanguage(const QString &language) const;
+
+    /// Empty values and values equal to the built-in default are not overrides.
+    bool hasDefaultLyricOverride(const QString &language) const;
+
+    static QString builtinDefaultLyricForLanguage(const QString &language);
+
+    static const QMap<QString, QString> &builtinDefaultLyrics();
 
     QString defaultSingingLanguage = "cmn";
     QString uiLanguage = "system";
-    QMap<QString, QString> defaultLyrics{
-        {"cmn", "啦"},
-        {"eng", "la"},
-        {"jpn", "ら"},
-        {"yue", "啦"}
-    };
+    QMap<QString, QString> defaultLyrics = builtinDefaultLyrics();
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;
@@ -36,8 +38,11 @@ public:
     // the piano roll) scrolls the timeline instead, and the tool belongs to the
     // pen and the mouse. The speaker mix editor is not covered.
     LITE_OPTION_ITEM(bool, drawParamWithFinger, false)
-    LITE_OPTION_ITEM(QString, gameDir, QString())
-    LITE_OPTION_ITEM(QString, rmvpePath, QString())
+    /// Selected analyzer reference: package:inference/contribution, empty until selected.
+    /// Legacy analysis-category references are normalized on load; filesystem paths are not
+    /// migrated.
+    LITE_OPTION_ITEM(QString, noteAnalyzer, QString())
+    LITE_OPTION_ITEM(QString, pitchAnalyzer, QString())
     LITE_OPTION_ITEM(QString, libreSVIPPath, QString())
 
 

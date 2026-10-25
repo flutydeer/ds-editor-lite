@@ -1,5 +1,7 @@
 #include "UpdateDurationState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <QTimer>
 
 #include "Modules/Inference/InferenceAutomationBridge.h"
@@ -10,7 +12,7 @@ UpdateDurationState::UpdateDurationState(InferPipeline &pipeline, QState *parent
 }
 
 void UpdateDurationState::onEntry(QEvent *event) {
-    qDebug() << "UpdateDurationState::onEntry";
+    qCDebug(logInferState) << "UpdateDurationState::onEntry";
     QState::onEntry(event);
 
     const auto gate = m_pipeline.resolveApplyContext(m_pipeline.durationResult().count());
@@ -44,6 +46,6 @@ void UpdateDurationState::onEntry(QEvent *event) {
 }
 
 void UpdateDurationState::onExit(QEvent *event) {
-    qDebug() << "UpdateDurationState::onExit";
+    qCDebug(logInferState) << "UpdateDurationState::onExit";
     QState::onExit(event);
 }

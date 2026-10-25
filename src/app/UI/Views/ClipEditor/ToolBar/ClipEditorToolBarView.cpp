@@ -5,6 +5,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
+#include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
@@ -20,11 +21,14 @@
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Utils/QuantizeOptions.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QButtonGroup>
 #include <QDialog>
@@ -79,6 +83,15 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 
     d->m_cbSinger->setShowInheritItem(true);
+    // Connect before the initial setItems so unavailable-package rows appear on the first
+    // population.
+    connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d, [d] {
+        SingerMenuUnavailablePackages::append(
+            d->m_cbSinger->mainMenu(), packageManager->installedPackages().failedPackages, [] {
+                PackageManagerDialog dialog;
+                dialog.exec();
+            });
+    });
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -103,12 +116,17 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::onSingerEdited);
     connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d,
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
-
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
     connect(appOptions, &AppOptions::optionsChanged, d, [d](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             d->refreshSingerComboPresentation();
     });
+    // Queue availability refresh to avoid re-entering synchronous G2P callers.
+    if (auto *engine = AppContext::instance<SynthrtEngine>()) {
+        connect(
+            engine, &SynthrtEngine::languageRouteFailed, d,
+            [d](const QString &) { d->refreshLanguageComboPresentation(); }, Qt::QueuedConnection);
+    }
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Handle);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
@@ -557,8 +575,12 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
         return;
 
     const auto singerInfo = m_singingClip->singerInfo();
-    const auto language = m_cbClipLanguage->setLanguages(
-        singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
+    QHash<QString, QString> unavailableReasons;
+    const auto unavailable = LanguageComboBox::unavailableLanguages(singerInfo, unavailableReasons);
+    const auto language =
+        m_cbClipLanguage->setLanguages(singerInfo.languages(), m_singingClip->defaultLanguage(),
+                                       singerInfo.defaultLanguage(), unavailable,
+                                       unavailableReasons);
     // latch singer default language only when singer is resolved; do not write back without a
     // singer
     if (singerInfo.resolutionState() == ResolutionState::Resolved &&

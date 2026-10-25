@@ -10,6 +10,7 @@ bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) c
            pitchUsesExpressiveness == other.pitchUsesExpressiveness &&
            vocoderPitchControllable == other.vocoderPitchControllable &&
            effectivePhonemes == other.effectivePhonemes &&
+           reservedPhonemes == other.reservedPhonemes &&
            phonemeConsistency == other.phonemeConsistency &&
            phonemeWarnings == other.phonemeWarnings && phonemeDegraded == other.phonemeDegraded &&
            effectiveLanguages == other.effectiveLanguages &&
@@ -137,6 +138,14 @@ QString SingerInfo::g2pId(const QString &language) const {
             return lang.g2p();
     }
     return QStringLiteral("unknown");
+}
+
+QString SingerInfo::defaultLyricForLanguage(const QString &language) const {
+    for (const auto &lang : d->languages) {
+        if (language == lang.id())
+            return lang.defaultLyric();
+    }
+    return {};
 }
 
 QString SingerInfo::defaultLanguage() const {

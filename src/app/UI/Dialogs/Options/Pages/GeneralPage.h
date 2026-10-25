@@ -28,12 +28,16 @@ private:
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;
-    QMap<QString, QString> m_defaultLyrics;
+    /// Baseline displayed text used to distinguish an actual edit from an unchanged effective
+    /// value.
+    QString m_displayedLyric;
+    /// Sparse language edits; empty values remove overrides.
+    QMap<QString, QString> m_pendingLyrics;
 
     PathEditor *m_packageSearchPaths;
 
-    FileSelector *m_fsGameDir;
-    FileSelector *m_fsRmvpePath;
+    ComboBox *m_cbNoteAnalyzer;
+    ComboBox *m_cbPitchAnalyzer;
     FileSelector *m_fsLibreSVIPPath;
 
     SwitchButton *m_swFingerDrawParam;
