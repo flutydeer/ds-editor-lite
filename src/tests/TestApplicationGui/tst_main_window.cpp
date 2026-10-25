@@ -27,6 +27,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
+#include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
@@ -79,7 +80,6 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
-#include <QTabBar>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QWheelEvent>
@@ -265,7 +265,11 @@ namespace {
                 index = i;
         }
         QVERIFY(index >= 0);
-        QTest::mouseClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(index).center());
+        // The segments are child buttons; send the click to the button under
+        // the tab rect instead of the bar widget itself.
+        auto *button = tabs->childAt(tabs->tabRect(index).center());
+        QVERIFY(button);
+        QTest::mouseClick(button, Qt::LeftButton, Qt::NoModifier, button->rect().center());
     }
 }
 

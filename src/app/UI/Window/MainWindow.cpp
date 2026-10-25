@@ -32,6 +32,7 @@
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
@@ -40,7 +41,6 @@
 #include "UI/Window/LogWindow.h"
 
 #include <QStackedWidget>
-#include <QTabBar>
 #include <QTimer>
 #include "UI/Views/MainTitleBar/ActionButtonsView.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"

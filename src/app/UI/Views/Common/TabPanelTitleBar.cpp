@@ -2,6 +2,7 @@
 
 #include "Controller/EditorViewController.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "SegmentedTabBar.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -12,7 +13,6 @@
 #include <QHBoxLayout>
 #include <QGraphicsOpacityEffect>
 #include <QStackedWidget>
-#include <QTabBar>
 #include <QVariantAnimation>
 
 static const auto ChromeMinimize = QStringLiteral(u"\ue921");
@@ -23,10 +23,7 @@ static const auto ChromeClose = QStringLiteral(u"\ue8bb");
 TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
-    m_tabBar = new QTabBar;
-    m_tabBar->setDrawBase(false);
-    m_tabBar->setExpanding(false);
-    m_tabBar->setMinimumWidth(12);
+    m_tabBar = new SegmentedTabBar;
 
     m_toolBar = new QStackedWidget;
 
@@ -36,6 +33,7 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
 
     m_innerLayout = new QHBoxLayout;
     m_innerLayout->addWidget(m_tabBar);
+    m_innerLayout->addSpacing(24);
     m_innerLayout->addWidget(m_toolBar);
     m_innerLayout->addStretch();
     m_innerLayout->addLayout(m_btnLayout);
@@ -68,7 +66,7 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     initializeAnimation();
 }
 
-QTabBar *const &TabPanelTitleBar::tabBar() const {
+SegmentedTabBar *const &TabPanelTitleBar::tabBar() const {
     return m_tabBar;
 }
 

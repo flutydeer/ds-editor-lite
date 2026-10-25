@@ -6,7 +6,7 @@
 #include <QWidget>
 
 class Button;
-class QTabBar;
+class SegmentedTabBar;
 class QStackedWidget;
 class QHBoxLayout;
 class QGraphicsOpacityEffect;
@@ -22,7 +22,7 @@ class TabPanelTitleBar : public QWidget, public IAnimatable {
 public:
     explicit TabPanelTitleBar(QWidget *parent = nullptr);
 
-    [[nodiscard]] QTabBar *const &tabBar() const;
+    [[nodiscard]] SegmentedTabBar *const &tabBar() const;
     [[nodiscard]] QStackedWidget *const &toolBar() const;
 
     [[nodiscard]] Button *minimizeButton() const;
@@ -69,7 +69,7 @@ private:
     QColor m_iconOnColor = {155, 186, 255};
     QColor m_iconOnDisabledColor = {155, 186, 255, 102};
 
-    QTabBar *m_tabBar;
+    SegmentedTabBar *m_tabBar;
     QStackedWidget *m_toolBar;
     QHBoxLayout *m_outerLayout;
     QHBoxLayout *m_innerLayout;

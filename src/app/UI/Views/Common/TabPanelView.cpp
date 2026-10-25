@@ -3,7 +3,8 @@
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 
-#include <QTabBar>
+#include "SegmentedTabBar.h"
+
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -36,7 +37,7 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelVi
 
     setContentsMargins({});
 
-    connect(m_tabPanelTitleBar->tabBar(), &QTabBar::currentChanged, this,
+    connect(m_tabPanelTitleBar->tabBar(), &SegmentedTabBar::currentChanged, this,
             &TabPanelView::onSelectionChanged);
     connect(m_tabPanelTitleBar, &TabPanelTitleBar::detachRequested, this,
             &TabPanelView::detachRequested);
