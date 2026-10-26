@@ -8,6 +8,7 @@
 #include "RemoveClipAction.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
@@ -127,6 +128,24 @@ void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties
         after.append(clipFocus(newArgs[j], tracks[j]));
     }
     setFocusTransition({mergeFocus(before), mergeFocus(after)});
+}
+
+void ClipActions::splitClip(const Clip::ClipCommonProperties &oldArgs,
+                            const Clip::ClipCommonProperties &newArgs, Clip *clip, Clip *newClip,
+                            Track *track) {
+    setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Split clip"));
+    if (clip->clipType() == Clip::Audio) {
+        addAction(EditClipCommonPropertiesAction::build(oldArgs, newArgs,
+                                                        static_cast<AudioClip *>(clip), track));
+    } else {
+        addAction(EditSingingClipPropertiesAction::build(oldArgs, newArgs,
+                                                         static_cast<SingingClip *>(clip), track));
+    }
+    addAction(InsertClipAction::build(newClip, track));
+    const auto before = clipFocus(oldArgs, track);
+    const auto after = mergeFocus(QList<HistoryFocus>{
+        clipFocus(newArgs, track), clipFocus(Clip::ClipCommonProperties(*newClip), track)});
+    setFocusTransition({before, after});
 }
 
 void ClipActions::relocateAudioClip(AudioClip *clip, const QString &newPath,

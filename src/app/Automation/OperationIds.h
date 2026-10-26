@@ -36,6 +36,7 @@ namespace Automation::OperationIds {
     X(clips, set_mute, "clips.set_mute")                                                           \
     X(clips, set_properties, "clips.set_properties")                                               \
     X(clips, set_voice, "clips.set_voice")                                                         \
+    X(clips, split, "clips.split")                                                                 \
     X(clips, use_track_voice, "clips.use_track_voice")                                             \
     X(documents, commit_import, "documents.commit_import")                                         \
     X(documents, commit_new, "documents.commit_new")                                               \

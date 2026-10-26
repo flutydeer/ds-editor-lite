@@ -65,6 +65,9 @@ public slots:
     // `tick` must already be snapped by the caller (view layer applies the
     // current WYSIWYG grid step; global paste passes the playhead tick as-is).
     static void pasteClips(const ClipsInfo &info, int tick, int trackIndex);
+    // `tick` must already be snapped by the caller; the facade rejects a tick
+    // outside the clip's visible range.
+    static void onSplitClip(int clipId, int tick);
 
     // Schedules the sha512/audio-hash computation for an audio clip (used
     // after import/relink so the project tracks the file).

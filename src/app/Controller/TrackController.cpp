@@ -346,6 +346,13 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
     runtime->project().insertClips(commandContext(*runtime), inserts);
 }
 
+void TrackController::onSplitClip(const int clipId, const int tick) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().splitClip(commandContext(*runtime), Automation::ClipId(clipId), tick);
+}
+
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
             automationRuntime(), documentWorkflowController, task, this,
