@@ -22,6 +22,11 @@ public:
 
     void applySplitLineColor(const QColor &color);
 
+    // Shows the indicator outside the split tool, for the context menu hover
+    // preview. `splitPos` is a clip-local tick already snapped by the caller.
+    void showPreview(NoteView *noteView, int splitPos);
+    void hidePreview();
+
 private:
     void updateIndicator(NoteView *noteView, int tick);
 

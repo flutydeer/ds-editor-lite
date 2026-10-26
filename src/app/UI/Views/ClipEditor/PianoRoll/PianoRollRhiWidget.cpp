@@ -1072,6 +1072,24 @@ public:
         scheduleSnapshot();
     }
 
+    void showSplitPreview(const int noteId, const int globalTick) {
+        if (!clip) {
+            clearSplitPreview();
+            return;
+        }
+        const auto pos = PianoRollGraphicsViewHelper::splitPreviewPosition(
+            clip, clip->findNoteById(noteId), globalTick);
+        if (!pos.valid) {
+            clearSplitPreview();
+            return;
+        }
+        if (splitPreviewNoteId == noteId && splitPreviewTick == pos.localSplitPos)
+            return;
+        splitPreviewNoteId = noteId;
+        splitPreviewTick = pos.localSplitPos;
+        scheduleSnapshot();
+    }
+
     void setPastePreview(const PianoRollPastePreviewData &data, const int globalTick) {
         pastePreviewNotes.clear();
         if (!clip || data.notes.isEmpty()) {
@@ -3226,7 +3244,10 @@ private:
     }
 
     void appendSplitPreview() {
-        if (editMode != SplitNote || splitPreviewNoteId < 0 || !clip)
+        // The split preview state is also driven by the context menu hover
+        // preview, so it must not be gated on the split edit mode (mode
+        // switches clear the state themselves)
+        if (splitPreviewNoteId < 0 || !clip)
             return;
         const auto *note = clip->findNoteById(splitPreviewNoteId);
         if (!note || splitPreviewTick <= note->localStart() ||
@@ -3871,6 +3892,14 @@ void PianoRollRhiWidget::showPianoRollPastePreview(const PianoRollPastePreviewDa
 
 void PianoRollRhiWidget::clearPianoRollPastePreview() {
     d->clearPastePreview();
+}
+
+void PianoRollRhiWidget::showPianoRollSplitPreview(const int noteId, const int globalTick) {
+    d->showSplitPreview(noteId, globalTick);
+}
+
+void PianoRollRhiWidget::clearPianoRollSplitPreview() {
+    d->clearSplitPreview();
 }
 
 void PianoRollRhiWidget::setSelectedAnchorInterpolation(const PianoRollAnchorMode mode) {

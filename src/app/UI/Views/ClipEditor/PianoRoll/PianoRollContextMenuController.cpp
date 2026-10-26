@@ -72,7 +72,7 @@ PianoRollContextMenuController::PianoRollContextMenuController(QWidget *owner)
 
 void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &context,
                                               SingingClip *clip,
-                                              IPianoRollPastePreviewHost *previewHost,
+                                              IPianoRollPreviewHost *previewHost,
                                               IAnchorCommandHost *anchorHost) {
     if (!m_owner || !clip)
         return;
@@ -213,6 +213,15 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         auto *split = menu.addAction(tr("Split Note"));
         split->setIcon(
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
+        const auto splitPos = PianoRollGraphicsViewHelper::splitPreviewPosition(
+            clip, clip->findNoteById(context.noteId), context.globalTick);
+        split->setEnabled(splitPos.valid);
+        previewAction = split;
+        connect(split, &QAction::hovered, this,
+                [previewHost, noteId = context.noteId, tick = context.globalTick] {
+                    if (previewHost)
+                        previewHost->showPianoRollSplitPreview(noteId, tick);
+                });
         connect(split, &QAction::triggered, this, [context] {
             (void) PianoRollGraphicsViewHelper::splitNote(context.noteId, context.globalTick);
         });
@@ -250,8 +259,10 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
     }
 
     new EditorMenuPreviewGuard(&menu, previewAction, [previewHost] {
-        if (previewHost)
+        if (previewHost) {
             previewHost->clearPianoRollPastePreview();
+            previewHost->clearPianoRollSplitPreview();
+        }
     });
     menu.exec(context.globalPos);
 }

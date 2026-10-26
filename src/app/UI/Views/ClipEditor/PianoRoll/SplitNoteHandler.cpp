@@ -40,6 +40,19 @@ void SplitNoteHandler::applySplitLineColor(const QColor &color) {
         m_indicator->setLineColor(color);
 }
 
+void SplitNoteHandler::showPreview(NoteView *noteView, const int splitPos) {
+    // Lazily create the indicator so the preview also works when the split
+    // tool has never been activated
+    activate();
+    if (m_indicator)
+        m_indicator->updateIndicator(noteView, splitPos);
+}
+
+void SplitNoteHandler::hidePreview() {
+    if (m_indicator)
+        m_indicator->clearState();
+}
+
 bool SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return true;

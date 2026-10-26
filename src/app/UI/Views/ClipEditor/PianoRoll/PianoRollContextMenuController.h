@@ -43,12 +43,16 @@ struct PianoRollPastePreviewData {
     QVector<PianoRollPastePreviewNote> notes;
 };
 
-class IPianoRollPastePreviewHost {
+class IPianoRollPreviewHost {
 public:
-    virtual ~IPianoRollPastePreviewHost() = default;
+    virtual ~IPianoRollPreviewHost() = default;
     virtual void showPianoRollPastePreview(const PianoRollPastePreviewData &data,
                                            int globalTick) = 0;
     virtual void clearPianoRollPastePreview() = 0;
+    // Renders the split-tool indicator for `noteId` at `globalTick` (raw, the
+    // host snaps it the same way the split command does)
+    virtual void showPianoRollSplitPreview(int noteId, int globalTick) = 0;
+    virtual void clearPianoRollSplitPreview() = 0;
 };
 
 class IAnchorCommandHost {
@@ -64,7 +68,7 @@ public:
     explicit PianoRollContextMenuController(QWidget *owner);
 
     void showMenu(const PianoRollMenuContext &context, SingingClip *clip,
-                  IPianoRollPastePreviewHost *previewHost, IAnchorCommandHost *anchorHost);
+                  IPianoRollPreviewHost *previewHost, IAnchorCommandHost *anchorHost);
     void cutSelection() const;
     void copySelection() const;
     void pasteSelection() const;
