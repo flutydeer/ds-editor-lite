@@ -85,7 +85,7 @@ TrackEditorContextMenuController::TrackEditorContextMenuController(QWidget *owne
 }
 
 void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &context,
-                                                ITrackPastePreviewHost *previewHost) {
+                                                ITrackEditorPreviewHost *previewHost) {
     if (!m_owner || context.trackIndex < 0 || context.trackIndex >= appModel->tracks().size())
         return;
 
@@ -170,11 +170,43 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
                                                                    : context.selectedClipIds;
         connect(remove, &QAction::triggered, this,
                 [this, selectedIds] { deleteSelection(selectedIds); });
+
+        auto *splitClip = menu.addAction(tr("Split Clip"));
+        splitClip->setIcon(
+            IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
+        // Snap the raw right-click tick to the same WYSIWYG grid the split
+        // command commits with, mirroring the note split's snap-nearest rule
+        const auto *contextClip = appModel->findClipById(context.clipId);
+        int splitTick = 0;
+        bool splitValid = false;
+        if (contextClip) {
+            const auto visibleStart = contextClip->start() + contextClip->clipStart();
+            const auto visibleEnd = visibleStart + contextClip->clipLen();
+            splitTick = TimelineSnapUtils::snapNearest(context.rawTick,
+                                                       gridStepAt(context.rawTick),
+                                                       appModel->timeline());
+            splitValid = splitTick > visibleStart && splitTick < visibleEnd;
+        }
+        splitClip->setEnabled(splitValid);
+        previewAction = splitClip;
+        if (splitValid) {
+            connect(splitClip, &QAction::hovered, this,
+                    [previewHost, trackIndex = context.trackIndex, splitTick] {
+                        if (previewHost)
+                            previewHost->showTrackSplitPreview({trackIndex, splitTick});
+                    });
+            connect(splitClip, &QAction::triggered, this,
+                    [clipId = context.clipId, splitTick] {
+                        trackController->onSplitClip(clipId, splitTick);
+                    });
+        }
     }
 
     new EditorMenuPreviewGuard(&menu, previewAction, [previewHost] {
-        if (previewHost)
+        if (previewHost) {
             previewHost->clearTrackPastePreview();
+            previewHost->clearTrackSplitPreview();
+        }
     });
     menu.exec(context.globalPos);
 }

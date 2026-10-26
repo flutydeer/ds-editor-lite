@@ -43,12 +43,21 @@ struct TrackPastePreviewData {
     QVector<TrackPastePreviewClip> clips;
 };
 
-class ITrackPastePreviewHost {
+// Where the "Split Clip" hover preview draws the cut line
+struct TrackSplitPreviewData {
+    int trackIndex = -1;
+    int splitTick = 0;
+};
+
+class ITrackEditorPreviewHost {
 public:
-    virtual ~ITrackPastePreviewHost() = default;
+    virtual ~ITrackEditorPreviewHost() = default;
     virtual void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                        int baseTrackIndex) = 0;
     virtual void clearTrackPastePreview() = 0;
+    // `splitTick` is absolute and already snapped by the caller
+    virtual void showTrackSplitPreview(const TrackSplitPreviewData &data) = 0;
+    virtual void clearTrackSplitPreview() = 0;
 };
 
 class TrackEditorContextMenuController final : public QObject {
@@ -56,7 +65,7 @@ class TrackEditorContextMenuController final : public QObject {
 public:
     explicit TrackEditorContextMenuController(QWidget *owner);
 
-    void showMenu(const TrackEditorMenuContext &context, ITrackPastePreviewHost *previewHost);
+    void showMenu(const TrackEditorMenuContext &context, ITrackEditorPreviewHost *previewHost);
     void cutSelection() const;
     void copySelection() const;
     void pasteSelection() const;
