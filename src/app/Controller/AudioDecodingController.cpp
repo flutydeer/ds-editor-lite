@@ -69,6 +69,10 @@ void AudioDecodingController::setGuiServices(DocumentWorkflowController *workflo
     m_notifier = std::move(notifier);
 }
 
+bool AudioDecodingController::isDecoding(const int clipId) const {
+    return m_decodingTaskByClip.contains(clipId);
+}
+
 void AudioDecodingController::onModelChanged() {
     // Terminate all decoding tasks
     for (const auto task : m_tasks) {
@@ -77,6 +81,10 @@ void AudioDecodingController::onModelChanged() {
     for (const auto task : m_resolveTasks) {
         taskManager->terminateTask(task);
     }
+    // The clips those tasks described are gone with the replaced document. Their completion slots
+    // still run later and must not report a state change for an unrelated new clip with the same
+    // id, so drop the set without emitting.
+    m_decodingTaskByClip.clear();
 
     // Reset aggregated path resolution state
     m_pendingResolveCount = 0;
@@ -207,6 +215,10 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip, const bool int
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_tasks.append(decodeTask);
+    const bool wasDecoding = m_decodingTaskByClip.contains(clip->id());
+    m_decodingTaskByClip.insert(clip->id(), decodeTask);
+    if (!wasDecoding)
+        emit decodingStateChanged(clip->id(), true);
     connect(
         decodeTask, &Task::finished, this,
         [decodeTask, this, interactive] { handleTaskFinished(decodeTask, interactive); },
@@ -548,6 +560,14 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, const bo
     const auto terminate = task->terminated();
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
+    // Only the task that still owns the clip may clear the placeholder: a superseded task (relink
+    // or undo while its predecessor was in flight) finishes later and must not hide the state the
+    // successor just raised.
+    if (auto owner = m_decodingTaskByClip.constFind(task->clipId);
+        owner != m_decodingTaskByClip.constEnd() && owner.value() == task) {
+        m_decodingTaskByClip.erase(owner);
+        emit decodingStateChanged(task->clipId, false);
+    }
     auto *runtime = automationRuntime();
 
     if (terminate) {

@@ -21,6 +21,7 @@
 #include "InfoLane/TimeSignatureLaneView.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include "Controller/AudioDecodingController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
@@ -36,6 +37,7 @@
 #include <QFileDialog>
 #include <QApplication>
 #include <QHBoxLayout>
+#include <QPointer>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -904,13 +906,15 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
 }
 
 namespace {
-    void applyAudioPathStatus(AudioClipView *clipView, const AudioClip::PathStatus status) {
-        if (status == AudioClip::PathStatus::Missing) {
+    // Missing wins over decoding: a clip whose file cannot be found must keep saying so even while
+    // resolution is in flight, otherwise the hint flickers away and back on every project open.
+    void applyAudioLoadState(AudioClipView *clipView, const AudioClip *clip) {
+        if (clip->pathStatus() == AudioClip::PathStatus::Missing) {
             clipView->setStatus(AppGlobal::Error);
-            clipView->setErrorMessage({});
-        } else {
-            clipView->setStatus(AppGlobal::Loaded);
+            return;
         }
+        clipView->setStatus(audioDecodingController->isDecoding(clip->id()) ? AppGlobal::Loading
+                                                                          : AppGlobal::Loaded);
     }
 }
 
@@ -924,13 +928,21 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     clipView->setPath(clip->path());
     clipView->setTimeline(appModel->timeline());
     clipView->setAudioInfo(clip->audioInfo());
-    applyAudioPathStatus(clipView, clip->pathStatus());
+    applyAudioLoadState(clipView, clip);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::timelineChanged, clipView,
             [clipView] { clipView->setTimeline(appModel->timeline()); });
-    connect(
-        clip, &AudioClip::pathStatusChanged, clipView,
-        [clipView](const AudioClip::PathStatus status) { applyAudioPathStatus(clipView, status); });
+    connect(clip, &AudioClip::pathStatusChanged, clipView,
+            [clipView, clip](const AudioClip::PathStatus) { applyAudioLoadState(clipView, clip); });
+    connect(audioDecodingController, &AudioDecodingController::decodingStateChanged, clipView,
+            [clipView, clip = QPointer<AudioClip>(clip)](const int clipId, const bool) {
+                // The decode controller outlives any single clip and this receiver outlives the
+                // clip by one event-loop turn (onClipRemoved defers the view deletion), so the
+                // captured clip can already be gone when a late edge arrives.
+                if (!clip || clipId != clip->id())
+                    return;
+                applyAudioLoadState(clipView, clip);
+            });
     track->clips[clip] = clipView;
 }
 

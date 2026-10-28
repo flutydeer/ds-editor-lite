@@ -167,6 +167,9 @@ private:
         bool active = false;
         bool pastePreview = false;
         bool audioMissing = false;
+        // The waveform decode is still in flight for this clip: draw the placeholder instead of
+        // the (empty) sampled waveform.
+        bool audioLoading = false;
         QVector<NoteSnapshot> notes;
         AudioWaveformSampler::Result waveform;
     };
@@ -270,6 +273,9 @@ private:
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
     QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
     bool m_snapshotScheduled = false;
+    // rebuildModelConnections() runs on every model change; this keeps the controller connection
+    // from stacking up across those rebuilds.
+    bool m_decodingStateConnected = false;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
     bool m_autoTurnPage = true;

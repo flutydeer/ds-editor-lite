@@ -769,12 +769,18 @@
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="69"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1201"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1211"/>
         <source>File missing</source>
         <translation>文件缺失</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="103"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="70"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1212"/>
+        <source>Loading...</source>
+        <translation>正在加载...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="111"/>
         <source>[Audio] </source>
         <translation>[音频] </translation>
     </message>
@@ -796,12 +802,12 @@
 <context>
     <name>AudioDecodingController</name>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="414"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="426"/>
         <source>%L1 audio file(s) relocated automatically</source>
         <translation>已自动重新定位 %L1 个音频文件</translation>
     </message>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="615"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="635"/>
         <source>Failed to open audio file: %1</source>
         <translation>无法打开音频文件：%1</translation>
     </message>
@@ -6209,14 +6215,14 @@ All current mix settings will be lost.</source>
 <context>
     <name>TrackEditorView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="98"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="445"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="100"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="447"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="109"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="446"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="111"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="448"/>
         <source>Time Signature</source>
         <translation>拍号</translation>
     </message>
@@ -6245,8 +6251,8 @@ All current mix settings will be lost.</source>
 <context>
     <name>TracksRhiWidget</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1376"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1468"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1402"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1494"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>

@@ -9,6 +9,8 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QHash>
+#include <QString>
 
 #include <functional>
 
@@ -47,7 +49,16 @@ public:
     // therefore does NOT roll back cascade hits it triggered
     void resolveMissingClipsNear(const QString &filePath);
 
+    // Waveform decoding in flight for this clip. The editor draws a placeholder while the peaks
+    // are not readable yet, so the empty clip body never reads as a silent waveform.
+    [[nodiscard]] bool isDecoding(int clipId) const;
+
 signals:
+    // Emitted when a clip enters or leaves the decoding set (isDecoding()). Views cannot derive
+    // this from Clip signals: decoding starts without touching the model and finishes by writing
+    // audioInfo, so the pair of edges has no single owner signal.
+    void decodingStateChanged(int clipId, bool decoding);
+
     // Emitted when cascading resolution recovers a clip (the missing-media dialog refreshes its
     // row)
     void clipRelocated(int clipId, const QString &newPath);
@@ -61,6 +72,10 @@ signals:
 private:
     QList<DecodeAudioTask *> m_tasks;
     QList<ResolveAudioPathTask *> m_resolveTasks;
+    // Clip id -> the decode task currently responsible for it. A terminated task lingers in
+    // m_tasks until its queued completion slot runs, and a relink may already have queued its
+    // successor, so ownership is decided by identity rather than by "is a task running".
+    QHash<int, DecodeAudioTask *> m_decodingTaskByClip;
 
     // Aggregated path resolution state during project load (D6: notify once the counter reaches
     // zero)

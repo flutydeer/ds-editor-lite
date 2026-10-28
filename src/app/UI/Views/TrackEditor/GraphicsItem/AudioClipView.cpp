@@ -21,8 +21,6 @@ QString AudioClipView::path() const {
 void AudioClipView::setPath(const QString &path) {
     m_path = path;
     m_waveformSampler.setPath(path);
-    if (m_status != AppGlobal::Error)
-        m_status = AppGlobal::Loaded;
 }
 
 void AudioClipView::setTimeline(const Timeline &timeline) {
@@ -62,19 +60,29 @@ WaveformRenderUtils::Mode AudioClipView::renderMode() const {
 
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
-    if (m_status == AppGlobal::Error) {
-        auto dimmed = color;
-        dimmed.setAlphaF(color.alphaF() * 0.5);
-        painter->setPen(dimmed);
-        auto text = QCoreApplication::translate("AudioClipView", "File missing");
-        if (!m_errorMessage.isEmpty())
+    if (m_status == AppGlobal::Error || m_status == AppGlobal::Loading) {
+        const auto isError = m_status == AppGlobal::Error;
+        auto textColor = color;
+        if (isError)
+            textColor.setAlphaF(textColor.alphaF() * 0.5);
+        painter->setPen(textColor);
+        auto text = isError ? QCoreApplication::translate("AudioClipView", "File missing")
+                            : QCoreApplication::translate("AudioClipView", "Loading...");
+        if (isError && !m_errorMessage.isEmpty())
             text += ": " + m_errorMessage;
-        painter->drawText(previewRect, text, QTextOption(Qt::AlignCenter));
+        // Centre inside the visible part of the clip. A long clip scrolled to one of its ends
+        // would otherwise draw the hint far outside the viewport and read as "no hint at all".
+        auto labelRect = previewRect;
+        const auto visible = visibleRect();
+        if (!visible.isEmpty()) {
+            const auto visibleInItem = mapRectFromScene(visible);
+            const auto clipped = labelRect.intersected(visibleInItem);
+            if (clipped.isEmpty())
+                return;
+            labelRect = clipped;
+        }
+        painter->drawText(labelRect, text, QTextOption(Qt::AlignCenter));
         return;
-    }
-    if (m_status == AppGlobal::Loading) {
-        painter->setPen(color);
-        painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
     }
 
     const auto previewTopLeft = mapToScene(previewRect.topLeft());
