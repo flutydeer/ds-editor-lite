@@ -67,9 +67,9 @@ namespace InferControllerHelper {
     void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                            SingingClip &clip, const Timeline &timeline);
     ParamUpdate buildParamUpdate(ParamInfo::Name name, const InferParamCurve &taskResult,
-                                 InferPiece &piece, int scale = 1000, int smoothKernelSize = -1);
+                                 InferPiece &piece, int smoothKernelSize = -1);
     void updateParam(ParamInfo::Name name, const InferParamCurve &taskResult, InferPiece &piece,
-                     int scale = 1000, int smoothKernelSize = -1);
+                     int smoothKernelSize = -1);
     void updatePitch(const InferParamCurve &taskResult, InferPiece &piece,
                      int smoothKernelSize = -1);
     void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,
