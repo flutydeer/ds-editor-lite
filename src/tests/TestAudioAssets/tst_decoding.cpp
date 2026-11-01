@@ -1040,3 +1040,87 @@ void AudioAssetsTests::relocatedDecodeNotification() {
         }
     }
 }
+
+namespace {
+    // Load-state edges reported for one clip, in emission order
+    QList<AppGlobal::AudioClipLoadState> loadStateEdges(const QSignalSpy &spy, const int clipId) {
+        QList<AppGlobal::AudioClipLoadState> edges;
+        for (const auto &arguments : spy) {
+            if (arguments.at(0).toInt() == clipId)
+                edges.append(arguments.at(1).value<AppGlobal::AudioClipLoadState>());
+        }
+        return edges;
+    }
+}
+
+void AudioAssetsTests::loadStateCoversPathResolution() {
+    Fixture fixture;
+    QSignalSpy states(fixture.controller, &AudioDecodingController::loadStateChanged);
+    QVERIFY(fixture.open(InvocationSource::PublicMcp));
+    const auto clipId = fixture.firstAudioClip()->id();
+    QVERIFY(drainTasks());
+
+    const auto *clip = fixture.firstAudioClip();
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Missing);
+    QCOMPARE(fixture.controller->loadState(clip), AppGlobal::AudioClipLoadState::Missing);
+    // While the resolver searches for the file the clip is loading, and it must never report
+    // loaded in between: the empty clip body would read as silence.
+    const auto edges = loadStateEdges(states, clipId);
+    QCOMPARE(edges.size(), 2);
+    QCOMPARE(edges.at(0), AppGlobal::AudioClipLoadState::Loading);
+    QCOMPARE(edges.at(1), AppGlobal::AudioClipLoadState::Missing);
+}
+
+void AudioAssetsTests::loadStateStaysLoadingAcrossTheResolveHandoff() {
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("media")));
+    const auto path = fixture.directory.filePath(QStringLiteral("media/source.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(9600, 0.125f), 2));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const auto hash = QString::fromLatin1(
+        QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha512).toHex());
+    file.close();
+    auto document =
+        missingAudioDocument(fixture.directory.filePath(QStringLiteral("missing/source.wav")));
+    auto &draft = document.tracks.first().clips.first();
+    draft.audioPathInfo.relativeDir = QStringLiteral("media");
+    draft.audioPathInfo.sha512 = hash;
+
+    QSignalSpy states(fixture.controller, &AudioDecodingController::loadStateChanged);
+    QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
+    const auto clipId = fixture.firstAudioClip()->id();
+    QVERIFY(drainTasks());
+
+    const auto *clip = fixture.firstAudioClip();
+    QCOMPARE(clip->path(), path);
+    QCOMPARE(fixture.controller->loadState(clip), AppGlobal::AudioClipLoadState::Loaded);
+    // A resolution hit hands off to a decode inside one commit. The clip stays loading across that
+    // handoff instead of dipping back to loaded and immediately returning to loading.
+    const auto edges = loadStateEdges(states, clipId);
+    QCOMPARE(edges.size(), 2);
+    QCOMPARE(edges.at(0), AppGlobal::AudioClipLoadState::Loading);
+    QCOMPARE(edges.at(1), AppGlobal::AudioClipLoadState::Loaded);
+}
+
+void AudioAssetsTests::missingClipKeepsItsHintDuringCascadeRetry() {
+    Fixture fixture;
+    auto document =
+        missingAudioDocument(fixture.directory.filePath(QStringLiteral("gone/missing.wav")));
+    document.tracks.first().clips.first().audioPathInfo.sha512 =
+        QStringLiteral("6b4f9c0d5e8a1726354b0d9e8f7a6c5b4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a");
+    QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
+    QVERIFY(drainTasks());
+
+    const auto *clip = fixture.firstAudioClip();
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Missing);
+    QSignalSpy states(fixture.controller, &AudioDecodingController::loadStateChanged);
+    fixture.controller->resolveMissingClipsNear(
+        fixture.directory.filePath(QStringLiteral("elsewhere/missing.wav")));
+    QVERIFY(drainTasks());
+
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Missing);
+    // A retry over an already-missing clip must not flash the loading placeholder back in
+    QCOMPARE(loadStateEdges(states, clip->id()).size(), 0);
+}

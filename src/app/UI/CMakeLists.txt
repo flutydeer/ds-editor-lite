@@ -9,6 +9,7 @@ add_library(EditorGuiCore STATIC
     Dialogs/Base/DialogTitleBar.cpp
     Utils/WaveformRenderUtils.cpp
     Views/ClipEditor/PianoRoll/PianoRollCoord.cpp
+    Views/Common/AudioLoadHint.cpp
     Views/Common/EdgeAutoScroller.cpp
     Views/Common/EditorGlyphAtlas.cpp
     Views/Common/EditorRhiGeometry.cpp

@@ -653,6 +653,9 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
             view->setPath(clip.audioPath);
             view->setTimeline(appModel->timeline());
             view->setAudioInfo(clip.audioInfo);
+            // No decoding controller is behind a preview view, and its samples come straight from
+            // the model, so it is loaded by construction rather than by a task finishing.
+            view->setLoadState(AppGlobal::AudioClipLoadState::Loaded);
             clipView = view;
         }
 

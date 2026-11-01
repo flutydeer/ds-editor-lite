@@ -2,14 +2,21 @@
 
 #include "Global/TracksEditorGlobal.h"
 #include "UI/Utils/WaveformRenderUtils.h"
+#include "UI/Views/Common/AudioLoadHint.h"
 
 #include <QCoreApplication>
+#include <QFontMetricsF>
 #include <QPainter>
+#include <QPainterPath>
 
 using namespace TracksEditorGlobal;
 
 AudioClipView::AudioClipView(const int itemId, QGraphicsItem *parent)
     : AbstractClipView(itemId, parent) {
+    m_hintTicker.setInterval(16);
+    connect(&m_hintTicker, &QTimer::timeout, this, [this] { update(); });
+    // The view starts out loading, and setLoadState() stops the ticker once there is a waveform
+    m_hintTicker.start();
 }
 
 AudioClipView::~AudioClipView() = default;
@@ -21,8 +28,6 @@ QString AudioClipView::path() const {
 void AudioClipView::setPath(const QString &path) {
     m_path = path;
     m_waveformSampler.setPath(path);
-    if (m_status != AppGlobal::Error)
-        m_status = AppGlobal::Loaded;
 }
 
 void AudioClipView::setTimeline(const Timeline &timeline) {
@@ -37,8 +42,15 @@ void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     update();
 }
 
-void AudioClipView::setStatus(const AppGlobal::AudioLoadStatus status) {
-    m_status = status;
+void AudioClipView::setLoadState(const AppGlobal::AudioClipLoadState state) {
+    if (m_loadState == state)
+        return;
+    m_loadState = state;
+    // Only the loading hint animates, so nothing keeps repainting a clip whose waveform is drawn
+    if (state == AppGlobal::AudioClipLoadState::Loading)
+        m_hintTicker.start();
+    else
+        m_hintTicker.stop();
     update();
 }
 
@@ -62,19 +74,33 @@ WaveformRenderUtils::Mode AudioClipView::renderMode() const {
 
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
-    if (m_status == AppGlobal::Error) {
-        auto dimmed = color;
-        dimmed.setAlphaF(color.alphaF() * 0.5);
-        painter->setPen(dimmed);
-        auto text = QCoreApplication::translate("AudioClipView", "File missing");
-        if (!m_errorMessage.isEmpty())
+    if (m_loadState != AppGlobal::AudioClipLoadState::Loaded) {
+        const auto isMissing = m_loadState == AppGlobal::AudioClipLoadState::Missing;
+        auto textColor = color;
+        if (isMissing)
+            textColor.setAlphaF(textColor.alphaF() * 0.5);
+        auto text = isMissing ? QCoreApplication::translate("AudioClipView", "File missing")
+                              : QCoreApplication::translate("AudioClipView", "Loading...");
+        if (isMissing && !m_errorMessage.isEmpty())
             text += ": " + m_errorMessage;
-        painter->drawText(previewRect, text, QTextOption(Qt::AlignCenter));
+        // Centre inside the visible part of the clip. A long clip scrolled to one of its ends
+        // would otherwise draw the hint far outside the viewport and read as "no hint at all".
+        auto labelRect = previewRect;
+        const auto visible = visibleRect();
+        if (!visible.isEmpty()) {
+            const auto visibleInItem = mapRectFromScene(visible);
+            const auto clipped = labelRect.intersected(visibleInItem);
+            if (clipped.isEmpty())
+                return;
+            labelRect = clipped;
+        }
+        if (isMissing) {
+            painter->setPen(textColor);
+            painter->drawText(labelRect, text, QTextOption(Qt::AlignCenter));
+            return;
+        }
+        drawLoadingHint(painter, labelRect, text, textColor);
         return;
-    }
-    if (m_status == AppGlobal::Loading) {
-        painter->setPen(color);
-        painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
     }
 
     const auto previewTopLeft = mapToScene(previewRect.topLeft());
@@ -97,6 +123,45 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     if (!invertible)
         return;
     WaveformRenderUtils::renderWaveform(painter, color, m_renderMode, waveform, sceneToItem);
+}
+
+void AudioClipView::drawLoadingHint(QPainter *painter, const QRectF &labelRect, const QString &text,
+                                    const QColor &textColor) {
+    const QFontMetricsF metrics(painter->font());
+    const auto textWidth = metrics.horizontalAdvance(text);
+    const auto block = AudioLoadHint::layout(labelRect, textWidth, 1.0);
+    const auto stroke = AudioLoadHint::ringStrokeWidth;
+
+    // Stroke the same centreline the RHI backend feeds to its soft geometry, so both backends draw
+    // one shape rather than two look-alikes
+    const auto toPath = [](const QVector<QPointF> &points) {
+        QPainterPath path;
+        if (points.isEmpty())
+            return path;
+        path.moveTo(points.constFirst());
+        for (qsizetype index = 1; index < points.size(); ++index)
+            path.lineTo(points.at(index));
+        return path;
+    };
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->setBrush(Qt::NoBrush);
+
+    auto trackColor = textColor;
+    trackColor.setAlphaF(trackColor.alphaF() * AudioLoadHint::trackAlpha);
+    painter->setPen(QPen(trackColor, stroke, Qt::SolidLine, Qt::RoundCap));
+    painter->drawPath(toPath(AudioLoadHint::trackCenterline(block.ringCenter, block.ringRadius)));
+
+    painter->setPen(QPen(textColor, stroke, Qt::SolidLine, Qt::RoundCap));
+    painter->drawPath(toPath(AudioLoadHint::arcCenterline(block.ringCenter, block.ringRadius,
+                                                          AudioLoadHint::clockMs())));
+    painter->restore();
+
+    // The text sits to the right of the ring, inside the block the layout centred in labelRect
+    painter->setPen(textColor);
+    const auto textRect = QRectF(block.textLeft, labelRect.top(), textWidth, labelRect.height());
+    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
 }
 
 QString AudioClipView::clipTypeName() const {

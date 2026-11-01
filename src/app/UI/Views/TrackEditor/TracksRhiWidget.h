@@ -3,6 +3,7 @@
 
 #include "AudioWaveformSampler.h"
 #include "AudioClipDragState.h"
+#include "Global/AppGlobal.h"
 #include "Interface/EditorViewState.h"
 #include "Model/AppStatus/EditorPreview.h"
 #include "TrackEditorContextMenuController.h"
@@ -17,6 +18,7 @@
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
+#include <QTimer>
 #include <QUrl>
 
 #include <memory>
@@ -166,7 +168,10 @@ private:
         bool selected = false;
         bool active = false;
         bool pastePreview = false;
-        bool audioMissing = false;
+        // Audio clips only. Loading draws the placeholder, Missing draws the missing-file hint and
+        // Loaded samples the waveform, so the canvas no longer combines PathStatus with task state
+        // on its own.
+        AppGlobal::AudioClipLoadState loadState = AppGlobal::AudioClipLoadState::Loaded;
         QVector<NoteSnapshot> notes;
         AudioWaveformSampler::Result waveform;
     };
@@ -270,6 +275,12 @@ private:
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
     QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
     bool m_snapshotScheduled = false;
+    // rebuildModelConnections() runs on every model change; this keeps the controller connection
+    // from stacking up across those rebuilds.
+    bool m_loadStateConnected = false;
+    // Rebuilds the frame while a visible clip is still loading. The loading ring turns by clock and
+    // the snapshots are rebuilt each frame, so nothing would move without this ticker.
+    QTimer m_hintTicker;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
     bool m_autoTurnPage = true;

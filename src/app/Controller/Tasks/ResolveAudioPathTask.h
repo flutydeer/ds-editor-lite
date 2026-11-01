@@ -16,6 +16,14 @@ class ResolveAudioPathTask : public Task {
 public:
     enum class Result { HitRelative, HitSibling, HitUnconfirmed, Miss };
 
+    // Which pass started the task, which decides how the result is committed. Session is
+    // the project-load / relink pass: it accepts every result kind and reports through
+    // resolveSessionFinished once the whole batch is done. Cascade is the retry over
+    // already-missing clips after a manual relink: it only adopts a hash-verified sibling
+    // hit and reports through clipRelocated.
+    enum class Mode { Session, Cascade };
+
+    Mode mode = Mode::Session;
     int clipId = -1;
     int trackId = -1;
     Automation::DocumentVersion documentVersion;

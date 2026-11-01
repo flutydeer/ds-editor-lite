@@ -3,6 +3,7 @@
 #include "AudioClipDragState.h"
 #include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "SingingClipPreviewLayout.h"
+#include "Controller/AudioDecodingController.h"
 #include "Controller/EditorViewController.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Utils/UiLanguageManager.h"
@@ -24,6 +25,7 @@
 #include "UI/Views/Common/EditorPenController.h"
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
+#include "UI/Views/Common/AudioLoadHint.h"
 
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -238,6 +240,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 }
             });
     rebuildModelConnections();
+    m_hintTicker.setInterval(16);
+    connect(&m_hintTicker, &QTimer::timeout, this, &TracksRhiWidget::scheduleSnapshot);
     QTimer::singleShot(0, this, [this] {
         updateScrollBars();
         updateAutoPageTurnAvailability();
@@ -971,6 +975,16 @@ void TracksRhiWidget::rebuildSnapshot() {
     m_glyphAtlas.beginFrame();
     appendGrid(frame, dpr);
     appendClips(frame, dpr);
+    // The loading ring turns on its own, so the ticker runs only while a visible clip still has no
+    // waveform to draw.
+    const bool hintAnimated = std::any_of(
+        m_clipSnapshots.cbegin(), m_clipSnapshots.cend(), [](const ClipSnapshot &snapshot) {
+            return snapshot.loadState == AppGlobal::AudioClipLoadState::Loading;
+        });
+    if (hintAnimated && !m_hintTicker.isActive())
+        m_hintTicker.start();
+    else if (!hintAnimated && m_hintTicker.isActive())
+        m_hintTicker.stop();
     appendLastPlaybackIndicator(frame, dpr);
     appendDropOverlay(frame, dpr);
     appendSplitPreviewOverlay(frame, dpr);
@@ -1017,6 +1031,13 @@ void TracksRhiWidget::rebuildModelConnections() {
             }
         }
     }
+    // Load-state edges carry no model signal: a resolution starts without touching the clip and a
+    // decode ends by writing audioInfo, so the canvas listens to the controller directly.
+    if (!m_loadStateConnected) {
+        m_loadStateConnected = true;
+        connect(audioDecodingController, &AudioDecodingController::loadStateChanged, this,
+                &TracksRhiWidget::scheduleSnapshot);
+    }
 }
 
 void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) const {
@@ -1060,7 +1081,7 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
             if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
             if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
-                if (!snapshot.audioMissing) {
+                if (snapshot.loadState == AppGlobal::AudioClipLoadState::Loaded) {
                     sampledAudioClipIds.insert(snapshot.id);
                     auto &sampler = m_audioWaveformSamplers[snapshot.id];
                     if (!sampler)
@@ -1195,18 +1216,50 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         }
     } else if (clip.type == IClip::Audio) {
         const auto waveformColor = clip.selected ? selectedFill : fill;
-        if (clip.audioMissing) {
+        if (clip.loadState != AppGlobal::AudioClipLoadState::Loaded) {
+            const auto isMissing = clip.loadState == AppGlobal::AudioClipLoadState::Missing;
             auto textColor = waveformColor;
-            textColor.setAlphaF(textColor.alphaF() * 0.5);
-            const auto text = QCoreApplication::translate("AudioClipView", "File missing");
+            if (isMissing)
+                textColor.setAlphaF(textColor.alphaF() * 0.5);
+            const auto text = isMissing
+                                  ? QCoreApplication::translate("AudioClipView", "File missing")
+                                  : QCoreApplication::translate("AudioClipView", "Loading...");
             const QFont font = this->font();
             const QFontMetricsF metrics(font);
             const QSizeF textSize(std::ceil(metrics.horizontalAdvance(text) * dpr),
                                   std::ceil(metrics.height() * dpr));
-            const auto topLeft =
-                preview.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
+            // Centre inside the visible slice of the clip: on a long clip scrolled away from its
+            // middle, the geometric centre is off-screen and the hint would never be seen.
+            auto labelRect = preview;
+            const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
+                                                m_viewport.visibleSceneRect().size() * dpr);
+            const auto clippedLabel = labelRect.intersected(visiblePhysical);
+            if (clippedLabel.isEmpty())
+                return;
+            labelRect = clippedLabel;
+            auto topLeft =
+                labelRect.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
+            if (!isMissing) {
+                // Same layout and same centreline as the QGraphics backend, only in physical pixels
+                const auto block = AudioLoadHint::layout(labelRect, textSize.width(), dpr);
+                auto trackColor = textColor;
+                trackColor.setAlphaF(trackColor.alphaF() * AudioLoadHint::trackAlpha);
+                QVector<EditorRhiSolidVertex> ringVertices;
+                EditorRhiGeometry::appendAntialiasedStroke(
+                    ringVertices,
+                    AudioLoadHint::trackCenterline(block.ringCenter, block.ringRadius),
+                    AudioLoadHint::ringStrokeWidth * dpr, trackColor);
+                EditorRhiGeometry::appendAntialiasedStroke(
+                    ringVertices,
+                    AudioLoadHint::arcCenterline(block.ringCenter, block.ringRadius,
+                                                 AudioLoadHint::clockMs()),
+                    AudioLoadHint::ringStrokeWidth * dpr, textColor);
+                EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, ringVertices,
+                                                          labelRect);
+                topLeft.setX(block.textLeft);
+            }
             const auto textSpan = m_glyphAtlas.appendText(
-                text, font, topLeft, textColor, preview, dpr,
+                text, font, topLeft, textColor, labelRect, dpr,
                 QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
                 physicalWindowOffset());
             frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
@@ -1364,8 +1417,9 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
     result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
-    if (const auto audio = qobject_cast<const AudioClip *>(clip))
-        result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
+    if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
+        result.loadState = audioDecodingController->loadState(audio);
+    }
     if (const auto singing = qobject_cast<const SingingClip *>(clip)) {
         const auto singerName =
             singing->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates());

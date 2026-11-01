@@ -9,6 +9,8 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 
+#include <QTimer>
+
 // Graphics item that displays an audio clip's waveform in the track editor.
 //
 // Rendering modes (selected automatically by zoom level):
@@ -35,7 +37,7 @@ public:
     void setPath(const QString &path);
     void setTimeline(const Timeline &timeline);
     void setAudioInfo(const AudioInfoModel &info);
-    void setStatus(AppGlobal::AudioLoadStatus status);
+    void setLoadState(AppGlobal::AudioClipLoadState state);
     void setErrorMessage(const QString &errorMessage);
     [[nodiscard]] int contentLength() const override;
 
@@ -44,7 +46,17 @@ private:
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
 
-    AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
+    // Ring plus text while the waveform is not drawable yet
+    void drawLoadingHint(QPainter *painter, const QRectF &labelRect, const QString &text,
+                         const QColor &textColor);
+
+    // Starts as Loading: the view is created before the decoding controller reports anything, and
+    // an empty clip body must never read as a silent waveform. A view built without a controller
+    // behind it (the paste preview) is loaded by construction and has to set its own state.
+    AppGlobal::AudioClipLoadState m_loadState = AppGlobal::AudioClipLoadState::Loading;
+    // Repaints the item while it shows the loading ring. The ring turns by clock, so this only has
+    // to keep asking for a frame.
+    QTimer m_hintTicker;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
     Timeline m_timeline;
