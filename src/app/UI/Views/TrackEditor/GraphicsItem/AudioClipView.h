@@ -51,7 +51,8 @@ private:
                          const QColor &textColor);
 
     // Starts as Loading: the view is created before the decoding controller reports anything, and
-    // an empty clip body must never read as a silent waveform
+    // an empty clip body must never read as a silent waveform. A view built without a controller
+    // behind it (the paste preview) is loaded by construction and has to set its own state.
     AppGlobal::AudioClipLoadState m_loadState = AppGlobal::AudioClipLoadState::Loading;
     // Repaints the item while it shows the loading ring. The ring turns by clock, so this only has
     // to keep asking for a frame.
