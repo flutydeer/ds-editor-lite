@@ -25,12 +25,15 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <algorithm>
+#include <cmath>
+#include <numbers>
 
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QGraphicsLineItem>
+#include <QGraphicsPathItem>
 #include <QGraphicsRectItem>
 #include <QKeyEvent>
 #include <QMimeData>
@@ -567,6 +570,48 @@ void TracksGraphicsView::clearTrackPastePreview() {
         delete view;
     }
     m_pastePreviewClipViews.clear();
+}
+
+void TracksGraphicsView::showTrackSplitPreview(const TrackSplitPreviewData &data) {
+    if (data.trackIndex < 0)
+        return;
+    if (!m_splitPreviewItem) {
+        m_splitPreviewItem = m_scene->addPath(QPainterPath(), QPen(QColor(255, 100, 100), 2));
+        m_splitPreviewItem->setZValue(10002);
+        m_splitPreviewItem->setAcceptedMouseButtons(Qt::NoButton);
+        m_splitPreviewItem->hide();
+    }
+
+    // Same forked-line geometry as the piano roll's split tool indicator
+    constexpr double extensionLength = 8.0;
+    constexpr double forkLength = 6.0;
+    constexpr double forkAngle = 45.0;
+    const auto x = tickToSceneX(data.splitTick);
+    const auto trackHeightPx = TracksEditorGlobal::trackHeight * scaleY();
+    const auto lineTop = data.trackIndex * trackHeightPx - extensionLength;
+    const auto lineBottom = (data.trackIndex + 1) * trackHeightPx + extensionLength;
+    const auto forkAngleRad = forkAngle * std::numbers::pi / 180.0;
+    const auto forkOffsetX = forkLength * std::sin(forkAngleRad);
+    const auto forkOffsetY = forkLength * std::cos(forkAngleRad);
+
+    QPainterPath path;
+    path.moveTo(x, lineTop);
+    path.lineTo(x, lineBottom);
+    path.moveTo(x, lineTop);
+    path.lineTo(x - forkOffsetX, lineTop - forkOffsetY);
+    path.moveTo(x, lineTop);
+    path.lineTo(x + forkOffsetX, lineTop - forkOffsetY);
+    path.moveTo(x, lineBottom);
+    path.lineTo(x - forkOffsetX, lineBottom + forkOffsetY);
+    path.moveTo(x, lineBottom);
+    path.lineTo(x + forkOffsetX, lineBottom + forkOffsetY);
+    m_splitPreviewItem->setPath(path);
+    m_splitPreviewItem->show();
+}
+
+void TracksGraphicsView::clearTrackSplitPreview() {
+    if (m_splitPreviewItem)
+        m_splitPreviewItem->hide();
 }
 
 void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data,

@@ -93,6 +93,26 @@ bool PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     return createdId.has_value();
 }
 
+PianoRollGraphicsViewHelper::SplitPreviewPosition
+    PianoRollGraphicsViewHelper::splitPreviewPosition(const SingingClip *clip, const Note *note,
+                                                      const int globalTick) {
+    SplitPreviewPosition result;
+    if (!clip || !note)
+        return result;
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+        appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
+    const auto snappedTick =
+        TimelineSnapUtils::snapNearest(globalTick, quantizedTickLength, appModel->timeline());
+    const auto splitPos = snappedTick - clip->start();
+    const auto noteLocalStart = note->localStart();
+    const auto noteLocalEnd = noteLocalStart + note->length();
+    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
+        return result;
+    result.valid = true;
+    result.localSplitPos = splitPos;
+    return result;
+}
+
 void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
     auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
     if (!clip)

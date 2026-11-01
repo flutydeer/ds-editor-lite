@@ -61,6 +61,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <numbers>
 
 using namespace TracksEditorGlobal;
 
@@ -885,6 +886,34 @@ void TracksRhiWidget::appendDropOverlay(EditorRhiFrameData &frame, const double 
         m_dropIndicatorColor);
 }
 
+void TracksRhiWidget::appendSplitPreviewOverlay(EditorRhiFrameData &frame, const double dpr) const {
+    if (!m_splitPreviewActive || m_splitPreviewTrackIndex < 0)
+        return;
+
+    // Same forked-line geometry as the piano roll's split tool indicator
+    constexpr double extensionLength = 8.0;
+    constexpr double forkLength = 6.0;
+    constexpr double forkAngle = 45.0;
+    const auto trackHeightPx = trackHeight * scaleY();
+    const auto x = m_viewport.tickToSceneX(m_splitPreviewTick) * dpr;
+    const auto lineTop = (m_splitPreviewTrackIndex * trackHeightPx - extensionLength) * dpr;
+    const auto lineBottom = ((m_splitPreviewTrackIndex + 1) * trackHeightPx + extensionLength) * dpr;
+    const auto forkAngleRad = forkAngle * std::numbers::pi / 180.0;
+    const auto forkOffsetX = forkLength * std::sin(forkAngleRad) * dpr;
+    const auto forkOffsetY = forkLength * std::cos(forkAngleRad) * dpr;
+    const QColor color(255, 100, 100);
+
+    const auto appendSegment = [&frame, dpr, &color](const QPointF &from, const QPointF &to) {
+        EditorRhiGeometry::appendAntialiasedStroke(frame.solidVertices, {from, to}, 2.0 * dpr,
+                                                   color);
+    };
+    appendSegment({x, lineTop}, {x, lineBottom});
+    appendSegment({x, lineTop}, {x - forkOffsetX, lineTop - forkOffsetY});
+    appendSegment({x, lineTop}, {x + forkOffsetX, lineTop - forkOffsetY});
+    appendSegment({x, lineBottom}, {x - forkOffsetX, lineBottom + forkOffsetY});
+    appendSegment({x, lineBottom}, {x + forkOffsetX, lineBottom + forkOffsetY});
+}
+
 QColor TracksRhiWidget::dropHighlightColor() const {
     return m_dropHighlightColor;
 }
@@ -944,6 +973,7 @@ void TracksRhiWidget::rebuildSnapshot() {
     appendClips(frame, dpr);
     appendLastPlaybackIndicator(frame, dpr);
     appendDropOverlay(frame, dpr);
+    appendSplitPreviewOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
         const auto rect = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
         const auto radius = EditorItemGeometry::adaptiveCornerRadius(rect, 6.0 * dpr);
@@ -1454,6 +1484,27 @@ void TracksRhiWidget::clearTrackPastePreview() {
     if (m_pastePreviewSnapshots.isEmpty())
         return;
     m_pastePreviewSnapshots.clear();
+    scheduleSnapshot();
+}
+
+void TracksRhiWidget::showTrackSplitPreview(const TrackSplitPreviewData &data) {
+    if (data.trackIndex < 0)
+        return;
+    if (m_splitPreviewActive && m_splitPreviewTrackIndex == data.trackIndex &&
+        m_splitPreviewTick == data.splitTick)
+        return;
+    m_splitPreviewActive = true;
+    m_splitPreviewTrackIndex = data.trackIndex;
+    m_splitPreviewTick = data.splitTick;
+    scheduleSnapshot();
+}
+
+void TracksRhiWidget::clearTrackSplitPreview() {
+    if (!m_splitPreviewActive)
+        return;
+    m_splitPreviewActive = false;
+    m_splitPreviewTrackIndex = -1;
+    m_splitPreviewTick = 0;
     scheduleSnapshot();
 }
 

@@ -19,9 +19,19 @@ class NoteView;
 class SingingClip;
 
 namespace PianoRollGraphicsViewHelper {
+    // Snapped and validated position of a note split, in clip-local ticks
+    struct SplitPreviewPosition {
+        bool valid = false;
+        int localSplitPos = 0;
+    };
+
     QString defaultLyricForNewNote(const SingingClip *clip);
     [[nodiscard]] bool drawNote(int rStart, int length, int keyIndex);
     [[nodiscard]] bool splitNote(int noteId, int tick);
+    // Snaps `globalTick` the same way splitNote() does and validates that it
+    // falls strictly inside the note
+    [[nodiscard]] SplitPreviewPosition splitPreviewPosition(const SingingClip *clip,
+                                                            const Note *note, int globalTick);
     void editPitch(const QList<DrawCurve *> &curves);
     NoteView *buildNoteView(const Note &note);
     void updateNoteTimeAndKey(NoteView &noteView, const Note &note);

@@ -1113,6 +1113,109 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> ProjectAutomationFacade::splitClip(const CommandContext &context,
+                                                                        const ClipId clipId,
+                                                                        const int splitTick) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::clips::split, context,
+            [this, clipId, splitTick](DocumentSession &session, const bool validateOnly) {
+                auto resolved = m_objects.clip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = resolved.get().clip;
+                const Clip::ClipCommonProperties previous(*clip);
+                const auto visibleStart = previous.start + previous.clipStart;
+                const auto visibleEnd = visibleStart + previous.clipLen;
+                if (splitTick <= visibleStart || splitTick >= visibleEnd) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("split_tick"),
+                        QStringLiteral("Split tick must fall strictly inside the clip")));
+                }
+
+                // Left half: shrink the original's visible right edge to the split tick
+                auto next = previous;
+                bool accepted = false;
+                if (auto *audio = qobject_cast<AudioClip *>(clip);
+                    audio && audio->hasRealTimeAnchor()) {
+                    auto drag = AudioClipDragState::begin(
+                        audio->trimStartMs(), audio->playLengthMs(), audio->materialLengthMs(),
+                        visibleStart, visibleStart, session.model()->timeline());
+                    accepted = drag.resizeRightTo(splitTick, visibleStart, 1, next,
+                                                  session.model()->timeline());
+                    if (accepted)
+                        drag.writeTruth(next);
+                } else {
+                    auto contentLength = previous.length;
+                    const auto *singing = qobject_cast<SingingClip *>(clip);
+                    if (singing) {
+                        contentLength = ClipResizeUtils::furthestContentEnd(
+                            singing->notes().begin(), singing->notes().end(),
+                            AppGlobal::ticksPerWholeNote,
+                            [](const Note *note) { return note->localStart() + note->length(); });
+                    }
+                    accepted = ClipResizeUtils::updateRightEdge(next, splitTick - visibleStart, 1,
+                                                                singing != nullptr, contentLength);
+                }
+                if (!accepted || !validClipProperties(toDto(next))) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("split_tick"),
+                        QStringLiteral("Split tick produces an invalid left part")));
+                }
+
+                // Right half: duplicate the clip and move its visible left edge to the split tick
+                auto right = previous;
+                const auto *audio = qobject_cast<const AudioClip *>(clip);
+                if (audio && audio->hasRealTimeAnchor()) {
+                    auto drag = AudioClipDragState::begin(
+                        audio->trimStartMs(), audio->playLengthMs(), audio->materialLengthMs(),
+                        visibleStart, visibleStart, session.model()->timeline());
+                    accepted = drag.resizeLeftTo(splitTick, visibleEnd, 1, right,
+                                                 session.model()->timeline());
+                    if (accepted)
+                        drag.writeTruth(right);
+                } else {
+                    accepted = ClipResizeUtils::updateLeftEdge(right, splitTick, 1);
+                }
+                if (!accepted || !validClipProperties(toDto(right))) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("split_tick"),
+                        QStringLiteral("Split tick produces an invalid right part")));
+                }
+
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(m_committer.preview(session, true));
+
+                auto draft = clipDraftDto(*clip);
+                draft.clientRef = QStringLiteral("gui-split-clip");
+                draft.properties = toDto(right);
+                for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
+                    keyframe.id = IdGenerator::instance()->next();
+                for (auto &parameter : draft.params) {
+                    for (auto &curve : parameter.curves) {
+                        curve.id = {};
+                        for (auto &node : curve.nodes)
+                            node.id = {};
+                    }
+                }
+                QList<CreatedObjectRef> createdObjects;
+                auto newClip =
+                    buildClip(draft, resolved.get().track, session.model()->timeline(),
+                              &createdObjects);
+
+                auto actions = std::make_unique<ClipActions>();
+                actions->splitClip(previous, next, clip, newClip.get(), resolved.get().track);
+                const QList<ObjectRef> affected{
+                    {ObjectKind::Clip, clipId.value()},
+                    {ObjectKind::Clip, newClip->id()}
+                };
+                auto result = m_committer.commit(session, std::move(actions), affected,
+                                                 std::move(createdObjects));
+                if (result)
+                    newClip.release();
+                return result;
+            });
+    }
+
     AutomationResult<MutationResult> ProjectAutomationFacade::setClipProperties(
         const OperationId &operationId, const CommandContext &context,
         const ClipPropertiesDto &properties, const std::optional<TrackId> targetTrackId) {

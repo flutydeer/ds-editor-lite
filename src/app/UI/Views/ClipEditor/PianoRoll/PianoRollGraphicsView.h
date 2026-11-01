@@ -23,7 +23,7 @@ class QShowEvent;
 
 class PianoRollGraphicsView final : public TimeGraphicsView,
                                     public IAtomicAction,
-                                    public IPianoRollPastePreviewHost,
+                                    public IPianoRollPreviewHost,
                                     public IAnchorCommandHost {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
@@ -68,6 +68,8 @@ public:
 
     void showPianoRollPastePreview(const PianoRollPastePreviewData &data, int globalTick) override;
     void clearPianoRollPastePreview() override;
+    void showPianoRollSplitPreview(int noteId, int globalTick) override;
+    void clearPianoRollSplitPreview() override;
     void setSelectedAnchorInterpolation(PianoRollAnchorMode mode) override;
     void deleteSelectedAnchors() override;
 

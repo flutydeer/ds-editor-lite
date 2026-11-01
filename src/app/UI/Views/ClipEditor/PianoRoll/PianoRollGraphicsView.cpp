@@ -450,6 +450,28 @@ void PianoRollGraphicsView::clearPianoRollPastePreview() {
     d->m_selectionModel->clearPastePreviewViews();
 }
 
+void PianoRollGraphicsView::showPianoRollSplitPreview(const int noteId, const int globalTick) {
+    Q_D(PianoRollGraphicsView);
+    auto *handler = dynamic_cast<SplitNoteHandler *>(d->m_handlers.value(SplitNote));
+    if (!handler)
+        return;
+    const auto pos =
+        Helper::splitPreviewPosition(d->m_clip, d->m_clip ? d->m_clip->findNoteById(noteId)
+                                                          : nullptr,
+                                     globalTick);
+    if (!pos.valid) {
+        handler->hidePreview();
+        return;
+    }
+    handler->showPreview(d->findNoteViewById(noteId), pos.localSplitPos);
+}
+
+void PianoRollGraphicsView::clearPianoRollSplitPreview() {
+    Q_D(PianoRollGraphicsView);
+    if (auto *handler = dynamic_cast<SplitNoteHandler *>(d->m_handlers.value(SplitNote)))
+        handler->hidePreview();
+}
+
 void PianoRollGraphicsView::setSelectedAnchorInterpolation(const PianoRollAnchorMode mode) {
     Q_D(PianoRollGraphicsView);
     if (auto *handler =

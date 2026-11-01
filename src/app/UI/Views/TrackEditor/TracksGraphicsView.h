@@ -14,13 +14,14 @@
 class Menu;
 class AbstractClipView;
 class QGraphicsLineItem;
+class QGraphicsPathItem;
 class QGraphicsRectItem;
 class TrackEditorBackgroundView;
 class TracksGraphicsScene;
 
 class TracksGraphicsView final : public TimeGraphicsView,
                                  public IAtomicAction,
-                                 public ITrackPastePreviewHost {
+                                 public ITrackEditorPreviewHost {
     Q_OBJECT
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
     Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
@@ -42,6 +43,8 @@ public:
     void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                int baseTrackIndex) override;
     void clearTrackPastePreview() override;
+    void showTrackSplitPreview(const TrackSplitPreviewData &data) override;
+    void clearTrackSplitPreview() override;
     [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
 
 public slots:
@@ -131,6 +134,7 @@ private:
     std::optional<AudioClipDragState> m_audioDragState;
     AbstractClipView *m_currentEditingClip = nullptr;
     QList<AbstractClipView *> m_pastePreviewClipViews;
+    QGraphicsPathItem *m_splitPreviewItem = nullptr;
 
     // External file drag-and-drop state (Phase 1)
     bool m_externalDragActive = false;

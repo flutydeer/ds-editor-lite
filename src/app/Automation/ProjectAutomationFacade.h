@@ -113,6 +113,8 @@ namespace Automation {
                                                         ClipId clipId, int start);
         AutomationResult<MutationResult> resizeClipRight(const CommandContext &context,
                                                          ClipId clipId, int end);
+        AutomationResult<MutationResult> splitClip(const CommandContext &context, ClipId clipId,
+                                                   int splitTick);
         AutomationResult<MutationResult>
             setClipProperties(const CommandContext &context, const ClipPropertiesDto &properties,
                               std::optional<TrackId> targetTrackId = std::nullopt);

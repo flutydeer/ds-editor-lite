@@ -23,7 +23,7 @@ class QWheelEvent;
 class SingingClip;
 
 class PianoRollRhiWidget final : public EditorRhiWidget,
-                                 public IPianoRollPastePreviewHost,
+                                 public IPianoRollPreviewHost,
                                  public IAnchorCommandHost,
                                  public EditorTouchTarget,
                                  public EditorPenTarget {
@@ -86,6 +86,8 @@ public:
     void setEditMode(ClipEditorGlobal::PianoRollEditMode mode);
     void showPianoRollPastePreview(const PianoRollPastePreviewData &data, int globalTick) override;
     void clearPianoRollPastePreview() override;
+    void showPianoRollSplitPreview(int noteId, int globalTick) override;
+    void clearPianoRollSplitPreview() override;
     void setSelectedAnchorInterpolation(PianoRollAnchorMode mode) override;
     void deleteSelectedAnchors() override;
 

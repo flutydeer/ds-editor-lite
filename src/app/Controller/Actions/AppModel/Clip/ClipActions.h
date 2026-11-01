@@ -24,6 +24,9 @@ public:
     void editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                  const QList<Clip::ClipCommonProperties> &newArgs,
                                  const QList<AudioClip *> &clips, const QList<Track *> &tracks);
+    void splitClip(const Clip::ClipCommonProperties &oldArgs,
+                   const Clip::ClipCommonProperties &newArgs, Clip *clip, Clip *newClip,
+                   Track *track);
     void relocateAudioClip(AudioClip *clip, const QString &newPath,
                            const AudioPathInfo &newPathInfo, const QJsonObject &newFormatData);
     void moveClipToTrack(const Clip::ClipCommonProperties &oldArgs,

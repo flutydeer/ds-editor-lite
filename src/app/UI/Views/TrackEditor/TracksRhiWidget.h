@@ -41,7 +41,7 @@ class QShowEvent;
 class QWheelEvent;
 
 class TracksRhiWidget final : public EditorRhiWidget,
-                              public ITrackPastePreviewHost,
+                              public ITrackEditorPreviewHost,
                               public EditorTouchTarget,
                               public EditorPenTarget {
     Q_OBJECT
@@ -82,6 +82,8 @@ public:
     void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                int baseTrackIndex) override;
     void clearTrackPastePreview() override;
+    void showTrackSplitPreview(const TrackSplitPreviewData &data) override;
+    void clearTrackSplitPreview() override;
     // WYSIWYG snap step at `tick` for the current zoom level.
     [[nodiscard]] int snapStep(int tick) const;
 
@@ -183,6 +185,7 @@ private:
     void appendLastPlaybackIndicator(EditorRhiFrameData &frame, double dpr) const;
     void updatePlaybackOverlay();
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
+    void appendSplitPreviewOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
     [[nodiscard]] QRectF clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,
@@ -306,6 +309,11 @@ private:
     // External drop overlay colors (theme-injected via QSS)
     QColor m_dropHighlightColor{0xA9, 0xC4, 0xFF, 0x50};
     QColor m_dropIndicatorColor{200, 200, 200};
+
+    // "Split Clip" context menu hover preview state
+    bool m_splitPreviewActive = false;
+    int m_splitPreviewTrackIndex = -1;
+    int m_splitPreviewTick = 0;
 };
 
 #endif // TRACKSRHIWIDGET_H
