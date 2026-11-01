@@ -7,6 +7,7 @@
 #include <TalcsFormat/AbstractAudioFormatIO.h>
 
 #include <algorithm>
+#include <vector>
 
 DecodeAudioTask::DecodeAudioTask() {
     TaskStatus status;
@@ -30,6 +31,8 @@ AudioInfoModel DecodeAudioTask::result() const {
     info.frames = m_frames;
     info.peakCache = m_peakCache;
     info.peakCacheMipmap = m_peakCacheMipmap;
+    info.peakCacheChannels = m_peakCacheChannels;
+    info.peakCacheMipmapChannels = m_peakCacheMipmapChannels;
     return info;
 }
 
@@ -49,12 +52,16 @@ void DecodeAudioTask::runTask() {
     m_peakCache.swap(nullVector);
     QVector<std::tuple<short, short>> nullVectorThumbnail;
     m_peakCacheMipmap.swap(nullVectorThumbnail);
+    m_peakCacheChannels.clear();
+    m_peakCacheMipmapChannels.clear();
 
     m_sampleRate = io->sampleRate();
     m_channels = io->channelCount();
     m_frames = io->length();
 
     std::vector<float> buffer(m_chunkSize * m_channels);
+    std::vector<double> channelMax(m_channels, 0.0);
+    std::vector<double> channelMin(m_channels, 0.0);
     const auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
     qint64 decodedFrames = 0;
@@ -73,18 +80,34 @@ void DecodeAudioTask::runTask() {
             errorMessage = QCoreApplication::translate("DecodeAudioTask", "Incomplete audio data");
             m_peakCache.clear();
             m_peakCacheMipmap.clear();
+            m_peakCacheChannels.clear();
+            m_peakCacheMipmapChannels.clear();
             return;
         }
         if (framesRead == 0) {
             break;
         }
         decodedFrames += framesRead;
+        if (m_peakCacheChannels.size() != m_channels) {
+            m_peakCacheChannels.resize(m_channels);
+            m_peakCacheMipmapChannels.resize(m_channels);
+        }
+        std::fill(channelMax.begin(), channelMax.end(), 0.0);
+        std::fill(channelMin.begin(), channelMin.end(), 0.0);
         double sampleMax = 0;
         double sampleMin = 0;
         for (qint64 i = 0; i < framesRead; i++) {
             double monoSample = 0.0;
+            const auto frameOffset = i * m_channels;
             for (int j = 0; j < m_channels; j++) {
-                monoSample += buffer[i * m_channels + j] / static_cast<double>(m_channels);
+                const auto channelSample = static_cast<double>(buffer[frameOffset + j]);
+                monoSample += channelSample / static_cast<double>(m_channels);
+                // The audio view draws one lane per channel, so the same pass
+                // also keeps the per-channel extremes
+                if (channelSample > channelMax[j])
+                    channelMax[j] = channelSample;
+                if (channelSample < channelMin[j])
+                    channelMin[j] = channelSample;
             }
             if (monoSample > sampleMax)
                 sampleMax = monoSample;
@@ -105,6 +128,9 @@ void DecodeAudioTask::runTask() {
 
         auto pair = std::make_pair(min, max);
         m_peakCache.append(pair);
+        for (int j = 0; j < m_channels; j++)
+            m_peakCacheChannels[j].append(
+                std::make_pair(toShortInt(channelMin[j]), toShortInt(channelMax[j])));
         buffersRead++;
 
         constexpr int updateProgressThreshold = 200;
@@ -118,32 +144,44 @@ void DecodeAudioTask::runTask() {
         }
     }
 
-    // Create mipmap from peak cache
-    short min = 0;
-    short max = 0;
-    bool hasTail = false;
-    for (int i = 0; i < m_peakCache.count(); i++) {
-        if (isTerminateRequested()) {
-            qDebug() << "Decode audio task abort:" << path;
-            status.title = QCoreApplication::translate("DecodeAudioTask", "Canceling decoding...");
-            status.isIndetermine = true;
-            status.runningStatus = TaskGlobal::Error;
-            setStatus(status);
-            return;
+    // Create mipmap from peak cache. Returns false when the task is being
+    // terminated, the caller reports it the same way the read loop does.
+    const auto buildMipmap = [this](const QVector<std::tuple<short, short>> &peaks,
+                                    QVector<std::tuple<short, short>> &mipmap) {
+        mipmap.clear();
+        short min = 0;
+        short max = 0;
+        bool hasTail = false;
+        for (int i = 0; i < peaks.count(); i++) {
+            if ((i & 0xfff) == 0 && isTerminateRequested())
+                return false;
+            const auto [frameMin, frameMax] = peaks.at(i);
+            min = std::min(min, frameMin);
+            max = std::max(max, frameMax);
+            hasTail = true;
+            if ((i + 1) % m_mipmapScale == 0) {
+                mipmap.append(std::make_pair(min, max));
+                min = 0;
+                max = 0;
+                hasTail = false;
+            }
         }
-        const auto [frameMin, frameMax] = m_peakCache.at(i);
-        min = std::min(min, frameMin);
-        max = std::max(max, frameMax);
-        hasTail = true;
-        if ((i + 1) % m_mipmapScale == 0) {
-            m_peakCacheMipmap.append(std::make_pair(min, max));
-            min = 0;
-            max = 0;
-            hasTail = false;
-        }
+        if (hasTail)
+            mipmap.append(std::make_pair(min, max));
+        return true;
+    };
+
+    auto built = buildMipmap(m_peakCache, m_peakCacheMipmap);
+    for (int channel = 0; built && channel < m_peakCacheChannels.size(); channel++)
+        built = buildMipmap(m_peakCacheChannels[channel], m_peakCacheMipmapChannels[channel]);
+    if (!built) {
+        qDebug() << "Decode audio task abort:" << path;
+        status.title = QCoreApplication::translate("DecodeAudioTask", "Canceling decoding...");
+        status.isIndetermine = true;
+        status.runningStatus = TaskGlobal::Error;
+        setStatus(status);
+        return;
     }
-    if (hasTail)
-        m_peakCacheMipmap.append(std::make_pair(min, max));
 
     success = true;
 }

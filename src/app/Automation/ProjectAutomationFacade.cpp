@@ -88,7 +88,9 @@ namespace Automation {
             return left.chunkSize == right.chunkSize && left.mipmapScale == right.mipmapScale &&
                    left.sampleRate == right.sampleRate && left.channels == right.channels &&
                    left.frames == right.frames && left.peakCache == right.peakCache &&
-                   left.peakCacheMipmap == right.peakCacheMipmap;
+                   left.peakCacheMipmap == right.peakCacheMipmap &&
+                   left.peakCacheChannels == right.peakCacheChannels &&
+                   left.peakCacheMipmapChannels == right.peakCacheMipmapChannels;
         }
 
         bool decodeSourceMatches(const AudioClip &clip, const AudioAssetSnapshotDto &asset) {

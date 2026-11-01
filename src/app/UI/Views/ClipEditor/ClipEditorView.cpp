@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppStatus/AppStatus.h"
+#include "AudioView/AudioView.h"
 #include "ParamEditor/ParamEditorView.h"
 #include "PianoRoll/NoteView.h"
 #include "PianoRoll/PhonemeView.h"
@@ -55,14 +56,18 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_pianoRollEditorView = new PianoRollEditorView;
     m_pianoRollEditorView->setVisible(false);
 
+    m_audioView = new AudioView;
+    m_audioView->setVisible(false);
+
     m_placeholderLabel = new QLabel(this);
     m_placeholderLabel->setObjectName("clipEditorPlaceholder");
-    m_placeholderLabel->setText(tr("Please select a singing clip to edit"));
+    m_placeholderLabel->setText(tr("Please select a clip to edit"));
     m_placeholderLabel->setAlignment(Qt::AlignCenter);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_placeholderLabel);
     mainLayout->addWidget(m_pianoRollEditorView);
+    mainLayout->addWidget(m_audioView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 0, 1, 1});
     setLayout(mainLayout);
@@ -75,6 +80,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
 }
 
 PianoRollViewState ClipEditorView::viewState() const {
+    if (m_editorMode == EditorMode::Audio)
+        return m_audioView->viewState();
     auto state = m_pianoRollEditorView->pianoRollView()->viewState();
     state.editMode = m_toolbarView->editMode();
     return state;
@@ -85,6 +92,10 @@ ParameterEditorViewState ClipEditorView::parameterViewState() const {
 }
 
 EditorViewGlobal::Region ClipEditorView::focusedRegion() const {
+    // The audio view has no editing surface, so nothing in it can take focus and
+    // own an edit command
+    if (m_editorMode == EditorMode::Audio)
+        return EditorViewGlobal::Region::None;
     auto *focused = QApplication::focusWidget();
     if (!focused)
         return EditorViewGlobal::Region::None;
@@ -112,22 +123,33 @@ bool ClipEditorView::supportsEditMode(const EditorViewGlobal::PianoRollEditMode 
 bool ClipEditorView::centerAt(const double tick, const double keyIndex) const {
     if (!std::isfinite(tick) || !std::isfinite(keyIndex))
         return false;
+    if (m_editorMode == EditorMode::Audio)
+        return m_audioView->centerAt(tick);
     return m_pianoRollEditorView->pianoRollView()->centerAt(tick, keyIndex);
 }
 
 bool ClipEditorView::setViewScale(const double horizontalScale, const double verticalScale) const {
     const auto previousState = viewState();
+    if (m_editorMode == EditorMode::Audio) {
+        // No vertical axis to scale, and the pitch half of the state is a
+        // constant, so only the time viewport moves
+        return m_audioView->setTimeViewport(previousState.centerTick, horizontalScale);
+    }
     if (!m_pianoRollEditorView->pianoRollView()->setViewScale(horizontalScale, verticalScale))
         return false;
     return centerAt(previousState.centerTick, previousState.centerKeyIndex);
 }
 
 bool ClipEditorView::setTimeViewport(const double centerTick, const double horizontalScale) const {
+    if (m_editorMode == EditorMode::Audio)
+        return m_audioView->setTimeViewport(centerTick, horizontalScale);
     return m_pianoRollEditorView->pianoRollView()->setTimeViewport(centerTick, horizontalScale);
 }
 
 bool ClipEditorView::setPitchViewport(const double centerKeyIndex,
                                       const double verticalScale) const {
+    if (m_editorMode == EditorMode::Audio)
+        return false;
     return m_pianoRollEditorView->pianoRollView()->setPitchViewport(centerKeyIndex, verticalScale);
 }
 
@@ -137,6 +159,8 @@ bool ClipEditorView::setEditMode(const EditorViewGlobal::PianoRollEditMode mode)
 
 bool ClipEditorView::setRegionVisibility(const bool pianoRollVisible,
                                          const bool parametersVisible) const {
+    if (m_editorMode == EditorMode::Audio)
+        return false;
     return m_pianoRollEditorView->setRegionVisibility(pianoRollVisible, parametersVisible);
 }
 
@@ -227,7 +251,7 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     } else if (clip->clipType() == Clip::Singing) {
         moveToSingingClipState(dynamic_cast<SingingClip *>(clip));
     } else if (clip->clipType() == Clip::Audio) {
-        moveToAudioClipState(nullptr);
+        moveToAudioClipState(dynamic_cast<AudioClip *>(clip));
     }
 
     if (hadActiveClip != m_hasActiveClip) {
@@ -236,25 +260,36 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
 }
 
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
+    m_editorMode = EditorMode::Singing;
     m_hasActiveClip = true;
     m_placeholderLabel->setVisible(false);
+    m_audioView->setDataContext(nullptr);
+    m_audioView->setVisible(false);
     m_pianoRollEditorView->setDataContext(clip);
     m_pianoRollEditorView->setVisible(true);
     m_pianoRollEditorView->pianoRollView()->onEditModeChanged(m_toolbarView->editMode());
 }
 
-void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
-    Q_UNUSED(clip);
-    m_hasActiveClip = true;
+void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
+    m_editorMode = EditorMode::Audio;
+    m_hasActiveClip = clip != nullptr;
+    m_placeholderLabel->setVisible(clip == nullptr);
+    m_pianoRollEditorView->setDataContext(nullptr);
     m_pianoRollEditorView->setVisible(false);
     resetPianoRollViewportRange();
-    m_placeholderLabel->setVisible(true);
-    m_pianoRollEditorView->setDataContext(nullptr);
+    // Nothing in the audio view can be edited, so the edit commands must not
+    // stay routed to the piano roll that is no longer on screen
+    editorViewController->clearClipEditorEditTarget();
+    m_audioView->setDataContext(clip);
+    m_audioView->setVisible(clip != nullptr);
 }
 
 void ClipEditorView::moveToNullClipState() const {
+    m_editorMode = EditorMode::None;
     m_hasActiveClip = false;
     m_pianoRollEditorView->setVisible(false);
+    m_audioView->setDataContext(nullptr);
+    m_audioView->setVisible(false);
     resetPianoRollViewportRange();
     m_placeholderLabel->setVisible(true);
     m_pianoRollEditorView->setDataContext(nullptr);
@@ -280,10 +315,12 @@ void ClipEditorView::applyTrackColor(const int colorIndex) const {
     m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);
     m_pianoRollEditorView->pianoRollView()->update();
     m_pianoRollEditorView->paramEditorView()->update();
+    // The audio view colours its waveforms from the same track palette
+    m_audioView->setTrackColorIndex(colorIndex);
 }
 
 void ClipEditorView::changeEvent(QEvent *event) {
     TabPanelPage::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
-        m_placeholderLabel->setText(tr("Please select a singing clip to edit"));
+        m_placeholderLabel->setText(tr("Please select a clip to edit"));
 }

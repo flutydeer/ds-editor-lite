@@ -822,16 +822,30 @@ void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferr
         .clientId = clientId,
     };
     const auto &tracks = preferredTracks.isEmpty() ? appModel->tracks() : preferredTracks;
+    // Prefer a singing clip so the piano roll opens for the usual case. A
+    // document with only audio clips still activates its first clip so the clip
+    // editor shows the audio view instead of the empty placeholder.
+    const Clip *firstAnyClip = nullptr;
     for (const auto track : tracks) {
         for (const auto clip : track->clips()) {
-            if (clip->clipType() != Clip::Singing)
+            if (clip->clipType() != Clip::Singing) {
+                if (!firstAnyClip)
+                    firstAnyClip = clip;
                 continue;
+            }
             runtime->facade().setActiveClip(context, Automation::ClipId(clip->id()));
             runtime->facade().showBottomPanelPage(
                 {.windowId = *runtime->windowId(), .source = source, .clientId = clientId},
                 QStringLiteral("ClipEditor"));
             return;
         }
+    }
+    if (firstAnyClip) {
+        runtime->facade().setActiveClip(context, Automation::ClipId(firstAnyClip->id()));
+        runtime->facade().showBottomPanelPage(
+            {.windowId = *runtime->windowId(), .source = source, .clientId = clientId},
+            QStringLiteral("ClipEditor"));
+        return;
     }
     if (clearIfMissing)
         runtime->facade().setActiveClip(context, std::nullopt);

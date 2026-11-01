@@ -17,6 +17,22 @@ namespace {
     constexpr auto kPi = std::numbers::pi_v<double>;
     const auto kWindowStepSin = std::sin(kPi / kSincHalfKernel);
     const auto kWindowStepCos = std::cos(kPi / kSincHalfKernel);
+
+    // Per-channel caches are optional: info built without a full decode (older
+    // documents, hand-built test fixtures) only carries the downmixed caches,
+    // so every lane falls back to those instead of drawing nothing.
+    const QList<std::tuple<short, short>> *selectPeakData(const AudioInfoModel &info,
+                                                          const bool highResolution,
+                                                          const int channel) {
+        const auto &mono = highResolution ? info.peakCache : info.peakCacheMipmap;
+        if (channel < 0)
+            return &mono;
+        const auto &channels =
+            highResolution ? info.peakCacheChannels : info.peakCacheMipmapChannels;
+        if (channel < channels.size() && !channels.at(channel).isEmpty())
+            return &channels.at(channel);
+        return &mono;
+    }
 }
 
 AudioWaveformSampler::~AudioWaveformSampler() {
@@ -78,6 +94,7 @@ AudioWaveformSampler::CacheKey AudioWaveformSampler::makeCacheKey(const Request 
         .peakCacheMipmapData = info.peakCacheMipmap.constData(),
         .materialStartTick = request.materialStartTick,
         .visibleStartTick = request.visibleStartTick,
+        .channel = request.channel,
         .chunkSize = info.chunkSize,
         .mipmapScale = info.mipmapScale,
         .sampleRate = info.sampleRate,
@@ -139,7 +156,7 @@ AudioWaveformSampler::Result AudioWaveformSampler::samplePeakMode(const Request 
         return {};
 
     const auto useHighResolution = request.horizontalScale >= 0.2;
-    const auto &peakData = useHighResolution ? info.peakCache : info.peakCacheMipmap;
+    const auto &peakData = *selectPeakData(info, useHighResolution, request.channel);
     const auto framesPerChunk = useHighResolution
                                     ? static_cast<double>(info.chunkSize)
                                     : static_cast<double>(info.chunkSize) * info.mipmapScale;
@@ -252,6 +269,8 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
     result.peaks.reserve(deviceEnd - deviceStart + 1);
     const auto halfHeight = request.previewSceneRect.height() * 0.5;
     const auto centerY = request.previewSceneRect.top() + halfHeight;
+    const auto lane = request.channel;
+    const auto useLane = lane >= 0 && lane < info.channels;
     auto previousSamplePos =
         tickToSamplePos(request, (request.previewSceneRect.left() + deviceStart / deviceScale -
                                   request.leftMarginPx) *
@@ -276,12 +295,16 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
         float maximum = 0.0f;
         for (auto frame = firstFrame; frame < lastFrame; ++frame) {
             const auto offset = static_cast<int>((frame - sampleStart) * info.channels);
-            auto mono = 0.0f;
-            for (auto channel = 0; channel < info.channels; ++channel)
-                mono += m_ioBuffer[offset + channel];
-            mono /= info.channels;
-            minimum = std::min(minimum, mono);
-            maximum = std::max(maximum, mono);
+            auto value = 0.0f;
+            if (useLane) {
+                value = m_ioBuffer[offset + lane];
+            } else {
+                for (auto channel = 0; channel < info.channels; ++channel)
+                    value += m_ioBuffer[offset + channel];
+                value /= info.channels;
+            }
+            minimum = std::min(minimum, value);
+            maximum = std::max(maximum, value);
         }
         result.peaks.append(
             {request.previewSceneRect.left() + localX,
@@ -337,9 +360,15 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
         return {};
 
     QVector<float> monoSamples(static_cast<int>(framesRead));
+    const auto lane = request.channel;
+    const auto useLane = lane >= 0 && lane < info.channels;
     for (auto frame = 0; frame < framesRead; ++frame) {
-        auto mono = 0.0f;
         const auto offset = frame * info.channels;
+        if (useLane) {
+            monoSamples[frame] = m_ioBuffer[offset + lane];
+            continue;
+        }
+        auto mono = 0.0f;
         for (auto channel = 0; channel < info.channels; ++channel)
             mono += m_ioBuffer[offset + channel];
         monoSamples[frame] = mono / info.channels;

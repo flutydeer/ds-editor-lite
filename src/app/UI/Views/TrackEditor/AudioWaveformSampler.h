@@ -28,6 +28,9 @@ public:
         const Timeline *timeline = nullptr;
         int materialStartTick = 0;
         int visibleStartTick = 0;
+        // Channel lane to sample, -1 keeps the downmixed mono behaviour the
+        // track editor relies on
+        int channel = -1;
         QRectF previewSceneRect;
         QRectF visibleSceneRect;
         double horizontalScale = 1.0;
@@ -55,6 +58,7 @@ private:
         const void *peakCacheMipmapData = nullptr;
         int materialStartTick = 0;
         int visibleStartTick = 0;
+        int channel = -1;
         int chunkSize = 0;
         int mipmapScale = 0;
         int sampleRate = 0;

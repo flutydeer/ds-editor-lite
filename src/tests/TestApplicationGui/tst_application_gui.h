@@ -139,6 +139,8 @@ private slots:
     void voiceMenusApplyPresetsToTheChosenTarget();
     void clipToolbarNameEditingKeepsTheOriginalTarget_data();
     void clipToolbarNameEditingKeepsTheOriginalTarget();
+    void audioDbAxisTickLadderFollowsTheLaneHeight();
+    void audioWaveformSamplerUsesTheRequestedChannelLane();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();

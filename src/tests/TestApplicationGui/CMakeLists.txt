@@ -34,6 +34,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_piano_clipboard_scroll.cpp
     tst_lyric_grid.cpp
     tst_track_menus.cpp
+    tst_audio_view.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
 if(WIN32)

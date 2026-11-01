@@ -311,6 +311,22 @@ namespace Automation {
                 addInteger(hash, minimum);
                 addInteger(hash, maximum);
             }
+            addInteger(hash, draft.audioInfo.peakCacheChannels.size());
+            for (const auto &channelPeaks : draft.audioInfo.peakCacheChannels) {
+                addInteger(hash, channelPeaks.size());
+                for (const auto &[minimum, maximum] : channelPeaks) {
+                    addInteger(hash, minimum);
+                    addInteger(hash, maximum);
+                }
+            }
+            addInteger(hash, draft.audioInfo.peakCacheMipmapChannels.size());
+            for (const auto &channelPeaks : draft.audioInfo.peakCacheMipmapChannels) {
+                addInteger(hash, channelPeaks.size());
+                for (const auto &[minimum, maximum] : channelPeaks) {
+                    addInteger(hash, minimum);
+                    addInteger(hash, maximum);
+                }
+            }
             addInteger(hash, draft.notes.size());
             for (const auto &note : draft.notes) {
                 addString(hash, note.clientRef);

@@ -309,10 +309,12 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
         QApplication::sendEvent(canvas->viewport(), &move);
     }
     QVERIFY(item->isSelected());
-    QCOMPARE(item->activeClip(), !audio);
+    // Audio clips become the active clip too: the bottom panel hosts a read-only
+    // audio view and its name editor for them
+    QCOMPARE(item->activeClip(), true);
     QCOMPARE(canvas->selectedClipsId(), QList<int>{clipId});
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{clipId});
-    QCOMPARE(appStatus->activeClipId.get(), audio ? -1 : clipId);
+    QCOMPARE(appStatus->activeClipId.get(), clipId);
     QTRY_COMPARE(item->start() + item->clipStart(), expectedLeft);
     QCOMPARE(item->clipLen(), expectedLength);
     QCOMPARE(clipState(), originalProperties);

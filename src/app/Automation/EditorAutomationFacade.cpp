@@ -484,7 +484,9 @@ namespace Automation {
             [this, context, clipId](DocumentSession &session, const bool validateOnly) {
                 const int value = clipId ? clipId->value() : -1;
                 if (clipId) {
-                    const auto resolved = m_objectResolver.singingClip(session, *clipId);
+                    // Any clip type can be the active clip: the clip editor
+                    // switches its content and toolbar by type
+                    const auto resolved = m_objectResolver.clip(session, *clipId);
                     if (!resolved)
                         return AutomationResult<GuiMutationResult>(resolved.getError());
                 }

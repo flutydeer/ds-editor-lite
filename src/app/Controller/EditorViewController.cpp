@@ -412,6 +412,12 @@ EditorInteraction::Target EditorViewController::activeEditTarget() const {
     return m_activeEditTarget;
 }
 
+void EditorViewController::clearClipEditorEditTarget() {
+    if (m_activePanel != AppGlobal::ClipEditor)
+        return;
+    setActiveEditTarget(EditorInteraction::Target::None);
+}
+
 void EditorViewController::syncPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
     if (m_pianoRollEditMode == mode)
         return;

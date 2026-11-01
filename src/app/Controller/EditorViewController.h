@@ -72,6 +72,10 @@ public:
                                EditorInteraction::Target target);
     void unregisterInteractionArea(QObject *area);
     [[nodiscard]] EditorInteraction::Target activeEditTarget() const;
+    // The clip editor page has no editing surface while it shows a read-only
+    // view, so cut, copy, paste and delete must not fall through to the hidden
+    // piano roll
+    void clearClipEditorEditTarget();
     void syncPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode);
     [[nodiscard]] bool supportsEditCommand(EditorInteraction::Command command) const;
     void requestEditCommand(EditorInteraction::Command command);

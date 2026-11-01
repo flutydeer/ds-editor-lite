@@ -13,6 +13,7 @@ class QLabel;
 class QSplitter;
 class ParamEditorView;
 class PianoRollView;
+class AudioView;
 class ClipEditorToolBarView;
 class Track;
 class Curve;
@@ -65,16 +66,22 @@ public slots:
     void onActiveClipChanged(int clipId);
 
 private:
+    // Which editor the page currently hosts. The piano roll and the audio view
+    // are mutually exclusive, and a few queries have no meaning in audio mode.
+    enum class EditorMode { None, Singing, Audio };
+
     void changeEvent(QEvent *event) override;
     void moveToSingingClipState(SingingClip *clip) const;
-    void moveToAudioClipState(const AudioClip *clip) const;
+    void moveToAudioClipState(AudioClip *clip) const;
     void moveToNullClipState() const;
     void resetPianoRollViewportRange() const;
     void refreshTrackPresentation();
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;
+    AudioView *m_audioView;
     QLabel *m_placeholderLabel;
+    mutable EditorMode m_editorMode = EditorMode::None;
     mutable bool m_hasActiveClip = false;
     QMetaObject::Connection m_trackColorConnection;
     QMetaObject::Connection m_clipPropertyConnection;
