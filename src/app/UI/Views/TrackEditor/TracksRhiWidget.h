@@ -18,6 +18,7 @@
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
+#include <QTimer>
 #include <QUrl>
 
 #include <memory>
@@ -277,6 +278,9 @@ private:
     // rebuildModelConnections() runs on every model change; this keeps the controller connection
     // from stacking up across those rebuilds.
     bool m_loadStateConnected = false;
+    // Rebuilds the frame while a visible clip is still loading. The loading ring turns by clock and
+    // the snapshots are rebuilt each frame, so nothing would move without this ticker.
+    QTimer m_hintTicker;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
     bool m_autoTurnPage = true;

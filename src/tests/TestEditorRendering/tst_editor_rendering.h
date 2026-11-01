@@ -23,6 +23,7 @@ private slots:
     void shortStrokeEndCaps();
     void subpixelOverlayCoverage();
     void antialiasedCircle();
+    void audioLoadHintRing();
     void amplitudeMapping();
     void filledPeaks();
     void verticalPeaks();

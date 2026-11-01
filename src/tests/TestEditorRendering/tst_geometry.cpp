@@ -1,6 +1,7 @@
 #include "tst_editor_rendering.h"
 
 #include <QtTest/QTest>
+#include "UI/Views/Common/AudioLoadHint.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
 
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 namespace {
 
@@ -310,4 +312,55 @@ void EditorRenderingTests::antialiasedCircle() {
         QVERIFY2((value.coverage == 0.0f || value.coverage == 1.0f),
                  "circle coverage must preserve the opaque core and transparent feather edge");
     }
+}
+
+void EditorRenderingTests::audioLoadHintRing() {
+    // The ring and the text are laid out as one block centred inside the hint area
+    const QRectF labelRect(0.0, 0.0, 200.0, 40.0);
+    constexpr double textWidth = 60.0;
+    const auto block = AudioLoadHint::layout(labelRect, textWidth, 1.0);
+    const auto blockWidth = AudioLoadHint::ringDiameter + AudioLoadHint::ringTextGap + textWidth;
+    QCOMPARE(block.ringCenter.y(), labelRect.center().y());
+    QCOMPARE(block.ringRadius,
+             (AudioLoadHint::ringDiameter - AudioLoadHint::ringStrokeWidth) * 0.5);
+    QCOMPARE(block.ringCenter.x(),
+             labelRect.center().x() - blockWidth * 0.5 + AudioLoadHint::ringDiameter * 0.5);
+    QCOMPARE(block.textLeft + textWidth, labelRect.center().x() - blockWidth * 0.5 + blockWidth);
+    QVERIFY2((block.textLeft > block.ringCenter.x() + block.ringRadius),
+             "the text must start clear of the ring stroke");
+
+    // A physical-pixel layout is the logical one scaled, so both backends agree on the proportions
+    const auto scaled = AudioLoadHint::layout(QRectF(0.0, 0.0, 400.0, 80.0), textWidth * 2.0, 2.0);
+    QCOMPARE(scaled.ringRadius, block.ringRadius * 2.0);
+    QCOMPARE(scaled.ringCenter.x(), block.ringCenter.x() * 2.0);
+
+    // The arc keeps the sweep of the ProgressIndicator ring, its points sit on the layout's circle,
+    // and it ends where headDegrees() says, measured clockwise from twelve o'clock
+    const QPointF center(30.0, 30.0);
+    constexpr double radius = 5.0;
+    const auto quarterTurn = std::numbers::pi / 180.0;
+    for (const auto elapsed : {0, 250, 1000, 3333}) {
+        const auto sweep = AudioLoadHint::sweepDegrees(elapsed);
+        QVERIFY2((sweep >= 30.0 && sweep <= 90.0), "the sweep must stay inside the designed range");
+        const auto arc = AudioLoadHint::arcCenterline(center, radius, elapsed);
+        QVERIFY2((arc.size() >= 2), "the arc needs at least one segment");
+        for (const auto &point : arc) {
+            const auto distance = std::hypot(point.x() - center.x(), point.y() - center.y());
+            QVERIFY2((std::abs(distance - radius) < 0.001),
+                     "arc points must stay on the ring centreline");
+        }
+        const auto headRadians = AudioLoadHint::headDegrees(elapsed) * quarterTurn;
+        const QPointF expectedHead(center.x() + radius * std::sin(headRadians),
+                                   center.y() - radius * std::cos(headRadians));
+        QVERIFY2((std::abs(arc.constLast().x() - expectedHead.x()) < 0.001 &&
+                  std::abs(arc.constLast().y() - expectedHead.y()) < 0.001),
+                 "the arc must end at the head angle");
+    }
+
+    // The track is a closed circle, so the soft-geometry stroke joins its ends
+    const auto track = AudioLoadHint::trackCenterline(center, radius);
+    QVERIFY2((track.size() > 8), "the track needs enough segments to read as a circle");
+    QVERIFY2((std::hypot(track.constFirst().x() - track.constLast().x(),
+                         track.constFirst().y() - track.constLast().y()) < 0.001),
+             "the track must close on itself");
 }

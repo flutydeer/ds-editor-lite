@@ -25,6 +25,7 @@
 #include "UI/Views/Common/EditorPenController.h"
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
+#include "UI/Views/Common/AudioLoadHint.h"
 
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -239,6 +240,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 }
             });
     rebuildModelConnections();
+    m_hintTicker.setInterval(16);
+    connect(&m_hintTicker, &QTimer::timeout, this, &TracksRhiWidget::scheduleSnapshot);
     QTimer::singleShot(0, this, [this] {
         updateScrollBars();
         updateAutoPageTurnAvailability();
@@ -972,6 +975,16 @@ void TracksRhiWidget::rebuildSnapshot() {
     m_glyphAtlas.beginFrame();
     appendGrid(frame, dpr);
     appendClips(frame, dpr);
+    // The loading ring turns on its own, so the ticker runs only while a visible clip still has no
+    // waveform to draw.
+    const bool hintAnimated = std::any_of(
+        m_clipSnapshots.cbegin(), m_clipSnapshots.cend(), [](const ClipSnapshot &snapshot) {
+            return snapshot.loadState == AppGlobal::AudioClipLoadState::Loading;
+        });
+    if (hintAnimated && !m_hintTicker.isActive())
+        m_hintTicker.start();
+    else if (!hintAnimated && m_hintTicker.isActive())
+        m_hintTicker.stop();
     appendLastPlaybackIndicator(frame, dpr);
     appendDropOverlay(frame, dpr);
     appendSplitPreviewOverlay(frame, dpr);
@@ -1224,8 +1237,27 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             if (clippedLabel.isEmpty())
                 return;
             labelRect = clippedLabel;
-            const auto topLeft =
+            auto topLeft =
                 labelRect.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
+            if (!isMissing) {
+                // Same layout and same centreline as the QGraphics backend, only in physical pixels
+                const auto block = AudioLoadHint::layout(labelRect, textSize.width(), dpr);
+                auto trackColor = textColor;
+                trackColor.setAlphaF(trackColor.alphaF() * AudioLoadHint::trackAlpha);
+                QVector<EditorRhiSolidVertex> ringVertices;
+                EditorRhiGeometry::appendAntialiasedStroke(
+                    ringVertices,
+                    AudioLoadHint::trackCenterline(block.ringCenter, block.ringRadius),
+                    AudioLoadHint::ringStrokeWidth * dpr, trackColor);
+                EditorRhiGeometry::appendAntialiasedStroke(
+                    ringVertices,
+                    AudioLoadHint::arcCenterline(block.ringCenter, block.ringRadius,
+                                                 AudioLoadHint::clockMs()),
+                    AudioLoadHint::ringStrokeWidth * dpr, textColor);
+                EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, ringVertices,
+                                                          labelRect);
+                topLeft.setX(block.textLeft);
+            }
             const auto textSpan = m_glyphAtlas.appendText(
                 text, font, topLeft, textColor, labelRect, dpr,
                 QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
