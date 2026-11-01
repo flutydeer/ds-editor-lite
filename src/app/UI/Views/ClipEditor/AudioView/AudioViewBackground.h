@@ -3,8 +3,9 @@
 
 #include "UI/Views/Common/TimeGridView.h"
 
-// Canvas background of the audio view: alternating lane bands, the separators
-// between them and the shared time grid on top.
+// Canvas background of the audio view: one band per channel lane, the separators
+// between them and the shared time grid on top. Every lane shares one tone, so the
+// separators are what tells the channels apart.
 class AudioViewBackground final : public TimeGridView {
     Q_OBJECT
 
@@ -13,7 +14,6 @@ public:
 
     void setChannelCount(int count);
     void setLaneBackgroundColor(const QColor &color);
-    void setLaneAlternateBackgroundColor(const QColor &color);
     void setLaneSeparatorColor(const QColor &color);
 
 protected:
@@ -23,7 +23,6 @@ protected:
 private:
     int m_channelCount = 1;
     QColor m_laneBackgroundColor = {32, 35, 43};
-    QColor m_laneAlternateBackgroundColor = {28, 31, 38};
     QColor m_laneSeparatorColor = {60, 65, 78};
 };
 

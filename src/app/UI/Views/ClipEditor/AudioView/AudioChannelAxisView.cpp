@@ -52,8 +52,7 @@ void AudioChannelAxisView::paintEvent(QPaintEvent *event) {
         const auto laneRect = AudioLaneGeometry::laneRect(bounds, m_channelCount, lane);
         if (laneRect.isEmpty())
             continue;
-        painter.fillRect(laneRect, lane % 2 == 0 ? m_laneBackgroundColor
-                                                 : m_laneAlternateBackgroundColor);
+        painter.fillRect(laneRect, m_laneBackgroundColor);
         // Lane separator matching the one the canvas draws, so the bands read as
         // continuous rows across the axis and the waveform
         if (lane > 0) {
@@ -67,6 +66,12 @@ void AudioChannelAxisView::paintEvent(QPaintEvent *event) {
         AudioDbAxis::paint(&painter, laneRect, ticks,
                            AudioLaneGeometry::channelTag(m_channelCount, lane), colors);
     }
+
+    // Every lane shares the canvas tone, so the column needs its own edge to read
+    // as a column. Drawn after the bands so the lane separators cannot interrupt it.
+    painter.setPen(QPen(m_separatorColor, 1.0));
+    const auto edge = std::floor(bounds.right()) - 0.5;
+    painter.drawLine(QPointF(edge, bounds.top()), QPointF(edge, bounds.bottom()));
 }
 
 QColor AudioChannelAxisView::tickColor() const {
@@ -120,14 +125,5 @@ QColor AudioChannelAxisView::laneBackgroundColor() const {
 
 void AudioChannelAxisView::setLaneBackgroundColor(const QColor &color) {
     m_laneBackgroundColor = color;
-    update();
-}
-
-QColor AudioChannelAxisView::laneAlternateBackgroundColor() const {
-    return m_laneAlternateBackgroundColor;
-}
-
-void AudioChannelAxisView::setLaneAlternateBackgroundColor(const QColor &color) {
-    m_laneAlternateBackgroundColor = color;
     update();
 }

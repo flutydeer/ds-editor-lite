@@ -199,7 +199,7 @@ public:
             const auto band = laneSceneRect(lane);
             if (band.isEmpty())
                 continue;
-            appendSceneRect(band, lane % 2 == 0 ? laneBackgroundColor : laneAlternateBackgroundColor);
+            appendSceneRect(band, laneBackgroundColor);
             if (lane > 0)
                 appendHorizontalLine(qRound(band.top()) + 0.5, visible.left(), visible.right(),
                                      laneSeparatorColor);
@@ -300,7 +300,6 @@ public:
     bool viewportPositionPending = false;
 
     QColor laneBackgroundColor = {32, 35, 43};
-    QColor laneAlternateBackgroundColor = {28, 31, 38};
     QColor laneSeparatorColor = {60, 65, 78};
     QColor waveformCenterLineColor = {60, 65, 78};
     QColor clipRangeOverlayColor = {0, 0, 0, 64};
@@ -483,15 +482,6 @@ QColor AudioViewRhiWidget::laneBackgroundColor() const {
 
 void AudioViewRhiWidget::setLaneBackgroundColor(const QColor &color) {
     d->laneBackgroundColor = color;
-    d->scheduleSnapshot();
-}
-
-QColor AudioViewRhiWidget::laneAlternateBackgroundColor() const {
-    return d->laneAlternateBackgroundColor;
-}
-
-void AudioViewRhiWidget::setLaneAlternateBackgroundColor(const QColor &color) {
-    d->laneAlternateBackgroundColor = color;
     d->scheduleSnapshot();
 }
 

@@ -369,7 +369,6 @@ AudioView {
 
 AudioViewGraphicsView, AudioViewRhiWidget {
     qproperty-laneBackgroundColor: ${editor.canvas};
-    qproperty-laneAlternateBackgroundColor: ${editor.canvasAlternate};
     qproperty-laneSeparatorColor: ${border.subtle};
     qproperty-waveformCenterLineColor: ${piano.roll.octaveDivider};
     qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
@@ -392,7 +391,6 @@ AudioChannelAxisView {
     qproperty-separatorColor: ${border.subtle};
     qproperty-channelTagColor: ${text.secondary};
     qproperty-laneBackgroundColor: ${editor.canvas};
-    qproperty-laneAlternateBackgroundColor: ${editor.canvasAlternate};
 }
 
 AudioView>QLabel#lbNullClipTip {
@@ -400,7 +398,7 @@ AudioView>QLabel#lbNullClipTip {
 }
 
 QWidget#audioViewTopLeftSpacing {
-    background: ${piano.roll.background};
+    background: ${editor.canvas};
 }
 
 ClipEditorToolBarView {

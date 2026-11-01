@@ -20,8 +20,6 @@ class QWheelEvent;
 class AudioViewRhiWidget final : public EditorRhiWidget, public EditorTouchTarget {
     Q_OBJECT
     Q_PROPERTY(QColor laneBackgroundColor READ laneBackgroundColor WRITE setLaneBackgroundColor)
-    Q_PROPERTY(QColor laneAlternateBackgroundColor READ laneAlternateBackgroundColor WRITE
-                   setLaneAlternateBackgroundColor)
     Q_PROPERTY(QColor laneSeparatorColor READ laneSeparatorColor WRITE setLaneSeparatorColor)
     Q_PROPERTY(
         QColor waveformCenterLineColor READ waveformCenterLineColor WRITE setWaveformCenterLineColor)
@@ -88,8 +86,6 @@ protected:
 public:
     QColor laneBackgroundColor() const;
     void setLaneBackgroundColor(const QColor &color);
-    QColor laneAlternateBackgroundColor() const;
-    void setLaneAlternateBackgroundColor(const QColor &color);
     QColor laneSeparatorColor() const;
     void setLaneSeparatorColor(const QColor &color);
     QColor waveformCenterLineColor() const;

@@ -92,7 +92,6 @@ void AudioViewGraphicsView::applyContentToLanes() {
 void AudioViewGraphicsView::applyLaneColors() {
     if (m_background) {
         m_background->setLaneBackgroundColor(m_laneBackgroundColor);
-        m_background->setLaneAlternateBackgroundColor(m_laneAlternateBackgroundColor);
         m_background->setLaneSeparatorColor(m_laneSeparatorColor);
     }
     for (auto *lane : std::as_const(m_laneViews))
@@ -160,15 +159,6 @@ QColor AudioViewGraphicsView::laneBackgroundColor() const {
 
 void AudioViewGraphicsView::setLaneBackgroundColor(const QColor &color) {
     m_laneBackgroundColor = color;
-    applyLaneColors();
-}
-
-QColor AudioViewGraphicsView::laneAlternateBackgroundColor() const {
-    return m_laneAlternateBackgroundColor;
-}
-
-void AudioViewGraphicsView::setLaneAlternateBackgroundColor(const QColor &color) {
-    m_laneAlternateBackgroundColor = color;
     applyLaneColors();
 }
 

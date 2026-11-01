@@ -19,11 +19,6 @@ void AudioViewBackground::setLaneBackgroundColor(const QColor &color) {
     update();
 }
 
-void AudioViewBackground::setLaneAlternateBackgroundColor(const QColor &color) {
-    m_laneAlternateBackgroundColor = color;
-    update();
-}
-
 void AudioViewBackground::setLaneSeparatorColor(const QColor &color) {
     m_laneSeparatorColor = color;
     update();
@@ -39,9 +34,7 @@ void AudioViewBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
             const auto laneRect = AudioLaneGeometry::laneRect(visible, m_channelCount, lane);
             if (laneRect.isEmpty())
                 continue;
-            painter->fillRect(mapRectFromScene(laneRect),
-                              lane % 2 == 0 ? m_laneBackgroundColor
-                                            : m_laneAlternateBackgroundColor);
+            painter->fillRect(mapRectFromScene(laneRect), m_laneBackgroundColor);
             if (lane > 0) {
                 // Separator shared with the axis column so the bands read as one
                 // row across the whole view

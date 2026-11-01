@@ -16,8 +16,6 @@ class AudioChannelAxisView final : public QWidget {
     Q_PROPERTY(QColor separatorColor READ separatorColor WRITE setSeparatorColor)
     Q_PROPERTY(QColor channelTagColor READ channelTagColor WRITE setChannelTagColor)
     Q_PROPERTY(QColor laneBackgroundColor READ laneBackgroundColor WRITE setLaneBackgroundColor)
-    Q_PROPERTY(QColor laneAlternateBackgroundColor READ laneAlternateBackgroundColor WRITE
-                   setLaneAlternateBackgroundColor)
 
 public:
     explicit AudioChannelAxisView(QWidget *parent = nullptr);
@@ -37,8 +35,6 @@ public:
     void setChannelTagColor(const QColor &color);
     QColor laneBackgroundColor() const;
     void setLaneBackgroundColor(const QColor &color);
-    QColor laneAlternateBackgroundColor() const;
-    void setLaneAlternateBackgroundColor(const QColor &color);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -51,7 +47,6 @@ private:
     QColor m_separatorColor = {60, 65, 78};
     QColor m_channelTagColor = {96, 102, 116};
     QColor m_laneBackgroundColor = {32, 35, 43};
-    QColor m_laneAlternateBackgroundColor = {28, 31, 38};
 };
 
 #endif // AUDIOCHANNELAXISVIEW_H

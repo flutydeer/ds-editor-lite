@@ -103,14 +103,15 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 | 属性 | token |
 |----|----|
-| `laneBackgroundColor` | `${editor.canvas}` |
-| `laneAlternateBackgroundColor` | `${editor.canvasAlternate}` |
+| `laneBackgroundColor`（所有车道同色，不交替） | `${editor.canvas}` |
 | `laneSeparatorColor` | `${border.subtle}` |
 | `waveformCenterLineColor` | `${piano.roll.octaveDivider}` |
 | `clipRangeOverlayColor` | `${piano.roll.overlay}` |
 | `barLineColor` / `beatLineColor` / `commonLineColor` | `${editor.grid.bar}` / `${editor.grid.beat}` / `${editor.grid.subdivision}` |
 | `playPosIndicatorColor` / `lastPlayPosIndicatorColor` | `${editor.playhead}` / `${editor.lastPlayhead}` |
 | 标尺刻度 / 标签 / 负无穷 / 分隔 / 声道标记 | `${timeline.ruler.barTick}` / `${timeline.ruler.beatScale}` / `${control.foreground.disabled}` / `${border.subtle}` / `${text.secondary}` |
+
+车道底色不分奇偶交替，所有声道统一用 `editor.canvas`——交替会让第一路（L）看起来比第二路暗。声道之间靠分隔线与左侧的 `L` / `R` 标记区分，左侧标尺列再加一条右边缘竖线把自己和画布分开。
 
 波形颜色取 `AppColorPalette::instance()->baseColor(trackColorIndex)`（轨道基色，与钢琴卷帘的音符填充同源），`ClipEditorView::applyTrackColor` 一并下发给音频视图。**不能用 `clipForeground`**：它按基色明度返回纯黑或纯白，那是给轨道剪辑浅色底板上的文字和波形用的，画在深色画布上会变成看不见的黑块。
 

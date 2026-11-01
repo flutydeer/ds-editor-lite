@@ -19,8 +19,6 @@ class ClipRangeOverlay;
 class AudioViewGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
     Q_PROPERTY(QColor laneBackgroundColor READ laneBackgroundColor WRITE setLaneBackgroundColor)
-    Q_PROPERTY(QColor laneAlternateBackgroundColor READ laneAlternateBackgroundColor WRITE
-                   setLaneAlternateBackgroundColor)
     Q_PROPERTY(QColor laneSeparatorColor READ laneSeparatorColor WRITE setLaneSeparatorColor)
     Q_PROPERTY(
         QColor waveformCenterLineColor READ waveformCenterLineColor WRITE setWaveformCenterLineColor)
@@ -41,8 +39,6 @@ public:
 
     QColor laneBackgroundColor() const;
     void setLaneBackgroundColor(const QColor &color);
-    QColor laneAlternateBackgroundColor() const;
-    void setLaneAlternateBackgroundColor(const QColor &color);
     QColor laneSeparatorColor() const;
     void setLaneSeparatorColor(const QColor &color);
     QColor waveformCenterLineColor() const;
@@ -65,7 +61,6 @@ private:
     QList<AudioWaveformLaneView *> m_laneViews;
     AudioViewContent m_content;
     QColor m_laneBackgroundColor;
-    QColor m_laneAlternateBackgroundColor;
     QColor m_laneSeparatorColor;
     QColor m_waveformCenterLineColor;
     QColor m_clipRangeOverlayColor;
