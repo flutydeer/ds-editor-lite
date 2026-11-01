@@ -7,6 +7,8 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
+#include "Global/AppGlobal.h"
+
 #include <QObject>
 #include <QPointer>
 #include <QHash>
@@ -49,15 +51,17 @@ public:
     // therefore does NOT roll back cascade hits it triggered
     void resolveMissingClipsNear(const QString &filePath);
 
-    // Waveform decoding in flight for this clip. The editor draws a placeholder while the peaks
-    // are not readable yet, so the empty clip body never reads as a silent waveform.
-    [[nodiscard]] bool isDecoding(int clipId) const;
+    // Whether the clip's waveform can be drawn yet. A clip is Loading while either a path
+    // resolution or a waveform decode is in flight for it, Missing once resolution proved the
+    // file is gone, and Loaded otherwise. Taking the clip rather than the id keeps the render
+    // backends from paying a model lookup per snapshot.
+    [[nodiscard]] AppGlobal::AudioClipLoadState loadState(const AudioClip *clip) const;
 
 signals:
-    // Emitted when a clip enters or leaves the decoding set (isDecoding()). Views cannot derive
-    // this from Clip signals: decoding starts without touching the model and finishes by writing
-    // audioInfo, so the pair of edges has no single owner signal.
-    void decodingStateChanged(int clipId, bool decoding);
+    // Emitted only when a clip's derived load state actually changes. Views cannot derive the
+    // edges from Clip signals: a decode starts without touching the model and finishes by writing
+    // audioInfo, and a resolution starts on a clip whose PathStatus is still the default.
+    void loadStateChanged(int clipId, AppGlobal::AudioClipLoadState state);
 
     // Emitted when cascading resolution recovers a clip (the missing-media dialog refreshes its
     // row)
@@ -72,10 +76,24 @@ signals:
 private:
     QList<DecodeAudioTask *> m_tasks;
     QList<ResolveAudioPathTask *> m_resolveTasks;
-    // Clip id -> the decode task currently responsible for it. A terminated task lingers in
-    // m_tasks until its queued completion slot runs, and a relink may already have queued its
-    // successor, so ownership is decided by identity rather than by "is a task running".
-    QHash<int, DecodeAudioTask *> m_decodingTaskByClip;
+
+    // Work in flight for one clip. The two kinds are tracked side by side because a
+    // resolution hit hands off to a decode inside the same commit: dropping the resolution
+    // entry before the decode is registered would let the load state dip back to Loaded for an
+    // instant. Ownership is decided by identity, because a terminated task lingers in m_tasks
+    // until its queued completion slot runs and a relink may already have queued its successor.
+    struct InFlight {
+        DecodeAudioTask *decode = nullptr;
+        ResolveAudioPathTask *resolve = nullptr;
+
+        [[nodiscard]] bool any() const {
+            return decode != nullptr || resolve != nullptr;
+        }
+    };
+
+    QHash<int, InFlight> m_inFlightByClip;
+    // Last state reported through loadStateChanged, so refreshLoadState only emits real edges
+    QHash<int, AppGlobal::AudioClipLoadState> m_lastLoadState;
 
     // Aggregated path resolution state during project load (D6: notify once the counter reaches
     // zero)
@@ -101,9 +119,20 @@ private:
     void connectClip(AudioClip *clip);
     void startDecodingAndResolving(bool interactive);
     void handleTaskFinished(DecodeAudioTask *task, bool interactive);
+    // One handler for both resolution passes, because they differ only in which results they
+    // accept and how they report (see ResolveAudioPathTask::Mode)
     void handleResolveTaskFinished(ResolveAudioPathTask *task, bool interactive);
-    void handleCascadeResolveTaskFinished(ResolveAudioPathTask *task, bool interactive);
     void finishResolveIfSessionDone();
+
+    // In-flight bookkeeping. Each begin/end pair mutates the clip's entry and then refreshes the
+    // derived load state, so the emitted edges follow the derived value rather than the order in
+    // which the tasks happen to start and stop.
+    void beginDecode(int clipId, DecodeAudioTask *task);
+    void endDecode(int clipId, DecodeAudioTask *task);
+    void beginResolve(int clipId, ResolveAudioPathTask *task);
+    void endResolve(int clipId, ResolveAudioPathTask *task);
+    void refreshLoadState(int clipId);
+
     void terminateTaskByClipId(int clipId);
     void terminateTasksByTrackId(int trackId);
 };

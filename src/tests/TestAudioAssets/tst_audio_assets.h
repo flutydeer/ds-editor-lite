@@ -50,4 +50,7 @@ private slots:
     void waveformSamplingFollowsZoom_data();
     void waveformSamplingFollowsZoom();
     void waveformSamplingRefreshesSourceAndTempo();
+    void loadStateCoversPathResolution();
+    void loadStateStaysLoadingAcrossTheResolveHandoff();
+    void missingClipKeepsItsHintDuringCascadeRetry();
 };

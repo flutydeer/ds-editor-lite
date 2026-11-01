@@ -2,6 +2,7 @@
 
 #include <QFileInfo>
 #include <QTimer>
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 
 #include <optional>
@@ -69,8 +70,65 @@ void AudioDecodingController::setGuiServices(DocumentWorkflowController *workflo
     m_notifier = std::move(notifier);
 }
 
-bool AudioDecodingController::isDecoding(const int clipId) const {
-    return m_decodingTaskByClip.contains(clipId);
+AppGlobal::AudioClipLoadState AudioDecodingController::loadState(const AudioClip *clip) const {
+    if (!clip)
+        return AppGlobal::AudioClipLoadState::Loaded;
+    // A file the resolver already proved missing keeps its permanent hint while later cascade
+    // retries run, otherwise every retry over an already-missing clip would flash the loading
+    // placeholder back in.
+    if (clip->pathStatus() == AudioClip::PathStatus::Missing)
+        return AppGlobal::AudioClipLoadState::Missing;
+    if (m_inFlightByClip.contains(clip->id()))
+        return AppGlobal::AudioClipLoadState::Loading;
+    return AppGlobal::AudioClipLoadState::Loaded;
+}
+
+void AudioDecodingController::beginDecode(const int clipId, DecodeAudioTask *task) {
+    m_inFlightByClip[clipId].decode = task;
+    refreshLoadState(clipId);
+}
+
+void AudioDecodingController::endDecode(const int clipId, DecodeAudioTask *task) {
+    const auto it = m_inFlightByClip.find(clipId);
+    // A superseded task (relink or undo while its predecessor was in flight) finishes later and
+    // must not clear the state its successor just raised.
+    if (it == m_inFlightByClip.end() || it->decode != task)
+        return;
+    it->decode = nullptr;
+    if (!it->any())
+        m_inFlightByClip.erase(it);
+    refreshLoadState(clipId);
+}
+
+void AudioDecodingController::beginResolve(const int clipId, ResolveAudioPathTask *task) {
+    m_inFlightByClip[clipId].resolve = task;
+    refreshLoadState(clipId);
+}
+
+void AudioDecodingController::endResolve(const int clipId, ResolveAudioPathTask *task) {
+    const auto it = m_inFlightByClip.find(clipId);
+    if (it == m_inFlightByClip.end() || it->resolve != task)
+        return;
+    it->resolve = nullptr;
+    if (!it->any())
+        m_inFlightByClip.erase(it);
+    refreshLoadState(clipId);
+}
+
+void AudioDecodingController::refreshLoadState(const int clipId) {
+    const auto *clip = qobject_cast<const AudioClip *>(appModel->findClipById(clipId));
+    if (!clip) {
+        // The clip is gone (removed, or the document was replaced): forget its last state rather
+        // than reporting one for an id that no longer exists.
+        m_lastLoadState.remove(clipId);
+        return;
+    }
+    const auto state = loadState(clip);
+    const auto it = m_lastLoadState.constFind(clipId);
+    if (it != m_lastLoadState.constEnd() && it.value() == state)
+        return;
+    m_lastLoadState.insert(clipId, state);
+    emit loadStateChanged(clipId, state);
 }
 
 void AudioDecodingController::onModelChanged() {
@@ -83,8 +141,9 @@ void AudioDecodingController::onModelChanged() {
     }
     // The clips those tasks described are gone with the replaced document. Their completion slots
     // still run later and must not report a state change for an unrelated new clip with the same
-    // id, so drop the set without emitting.
-    m_decodingTaskByClip.clear();
+    // id, so drop both maps without emitting.
+    m_inFlightByClip.clear();
+    m_lastLoadState.clear();
 
     // Reset aggregated path resolution state
     m_pendingResolveCount = 0;
@@ -169,6 +228,11 @@ void AudioDecodingController::connectClip(AudioClip *clip) {
                                      : interactiveAudioCheck();
         startDecodingOrResolving(clip, true, interactive);
     });
+    // PathStatus is written from more than one place (resolution, the audio resource check, undo
+    // of a path edit), so re-derive the load state on every change instead of making each writer
+    // remember to refresh it.
+    connect(clip, &AudioClip::pathStatusChanged, this,
+            [this, clipId = clip->id()](const AudioClip::PathStatus) { refreshLoadState(clipId); });
 }
 
 void AudioDecodingController::startDecodingOrResolving(AudioClip *clip, const bool forceDecode,
@@ -215,10 +279,7 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip, const bool int
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_tasks.append(decodeTask);
-    const bool wasDecoding = m_decodingTaskByClip.contains(clip->id());
-    m_decodingTaskByClip.insert(clip->id(), decodeTask);
-    if (!wasDecoding)
-        emit decodingStateChanged(clip->id(), true);
+    beginDecode(clip->id(), decodeTask);
     connect(
         decodeTask, &Task::finished, this,
         [decodeTask, this, interactive] { handleTaskFinished(decodeTask, interactive); },
@@ -254,6 +315,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip, const b
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_resolveTasks.append(resolveTask);
+    beginResolve(clip->id(), resolveTask);
     connect(
         resolveTask, &Task::finished, this,
         [resolveTask, this, interactive] { handleResolveTaskFinished(resolveTask, interactive); },
@@ -272,90 +334,120 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         return;
 
     const auto terminated = task->terminated();
+    const bool cascade = task->mode == ResolveAudioPathTask::Mode::Cascade;
     taskManager->removeTask(task);
     m_resolveTasks.removeOne(task);
-    auto *runtime = automationRuntime();
-    const bool currentGeneration =
-        runtime && runtime->documentVersion().documentId == task->documentVersion.documentId;
-    if (currentGeneration && m_pendingResolveCount > 0)
-        m_pendingResolveCount--;
+    // The resolution entry must outlive the writeback: a hit starts the decode synchronously inside
+    // the commit, so clearing the entry first would report Loaded for an instant. The guard matches
+    // on the pointer alone and never dereferences it, which matters because every path below
+    // deletes the task before returning.
+    const auto endResolution =
+        qScopeGuard([this, clipId = task->clipId, task] { endResolve(clipId, task); });
 
-    if (terminated) {
-        if (runtime)
-            runtime->automationTasks().cancel(task->automationTaskId);
-        delete task;
-        if (currentGeneration)
-            finishResolveIfSessionDone();
-        return;
-    }
+    auto *runtime = automationRuntime();
     if (!runtime) {
         delete task;
         return;
     }
 
-    const auto currentProjectPath = runtime->documentPath();
-    const auto currentProjectDir =
-        currentProjectPath.isEmpty() ? QString{} : QFileInfo(currentProjectPath).absolutePath();
-    auto *currentClip = currentGeneration ? appModel->findClipById(task->clipId) : nullptr;
-    auto *currentAudioClip = currentClip && currentClip->clipType() == Clip::Audio
-                                 ? static_cast<AudioClip *>(currentClip)
-                                 : nullptr;
-    const auto currentAsset =
-        currentAudioClip ? std::optional(Automation::audioAssetSnapshotDto(*currentAudioClip))
-                         : std::nullopt;
-    const bool projectDirectoryChanged =
-        currentGeneration &&
-        !DocumentWorkflowPathUtils::projectPathsEqual(task->projectDir, currentProjectDir);
-    const bool resolveInputsChanged =
-        currentAsset &&
-        (currentAsset->pathInfo.relativeDir != task->assetSnapshot.pathInfo.relativeDir ||
-         currentAsset->pathInfo.sha512 != task->assetSnapshot.pathInfo.sha512);
-    if (projectDirectoryChanged || resolveInputsChanged) {
+    const bool currentGeneration =
+        runtime->documentVersion().documentId == task->documentVersion.documentId;
+    // Only the project-load / relink pass feeds the aggregated session notification, the cascade
+    // pass runs inside an already-finished session.
+    if (!cascade && currentGeneration && m_pendingResolveCount > 0)
+        m_pendingResolveCount--;
+
+    if (terminated) {
         runtime->automationTasks().cancel(task->automationTaskId);
-        if (currentAsset &&
-            currentAsset->sourceGeneration == task->assetSnapshot.sourceGeneration &&
-            currentAsset->path == task->assetSnapshot.path)
-            startDecodingOrResolving(currentAudioClip, true, interactive);
         delete task;
-        finishResolveIfSessionDone();
+        if (!cascade && currentGeneration)
+            finishResolveIfSessionDone();
         return;
     }
+
+    AudioClip *targetClip = nullptr;
+    if (currentGeneration) {
+        if (auto *clip = appModel->findClipById(task->clipId);
+            clip && clip->clipType() == Clip::Audio)
+            targetClip = static_cast<AudioClip *>(clip);
+    }
+
+    if (cascade && task->result != ResolveAudioPathTask::Result::HitSibling) {
+        // Cascade only adopts a hash-verified sibling hit, anything else leaves the clip missing
+        runtime->automationTasks().fail(
+            task->automationTaskId,
+            audioPathNotFound(Automation::OperationIds::audio_clips::apply_resolved_path));
+        delete task;
+        return;
+    }
+    if (!cascade) {
+        // The project moved, or the clip's identity inputs changed while the task ran: the result
+        // no longer describes this clip, so restart from the current state instead of writing it.
+        const auto currentProjectPath = runtime->documentPath();
+        const auto currentProjectDir =
+            currentProjectPath.isEmpty() ? QString{} : QFileInfo(currentProjectPath).absolutePath();
+        const auto currentAsset =
+            targetClip ? std::optional(Automation::audioAssetSnapshotDto(*targetClip))
+                       : std::nullopt;
+        const bool projectDirectoryChanged =
+            currentGeneration &&
+            !DocumentWorkflowPathUtils::projectPathsEqual(task->projectDir, currentProjectDir);
+        const bool resolveInputsChanged =
+            currentAsset &&
+            (currentAsset->pathInfo.relativeDir != task->assetSnapshot.pathInfo.relativeDir ||
+             currentAsset->pathInfo.sha512 != task->assetSnapshot.pathInfo.sha512);
+        if (projectDirectoryChanged || resolveInputsChanged) {
+            runtime->automationTasks().cancel(task->automationTaskId);
+            if (currentAsset &&
+                currentAsset->sourceGeneration == task->assetSnapshot.sourceGeneration &&
+                currentAsset->path == task->assetSnapshot.path)
+                startDecodingOrResolving(targetClip, true, interactive);
+            delete task;
+            finishResolveIfSessionDone();
+            return;
+        }
+    }
+
+    // Both passes share the writeback, they differ only in which results they accept (handled
+    // above) and how they report. The context is taken by value because the validation pass and
+    // the commit pass differ only in validateOnly.
+    const auto applyResult = [runtime, task](Automation::CommandContext context)
+        -> Automation::AutomationResult<Automation::MutationResult> {
+        switch (task->result) {
+            case ResolveAudioPathTask::Result::HitRelative:
+            case ResolveAudioPathTask::Result::HitSibling:
+                return runtime->project().applyResolvedAudioPath(
+                    context, Automation::ClipId(task->clipId), task->assetSnapshot,
+                    task->resolvedPath, AudioClip::PathStatus::Normal);
+            case ResolveAudioPathTask::Result::HitUnconfirmed:
+                return runtime->project().applyResolvedAudioPath(
+                    context, Automation::ClipId(task->clipId), task->assetSnapshot,
+                    task->resolvedPath, AudioClip::PathStatus::Unconfirmed);
+            case ResolveAudioPathTask::Result::Miss:
+                return runtime->project().setAudioClipPathStatus(
+                    context, Automation::ClipId(task->clipId), task->assetSnapshot,
+                    AudioClip::PathStatus::Missing);
+        }
+        return Automation::AutomationResult<Automation::MutationResult>(Automation::AutomationError{
+            .code = Automation::AutomationErrorCode::InternalError,
+            .message = QStringLiteral("Audio path resolution did not produce a result"),
+        });
+    };
 
     auto contextResult = runtime->derivedWritebackContext(task->documentVersion, true);
     if (!contextResult) {
         runtime->automationTasks().fail(task->automationTaskId, contextResult.getError());
         delete task;
-        if (currentGeneration)
+        if (!cascade && currentGeneration)
             finishResolveIfSessionDone();
         return;
     }
     auto context = contextResult.get();
-    Automation::AutomationResult<Automation::MutationResult> validation(Automation::AutomationError{
-        .code = Automation::AutomationErrorCode::InternalError,
-        .message = QStringLiteral("Audio path resolution did not produce a result"),
-    });
-    switch (task->result) {
-        case ResolveAudioPathTask::Result::HitRelative:
-        case ResolveAudioPathTask::Result::HitSibling:
-            validation = runtime->project().applyResolvedAudioPath(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-                AudioClip::PathStatus::Normal);
-            break;
-        case ResolveAudioPathTask::Result::HitUnconfirmed:
-            validation = runtime->project().applyResolvedAudioPath(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-                AudioClip::PathStatus::Unconfirmed);
-            break;
-        case ResolveAudioPathTask::Result::Miss:
-            validation = runtime->project().setAudioClipPathStatus(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot,
-                AudioClip::PathStatus::Missing);
-            break;
-    }
+    const auto validation = applyResult(context);
     if (!validation) {
         runtime->automationTasks().fail(task->automationTaskId, validation.getError());
         delete task;
-        if (currentGeneration)
+        if (!cascade && currentGeneration)
             finishResolveIfSessionDone();
         return;
     }
@@ -364,35 +456,14 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         if (committing)
             runtime->automationTasks().cancel(task->automationTaskId);
         delete task;
-        if (currentGeneration)
+        if (!cascade && currentGeneration)
             finishResolveIfSessionDone();
         return;
     }
     context.validateOnly = false;
-    const QScopedValueRollback sourceChangeScope(
-        m_sourceChangeContext, SourceChangeContext{currentAudioClip, interactive});
-    Automation::AutomationResult<Automation::MutationResult> result(Automation::AutomationError{
-        .code = Automation::AutomationErrorCode::InternalError,
-        .message = QStringLiteral("Audio path resolution did not produce a result"),
-    });
-    switch (task->result) {
-        case ResolveAudioPathTask::Result::HitRelative:
-        case ResolveAudioPathTask::Result::HitSibling:
-            result = runtime->project().applyResolvedAudioPath(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-                AudioClip::PathStatus::Normal);
-            break;
-        case ResolveAudioPathTask::Result::HitUnconfirmed:
-            result = runtime->project().applyResolvedAudioPath(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-                AudioClip::PathStatus::Unconfirmed);
-            break;
-        case ResolveAudioPathTask::Result::Miss:
-            result = runtime->project().setAudioClipPathStatus(
-                context, Automation::ClipId(task->clipId), task->assetSnapshot,
-                AudioClip::PathStatus::Missing);
-            break;
-    }
+    const QScopedValueRollback sourceChangeScope(m_sourceChangeContext,
+                                                 SourceChangeContext{targetClip, interactive});
+    const auto result = applyResult(context);
     if (result) {
         if (task->result == ResolveAudioPathTask::Result::Miss)
             runtime->automationTasks().fail(
@@ -400,7 +471,9 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
                 audioPathNotFound(Automation::OperationIds::audio_clips::apply_resolved_path));
         else
             runtime->automationTasks().succeed(task->automationTaskId, result.get());
-        if (currentGeneration && interactive) {
+        if (cascade) {
+            emit clipRelocated(task->clipId, task->resolvedPath);
+        } else if (currentGeneration && interactive) {
             if (task->result == ResolveAudioPathTask::Result::HitUnconfirmed)
                 m_unconfirmedClipIds.append(task->clipId);
             else if (task->result == ResolveAudioPathTask::Result::Miss)
@@ -412,7 +485,7 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         runtime->automationTasks().fail(task->automationTaskId, result.getError());
     }
     delete task;
-    if (currentGeneration)
+    if (!cascade && currentGeneration)
         finishResolveIfSessionDone();
 }
 
@@ -452,6 +525,7 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
                 continue;
 
             const auto resolveTask = new ResolveAudioPathTask;
+            resolveTask->mode = ResolveAudioPathTask::Mode::Cascade;
             resolveTask->clipId = audioClip->id();
             resolveTask->trackId = track->id();
             resolveTask->documentVersion = runtime->documentVersion();
@@ -470,83 +544,17 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
             runtime->automationTasks().markRunning(automationTask.taskId);
 
             m_resolveTasks.append(resolveTask);
+            beginResolve(audioClip->id(), resolveTask);
             connect(
                 resolveTask, &Task::finished, this,
                 [resolveTask, this, interactive] {
-                    handleCascadeResolveTaskFinished(resolveTask, interactive);
+                    handleResolveTaskFinished(resolveTask, interactive);
                 },
                 Qt::QueuedConnection);
             taskManager->addTask(resolveTask);
             taskManager->startTask(resolveTask);
         }
     }
-}
-
-void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathTask *task,
-                                                               const bool interactive) {
-    if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
-            automationRuntime(), m_documentWorkflow.data(), task, this,
-            [this, interactive](ResolveAudioPathTask *deferredTask) {
-                handleCascadeResolveTaskFinished(deferredTask, interactive);
-            }))
-        return;
-
-    taskManager->removeTask(task);
-    m_resolveTasks.removeOne(task);
-    auto *runtime = automationRuntime();
-    if (!runtime) {
-        delete task;
-        return;
-    }
-    if (task->terminated()) {
-        runtime->automationTasks().cancel(task->automationTaskId);
-        delete task;
-        return;
-    }
-    if (task->result != ResolveAudioPathTask::Result::HitSibling) {
-        runtime->automationTasks().fail(
-            task->automationTaskId,
-            audioPathNotFound(Automation::OperationIds::audio_clips::apply_resolved_path));
-        delete task;
-        return;
-    }
-    auto contextResult = runtime->derivedWritebackContext(task->documentVersion, true);
-    if (!contextResult) {
-        runtime->automationTasks().fail(task->automationTaskId, contextResult.getError());
-        delete task;
-        return;
-    }
-    auto context = contextResult.get();
-    const auto validation = runtime->project().applyResolvedAudioPath(
-        context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-        AudioClip::PathStatus::Normal);
-    if (!validation) {
-        runtime->automationTasks().fail(task->automationTaskId, validation.getError());
-        delete task;
-        return;
-    }
-    const auto committing = runtime->automationTasks().beginCommitting(task->automationTaskId);
-    if (!committing || !committing.get()) {
-        if (committing)
-            runtime->automationTasks().cancel(task->automationTaskId);
-        delete task;
-        return;
-    }
-    context.validateOnly = false;
-    const QScopedValueRollback sourceChangeScope(
-        m_sourceChangeContext,
-        SourceChangeContext{qobject_cast<AudioClip *>(appModel->findClipById(task->clipId)),
-                            interactive});
-    const auto result = runtime->project().applyResolvedAudioPath(
-        context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
-        AudioClip::PathStatus::Normal);
-    if (result) {
-        runtime->automationTasks().succeed(task->automationTaskId, result.get());
-        emit clipRelocated(task->clipId, task->resolvedPath);
-    } else {
-        runtime->automationTasks().fail(task->automationTaskId, result.getError());
-    }
-    delete task;
 }
 
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, const bool interactive) {
@@ -560,14 +568,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, const bo
     const auto terminate = task->terminated();
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
-    // Only the task that still owns the clip may clear the placeholder: a superseded task (relink
-    // or undo while its predecessor was in flight) finishes later and must not hide the state the
-    // successor just raised.
-    if (auto owner = m_decodingTaskByClip.constFind(task->clipId);
-        owner != m_decodingTaskByClip.constEnd() && owner.value() == task) {
-        m_decodingTaskByClip.erase(owner);
-        emit decodingStateChanged(task->clipId, false);
-    }
+    endDecode(task->clipId, task);
     auto *runtime = automationRuntime();
 
     if (terminate) {

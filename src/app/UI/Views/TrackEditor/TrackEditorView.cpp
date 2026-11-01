@@ -906,15 +906,11 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
 }
 
 namespace {
-    // Missing wins over decoding: a clip whose file cannot be found must keep saying so even while
-    // resolution is in flight, otherwise the hint flickers away and back on every project open.
+    // The whole load state comes from the decoding controller: it folds in pending path resolution,
+    // pending waveform decoding and a file that resolved to nothing, so the view no longer has to
+    // combine the model's PathStatus with the controller's task bookkeeping on its own.
     void applyAudioLoadState(AudioClipView *clipView, const AudioClip *clip) {
-        if (clip->pathStatus() == AudioClip::PathStatus::Missing) {
-            clipView->setStatus(AppGlobal::Error);
-            return;
-        }
-        clipView->setStatus(audioDecodingController->isDecoding(clip->id()) ? AppGlobal::Loading
-                                                                          : AppGlobal::Loaded);
+        clipView->setLoadState(audioDecodingController->loadState(clip));
     }
 }
 
@@ -932,10 +928,11 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::timelineChanged, clipView,
             [clipView] { clipView->setTimeline(appModel->timeline()); });
-    connect(clip, &AudioClip::pathStatusChanged, clipView,
-            [clipView, clip](const AudioClip::PathStatus) { applyAudioLoadState(clipView, clip); });
-    connect(audioDecodingController, &AudioDecodingController::decodingStateChanged, clipView,
-            [clipView, clip = QPointer<AudioClip>(clip)](const int clipId, const bool) {
+    // One connection is enough: the controller already folds the model's PathStatus into the state
+    // it reports, so the view no longer watches the clip on its own.
+    connect(audioDecodingController, &AudioDecodingController::loadStateChanged, clipView,
+            [clipView, clip = QPointer<AudioClip>(clip)](const int clipId,
+                                                         const AppGlobal::AudioClipLoadState) {
                 // The decode controller outlives any single clip and this receiver outlives the
                 // clip by one event-loop turn (onClipRemoved defers the view deletion), so the
                 // captured clip can already be gone when a late edge arrives.

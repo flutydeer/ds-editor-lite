@@ -35,8 +35,8 @@ void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     update();
 }
 
-void AudioClipView::setStatus(const AppGlobal::AudioLoadStatus status) {
-    m_status = status;
+void AudioClipView::setLoadState(const AppGlobal::AudioClipLoadState state) {
+    m_loadState = state;
     update();
 }
 
@@ -60,15 +60,15 @@ WaveformRenderUtils::Mode AudioClipView::renderMode() const {
 
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
-    if (m_status == AppGlobal::Error || m_status == AppGlobal::Loading) {
-        const auto isError = m_status == AppGlobal::Error;
+    if (m_loadState != AppGlobal::AudioClipLoadState::Loaded) {
+        const auto isMissing = m_loadState == AppGlobal::AudioClipLoadState::Missing;
         auto textColor = color;
-        if (isError)
+        if (isMissing)
             textColor.setAlphaF(textColor.alphaF() * 0.5);
         painter->setPen(textColor);
-        auto text = isError ? QCoreApplication::translate("AudioClipView", "File missing")
-                            : QCoreApplication::translate("AudioClipView", "Loading...");
-        if (isError && !m_errorMessage.isEmpty())
+        auto text = isMissing ? QCoreApplication::translate("AudioClipView", "File missing")
+                              : QCoreApplication::translate("AudioClipView", "Loading...");
+        if (isMissing && !m_errorMessage.isEmpty())
             text += ": " + m_errorMessage;
         // Centre inside the visible part of the clip. A long clip scrolled to one of its ends
         // would otherwise draw the hint far outside the viewport and read as "no hint at all".

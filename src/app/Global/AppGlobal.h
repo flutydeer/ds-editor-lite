@@ -2,6 +2,7 @@
 #define APPGLOBAL_H
 
 #include <QList>
+#include <QMetaType>
 #include <QString>
 
 #include <lite/MusicBase/MusicTime.h>
@@ -19,7 +20,12 @@ namespace AppGlobal {
     // Used by AppColorPalette, track colors, speaker mix colors, etc.
     inline constexpr int paletteColorCount = AutomationWire::TrackPaletteColorCount;
 
-    enum AudioLoadStatus { Init, Loading, Loaded, Error };
+    // Whether an audio clip's waveform can be drawn yet. It folds together the two
+    // independent things that keep a clip from being drawable: the work in flight for it
+    // (path resolution or waveform decoding) and a file that resolved to nothing.
+    // AudioDecodingController is the single producer, so every render backend shows the
+    // same state instead of deriving its own.
+    enum class AudioClipLoadState { Loading, Loaded, Missing };
 
     enum PanelType { Generic, TracksEditor, ClipEditor };
 
@@ -28,5 +34,8 @@ namespace AppGlobal {
     inline const QStringList languageNames = {"cmn", "eng", "jpn", "yue", "unknown"};
 
 }
+
+// The load state travels through signals and QSignalSpy, so it needs a metatype registration
+Q_DECLARE_METATYPE(AppGlobal::AudioClipLoadState)
 
 #endif // APPGLOBAL_H

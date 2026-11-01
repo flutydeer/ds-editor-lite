@@ -769,13 +769,13 @@
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="69"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1211"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1212"/>
         <source>File missing</source>
         <translation>文件缺失</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="70"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1212"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1213"/>
         <source>Loading...</source>
         <translation>正在加载...</translation>
     </message>
@@ -802,12 +802,12 @@
 <context>
     <name>AudioDecodingController</name>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="426"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="502"/>
         <source>%L1 audio file(s) relocated automatically</source>
         <translation>已自动重新定位 %L1 个音频文件</translation>
     </message>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="635"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="639"/>
         <source>Failed to open audio file: %1</source>
         <translation>无法打开音频文件：%1</translation>
     </message>
@@ -6251,8 +6251,8 @@ All current mix settings will be lost.</source>
 <context>
     <name>TracksRhiWidget</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1402"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1494"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1399"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1491"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>

@@ -35,7 +35,7 @@ public:
     void setPath(const QString &path);
     void setTimeline(const Timeline &timeline);
     void setAudioInfo(const AudioInfoModel &info);
-    void setStatus(AppGlobal::AudioLoadStatus status);
+    void setLoadState(AppGlobal::AudioClipLoadState state);
     void setErrorMessage(const QString &errorMessage);
     [[nodiscard]] int contentLength() const override;
 
@@ -44,7 +44,9 @@ private:
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
 
-    AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
+    // Starts as Loading: the view is created before the decoding controller reports anything, and
+    // an empty clip body must never read as a silent waveform
+    AppGlobal::AudioClipLoadState m_loadState = AppGlobal::AudioClipLoadState::Loading;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
     Timeline m_timeline;

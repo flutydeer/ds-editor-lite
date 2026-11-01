@@ -1018,11 +1018,11 @@ void TracksRhiWidget::rebuildModelConnections() {
             }
         }
     }
-    // Decoding edges carry no model signal: the decode starts without touching the clip and ends
-    // by writing audioInfo, so the canvas listens to the controller directly.
-    if (!m_decodingStateConnected) {
-        m_decodingStateConnected = true;
-        connect(audioDecodingController, &AudioDecodingController::decodingStateChanged, this,
+    // Load-state edges carry no model signal: a resolution starts without touching the clip and a
+    // decode ends by writing audioInfo, so the canvas listens to the controller directly.
+    if (!m_loadStateConnected) {
+        m_loadStateConnected = true;
+        connect(audioDecodingController, &AudioDecodingController::loadStateChanged, this,
                 &TracksRhiWidget::scheduleSnapshot);
     }
 }
@@ -1068,7 +1068,7 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
             if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
             if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
-                if (!snapshot.audioMissing && !snapshot.audioLoading) {
+                if (snapshot.loadState == AppGlobal::AudioClipLoadState::Loaded) {
                     sampledAudioClipIds.insert(snapshot.id);
                     auto &sampler = m_audioWaveformSamplers[snapshot.id];
                     if (!sampler)
@@ -1203,11 +1203,12 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         }
     } else if (clip.type == IClip::Audio) {
         const auto waveformColor = clip.selected ? selectedFill : fill;
-        if (clip.audioMissing || clip.audioLoading) {
+        if (clip.loadState != AppGlobal::AudioClipLoadState::Loaded) {
+            const auto isMissing = clip.loadState == AppGlobal::AudioClipLoadState::Missing;
             auto textColor = waveformColor;
-            if (clip.audioMissing)
+            if (isMissing)
                 textColor.setAlphaF(textColor.alphaF() * 0.5);
-            const auto text = clip.audioMissing
+            const auto text = isMissing
                                   ? QCoreApplication::translate("AudioClipView", "File missing")
                                   : QCoreApplication::translate("AudioClipView", "Loading...");
             const QFont font = this->font();
@@ -1217,9 +1218,8 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             // Centre inside the visible slice of the clip: on a long clip scrolled away from its
             // middle, the geometric centre is off-screen and the hint would never be seen.
             auto labelRect = preview;
-            const auto visiblePhysical =
-                QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
-                       m_viewport.visibleSceneRect().size() * dpr);
+            const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
+                                                m_viewport.visibleSceneRect().size() * dpr);
             const auto clippedLabel = labelRect.intersected(visiblePhysical);
             if (clippedLabel.isEmpty())
                 return;
@@ -1386,11 +1386,7 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
     if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
-        result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
-        // Missing wins over decoding, matching the legacy view: an unresolved path keeps its
-        // permanent hint instead of blinking into a transitory one.
-        result.audioLoading =
-            !result.audioMissing && audioDecodingController->isDecoding(audio->id());
+        result.loadState = audioDecodingController->loadState(audio);
     }
     if (const auto singing = qobject_cast<const SingingClip *>(clip)) {
         const auto singerName =
