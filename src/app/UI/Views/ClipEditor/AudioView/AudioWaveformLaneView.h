@@ -28,7 +28,6 @@ public:
     void setTimeline(const Timeline &timeline);
     void setPath(const QString &path);
     void setLoadState(AppGlobal::AudioClipLoadState state);
-    void setErrorMessage(const QString &message);
     // Absolute ticks of the material origin and of the clip's first audible tick
     void setMaterialTicks(int materialStartTick, int visibleStartTick);
     void setTrackColorIndex(int index);
@@ -40,15 +39,11 @@ protected:
     void updateRectAndPos() override;
 
 private:
-    void drawLoadingHint(QPainter *painter, const QRectF &labelRect, const QString &text,
-                         const QColor &textColor);
-
     int m_channel = 0;
     int m_channelCount = 1;
     AudioInfoModel m_audioInfo;
     Timeline m_timeline;
     QString m_path;
-    QString m_errorMessage;
     AppGlobal::AudioClipLoadState m_loadState = AppGlobal::AudioClipLoadState::Loaded;
     int m_materialStartTick = 0;
     int m_visibleStartTick = 0;

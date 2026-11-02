@@ -4,12 +4,8 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformRenderUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "UI/Views/Common/AudioLoadHint.h"
 
-#include <QCoreApplication>
-#include <QFontMetricsF>
 #include <QPainter>
-#include <QPainterPath>
 
 using namespace ClipEditorGlobal;
 
@@ -53,11 +49,6 @@ void AudioWaveformLaneView::setLoadState(const AppGlobal::AudioClipLoadState sta
     if (m_loadState == state)
         return;
     m_loadState = state;
-    update();
-}
-
-void AudioWaveformLaneView::setErrorMessage(const QString &message) {
-    m_errorMessage = message;
     update();
 }
 
@@ -116,31 +107,10 @@ void AudioWaveformLaneView::paint(QPainter *painter, const QStyleOptionGraphicsI
     const auto centerY = qRound(previewRect.center().y()) + 0.5;
     painter->drawLine(QPointF(previewRect.left(), centerY), QPointF(previewRect.right(), centerY));
 
-    if (m_loadState != AppGlobal::AudioClipLoadState::Loaded) {
-        const auto isMissing = m_loadState == AppGlobal::AudioClipLoadState::Missing;
-        auto textColor = color;
-        if (isMissing)
-            textColor.setAlphaF(textColor.alphaF() * 0.5);
-        auto text = isMissing ? QCoreApplication::translate("AudioClipView", "File missing")
-                              : QCoreApplication::translate("AudioClipView", "Loading...");
-        if (isMissing && !m_errorMessage.isEmpty())
-            text += ": " + m_errorMessage;
-        auto labelRect = previewRect;
-        const auto visible = visibleRect();
-        if (!visible.isEmpty()) {
-            const auto clipped = labelRect.intersected(mapRectFromScene(visible));
-            if (clipped.isEmpty())
-                return;
-            labelRect = clipped;
-        }
-        if (isMissing) {
-            painter->setPen(textColor);
-            painter->drawText(labelRect, text, QTextOption(Qt::AlignCenter));
-            return;
-        }
-        drawLoadingHint(painter, labelRect, text, textColor);
+    // A clip that is still loading or whose file went missing has no waveform to draw. The hint
+    // itself is painted once for the whole canvas by the view, not once per lane
+    if (m_loadState != AppGlobal::AudioClipLoadState::Loaded)
         return;
-    }
 
     const auto waveform = m_waveformSampler.sample({
         .audioInfo = &m_audioInfo,
@@ -162,40 +132,4 @@ void AudioWaveformLaneView::paint(QPainter *painter, const QStyleOptionGraphicsI
         return;
     WaveformRenderUtils::renderWaveform(painter, color, WaveformRenderUtils::FilledMode, waveform,
                                         sceneToItem);
-}
-
-void AudioWaveformLaneView::drawLoadingHint(QPainter *painter, const QRectF &labelRect,
-                                            const QString &text, const QColor &textColor) {
-    const QFontMetricsF metrics(painter->font());
-    const auto textWidth = metrics.horizontalAdvance(text);
-    const auto block = AudioLoadHint::layout(labelRect, textWidth, 1.0);
-    const auto stroke = AudioLoadHint::ringStrokeWidth;
-
-    const auto toPath = [](const QVector<QPointF> &points) {
-        QPainterPath path;
-        if (points.isEmpty())
-            return path;
-        path.moveTo(points.constFirst());
-        for (qsizetype index = 1; index < points.size(); ++index)
-            path.lineTo(points.at(index));
-        return path;
-    };
-
-    painter->save();
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->setBrush(Qt::NoBrush);
-
-    auto trackColor = textColor;
-    trackColor.setAlphaF(trackColor.alphaF() * AudioLoadHint::trackAlpha);
-    painter->setPen(QPen(trackColor, stroke, Qt::SolidLine, Qt::RoundCap));
-    painter->drawPath(toPath(AudioLoadHint::trackCenterline(block.ringCenter, block.ringRadius)));
-
-    painter->setPen(QPen(textColor, stroke, Qt::SolidLine, Qt::RoundCap));
-    painter->drawPath(toPath(AudioLoadHint::arcCenterline(block.ringCenter, block.ringRadius,
-                                                          AudioLoadHint::clockMs())));
-    painter->restore();
-
-    painter->setPen(textColor);
-    const auto textRect = QRectF(block.textLeft, labelRect.top(), textWidth, labelRect.height());
-    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
 }

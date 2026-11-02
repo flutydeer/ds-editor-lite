@@ -142,6 +142,7 @@ private slots:
     void audioDbAxisTickLadderFollowsTheLaneHeight();
     void audioWaveformSamplerUsesTheRequestedChannelLane();
     void audioViewDrawsThePlaybackPosition();
+    void audioLoadHintMapsTheLoadStates();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();

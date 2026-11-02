@@ -11,6 +11,7 @@ class AudioViewBackground;
 class AudioViewGraphicsScene;
 class AudioWaveformLaneView;
 class ClipRangeOverlay;
+class QTimer;
 
 // QGraphicsView backend of the audio view. One lane item per channel, no
 // selection and no editing: the view is a read-only rendering of the audio
@@ -49,16 +50,20 @@ public:
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void afterSetScale() override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override;
 
 private:
     void rebuildLanes();
     void applyContentToLanes();
     void applyLaneColors();
+    void updateHintAnimation();
 
     AudioViewGraphicsScene *m_audioScene = nullptr;
     AudioViewBackground *m_background = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
     QList<AudioWaveformLaneView *> m_laneViews;
+    // Turns the loading ring, stopped as soon as the clip has something to draw
+    QTimer *m_hintTimer = nullptr;
     AudioViewContent m_content;
     QColor m_laneBackgroundColor;
     QColor m_laneSeparatorColor;

@@ -1,6 +1,10 @@
 #include "AudioLoadHint.h"
 
+#include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QFontMetricsF>
+#include <QPainter>
+#include <QPainterPath>
 
 #include <algorithm>
 #include <cmath>
@@ -82,5 +86,76 @@ namespace AudioLoadHint {
                         360.0 * static_cast<double>(index) / static_cast<double>(trackSegments)));
         }
         return points;
+    }
+
+    QString textFor(const AppGlobal::AudioClipLoadState state, const QString &errorMessage) {
+        switch (state) {
+            case AppGlobal::AudioClipLoadState::Loading:
+                // Same context as the hint on the clip in the track editor, so one translation
+                // entry serves both views
+                return QCoreApplication::translate("AudioClipView", "Loading...");
+            case AppGlobal::AudioClipLoadState::Missing: {
+                auto text = QCoreApplication::translate("AudioClipView", "File missing");
+                if (!errorMessage.isEmpty())
+                    text += ": " + errorMessage;
+                return text;
+            }
+            case AppGlobal::AudioClipLoadState::Loaded:
+                break;
+        }
+        return {};
+    }
+
+    QColor colorFor(const AppGlobal::AudioClipLoadState state, const QColor &clipColor) {
+        auto color = clipColor;
+        if (state == AppGlobal::AudioClipLoadState::Missing)
+            color.setAlphaF(color.alphaF() * 0.5);
+        return color;
+    }
+
+    void paintHint(QPainter *painter, const QRectF &labelRect, const QString &text,
+                   const QColor &color, const bool animated) {
+        if (text.isEmpty() || labelRect.isEmpty())
+            return;
+        const QFontMetricsF metrics(painter->font());
+        if (!animated) {
+            painter->save();
+            painter->setPen(color);
+            painter->drawText(labelRect, text, QTextOption(Qt::AlignCenter));
+            painter->restore();
+            return;
+        }
+
+        const auto textWidth = metrics.horizontalAdvance(text);
+        const auto block = layout(labelRect, textWidth, 1.0);
+        const auto stroke = ringStrokeWidth;
+
+        const auto toPath = [](const QVector<QPointF> &points) {
+            QPainterPath path;
+            if (points.isEmpty())
+                return path;
+            path.moveTo(points.constFirst());
+            for (qsizetype index = 1; index < points.size(); ++index)
+                path.lineTo(points.at(index));
+            return path;
+        };
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setBrush(Qt::NoBrush);
+
+        auto trackColor = color;
+        trackColor.setAlphaF(trackColor.alphaF() * trackAlpha);
+        painter->setPen(QPen(trackColor, stroke, Qt::SolidLine, Qt::RoundCap));
+        painter->drawPath(toPath(trackCenterline(block.ringCenter, block.ringRadius)));
+
+        painter->setPen(QPen(color, stroke, Qt::SolidLine, Qt::RoundCap));
+        painter->drawPath(toPath(arcCenterline(block.ringCenter, block.ringRadius, clockMs())));
+
+        painter->setPen(color);
+        const auto textRect =
+            QRectF(block.textLeft, labelRect.top(), textWidth, labelRect.height());
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
+        painter->restore();
     }
 }

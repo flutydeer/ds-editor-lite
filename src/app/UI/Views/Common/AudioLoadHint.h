@@ -1,11 +1,17 @@
 #ifndef AUDIOLOADHINT_H
 #define AUDIOLOADHINT_H
 
+#include "Global/AppGlobal.h"
+
+#include <QColor>
 #include <QPointF>
 #include <QRectF>
+#include <QString>
 #include <QVector>
 
 #include <QtGlobal>
+
+class QPainter;
 
 // Shape and timing of the rotating ring drawn before the loading text of an audio clip. Both
 // render backends read the numbers from here, so the QGraphics scene and the RHI canvas show the
@@ -50,6 +56,20 @@ namespace AudioLoadHint {
                                                  qint64 elapsedMs);
     // The full circle the moving arc runs on
     [[nodiscard]] QVector<QPointF> trackCenterline(const QPointF &center, double radius);
+
+    // Text of the hint for a clip that is not ready yet, empty when the clip needs no hint
+    [[nodiscard]] QString textFor(AppGlobal::AudioClipLoadState state,
+                                  const QString &errorMessage = {});
+
+    // Colour of the hint: the clip colour, dimmed for the permanent missing state so it reads as a
+    // failure notice rather than as an activity
+    [[nodiscard]] QColor colorFor(AppGlobal::AudioClipLoadState state, const QColor &clipColor);
+
+    // Paints the hint centred inside labelRect: the turning ring and the text while loading, only
+    // the text once the material is missing. Everything is in the painter's unit, so the QGraphics
+    // backend passes logical pixels
+    void paintHint(QPainter *painter, const QRectF &labelRect, const QString &text,
+                   const QColor &color, bool animated);
 }
 
 #endif // AUDIOLOADHINT_H

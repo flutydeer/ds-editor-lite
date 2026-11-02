@@ -82,6 +82,13 @@ AudioView::AudioView(QWidget *parent) : QWidget(parent) {
     setLayout(layout);
 
     connect(m_timelineView, &TimelineView::wheelHorScale, this, &AudioView::onWheelHorScale);
+    // A decode finishing writes audioInfo without touching the clip's own signals, so the load
+    // state has to come from the controller that owns it
+    connect(audioDecodingController, &AudioDecodingController::loadStateChanged, this,
+            [this](const int clipId, const AppGlobal::AudioClipLoadState) {
+                if (m_clip && m_clip->id() == clipId)
+                    refreshContent();
+            });
     if (m_rhiView)
         connectRhiBackend();
     else

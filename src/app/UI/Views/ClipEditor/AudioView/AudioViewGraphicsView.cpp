@@ -5,10 +5,13 @@
 #include "AudioWaveformLaneView.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "UI/Utils/AppColorPalette.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/PianoRoll/ClipRangeOverlay.h"
+#include "UI/Views/Common/AudioLoadHint.h"
 
 #include <QResizeEvent>
+#include <QTimer>
 
 #include <cmath>
 
@@ -40,6 +43,12 @@ AudioViewGraphicsView::AudioViewGraphicsView(AudioViewGraphicsScene *scene, QWid
     m_clipRangeOverlay->setZValue(3);
     m_clipRangeOverlay->setTransparentMouseEvents(true);
     m_audioScene->addCommonItem(m_clipRangeOverlay);
+
+    // Same cadence as the RHI backend's hint ticker, so the ring turns at one speed whichever
+    // backend draws it
+    m_hintTimer = new QTimer(this);
+    m_hintTimer->setInterval(16);
+    connect(m_hintTimer, &QTimer::timeout, this, [this] { viewport()->update(); });
 }
 
 void AudioViewGraphicsView::setContent(const AudioViewContent &content) {
@@ -54,6 +63,7 @@ void AudioViewGraphicsView::setContent(const AudioViewContent &content) {
     m_clipRangeOverlay->setClipRange(content.contentStartTick(), content.clipLen);
     setSceneLength(std::max(0, content.materialEndTick()));
     setSceneVisibility(content.isValid());
+    updateHintAnimation();
 }
 
 const AudioViewContent &AudioViewGraphicsView::content() const {
@@ -83,10 +93,33 @@ void AudioViewGraphicsView::applyContentToLanes() {
         lane->setTimeline(m_content.timeline);
         lane->setPath(m_content.path);
         lane->setLoadState(m_content.loadState);
-        lane->setErrorMessage(m_content.errorMessage);
         lane->setMaterialTicks(m_content.start, m_content.contentStartTick());
         lane->setTrackColorIndex(m_content.trackColorIndex);
     }
+}
+
+void AudioViewGraphicsView::updateHintAnimation() {
+    const auto loading =
+        m_content.isValid() && m_content.loadState == AppGlobal::AudioClipLoadState::Loading;
+    if (loading && !m_hintTimer->isActive())
+        m_hintTimer->start();
+    else if (!loading && m_hintTimer->isActive())
+        m_hintTimer->stop();
+    viewport()->update();
+}
+
+void AudioViewGraphicsView::drawForeground(QPainter *painter, const QRectF &rect) {
+    TimeGraphicsView::drawForeground(painter, rect);
+    const auto text = AudioLoadHint::textFor(m_content.loadState, m_content.errorMessage);
+    if (!m_content.isValid() || text.isEmpty())
+        return;
+    // Centred in the visible part of the canvas, which is the whole clip: the lanes tile the
+    // viewport, so scrolling never hides the hint the way it could hide a clip's own centre
+    const auto labelRect = mapToScene(viewport()->rect()).boundingRect();
+    const auto color = AudioLoadHint::colorFor(
+        m_content.loadState, AppColorPalette::instance()->baseColor(m_content.trackColorIndex));
+    AudioLoadHint::paintHint(painter, labelRect, text, color,
+                             m_content.loadState == AppGlobal::AudioClipLoadState::Loading);
 }
 
 void AudioViewGraphicsView::applyLaneColors() {

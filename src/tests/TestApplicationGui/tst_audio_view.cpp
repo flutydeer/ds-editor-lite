@@ -1,6 +1,7 @@
 #include "tst_application_gui.h"
 
 #include "UI/Views/ClipEditor/AudioView/AudioDbAxis.h"
+#include "UI/Views/Common/AudioLoadHint.h"
 #include "UI/Views/ClipEditor/AudioView/AudioView.h"
 #include "UI/Views/TrackEditor/AudioWaveformSampler.h"
 
@@ -229,4 +230,25 @@ void ApplicationGuiTests::audioViewDrawsThePlaybackPosition() {
             std::max(bestColumnShare, static_cast<double>(changed) / after.height());
     }
     QVERIFY(bestColumnShare > 0.8);
+}
+
+// One place decides what the audio view says about a clip that is not ready, so
+// both render backends paint the same hint
+void ApplicationGuiTests::audioLoadHintMapsTheLoadStates() {
+    const auto loading = AudioLoadHint::textFor(AppGlobal::AudioClipLoadState::Loading);
+    const auto missing = AudioLoadHint::textFor(AppGlobal::AudioClipLoadState::Missing);
+    QVERIFY(!loading.isEmpty());
+    QVERIFY(!missing.isEmpty());
+    QVERIFY(loading != missing);
+    QVERIFY(AudioLoadHint::textFor(AppGlobal::AudioClipLoadState::Loaded).isEmpty());
+    // A resolver that reported a reason appends it to the permanent hint
+    QVERIFY(AudioLoadHint::textFor(AppGlobal::AudioClipLoadState::Missing, QStringLiteral("gone"))
+                .contains(QStringLiteral("gone")));
+
+    // The missing hint is dimmed so it reads as a failure notice, the loading one is not
+    const QColor clipColor(120, 160, 255);
+    QCOMPARE(AudioLoadHint::colorFor(AppGlobal::AudioClipLoadState::Loading, clipColor), clipColor);
+    QVERIFY(
+        qAbs(AudioLoadHint::colorFor(AppGlobal::AudioClipLoadState::Missing, clipColor).alphaF() -
+             clipColor.alphaF() * 0.5) < 0.01);
 }

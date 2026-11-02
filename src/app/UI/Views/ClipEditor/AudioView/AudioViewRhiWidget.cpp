@@ -6,6 +6,8 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformRhiUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/AudioLoadHint.h"
+#include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorViewportController.h"
@@ -16,6 +18,8 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
+#include <QCoreApplication>
+#include <QFontMetricsF>
 #include <QHideEvent>
 #include <QResizeEvent>
 #include <QShowEvent>
@@ -44,6 +48,8 @@ public:
         });
         QObject::connect(ThemeManager::instance(), &ThemeManager::themeChanged, q,
                          [this] { scheduleSnapshot(); });
+        hintTicker.setInterval(16);
+        QObject::connect(&hintTicker, &QTimer::timeout, q, [this] { scheduleSnapshot(); });
     }
 
     void initializeScrollBars() {
@@ -78,6 +84,13 @@ public:
         rebuildSamplers();
         viewport.setContentTickRange(0.0, std::max(0, content.materialEndTick()));
         updateScrollBars();
+        // The ring only has to turn while the clip still has nothing to draw
+        const auto loading =
+            content.isValid() && content.loadState == AppGlobal::AudioClipLoadState::Loading;
+        if (loading && !hintTicker.isActive())
+            hintTicker.start();
+        else if (!loading && hintTicker.isActive())
+            hintTicker.stop();
         scheduleSnapshot();
     }
 
@@ -119,11 +132,13 @@ public:
         drawList.clear();
         frame.textureBatches.clear();
         dpr = q->devicePixelRatioF();
+        glyphAtlas.beginFrame();
 
         if (hasContent()) {
             appendBackground();
             appendTimeline();
             appendWaveforms();
+            appendLoadHint();
             appendClipMask();
             appendLastPlaybackIndicator();
         }
@@ -131,6 +146,7 @@ public:
         frame.clearColor = content.isValid() ? laneBackgroundColor : emptyViewBackgroundColor;
         frame.physicalCameraOffset = viewport.offset() * dpr;
         drawList.finish(vertices.size());
+        glyphAtlas.populateTextureBatches(frame.textureBatches);
         frame.solidVertices = std::move(vertices);
         frame.drawList = std::move(drawList);
         q->submitFrame(std::move(frame));
@@ -255,6 +271,51 @@ public:
         }
     }
 
+    // Same hint as the track editor and the QGraphics backend: a turning ring plus the text while
+    // the material decodes, only the text when the file is gone
+    void appendLoadHint() {
+        const auto text = AudioLoadHint::textFor(content.loadState, content.errorMessage);
+        if (text.isEmpty())
+            return;
+        const auto animated = content.loadState == AppGlobal::AudioClipLoadState::Loading;
+        auto color = AudioLoadHint::colorFor(
+            content.loadState, AppColorPalette::instance()->baseColor(content.trackColorIndex));
+
+        // Centred in the visible canvas rather than in the whole material: the lanes tile the
+        // viewport, so a clip scrolled far from its own centre still shows the hint
+        auto labelRect = viewport.visibleSceneRect();
+        labelRect = QRectF(labelRect.left() * dpr, labelRect.top() * dpr, labelRect.width() * dpr,
+                           labelRect.height() * dpr);
+        if (labelRect.isEmpty())
+            return;
+
+        const QFont font = q->font();
+        const QFontMetricsF metrics(font);
+        const auto textSize = QSizeF(std::ceil(metrics.horizontalAdvance(text) * dpr),
+                                     std::ceil(metrics.height() * dpr));
+        auto topLeft =
+            labelRect.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
+        if (animated) {
+            const auto block = AudioLoadHint::layout(labelRect, textSize.width(), dpr);
+            auto trackColor = color;
+            trackColor.setAlphaF(trackColor.alphaF() * AudioLoadHint::trackAlpha);
+            QVector<EditorRhiSolidVertex> ringVertices;
+            EditorRhiGeometry::appendAntialiasedStroke(
+                ringVertices, AudioLoadHint::trackCenterline(block.ringCenter, block.ringRadius),
+                AudioLoadHint::ringStrokeWidth * dpr, trackColor);
+            EditorRhiGeometry::appendAntialiasedStroke(
+                ringVertices,
+                AudioLoadHint::arcCenterline(block.ringCenter, block.ringRadius,
+                                             AudioLoadHint::clockMs()),
+                AudioLoadHint::ringStrokeWidth * dpr, color);
+            EditorRhiGeometry::appendClippedTriangles(vertices, ringVertices, labelRect);
+            topLeft.setX(block.textLeft);
+        }
+        const auto span = glyphAtlas.appendText(text, font, topLeft, color, labelRect, dpr,
+                                                viewport.offset() * dpr, q->physicalWindowOffset());
+        drawList.appendTexture(span, vertices.size());
+    }
+
     void appendClipMask() {
         const auto visible = viewport.visibleSceneRect();
         const auto contentStart = viewport.tickToSceneX(content.contentStartTick());
@@ -267,9 +328,8 @@ public:
         }
         if (visible.right() > contentEnd) {
             const auto left = std::max(visible.left(), contentEnd);
-            appendSceneRect(
-                QRectF(left, visible.top(), visible.right() - left, visible.height()),
-                clipRangeOverlayColor);
+            appendSceneRect(QRectF(left, visible.top(), visible.right() - left, visible.height()),
+                            clipRangeOverlayColor);
         }
     }
 
@@ -289,6 +349,9 @@ public:
     TimelineLineEmitter timelineEmitter;
     AudioViewContent content;
     std::vector<std::unique_ptr<AudioWaveformSampler>> samplers;
+    EditorGlyphAtlas glyphAtlas;
+    // Turns the loading ring, stopped as soon as the clip has something to draw
+    QTimer hintTicker;
 
     QVector<EditorRhiSolidVertex> vertices;
     EditorRhiDrawList drawList;
@@ -423,7 +486,7 @@ void AudioViewRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
 }
 
 EditorTouchTarget::ContentHit
-AudioViewRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
+    AudioViewRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
     Q_UNUSED(viewportPosition)
     return ContentHit::None;
 }
