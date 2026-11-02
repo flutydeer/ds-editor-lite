@@ -114,18 +114,18 @@ void AudioDbAxis::paint(QPainter *painter, const QRectF &laneRect, const QVector
         painter->drawText(textRect, Qt::AlignRight | Qt::AlignVCenter, tickLabel(tick));
     }
 
-    // Zero line and its silence label. The label goes just below the line,
-    // which is free space because labels are only drawn in the top half.
+    // Zero line and its silence label. The line stops at the tick column so it
+    // never crosses the label, which lets the label sit on the centre line like
+    // the rest of the ladder instead of being pushed below it.
     painter->setPen(QPen(colors.separatorColor, 1.0));
     const auto zeroY = qRound(centerY) + 0.5;
-    painter->drawLine(QPointF(laneRect.left() + 2.0, zeroY), QPointF(right, zeroY));
+    painter->drawLine(QPointF(majorLeft, zeroY), QPointF(right, zeroY));
 
     const auto infiniteLabel = tickLabel({0.0, true, 0.0});
     const auto infiniteWidth = metrics.horizontalAdvance(infiniteLabel);
-    auto infiniteRect = QRectF(labelRight - infiniteWidth, zeroY + 1.0, infiniteWidth,
-                               metrics.height());
-    if (infiniteRect.bottom() > laneRect.bottom())
-        infiniteRect.moveBottom(laneRect.bottom());
+    const auto infiniteRect =
+        QRectF(labelRight - infiniteWidth, zeroY - metrics.height() * 0.5, infiniteWidth,
+               metrics.height());
     painter->setPen(colors.infiniteLabelColor);
     painter->drawText(infiniteRect, Qt::AlignRight | Qt::AlignVCenter, infiniteLabel);
 
