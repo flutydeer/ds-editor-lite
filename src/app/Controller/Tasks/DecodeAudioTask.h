@@ -41,6 +41,9 @@ private:
     int m_mipmapScale = 10;
     QVector<std::tuple<short, short>> m_peakCache;
     QVector<std::tuple<short, short>> m_peakCacheMipmap;
+    // Per-channel caches consumed by the audio view, one list per channel
+    QVector<QVector<std::tuple<short, short>>> m_peakCacheChannels;
+    QVector<QVector<std::tuple<short, short>>> m_peakCacheMipmapChannels;
 };
 
 #endif // DECODEAUDIOTASK_H

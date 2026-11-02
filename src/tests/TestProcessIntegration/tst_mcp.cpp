@@ -337,21 +337,25 @@ namespace {
                             {QStringLiteral("window_id"),   windowId                     }
             });
         };
-        const auto checkActiveClip = [&](const bool singing) {
+        // An audio clip is a legal active clip since the clip editor can show one, so the
+        // first clip of a type is what an open document restores
+        const auto checkActiveClipOfType = [&](const QString &type) {
             const auto editor = activeClip();
             if (!editor)
                 return false;
             const auto id = editor->value("active_clip_id");
-            if (!singing)
+            if (type.isEmpty())
                 return id.isNull();
-            const auto clips =
-                call(QStringLiteral("clips.list"),
-                     {
-                         {QStringLiteral("document_id"), document.value("document_id")},
-                         {QStringLiteral("type"),        QStringLiteral("singing")    }
+            const auto clips = call(QStringLiteral("clips.list"),
+                                    {
+                                        {QStringLiteral("document_id"), document.value("document_id")},
+                                        {QStringLiteral("type"),        type                        }
             });
             const auto items = clips ? clips->value("clips").toArray() : QJsonArray{};
             return !items.isEmpty() && id == items.first().toObject().value("clip_id");
+        };
+        const auto checkActiveClip = [&](const bool singing) {
+            return checkActiveClipOfType(singing ? QStringLiteral("singing") : QString());
         };
         const auto saveAs = [&](const QString &path) {
             if (!refresh())
@@ -492,8 +496,9 @@ namespace {
         if (!selectedBeforeSave || !selectedAfterSave ||
             selectedBeforeSave->value("active_clip_id") !=
                 selectedAfterSave->value("active_clip_id") ||
-            !open(audioProject) || !checkDocument(audioProject, false) || !checkActiveClip(false)) {
-            return fail(QStringLiteral("Lifecycle audio-only open retained a stale active clip"));
+            !open(audioProject) || !checkDocument(audioProject, false) ||
+            !checkActiveClipOfType(QStringLiteral("audio"))) {
+            return fail(QStringLiteral("Lifecycle audio-only open did not activate its audio clip"));
         }
 
         QFile midi(QDir(directory).filePath(QStringLiteral("来源.mid")));

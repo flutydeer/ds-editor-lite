@@ -815,6 +815,46 @@ void EditorInteractionTests::panelVisibilityRouting() {
     controller->setActivePanel(AppGlobal::TracksEditor);
 }
 
+// An audio clip makes the clip editor page read-only: nothing on it can be edited,
+// so no command may stay routed to the piano roll that is no longer on screen, and
+// re-activating the page must not bring that target back
+void EditorInteractionTests::readOnlyClipEditorDropsTheEditTarget() {
+    ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
+    auto *controller = editorViewController;
+    controller->setClipEditorReadOnly(false);
+    controller->setActivePanel(AppGlobal::ClipEditor);
+    expect(controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+           "an editable clip editor focuses the piano roll");
+
+    // Selecting an audio clip happens in the arrangement, so the tracks panel is
+    // what is active when the clip editor turns read-only
+    controller->setActivePanel(AppGlobal::TracksEditor);
+    controller->setClipEditorReadOnly(true);
+    expect(controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+           "entering audio mode must leave the arrangement target alone");
+
+    controller->activatePanelContext(AppGlobal::ClipEditor);
+    expect(controller->activePanel() == AppGlobal::ClipEditor &&
+               controller->activeEditTarget() == EditorInteraction::Target::None,
+           "reactivating a read-only clip editor must not restore the piano roll");
+    expect(!controller->supportsEditCommand(EditorInteraction::Command::Cut) &&
+               !controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
+           "cut and delete must be unavailable on a read-only clip editor");
+
+    // Anything that still names the hidden editors has to be refused as well
+    controller->setActiveRegion(EditorViewGlobal::Region::PianoRoll);
+    expect(controller->activeEditTarget() == EditorInteraction::Target::None,
+           "a read-only clip editor must refuse a piano-roll target");
+
+    // Back to a singing clip, the page edits again
+    controller->setClipEditorReadOnly(false);
+    controller->activatePanelContext(AppGlobal::ClipEditor);
+    expect(controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+           "an editable clip editor must restore the piano roll target");
+    controller->setActivePanel(AppGlobal::TracksEditor);
+}
+
 void EditorInteractionTests::visibleExecutesImmediately() {
     ControllerFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));

@@ -15,7 +15,8 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "UI/Utils/ITimelinePainter.h"
+#include "UI/Utils/WaveformRhiUtils.h"
+#include "UI/Views/Common/TimelineLineEmitter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
@@ -85,65 +86,6 @@ namespace {
                              .arg(scaleX)
                              .arg(scaleY);
     }
-
-    QColor blendColor(const QColor &from, const QColor &to, double ratio) {
-        ratio = std::clamp(ratio, 0.0, 1.0);
-        return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
-                      static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
-                      static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
-    }
-
-    class TimelineEmitter final : public ITimelinePainter {
-    public:
-        using Callback = std::function<void(int, const QColor &)>;
-
-        void emitLines(const Timeline &timeline, const int quantize, const double start,
-                       const double end, const double width, const QColor &bar, const QColor &beat,
-                       const QColor &common, Callback callback) {
-            setTimeline(timeline);
-            setQuantize(quantize);
-            m_bar = bar;
-            m_beat = beat;
-            m_common = common;
-            m_callback = std::move(callback);
-            QImage image(1, 1, QImage::Format_ARGB32_Premultiplied);
-            QPainter painter(&image);
-            drawTimeline(&painter, start, end, width);
-        }
-
-        int gridStep(const Timeline &timeline, const int quantize, const double ticksPerPixel,
-                     const int atTick) {
-            setTimeline(timeline);
-            setQuantize(quantize);
-            return logicalGridStepForScale(ticksPerPixel, atTick);
-        }
-
-    private:
-        QColor withPainterOpacity(const QColor &source, const QPainter *painter) const {
-            auto color = source;
-            color.setAlphaF(color.alphaF() * painter->opacity());
-            return color;
-        }
-
-        void drawBar(QPainter *painter, const int tick, int) override {
-            m_callback(tick, withPainterOpacity(m_bar, painter));
-        }
-
-        void drawBeat(QPainter *painter, const int tick, int, int) override {
-            m_callback(tick, withPainterOpacity(m_beat, painter));
-        }
-
-        void drawSubdivision(QPainter *painter, const int tick, const int level,
-                             const int levelCount) override {
-            const auto ratio = levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
-            m_callback(tick, withPainterOpacity(blendColor(m_beat, m_common, ratio), painter));
-        }
-
-        QColor m_bar;
-        QColor m_beat;
-        QColor m_common;
-        Callback m_callback;
-    };
 
 }
 
@@ -1057,7 +999,7 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
                                                            m_viewport.verticalOffset() * dpr);
     }
 
-    TimelineEmitter emitter;
+    TimelineLineEmitter emitter;
     emitter.emitLines(appModel->timeline(), 128, m_viewport.startTick(), m_viewport.endTick(),
                       visible.width(), m_barLineColor, m_beatLineColor, m_commonLineColor,
                       [this, &frame, dpr, visible](const int tick, const QColor &color) {
@@ -1265,112 +1207,9 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
             return;
         }
-        const auto physicalCameraOffset =
-            QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
-        const auto physicalWaveformPoint = [dpr](const QPointF &point) {
-            return point * dpr + QPointF(0.0, -0.5);
-        };
-        QVector<EditorRhiSolidVertex> waveformVertices;
-        auto waveformWrittenDirectly = false;
-        if (clip.waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks) {
-            QVector<QPointF> top;
-            QVector<QPointF> bottom;
-            top.reserve(clip.waveform.peaks.size());
-            bottom.reserve(clip.waveform.peaks.size());
-            for (const auto &point : clip.waveform.peaks) {
-                top.append(physicalWaveformPoint({point.x, point.yMax}));
-                bottom.append(physicalWaveformPoint({point.x, point.yMin}));
-            }
-            EditorRhiGeometry::appendAntialiasedWaveform(waveformVertices, top, bottom, preview,
-                                                         waveformColor, 0.75);
-
-            auto flatRunStart = -1;
-            for (auto index = 0; index < clip.waveform.peaks.size(); ++index) {
-                const auto &point = clip.waveform.peaks[index];
-                const auto flat = std::abs(point.yMax - point.yMin) < 0.5;
-                if (flat && flatRunStart < 0) {
-                    flatRunStart = index;
-                } else if (!flat && flatRunStart >= 0) {
-                    const auto runStart =
-                        physicalWaveformPoint({clip.waveform.peaks[flatRunStart].x,
-                                               clip.waveform.peaks[flatRunStart].yMax});
-                    const auto runEnd = physicalWaveformPoint(
-                        {clip.waveform.peaks[index - 1].x, clip.waveform.peaks[index - 1].yMax});
-                    EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-                        waveformVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
-                    flatRunStart = -1;
-                }
-            }
-            if (flatRunStart >= 0) {
-                const auto runStart = physicalWaveformPoint(
-                    {clip.waveform.peaks[flatRunStart].x, clip.waveform.peaks[flatRunStart].yMax});
-                const auto runEnd = physicalWaveformPoint(
-                    {clip.waveform.peaks.constLast().x, clip.waveform.peaks.constLast().yMax});
-                EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-                    waveformVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
-            }
-        } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::VerticalPeaks) {
-            auto cosmeticLineOffset = 0.0;
-            if (!clip.waveform.peaks.isEmpty()) {
-                const auto firstPhysicalX =
-                    physicalWaveformPoint({clip.waveform.peaks.constFirst().x, 0.0}).x();
-                const auto firstScreenX = firstPhysicalX - physicalCameraOffset.x();
-                const auto pixelPhase = firstScreenX - std::floor(firstScreenX);
-                // Preserve QPainter's aliased cosmetic-pen phase after the RHI camera transform.
-                cosmeticLineOffset = pixelPhase < 0.5 ? -0.5 : 0.0;
-            }
-            for (const auto &point : clip.waveform.peaks) {
-                const auto top = physicalWaveformPoint({point.x, std::min(point.yMin, point.yMax)});
-                const auto bottom =
-                    physicalWaveformPoint({point.x, std::max(point.yMin, point.yMax)});
-                const auto lineTop = top.y() - 0.5;
-                const auto lineBottom = bottom.y() + 0.5;
-                const auto lineX = std::floor(top.x() - physicalCameraOffset.x()) +
-                                   physicalCameraOffset.x() + cosmeticLineOffset;
-                EditorRhiGeometry::appendRect(
-                    waveformVertices,
-                    QRectF(lineX, lineTop, 1.0, std::max(1.0, lineBottom - lineTop)),
-                    waveformColor);
-            }
-        } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::Curve) {
-            QVector<QPointF> curve;
-            curve.reserve(clip.waveform.curve.size());
-            QVector<QPointF> dotCenters;
-            dotCenters.reserve(clip.waveform.sampleDots.size());
-            auto minimumX = std::numeric_limits<double>::max();
-            auto maximumX = std::numeric_limits<double>::lowest();
-            auto minimumY = std::numeric_limits<double>::max();
-            auto maximumY = std::numeric_limits<double>::lowest();
-            const auto appendPoint = [&](QVector<QPointF> &points, const QPointF &point) {
-                const auto physicalPoint = physicalWaveformPoint(point);
-                points.append(physicalPoint);
-                minimumX = std::min(minimumX, physicalPoint.x());
-                maximumX = std::max(maximumX, physicalPoint.x());
-                minimumY = std::min(minimumY, physicalPoint.y());
-                maximumY = std::max(maximumY, physicalPoint.y());
-            };
-            for (const auto &point : clip.waveform.curve)
-                appendPoint(curve, point);
-            for (const auto &point : clip.waveform.sampleDots)
-                appendPoint(dotCenters, point);
-            const auto radius = clip.waveform.sampleDotRadius * dpr;
-            const auto hasPoints = !curve.isEmpty() || !dotCenters.isEmpty();
-            // Hairline joins use a 3x miter limit; sample dots add a 0.75 px feather.
-            const auto geometryMargin = std::max(3.0, radius + 0.75);
-            waveformWrittenDirectly = hasPoints && minimumX - geometryMargin >= preview.left() &&
-                                      maximumX + geometryMargin <= preview.right() &&
-                                      minimumY - geometryMargin >= preview.top() &&
-                                      maximumY + geometryMargin <= preview.bottom();
-            auto &targetVertices = waveformWrittenDirectly ? frame.solidVertices : waveformVertices;
-            EditorRhiGeometry::appendAntialiasedHairline(targetVertices, curve, waveformColor);
-            for (const auto &center : dotCenters) {
-                EditorRhiGeometry::appendAntialiasedCircle(targetVertices, center, radius,
-                                                           waveformColor);
-            }
-        }
-        if (!waveformWrittenDirectly)
-            EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, waveformVertices,
-                                                      preview);
+        WaveformRhiUtils::appendWaveform(
+            frame.solidVertices, clip.waveform, preview, waveformColor, dpr,
+            QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr);
     }
 }
 
@@ -1586,7 +1425,7 @@ int TracksRhiWidget::snapTick(const int tick) const {
 }
 
 int TracksRhiWidget::snapStep(const int tick) const {
-    TimelineEmitter emitter;
+    TimelineLineEmitter emitter;
     const auto pixelsPerTick =
         scaleX() * TracksEditorGlobal::pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto ticksPerPixel = pixelsPerTick > 0.0 ? 1.0 / pixelsPerTick : 0.0;

@@ -28,11 +28,19 @@ public:
         const Timeline *timeline = nullptr;
         int materialStartTick = 0;
         int visibleStartTick = 0;
+        // Channel lane to sample, -1 keeps the downmixed mono behaviour the
+        // track editor relies on
+        int channel = -1;
         QRectF previewSceneRect;
         QRectF visibleSceneRect;
         double horizontalScale = 1.0;
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
+        // Global tick that scene x = 0 stands for. Views whose scene is clip-local
+        // set it to the clip's timeline position, so the sampler keeps converting
+        // scene pixels into global ticks, which is the frame the tempo map, the
+        // peak caches and the material start tick are all expressed in.
+        int sceneTickOffset = 0;
         double devicePixelRatio = 1.0;
         AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
     };
@@ -55,6 +63,7 @@ private:
         const void *peakCacheMipmapData = nullptr;
         int materialStartTick = 0;
         int visibleStartTick = 0;
+        int channel = -1;
         int chunkSize = 0;
         int mipmapScale = 0;
         int sampleRate = 0;
@@ -67,6 +76,7 @@ private:
         double horizontalScale = 1.0;
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
+        int sceneTickOffset = 0;
         double devicePixelRatio = 1.0;
         AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
 
@@ -76,6 +86,9 @@ private:
     [[nodiscard]] static CacheKey makeCacheKey(const Request &request);
     [[nodiscard]] bool ensureIO();
     void resetIO();
+    [[nodiscard]] static double ticksPerScenePixel(const Request &request);
+    [[nodiscard]] static double sceneXToTick(const Request &request, double sceneX);
+    [[nodiscard]] static double tickToSceneX(const Request &request, double tick);
     [[nodiscard]] double tickToSamplePos(const Request &request, double tick) const;
     [[nodiscard]] double samplePosToTick(const Request &request, double samplePos) const;
     [[nodiscard]] Result samplePeakMode(const Request &request) const;

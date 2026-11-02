@@ -12,6 +12,13 @@ public:
     long long frames = 0;
     QList<std::tuple<short, short>> peakCache;
     QList<std::tuple<short, short>> peakCacheMipmap;
+    // One peak cache per channel, filled by the same decode pass that builds
+    // the downmixed caches above. The track editor keeps drawing the downmix,
+    // the audio view draws one lane per channel from these. Empty means the
+    // caches were not built (older documents, hand-built info in tests) and
+    // callers must fall back to the downmixed caches.
+    QList<QList<std::tuple<short, short>>> peakCacheChannels;
+    QList<QList<std::tuple<short, short>>> peakCacheMipmapChannels;
 };
 
 

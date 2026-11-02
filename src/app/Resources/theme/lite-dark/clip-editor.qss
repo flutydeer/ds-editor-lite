@@ -362,6 +362,45 @@ PhonemeView {
     qproperty-waveformColor: ${phoneme.waveform};
 }
 
+/* AudioView */
+AudioView {
+    border-radius: 0px;
+}
+
+AudioViewGraphicsView, AudioViewRhiWidget {
+    qproperty-laneBackgroundColor: ${editor.canvasAlternate};
+    qproperty-laneSeparatorColor: ${border.subtle};
+    qproperty-waveformCenterLineColor: ${piano.roll.octaveDivider};
+    qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
+    qproperty-barLineColor: ${editor.grid.bar};
+    qproperty-beatLineColor: ${editor.grid.beat};
+    qproperty-commonLineColor: ${editor.grid.subdivision};
+    qproperty-playPosIndicatorColor: ${editor.playhead};
+    qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
+    qproperty-emptyViewBackgroundColor: ${editor.canvasAlternate};
+}
+
+AudioViewGraphicsView {
+    background: ${editor.canvasAlternate};
+}
+
+AudioChannelAxisView {
+    qproperty-tickColor: ${timeline.ruler.barTick};
+    qproperty-labelColor: ${timeline.ruler.beatScale};
+    qproperty-infiniteLabelColor: ${control.foreground.disabled};
+    qproperty-separatorColor: ${border.subtle};
+    qproperty-channelTagColor: ${text.secondary};
+    qproperty-laneBackgroundColor: ${surface.panel};
+}
+
+AudioView>QLabel#lbNullClipTip {
+    color: ${control.foreground.disabled};
+}
+
+QWidget#audioViewTopLeftSpacing {
+    background: ${surface.panel};
+}
+
 ClipEditorToolBarView {
     qproperty-iconColor: ${icon.primary};
     qproperty-iconDisabledColor: ${icon.disabled};

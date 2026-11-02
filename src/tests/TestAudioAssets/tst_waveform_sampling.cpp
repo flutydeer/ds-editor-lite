@@ -171,6 +171,46 @@ void AudioAssetsTests::waveformSamplingFollowsZoom() {
     }
 }
 
+// A view whose scene starts at the clip rather than at the timeline origin says so
+// through sceneTickOffset, and that must only move where the samples land on the
+// canvas, never which sample sits at a given column
+void AudioAssetsTests::waveformSamplingKeepsClipLocalScenesInGlobalTicks() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto path = files.filePath(QStringLiteral("stereo.wav"));
+    QVERIFY(writeWave(path, stereoWave(), 2));
+    AudioInfoModel info;
+    QVERIFY(decodeWave(path, info));
+    Timeline timeline({
+        {0, 120.0}
+    });
+
+    const auto globalScene = waveformRequest(info, timeline, 375.0);
+    const auto pixelsPerTick = 375.0 * 64.0 / 480.0;
+    const auto originShift = globalScene.materialStartTick * pixelsPerTick;
+    auto clipLocalScene = globalScene;
+    clipLocalScene.previewSceneRect.translate(-originShift, 0.0);
+    clipLocalScene.visibleSceneRect.translate(-originShift, 0.0);
+    clipLocalScene.sceneTickOffset = globalScene.materialStartTick;
+
+    AudioWaveformSampler sampler;
+    sampler.setPath(path);
+    const auto global = sampler.sample(globalScene);
+    const auto clipLocal = sampler.sample(clipLocalScene);
+    QCOMPARE(global.geometry, AudioWaveformSampler::Geometry::Curve);
+    QCOMPARE(clipLocal.geometry, global.geometry);
+    QCOMPARE(clipLocal.curve.size(), global.curve.size());
+    QVERIFY(!global.curve.isEmpty());
+    for (auto index = 0; index < global.curve.size(); ++index) {
+        const auto &expected = global.curve.at(index);
+        const auto &actual = clipLocal.curve.at(index);
+        QVERIFY2(std::abs(actual.x() - (expected.x() - originShift)) < 1e-6,
+                 "A clip-local scene must only shift the samples along the canvas");
+        QVERIFY2(std::abs(actual.y() - expected.y()) < 1e-9,
+                 "A clip-local scene must sample the same audio at the same column");
+    }
+}
+
 void AudioAssetsTests::waveformSamplingRefreshesSourceAndTempo() {
     QTemporaryDir files;
     QVERIFY(files.isValid());

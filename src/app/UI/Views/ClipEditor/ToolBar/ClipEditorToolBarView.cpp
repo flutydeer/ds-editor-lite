@@ -221,6 +221,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     auto clipInfoGroup = new ControlGroup;
     clipInfoGroup->setLayout(clipInfoLayout);
+    d->m_clipInfoGroup = clipInfoGroup;
 
     auto toolButtonLayout = new QHBoxLayout;
     toolButtonLayout->addWidget(d->m_btnArrow);
@@ -238,6 +239,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     auto toolButtonGroup = new ControlGroup;
     toolButtonGroup->setLayout(toolButtonLayout);
+    d->m_toolButtonGroupView = toolButtonGroup;
 
     auto quantizeLayout = new QHBoxLayout;
     quantizeLayout->addWidget(d->m_cbPianoRollQuantize);
@@ -246,6 +248,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     auto quantizeGroup = new ControlGroup;
     quantizeGroup->setLayout(quantizeLayout);
+    d->m_quantizeGroup = quantizeGroup;
 
     auto autoPageTurnLayout = new QHBoxLayout;
     autoPageTurnLayout->addWidget(d->m_btnAutoPageTurn);
@@ -254,17 +257,29 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     auto autoPageTurnGroup = new ControlGroup;
     autoPageTurnGroup->setLayout(autoPageTurnLayout);
+    d->m_autoPageTurnGroup = autoPageTurnGroup;
 
+    // Spacers are widgets rather than addSpacing() stretches so they can be
+    // hidden together with the group they separate
+    const auto buildSpacer = [] {
+        auto *spacer = new QWidget;
+        spacer->setFixedWidth(16);
+        return spacer;
+    };
+    d->m_spacerAfterClipInfo = buildSpacer();
+    d->m_spacerAfterTools = buildSpacer();
+    d->m_spacerAfterQuantize = buildSpacer();
+    d->m_spacerAfterAutoPageTurn = buildSpacer();
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(clipInfoGroup);
-    mainLayout->addSpacing(16);
+    mainLayout->addWidget(d->m_spacerAfterClipInfo);
     mainLayout->addWidget(toolButtonGroup);
-    mainLayout->addSpacing(16);
+    mainLayout->addWidget(d->m_spacerAfterTools);
     mainLayout->addWidget(quantizeGroup);
-    mainLayout->addSpacing(16);
+    mainLayout->addWidget(d->m_spacerAfterQuantize);
     mainLayout->addWidget(autoPageTurnGroup);
-    mainLayout->addSpacing(16);
+    mainLayout->addWidget(d->m_spacerAfterAutoPageTurn);
     mainLayout->addStretch();
 
     mainLayout->setContentsMargins({});
@@ -422,12 +437,14 @@ void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
+    setGroupsVisible(false, false, false, false);
 }
 
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_leClipName->setEnabled(true);
     m_leClipName->setText(m_clip->name());
 
+    setGroupsVisible(true, true, true, true);
     setPianoRollToolsEnabled(true);
 }
 
@@ -435,7 +452,33 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_leClipName->setEnabled(true);
     m_leClipName->setText(m_clip->name());
 
+    // An audio clip has no notes, no pitch anchors and no quantize, so the only
+    // control that applies to it is its name
+    setGroupsVisible(true, false, false, false);
     setPianoRollToolsEnabled(false);
+}
+
+void ClipEditorToolBarViewPrivate::setGroupsVisible(const bool clipInfo, const bool tools,
+                                                    const bool quantize,
+                                                    const bool autoPageTurn) const {
+    if (m_clipInfoGroup)
+        m_clipInfoGroup->setVisible(clipInfo);
+    if (m_toolButtonGroupView)
+        m_toolButtonGroupView->setVisible(tools);
+    if (m_quantizeGroup)
+        m_quantizeGroup->setVisible(quantize);
+    if (m_autoPageTurnGroup)
+        m_autoPageTurnGroup->setVisible(autoPageTurn);
+
+    // A spacer whose neighbour is hidden would leave a doubled gap
+    if (m_spacerAfterClipInfo)
+        m_spacerAfterClipInfo->setVisible(clipInfo && tools);
+    if (m_spacerAfterTools)
+        m_spacerAfterTools->setVisible(tools && quantize);
+    if (m_spacerAfterQuantize)
+        m_spacerAfterQuantize->setVisible(quantize && autoPageTurn);
+    if (m_spacerAfterAutoPageTurn)
+        m_spacerAfterAutoPageTurn->setVisible(autoPageTurn);
 }
 
 Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,

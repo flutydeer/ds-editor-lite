@@ -9,6 +9,12 @@ namespace ClipEditorGlobal {
     constexpr int timelineViewHeight = 32; // Increased for loop region display
     constexpr int infoLaneHeight = 28;     // Height of the tempo/time signature lanes below the ruler
     constexpr int pianoKeyboardWidth = 64;
+    // Left column of the audio view: the level axis and the channel tags. Same
+    // width as the keyboard column so switching clip types does not shift the
+    // canvas horizontally.
+    constexpr int audioChannelAxisWidth = 64;
+    // Minimum vertical distance between two dB axis labels
+    constexpr int audioDbAxisMinLabelSpacing = 12;
     constexpr int paramEditorToolControlHeight = 24;
     constexpr int paramEditorToolBarVerticalMargin = 4;
     constexpr int paramEditorToolBarHeight =

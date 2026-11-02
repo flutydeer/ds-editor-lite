@@ -72,6 +72,11 @@ public:
                                EditorInteraction::Target target);
     void unregisterInteractionArea(QObject *area);
     [[nodiscard]] EditorInteraction::Target activeEditTarget() const;
+    // The clip editor page shows a read-only view (an audio clip, or no clip at
+    // all), so nothing on it can be cut, copied or deleted. While it is read-only
+    // the page has no editable target, which is also what a later page activation
+    // restores, so the commands cannot fall through to a hidden piano roll
+    void setClipEditorReadOnly(bool readOnly);
     void syncPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode);
     [[nodiscard]] bool supportsEditCommand(EditorInteraction::Command command) const;
     void requestEditCommand(EditorInteraction::Command command);
@@ -120,6 +125,7 @@ private:
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
     EditorInteraction::Target m_activeEditTarget = EditorInteraction::Target::Tracks;
     EditorInteraction::Target m_lastClipEditTarget = EditorInteraction::Target::PianoRoll;
+    bool m_clipEditorReadOnly = false;
     EditorViewGlobal::PianoRollEditMode m_pianoRollEditMode = EditorViewGlobal::Select;
 };
 

@@ -20,7 +20,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Theme/ThemeManager.h>
-#include "UI/Utils/ITimelinePainter.h"
+#include "UI/Views/Common/TimelineLineEmitter.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -89,14 +89,6 @@ namespace {
 
     using Vertex = EditorRhiSolidVertex;
 
-    QColor blendedColor(const QColor &from, const QColor &to, const double ratio) {
-        const auto t = std::clamp(ratio, 0.0, 1.0);
-        return QColor::fromRgbF(from.redF() + (to.redF() - from.redF()) * t,
-                                from.greenF() + (to.greenF() - from.greenF()) * t,
-                                from.blueF() + (to.blueF() - from.blueF()) * t,
-                                from.alphaF() + (to.alphaF() - from.alphaF()) * t);
-    }
-
     QList<PitchDisplayInterval> clippedCoverage(const QList<PitchDisplayInterval> &coverage,
                                                 const double start, const double end) {
         QList<PitchDisplayInterval> result;
@@ -154,53 +146,6 @@ namespace {
         }
         return result;
     }
-
-    class TimelineLineEmitter final : public ITimelinePainter {
-    public:
-        using Callback = std::function<void(int tick, const QColor &color)>;
-
-        void emitLines(const Timeline &timeline, const int quantize, const double startTick,
-                       const double endTick, const double width, const QColor &barColor,
-                       const QColor &beatColor, const QColor &commonColor, Callback callback) {
-            setTimeline(timeline);
-            setQuantize(quantize);
-            m_barColor = barColor;
-            m_beatColor = beatColor;
-            m_commonColor = commonColor;
-            m_callback = std::move(callback);
-
-            QImage target(1, 1, QImage::Format_ARGB32_Premultiplied);
-            QPainter painter(&target);
-            drawTimeline(&painter, startTick, endTick, width);
-        }
-
-    private:
-        void drawBar(QPainter *painter, const int tick, int) override {
-            emitLine(painter, tick, m_barColor);
-        }
-
-        void drawBeat(QPainter *painter, const int tick, int, int) override {
-            emitLine(painter, tick, m_beatColor);
-        }
-
-        void drawSubdivision(QPainter *painter, const int tick, const int level,
-                             const int levelCount) override {
-            const double ratio =
-                levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
-            emitLine(painter, tick, blendedColor(m_beatColor, m_commonColor, ratio));
-        }
-
-        void emitLine(QPainter *painter, const int tick, QColor color) const {
-            color.setAlphaF(color.alphaF() * painter->opacity());
-            if (m_callback)
-                m_callback(tick, color);
-        }
-
-        QColor m_barColor;
-        QColor m_beatColor;
-        QColor m_commonColor;
-        Callback m_callback;
-    };
 }
 
 class PianoRollRhiWidget::Private {
