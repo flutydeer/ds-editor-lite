@@ -412,10 +412,18 @@ EditorInteraction::Target EditorViewController::activeEditTarget() const {
     return m_activeEditTarget;
 }
 
-void EditorViewController::clearClipEditorEditTarget() {
-    if (m_activePanel != AppGlobal::ClipEditor)
+void EditorViewController::setClipEditorReadOnly(const bool readOnly) {
+    if (m_clipEditorReadOnly == readOnly)
         return;
-    setActiveEditTarget(EditorInteraction::Target::None);
+    m_clipEditorReadOnly = readOnly;
+    // The remembered target names a surface that is about to disappear, and the
+    // target in force right now may already be routed to it. Both have to go,
+    // whatever panel happened to be active when the clip changed
+    m_lastClipEditTarget = readOnly
+                               ? EditorInteraction::Target::None
+                               : EditorInteraction::defaultTargetForPanel(AppGlobal::ClipEditor);
+    if (readOnly && m_activePanel == AppGlobal::ClipEditor)
+        setActiveEditTarget(EditorInteraction::Target::None);
 }
 
 void EditorViewController::syncPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
@@ -454,9 +462,17 @@ bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
 
 void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
                                             const EditorInteraction::Target target) {
-    if (panel == AppGlobal::ClipEditor && (target == EditorInteraction::Target::PianoRoll ||
-                                           target == EditorInteraction::Target::Parameters)) {
-        m_lastClipEditTarget = target;
+    auto effectiveTarget = target;
+    if (panel == AppGlobal::ClipEditor) {
+        if (m_clipEditorReadOnly) {
+            // Nothing on a read-only clip editor page can be edited, and a request
+            // that still names the piano roll or the parameter editor must not
+            // revive a surface that is not on screen
+            effectiveTarget = EditorInteraction::Target::None;
+        } else if (target == EditorInteraction::Target::PianoRoll ||
+                   target == EditorInteraction::Target::Parameters) {
+            m_lastClipEditTarget = target;
+        }
     }
     if (m_activePanel != panel) {
         m_activePanel = panel;
@@ -464,7 +480,7 @@ void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
             registeredPanel->setPanelActive(registeredPanel->panelType() == panel);
         emit activePanelChanged(panel);
     }
-    setActiveEditTarget(target);
+    setActiveEditTarget(effectiveTarget);
 }
 
 void EditorViewController::setActiveEditTarget(const EditorInteraction::Target target) {

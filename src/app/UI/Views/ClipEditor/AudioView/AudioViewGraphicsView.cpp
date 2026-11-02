@@ -60,9 +60,13 @@ void AudioViewGraphicsView::setContent(const AudioViewContent &content) {
     rebuildLanes();
     applyContentToLanes();
 
+    // The scene is clip-local: scene x = 0 is the clip's first audible tick, so the
+    // material the view owns spans exactly the scroll range and the tick readouts
+    // stay global through the view offset
+    setOffset(content.contentStartTick());
     m_background->setChannelCount(content.isValid() ? content.channels() : 1);
-    m_clipRangeOverlay->setClipRange(content.contentStartTick(), content.clipLen);
-    setSceneLength(std::max(0, content.materialEndTick()));
+    m_clipRangeOverlay->setClipRange(0, content.clipLen);
+    setSceneLength(std::max(0, content.materialEndTick() - content.contentStartTick()));
     setSceneVisibility(content.isValid());
     positionViewportAtContent();
     updateHintAnimation();

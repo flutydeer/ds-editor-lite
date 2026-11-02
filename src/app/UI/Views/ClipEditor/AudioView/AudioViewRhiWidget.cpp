@@ -83,7 +83,13 @@ public:
             viewportPositionPending = true;
         content = newContent;
         rebuildSamplers();
-        viewport.setContentTickRange(0.0, std::max(0, content.materialEndTick()));
+        // The content range starts at the clip's first audible tick rather than at the
+        // timeline origin, so the scroll range covers the material and nothing else.
+        // The viewport keeps reporting global ticks, which is what the ruler, the
+        // playhead and the peak caches work in
+        viewport.setContentTickRange(
+            content.contentStartTick(),
+            std::max(content.contentStartTick(), content.materialEndTick()));
         updateScrollBars();
         // The ring only has to turn while the clip still has nothing to draw
         const auto loading =
@@ -264,6 +270,7 @@ public:
                 .horizontalScale = viewport.horizontalScale(),
                 .pixelsPerQuarterNote = pixelsPerQuarterNote,
                 .leftMarginPx = 0.0,
+                .sceneTickOffset = content.contentStartTick(),
                 .devicePixelRatio = dpr,
             });
             WaveformRhiUtils::appendWaveform(

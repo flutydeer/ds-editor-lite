@@ -271,6 +271,7 @@ void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_editorMode = EditorMode::Singing;
     m_hasActiveClip = true;
     m_placeholderLabel->setVisible(false);
+    editorViewController->setClipEditorReadOnly(false);
     m_audioView->setDataContext(nullptr);
     m_audioView->setVisible(false);
     m_pianoRollEditorView->setDataContext(clip);
@@ -285,9 +286,9 @@ void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     m_pianoRollEditorView->setDataContext(nullptr);
     m_pianoRollEditorView->setVisible(false);
     resetPianoRollViewportRange();
-    // Nothing in the audio view can be edited, so the edit commands must not
-    // stay routed to the piano roll that is no longer on screen
-    editorViewController->clearClipEditorEditTarget();
+    // Nothing in the audio view can be edited, so the page has no edit target at
+    // all, and re-activating it later must not bring the hidden piano roll back
+    editorViewController->setClipEditorReadOnly(true);
     m_audioView->setDataContext(clip);
     m_audioView->setVisible(clip != nullptr);
     // Position is only pushed on change, so a view that appears while playback is
@@ -299,6 +300,8 @@ void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
 void ClipEditorView::moveToNullClipState() const {
     m_editorMode = EditorMode::None;
     m_hasActiveClip = false;
+    // No clip is shown, so the page has nothing to edit either
+    editorViewController->setClipEditorReadOnly(true);
     m_pianoRollEditorView->setVisible(false);
     m_audioView->setDataContext(nullptr);
     m_audioView->setVisible(false);

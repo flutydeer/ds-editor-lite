@@ -24,6 +24,7 @@ private slots:
     void activePanels();
     void interactionRouting();
     void panelVisibilityRouting();
+    void readOnlyClipEditorDropsTheEditTarget();
     void visibleExecutesImmediately();
     void scrollRequiredExecutesOnSecondRequest();
     void redoUsesTwoPhases();

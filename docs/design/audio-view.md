@@ -16,7 +16,7 @@
 - 左右声道各自独立采样，不复用轨道剪辑的**下混**峰值缓存。下混缓存在轨道编辑器继续使用，行为不变。
 - 左侧固定宽度列显示 **dB 标尺**（`audioChannelAxisWidth = 64`，与钢琴卷帘的键盘列同宽，切换 clip 类型时画布不横向跳动）。标尺按车道分带，每带画自己的刻度与声道标记（`L` / `R` / `1` / `2`…）。
 - 时间标尺（`TimelineView`）与钢琴卷帘共用同一份实现，横向缩放/滚动由后端统一驱动。
-- 第一次显示某个剪辑时视口从素材**最左端**开始，两个后端都落在滚动条最左，之后保留用户自己的时间窗，刷新内容不会重置。
+- 第一次显示某个剪辑时视口从剪辑自己的左边缘开始，两个后端都落在滚动条最左。场景是**剪辑局部**的（x = 0 就是片段第一个可听 tick），所以滚动范围只覆盖素材本身，片段放在时间轴靠后位置也不会先看到一段空白画布。之后保留用户自己的时间窗，刷新内容不会重置。
 - 播放位置指示线跟着 `playbackController` 走，与钢琴卷帘、轨道列表同一路信号（`visualPositionChanged` / `lastPositionChanged`）。进入音频视图时还会补推一次 `position()` / `lastPosition()`，否则播放停止状态下切过来的视图会停在上一帧的旧位置。
 - **没东西可画的时候不留空白框**：`AudioDecodingController::loadState` 是状态的唯一来源（`Loading` / `Loaded` / `Missing`），两个后端都在画布中央画同一份提示——解码中画转圈圆环加「正在加载…」，文件缺失只画（减半透明的）「文件缺失」，文字与轨道编辑器里的剪辑提示共用同一套 `AudioClipView` 翻译条目。提示画在**整块可见画布**的中央，不是每条车道各画一份，这样立体声不会出现两个转圈。状态切换靠 `AudioDecodingController::loadStateChanged` 触发重取内容，因为解码结束只写 `audioInfo`，不碰剪辑自己的信号。
 
@@ -72,7 +72,9 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 ## 坐标系与车道几何
 
-视图偏移 = `clip->start()`，因此 `startTick()` / `endTick()` 是**全局** tick，场景 x 是**素材局部** tick `0..clip->length()`。采样时传 `materialStartTick = content.start`、`visibleStartTick = content.contentStartTick()`（= `start + clipStart`）。
+视图偏移 = `contentStartTick()`（剪辑第一个可听 tick 的全局位置），因此场景 x 是**剪辑局部** tick、`startTick()` / `endTick()` 仍是**全局** tick。场景跨度 = `contentStartTick()..materialEndTick()`：左端正好是第一个可听 tick，右端是整个素材（含被裁掉的尾部），所以滚动范围只有素材，`ClipRangeOverlay` 在局部坐标下拿到的是 `(0, clipLen)`。RHI 后端同理，把 `setContentTickRange` 的起点设成 `contentStartTick()`。
+
+采样器始终在**全局** tick 里工作（`materialStartTick = content.start`、`visibleStartTick = content.contentStartTick()`，tempo 映射与峰值缓存都按全局 tick 建），所以剪辑局部的场景要通过 `Request::sceneTickOffset`（场景 x = 0 对应的全局 tick）把像素换算回来的 tick 平移回全局。少了这一步，片段不在 0 处时波形会整体错位。
 
 `AudioLaneGeometry` 是车道行几何的唯一来源，标尺和波形必须用它算同一份矩形，否则左右列会错位：
 
@@ -95,7 +97,7 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 - `viewState()` 返回音频后端的 `centerTick` / `scaleX`，`centerKeyIndex = 60`、`verticalScale = 1`、`editMode = Select`——钢琴卷帘的垂直语义在音频视图没有意义，用常量占位，切回 singing clip 时会被真实值覆盖。
 - `focusedRegion()` 返回 `Region::None`（没有可编辑面）。
 - `regionVisible()` 仍转发给 `PianoRollEditorView` 的内部标志，不随可见性变化，因此 `captureEditorViewState` / `restoreEditorViewState` 往返后钢琴卷帘的布局不受影响。
-- `moveToAudioClipState` 调 `EditorViewController::clearClipEditorEditTarget()`，把活动编辑目标降为 `None`，剪切/复制/粘贴/删除不会落到已经隐藏的钢琴卷帘上。
+- `moveToAudioClipState` 与 `moveToNullClipState` 调 `EditorViewController::setClipEditorReadOnly(true)`，`moveToSingingClipState` 调 `false`。只读期间这一页没有可编辑目标：当前目标立刻降为 `None`，页重新激活时恢复的目标也是 `None`，所以点底部页标题栏不会再把已经隐藏的钢琴卷帘变回活动目标。`setActiveContext` 另外兜住任何仍指名钢琴卷帘或参数编辑器的请求，切回 singing clip 时恢复默认的钢琴卷帘目标。
 - 音频视图沿用 `Region::PianoRoll` 的画布归属，不新增 `Region` / `EditorInteraction::Target` 枚举值。
 
 ## 采样器通道分支
@@ -125,5 +127,8 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 ## 测试
 
-- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理，`audioViewStartsAtTheLeftEnd` 要求首次显示落在滚动条最左，`audioViewRhiTakesTouchGestures` 用合成触控验证 RHI 画布的单指拖动平移与双指捏合缩放。
+- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理，`audioViewStartsAtTheLeftEnd` 用起点在第 2 小节的片段要求首帧落在剪辑左边缘、`startTick()` 等于片段起点、滚动范围右端正好是素材末端，`audioViewRhiTakesTouchGestures` 用合成触控验证 RHI 画布的首帧位置、单指拖动平移与双指捏合缩放。
+- `TestAudioAssets/tst_waveform_sampling.cpp`：`waveformSamplingKeepsClipLocalScenesInGlobalTicks` 用同一份立体声素材比对全局场景与剪辑局部场景（`sceneTickOffset`）的采样结果，要求每列的样本值逐一相同、只有画布位置整体平移。少了这条，`sceneTickOffset` 的实现错误会表现为波形整体错位而不是崩溃。
+- `TestEditorInteraction/tst_controllers.cpp`：`readOnlyClipEditorDropsTheEditTarget` 要求只读的剪辑编辑页在重新激活时降为 `None`、剪切与删除不可用、`Region::PianoRoll` 请求被拒，切回可编辑后恢复钢琴卷帘目标。
 - `tst_track_editing.cpp`：音频 clip 拖动后 `activeClip()` / `appStatus->activeClipId` 的期望值由"不激活"翻转为"激活"。
+- `TestProcessIntegration/tst_mcp.cpp`：`documentLifecycle` 打开只含音频剪辑的工程后要求**激活该音频剪辑**（`DocumentWorkflowController` 在只有音频剪辑时激活第一个剪辑），原来的期望是"没有活动剪辑"，与新行为冲突。

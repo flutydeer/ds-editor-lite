@@ -256,8 +256,11 @@ void ApplicationGuiTests::audioLoadHintMapsTheLoadStates() {
              clipColor.alphaF() * 0.5) < 0.01);
 }
 
-// Both backends open a clip at the left end of the material. Centring would put the
-// first frame in the middle of the clip, which is not where it begins
+// Both backends open a clip at its own left edge. Centring would put the first
+// frame in the middle of the clip, and the scene starts at the clip's first
+// audible tick rather than at the timeline origin, so the tick readouts and the
+// scroll range both describe the clip and a clip that starts later does not open
+// on a blank stretch of canvas
 void ApplicationGuiTests::audioViewStartsAtTheLeftEnd() {
     AudioViewGraphicsScene scene;
     AudioViewGraphicsView view(&scene);
@@ -266,14 +269,24 @@ void ApplicationGuiTests::audioViewStartsAtTheLeftEnd() {
 
     AudioViewContent content;
     content.clipId = 1;
+    content.start = 1920;
     content.length = 480000;
     content.clipLen = 480000;
-    content.start = 0;
     content.loadState = AppGlobal::AudioClipLoadState::Loaded;
     view.setContent(content);
     QTest::qWait(120);
 
     QCOMPARE(view.horizontalScrollBar()->value(), view.horizontalScrollBar()->minimum());
+    QCOMPARE(view.startTick(), static_cast<double>(content.contentStartTick()));
+
+    // The scroll range is the material and nothing else: its far end is the end
+    // of the material in global ticks, not the clip length added to the origin
+    view.horizontalScrollBar()->setValue(view.horizontalScrollBar()->maximum());
+    QTest::qWait(50);
+    QVERIFY2(std::abs(view.endTick() - content.materialEndTick()) < 1.0,
+             qPrintable(QStringLiteral("endTick=%1 materialEnd=%2")
+                            .arg(view.endTick())
+                            .arg(content.materialEndTick())));
 }
 
 // The RHI canvas is view-only, but a finger still has to pan and pinch it, the same
@@ -288,12 +301,15 @@ void ApplicationGuiTests::audioViewRhiTakesTouchGestures() {
     content.clipId = 1;
     content.length = 480000;
     content.clipLen = 480000;
-    content.start = 0;
+    content.start = 1920;
     content.loadState = AppGlobal::AudioClipLoadState::Loaded;
     view.setContent(content);
     QTest::qWait(200);
 
+    // The RHI canvas opens on the clip's own left edge too, and its scroll bar
+    // cannot leave the material
     QCOMPARE(view.horizontalBarValue(), 0);
+    QCOMPARE(view.startTick(), static_cast<double>(content.contentStartTick()));
 
     // One finger travelling left drags the material along, so the bar leaves the left end
     auto *device = QTest::createTouchDevice();

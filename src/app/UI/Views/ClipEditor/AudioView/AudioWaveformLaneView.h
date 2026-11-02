@@ -28,7 +28,9 @@ public:
     void setTimeline(const Timeline &timeline);
     void setPath(const QString &path);
     void setLoadState(AppGlobal::AudioClipLoadState state);
-    // Absolute ticks of the material origin and of the clip's first audible tick
+    // Absolute ticks of the material origin and of the clip's first audible tick,
+    // which is also where this view's scene starts (the scene is clip-local, so
+    // the sampler needs it to keep converting pixels into global ticks)
     void setMaterialTicks(int materialStartTick, int visibleStartTick);
     void setTrackColorIndex(int index);
     void setCenterLineColor(const QColor &color);

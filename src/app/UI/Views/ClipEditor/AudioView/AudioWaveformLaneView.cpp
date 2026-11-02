@@ -123,6 +123,7 @@ void AudioWaveformLaneView::paint(QPainter *painter, const QStyleOptionGraphicsI
         .horizontalScale = scaleX(),
         .pixelsPerQuarterNote = static_cast<double>(pixelsPerQuarterNote),
         .leftMarginPx = 0.0,
+        .sceneTickOffset = m_visibleStartTick,
         .devicePixelRatio = painter->deviceTransform().m11(),
     });
 

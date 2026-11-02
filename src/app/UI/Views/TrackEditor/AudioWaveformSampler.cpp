@@ -65,13 +65,11 @@ AudioWaveformSampler::Result AudioWaveformSampler::sample(const Request &request
     if (m_cacheKey == cacheKey)
         return m_cachedResult;
 
-    const auto ticksPerScenePixel =
-        AppGlobal::ticksPerQuarterNote / (request.horizontalScale * request.pixelsPerQuarterNote);
     const auto samplesPerTick = static_cast<double>(request.audioInfo->sampleRate) * 60.0 /
                                 request.timeline->tempoAt(request.visibleStartTick) /
                                 AppGlobal::ticksPerQuarterNote;
     const auto samplesPerDevicePixel =
-        ticksPerScenePixel * samplesPerTick / request.devicePixelRatio;
+        ticksPerScenePixel(request) * samplesPerTick / request.devicePixelRatio;
 
     Result result;
     if (samplesPerDevicePixel > request.audioInfo->chunkSize)
@@ -107,9 +105,23 @@ AudioWaveformSampler::CacheKey AudioWaveformSampler::makeCacheKey(const Request 
         .horizontalScale = request.horizontalScale,
         .pixelsPerQuarterNote = request.pixelsPerQuarterNote,
         .leftMarginPx = request.leftMarginPx,
+        .sceneTickOffset = request.sceneTickOffset,
         .devicePixelRatio = request.devicePixelRatio,
         .amplitudeScale = request.amplitudeScale,
     };
+}
+
+double AudioWaveformSampler::ticksPerScenePixel(const Request &request) {
+    return AppGlobal::ticksPerQuarterNote /
+           (request.horizontalScale * request.pixelsPerQuarterNote);
+}
+
+double AudioWaveformSampler::sceneXToTick(const Request &request, const double sceneX) {
+    return (sceneX - request.leftMarginPx) * ticksPerScenePixel(request) + request.sceneTickOffset;
+}
+
+double AudioWaveformSampler::tickToSceneX(const Request &request, const double tick) {
+    return (tick - request.sceneTickOffset) / ticksPerScenePixel(request) + request.leftMarginPx;
 }
 
 bool AudioWaveformSampler::ensureIO() {
@@ -167,8 +179,6 @@ AudioWaveformSampler::Result AudioWaveformSampler::samplePeakMode(const Request 
     if (drawLeftScene >= drawRightScene)
         return {};
 
-    const auto ticksPerScenePixel =
-        AppGlobal::ticksPerQuarterNote / (request.horizontalScale * request.pixelsPerQuarterNote);
     const auto deviceScale = request.devicePixelRatio;
     const auto drawLeftLocal = drawLeftScene - request.previewSceneRect.left();
     const auto drawRightLocal = drawRightScene - request.previewSceneRect.left();
@@ -182,17 +192,15 @@ AudioWaveformSampler::Result AudioWaveformSampler::samplePeakMode(const Request 
     const auto centerY = request.previewSceneRect.top() + halfHeight;
     const auto peakCount = peakData.size();
     auto previousChunkPos =
-        tickToSamplePos(request, (request.previewSceneRect.left() + deviceStart / deviceScale -
-                                  request.leftMarginPx) *
-                                     ticksPerScenePixel) /
+        tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                           deviceStart / deviceScale)) /
         framesPerChunk;
 
     for (auto deviceX = deviceStart; deviceX <= deviceEnd; ++deviceX) {
         const auto localX = deviceX / deviceScale;
         const auto nextChunkPos =
-            tickToSamplePos(request, (request.previewSceneRect.left() +
-                                      (deviceX + 1) / deviceScale - request.leftMarginPx) *
-                                         ticksPerScenePixel) /
+            tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                               (deviceX + 1) / deviceScale)) /
             framesPerChunk;
         const auto chunkPos = previousChunkPos;
         previousChunkPos = nextChunkPos;
@@ -236,8 +244,6 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
         return {};
 
     const auto &info = *request.audioInfo;
-    const auto ticksPerScenePixel =
-        AppGlobal::ticksPerQuarterNote / (request.horizontalScale * request.pixelsPerQuarterNote);
     const auto deviceScale = request.devicePixelRatio;
     const auto drawLeftLocal = drawLeftScene - request.previewSceneRect.left();
     const auto drawRightLocal = drawRightScene - request.previewSceneRect.left();
@@ -245,13 +251,11 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
     const auto deviceEnd = static_cast<int>(std::ceil(drawRightLocal * deviceScale));
 
     auto sampleStart = static_cast<qint64>(
-        std::floor(tickToSamplePos(request, (request.previewSceneRect.left() +
-                                             deviceStart / deviceScale - request.leftMarginPx) *
-                                                ticksPerScenePixel)));
-    auto sampleEnd = static_cast<qint64>(
-        std::ceil(tickToSamplePos(request, (request.previewSceneRect.left() +
-                                            (deviceEnd + 1) / deviceScale - request.leftMarginPx) *
-                                               ticksPerScenePixel)));
+        std::floor(tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                                      deviceStart / deviceScale))));
+    auto sampleEnd = static_cast<qint64>(std::ceil(tickToSamplePos(
+        request,
+        sceneXToTick(request, request.previewSceneRect.left() + (deviceEnd + 1) / deviceScale))));
     sampleStart = std::max(sampleStart, qint64(0));
     sampleEnd = std::min(sampleEnd, info.frames);
     if (sampleEnd <= sampleStart || info.channels <= 0)
@@ -272,16 +276,14 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
     const auto lane = request.channel;
     const auto useLane = lane >= 0 && lane < info.channels;
     auto previousSamplePos =
-        tickToSamplePos(request, (request.previewSceneRect.left() + deviceStart / deviceScale -
-                                  request.leftMarginPx) *
-                                     ticksPerScenePixel);
+        tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                           deviceStart / deviceScale));
 
     for (auto deviceX = deviceStart; deviceX <= deviceEnd; ++deviceX) {
         const auto localX = deviceX / deviceScale;
         const auto nextSamplePos =
-            tickToSamplePos(request, (request.previewSceneRect.left() +
-                                      (deviceX + 1) / deviceScale - request.leftMarginPx) *
-                                         ticksPerScenePixel);
+            tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                               (deviceX + 1) / deviceScale));
         const auto samplePos = previousSamplePos;
         previousSamplePos = nextSamplePos;
         if (localX < 0.0 || localX > request.previewSceneRect.width())
@@ -330,21 +332,16 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
     const auto &info = *request.audioInfo;
     if (info.channels <= 0)
         return {};
-    const auto ticksPerScenePixel =
-        AppGlobal::ticksPerQuarterNote / (request.horizontalScale * request.pixelsPerQuarterNote);
     const auto deviceScale = request.devicePixelRatio;
     const auto drawLeftLocal = drawLeftScene - request.previewSceneRect.left();
     const auto drawRightLocal = drawRightScene - request.previewSceneRect.left();
     const auto deviceStart = static_cast<int>(std::floor(drawLeftLocal * deviceScale));
     const auto deviceEnd = static_cast<int>(std::ceil(drawRightLocal * deviceScale));
     const auto firstSamplePos =
-        tickToSamplePos(request, (request.previewSceneRect.left() + deviceStart / deviceScale -
-                                  request.leftMarginPx) *
-                                     ticksPerScenePixel);
-    const auto lastSamplePos =
-        tickToSamplePos(request, (request.previewSceneRect.left() + deviceEnd / deviceScale -
-                                  request.leftMarginPx) *
-                                     ticksPerScenePixel);
+        tickToSamplePos(request, sceneXToTick(request, request.previewSceneRect.left() +
+                                                           deviceStart / deviceScale));
+    const auto lastSamplePos = tickToSamplePos(
+        request, sceneXToTick(request, request.previewSceneRect.left() + deviceEnd / deviceScale));
     auto sampleStart = static_cast<qint64>(std::floor(firstSamplePos)) - kSincHalfKernel;
     auto sampleEnd = static_cast<qint64>(std::ceil(lastSamplePos)) + kSincHalfKernel;
     sampleStart = std::max(sampleStart, qint64(0));
@@ -382,11 +379,9 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
     const auto centerY = request.previewSceneRect.top() + halfHeight;
     auto linearlySpacedSamples = true;
     const auto firstTick =
-        (request.previewSceneRect.left() + deviceStart / deviceScale - request.leftMarginPx) *
-        ticksPerScenePixel;
+        sceneXToTick(request, request.previewSceneRect.left() + deviceStart / deviceScale);
     const auto lastTick =
-        (request.previewSceneRect.left() + deviceEnd / deviceScale - request.leftMarginPx) *
-        ticksPerScenePixel;
+        sceneXToTick(request, request.previewSceneRect.left() + deviceEnd / deviceScale);
     const auto tempo = request.timeline->tempoAt(firstTick);
     for (const auto &tempoPoint : request.timeline->tempos()) {
         if (tempoPoint.pos > firstTick && tempoPoint.pos <= lastTick && tempoPoint.value != tempo) {
@@ -403,7 +398,7 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
         const auto samplePos =
             linearlySpacedSamples && pointCount > 1
                 ? firstSamplePos + (lastSamplePos - firstSamplePos) * index / (pointCount - 1)
-                : tickToSamplePos(request, (sceneX - request.leftMarginPx) * ticksPerScenePixel);
+                : tickToSamplePos(request, sceneXToTick(request, sceneX));
         const auto value = sincInterpolate(monoSamples, sampleStart, info.frames, samplePos);
         result.curve.append(
             {sceneX, centerY - WaveformRenderUtils::mapAmplitude(value, request.amplitudeScale) *
@@ -425,9 +420,7 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
         const auto bufferIndex = static_cast<int>(sampleIndex - sampleStart);
         if (bufferIndex < 0 || bufferIndex >= monoSamples.size())
             continue;
-        const auto sceneX =
-            samplePosToTick(request, static_cast<double>(sampleIndex)) / ticksPerScenePixel +
-            request.leftMarginPx;
+        const auto sceneX = tickToSceneX(request, samplePosToTick(request, sampleIndex));
         if (sceneX < request.previewSceneRect.left() || sceneX > request.previewSceneRect.right()) {
             continue;
         }

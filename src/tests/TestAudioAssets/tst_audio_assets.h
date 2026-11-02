@@ -49,6 +49,7 @@ private slots:
     void decodedWaveformRetainsPeaks();
     void waveformSamplingFollowsZoom_data();
     void waveformSamplingFollowsZoom();
+    void waveformSamplingKeepsClipLocalScenesInGlobalTicks();
     void waveformSamplingRefreshesSourceAndTempo();
     void loadStateCoversPathResolution();
     void loadStateStaysLoadingAcrossTheResolveHandoff();
