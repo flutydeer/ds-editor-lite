@@ -21,8 +21,8 @@ class AudioViewRhiWidget final : public EditorRhiWidget, public EditorTouchTarge
     Q_OBJECT
     Q_PROPERTY(QColor laneBackgroundColor READ laneBackgroundColor WRITE setLaneBackgroundColor)
     Q_PROPERTY(QColor laneSeparatorColor READ laneSeparatorColor WRITE setLaneSeparatorColor)
-    Q_PROPERTY(
-        QColor waveformCenterLineColor READ waveformCenterLineColor WRITE setWaveformCenterLineColor)
+    Q_PROPERTY(QColor waveformCenterLineColor READ waveformCenterLineColor WRITE
+                   setWaveformCenterLineColor)
     Q_PROPERTY(
         QColor clipRangeOverlayColor READ clipRangeOverlayColor WRITE setClipRangeOverlayColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
@@ -65,6 +65,7 @@ signals:
     void backendUnavailable();
 
 protected:
+    bool event(QEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;

@@ -1,6 +1,9 @@
 #include "tst_application_gui.h"
 
 #include "UI/Views/ClipEditor/AudioView/AudioDbAxis.h"
+#include "UI/Views/ClipEditor/AudioView/AudioViewGraphicsScene.h"
+#include "UI/Views/ClipEditor/AudioView/AudioViewGraphicsView.h"
+#include "UI/Views/ClipEditor/AudioView/AudioViewRhiWidget.h"
 #include "UI/Views/Common/AudioLoadHint.h"
 #include "UI/Views/ClipEditor/AudioView/AudioView.h"
 #include "UI/Views/TrackEditor/AudioWaveformSampler.h"
@@ -22,11 +25,14 @@
 #include "../TestSupport/WaveFixture.h"
 
 #include <QCoreApplication>
+#include <QScrollBar>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest/QTest>
 
 #include <cmath>
 #include <numbers>
+
 namespace {
     QList<double> finiteDbs(const QVector<AudioDbAxis::Tick> &ticks) {
         QList<double> result;
@@ -83,14 +89,12 @@ void ApplicationGuiTests::audioDbAxisTickLadderFollowsTheLaneHeight() {
     for (const auto &tick : tall) {
         if (tick.infinite)
             continue;
-        QVERIFY(std::abs(tick.distanceFromCenter - std::pow(10.0, tick.db / 20.0) * 200.0) <
-                1e-9);
+        QVERIFY(std::abs(tick.distanceFromCenter - std::pow(10.0, tick.db / 20.0) * 200.0) < 1e-9);
     }
 
     QCOMPARE(finiteDbs(AudioDbAxis::buildTicks(100.0, 12)),
              QList<double>({0.0, -3.0, -6.0, -9.0, -15.0}));
-    QCOMPARE(finiteDbs(AudioDbAxis::buildTicks(60.0, 12)),
-             QList<double>({0.0, -3.0, -6.0, -12.0}));
+    QCOMPARE(finiteDbs(AudioDbAxis::buildTicks(60.0, 12)), QList<double>({0.0, -3.0, -6.0, -12.0}));
     // -3 lands too close to 0 to carry a label, and the next step that fits is
     // -6: the ruler thins out by skipping, never by squeezing
     QCOMPARE(finiteDbs(AudioDbAxis::buildTicks(25.0, 12)), QList<double>({0.0, -6.0}));
@@ -226,8 +230,7 @@ void ApplicationGuiTests::audioViewDrawsThePlaybackPosition() {
             if (after.pixel(x, y) != before.pixel(x, y))
                 changed++;
         }
-        bestColumnShare =
-            std::max(bestColumnShare, static_cast<double>(changed) / after.height());
+        bestColumnShare = std::max(bestColumnShare, static_cast<double>(changed) / after.height());
     }
     QVERIFY(bestColumnShare > 0.8);
 }
@@ -251,4 +254,68 @@ void ApplicationGuiTests::audioLoadHintMapsTheLoadStates() {
     QVERIFY(
         qAbs(AudioLoadHint::colorFor(AppGlobal::AudioClipLoadState::Missing, clipColor).alphaF() -
              clipColor.alphaF() * 0.5) < 0.01);
+}
+
+// Both backends open a clip at the left end of the material. Centring would put the
+// first frame in the middle of the clip, which is not where it begins
+void ApplicationGuiTests::audioViewStartsAtTheLeftEnd() {
+    AudioViewGraphicsScene scene;
+    AudioViewGraphicsView view(&scene);
+    view.resize(600, 200);
+    view.show();
+
+    AudioViewContent content;
+    content.clipId = 1;
+    content.length = 480000;
+    content.clipLen = 480000;
+    content.start = 0;
+    content.loadState = AppGlobal::AudioClipLoadState::Loaded;
+    view.setContent(content);
+    QTest::qWait(120);
+
+    QCOMPARE(view.horizontalScrollBar()->value(), view.horizontalScrollBar()->minimum());
+}
+
+// The RHI canvas is view-only, but a finger still has to pan and pinch it, the same
+// way it moves the piano roll and the arrangement
+void ApplicationGuiTests::audioViewRhiTakesTouchGestures() {
+    AudioViewRhiWidget view;
+    view.resize(600, 200);
+    view.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&view));
+
+    AudioViewContent content;
+    content.clipId = 1;
+    content.length = 480000;
+    content.clipLen = 480000;
+    content.start = 0;
+    content.loadState = AppGlobal::AudioClipLoadState::Loaded;
+    view.setContent(content);
+    QTest::qWait(200);
+
+    QCOMPARE(view.horizontalBarValue(), 0);
+
+    // One finger travelling left drags the material along, so the bar leaves the left end
+    auto *device = QTest::createTouchDevice();
+    auto pan = QTest::touchEvent(&view, device, false);
+    pan.press(0, QPoint(500, 100)).commit(false);
+    pan.move(0, QPoint(400, 100)).commit(false);
+    pan.move(0, QPoint(300, 100)).commit(false);
+    pan.release(0, QPoint(300, 100)).commit(false);
+    QTest::qWait(80);
+    QVERIFY2(view.horizontalBarValue() > 0,
+             qPrintable(QStringLiteral("bar=%1").arg(view.horizontalBarValue())));
+
+    // Two fingers spreading apart widen the time axis
+    const auto before = view.scaleX();
+    auto pinch = QTest::touchEvent(&view, device, false);
+    pinch.press(0, QPoint(250, 100)).commit(false);
+    pinch.press(1, QPoint(350, 100)).commit(false);
+    pinch.move(0, QPoint(150, 100)).commit(false);
+    pinch.move(1, QPoint(450, 100)).commit(false);
+    pinch.release(0, QPoint(150, 100)).commit(false);
+    pinch.release(1, QPoint(450, 100)).commit(false);
+    QTest::qWait(80);
+    QVERIFY2(view.scaleX() > before,
+             qPrintable(QStringLiteral("before=%1 after=%2").arg(before).arg(view.scaleX())));
 }

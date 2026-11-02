@@ -34,8 +34,8 @@ public:
     [[nodiscard]] double viewCenterTick() const;
     bool centerAt(double center);
     bool setTimeViewport(double center, double horizontalScale);
-    // Centres the viewport on the audible part of the clip the first time the
-    // view is shown, and keeps the current time window afterwards
+    // Puts the viewport at the left end of the material the first time a clip is
+    // shown, and keeps the current time window afterwards
     void positionViewportAtContent();
 
     QColor laneBackgroundColor() const;

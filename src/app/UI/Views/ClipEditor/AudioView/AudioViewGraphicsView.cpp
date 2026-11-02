@@ -11,6 +11,7 @@
 #include "UI/Views/Common/AudioLoadHint.h"
 
 #include <QResizeEvent>
+#include <QScrollBar>
 #include <QTimer>
 
 #include <cmath>
@@ -63,6 +64,7 @@ void AudioViewGraphicsView::setContent(const AudioViewContent &content) {
     m_clipRangeOverlay->setClipRange(content.contentStartTick(), content.clipLen);
     setSceneLength(std::max(0, content.materialEndTick()));
     setSceneVisibility(content.isValid());
+    positionViewportAtContent();
     updateHintAnimation();
 }
 
@@ -165,8 +167,9 @@ void AudioViewGraphicsView::positionViewportAtContent() {
     if (!m_content.isValid() || m_viewportPositioned || viewport()->width() <= 0)
         return;
     m_viewportPositioned = true;
-    const auto contentCenter = (m_content.contentStartTick() + m_content.contentEndTick()) * 0.5;
-    centerAt(contentCenter);
+    // The clip is the whole content, so the first frame starts at its left end. Centring
+    // would land in the middle of the material, which is not where the clip begins
+    horizontalScrollBar()->setValue(horizontalScrollBar()->minimum());
     notifyVisibleRectChanged();
 }
 

@@ -11,11 +11,12 @@
 ## 行为约定
 
 - 选中音频 clip 后，底部「编辑」页在**同一个页面内**切换到音频查看视图（不是新开页），工具栏只剩分组 `clipInfoGroup`（剪辑名编辑），音符工具组、量化组、自动翻页组连同它们两侧的分隔一起隐藏。
-- 音频视图**纯查看**：不接受鼠标点击、不产生编辑、不显示右键菜单，波形上方的滚轮行为与钢琴卷帘一致（滚轮横向滚动、Ctrl+滚轮横向缩放）。
+- 音频视图**纯查看**：不接受鼠标点击、不产生编辑、不显示右键菜单，波形上方的滚轮行为与钢琴卷帘一致（滚轮横向滚动、Ctrl+滚轮横向缩放）。触控与钢琴卷帘同一条手势层：单指拖动平移、双指捏合缩放，单指轻点不选中也不编辑。
 - **多声道分道显示**：单声道一条车道，立体声上下两条（左/右），超过两条按序号。车道数 = `max(1, audioInfo.channels)`，车道高度 = 画布高度 / 车道数，始终铺满视口，没有纵向缩放和纵向滚动。
 - 左右声道各自独立采样，不复用轨道剪辑的**下混**峰值缓存。下混缓存在轨道编辑器继续使用，行为不变。
 - 左侧固定宽度列显示 **dB 标尺**（`audioChannelAxisWidth = 64`，与钢琴卷帘的键盘列同宽，切换 clip 类型时画布不横向跳动）。标尺按车道分带，每带画自己的刻度与声道标记（`L` / `R` / `1` / `2`…）。
 - 时间标尺（`TimelineView`）与钢琴卷帘共用同一份实现，横向缩放/滚动由后端统一驱动。
+- 第一次显示某个剪辑时视口从素材**最左端**开始，两个后端都落在滚动条最左，之后保留用户自己的时间窗，刷新内容不会重置。
 - 播放位置指示线跟着 `playbackController` 走，与钢琴卷帘、轨道列表同一路信号（`visualPositionChanged` / `lastPositionChanged`）。进入音频视图时还会补推一次 `position()` / `lastPosition()`，否则播放停止状态下切过来的视图会停在上一帧的旧位置。
 - **没东西可画的时候不留空白框**：`AudioDecodingController::loadState` 是状态的唯一来源（`Loading` / `Loaded` / `Missing`），两个后端都在画布中央画同一份提示——解码中画转圈圆环加「正在加载…」，文件缺失只画（减半透明的）「文件缺失」，文字与轨道编辑器里的剪辑提示共用同一套 `AudioClipView` 翻译条目。提示画在**整块可见画布**的中央，不是每条车道各画一份，这样立体声不会出现两个转圈。状态切换靠 `AudioDecodingController::loadStateChanged` 触发重取内容，因为解码结束只写 `audioInfo`，不碰剪辑自己的信号。
 
@@ -124,5 +125,5 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 ## 测试
 
-- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理。
+- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理，`audioViewStartsAtTheLeftEnd` 要求首次显示落在滚动条最左，`audioViewRhiTakesTouchGestures` 用合成触控验证 RHI 画布的单指拖动平移与双指捏合缩放。
 - `tst_track_editing.cpp`：音频 clip 拖动后 `activeClip()` / `appStatus->activeClipId` 的期望值由"不激活"翻转为"激活"。

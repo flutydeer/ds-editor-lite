@@ -143,6 +143,8 @@ private slots:
     void audioWaveformSamplerUsesTheRequestedChannelLane();
     void audioViewDrawsThePlaybackPosition();
     void audioLoadHintMapsTheLoadStates();
+    void audioViewStartsAtTheLeftEnd();
+    void audioViewRhiTakesTouchGestures();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();

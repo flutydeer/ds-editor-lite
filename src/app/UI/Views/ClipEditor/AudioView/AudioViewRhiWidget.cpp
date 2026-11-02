@@ -10,6 +10,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 #include "UI/Views/Common/TimelineLineEmitter.h"
@@ -110,8 +111,9 @@ public:
         if (!content.isValid() || !viewportPositionPending || q->width() <= 0)
             return;
         viewportPositionPending = false;
-        const auto center = (content.contentStartTick() + content.contentEndTick()) * 0.5;
-        viewport.centerAt(center, 0.0);
+        // The clip is the whole content, so the first frame starts at its left end. Centring
+        // would land in the middle of the material, which is not where the clip begins
+        viewport.setOffset({0.0, viewport.verticalOffset()});
     }
 
     void scheduleSnapshot() {
@@ -350,6 +352,7 @@ public:
     AudioViewContent content;
     std::vector<std::unique_ptr<AudioWaveformSampler>> samplers;
     EditorGlyphAtlas glyphAtlas;
+    EditorTouchController *touchController = nullptr;
     // Turns the loading ring, stopped as soon as the clip has something to draw
     QTimer hintTicker;
 
@@ -377,7 +380,15 @@ public:
 AudioViewRhiWidget::AudioViewRhiWidget(QWidget *parent)
     : EditorRhiWidget(QStringLiteral("AudioViewRhi"), parent), d(std::make_unique<Private>(this)) {
     setObjectName(QStringLiteral("AudioViewRhiWidget"));
+    // Without this the platform turns fingers into mouse events and the touch controller
+    // never sees a gesture, so pinch and two-finger pan would do nothing
+    setAttribute(Qt::WA_AcceptTouchEvents);
     d->initializeScrollBars();
+    // Two-finger pan and pinch, and a one-finger drag that pans: the canvas is
+    // view-only, so no finger ever edits it. Creating it here rather than inside
+    // Private matters: parenting a QObject sends the widget an event, and during
+    // Private's construction the d member is not assigned yet
+    d->touchController = new EditorTouchController(this, this);
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { emit backendUnavailable(); });
     connect(appModel, &AppModel::timelineChanged, this, [this] { d->scheduleSnapshot(); });
@@ -497,6 +508,16 @@ EditorTouchTarget::BlankDragAction AudioViewRhiWidget::touchBlankDragAction() co
 
 bool AudioViewRhiWidget::touchFingerEdits() const {
     return false;
+}
+
+bool AudioViewRhiWidget::event(QEvent *event) {
+    // The gesture layer sees a touch stream before anything else can turn it into
+    // a mouse event, and a window that loses focus ends whatever gesture was running
+    if (d->touchController && d->touchController->handleEvent(event))
+        return true;
+    if (event->type() == QEvent::WindowDeactivate && d->touchController)
+        d->touchController->cancel();
+    return EditorRhiWidget::event(event);
 }
 
 void AudioViewRhiWidget::showEvent(QShowEvent *event) {
