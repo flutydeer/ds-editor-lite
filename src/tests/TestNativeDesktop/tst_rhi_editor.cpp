@@ -2,6 +2,7 @@
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "../TestSupport/PointerEvents.h"
+#include "../TestSupport/ParameterValues.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -1517,17 +1518,17 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
     Automation::CurveDraftDto first;
     first.type = Automation::CurveDraftDto::Type::Anchor;
     first.nodes = {
-        {480,                       6000,                       AnchorNode::Hermite},
-        {960,                       6300,                       AnchorNode::Hermite},
-        {edgeScroll ? 10000 : 1440, acrossCurves ? 6400 : 6000, AnchorNode::None   }
+        {480,                       TestSupport::pitchValue(6000), AnchorNode::Hermite},
+        {960,                       TestSupport::pitchValue(6300), AnchorNode::Hermite},
+        {edgeScroll ? 10000 : 1440, acrossCurves ? TestSupport::pitchValue(6400) : TestSupport::pitchValue(6000), AnchorNode::None}
     };
     QList<Automation::CurveDraftDto> curves{first};
     if (acrossCurves) {
         auto second = first;
         second.nodes = {
-            {1920, 6000, AnchorNode::Hermite},
-            {2400, 6300, AnchorNode::Hermite},
-            {2880, 6400, AnchorNode::None   }
+            {1920, TestSupport::pitchValue(6000), AnchorNode::Hermite},
+            {2400, TestSupport::pitchValue(6300), AnchorNode::Hermite},
+            {2880, TestSupport::pitchValue(6400), AnchorNode::None}
         };
         curves.append(second);
     }
@@ -1664,7 +1665,7 @@ void NativeDesktopTests::rhiAnchorSelectionMovesTheGroupAtomically() {
         const auto actual = moved.value(it.key());
         if (selected.contains(it.key())) {
             QCOMPARE(actual.first - it.value().first, delta);
-            QCOMPARE(actual.second - it.value().second, 100);
+            QCOMPARE(actual.second - it.value().second, TestSupport::pitchValue(100));
         } else {
             QCOMPARE(actual, it.value());
         }
@@ -1696,15 +1697,15 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     Automation::CurveDraftDto draft;
     draft.type = Automation::CurveDraftDto::Type::Anchor;
     draft.nodes = {
-        {480,  6000, AnchorNode::Hermite},
-        {1440, 6000, AnchorNode::None   }
+        {480,  TestSupport::pitchValue(6000), AnchorNode::Hermite},
+        {1440, TestSupport::pitchValue(6000), AnchorNode::None}
     };
     QList<Automation::CurveDraftDto> curves{draft};
     if (crossCurve) {
         auto target = draft;
         target.nodes = {
-            {1920, 6000, AnchorNode::Hermite},
-            {2880, 6000, AnchorNode::None   }
+            {1920, TestSupport::pitchValue(6000), AnchorNode::Hermite},
+            {2880, TestSupport::pitchValue(6000), AnchorNode::None}
         };
         curves.append(target);
     }
@@ -1729,7 +1730,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     const auto *inserted = anchorCurve()->nodes().toList().at(1);
     const auto tickPerPixel = (canvas.endTick() - canvas.startTick()) / canvas.width();
     QVERIFY(qAbs(inserted->pos() - 960) <= tickPerPixel);
-    QCOMPARE(inserted->value(), 6200);
+    QCOMPARE(inserted->value(), TestSupport::pitchValue(6200));
     const auto insertedTick = inserted->pos();
     const auto insertedId = inserted->id();
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
@@ -1749,7 +1750,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     QCOMPARE(anchorCurve()->nodes().count(), 4);
     const auto appendedNodes = anchorCurve()->nodes().toList();
     QVERIFY(qAbs(appendedNodes.last()->pos() - 1680) <= tickPerPixel);
-    QCOMPARE(appendedNodes.last()->value(), 6100);
+    QCOMPARE(appendedNodes.last()->value(), TestSupport::pitchValue(6100));
     QCOMPARE(appendedNodes.last()->interpMode(), AnchorNode::None);
     QCOMPARE(appendedNodes.at(2)->interpMode(), AnchorNode::Hermite);
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
@@ -1767,7 +1768,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         return;
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(inserted->pos(), insertedTick);
-    QCOMPARE(inserted->value(), 6200);
+    QCOMPARE(inserted->value(), TestSupport::pitchValue(6200));
     QTest::keyClick(&canvas, Qt::Key_Escape);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
     QVERIFY(!editSessionManager->hasActiveTransaction());
@@ -1776,7 +1777,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     const auto *restored = anchorCurve()->nodes().toList().at(1);
     QCOMPARE(restored->id(), insertedId);
     QCOMPARE(restored->pos(), insertedTick);
-    QCOMPARE(restored->value(), 6200);
+    QCOMPARE(restored->value(), TestSupport::pitchValue(6200));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
@@ -1797,7 +1798,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         const auto *moved = target->nodes().toList().at(1);
         QCOMPARE(moved->id(), insertedId);
         QVERIFY(qAbs(moved->pos() - targetTick) <= tickPerPixel);
-        QCOMPARE(moved->value(), 6100);
+        QCOMPARE(moved->value(), TestSupport::pitchValue(6100));
         QVERIFY(fixture.runtime().history().undo(fixture.command()));
         QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
 
@@ -1823,7 +1824,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         const auto mergedNodes = anchorCurve()->nodes().toList();
         QCOMPARE(mergedNodes.size(), nodeIds.size());
         const QList<int> ticks{480, insertedTick, 1440, 1920, 2880};
-        const QList<int> values{6000, 6200, 6000, 6000, 6000};
+        const QList<int> values{TestSupport::pitchValue(6000), TestSupport::pitchValue(6200), TestSupport::pitchValue(6000), TestSupport::pitchValue(6000), TestSupport::pitchValue(6000)};
         for (int index = 0; index < mergedNodes.size(); ++index) {
             QCOMPARE(mergedNodes[index]->id(), nodeIds[index]);
             QCOMPARE(mergedNodes[index]->pos(), ticks[index]);
@@ -2301,9 +2302,9 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         return;
     auto &canvas = *fixture.canvas;
     Automation::CurveDraftDto original;
-    original.values = QList<int>(385, 6000);
+    original.values = QList<int>(385, TestSupport::pitchValue(6000));
     auto edited = original;
-    edited.values.fill(6100);
+    edited.values.fill(TestSupport::pitchValue(6100));
     const auto clipId = Automation::ClipId(fixture.clip->id());
     QVERIFY(fixture.runtime().parameters().replaceParameter(
         fixture.command(), clipId, ParamInfo::Pitch, Param::Original, {original}));
@@ -2412,14 +2413,16 @@ void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
         QVERIFY(sampleAt(720));
         // Integer mouse positions limit precision to one pixel of the pitch scale.
         const auto centsPerPixel = 100.0 / (ClipEditorGlobal::noteHeight * canvas.scaleY());
-        QVERIFY(qAbs(*sampleAt(720) - 6200) <= centsPerPixel);
+        const auto valuePerPixel =
+            centsPerPixel * (static_cast<double>(TestSupport::ParameterMaximum) / 12'800.0);
+        QVERIFY(qAbs(*sampleAt(720) - TestSupport::pitchValue(6200)) <= valuePerPixel);
     };
-    QCOMPARE(sampleAt(200), std::optional<int>(6100));
-    QCOMPARE(sampleAt(1500), std::optional<int>(6100));
+    QCOMPARE(sampleAt(200), std::optional<int>(TestSupport::pitchValue(6100)));
+    QCOMPARE(sampleAt(1500), std::optional<int>(TestSupport::pitchValue(6100)));
     if (mode == EditorViewGlobal::ErasePitch || penEraser) {
         QVERIFY(!sampleAt(720));
     } else if (mode == EditorViewGlobal::TracePitch) {
-        QCOMPARE(sampleAt(720), std::optional<int>(6000));
+        QCOMPARE(sampleAt(720), std::optional<int>(TestSupport::pitchValue(6000)));
     } else {
         checkDrawnSample();
     }
@@ -2915,9 +2918,9 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     Automation::CurveDraftDto anchors;
     anchors.type = Automation::CurveDraftDto::Type::Anchor;
     anchors.nodes = {
-        {480,  6000, AnchorNode::Hermite},
-        {960,  6100, AnchorNode::Hermite},
-        {1440, 6000, AnchorNode::None   }
+        {480,  TestSupport::pitchValue(6000), AnchorNode::Hermite},
+        {960,  TestSupport::pitchValue(6100), AnchorNode::Hermite},
+        {1440, TestSupport::pitchValue(6000), AnchorNode::None}
     };
     QVERIFY(runtime.parameters().replaceParameter(command(), Automation::ClipId(clip->id()),
                                                   ParamInfo::Pitch, Param::Edited, {anchors}));
@@ -3156,7 +3159,7 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     auto *pitch = fixture.clip->params.getParamByName(ParamInfo::Pitch);
     QVERIFY(pitch && !pitch->curves(Param::Original).isEmpty());
     Automation::CurveDraftDto edited;
-    edited.values = QList<int>(385, 6200);
+    edited.values = QList<int>(385, TestSupport::pitchValue(6200));
     QVERIFY(runtime.parameters().replaceParameter(fixture.command(), clipId, ParamInfo::Pitch,
                                                   Param::Edited, {edited}));
     QCoreApplication::processEvents();
@@ -3308,18 +3311,19 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         }
         return std::nullopt;
     };
-    QCOMPARE(sampleAt(720), std::optional<int>(6000));
+    QCOMPARE(sampleAt(720), std::optional<int>(TestSupport::pitchValue(6000)));
     for (int tick : {560, 880})
-        QCOMPARE(sampleAt(tick), std::optional<int>(6000));
+        QCOMPARE(sampleAt(tick), std::optional<int>(TestSupport::pitchValue(6000)));
     for (int tick : {500, 940}) {
         const auto transition = sampleAt(tick);
         QVERIFY2(
-            transition && *transition > 6000 && *transition < 6200,
+            transition && *transition > TestSupport::pitchValue(6000) &&
+                *transition < TestSupport::pitchValue(6200),
             qPrintable(
                 QStringLiteral("Transition at %1: %2").arg(tick).arg(transition.value_or(-1))));
     }
-    QCOMPARE(sampleAt(200), std::optional<int>(6200));
-    QCOMPARE(sampleAt(1500), std::optional<int>(6200));
+    QCOMPARE(sampleAt(200), std::optional<int>(TestSupport::pitchValue(6200)));
+    QCOMPARE(sampleAt(1500), std::optional<int>(TestSupport::pitchValue(6200)));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
