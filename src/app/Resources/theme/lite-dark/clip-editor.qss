@@ -390,7 +390,7 @@ AudioChannelAxisView {
     qproperty-infiniteLabelColor: ${control.foreground.disabled};
     qproperty-separatorColor: ${border.subtle};
     qproperty-channelTagColor: ${text.secondary};
-    qproperty-laneBackgroundColor: ${editor.canvasAlternate};
+    qproperty-laneBackgroundColor: ${surface.panel};
 }
 
 AudioView>QLabel#lbNullClipTip {
@@ -398,7 +398,7 @@ AudioView>QLabel#lbNullClipTip {
 }
 
 QWidget#audioViewTopLeftSpacing {
-    background: ${editor.canvasAlternate};
+    background: ${surface.panel};
 }
 
 ClipEditorToolBarView {
