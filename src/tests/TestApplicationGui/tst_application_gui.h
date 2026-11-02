@@ -145,6 +145,7 @@ private slots:
     void audioLoadHintMapsTheLoadStates();
     void audioViewStartsAtTheLeftEnd();
     void audioViewRhiTakesTouchGestures();
+    void audioViewKeepsItsLocalScrollWhenTheClipMoves();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();

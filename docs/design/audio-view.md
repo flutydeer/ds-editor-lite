@@ -16,7 +16,7 @@
 - 左右声道各自独立采样，不复用轨道剪辑的**下混**峰值缓存。下混缓存在轨道编辑器继续使用，行为不变。
 - 左侧固定宽度列显示 **dB 标尺**（`audioChannelAxisWidth = 64`，与钢琴卷帘的键盘列同宽，切换 clip 类型时画布不横向跳动）。标尺按车道分带，每带画自己的刻度与声道标记（`L` / `R` / `1` / `2`…）。
 - 时间标尺（`TimelineView`）与钢琴卷帘共用同一份实现，横向缩放/滚动由后端统一驱动。
-- 第一次显示某个剪辑时视口从剪辑自己的左边缘开始，两个后端都落在滚动条最左。场景是**剪辑局部**的（x = 0 就是片段第一个可听 tick），所以滚动范围只覆盖素材本身，片段放在时间轴靠后位置也不会先看到一段空白画布。之后保留用户自己的时间窗，刷新内容不会重置。
+- 第一次显示某个剪辑时视口从剪辑自己的左边缘开始，两个后端都落在滚动条最左。场景是**剪辑局部**的（x = 0 就是片段第一个可听 tick），所以滚动范围只覆盖素材本身，片段放在时间轴靠后位置也不会先看到一段空白画布。之后保留用户自己的时间窗，刷新内容不会重置。同一个剪辑被拖动、改属性或解码完成时，保留的是**素材内**的滚动位置，不是全局 tick：`EditorViewportController::setContentTickRange` 会按全局中心还原，所以 RHI 后端在内容范围平移后把局部滚动偏移放回去，与 legacy 后端保留滚动条值的行为一致。切换剪辑才回到左端。
 - 播放位置指示线跟着 `playbackController` 走，与钢琴卷帘、轨道列表同一路信号（`visualPositionChanged` / `lastPositionChanged`）。进入音频视图时还会补推一次 `position()` / `lastPosition()`，否则播放停止状态下切过来的视图会停在上一帧的旧位置。
 - **没东西可画的时候不留空白框**：`AudioDecodingController::loadState` 是状态的唯一来源（`Loading` / `Loaded` / `Missing`），两个后端都在画布中央画同一份提示——解码中画转圈圆环加「正在加载…」，文件缺失只画（减半透明的）「文件缺失」，文字与轨道编辑器里的剪辑提示共用同一套 `AudioClipView` 翻译条目。提示画在**整块可见画布**的中央，不是每条车道各画一份，这样立体声不会出现两个转圈。状态切换靠 `AudioDecodingController::loadStateChanged` 触发重取内容，因为解码结束只写 `audioInfo`，不碰剪辑自己的信号。
 
@@ -127,7 +127,7 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 ## 测试
 
-- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理，`audioViewStartsAtTheLeftEnd` 用起点在第 2 小节的片段要求首帧落在剪辑左边缘、`startTick()` 等于片段起点、滚动范围右端正好是素材末端，`audioViewRhiTakesTouchGestures` 用合成触控验证 RHI 画布的首帧位置、单指拖动平移与双指捏合缩放。
+- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线，`audioLoadHintMapsTheLoadStates` 锁住三个状态各自的提示文本与缺失态的半透明处理，`audioViewStartsAtTheLeftEnd` 用起点在第 2 小节的片段要求首帧落在剪辑左边缘、`startTick()` 等于片段起点、滚动范围右端正好是素材末端，`audioViewRhiTakesTouchGestures` 用合成触控验证 RHI 画布的首帧位置、单指拖动平移与双指捏合缩放，`audioViewKeepsItsLocalScrollWhenTheClipMoves` 先把两个后端都滚到素材中间，再把剪辑起点从第 2 小节挪到第 51 小节，要求两个后端的滚动值与素材内 tick 都不变。
 - `TestAudioAssets/tst_waveform_sampling.cpp`：`waveformSamplingKeepsClipLocalScenesInGlobalTicks` 用同一份立体声素材比对全局场景与剪辑局部场景（`sceneTickOffset`）的采样结果，要求每列的样本值逐一相同、只有画布位置整体平移。少了这条，`sceneTickOffset` 的实现错误会表现为波形整体错位而不是崩溃。
 - `TestEditorInteraction/tst_controllers.cpp`：`readOnlyClipEditorDropsTheEditTarget` 要求只读的剪辑编辑页在重新激活时降为 `None`、剪切与删除不可用、`Region::PianoRoll` 请求被拒，切回可编辑后恢复钢琴卷帘目标。
 - `tst_track_editing.cpp`：音频 clip 拖动后 `activeClip()` / `appStatus->activeClipId` 的期望值由"不激活"翻转为"激活"。

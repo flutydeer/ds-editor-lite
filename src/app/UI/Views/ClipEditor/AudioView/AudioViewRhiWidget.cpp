@@ -79,7 +79,11 @@ public:
     void setContent(const AudioViewContent &newContent) {
         wheel.stop();
         viewport.stopAnimation();
-        if (content.clipId != newContent.clipId)
+        // Same clip means the user's place inside the material has to survive whatever
+        // changed, so keep the local scroll offset and put it back after the range moves
+        const auto sameClip = content.isValid() && content.clipId == newContent.clipId;
+        const auto previousOffset = viewport.horizontalOffset();
+        if (!sameClip)
             viewportPositionPending = true;
         content = newContent;
         rebuildSamplers();
@@ -90,6 +94,13 @@ public:
         viewport.setContentTickRange(
             content.contentStartTick(),
             std::max(content.contentStartTick(), content.materialEndTick()));
+        // setContentTickRange keeps the previous *global* centre, which is the same
+        // material position only while the clip stays where it was. The scene is
+        // clip-local, so restoring the offset keeps the view on the same part of the
+        // material when the clip is dragged, exactly like the legacy view keeps its
+        // scroll bar value
+        if (sameClip)
+            viewport.setOffset({previousOffset, viewport.verticalOffset()});
         updateScrollBars();
         // The ring only has to turn while the clip still has nothing to draw
         const auto loading =

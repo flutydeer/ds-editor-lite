@@ -335,3 +335,57 @@ void ApplicationGuiTests::audioViewRhiTakesTouchGestures() {
     QVERIFY2(view.scaleX() > before,
              qPrintable(QStringLiteral("before=%1 after=%2").arg(before).arg(view.scaleX())));
 }
+
+// Dragging the clip along the timeline only moves the material, it does not change
+// which part of it the user was looking at, so both canvases keep their local scroll
+// position instead of jumping to another section
+void ApplicationGuiTests::audioViewKeepsItsLocalScrollWhenTheClipMoves() {
+    AudioViewContent content;
+    content.clipId = 1;
+    content.start = 1920;
+    content.length = 480000;
+    content.clipLen = 480000;
+    content.loadState = AppGlobal::AudioClipLoadState::Loaded;
+
+    AudioViewGraphicsScene scene;
+    AudioViewGraphicsView legacyView(&scene);
+    legacyView.resize(600, 200);
+    legacyView.show();
+    legacyView.setContent(content);
+    QTest::qWait(120);
+    legacyView.horizontalScrollBar()->setValue(150);
+    QTest::qWait(50);
+    const auto legacyBar = legacyView.horizontalScrollBar()->value();
+    QVERIFY(legacyBar > 0);
+    const auto legacyLocalTick = legacyView.startTick() - content.contentStartTick();
+
+    AudioViewRhiWidget rhiView;
+    rhiView.resize(600, 200);
+    rhiView.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&rhiView));
+    rhiView.setContent(content);
+    QTest::qWait(150);
+    rhiView.setHorizontalBarValue(150);
+    QTest::qWait(50);
+    const auto rhiBar = rhiView.horizontalBarValue();
+    QVERIFY(rhiBar > 0);
+    const auto rhiLocalTick = rhiView.startTick() - content.contentStartTick();
+
+    // The clip moves two minutes later on the timeline: same clip, same material
+    content.start = 96000;
+    legacyView.setContent(content);
+    rhiView.setContent(content);
+    QTest::qWait(120);
+
+    QCOMPARE(legacyView.horizontalScrollBar()->value(), legacyBar);
+    QCOMPARE(rhiView.horizontalBarValue(), rhiBar);
+    QVERIFY2(std::abs((legacyView.startTick() - content.contentStartTick()) - legacyLocalTick) <
+                 1.0,
+             qPrintable(QStringLiteral("legacy local tick %1, expected %2")
+                            .arg(legacyView.startTick() - content.contentStartTick())
+                            .arg(legacyLocalTick)));
+    QVERIFY2(std::abs((rhiView.startTick() - content.contentStartTick()) - rhiLocalTick) < 1.0,
+             qPrintable(QStringLiteral("rhi local tick %1, expected %2")
+                            .arg(rhiView.startTick() - content.contentStartTick())
+                            .arg(rhiLocalTick)));
+}
