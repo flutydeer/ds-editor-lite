@@ -93,7 +93,8 @@ void AudioDbAxis::paint(QPainter *painter, const QRectF &laneRect, const QVector
         painter->drawLine(QPointF(minorLeft, mirrorY), QPointF(right, mirrorY));
     }
 
-    // Labelled ticks, mirrored into both halves
+    // Labelled ticks, mirrored into both halves together with their labels, so
+    // the axis reads the same above and below the silence line
     for (const auto &tick : ticks) {
         if (tick.infinite)
             continue;
@@ -103,15 +104,22 @@ void AudioDbAxis::paint(QPainter *painter, const QRectF &laneRect, const QVector
         const auto mirrorY = qRound(centerY + tick.distanceFromCenter) + 0.5;
         painter->drawLine(QPointF(majorLeft, mirrorY), QPointF(right, mirrorY));
 
-        // Labels only in the top half; the mirror image would double the noise
-        // inside a 64 px column without adding information
-        const auto textWidth = metrics.horizontalAdvance(tickLabel(tick));
-        auto textRect = QRectF(labelRight - textWidth, y - metrics.height() * 0.5, textWidth,
-                               metrics.height());
-        if (textRect.top() < laneRect.top())
-            textRect.moveTop(laneRect.top());
+        const auto label = tickLabel(tick);
+        const auto textWidth = metrics.horizontalAdvance(label);
+        // Each label is kept inside the lane band, which matters for the full
+        // scale entry: its own line sits on the band edge
+        const auto labelRectAt = [&](const double lineY) {
+            auto textRect = QRectF(labelRight - textWidth, lineY - metrics.height() * 0.5,
+                                   textWidth, metrics.height());
+            if (textRect.top() < laneRect.top())
+                textRect.moveTop(laneRect.top());
+            if (textRect.bottom() > laneRect.bottom())
+                textRect.moveBottom(laneRect.bottom());
+            return textRect;
+        };
         painter->setPen(colors.labelColor);
-        painter->drawText(textRect, Qt::AlignRight | Qt::AlignVCenter, tickLabel(tick));
+        painter->drawText(labelRectAt(y), Qt::AlignRight | Qt::AlignVCenter, label);
+        painter->drawText(labelRectAt(mirrorY), Qt::AlignRight | Qt::AlignVCenter, label);
     }
 
     // Zero line and its silence label. The line stops at the tick column so it
