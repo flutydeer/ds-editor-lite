@@ -141,6 +141,7 @@ private slots:
     void clipToolbarNameEditingKeepsTheOriginalTarget();
     void audioDbAxisTickLadderFollowsTheLaneHeight();
     void audioWaveformSamplerUsesTheRequestedChannelLane();
+    void audioViewDrawsThePlaybackPosition();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();

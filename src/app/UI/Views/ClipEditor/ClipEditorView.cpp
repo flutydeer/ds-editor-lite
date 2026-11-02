@@ -2,6 +2,7 @@
 
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
+#include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -58,6 +59,13 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
 
     m_audioView = new AudioView;
     m_audioView->setVisible(false);
+
+    // The audio view is a read-only twin of the timeline, so it follows the same
+    // playback position the piano roll and the track editor do
+    connect(playbackController, &PlaybackController::visualPositionChanged, m_audioView,
+            &AudioView::setPlaybackPosition);
+    connect(playbackController, &PlaybackController::lastPositionChanged, m_audioView,
+            &AudioView::setLastPlaybackPosition);
 
     m_placeholderLabel = new QLabel(this);
     m_placeholderLabel->setObjectName("clipEditorPlaceholder");
@@ -282,6 +290,10 @@ void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     editorViewController->clearClipEditorEditTarget();
     m_audioView->setDataContext(clip);
     m_audioView->setVisible(clip != nullptr);
+    // Position is only pushed on change, so a view that appears while playback is
+    // stopped would otherwise draw the indicator wherever the last tick left it
+    m_audioView->setPlaybackPosition(playbackController->position());
+    m_audioView->setLastPlaybackPosition(playbackController->lastPosition());
 }
 
 void ClipEditorView::moveToNullClipState() const {

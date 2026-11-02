@@ -1,14 +1,31 @@
 #include "tst_application_gui.h"
 
 #include "UI/Views/ClipEditor/AudioView/AudioDbAxis.h"
+#include "UI/Views/ClipEditor/AudioView/AudioView.h"
 #include "UI/Views/TrackEditor/AudioWaveformSampler.h"
 
-#include <lite/MusicBase/Timeline.h>
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/TrackController.h"
+#include "Global/ControllerGlobal.h"
+#include "Model/AppStatus/AppStatus.h"
 
+#include <lite/MusicBase/Timeline.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
+
+#include "../TestSupport/MainWindowFixture.h"
+#include "../TestSupport/WaveFixture.h"
+
+#include <QCoreApplication>
+#include <QTemporaryDir>
 #include <QtTest/QTest>
 
 #include <cmath>
-
+#include <numbers>
 namespace {
     QList<double> finiteDbs(const QVector<AudioDbAxis::Tick> &ticks) {
         QList<double> result;
@@ -139,4 +156,77 @@ void ApplicationGuiTests::audioWaveformSamplerUsesTheRequestedChannelLane() {
     // The downmixed behaviour the track editor relies on is unchanged
     request.channel = -1;
     QVERIFY(std::abs(peakSpan(sampler.sample(request)) / leftSpan - 2.0) < 0.01);
+}
+
+void ApplicationGuiTests::audioViewDrawsThePlaybackPosition() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    auto &runtime = *context->m_coreRuntime;
+    TestSupport::MainWindowFixture host;
+    host.show();
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    const auto path = dir.filePath(QStringLiteral("stereo.wav"));
+    QVector<float> samples;
+    for (auto i = 0; i < 96000; i++) {
+        const auto phase = 2.0 * std::numbers::pi * 220.0 * i / 48000.0;
+        const auto envelope = std::exp(-static_cast<double>(i) / 48000.0);
+        samples.append(static_cast<float>(0.95 * envelope * std::sin(phase)));
+        samples.append(static_cast<float>(0.3 * envelope * std::sin(phase * 3.0)));
+    }
+    QVERIFY(TestSupport::writeWave(path, samples, 2, 48000));
+
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Audio;
+    clipDraft.properties.name = QStringLiteral("Stereo audio clip");
+    clipDraft.properties.start = 0;
+    clipDraft.properties.clipStart = 0;
+    clipDraft.properties.length = 3840;
+    clipDraft.properties.clipLen = 3840;
+    clipDraft.properties.trimStartMs = 0;
+    clipDraft.properties.playLengthMs = 4000;
+    clipDraft.properties.materialLengthMs = 4000;
+    clipDraft.audioPath = path;
+    clipDraft.hasRealTimeAnchor = true;
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Audio track");
+    trackDraft.defaultLanguage = QStringLiteral("eng");
+    trackDraft.clips.append(clipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    const auto *clip = *context->m_appModel->tracks().first()->clips().begin();
+    QVERIFY(qobject_cast<const AudioClip *>(clip));
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+
+    trackController->setSelectedClips({clip->id()});
+    TrackController::setActiveClip(clip->id());
+    QCoreApplication::processEvents();
+    QTest::qWait(300);
+
+    auto *audioView = host.window->findChild<AudioView *>();
+    QVERIFY(audioView);
+    QVERIFY(audioView->isVisible());
+    QTRY_VERIFY(audioView->height() > 100);
+
+    const auto before = audioView->grab().toImage();
+    // The position travels through the controller, exactly like the piano roll
+    playbackController->setPosition(2400.0);
+    QCoreApplication::processEvents();
+    QTest::qWait(200);
+    const auto after = audioView->grab().toImage();
+    QCOMPARE(after.size(), before.size());
+
+    // The indicator is a full height line, so at least one column has to differ
+    // from the previous frame along almost the whole canvas
+    auto bestColumnShare = 0.0;
+    for (auto x = 0; x < after.width(); x++) {
+        auto changed = 0;
+        for (auto y = 0; y < after.height(); y++) {
+            if (after.pixel(x, y) != before.pixel(x, y))
+                changed++;
+        }
+        bestColumnShare =
+            std::max(bestColumnShare, static_cast<double>(changed) / after.height());
+    }
+    QVERIFY(bestColumnShare > 0.8);
 }

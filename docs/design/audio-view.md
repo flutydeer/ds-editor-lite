@@ -16,6 +16,7 @@
 - 左右声道各自独立采样，不复用轨道剪辑的**下混**峰值缓存。下混缓存在轨道编辑器继续使用，行为不变。
 - 左侧固定宽度列显示 **dB 标尺**（`audioChannelAxisWidth = 64`，与钢琴卷帘的键盘列同宽，切换 clip 类型时画布不横向跳动）。标尺按车道分带，每带画自己的刻度与声道标记（`L` / `R` / `1` / `2`…）。
 - 时间标尺（`TimelineView`）与钢琴卷帘共用同一份实现，横向缩放/滚动由后端统一驱动。
+- 播放位置指示线跟着 `playbackController` 走，与钢琴卷帘、轨道列表同一路信号（`visualPositionChanged` / `lastPositionChanged`）。进入音频视图时还会补推一次 `position()` / `lastPosition()`，否则播放停止状态下切过来的视图会停在上一帧的旧位置。
 
 ## dB 标尺算法
 
@@ -122,5 +123,5 @@ distanceFromCenter = pow(10, V / 20) * halfLaneHeight
 
 ## 测试
 
-- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变。
+- `TestApplicationGui/tst_audio_view.cpp`：`audioDbAxisTickLadderFollowsTheLaneHeight` 覆盖上表的阶梯稀疏化、线性位置、负无穷标签与过矮车道，`audioWaveformSamplerUsesTheRequestedChannelLane` 用两份已知比例的峰值缓存验证分道采样、左右声道不对称性、缺失车道回退下混、以及 `channel = -1` 行为未变，`audioViewDrawsThePlaybackPosition` 经控制器改播放位置后要求画布上出现一条贯穿整高的新竖线。
 - `tst_track_editing.cpp`：音频 clip 拖动后 `activeClip()` / `appStatus->activeClipId` 的期望值由"不激活"翻转为"激活"。
