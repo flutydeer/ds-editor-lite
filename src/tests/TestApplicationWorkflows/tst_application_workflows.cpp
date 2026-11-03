@@ -52,6 +52,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <QJsonArray>
+#include <QTimeZone>
 
 #include <algorithm>
 #include <memory>
@@ -169,6 +170,34 @@ void ApplicationWorkflowTests::init() {
 
 void ApplicationWorkflowTests::changedTargetInputDropsResult_data() {
     addInferenceStages();
+}
+
+void ApplicationWorkflowTests::presetTimestampsWithoutOffsetsUseUtc() {
+    auto *general = context->m_appOptions->general();
+    const auto original = general->speakerMixPresets;
+    const auto restore = qScopeGuard([&] { general->speakerMixPresets = original; });
+    const auto services =
+        Automation::createAppOptionsPresetAutomationServices(context->m_appOptions);
+    for (const auto &suffix : {QString(), QStringLiteral("Z"), QStringLiteral("+08:00")}) {
+        const auto timestamp = QStringLiteral("2026-10-11T12:00:00.000") + suffix;
+        general->speakerMixPresets = QJsonObject{
+            {"schemaVersion", 1},
+            {"presets", QJsonArray{QJsonObject{
+                {"id", "timestamp-fixture"}, {"name", "UTC fallback"},
+                {"packageId", "ci-fixture"}, {"singerId", "fixture"},
+                {"packageVersion", "1.0.0"}, {"createdAt", timestamp},
+                {"updatedAt", timestamp}}}}
+        };
+        const auto presets = services.speakerMixPresets();
+        QCOMPARE(presets.size(), 1);
+        const auto expected = QDateTime(QDate(2026, 10, 11),
+                                       QTime(suffix == QStringLiteral("+08:00") ? 4 : 12, 0),
+                                       QTimeZone::UTC);
+        QCOMPARE(presets.first().createdAt.toUTC(), expected);
+        QCOMPARE(presets.first().updatedAt.toUTC(), expected);
+        if (suffix.isEmpty())
+            QCOMPARE(presets.first().createdAt.timeSpec(), Qt::UTC);
+    }
 }
 
 void ApplicationWorkflowTests::speakerMixPresetPersistsThroughTheProductionStore() {

@@ -144,9 +144,23 @@ namespace {
                      splitMode == FillLyric::ByChar ? QStringLiteral("a") : lyric);
         if (splitMode != FillLyric::ByChar) {
             QVERIFY(!cells.first()->syllable().isEmpty());
-            QVERIFY2(!cells.first()->note()->g2pId.isEmpty() &&
-                         cells.first()->note()->g2pId != QLatin1String(kUnknownG2pId),
-                     "Preview must contain a successful language-service result");
+            const auto *preview = cells.first()->note();
+            QVERIFY(preview->g2pId.isEmpty());
+            QVERIFY(preview->language != QStringLiteral("unknown"));
+            if (TestSupport::usingBundledVoicebank()) {
+                QCOMPARE(cells.first()->syllable(), QStringLiteral("la"));
+                QVERIFY(cells.first()->syllable() != lyric);
+                QVERIFY2(preview->candidates.contains(cells.first()->syllable()),
+                         "Preview must preserve the language and pronunciation candidates");
+            } else {
+                // The containment above is satisfied by the fallback value as well, so it cannot
+                // tell a converted preview from one that echoed the input. With an external
+                // fixture voicebank the conversion does run, so the preview must carry a
+                // pronunciation that differs from the lyric it replaced.
+                QVERIFY(!preview->candidates.isEmpty());
+                QVERIFY2(preview->candidates.first() != lyric,
+                         "the preview must carry the converted pronunciation, not the input lyric");
+            }
         }
         if (singleWord) {
             const auto output = dialog.exportLangNotes();
@@ -338,7 +352,8 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     QHash<int, QString> originalLyrics;
     for (const auto *note : singingClip->notes())
         originalLyrics.insert(note->id(), note->lyric());
-    const auto inputLyric = preserveSlurs ? QStringLiteral("hello") : TestSupport::fixtureLyric();
+    const auto inputLyric = !fromLrc && TestSupport::usingBundledVoicebank()
+                               ? QStringLiteral("啦") : TestSupport::fixtureLyric();
     bool interacted = false;
     QTimer operateDialog;
     operateDialog.setInterval(10);

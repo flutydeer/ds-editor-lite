@@ -5,9 +5,13 @@
 
 #include <QList>
 #include <QString>
+#include <QHash>
+#include <QSet>
 
 enum class GetInstalledPackagesErrorType {
     MetadataBackendNotInitialized,
+    /// The caller declined publication of the scan result.
+    CommitRejected,
     Unknown
 };
 
@@ -28,6 +32,7 @@ struct GetInstalledPackagesResult {
 
     QList<PackageInfo> successfulPackages;
     QList<FailedPackage> failedPackages;
+    QHash<SingerIdentifier, QSet<QString>> convertibleLanguages;
 };
 
 #endif //GETINSTALLEDPACKAGESRESULT_H

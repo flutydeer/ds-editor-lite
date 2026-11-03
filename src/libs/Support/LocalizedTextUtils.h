@@ -7,15 +7,8 @@
 
 namespace lite::Support {
 
-    /// Resolves the text for a requested language tag by matching it against
-    /// the keys of \p localized with ICU (IcuWrapper::bestMatch): tags are
-    /// normalized (case, POSIX-style '_' separators, ...) before matching, and
-    /// the matched key keeps its original spelling so the value is fetched by
-    /// exact map key. Returns \p defaultText when nothing matches.
-    ///
-    /// Matching policy is a frontend concern by design (ds-spec 2.4):
-    /// srt::core::DisplayText itself only stores keys opaquely and serves
-    /// exact, case-sensitive lookups.
+    /// Match language tags with ICU while preserving the original map keys.
+    /// Return defaultText if no key matches; srt::DisplayText itself uses exact lookup.
     [[nodiscard]] QString lookupLocalizedText(const QMap<QString, QString> &localized,
                                               const QString &defaultText,
                                               const QString &bcp47Locale);

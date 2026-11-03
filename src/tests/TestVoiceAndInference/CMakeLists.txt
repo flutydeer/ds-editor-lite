@@ -2,6 +2,7 @@ project(TestVoiceAndInference)
 
 lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp
+    tst_audio_slicer.cpp
     tst_voice_and_inference.h
     tst_speaker_mix.cpp
     tst_voice_context.cpp

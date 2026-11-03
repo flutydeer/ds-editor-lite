@@ -15,6 +15,9 @@
 #include <QNetworkProxy>
 #include <QTcpServer>
 #include <QtTest>
+#include <lite/Language/EditorMarkers.h>
+#include <QScopeGuard>
+#include <QTemporaryDir>
 
 #include <sndfile.h>
 
@@ -23,6 +26,11 @@
 #include <cmath>
 #include <filesystem>
 #include <memory>
+
+int runAnalyzerPackages();
+int runOtterExtraction();
+int runVoicebankAudit();
+int runDefaultLyricDeclaration();
 
 namespace {
     class NativeClient final {
@@ -240,6 +248,64 @@ public:
     QString editorPath;
 
 private slots:
+    /// The slur and the rest marker travel through the editor untouched, so the language backend
+    /// never receives them as lyrics.
+    void editorMarkers() {
+        QVERIFY(Language::isEditorMarker(QStringLiteral("-")));
+        QVERIFY(Language::isEditorMarker(QStringLiteral("AP")));
+        QVERIFY(!Language::isEditorMarker(QStringLiteral("la")));
+        QVERIFY(!Language::isEditorMarker(QString()));
+        QVERIFY(!Language::isEditorMarker(QStringLiteral("ap")));
+    }
+
+    void analyzerPackages() {
+        qputenv("DSEL_TEST_PLUGIN_ROOT", QByteArray(TEST_PLUGIN_ROOT));
+        QCOMPARE(runAnalyzerPackages(), 0);
+    }
+    void otterExtraction() {
+        qputenv("DSEL_TEST_PLUGIN_ROOT", QByteArray(TEST_PLUGIN_ROOT));
+        const auto result = runOtterExtraction();
+        if (result == 77)
+            QSKIP("Set LITE_OTTER_FIXTURES to enable the external otter model fixtures");
+        QCOMPARE(result, 0);
+    }
+    void publishedVoicebankAudit() {
+        const auto result = runVoicebankAudit();
+        if (result == 77)
+            QSKIP("Set LITE_AUDIT_VOICEBANK and LITE_AUDIT_LANGUAGE_PACKAGES");
+        QCOMPARE(result, 0);
+    }
+
+    void defaultLyricDeclaration() {
+        // A failed audit must not affect the next entry in the same process.
+        QTemporaryDir invalid;
+        QVERIFY(invalid.isValid());
+        const auto package = invalid.filePath(QStringLiteral("empty@1.0.0"));
+        QVERIFY(QDir().mkpath(package));
+        QFile descriptor(QDir(package).filePath(QStringLiteral("desc.json")));
+        QVERIFY(descriptor.open(QIODevice::WriteOnly));
+        const QByteArray data = R"({
+  "id": "empty",
+  "version": "1.0.0.0",
+  "$version": "1.0",
+  "contributions": {}
+})";
+        QCOMPARE(descriptor.write(data), data.size());
+        descriptor.close();
+        {
+            const auto previous = qgetenv("DSEL_TEST_VOICEBANK_ROOT");
+            const auto restore = qScopeGuard([&] {
+                if (previous.isNull())
+                    qunsetenv("DSEL_TEST_VOICEBANK_ROOT");
+                else
+                    qputenv("DSEL_TEST_VOICEBANK_ROOT", previous);
+            });
+            qputenv("DSEL_TEST_VOICEBANK_ROOT", package.toUtf8());
+            QCOMPARE(runDefaultLyricDeclaration(), 1);
+        }
+        QCOMPARE(runDefaultLyricDeclaration(), 0);
+    }
+
 
     void runtimePluginFailurePreservesEditing_data() {
         QTest::addColumn<bool>("createDirectory");
@@ -305,7 +371,7 @@ private slots:
         QVERIFY2(client.call(QStringLiteral("packages.refresh"), {}, result),
                  qPrintable(client.error));
         const auto failedTaskId = result.value(QStringLiteral("task_id"));
-        QVERIFY2(client.waitForTask(result, true, 60000, QStringLiteral("failed")),
+        QVERIFY2(client.waitForTask(result, true, 60000, QStringLiteral("succeeded")),
                  qPrintable(client.error));
         QVERIFY2(client.call(QStringLiteral("tasks.get"),
                              {
@@ -314,10 +380,11 @@ private slots:
         },
                              result),
                  qPrintable(client.error));
-        const auto error = result.value(QStringLiteral("error")).toObject();
-        QCOMPARE(error.value(QStringLiteral("code")).toString(),
-                 QStringLiteral("module_not_ready"));
-        QVERIFY(!error.value(QStringLiteral("message")).toString().isEmpty());
+        const auto report = result.value(QStringLiteral("application_result")).toObject();
+        QCOMPARE(report.value(QStringLiteral("packages")).toInt(), 0);
+        const auto failures = report.value(QStringLiteral("failures")).toArray();
+        QVERIFY(!failures.isEmpty());
+        QVERIFY(!failures.first().toObject().value(QStringLiteral("reason")).toString().isEmpty());
         QVERIFY2(client.call(QStringLiteral("documents.get"), document, result),
                  qPrintable(client.error));
         QCOMPARE(result, before);
@@ -373,37 +440,41 @@ private slots:
         QTest::addColumn<QString>("damagedStage");
         QTest::addColumn<QString>("providerId");
         QTest::addColumn<bool>("runtimeFailure");
+        QTest::addColumn<bool>("omitImportOptions");
         if (TestSupport::usingBundledVoicebank()) {
             QTest::newRow("mandarin-clear")
                 << QStringLiteral("cmn") << QStringLiteral("啦") << QStringLiteral("clear")
-                << QString() << QStringLiteral("CPU") << false;
+                << QString() << QStringLiteral("CPU") << false << false;
             QTest::newRow("english-soft")
                 << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft")
-                << QString() << QStringLiteral("CPU") << false;
+                << QString() << QStringLiteral("CPU") << false << false;
+            QTest::newRow("optional-import-options-omitted")
+                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
+                << QString() << QStringLiteral("CPU") << false << true;
         } else {
             QTest::newRow("configured-voicebank")
                 << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString()
-                << QString() << QStringLiteral("CPU") << false;
+                << QString() << QStringLiteral("CPU") << false << false;
         }
         QTest::newRow("repaired-acoustic-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("acoustic") << QStringLiteral("CPU") << false;
+            << QStringLiteral("acoustic") << QStringLiteral("CPU") << false << false;
         QTest::newRow("repaired-vocoder-model")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
-            << QStringLiteral("vocoder") << QStringLiteral("CPU") << false;
+            << QStringLiteral("vocoder") << QStringLiteral("CPU") << false << false;
         for (const auto &stage :
              {QStringLiteral("duration"), QStringLiteral("pitch"), QStringLiteral("variance"),
               QStringLiteral("acoustic"), QStringLiteral("vocoder")}) {
             QTest::newRow(qPrintable(QStringLiteral("running-%1-model-recovers").arg(stage)))
                 << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << stage
-                << QStringLiteral("CPU") << true;
+                << QStringLiteral("CPU") << true << false;
         }
         QTest::newRow("directml-device")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
-            << QStringLiteral("DirectML") << false;
+            << QStringLiteral("DirectML") << false << false;
         QTest::newRow("cuda-device")
             << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << QString()
-            << QStringLiteral("CUDA") << false;
+            << QStringLiteral("CUDA") << false << false;
     }
 
     void voicebankInferenceAndWaveExport() {
@@ -413,6 +484,7 @@ private slots:
         QFETCH(QString, damagedStage);
         QFETCH(QString, providerId);
         QFETCH(bool, runtimeFailure);
+        QFETCH(bool, omitImportOptions);
         const bool repairModel = !damagedStage.isEmpty();
         const bool checksFailedExport =
             runtimeFailure && damagedStage == QStringLiteral("acoustic");
@@ -435,6 +507,36 @@ private slots:
         QVERIFY(fixture.isValid());
         QString damagedModelPath;
         QByteArray originalModel;
+        if (omitImportOptions) {
+            const auto copy = fixture.filePath(QStringLiteral("optionless-voicebank"));
+            std::error_code error;
+            std::filesystem::copy(std::filesystem::u8path(voicebankRoot.toUtf8().constData()),
+                                  std::filesystem::u8path(copy.toUtf8().constData()),
+                                  std::filesystem::copy_options::recursive, error);
+            QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
+            QFile declaration(QDir(copy).filePath(QStringLiteral("characters/fixture/config.json")));
+            QVERIFY(declaration.open(QIODevice::ReadOnly));
+            auto singer = QJsonDocument::fromJson(declaration.readAll()).object();
+            declaration.close();
+            auto imports = singer.value(QStringLiteral("imports")).toArray();
+            for (auto imported : imports) {
+                auto object = imported.toObject();
+                if (object.value(QStringLiteral("role")).toString().startsWith("singer/")) {
+                    auto options = object.value(QStringLiteral("options")).toObject();
+                    options.remove(QStringLiteral("speakerMapping"));
+                    if (options.isEmpty())
+                        object.remove(QStringLiteral("options"));
+                    else
+                        object.insert(QStringLiteral("options"), options);
+                }
+                imported = object;
+            }
+            singer.insert(QStringLiteral("imports"), imports);
+            QVERIFY(declaration.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            const auto bytes = QJsonDocument(singer).toJson();
+            QCOMPARE(declaration.write(bytes), bytes.size());
+            voicebankRoot = copy;
+        }
         if (repairModel) {
             const auto copy = fixture.filePath(QStringLiteral("voicebank"));
             std::error_code error;
@@ -933,6 +1035,22 @@ private slots:
             QVERIFY2(repeatedAudio.error.isEmpty(), qPrintable(repeatedAudio.error));
             QCOMPARE(repeatedAudio.pcm, firstAudio.pcm);
             QCOMPARE(cache.entryList({QStringLiteral("*.wav")}, QDir::Files), cachedAudio);
+            for (auto it = initialWrites.cbegin(); it != initialWrites.cend(); ++it)
+                QCOMPARE(QFileInfo(cache.filePath(it.key())).lastModified(), it.value());
+
+            QMap<QString, QStringList> beforeReload;
+            for (const auto &stage : {QStringLiteral("duration"), QStringLiteral("pitch"),
+                                      QStringLiteral("variance"), QStringLiteral("acoustic")}) {
+                const auto pattern = QStringLiteral("infer-%1-output-*").arg(stage);
+                beforeReload.insert(pattern, cache.entryList({pattern}, QDir::Files));
+                QVERIFY(!beforeReload.value(pattern).isEmpty());
+            }
+            QVERIFY2(client.call(QStringLiteral("packages.refresh"), {}, result),
+                     qPrintable(client.error));
+            QVERIFY2(client.waitForTask(result, true, 60000), qPrintable(client.error));
+            QVERIFY2(inferAndExport(QStringLiteral("after-reload.wav")), qPrintable(client.error));
+            for (auto it = beforeReload.cbegin(); it != beforeReload.cend(); ++it)
+                QVERIFY2(cache.entryList({it.key()}, QDir::Files) != it.value(), qPrintable(it.key()));
             for (auto it = initialWrites.cbegin(); it != initialWrites.cend(); ++it)
                 QCOMPARE(QFileInfo(cache.filePath(it.key())).lastModified(), it.value());
 

@@ -253,6 +253,7 @@ namespace {
     public:
         enum class ApplicationResponseMode {
             Success,
+            DeferredSuccess,
             Hold,
             BusinessError,
             InvalidOutput,
@@ -320,6 +321,7 @@ namespace {
             QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion);
         QString applicationAvailability;
         ApplicationResponseMode applicationResponseMode = ApplicationResponseMode::Success;
+        std::function<void()> releaseApplicationResponse;
         int applicationTransportStatus = 429;
         QString applicationTransportCode = QStringLiteral("too_many_requests");
         QString applicationTransportMessage = QStringLiteral("fake request limit reached");
@@ -848,6 +850,14 @@ namespace {
                     mode == ApplicationResponseMode::WrongResponseId ? QJsonValue(42) : request.id;
                 const auto response = AutomationWire::Mcp::makeResultResponse(
                     responseId, result, info, request.protocolVersion);
+                if (mode == ApplicationResponseMode::DeferredSuccess) {
+                    releaseApplicationResponse = [this, peer = QPointer<QTcpSocket>(socket),
+                                                  response] {
+                        if (peer)
+                            respond(peer, response);
+                    };
+                    return;
+                }
                 if (mode == ApplicationResponseMode::Sse ||
                     mode == ApplicationResponseMode::RepeatedSse)
                     respondSse(socket, response, mode == ApplicationResponseMode::RepeatedSse);
@@ -1092,6 +1102,8 @@ namespace {
         void schemaRefreshKeepsVersionCompatibility();
         void backpressureAndCancellation();
         void upstreamDisabledKeepsDownstreamTools();
+        void stoppingEditorDrainsAcceptedReplies_data();
+        void stoppingEditorDrainsAcceptedReplies();
         void forwardCompatibleGenericTools();
         void compatibilityVersions();
         void headlessHostAvailability();
@@ -2682,6 +2694,43 @@ namespace {
                    10000),
                "cancelling the saturated downstream calls must release every slot");
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
+    }
+
+    void TestConnector::stoppingEditorDrainsAcceptedReplies_data() {
+        QTest::addColumn<bool>("editorStopping");
+        QTest::newRow("server-stopping") << false;
+        QTest::newRow("editor-stopping") << true;
+    }
+
+    void TestConnector::stoppingEditorDrainsAcceptedReplies() {
+        QFETCH(bool, editorStopping);
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        fixture.http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::DeferredSuccess;
+        fixture.sendTool(QStringLiteral("accepted"), QStringLiteral("application.get_info"));
+        QVERIFY(waitUntil([&] { return bool(fixture.http.releaseApplicationResponse); }));
+        auto stopping = fixture.ready;
+        stopping.state = editorStopping ? SingleInstanceAutomationState::EditorStopping
+                                        : SingleInstanceAutomationState::ServerStopping;
+        fixture.bootstrap.publish(stopping);
+        QVERIFY(waitUntil([&] {
+            return !fixture.runtime.status().value(QStringLiteral("mcp")).toObject()
+                        .value(QStringLiteral("connected")).toBool();
+        }));
+        QCOMPARE(fixture.runtime.status().value(QStringLiteral("mcp")).toObject()
+                     .value(QStringLiteral("pending_request_count")).toInt(), 1);
+        fixture.sendTool(QStringLiteral("new-call"), QStringLiteral("application.get_info"));
+        const auto rejected = fixture.response(QStringLiteral("new-call"));
+        QVERIFY(rejected && rejected->value(QStringLiteral("result")).toObject()
+                                .value(QStringLiteral("isError")).toBool());
+        fixture.http.releaseApplicationResponse();
+        const auto completed = fixture.response(QStringLiteral("accepted"));
+        QVERIFY(completed);
+        QVERIFY(!completed->value(QStringLiteral("result")).toObject()
+                     .value(QStringLiteral("isError")).toBool());
+        QCOMPARE(completed->value(QStringLiteral("result")).toObject()
+                     .value(QStringLiteral("structuredContent")).toObject()
+                     .value(QStringLiteral("name")).toString(), QStringLiteral("DS Editor Lite"));
     }
 
     void TestConnector::upstreamDisabledKeepsDownstreamTools() {

@@ -11,6 +11,11 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QPointer>
+
+#include <algorithm>
+
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <QTemporaryDir>
 #include <QThreadPool>
 #include <QTimer>
@@ -38,26 +43,32 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateModelPath(const QString &path,
-                                                           const bool directory,
-                                                           const QString &fieldPath,
-                                                           const QString &displayName) {
-            if (path.trimmed().isEmpty()) {
+        /// Require an installed analyzer implementing the requested contract.
+        AutomationResult<lite::synthrt::AnalyzerEntry> validateAnalyzer(
+            const QString &reference, const QString &interfaceName, const QString &fieldPath,
+            const QString &displayName) {
+            if (reference.trimmed().isEmpty()) {
                 AutomationError error;
                 error.code = AutomationErrorCode::ModuleNotReady;
                 error.fieldPath = fieldPath;
                 error.message = displayName + QStringLiteral(" is not configured");
                 return error;
             }
-            const QFileInfo file(path);
-            if (!file.exists() || (directory ? !file.isDir() : !file.isFile())) {
+            const auto installed = SynthrtEngine::instance().analyzers(interfaceName);
+            const auto wanted = reference.trimmed().toStdString();
+            const auto found =
+                std::find_if(installed.cbegin(), installed.cend(),
+                             [&wanted](const lite::synthrt::AnalyzerEntry &entry) {
+                                 return entry.reference() == wanted;
+                             });
+            if (found == installed.cend()) {
                 AutomationError error;
                 error.code = AutomationErrorCode::FileNotFound;
                 error.fieldPath = fieldPath;
-                error.message = displayName + QStringLiteral(" was not found");
+                error.message = displayName + QStringLiteral(" is not installed: ") + reference;
                 return error;
             }
-            return AutomationUnit{};
+            return *found;
         }
 
         AutomationTaskProgress progressFromStatus(const TaskStatus &status) {
@@ -71,7 +82,6 @@ namespace Automation {
 
         AutomationErrorCode taskErrorCode(const ExtractTask::ErrorCode code) {
             switch (code) {
-                case ExtractTask::ErrorCode::InferEngineNotLoaded:
                 case ExtractTask::ErrorCode::ModelNotLoaded:
                     return AutomationErrorCode::ModuleNotReady;
                 case ExtractTask::ErrorCode::ModelRunFailed:
@@ -86,11 +96,9 @@ namespace Automation {
 
         ExtractTask::Input taskInput(const PitchExtractionInput &input) {
             ExtractTask::Input result;
-            result.singingClipId = input.singingClipId.value();
-            result.audioClipId = input.audioClipId.value();
             result.audioPath = input.snapshotPath.isEmpty() ? input.audioPath : input.snapshotPath;
             result.displayAudioPath = input.audioPath;
-            result.modelPath = input.modelPath;
+            result.analyzer = input.analyzer;
             result.timeline = input.timeline;
             result.singingClipStartTick = input.singingClipStartTick;
             result.audioMaterialOriginMs = input.audioMaterialOriginMs;
@@ -101,13 +109,16 @@ namespace Automation {
 
         ExtractTask::Input taskInput(const MidiExtractionInput &input) {
             ExtractTask::Input result;
-            result.audioClipId = input.audioClipId.value();
             result.audioPath = input.snapshotPath.isEmpty() ? input.audioPath : input.snapshotPath;
             result.displayAudioPath = input.audioPath;
-            result.modelPath = input.modelPath;
+            result.analyzer = input.analyzer;
+            // Pass the resolved singing language to condition multilingual transcription.
+            result.language = input.defaultLanguage;
             result.timeline = input.timeline;
             result.audioClipStartTick = input.audioClipStartTick;
-            result.audioClipLengthTick = input.audioClipLengthTick;
+            result.audioMaterialOriginMs = input.audioMaterialOriginMs;
+            result.audioVisibleStartMs = input.audioVisibleStartMs;
+            result.audioVisibleEndMs = input.audioVisibleEndMs;
             return result;
         }
 
@@ -127,16 +138,47 @@ namespace Automation {
             return task;
         }
 
-        class PitchExtractionJobAdapter final
-            : public IPitchExtractionJob,
-              public std::enable_shared_from_this<PitchExtractionJobAdapter> {
+        struct PitchJobTraits {
+            using Job = IPitchExtractionJob;
+            using Input = PitchExtractionInput;
+            using Task = ExtractPitchTask;
+            using Result = PitchExtractionBackendResult;
+
+            static void takeResult(const Task &task, Result &result) {
+                result.segments.reserve(task.result.size());
+                for (const auto &segment : task.result)
+                    result.segments.append({segment.globalStartTick, segment.values});
+            }
+        };
+
+        struct MidiJobTraits {
+            using Job = IMidiExtractionJob;
+            using Input = MidiExtractionInput;
+            using Task = ExtractMidiTask;
+            using Result = MidiExtractionBackendResult;
+
+            static void takeResult(const Task &task, Result &result) {
+                result.notes.reserve(static_cast<qsizetype>(task.result.size()));
+                for (const auto &note : task.result)
+                    result.notes.append({note.note, note.start, note.duration});
+            }
+        };
+
+        template <class Traits>
+        class ExtractionJobAdapter final
+            : public Traits::Job,
+              public std::enable_shared_from_this<ExtractionJobAdapter<Traits>> {
         public:
-            PitchExtractionJobAdapter(PitchExtractionInput input, TaskManager *taskRuntime)
+            using Input = typename Traits::Input;
+            using Task = typename Traits::Task;
+            using Result = typename Traits::Result;
+
+            ExtractionJobAdapter(Input input, TaskManager *taskRuntime)
                 : m_input(std::move(input)), m_taskManager(taskRuntime) {
             }
 
             void start(ExtractionJobCallbacks callbacks,
-                       std::function<void(PitchExtractionBackendResult)> completed) override {
+                       std::function<void(Result)> completed) override {
                 m_callbacks = std::move(callbacks);
                 m_completed = std::move(completed);
                 if (m_canceled) {
@@ -151,7 +193,7 @@ namespace Automation {
                 }
                 m_input.snapshotPath = QDir(m_snapshotDirectory->path())
                                            .filePath(QFileInfo(m_input.audioPath).fileName());
-                const auto self = shared_from_this();
+                const auto self = this->shared_from_this();
                 m_hashTask = startAudioHashTask(
                     m_input.audioPath, m_input.snapshotPath,
                     [self](ComputeAudioHashTask *task) { self->handleSnapshotFinished(task); });
@@ -195,9 +237,14 @@ namespace Automation {
             }
 
             void startExtraction() {
-                auto *task = new ExtractPitchTask(taskInput(m_input));
+                if (!m_taskManager) {
+                    fail(AutomationErrorCode::ModuleNotReady,
+                         QStringLiteral("The task manager is unavailable"));
+                    return;
+                }
+                auto *task = new Task(taskInput(m_input));
                 m_task = task;
-                const auto self = shared_from_this();
+                const auto self = this->shared_from_this();
                 auto *application = QCoreApplication::instance();
                 QObject *connectionContext = application ? static_cast<QObject *>(application)
                                                          : static_cast<QObject *>(task);
@@ -221,14 +268,13 @@ namespace Automation {
                 m_taskManager->addAndStartTask(task);
             }
 
-            void handleExtractionFinished(ExtractPitchTask *task) {
-                m_taskManager->removeTask(task);
+            void handleExtractionFinished(Task *task) {
+                if (m_taskManager)
+                    m_taskManager->removeTask(task);
                 m_task = nullptr;
                 if (task->success()) {
                     m_result.state = ExtractionBackendState::Succeeded;
-                    m_result.segments.reserve(task->result.size());
-                    for (const auto &segment : task->result)
-                        m_result.segments.append({segment.globalStartTick, segment.values});
+                    Traits::takeResult(*task, m_result);
                 } else if (task->errorCode() == ExtractTask::ErrorCode::Terminated) {
                     m_result.state = ExtractionBackendState::Canceled;
                 } else {
@@ -241,12 +287,14 @@ namespace Automation {
             }
 
             void fail(const AutomationErrorCode code, QString message) {
-                finish({.state = ExtractionBackendState::Failed,
-                        .errorCode = code,
-                        .errorMessage = std::move(message)});
+                Result result;
+                result.state = ExtractionBackendState::Failed;
+                result.errorCode = code;
+                result.errorMessage = std::move(message);
+                finish(std::move(result));
             }
 
-            void finish(PitchExtractionBackendResult result) {
+            void finish(Result result) {
                 if (m_finished)
                     return;
                 m_finished = true;
@@ -254,156 +302,21 @@ namespace Automation {
                     m_completed(std::move(result));
             }
 
-            PitchExtractionInput m_input;
-            TaskManager *m_taskManager = nullptr;
+            Input m_input;
+            // Queued completion may arrive after runtime teardown.
+            QPointer<TaskManager> m_taskManager;
             std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             ComputeAudioHashTask *m_hashTask = nullptr;
-            ExtractPitchTask *m_task = nullptr;
+            Task *m_task = nullptr;
             ExtractionJobCallbacks m_callbacks;
-            std::function<void(PitchExtractionBackendResult)> m_completed;
-            PitchExtractionBackendResult m_result;
+            std::function<void(Result)> m_completed;
+            Result m_result;
             bool m_canceled = false;
             bool m_finished = false;
         };
 
-        class MidiExtractionJobAdapter final
-            : public IMidiExtractionJob,
-              public std::enable_shared_from_this<MidiExtractionJobAdapter> {
-        public:
-            MidiExtractionJobAdapter(MidiExtractionInput input, TaskManager *taskRuntime)
-                : m_input(std::move(input)), m_taskManager(taskRuntime) {
-            }
-
-            void start(ExtractionJobCallbacks callbacks,
-                       std::function<void(MidiExtractionBackendResult)> completed) override {
-                m_callbacks = std::move(callbacks);
-                m_completed = std::move(completed);
-                if (m_canceled) {
-                    finish({.state = ExtractionBackendState::Canceled});
-                    return;
-                }
-                m_snapshotDirectory = std::make_unique<QTemporaryDir>();
-                if (!m_snapshotDirectory->isValid()) {
-                    fail(AutomationErrorCode::IoError,
-                         QStringLiteral("Failed to create an audio snapshot directory"));
-                    return;
-                }
-                m_input.snapshotPath = QDir(m_snapshotDirectory->path())
-                                           .filePath(QFileInfo(m_input.audioPath).fileName());
-                const auto self = shared_from_this();
-                m_hashTask = startAudioHashTask(
-                    m_input.audioPath, m_input.snapshotPath,
-                    [self](ComputeAudioHashTask *task) { self->handleSnapshotFinished(task); });
-                if (m_callbacks.progress) {
-                    m_callbacks.progress({.indeterminate = true},
-                                         QStringLiteral("Creating an audio snapshot"));
-                }
-            }
-
-            void cancel() override {
-                m_canceled = true;
-                if (m_hashTask)
-                    m_hashTask->terminate();
-                if (m_task)
-                    m_task->terminate();
-            }
-
-        private:
-            void handleSnapshotFinished(ComputeAudioHashTask *task) {
-                m_hashTask = nullptr;
-                if (m_canceled || task->terminated()) {
-                    task->deleteLater();
-                    finish({.state = ExtractionBackendState::Canceled});
-                    return;
-                }
-                if (!task->success || task->resultSha512.isEmpty()) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::IoError,
-                         QStringLiteral("Failed to snapshot the source audio"));
-                    return;
-                }
-                if (!m_input.sourceAsset.pathInfo.sha512.isEmpty() &&
-                    m_input.sourceAsset.pathInfo.sha512 != task->resultSha512) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::InvalidArgument,
-                         QStringLiteral("The source audio does not match the selected clip"));
-                    return;
-                }
-                task->deleteLater();
-                startExtraction();
-            }
-
-            void startExtraction() {
-                auto *task = new ExtractMidiTask(taskInput(m_input));
-                m_task = task;
-                const auto self = shared_from_this();
-                auto *application = QCoreApplication::instance();
-                QObject *connectionContext = application ? static_cast<QObject *>(application)
-                                                         : static_cast<QObject *>(task);
-                QObject::connect(task, &Task::statusUpdated, connectionContext,
-                                 [callback = m_callbacks.progress](const TaskStatus &status) {
-                                     if (callback)
-                                         callback(progressFromStatus(status), status.message);
-                                 });
-                QObject::connect(
-                    task, &Task::finished, connectionContext,
-                    [self, task] { self->handleExtractionFinished(task); }, Qt::QueuedConnection);
-                if (m_input.showProgressDialog) {
-                    auto *dialog = new TaskDialog(task, true, true);
-                    dialog->setCancelCallback(m_callbacks.cancelRequested);
-                    dialog->show();
-                }
-                if (m_callbacks.progress) {
-                    m_callbacks.progress(progressFromStatus(task->status()),
-                                         task->status().message);
-                }
-                m_taskManager->addAndStartTask(task);
-            }
-
-            void handleExtractionFinished(ExtractMidiTask *task) {
-                m_taskManager->removeTask(task);
-                m_task = nullptr;
-                if (task->success()) {
-                    m_result.state = ExtractionBackendState::Succeeded;
-                    m_result.notes.reserve(static_cast<qsizetype>(task->result.size()));
-                    for (const auto &note : task->result)
-                        m_result.notes.append({note.note, note.start, note.duration});
-                } else if (task->errorCode() == ExtractTask::ErrorCode::Terminated) {
-                    m_result.state = ExtractionBackendState::Canceled;
-                } else {
-                    m_result.state = ExtractionBackendState::Failed;
-                    m_result.errorCode = taskErrorCode(task->errorCode());
-                    m_result.errorMessage = task->errorMessage();
-                }
-                delete task;
-                finish(std::move(m_result));
-            }
-
-            void fail(const AutomationErrorCode code, QString message) {
-                finish({.state = ExtractionBackendState::Failed,
-                        .errorCode = code,
-                        .errorMessage = std::move(message)});
-            }
-
-            void finish(MidiExtractionBackendResult result) {
-                if (m_finished)
-                    return;
-                m_finished = true;
-                if (m_completed)
-                    m_completed(std::move(result));
-            }
-
-            MidiExtractionInput m_input;
-            TaskManager *m_taskManager = nullptr;
-            std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
-            ComputeAudioHashTask *m_hashTask = nullptr;
-            ExtractMidiTask *m_task = nullptr;
-            ExtractionJobCallbacks m_callbacks;
-            std::function<void(MidiExtractionBackendResult)> m_completed;
-            MidiExtractionBackendResult m_result;
-            bool m_canceled = false;
-            bool m_finished = false;
-        };
+        using PitchExtractionJobAdapter = ExtractionJobAdapter<PitchJobTraits>;
+        using MidiExtractionJobAdapter = ExtractionJobAdapter<MidiJobTraits>;
     }
 
     ExtractionRuntimeServices createExtractionAutomationServices(AppOptions *options,
@@ -421,16 +334,19 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("rmvpe")) {
+            input.analyzer = options->general()->pitchAnalyzer.trimmed();
+            // Reject model_id when it differs from the configured analyzer reference.
+            if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),
-                    QStringLiteral("The requested pitch extraction model is unavailable"));
+                    QStringLiteral("The requested pitch extraction model is not the configured "
+                                   "pitch analyzer"));
             }
-            input.modelPath = options->general()->rmvpePath;
-            valid = validateModelPath(input.modelPath, false, QStringLiteral("rmvpe_model_path"),
-                                      QStringLiteral("RMVPE model"));
-            if (!valid)
-                return valid.getError();
+            const auto analyzer = validateAnalyzer(input.analyzer, lite::synthrt::f0Contract(),
+                                                   QStringLiteral("pitch_analyzer"),
+                                                   QStringLiteral("The pitch analyzer"));
+            if (!analyzer)
+                return analyzer.getError();
             auto job = std::make_shared<PitchExtractionJobAdapter>(input, taskRuntime);
             return PreparedPitchExtraction{std::move(input), std::move(job)};
         };
@@ -446,16 +362,21 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("game")) {
+            input.analyzer = options->general()->noteAnalyzer.trimmed();
+            if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),
-                    QStringLiteral("The requested MIDI extraction model is unavailable"));
+                    QStringLiteral("The requested MIDI extraction model is not the configured "
+                                   "note analyzer"));
             }
-            input.modelPath = options->general()->gameDir;
-            valid = validateModelPath(input.modelPath, true, QStringLiteral("game_model_path"),
-                                      QStringLiteral("GAME model directory"));
-            if (!valid)
-                return valid.getError();
+            const auto analyzer = validateAnalyzer(input.analyzer, lite::synthrt::noteContract(),
+                                                   QStringLiteral("note_analyzer"),
+                                                   QStringLiteral("The note analyzer"));
+            if (!analyzer)
+                return analyzer.getError();
+            // Label extracted notes with the same effective language used by the analyzer.
+            input.defaultLanguage = QString::fromStdString(
+                analyzer.get().effectiveLanguage(input.defaultLanguage.toStdString()));
             if (input.defaultLanguage.isEmpty())
                 input.defaultLanguage = options->general()->defaultSingingLanguage;
             if (input.defaultLyric.isEmpty())

@@ -64,6 +64,17 @@ namespace Automation {
             });
     }
 
+    AutomationResult<QList<PackageRefreshFailureDto>>
+        PackageAutomationFacade::getInstalledPackageFailures() {
+        return m_dispatcher.dispatchApplicationQuery<QList<PackageRefreshFailureDto>>(
+            OperationIds::packages::list, [this] {
+                if (!m_services.installedPackageFailures)
+                    return AutomationResult<QList<PackageRefreshFailureDto>>(unavailable());
+                return AutomationResult<QList<PackageRefreshFailureDto>>(
+                    m_services.installedPackageFailures());
+            });
+    }
+
     AutomationResult<PackageDto>
         PackageAutomationFacade::describePackage(const QString &packageId,
                                                  PackagePathProjection pathProjection) {

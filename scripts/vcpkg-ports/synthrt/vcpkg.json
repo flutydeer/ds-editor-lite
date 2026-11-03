@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "synthrt",
+  "version-string": "spec2.4-uptake",
+  "description": [
+    "SVS Synthesis Runtime Library, main line.",
+    "This port deliberately shadows the port of the same name in the shared overlay, which pins the refactor line. This overlay is searched first, and the editor is built against the main line. Both lines install lib/libsynthrt.so and therefore cannot coexist in one tree."
+  ],
+  "homepage": "https://github.com/diffscope/synthrt",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "qmsetup",
+    "stduuid",
+    "stdcorelib",
+    "stdcorelib-plugin",
+    "blake3",
+    "sparsepp",
+    "bit7z"
+  ],
+  "features": {
+    "onnx": {
+      "description": "Build dsinfer and its ONNX Runtime driver (DirectML on Windows, CPU elsewhere)",
+      "dependencies": [
+        "onnxruntime-builds"
+      ]
+    },
+    "cuda12": {
+      "description": "Build the CUDA 12.x execution provider into the ONNX driver",
+      "dependencies": [
+        {
+          "name": "onnxruntime-builds",
+          "features": [
+            "cuda12"
+          ]
+        }
+      ],
+      "supports": "x64 & (windows | linux)"
+    }
+  }
+}

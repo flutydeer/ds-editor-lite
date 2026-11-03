@@ -81,7 +81,7 @@ namespace {
             qCritical("Inference startup did not reach a ready runtime");
             return 1;
         }
-        if (!SynthrtEngine::instance().runtimeInitialized() ||
+        if (!SynthrtEngine::instance().initialized() ||
             !SynthrtEngine::instance().initializationDone()) {
             qCritical("Inference startup must complete runtime initialization");
             return 2;

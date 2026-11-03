@@ -58,6 +58,73 @@ namespace {
 
 }
 
+void VoiceAndInferenceTests::singerSessionCacheRefreshPreservesSelection() {
+    FakeCache cache;
+    int destroyed = 0;
+    const auto id = makeIdentifier(QStringLiteral("singer"));
+    cache.retainOnly({id});
+    auto lease = cache.acquire(id, [&] { return std::make_shared<FakeHandle>(destroyed); });
+    lease.reset();
+    QCOMPARE(destroyed, 0);
+    auto retired = cache.clear(false);
+    retired.clear();
+    QCOMPARE(destroyed, 1);
+    QCOMPARE(cache.retainedIdentifiers(), QSet<SingerIdentifier>{id});
+    auto fresh = cache.acquire(id, [&] { return std::make_shared<FakeHandle>(destroyed); });
+    fresh.reset();
+    QCOMPARE(destroyed, 1);
+    cache.clear();
+    QCOMPARE(destroyed, 2);
+}
+
+void VoiceAndInferenceTests::singerSessionCacheRejectsInvalidatedFactoryResults_data() {
+    QTest::addColumn<bool>("clearDuringFactory");
+    QTest::addColumn<bool>("createReplacement");
+    QTest::newRow("clear-during-factory") << true << false;
+    QTest::newRow("clear-with-new-entry") << true << true;
+    QTest::newRow("stale-factory-result") << false << false;
+}
+
+void VoiceAndInferenceTests::singerSessionCacheRejectsInvalidatedFactoryResults() {
+    QFETCH(bool, clearDuringFactory);
+    QFETCH(bool, createReplacement);
+    int destroyed = 0;
+    FakeCache cache;
+    const auto id = makeIdentifier(QStringLiteral("singer"));
+    cache.retainOnly({id});
+    std::weak_ptr<FakeHandle> pending;
+    std::weak_ptr<FakeHandle> replacement;
+    auto lease = cache.acquire(id, [&] {
+        auto result = std::make_shared<FakeHandle>(destroyed);
+        pending = result;
+        // The factory executes between the two locked sections. This reproduces the reload
+        // interleaving deterministically, without waiting on thread timing.
+        if (clearDuringFactory)
+            cache.clear(false);
+        else
+            result->stale = true;
+        if (createReplacement)
+            replacement = cache.acquire(id, [&] { return std::make_shared<FakeHandle>(destroyed); });
+        return result;
+    });
+    QCOMPARE(lease, pending.lock());
+    QCOMPARE(cache.retainedIdentifiers(), QSet<SingerIdentifier>{id});
+    lease.reset();
+    QVERIFY(pending.expired());
+    QCOMPARE(destroyed, 1);
+    if (createReplacement) {
+        QVERIFY(!replacement.expired());
+        const auto reused = cache.acquire(id, [&] {
+            QTest::qFail("The new-generation lease must remain cached", __FILE__, __LINE__);
+            return std::shared_ptr<FakeHandle>{};
+        });
+        QCOMPARE(reused, replacement.lock());
+    }
+    cache.clear();
+    QVERIFY(replacement.expired());
+    QCOMPARE(destroyed, createReplacement ? 2 : 1);
+}
+
 void VoiceAndInferenceTests::singerSessionCacheRetainsOnlySelectedSingers() {
     FakeClock::reset();
     int creationCount = 0;

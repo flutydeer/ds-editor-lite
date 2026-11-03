@@ -2,7 +2,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 
-#include <diffsinger/Bank/PackageValidator.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -21,6 +21,14 @@
 
 namespace Automation {
     namespace {
+        PackageRefreshFailureDto failureDto(
+            const GetInstalledPackagesResult::FailedPackage &failure) {
+            return {
+                .path = failure.path,
+                .reason = failure.reason,
+            };
+        }
+
         SingerInfo resolveSinger(PackageManager *manager, const SingerInfo &singerInfo) {
             const auto identifier = singerInfo.identifier();
             if (identifier.isEmpty())
@@ -106,6 +114,8 @@ namespace Automation {
                         .packageVersion = singer.packageVersion(),
                         .name = singer.name(),
                         .info = singer,
+                        .convertibleLanguages =
+                            packages.convertibleLanguages.value(singer.identifier()),
                     });
                 }
                 result.append(std::move(converted));
@@ -139,12 +149,8 @@ namespace Automation {
                 if (!afterByKey.contains(it.key()))
                     result.removed.append(it.key());
             }
-            for (const auto &failure : afterRaw.failedPackages) {
-                result.failures.append({
-                    .path = failure.path,
-                    .reason = failure.reason,
-                });
-            }
+            for (const auto &failure : afterRaw.failedPackages)
+                result.failures.append(failureDto(failure));
             return result;
         }
 
@@ -185,26 +191,35 @@ namespace Automation {
         services.installedPackages = [manager] {
             return convertPackages(manager->installedPackages());
         };
+        services.installedPackageFailures = [manager] {
+            QList<PackageRefreshFailureDto> result;
+            for (const auto &failure : manager->installedPackages().failedPackages)
+                result.append(failureDto(failure));
+            return result;
+        };
+        // SDK validation returns at most one error with its cause chain, rather than itemized
+        // findings.
         services.validatePackage = [](const QString &path) {
-            ds::bank::PackageValidator validator;
-            const auto report = validator.validatePackage(
-                StringUtils::qstr_to_path(path), ds::bank::PackageValidator::SchemaVersion::V10);
-            PackageValidationReportDto result;
-            result.hasErrors = report.hasErrors();
-            for (const auto &item : report.items()) {
-                PackageValidationSeverity severity = PackageValidationSeverity::Info;
-                if (item.severity == ds::bank::ValidationItem::Warning)
-                    severity = PackageValidationSeverity::Warning;
-                else if (item.severity == ds::bank::ValidationItem::Error)
-                    severity = PackageValidationSeverity::Error;
-                result.items.append({
-                    .severity = severity,
-                    .path = QString::fromStdString(item.path),
-                    .message = QString::fromStdString(item.message),
-                    .actualValue = QString::fromStdString(item.actualValue),
-                    .recommendation = QString::fromStdString(item.recommendation),
-                });
+            auto *unit = SynthrtEngine::instance().unitIfReady();
+            if (unit == nullptr) {
+                AutomationError error;
+                error.code = AutomationErrorCode::ModuleNotReady;
+                error.message = QStringLiteral("The synthesis engine is unavailable");
+                return AutomationResult<PackageValidationReportDto>(std::move(error));
             }
+            PackageValidationReportDto result;
+            auto opened = SynthrtEngine::instance().validatePackage(StringUtils::qstr_to_path(path));
+            if (opened) {
+                return AutomationResult<PackageValidationReportDto>(std::move(result));
+            }
+            result.hasErrors = true;
+            result.items.append({
+                .severity = PackageValidationSeverity::Error,
+                .path = path,
+                .message = QString::fromStdString(opened.error().toString()),
+                .actualValue = {},
+                .recommendation = {},
+            });
             return AutomationResult<PackageValidationReportDto>(std::move(result));
         };
         services.resolveDocumentVoices = [manager](AppModel *model, const bool apply) {

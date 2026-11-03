@@ -232,7 +232,15 @@ void Log::f(const QString &tag, const QString &msg) {
 }
 
 QString Log::timeStr() {
-    return QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
+    // Include the UTC offset in log entries for cross-machine comparison.
+    const auto now = QDateTime::currentDateTime();
+    const auto offsetSeconds = now.offsetFromUtc();
+    const auto absoluteSeconds = offsetSeconds < 0 ? -offsetSeconds : offsetSeconds;
+    const auto offsetText = QStringLiteral("%1%2:%3")
+                                .arg(offsetSeconds < 0 ? QChar(u'-') : QChar(u'+'))
+                                .arg(absoluteSeconds / 3600, 2, 10, QLatin1Char('0'))
+                                .arg((absoluteSeconds % 3600) / 60, 2, 10, QLatin1Char('0'));
+    return QStringLiteral("%1 %2").arg(now.toString(QStringLiteral("hh:mm:ss.zzz")), offsetText);
 }
 
 QString Log::colorizeText(const LogLevel level, const QString &text) {

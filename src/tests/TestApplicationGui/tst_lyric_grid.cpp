@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -157,6 +158,52 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords_data() {
         << QStringLiteral("lines") << Rows{{"four", "five"}} << true;
 }
 
+void ApplicationGuiTests::languageFallbackSkipsDisabledItems_data() {
+    QTest::addColumn<QString>("current");
+    QTest::addColumn<QString>("preferred");
+    QTest::addColumn<QStringList>("disabled");
+    QTest::addColumn<QString>("expected");
+    QTest::newRow("disabled-preferred")
+        << QString() << QStringLiteral("cmn") << QStringList{"cmn"} << QStringLiteral("eng");
+    QTest::newRow("missing-current")
+        << QStringLiteral("missing") << QStringLiteral("cmn") << QStringList{"cmn"}
+        << QStringLiteral("eng");
+    QTest::newRow("disabled-first-item")
+        << QString() << QStringLiteral("missing") << QStringList{"cmn"} << QStringLiteral("eng");
+    QTest::newRow("explicit-disabled-current")
+        << QStringLiteral("cmn") << QStringLiteral("eng") << QStringList{"cmn"}
+        << QStringLiteral("cmn");
+    QTest::newRow("all-disabled")
+        << QString() << QStringLiteral("cmn") << QStringList{"cmn", "eng"} << QString();
+    QTest::newRow("all-disabled-explicit-current")
+        << QStringLiteral("cmn") << QStringLiteral("eng") << QStringList{"cmn", "eng"}
+        << QStringLiteral("cmn");
+}
+
+void ApplicationGuiTests::languageFallbackSkipsDisabledItems() {
+    QFETCH(QString, current);
+    QFETCH(QString, preferred);
+    QFETCH(QStringList, disabled);
+    QFETCH(QString, expected);
+    LanguageComboBox box(QStringLiteral("language"));
+    QCOMPARE(box.setLanguages(
+                 {LanguageInfo(QStringLiteral("cmn")), LanguageInfo(QStringLiteral("eng"))},
+                 current, preferred, disabled), expected);
+    QCOMPARE(box.currentLanguage(), expected);
+}
+
+void ApplicationGuiTests::unavailableLanguageWithoutReasonKeepsFallbackTooltip() {
+    LanguageComboBox box(QStringLiteral("language"));
+    const auto base = QStringLiteral("Default language");
+    box.setToolTip(base);
+    box.setLanguages({LanguageInfo(QStringLiteral("cmn")), LanguageInfo(QStringLiteral("eng"))},
+                     QStringLiteral("eng"), {}, {QStringLiteral("eng")});
+    QVERIFY(box.toolTip() != base && !box.toolTip().isEmpty());
+    QCOMPARE(box.toolTip(), box.itemData(box.currentIndex(), Qt::ToolTipRole).toString());
+    box.setCurrentLanguage(QStringLiteral("cmn"));
+    QCOMPARE(box.toolTip(), base);
+}
+
 void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     QFETCH(QString, selection);
     QFETCH(Rows, expected);
@@ -166,8 +213,7 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
         return;
     const auto before = context->m_coreRuntime->documentVersion();
     const auto original = TestSupport::projectSnapshot(*context->m_appModel);
-    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
-                              SynthrtEngine::instance().languageService());
+    FillLyric::G2pService g2p(singingClip->singerIdentifier());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
     showGrid(grid, {
                        {"one", "two", "three"},
@@ -238,8 +284,7 @@ void ApplicationGuiTests::lyricGridMovesSelectedLinesTogether() {
     createLyricSelection();
     if (QTest::currentTestFailed())
         return;
-    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
-                              SynthrtEngine::instance().languageService());
+    FillLyric::G2pService g2p(singingClip->singerIdentifier());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
     const Rows original{{"one"}, {"two"}, {"three"}, {"four"}};
     showGrid(grid, original);
@@ -309,8 +354,7 @@ void ApplicationGuiTests::lyricGridSplitKeepsTheNewLineEditable() {
     createLyricSelection();
     if (QTest::currentTestFailed())
         return;
-    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
-                              SynthrtEngine::instance().languageService());
+    FillLyric::G2pService g2p(singingClip->singerIdentifier());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
     showGrid(grid, {
                        {"one", "two", "three"}
@@ -349,8 +393,7 @@ void ApplicationGuiTests::lyricGridMenusInsertAndClearWords() {
     createLyricSelection();
     if (QTest::currentTestFailed())
         return;
-    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
-                              SynthrtEngine::instance().languageService());
+    FillLyric::G2pService g2p(singingClip->singerIdentifier());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
     showGrid(grid, {
                        {"one", "two"},
@@ -411,8 +454,7 @@ void ApplicationGuiTests::lyricGridZoomAndScrollKeepWordsSelectable() {
     if (QTest::currentTestFailed())
         return;
     const auto before = context->m_coreRuntime->documentVersion();
-    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
-                              SynthrtEngine::instance().languageService());
+    FillLyric::G2pService g2p(singingClip->singerIdentifier());
     FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
     auto font = grid.font();
     font.setPointSizeF(12);

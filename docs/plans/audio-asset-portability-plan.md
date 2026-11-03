@@ -54,11 +54,11 @@ DiffScope 的 `AudioPathInfo` 另有 `formatEntryClassName` / `userData`（talcs
 
 ```jsonc
 {
-  "path": "C:/Users/xxx/Music/vocal.wav",
+  "path": "<用户目录>/Music/vocal.wav",
   "workspace": {
     "diffscope": {
       "audio": {
-        "absoluteDir": "C:/Users/xxx/Music",
+        "absoluteDir": "<用户目录>/Music",
         "relativeDir": "assets/audio",    // 为空表示不在工程目录内
         "fileName": "vocal.wav",
         "sha512": "…"

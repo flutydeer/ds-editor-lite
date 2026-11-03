@@ -7,6 +7,7 @@
 
 #include <QVersionNumber>
 #include <QMap>
+#include <QSet>
 
 #include <functional>
 #include <optional>
@@ -21,6 +22,8 @@ namespace Automation {
         QVersionNumber packageVersion;
         QString name;
         SingerInfo info;
+        /// Languages with resolved conversion routes, including routes whose models are not loaded.
+        QSet<QString> convertibleLanguages;
 
         friend bool operator==(const PackageSingerDto &, const PackageSingerDto &) = default;
     };
@@ -93,6 +96,8 @@ namespace Automation {
 
     struct PackageRuntimeServices {
         std::function<QList<PackageDto>()> installedPackages;
+        /// Scan failures are keyed by path because rejected packages have no reliable identity.
+        std::function<QList<PackageRefreshFailureDto>()> installedPackageFailures;
         std::function<AutomationResult<PackageValidationReportDto>(const QString &)>
             validatePackage;
         std::function<int(AppModel *, bool apply)> resolveDocumentVoices;
@@ -109,6 +114,8 @@ namespace Automation {
         AutomationResult<QList<PackageDto>> getInstalledPackages();
         AutomationResult<QList<PackageDto>>
             getInstalledPackages(PackagePathProjection pathProjection);
+
+        AutomationResult<QList<PackageRefreshFailureDto>> getInstalledPackageFailures();
         AutomationResult<PackageDto> describePackage(const QString &packageId,
                                                      PackagePathProjection pathProjection = {});
         AutomationResult<PackageDto> describePackage(const QString &packageId,

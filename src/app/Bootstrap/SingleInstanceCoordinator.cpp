@@ -1,5 +1,7 @@
 #include "SingleInstanceCoordinator.h"
 
+#include "ProcessProbe.h"
+
 #include "SingleInstanceIdentity.h"
 
 #include <QCoreApplication>
@@ -11,6 +13,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLockFile>
+#include <QSysInfo>
 #include <QPointer>
 #include <QQueue>
 #include <QSet>
@@ -25,6 +28,8 @@
 namespace {
     constexpr int connectionTimeoutMs = 3000;
     constexpr int connectionAttemptMs = 100;
+    // Let the peer finish pending pipe I/O before closing a served connection on Windows.
+    constexpr int responseLingerMs = 100;
 
     QString executablePath() {
         const QFileInfo executable(QCoreApplication::applicationFilePath());
@@ -134,6 +139,7 @@ private:
         qsizetype pendingWriteBytes = 0;
         qint64 activeWriteBytes = 0;
         QTimer *initialReadTimer = nullptr;
+        QTimer *lingerTimer = nullptr;
         bool initialized = false;
         bool closeWhenDrained = false;
     };
@@ -146,7 +152,8 @@ private:
     void acceptConnections() {
         while (m_server->hasPendingConnections()) {
             auto *socket = m_server->nextPendingConnection();
-            if (m_connections.size() >= SingleInstanceProtocol::maxConnectionCount) {
+            if (m_connections.size() >= SingleInstanceProtocol::maxConnectionCount &&
+                !releaseLingeringConnection()) {
                 socket->disconnectFromServer();
                 socket->deleteLater();
                 continue;
@@ -155,8 +162,12 @@ private:
             auto *initialReadTimer = new QTimer(socket);
             initialReadTimer->setSingleShot(true);
             initialReadTimer->setInterval(SingleInstanceProtocol::initialReadTimeoutMs);
+            auto *lingerTimer = new QTimer(socket);
+            lingerTimer->setSingleShot(true);
+            lingerTimer->setInterval(responseLingerMs);
             ConnectionState state;
             state.initialReadTimer = initialReadTimer;
+            state.lingerTimer = lingerTimer;
             m_connections.insert(socket, std::move(state));
             connect(socket, &QLocalSocket::readyRead, socket,
                     [this, socket] { readRequests(socket); });
@@ -172,10 +183,27 @@ private:
                 if (it != m_connections.constEnd() && !it->initialized)
                     dropConnection(socket);
             });
+            connect(lingerTimer, &QTimer::timeout, socket, [this, socket] {
+                if (m_connections.contains(socket))
+                    socket->disconnectFromServer();
+            });
             initialReadTimer->start();
             // A pending connection can already contain the initial frame.
             readRequests(socket);
         }
+    }
+
+    // Reclaim served connections in their linger period before rejecting a new connection.
+    bool releaseLingeringConnection() {
+        for (auto it = m_connections.begin(); it != m_connections.end(); ++it) {
+            if (!it->lingerTimer || !it->lingerTimer->isActive())
+                continue;
+            auto *socket = it.key();
+            it->lingerTimer->stop();
+            dropConnection(socket);
+            return true;
+        }
+        return false;
     }
 
     void readRequests(QLocalSocket *socket) {
@@ -289,6 +317,8 @@ private:
         it->pendingWriteBytes += message.size();
         it->writeQueue.enqueue(std::move(message));
         it->closeWhenDrained = it->closeWhenDrained || closeWhenDrained;
+        if (it->lingerTimer)
+            it->lingerTimer->stop();
         pumpWrites(socket);
     }
 
@@ -297,8 +327,8 @@ private:
         if (it == m_connections.end() || it->activeWriteBytes > 0)
             return;
         if (it->writeQueue.isEmpty()) {
-            if (it->closeWhenDrained)
-                socket->disconnectFromServer();
+            if (it->closeWhenDrained && it->lingerTimer && !it->lingerTimer->isActive())
+                it->lingerTimer->start();
             return;
         }
 
@@ -365,12 +395,36 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
     }
 
     m_lockFile = std::make_unique<QLockFile>(SingleInstanceIdentity::lockFilePath(m_dataDirectory));
+    // Disable age expiry for long-running editors; Qt still checks PID and process name.
     m_lockFile->setStaleLockTime(0);
     if (!m_lockFile->tryLock(0)) {
-        if (m_lockFile->error() == QLockFile::LockFailedError)
-            return StartResult::Secondary;
-        m_error = tr("Failed to access the single-instance lock file");
-        return StartResult::Error;
+        if (m_lockFile->error() != QLockFile::LockFailedError) {
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
+        qint64 holder = 0;
+        QString host;
+        QString application;
+        const bool readable = m_lockFile->getLockInfo(&holder, &host, &application);
+        bool recovered = false;
+        if (readable &&
+            (host.isEmpty() || host == QSysInfo::machineHostName()) &&
+            !ProcessProbe::isAlive(holder)) {
+            m_lockFile->removeStaleLockFile();
+        } else if (!readable) {
+            // Allow Qt's stale-file recovery for malformed locks without expiring valid live locks.
+            m_lockFile->setStaleLockTime(30000);
+            recovered = m_lockFile->tryLock(0);
+            m_lockFile->setStaleLockTime(0);
+        }
+        // Allow a bounded wait for an exiting lock holder before forwarding as a secondary
+        // instance.
+        if (!recovered && !m_lockFile->tryLock(750)) {
+            if (m_lockFile->error() == QLockFile::LockFailedError)
+                return StartResult::Secondary;
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
     }
 
     m_ipcThread = new QThread;

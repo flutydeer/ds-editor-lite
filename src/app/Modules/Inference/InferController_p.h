@@ -75,8 +75,11 @@ public:
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 
-    void createAndRunGetPronTask(const SingingClip &clip);
-    void createAndRunGetPhoneTask(const SingingClip &clip);
+    // allowUnvoicedFallback is only for voice clearing; ordinary edits must preserve user-entered
+    // data.
+    void createAndRunGetPronTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void createAndRunGetPhoneTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void restartLanguageTasksAfterVoiceCleared(SingingClip &clip);
 
     void createPipeline(InferPiece &piece, bool acousticInferenceRequested = false);
     void createPipeline(InferPiece &piece, bool acousticInferenceRequested,

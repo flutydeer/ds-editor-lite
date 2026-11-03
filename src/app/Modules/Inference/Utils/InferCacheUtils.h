@@ -3,10 +3,44 @@
 
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 #include <QList>
+#include <functional>
+
+#include "Modules/Inference/Models/GenericInferModel.h"
 
 namespace InferCacheUtils {
+
+    // Include the persistent model revision in every stage's disk-cache key. Explicit package
+    // reloads advance it without deleting wave files still referenced by a playing document.
+    QString inputHashForCurrentModels(const QString &inputHash);
+    void invalidateModelCaches();
+
+    struct CacheFileNames {
+        QString input;
+        QString output;
+
+        [[nodiscard]] QStringList toList() const {
+            return {input, output};
+        }
+    };
+
+    /// Cache filenames for a stage category and its input hash.
+    CacheFileNames cacheFileNames(const QString &category, const QString &hash);
+
+    struct JsonCacheLookup {
+        GenericInferModel input;
+        GenericInferModel output;
+        QString inputHash;
+        QString outputCachePath;
+        bool hit = false;
+    };
+
+    /// Rebuilds the input and retries if the model catalog or disk revision changes during lookup.
+    JsonCacheLookup lookupJsonCache(const QString &category, const QString &cacheDirectory,
+                                   const std::function<GenericInferModel()> &buildInput,
+                                   const QString &keySuffix = {});
 
     struct CacheFileInfo {
         QString fileName;

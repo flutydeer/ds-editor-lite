@@ -1,4 +1,5 @@
 #include "InferTaskHelper.h"
+#include "ReservedPhonemes.h"
 
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
@@ -99,7 +100,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         validateNonNegative("first word length", firstWordLen, firstNote.id);
 
         noteBuffer.append({0, 0, firstWordLen, true});
-        phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
+        phoneBuffer.append({ReservedPhonemes::silence(), firstNote.languageDictId, true, 0});
 
         for (int i = 0; i < firstNote.phonemeNames.count(); i++) {
             auto phonemeName = firstNote.phonemeNames.at(i);
@@ -137,7 +138,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
             foundOnset = true;
             double start = 0;
             if (useOffsetInfo) {
-                if (phonemeName.name == "SP" || phonemeName.name == "AP")
+                if (input.reservedPhonemes.contains(phonemeName.name))
                     start = 0;
                 else
                     start = note.phonemeOffsets.at(i) / 1000.0;
@@ -198,7 +199,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         if (hasGap) {
             validateNonNegative("rest gap length", gapLen, note.id);
             noteBuffer.append({lastKey, 0, gapLen, true});
-            phoneBuffer.append({"SP", note.languageDictId, true, 0});
+            phoneBuffer.append({ReservedPhonemes::silence(), note.languageDictId, true, 0});
             phoneBuffer.append(stashedNextPhones);
             commit();
         }
@@ -210,7 +211,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     if (!lastNote.isRest) {
         validateNonNegative("tail padding length", input.paddingEndMs / 1000.0, lastNote.id);
         noteBuffer.append({lastKey, 0, input.paddingEndMs / 1000.0, true});
-        phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
+        phoneBuffer.append({ReservedPhonemes::silence(), firstNote.languageDictId, true, 0});
         commit();
     }
 

@@ -917,7 +917,8 @@ namespace DsConnector {
         const auto &observation = m_bootstrap->observation();
         if (!observation.connected) {
             clearEditorState(observation.error.isEmpty() ? QStringLiteral("bootstrap_disconnected")
-                                                         : observation.error);
+                                                         : observation.error,
+                             m_drainingEditorReplies);
             emit statusChanged();
             return;
         }
@@ -935,21 +936,28 @@ namespace DsConnector {
             clearEditorState(QStringLiteral("editor_instance_changed"));
         }
         if (snapshot.result.state == SingleInstanceAutomationState::ServerReady) {
+            m_drainingEditorReplies = false;
             beginHandshake(snapshot);
         } else {
-            clearEditorState(editorUnavailableCode());
+            const auto stopping =
+                snapshot.result.state == SingleInstanceAutomationState::ServerStopping ||
+                snapshot.result.state == SingleInstanceAutomationState::EditorStopping;
+            // A stopping announcement disables new calls but may race with the accepted exit
+            // response on HTTP. Let those replies finish (or hit their existing network deadline).
+            clearEditorState(editorUnavailableCode(), stopping || m_drainingEditorReplies);
         }
         emit statusChanged();
     }
 
-    void ConnectorRuntime::clearEditorState(const QString &error) {
+    void ConnectorRuntime::clearEditorState(const QString &error, const bool drainReplies) {
         ++m_handshakeEpoch;
         m_handshakeRetryTimer->stop();
         m_handshakeTarget.reset();
         m_handshakeInProgress = false;
         m_handshakeRefreshPending = false;
         m_handshakeRetryAttempt = 0;
-        m_upstream->clearEndpoint(error);
+        m_drainingEditorReplies = drainReplies;
+        m_upstream->clearEndpoint(error, !drainReplies);
         m_actualTools = {};
         m_editorContract = {};
         clearToolCaches();

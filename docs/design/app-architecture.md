@@ -128,6 +128,6 @@ L6  App / Bootstrap
 
 ## 7. 验证不变量(每步)
 - 源文件计数守恒(基线 852);
-- 全量重编 + `ctest`(当前 11/11);
+- 全量重编 + `ctest`(全绿;用例数以 `ctest` 输出为准);
 - 重跑 depgraph,确认目标 back-edge 归零、无新增;
 - 移动不改类名(避免 QSS/AUTOMOC 连锁)。

@@ -47,6 +47,13 @@ public:
     QString path() const;
     QList<SingerInfo> singers() const;
 
+    /// Loader failure reason, or empty for a loaded package.
+    [[nodiscard]] QString unavailableReason() const;
+    [[nodiscard]] bool isUnavailable() const;
+
+    /// Whether a rejected package has a nonempty reason that can be shown to the user.
+    [[nodiscard]] static bool isFailureReportable(const QString &reason);
+
     void setId(const QString &id);
     void setVersion(const QVersionNumber &version);
     void setVendor(const QString &vendor);
@@ -57,8 +64,12 @@ public:
     void setLocalizedLicense(const QMap<QString, QString> &names);
     void setPath(const QString &path);
     void setSingers(const QList<SingerInfo> &singers);
+    void setUnavailableReason(const QString &reason);
 
     void addSinger(const SingerInfo &singer);
+
+    /// Build a failed-package entry using its directory as the title and identity.
+    static PackageInfo unavailable(const QString &path, const QString &reason);
 
     bool isEmpty() const;
 
@@ -94,6 +105,7 @@ public:
     QString readme;
     QString url;
     QString path;
+    QString unavailableReason;
     QList<SingerInfo> singers;
 
     bool operator==(const PackageInfoData &other) const;

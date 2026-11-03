@@ -28,6 +28,9 @@ public:
     ~ApplicationGuiTests() override;
 
 private slots:
+    void unavailableLanguageWithoutReasonKeepsFallbackTooltip();
+    void languageFallbackSkipsDisabledItems_data();
+    void languageFallbackSkipsDisabledItems();
     void initTestCase();
     void init();
     void copyPasteUsesTheActiveClipAndPlaybackPosition();

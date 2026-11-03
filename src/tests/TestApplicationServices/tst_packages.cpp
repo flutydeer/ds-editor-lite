@@ -8,6 +8,12 @@ using namespace ApplicationTest;
 
 void ApplicationServicesTests::packageVersionAndPathProjection() {
     ApplicationHarness harness;
+    harness.packageFailures = {
+        {.path = QStringLiteral("allowed/broken"),
+         .reason = QStringLiteral("Dependency wolf/lang-jpn could not be resolved")},
+        {.path = QStringLiteral("allowed/legacy"),
+         .reason = QStringLiteral("Package manifest version is unsupported")},
+    };
     harness.packages = {
         {.id = QStringLiteral("voice.package"),
          .version = QVersionNumber(1, 0),
@@ -17,6 +23,9 @@ void ApplicationServicesTests::packageVersionAndPathProjection() {
          .path = QStringLiteral("allowed/voice-v2")},
     };
     auto &runtime = harness.core();
+    const auto failures = runtime.packages().getInstalledPackageFailures();
+    QVERIFY(failures);
+    QCOMPARE(failures.get(), harness.packageFailures);
 
     const auto projection = [](const QString &path) -> std::optional<QString> {
         if (path.startsWith(QStringLiteral("allowed")))

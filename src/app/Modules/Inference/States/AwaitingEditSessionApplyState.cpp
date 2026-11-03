@@ -1,5 +1,7 @@
 #include "AwaitingEditSessionApplyState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
@@ -13,7 +15,7 @@ AwaitingEditSessionApplyState::AwaitingEditSessionApplyState(InferPipeline &pipe
 }
 
 void AwaitingEditSessionApplyState::onEntry(QEvent *event) {
-    qDebug() << "AwaitingEditSessionApplyState::onEntry" << "stage:" << stageName();
+    qCDebug(logInferState) << "AwaitingEditSessionApplyState::onEntry" << "stage:" << stageName();
     QState::onEntry(event);
     m_resumeRequested = false;
 
@@ -28,7 +30,7 @@ void AwaitingEditSessionApplyState::onEntry(QEvent *event) {
 }
 
 void AwaitingEditSessionApplyState::onExit(QEvent *event) {
-    qDebug() << "AwaitingEditSessionApplyState::onExit" << "stage:" << stageName();
+    qCDebug(logInferState) << "AwaitingEditSessionApplyState::onExit" << "stage:" << stageName();
     if (!m_resumeRequested) {
         InferenceApplyGate::logDecision(m_pipeline.applyContext(), "pipeline-awaiting",
                                         InferenceApplyGate::Decision::Drop,

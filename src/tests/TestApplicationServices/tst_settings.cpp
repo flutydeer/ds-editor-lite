@@ -114,9 +114,7 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     auto expected = before;
     expected.general.uiLanguage = QStringLiteral("en_US");
     expected.general.defaultSingingLanguage = QStringLiteral("eng");
-    expected.general.defaultLyrics = {
-        {QStringLiteral("eng"), QStringLiteral("la")}
-    };
+    expected.general.defaultLyrics.insert(QStringLiteral("eng"), QStringLiteral("la"));
     expected.appearance.themeId = QStringLiteral("dark");
     expected.audio.deviceGain = 0.75;
     expected.audio.devicePan = -0.25;
@@ -130,6 +128,14 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     expected.inference.singerSessionCacheCapacity = 2;
     expected.inference.singerSessionIdleTimeoutSeconds = 120;
     QVERIFY(harness.settings == expected);
+
+    // An empty lyric resets only its named language.
+    const auto reset = runtime.settings().updateSinging(
+        applicationContext(),
+        {.defaultLyrics = QMap<QString, QString>{{QStringLiteral("eng"), QString()}}});
+    QVERIFY(reset);
+    QVERIFY(!harness.settings.general.defaultLyrics.contains(QStringLiteral("eng")));
+    QVERIFY(harness.settings.general.defaultLyrics.contains(QStringLiteral("cmn")));
 }
 
 void ApplicationServicesTests::sparseSettingsPreviewAndFailure() {
@@ -282,6 +288,34 @@ void ApplicationServicesTests::computeDeviceSettingsMatchAvailableGpuIdentity() 
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBefore);
 }
 
+void ApplicationServicesTests::computeDeviceSwitchValidatesTheTargetProvider() {
+    Automation::PublicSettingsSnapshotDto snapshot;
+    snapshot.computeDevice = Automation::ComputeDevicePublicSettingsDto{
+        .configured = {.executionProvider = QStringLiteral("DirectML")},
+        .providerCandidates = {{QStringLiteral("DirectML"), {}, true, {}},
+                               {QStringLiteral("CUDA"), {}, true, {}}},
+        .gpuCandidates = {{0, QStringLiteral("dml-adapter"), {}, true, {}}},
+    };
+    QString queriedProvider;
+    ApplicationHarness harness(Automation::WindowId::create(), [&] { return snapshot; },
+                               [&](const QString &provider) {
+        queriedProvider = provider;
+        return QList<Automation::SettingsGpuCandidateDto>{
+            {0, QStringLiteral("cuda-uuid"), {}, true, {}}};
+    });
+    harness.settings.inference.executionProvider = QStringLiteral("DirectML");
+    const auto changed = harness.core().settings().updateComputeDevice(
+        applicationContext(), {.executionProvider = QStringLiteral("CUDA"), .gpuIndex = 0,
+                               .gpuId = QStringLiteral("cuda-uuid")});
+    QVERIFY(changed);
+    QCOMPARE(queriedProvider, QStringLiteral("CUDA"));
+    QCOMPARE(harness.settings.inference.selectedGpuId, QStringLiteral("cuda-uuid"));
+    const auto invalid = harness.core().settings().updateComputeDevice(
+        applicationContext(), {.gpuId = QStringLiteral("dml-adapter")});
+    QVERIFY(!invalid);
+    QCOMPARE(harness.settingsWrites, 1);
+}
+
 namespace {
     template <typename T, typename Getter, typename Update, typename Mutate>
     void exerciseSettingsCategory(ApplicationHarness &harness,
@@ -350,9 +384,9 @@ void ApplicationServicesTests::generalSettings() {
         [&runtime](const auto &context, const auto &value) {
             return runtime.settings().updateGeneral(context, value);
         },
-        [](auto &value) { value.gameDirectory = QStringLiteral("game-data"); },
+        [](auto &value) { value.noteAnalyzer = QStringLiteral("vendor:inference/note"); },
         [](auto &value) { value.uiLanguage = QStringLiteral("unsupported"); },
-        [](auto &value) { value.pitchModelPath = QStringLiteral("model.bin"); });
+        [](auto &value) { value.pitchAnalyzer = QStringLiteral("vendor:inference/f0"); });
     const auto snapshot = runtime.settings().getSettings();
     QVERIFY(snapshot);
     QVERIFY(snapshot.get() == harness.settings);

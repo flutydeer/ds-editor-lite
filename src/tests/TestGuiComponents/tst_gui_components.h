@@ -26,6 +26,7 @@ private slots:
     void mixDisplay();
     void selectSinger_data();
     void selectSinger();
+    void unavailablePackagesStayVisibleAcrossMenuRefresh();
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();

@@ -4,6 +4,8 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/Support/MathUtils.h>
 #include "Modules/Inference/Utils/PitchRouting.h"
+#include "Modules/Inference/Utils/PitchSampling.h"
+#include "Modules/Inference/Models/InferInputBase.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -105,4 +107,27 @@ void ParametersTests::paramResampleVocoderPitchInterpolation() {
     QVERIFY2((PitchRouting::midiPitchToF0({0.0, -1.0, 69.0}, 1.0, 3, 1.0) ==
               QList<float>({0.0f, 0.0f, 440.0f})),
              "vocoder f0 must preserve non-positive unvoiced pitch samples");
+    QCOMPARE(PitchRouting::midiPitchToF0({69.0, 0.0}, 1.0, 4, 0.3),
+             QList<float>({440.0f, 440.0f, 0.0f, 0.0f}));
+    const QList<double> pitch{60.0, 62.0, 0.0, 0.0, 64.0};
+    const QList<double> frames{0.0, 1.0, 2.0, 3.0, 4.0};
+    QCOMPARE(PitchSampling::resample(pitch, frames, {0.5, 1.25, 1.75, 2.5, 3.5, 3.75, 5.0}),
+             QList<double>({61.0, 62.0, 0.0, 0.0, 0.0, 64.0, 64.0}));
+    QCOMPARE(PitchSampling::resample(pitch, frames, {1.5}), QList<double>({62.0}));
+    QVERIFY(PitchSampling::resample(pitch, {0.0, 1.0, 1.0, 2.0, 3.0}, {0.5}).isEmpty());
+    InferInputBase input;
+    input.timeline = Timeline({{0, 120.0}});
+    input.clipStartTick = 0;
+    input.pieceStartTick = 0;
+    input.pieceEndTick = 480;
+    InferParamCurve extracted;
+    extracted.localStartTick = 0;
+    for (int i = 0; i < 96; ++i)
+        extracted.values.append(i < 30 ? 60.0 : i < 60 ? 0.0 : 64.0);
+    const auto inputFrames = input.resamplePitchToFrames(extracted, 50, 0.01);
+    QCOMPARE(inputFrames.size(), 50);
+    for (const auto value : inputFrames)
+        QVERIFY(value == 0.0 || value >= 60.0);
+    QVERIFY(inputFrames.contains(0.0) && inputFrames.contains(60.0) && inputFrames.contains(64.0));
+    QCOMPARE(input.resamplePitchToFrames({}, 3, 0.01), QList<double>(3, 0.0));
 }

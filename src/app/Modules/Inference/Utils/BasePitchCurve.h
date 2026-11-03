@@ -7,7 +7,7 @@
 
 // https://github.com/yqzhishen/opensvip/blob/main/csharp/Plugins/Ace/BasePitchCurve.cs
 
-namespace srt::svs::Api::Common::L1 {
+namespace ds::Api::Common::L1 {
     struct InputWordInfo;
 }
 class InferWord;
@@ -25,7 +25,7 @@ public:
         }
     };
 
-    explicit BasePitchCurve(const std::vector<srt::svs::Api::Common::L1::InputWordInfo> &word);
+    explicit BasePitchCurve(const std::vector<ds::Api::Common::L1::InputWordInfo> &word);
     explicit BasePitchCurve(const QList<InferWord> &words);
     explicit BasePitchCurve(std::vector<InputNote> notes);
     std::vector<double> GetPitchPoints(double timestep) const;

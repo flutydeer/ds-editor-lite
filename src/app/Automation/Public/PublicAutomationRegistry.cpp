@@ -4,6 +4,7 @@
 
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
+#include "Model/AppOptions/Options/DefaultLyricRules.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
@@ -2481,114 +2482,102 @@ namespace Automation {
             const auto voice = arguments.value(QStringLiteral("singer")).toObject();
             const auto singerId = voice.value(QStringLiteral("singer_id")).toString();
             const auto packageId = voice.value(QStringLiteral("package_id")).toString();
-            return parsePackageVersion(voice, QStringLiteral("singer.package_version"))
-                .flatMap([&](const auto &packageVersion) {
-                    return m_runtime.packages().getInstalledPackages().flatMap(
-                        [&](const auto &packages) -> AutomationResult<QJsonObject> {
-                            for (const auto &package : packages) {
-                                for (const auto &singer : package.singers) {
-                                    if (singer.singerId == singerId &&
-                                        singer.packageId == packageId &&
-                                        singer.packageVersion == packageVersion) {
-                                        const auto resolutionStates =
-                                            AutomationWire::publicStringValueDomainValues(
-                                                AutomationWire::PublicValueDomain::
-                                                    VoiceResolutionState);
-                                        const auto resolutionState = singer.info.resolutionState();
-                                        const bool resolved =
-                                            resolutionState == ResolutionState::Resolved;
-                                        const auto defaultLanguage = singer.info.defaultLanguage();
-                                        QJsonArray languageIds;
-                                        QJsonArray languages;
-                                        bool defaultG2pReady = false;
-                                        for (const auto &language : singer.info.languages()) {
-                                            const auto languageId = language.id();
-                                            const auto g2pId = language.g2p();
-                                            const bool g2pReady =
-                                                resolved && !g2pId.isEmpty() &&
-                                                g2pId != QStringLiteral("unknown");
-                                            languageIds.append(languageId);
-                                            languages.append(QJsonObject{
-                                                {QStringLiteral("language_id"), languageId},
-                                                {QStringLiteral("name"), language.name()},
-                                                {QStringLiteral("display_name"),
-                                                 resolvePublicDisplayText(
-                                                     language.name(), language.localizedNames())},
-                                                {QStringLiteral("localized_names"),
-                                                 encodePublicLocalizedText(
-                                                     language.localizedNames())},
-                                                {QStringLiteral("g2p_id"), g2pId},
-                                                {QStringLiteral("g2p_ready"), g2pReady},
-                                                {QStringLiteral("default"),
-                                                 languageId == defaultLanguage},
-                                            });
-                                            if (languageId == defaultLanguage)
-                                                defaultG2pReady = g2pReady;
-                                        }
-                                        QJsonArray speakers;
-                                        const auto speakerInfos = singer.info.speakers();
-                                        const QString defaultSpeaker =
-                                            speakerInfos.isEmpty() ? QString()
-                                                                   : speakerInfos.constFirst().id();
-                                        for (const auto &speaker : speakerInfos) {
-                                            speakers.append(QJsonObject{
-                                                {QStringLiteral("speaker_id"), speaker.id()},
-                                                {QStringLiteral("name"), speaker.name()},
-                                                {QStringLiteral("display_name"),
-                                                 resolvePublicDisplayText(
-                                                     speaker.name(), speaker.localizedNames())},
-                                                {QStringLiteral("localized_names"),
-                                                 encodePublicLocalizedText(
-                                                     speaker.localizedNames())},
-                                                {QStringLiteral("languages"), languageIds},
-                                                {QStringLiteral("mixable"), speaker.mixable()},
-                                                {QStringLiteral("default"),
-                                                 speaker.id() == defaultSpeaker},
-                                            });
-                                        }
-                                        const auto &capability = singer.info.capability();
-                                        const bool mixingSupported =
-                                            capability && capability->mixableSpeakers.size() > 1;
-                                        return AutomationResult<QJsonObject>(QJsonObject{
-                                            {QStringLiteral("snapshot"),
-                                             QJsonObject{
-                                                 {QStringLiteral("package_id"), singer.packageId},
-                                                 {QStringLiteral("package_version"),
-                                                  singer.packageVersion.toString()},
-                                                 {QStringLiteral("singer_id"), singer.singerId},
-                                                 {QStringLiteral("name"), singer.name},
-                                                 {QStringLiteral("display_name"),
-                                                  resolvePublicDisplayText(
-                                                      singer.name, singer.info.localizedNames())},
-                                                 {QStringLiteral("localized_names"),
-                                                  encodePublicLocalizedText(
-                                                      singer.info.localizedNames())},
-                                                 {QStringLiteral("speakers"), speakers},
-                                                 {QStringLiteral("languages"), languages},
-                                                 {QStringLiteral("default_speaker_id"),
-                                                  defaultSpeaker.isEmpty()
-                                                      ? QJsonValue(QJsonValue::Null)
-                                                      : QJsonValue(defaultSpeaker)},
-                                                 {QStringLiteral("default_language"),
-                                                  defaultLanguage.isEmpty()
-                                                      ? QJsonValue(QJsonValue::Null)
-                                                      : QJsonValue(defaultLanguage)},
-                                                 {QStringLiteral("g2p_ready"), defaultG2pReady},
-                                                 {QStringLiteral("resolution_state"),
-                                                  resolutionStates.value(
-                                                      static_cast<qsizetype>(resolutionState))},
-                                                 {QStringLiteral("mixing_supported"),
-                                                  mixingSupported},
-                                             }},
-                                        });
-                                    }
-                                }
-                            }
-                            return AutomationResult<QJsonObject>(error(
-                                AutomationErrorCode::NotFound,
-                                QStringLiteral("Singer was not found"), QStringLiteral("singer")));
+            auto packageVersion =
+                parsePackageVersion(voice, QStringLiteral("singer.package_version"));
+            if (!packageVersion)
+                return AutomationResult<QJsonObject>(packageVersion.getError());
+            auto result = m_runtime.packages().getInstalledPackages();
+            if (!result)
+                return AutomationResult<QJsonObject>(result.getError());
+            for (const auto &package : result.get()) {
+                for (const auto &singer : package.singers) {
+                    if (singer.singerId == singerId && singer.packageId == packageId &&
+                        singer.packageVersion == packageVersion.get()) {
+                        const auto resolutionStates = AutomationWire::publicStringValueDomainValues(
+                            AutomationWire::PublicValueDomain::VoiceResolutionState);
+                        const auto resolutionState = singer.info.resolutionState();
+                        const bool resolved = resolutionState == ResolutionState::Resolved;
+                        const auto defaultLanguage = singer.info.defaultLanguage();
+                        QJsonArray languageIds;
+                        QJsonArray languages;
+                        bool defaultG2pReady = false;
+                        for (const auto &language : singer.info.languages()) {
+                            const auto languageId = language.id();
+                            // Language readiness depends on the wolf route, not on a G2P
+                            // identifier.
+                            const bool g2pReady =
+                                resolved && singer.convertibleLanguages.contains(languageId);
+                            languageIds.append(languageId);
+                            languages.append(QJsonObject{
+                                {QStringLiteral("language_id"), languageId},
+                                {QStringLiteral("name"), language.name()},
+                                {QStringLiteral("display_name"),
+                                 resolvePublicDisplayText(language.name(),
+                                 language.localizedNames())},
+                                {QStringLiteral("localized_names"),
+                                 encodePublicLocalizedText(language.localizedNames())},
+                                // Deprecated compatibility field, always empty.
+                                {QStringLiteral("g2p_id"), QString()},
+                                {QStringLiteral("g2p_ready"), g2pReady},
+                                {QStringLiteral("default"), languageId == defaultLanguage},
+                            });
+                            if (languageId == defaultLanguage)
+                                defaultG2pReady = g2pReady;
+                        }
+                        QJsonArray speakers;
+                        const auto speakerInfos = singer.info.speakers();
+                        const QString defaultSpeaker =
+                            speakerInfos.isEmpty() ? QString() : speakerInfos.constFirst().id();
+                        for (const auto &speaker : speakerInfos) {
+                            speakers.append(QJsonObject{
+                                {QStringLiteral("speaker_id"), speaker.id()},
+                                {QStringLiteral("name"), speaker.name()},
+                                {QStringLiteral("display_name"),
+                                 resolvePublicDisplayText(speaker.name(),
+                                 speaker.localizedNames())},
+                                {QStringLiteral("localized_names"),
+                                 encodePublicLocalizedText(speaker.localizedNames())},
+                                {QStringLiteral("languages"), languageIds},
+                                {QStringLiteral("mixable"), speaker.mixable()},
+                                {QStringLiteral("default"), speaker.id() == defaultSpeaker},
+                            });
+                        }
+                        const auto &capability = singer.info.capability();
+                        const bool mixingSupported =
+                            capability && capability->mixableSpeakers.size() > 1;
+                        return AutomationResult<QJsonObject>(QJsonObject{
+                            {QStringLiteral("snapshot"),
+                             QJsonObject{
+                                 {QStringLiteral("package_id"), singer.packageId},
+                                 {QStringLiteral("package_version"),
+                                  singer.packageVersion.toString()},
+                                 {QStringLiteral("singer_id"), singer.singerId},
+                                 {QStringLiteral("name"), singer.name},
+                                 {QStringLiteral("display_name"),
+                                  resolvePublicDisplayText(singer.name,
+                                                           singer.info.localizedNames())},
+                                 {QStringLiteral("localized_names"),
+                                  encodePublicLocalizedText(singer.info.localizedNames())},
+                                 {QStringLiteral("speakers"), speakers},
+                                 {QStringLiteral("languages"), languages},
+                                 {QStringLiteral("default_speaker_id"),
+                                  defaultSpeaker.isEmpty() ? QJsonValue(QJsonValue::Null)
+                                                           : QJsonValue(defaultSpeaker)},
+                                 {QStringLiteral("default_language"),
+                                  defaultLanguage.isEmpty() ? QJsonValue(QJsonValue::Null)
+                                                            : QJsonValue(defaultLanguage)},
+                                 {QStringLiteral("g2p_ready"), defaultG2pReady},
+                                 {QStringLiteral("resolution_state"),
+                                  resolutionStates.value(static_cast<qsizetype>(resolutionState))},
+                                 {QStringLiteral("mixing_supported"), mixingSupported},
+                             }},
                         });
-                });
+                    }
+                }
+            }
+            return AutomationResult<QJsonObject>(error(AutomationErrorCode::NotFound,
+                                                       QStringLiteral("Singer was not found"),
+                                                       QStringLiteral("singer")));
         });
         addBinding(ToolNames::tracks_insert, [this](const QJsonObject &arguments,
                                                     const PublicInvocationContext &invocation) {
@@ -2777,8 +2766,9 @@ namespace Automation {
             if (language.isEmpty() && settings)
                 language = settings.get().general.defaultSingingLanguage;
             if (settings)
+                // Use the same default-lyric resolution as the editor.
                 defaultLyric =
-                    settings.get().general.defaultLyrics.value(language, QStringLiteral("la"));
+                    DefaultLyricRules::resolve(settings.get().general.defaultLyrics, language);
             QList<NoteDraftDto> notes;
             QList<ResolvedValue> resolvedValues;
             const auto inputNotes = arguments.value(QStringLiteral("notes")).toArray();

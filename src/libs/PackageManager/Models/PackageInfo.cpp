@@ -15,7 +15,7 @@ PackageInfoData::PackageInfoData(const PackageInfoData &other)
       description(other.description), license(other.license),
       localizedVendor(other.localizedVendor), localizedDescription(other.localizedDescription),
       localizedLicense(other.localizedLicense), readme(other.readme), url(other.url),
-      path(other.path), singers(other.singers) {
+      path(other.path), unavailableReason(other.unavailableReason), singers(other.singers) {
 }
 
 PackageInfoData::~PackageInfoData() = default;
@@ -26,7 +26,8 @@ bool PackageInfoData::operator==(const PackageInfoData &other) const {
            localizedVendor == other.localizedVendor &&
            localizedDescription == other.localizedDescription &&
            localizedLicense == other.localizedLicense && readme == other.readme &&
-           url == other.url && path == other.path && singers == other.singers;
+           url == other.url && path == other.path &&
+           unavailableReason == other.unavailableReason && singers == other.singers;
 }
 
 bool PackageInfoData::operator!=(const PackageInfoData &other) const {
@@ -36,7 +37,7 @@ bool PackageInfoData::operator!=(const PackageInfoData &other) const {
 bool PackageInfoData::isEmpty() const {
     return id.isEmpty() && version.isNull() && vendor.isEmpty() && description.isEmpty() &&
            license.isEmpty() && readme.isEmpty() && url.isEmpty() && path.isEmpty() &&
-           singers.isEmpty();
+           unavailableReason.isEmpty() && singers.isEmpty();
 }
 
 PackageInfo::PackageInfo() : d(new PackageInfoData()) {
@@ -133,6 +134,18 @@ QString PackageInfo::path() const {
     return d->path;
 }
 
+QString PackageInfo::unavailableReason() const {
+    return d->unavailableReason;
+}
+
+bool PackageInfo::isUnavailable() const {
+    return !d->unavailableReason.isEmpty();
+}
+
+bool PackageInfo::isFailureReportable(const QString &reason) {
+    return !reason.isEmpty();
+}
+
 QList<SingerInfo> PackageInfo::singers() const {
     return d->singers;
 }
@@ -175,6 +188,18 @@ void PackageInfo::setPath(const QString &path) {
 
 void PackageInfo::setSingers(const QList<SingerInfo> &singers) {
     d->singers = singers;
+}
+
+void PackageInfo::setUnavailableReason(const QString &reason) {
+    d->unavailableReason = reason;
+}
+
+PackageInfo PackageInfo::unavailable(const QString &path, const QString &reason) {
+    PackageInfo result;
+    result.setId(QDir(path).dirName());
+    result.setPath(path);
+    result.setUnavailableReason(reason);
+    return result;
 }
 
 void PackageInfo::addSinger(const SingerInfo &singer) {

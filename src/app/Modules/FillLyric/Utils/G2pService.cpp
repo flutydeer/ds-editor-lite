@@ -7,65 +7,27 @@
 #include <utility>
 #include <vector>
 
-#include <synthrt/G2P/LanguageService.h>
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
-#include <lite/Language/G2pConvertRunner.h>
-#include <lite/Language/G2pInputAdapter.h>
+#include "Modules/Inference/Utils/PronunciationText.h"
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
+#include <lite/Language/EditorMarkers.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/VersionUtils.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {
     namespace {
-        std::string toUtf8(const QString &value) {
-            const auto bytes = value.toUtf8();
-            return {bytes.constData(), static_cast<size_t>(bytes.size())};
-        }
-
-        QString fromUtf8(const std::string &value) {
-            return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
-        }
-
-        /// Candidates from the g2p engine may be the split phoneme tokens of the
-        /// pronunciation itself (dict step) rather than true alternative
-        /// pronunciations; collapse them to the whole pronunciation so the
-        /// UI never offers single phonemes as switchable candidates.
-        QStringList normalizePronunciationCandidates(const QString &pronunciation,
-                                                     QStringList candidates) {
-            if (pronunciation.isEmpty())
-                return candidates;
-            const auto pronTokens = pronunciation.split(u' ', Qt::SkipEmptyParts);
-            if (pronTokens.isEmpty())
-                return candidates;
-            for (auto &c : candidates)
-                c = c.trimmed();
-            candidates.removeAll(QString());
-            const bool allArePronTokens =
-                !candidates.isEmpty() &&
-                std::all_of(candidates.cbegin(), candidates.cend(), [&](const QString &c) {
-                    return c.contains(u' ') ? c == pronunciation : pronTokens.contains(c);
-                });
-            if (allArePronTokens)
-                return {pronunciation};
-            return candidates;
-        }
+        using PronunciationText::fromUtf8;
+        using PronunciationText::toUtf8;
     }
 
-    G2pService::G2pService(SingerIdentifier singer,
-                           const srt::g2p::LanguageService &languageService)
-        : m_singer(std::move(singer)) {
-        Q_UNUSED(languageService);
+    G2pService::G2pService(SingerIdentifier singer) : m_singer(std::move(singer)) {
     }
 
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
                                          const std::vector<std::string> &priorityLanguages) const {
 
-        // Pre-fill results: all notes default to original lyric preservation
-        // (pronunciation=lyric, candidates={lyric}) per ds-session.md §206.
-        // This guarantees the returned list is the same length as the input so
-        // callers do not go out of bounds. G2P fallback is forbidden by
-        // ds-session.md §196; on failure the host only preserves the lyric.
+        // Preserve result indices and original lyrics when conversion fails.
         QList<G2pResult> results;
         results.reserve(notes.size());
         for (const auto &note : notes) {
@@ -92,13 +54,16 @@ namespace FillLyric {
             return results;
         }
 
-        // Group by resolved language (preserving first-seen order):
-        // language -> [(noteIndex, lyricUtf8), ...].
-        // lyric has its trailing '+' stripped, matching the old implementation
-        // (which chopped the trailing '+' before fromRoute).
+        // Group by language and strip continuation markers before conversion.
         std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
+        const auto reserved = ReservedPhonemes::of(m_singer);
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
         for (int i = 0; i < commonCount; i++) {
+            if (reserved.contains(notes[i].lyric))
+                continue;
+
+            if (Language::isEditorMarker(notes[i].lyric))
+                continue;
             const auto language = notes[i].language == QStringLiteral("unknown")
                                       ? fromUtf8(taggerRes[i].language)
                                       : notes[i].language;
@@ -113,46 +78,27 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // B1b-3: Each language calls session().convertG2p once (internally
-        // routed by SingerRef.version, filling g2pId/g2pContext/
-        // g2pContextVersion). On route or conversion failure an Expected
-        // error is returned and all notes in that language keep the original
-        // lyric (ds-session.md §206: G2P failure preserves lyric).
-        auto &session = SynthrtEngine::instance().session();
-        const auto packageId = m_singer.packageId.toStdString();
-        const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);
+        // Convert once per language; failed conversions preserve the original lyrics.
         for (const auto &[language, entries] : langGroups) {
-            std::vector<srt::g2p::G2pInput> inputs;
-            inputs.reserve(entries.size());
+            std::vector<lite::synthrt::LanguageBridge::Word> words;
+            words.reserve(entries.size());
             for (const auto &entry : entries) {
-                srt::g2p::G2pInput input;
-                input.lyric = entry.second;
-                inputs.push_back(std::move(input));
+                words.push_back({entry.second, {}, {}, {}});
             }
 
-            // Ensure the G2P language module is loaded before conversion.
-            // convertG2p does not auto-initialize models; ensureLanguageReady
-            // loads them lazily on first call (cached internally by the session).
-            const auto langStd = toUtf8(language);
-            auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
-            if (!readyExp) {
-                qCWarning(logFillG2p) << "G2P language ready failed for language" << language << ":"
-                                      << fromUtf8(readyExp.error().message());
-                continue; // Keep original lyric for this language
+            auto converted = SynthrtEngine::instance().convert(
+                m_singer, language, words, lite::synthrt::LanguageBridge::Depth::Pronunciation);
+            if (!converted) {
+                qCWarning(logFillG2p) << "Failed to convert for language" << language << ":"
+                                      << fromUtf8(converted.error().toString());
+                continue; // Keep the original lyric for this language
             }
 
-            auto exp = session.convertG2p(m_singer, langStd, inputs);
-            if (!exp) {
-                qCWarning(logFillG2p) << "Failed to convert G2P for language" << language << ":"
-                                      << fromUtf8(exp.error().message());
-                continue; // Keep original lyric for this language
-            }
-
-            const auto &outcomes = *exp;
+            const auto outcomes = converted.take();
             if (outcomes.size() != entries.size()) {
                 qCWarning(logFillG2p)
-                    << "convertG2p returned" << outcomes.size() << "outcomes for" << entries.size()
-                    << "requests; keeping original lyric for unmatched notes";
+                    << "the conversion returned" << outcomes.size() << "outcomes for"
+                    << entries.size() << "requests; keeping original lyric for unmatched notes";
             }
 
             const auto coveredCount = std::min(outcomes.size(), entries.size());
@@ -165,7 +111,12 @@ namespace FillLyric {
                                       : notes[noteIdx].language;
 
                 const auto &outcome = outcomes[i];
-                result.g2pId = fromUtf8(outcome.g2pId);
+                if (!outcome.error.empty()) {
+                    qCWarning(logFillG2p) << "Failed to convert lyric" << notes[noteIdx].lyric
+                                         << "for language" << language << ":"
+                                         << fromUtf8(outcome.error);
+                    continue;
+                }
                 result.pronunciation = fromUtf8(outcome.pronunciation);
                 QStringList rawCandidates;
                 rawCandidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));
@@ -173,7 +124,7 @@ namespace FillLyric {
                     rawCandidates.append(fromUtf8(candidate));
                 }
                 result.candidates =
-                    normalizePronunciationCandidates(result.pronunciation, rawCandidates);
+                    PronunciationText::normalizeCandidates(result.pronunciation, rawCandidates);
             }
         }
 

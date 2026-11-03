@@ -3,7 +3,7 @@
 
 #include <atomic>
 
-#include <synthrt/SVS/Inference.h>
+#include <synthrt/SVS/InferenceExecutive.h>
 
 #include "IInferTask.h"
 #include "InferTaskCommon.h"
@@ -48,6 +48,8 @@ private:
     InferPitchInput m_input;
     InferParamCurve m_result;
     QString m_inputHash;
+    /// Cache directory snapshot taken on the application thread.
+    QString m_cacheDirectory;
     std::atomic<bool> m_success{false};
     ActiveInference m_activeInference;
 };

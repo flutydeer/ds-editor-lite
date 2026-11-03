@@ -2005,6 +2005,8 @@ namespace AutomationWire {
                     {QStringLiteral("name"),            JsonSchema::string()    },
                     {QStringLiteral("display_name"),    JsonSchema::string()    },
                     {QStringLiteral("localized_names"), localizedTextMapSchema()},
+                    // Deprecated compatibility field, always empty; languages are selected by
+                    // language_id.
                     {QStringLiteral("g2p_id"),          JsonSchema::string()    },
                     {QStringLiteral("g2p_ready"),       JsonSchema::boolean()   },
                     {QStringLiteral("default"),         JsonSchema::boolean()   },

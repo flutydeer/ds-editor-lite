@@ -219,6 +219,7 @@ namespace Automation {
             addOptionalBool(hash, capability->pitchUsesExpressiveness);
             addOptionalBool(hash, capability->vocoderPitchControllable);
             addStringList(hash, capability->effectivePhonemes);
+            addStringList(hash, capability->reservedPhonemes);
             addInteger(hash, capability->phonemeConsistency);
             addStringList(hash, capability->phonemeWarnings);
             addInteger(hash, capability->phonemeDegraded);

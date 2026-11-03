@@ -30,6 +30,14 @@ add_subdirectory(TestNativeDesktop)
 add_subdirectory(TestProcessIntegration)
 add_subdirectory(TestModelResources)
 
+if(UNIX AND NOT APPLE)
+    add_test(NAME TestLinuxPluginDeployment
+        COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/test_linux_plugin_deps.sh"
+            "${PROJECT_SOURCE_DIR}/scripts/deploy_linux_plugin_deps.sh"
+            "${CMAKE_CURRENT_BINARY_DIR}")
+    set_tests_properties(TestLinuxPluginDeployment PROPERTIES LABELS "deployment;ci" TIMEOUT 30)
+endif()
+
 set(_voicebank_directory "${CMAKE_CURRENT_BINARY_DIR}/resources")
 set(_voicebank_archive "${CMAKE_CURRENT_SOURCE_DIR}/resources/voicebank-fixture.zip")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_voicebank_archive}")

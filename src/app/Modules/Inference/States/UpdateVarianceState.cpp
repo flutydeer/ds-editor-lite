@@ -1,5 +1,7 @@
 #include "UpdateVarianceState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <QTimer>
 
 #include "Modules/Inference/InferenceAutomationBridge.h"
@@ -10,7 +12,7 @@ UpdateVarianceState::UpdateVarianceState(InferPipeline &pipeline, QState *parent
 }
 
 void UpdateVarianceState::onEntry(QEvent *event) {
-    qDebug() << "UpdateVarianceState::onEntry";
+    qCDebug(logInferState) << "UpdateVarianceState::onEntry";
     QState::onEntry(event);
 
     const auto gate = m_pipeline.resolveApplyContext();
@@ -53,6 +55,6 @@ void UpdateVarianceState::onEntry(QEvent *event) {
 }
 
 void UpdateVarianceState::onExit(QEvent *event) {
-    qDebug() << "UpdateVarianceState::onExit";
+    qCDebug(logInferState) << "UpdateVarianceState::onExit";
     QState::onExit(event);
 }

@@ -41,7 +41,7 @@ namespace DsConnector {
         ~UpstreamMcpClient() override;
 
         bool setEndpoint(const QString &endpoint, QString *error = nullptr);
-        void clearEndpoint(const QString &reason);
+        void clearEndpoint(const QString &reason, bool abortPending = true);
         QUrl endpoint() const;
         bool setProtocolVersion(const QString &protocolVersion);
         bool adoptNegotiatedProtocolVersion(const QString &protocolVersion);

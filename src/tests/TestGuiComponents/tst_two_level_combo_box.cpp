@@ -1,6 +1,7 @@
 #include "tst_gui_components.h"
 
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
 
 #include <QtTest/QTest>
 #include <QVersionNumber>
@@ -9,6 +10,32 @@ void GuiComponentTests::mixDisplay_data() {
     QTest::addColumn<bool>("inherited");
     QTest::newRow("follow-track") << true;
     QTest::newRow("explicit-mix") << false;
+}
+
+void GuiComponentTests::unavailablePackagesStayVisibleAcrossMenuRefresh() {
+    const auto reason = QStringLiteral("Dependency wolf/lang-jpn could not be resolved");
+    const auto failed = PackageInfo::unavailable(QStringLiteral("voicebanks/fixture"), reason);
+    QVERIFY(failed.isUnavailable() && !failed.isEmpty());
+    QCOMPARE(failed.unavailableReason(), reason);
+    TwoLevelComboBox box;
+    int opened = 0;
+    connect(&box, &TwoLevelComboBox::itemsPopulated, &box, [&] {
+        SingerMenuUnavailablePackages::append(
+            box.mainMenu(), {GetInstalledPackagesResult::FailedPackage(failed.path(), reason)},
+            [&] { ++opened; });
+    });
+    for (int refresh = 0; refresh < 2; ++refresh) {
+        box.setItems({failed});
+        const auto actions = box.mainMenu()->actions();
+        QCOMPARE(actions.size(), 4);
+        QVERIFY(!actions.at(1)->isEnabled());
+        QCOMPARE(actions.at(1)->toolTip(), reason);
+        QVERIFY(actions.at(2)->isSeparator());
+        QVERIFY(actions.at(3)->isEnabled());
+        QVERIFY(box.mainMenu()->toolTipsVisible());
+        actions.at(3)->trigger();
+        QCOMPARE(opened, refresh + 1);
+    }
 }
 
 void GuiComponentTests::mixDisplay() {

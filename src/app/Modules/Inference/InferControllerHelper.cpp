@@ -64,7 +64,8 @@ namespace InferControllerHelper {
             input.minimumFirstOffsetMs = headLayout.minimumFirstOffsetMs;
             input.requiredHeadLengthMs = headLayout.requiredHeadLengthMs;
             input.maximumHeadLengthMs = headLayout.maximumHeadLengthMs;
-            input.notes = buildInferInputNotes(piece.notes);
+            input.reservedPhonemes = ReservedPhonemes::of(identifier);
+            input.notes = buildInferInputNotes(piece.notes, input.reservedPhonemes);
             QStringList lyrics;
             lyrics.reserve(piece.notes.size());
             for (const auto note : piece.notes)
@@ -122,10 +123,11 @@ namespace InferControllerHelper {
         return curves;
     }
 
-    QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes) {
+    QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes,
+                                               const QSet<QString> &reservedPhonemes) {
         QList<InferInputNote> list;
         for (const auto note : notes)
-            list.append(InferInputNote(*note));
+            list.append(InferInputNote(*note, reservedPhonemes));
         return list;
     }
 

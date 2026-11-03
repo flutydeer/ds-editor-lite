@@ -10,6 +10,7 @@
 #include "Modules/ProjectFormats/ProjectFormatRegistry.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/Utils/GpuCatalog.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -42,6 +43,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <variant>
 
 namespace Automation {
@@ -1377,16 +1379,40 @@ namespace Automation {
                                                  QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
+            // Configured selection and installed readiness are separate states.
             const bool pitchConfigured =
-                settings && QFileInfo(settings.get().general.pitchModelPath).isFile();
+                settings && !settings.get().general.pitchAnalyzer.trimmed().isEmpty();
             const bool midiConfigured =
-                settings && QFileInfo(settings.get().general.gameDirectory).isDir();
-            if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
-                !languages.contains(settings.get().general.defaultSingingLanguage)) {
+                settings && !settings.get().general.noteAnalyzer.trimmed().isEmpty();
+            const auto configuredAnalyzer =
+                [&engine, &settings](const QString &contract, const QString &reference)
+                -> std::optional<lite::synthrt::AnalyzerEntry> {
+                if (!engine || reference.trimmed().isEmpty())
+                    return std::nullopt;
+                const auto wanted = reference.trimmed().toStdString();
+                for (auto &entry : engine->analyzers(contract)) {
+                    if (entry.reference() == wanted)
+                        return entry;
+                }
+                return std::nullopt;
+            };
+            // Prefer the note analyzer's language choices; otherwise use singer languages and the
+            // editor default.
+            const auto configuredNote =
+                configuredAnalyzer(lite::synthrt::noteContract(),
+                                   settings ? settings.get().general.noteAnalyzer : QString());
+            if (configuredNote && !configuredNote->languages.empty()) {
+                languages = {};
+                for (const auto &language : configuredNote->languages)
+                    languages.append(QString::fromStdString(language));
+            } else if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
+                       !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            const bool pitchModuleReady = engine && engine->pitchExtractionReady();
-            const bool midiModuleReady = engine && engine->midiExtractionReady();
+            const bool pitchModuleReady =
+                engine && !engine->analyzers(lite::synthrt::f0Contract()).empty();
+            const bool midiModuleReady =
+                engine && !engine->analyzers(lite::synthrt::noteContract()).empty();
             const auto optionSchema = [](const QString &operationId) {
                 const auto *contract = AutomationWire::findPublicTool(operationId);
                 const auto options = contract
@@ -1411,10 +1437,31 @@ namespace Automation {
                                                                         : configurationReason},
                 };
             };
+            const auto installedModels = [&engine, &model](const QString &contract,
+                                                           const QString &chosen,
+                                                           const QString &notChosenReason) {
+                QJsonArray result;
+                if (!engine)
+                    return result;
+                for (const auto &entry : engine->analyzers(contract)) {
+                    const auto reference = QString::fromStdString(entry.reference());
+                    result.append(model(reference, QString::fromStdString(entry.name.text()),
+                                        reference == chosen.trimmed(), true, notChosenReason,
+                                        QString()));
+                }
+                return result;
+            };
+            const QString chosenPitch =
+                settings ? settings.get().general.pitchAnalyzer : QString();
+            const QString chosenNote = settings ? settings.get().general.noteAnalyzer : QString();
+            const bool pitchAnalyzerInstalled =
+                configuredAnalyzer(lite::synthrt::f0Contract(), chosenPitch).has_value();
+            const bool midiAnalyzerInstalled = configuredNote.has_value();
             const auto capabilityReason = [](const bool sourceSupported, const bool sourceReady,
                                              const bool moduleReady, const bool modelConfigured,
-                                             const QString &moduleReason,
-                                             const QString &modelReason) {
+                                             const bool modelInstalled, const QString &moduleReason,
+                                             const QString &modelReason,
+                                             const QString &missingModelReason) {
                 if (!sourceSupported)
                     return QStringLiteral("The selected clip is not an audio clip");
                 if (!sourceReady)
@@ -1423,6 +1470,8 @@ namespace Automation {
                     return moduleReason;
                 if (!modelConfigured)
                     return modelReason;
+                if (!modelInstalled)
+                    return missingModelReason;
                 return QString();
             };
             return QJsonObject{
@@ -1432,19 +1481,20 @@ namespace Automation {
                      {QStringLiteral("supported"), true},
                      {QStringLiteral("source_supported"), sourceSupported},
                      {QStringLiteral("available"),
-                      sourceReady && pitchModuleReady && pitchConfigured},
+                      sourceReady && pitchModuleReady && pitchConfigured && pitchAnalyzerInstalled},
                      {QStringLiteral("module_state"),
                       pitchModuleReady ? QStringLiteral("ready") : QStringLiteral("unavailable")},
                      {QStringLiteral("unavailable_reason"),
                       capabilityReason(sourceSupported, sourceReady, pitchModuleReady,
-                                       pitchConfigured,
+                                       pitchConfigured, pitchAnalyzerInstalled,
                                        QStringLiteral("Pitch extraction module is unavailable"),
-                                       QStringLiteral("RMVPE model is not configured"))},
+                                       QStringLiteral("No pitch analyzer is configured"),
+                                       QStringLiteral(
+                                           "The configured pitch analyzer is not installed"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(QStringLiteral("rmvpe"), QStringLiteral("RMVPE"),
-                                       pitchConfigured, pitchModuleReady,
-                                       QStringLiteral("RMVPE model is not configured"),
-                                       QStringLiteral("Pitch extraction module is unavailable"))}},
+                      installedModels(lite::synthrt::f0Contract(), chosenPitch,
+                                      QStringLiteral("This pitch analyzer is not the configured "
+                                                     "pitch analyzer"))},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::pitch::start)},
                      {QStringLiteral("range_support"),
@@ -1458,19 +1508,20 @@ namespace Automation {
                      {QStringLiteral("supported"), true},
                      {QStringLiteral("source_supported"), sourceSupported},
                      {QStringLiteral("available"),
-                      sourceReady && midiModuleReady && midiConfigured},
+                      sourceReady && midiModuleReady && midiConfigured && midiAnalyzerInstalled},
                      {QStringLiteral("module_state"),
                       midiModuleReady ? QStringLiteral("ready") : QStringLiteral("unavailable")},
                      {QStringLiteral("unavailable_reason"),
                       capabilityReason(sourceSupported, sourceReady, midiModuleReady,
-                                       midiConfigured,
+                                       midiConfigured, midiAnalyzerInstalled,
                                        QStringLiteral("MIDI extraction module is unavailable"),
-                                       QStringLiteral("GAME model directory is not configured"))},
+                                       QStringLiteral("No note analyzer is configured"),
+                                       QStringLiteral(
+                                           "The configured note analyzer is not installed"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(QStringLiteral("game"), QStringLiteral("GAME"),
-                                       midiConfigured, midiModuleReady,
-                                       QStringLiteral("GAME model directory is not configured"),
-                                       QStringLiteral("MIDI extraction module is unavailable"))}},
+                      installedModels(lite::synthrt::noteContract(), chosenNote,
+                                      QStringLiteral("This note analyzer is not the configured "
+                                                     "note analyzer"))},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::midi::start)},
                      {QStringLiteral("range_support"),
@@ -1720,6 +1771,7 @@ namespace Automation {
             void handleState(const QString &state);
             bool validateTargets();
             void evaluate();
+            [[nodiscard]] bool isComplete(const InferPiece &piece) const;
             void finishCanceled();
             void fail(AutomationError error);
             [[nodiscard]] MutationResult completedMutation() const;
@@ -1729,6 +1781,7 @@ namespace Automation {
             PublicInferenceStartRequest m_request;
             QList<QPointer<InferPiece>> m_pieces;
             QString m_earliestStage;
+            bool m_includesAcoustic = false;
             TaskId m_taskId;
             MutationResult m_mutation;
             bool m_started = false;
@@ -1781,6 +1834,7 @@ namespace Automation {
                     QStringLiteral("Inference stages must be a contiguous pipeline suffix"));
             }
             m_earliestStage = supported.at(earliest);
+            m_includesAcoustic = m_request.stages.contains(QStringLiteral("acoustic"));
 
             auto settings = m_runtime.settings().getSettings();
             if (!settings)
@@ -1878,6 +1932,14 @@ namespace Automation {
             evaluate();
         }
 
+        bool HeadlessInferenceTask::isComplete(const InferPiece &piece) const {
+            const auto state = piece.state.get();
+            if (state == QStringLiteral("Ready"))
+                return true;
+            // Without the acoustic stage, a piece is complete once it reaches Acoustic.Awaiting.
+            return !m_includesAcoustic && state == QStringLiteral("Acoustic.Awaiting");
+        }
+
         void HeadlessInferenceTask::requestCancel() {
             if (m_finished)
                 return;
@@ -1920,8 +1982,8 @@ namespace Automation {
             if (!validateTargets())
                 return;
             const auto ready =
-                std::all_of(m_pieces.cbegin(), m_pieces.cend(), [](const auto &piece) {
-                    return piece && piece->state.get() == QStringLiteral("Ready");
+                std::all_of(m_pieces.cbegin(), m_pieces.cend(), [this](const auto &piece) {
+                    return piece && isComplete(*piece);
                 });
             if (!ready)
                 return;
@@ -2075,12 +2137,12 @@ namespace Automation {
                         {QStringLiteral("unavailable_reason"), QString()                  },
                     });
                 }
-                if (!inference.selectedGpuId.isEmpty()) {
+                for (const auto &gpu : GpuCatalog::forProvider(inference.executionProvider)) {
                     devices.append(QJsonObject{
-                        {QStringLiteral("id"),                 inference.selectedGpuId},
-                        {QStringLiteral("display_name"),       inference.selectedGpuId},
-                        {QStringLiteral("available"),          true                   },
-                        {QStringLiteral("unavailable_reason"), QString()              },
+                        {QStringLiteral("id"),                 gpu.deviceId   },
+                        {QStringLiteral("display_name"),       gpu.description},
+                        {QStringLiteral("available"),          true           },
+                        {QStringLiteral("unavailable_reason"), QString()      },
                     });
                 }
             }

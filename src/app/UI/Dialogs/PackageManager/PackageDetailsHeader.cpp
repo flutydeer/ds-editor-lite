@@ -104,7 +104,8 @@ void PackageDetailsHeader::moveToNullPackageState() const {
 void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const {
     lbPackageId->setText(package.id());
     lbVendor->setText(package.displayVendor(UiLanguageManager::currentBcp47Candidates()));
-    lbVersion->setText("v" + package.version().toString());
+    lbVersion->setText(package.version().isNull() ? QString()
+                                                 : "v" + package.version().toString());
 
     if (package.url().isEmpty()) {
         btnOpenWebsite->setEnabled(false);

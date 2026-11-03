@@ -322,9 +322,16 @@ void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguag
         auto *language = page->findChild<LanguageComboBox *>();
         auto *lyric = lyricEditor(page);
         QVERIFY(language && lyric);
+        chooseLanguage(page, language, QStringLiteral("cmn"));
+        auto concurrent = runtime.settings().getSettings().get().general;
+        concurrent.defaultLyrics[QStringLiteral("cmn")] = QStringLiteral("external cmn");
+        concurrent.defaultLyrics[QStringLiteral("eng")] = QStringLiteral("external eng");
+        QVERIFY(runtime.settings().updateGeneral({}, concurrent));
         chooseLanguage(page, language, QStringLiteral("eng"));
         if (QTest::currentTestFailed())
             return;
+        QCOMPARE(lyric->text(), QStringLiteral("external eng"));
+        QCOMPARE(appOptions->general()->defaultLyrics, concurrent.defaultLyrics);
         const auto retained = runtime.settings().getSettings();
         QVERIFY(retained);
         const auto retainedLyric = lyric->text();

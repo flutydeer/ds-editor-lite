@@ -195,8 +195,9 @@ namespace DsConnector {
         return m_protocolVersion;
     }
 
-    void UpstreamMcpClient::clearEndpoint(const QString &reason) {
-        abortAll(reason);
+    void UpstreamMcpClient::clearEndpoint(const QString &reason, const bool abortPending) {
+        if (abortPending)
+            abortAll(reason);
         m_endpoint.clear();
         m_sessionId.clear();
     }

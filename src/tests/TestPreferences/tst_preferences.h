@@ -6,6 +6,8 @@ class PreferencesTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void generalOptionDefaultLyricPrecedence();
+    void generalOptionDefaultLyricStorage();
     void inferenceSingerSessionCacheSettings();
     void inferencePlaybackLookaheadPersistence();
     void automationOptionDefaults();

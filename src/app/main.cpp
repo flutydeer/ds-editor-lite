@@ -1,3 +1,5 @@
+#include <csignal>
+
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/Mcp/EditorMcpController.h"
@@ -38,6 +40,10 @@ int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
 
+#if !defined(Q_OS_WIN)
+    // Ignore SIGPIPE from inherited output pipes that close when the restart predecessor exits.
+    signal(SIGPIPE, SIG_IGN);
+#endif
     const auto hostMode = StartupArguments::preparseHostMode(argc, argv);
     AppEnvironment::preInit(hostMode);
     std::unique_ptr<QCoreApplication> application;
@@ -86,6 +92,7 @@ int main(int argc, char *argv[]) {
     };
 
     int result = EXIT_FAILURE;
+    Restarter::waitForPredecessor();
     SingleInstanceCoordinator coordinator(hostMode);
     switch (coordinator.start()) {
         case SingleInstanceCoordinator::StartResult::Secondary: {

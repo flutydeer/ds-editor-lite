@@ -895,6 +895,27 @@ void ApplicationServicesTests::audioExportStageFailuresReleaseResourcesAndAllowR
              Automation::AutomationTaskState::Failed);
 }
 
+void ApplicationServicesTests::audioExportSerializesPerDocument() {
+    RuntimeHarness harness;
+    auto &runtime = harness.runtime();
+    harness.audioExportState()->backendState = Automation::AudioExportBackendState::Succeeded;
+    const auto first = runtime.audioExports().start(
+        harness.context(), audioConfig(harness, QStringLiteral("first.wav")), {});
+    QVERIFY(first);
+    const auto second = runtime.audioExports().start(
+        harness.context(), audioConfig(harness, QStringLiteral("second.wav")), {});
+    QVERIFY(isError(second, Automation::AutomationErrorCode::Busy,
+                    Automation::OperationIds::exports::audio::start));
+    QCOMPARE(second.getError().taskId, first.get().taskId);
+    QCOMPARE(harness.audioScheduler.pendingCount(), 1);
+    QVERIFY(harness.audioScheduler.runNext());
+    const auto third = runtime.audioExports().start(
+        harness.context(), audioConfig(harness, QStringLiteral("third.wav")), {});
+    QVERIFY(third);
+    QCOMPARE(harness.audioScheduler.pendingCount(), 1);
+    QVERIFY(harness.audioScheduler.runNext());
+}
+
 void ApplicationServicesTests::audioExportAndTaskList() {
     RuntimeHarness harness;
     QVERIFY2((harness.isReady()),
@@ -1433,7 +1454,8 @@ void ApplicationServicesTests::midiExtractionDestinations() {
         .notes = {{.keyIndex = 60, .localStart = -40, .length = 240},
                   {.keyIndex = 60, .localStart = 240, .length = 60},
                   {.keyIndex = 62, .localStart = 480, .length = 240},
-                  {.keyIndex = 67, .localStart = 960, .length = 360}},
+                  {.keyIndex = 67, .localStart = 960, .length = 360},
+                  {.keyIndex = 64, .localStart = 1200, .length = 0}},
     });
     const auto terminal = runtime.tasks().getTask(base.documentId, retry.get().taskId);
     QVERIFY(terminal);

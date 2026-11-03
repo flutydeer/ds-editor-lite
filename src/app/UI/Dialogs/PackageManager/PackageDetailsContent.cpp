@@ -30,11 +30,20 @@ void PackageDetailsContent::onPackageChanged(const PackageInfo *package) {
 }
 
 void PackageDetailsContent::moveToNullPackageState() const {
+    descriptionCard->setTitle(tr("Description"));
     descriptionCard->onDataContextChanged({});
     readMeCard->onDataContextChanged({});
 }
 
 void PackageDetailsContent::moveToPackageState(const PackageInfo &package) const {
+    // Show the loader's failure reason when package metadata is unavailable.
+    if (package.isUnavailable()) {
+        descriptionCard->setTitle(tr("Unavailable"));
+        descriptionCard->onDataContextChanged(package.unavailableReason());
+        readMeCard->onDataContextChanged({});
+        return;
+    }
+    descriptionCard->setTitle(tr("Description"));
     descriptionCard->onDataContextChanged(
         package.displayDescription(UiLanguageManager::currentBcp47Candidates()));
     if (package.readme().isEmpty()) {

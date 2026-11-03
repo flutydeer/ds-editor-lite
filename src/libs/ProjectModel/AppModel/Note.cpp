@@ -191,9 +191,18 @@ bool Note::isSyllabification() const {
     return isSyllabificationLyric(m_lyric);
 }
 
+bool Note::isReservedPhoneme() const {
+    const auto lyric = m_lyric.trimmed();
+    if (lyric == QStringLiteral("AP") || lyric == QStringLiteral("SP"))
+        return true;
+    if (!m_clip)
+        return false;
+    const auto singer = m_clip->singerInfo();
+    return singer.capability() && singer.capability()->reservedPhonemes.contains(lyric);
+}
+
 bool Note::canEditPhonemes() const {
-    return m_lyric != QStringLiteral("AP") && m_lyric != QStringLiteral("SP") && !isSlur() &&
-           !isSyllabification();
+    return !isReservedPhoneme() && !isSlur() && !isSyllabification();
 }
 
 QMap<QString, QJsonObject> Note::workspace() const {

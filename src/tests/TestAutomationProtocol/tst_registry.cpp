@@ -6,6 +6,7 @@
 #include "Automation/Mcp/McpRequestDispatcher.h"
 #include "Automation/Native/NativeJsonRpcDispatcher.h"
 #include "Automation/OperationIds.h"
+#include "Model/AppOptions/Options/DefaultLyricRules.h"
 #include "TestRuntime.h"
 #include "Utils/UiLanguageManager.h"
 
@@ -652,6 +653,23 @@ namespace {
         expect(!emptyUpdate &&
                    emptyUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("settings updates must reject an empty patch"));
+        // Missing fields must not silently reset an override.
+        const auto lyricWithoutValue = registry.invoke(
+            QStringLiteral("settings.singing.update"),
+            QJsonObject{
+                {QStringLiteral("default_lyrics"),
+                 QJsonArray{QJsonObject{{QStringLiteral("language_id"), QStringLiteral("en")}}}}
+        });
+        expect(!lyricWithoutValue &&
+                   lyricWithoutValue.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("a default lyric entry must name both the language and the lyric, "
+                              "rejected with: %1")
+                   .arg(lyricWithoutValue
+                            ? QStringLiteral("(the update was accepted)")
+                            : QStringLiteral("%1 at %2")
+                                  .arg(int(lyricWithoutValue.getError().code))
+                                  .arg(lyricWithoutValue.getError().fieldPath)));
         const auto unknownDomain = registry.invoke(
             QStringLiteral("settings.query"),
             QJsonObject{
@@ -2070,6 +2088,36 @@ namespace {
         QVERIFY(voiceClip);
         QCOMPARE(voiceClip->notes().count(), 1);
         QCOMPARE((*voiceClip->notes().begin())->lyric(), QStringLiteral("ra"));
+
+        // Missing stored entries must resolve to the language's built-in lyric.
+        auto settingsWithoutLyrics = runtime.settings().getSettings();
+        QVERIFY(settingsWithoutLyrics);
+        auto generalWithoutLyrics = settingsWithoutLyrics.get().general;
+        generalWithoutLyrics.defaultLyrics.clear();
+        QVERIFY(runtime.settings().updateGeneral({}, generalWithoutLyrics));
+        QVERIFY(invokeChangedOnce(
+            registry, runtime, QStringLiteral("notes.insert"),
+            {
+                {QStringLiteral("clip_id"), voiceClipId.value()            },
+                {QStringLiteral("notes"),
+                 QJsonArray{QJsonObject{{QStringLiteral("local_start"), 240},
+                                        {QStringLiteral("length"), 120},
+                                        {QStringLiteral("key_index"), 62}}}}
+        },
+            QStringLiteral("clip-singer-builtin-default-lyric"),
+            QStringLiteral("a reset default lyric falls back to the built-in value")));
+        const auto resetLyrics = runtime.settings().getSettings();
+        QVERIFY(resetLyrics);
+        QCOMPARE(resetLyrics.get().general.defaultLyrics.value(QStringLiteral("jpn")), QString());
+        QCOMPARE(voiceClip->notes().count(), 2);
+        const auto resetExpected =
+            DefaultLyricRules::resolve({}, voiceClip->effectiveDefaultLanguage());
+        qsizetype resetLyricCount = 0;
+        for (const auto *note : voiceClip->notes()) {
+            if (note->lyric() == resetExpected)
+                ++resetLyricCount;
+        }
+        QCOMPARE(resetLyricCount, 1);
 
         const auto independentVoice = voiceSelection(singer, singer.speakers().first());
         QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_voice"),

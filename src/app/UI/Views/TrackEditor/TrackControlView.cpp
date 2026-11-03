@@ -4,6 +4,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
@@ -14,8 +15,10 @@
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TrackColorSwatchWidget.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Utils/IconUtils.h>
@@ -35,6 +38,7 @@
 
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Views/Common/LanguageComboBox.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
@@ -100,6 +104,15 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     cbSinger->setWheelEventPolicy(WheelEventPolicy::Pass);
+    // Connect before the initial setItems so unavailable-package rows appear on the first
+    // population.
+    connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this, [this] {
+        SingerMenuUnavailablePackages::append(
+            cbSinger->mainMenu(), packageManager->installedPackages().failedPackages, [] {
+                PackageManagerDialog dialog;
+                dialog.exec();
+            });
+    });
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -143,7 +156,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
-
     cbLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Pass);
     cbLanguage->setObjectName("cbLanguage");
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
@@ -201,6 +213,12 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             refreshSingerComboPresentation();
     });
+    // Queue availability refresh to avoid re-entering synchronous G2P callers.
+    if (auto *engine = AppContext::instance<SynthrtEngine>()) {
+        connect(
+            engine, &SynthrtEngine::languageRouteFailed, this,
+            [this](const QString &) { refreshLanguageComboPresentation(); }, Qt::QueuedConnection);
+    }
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { updateTrackColor(); });
@@ -381,8 +399,11 @@ void TrackControlView::refreshLanguageComboPresentation() const {
         return;
 
     const auto singerInfo = m_track->singerInfo();
-    const auto language = cbLanguage->setLanguages(
-        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
+    QHash<QString, QString> unavailableReasons;
+    const auto unavailable = LanguageComboBox::unavailableLanguages(singerInfo, unavailableReasons);
+    const auto language =
+        cbLanguage->setLanguages(singerInfo.languages(), m_track->defaultLanguage(),
+                                 singerInfo.defaultLanguage(), unavailable, unavailableReasons);
     if (language != m_track->defaultLanguage())
         trackController->changeTrackDefaultLanguage(m_track->id(), language);
 }

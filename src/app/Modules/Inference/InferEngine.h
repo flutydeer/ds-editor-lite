@@ -15,8 +15,11 @@
 #include <QThreadPool>
 #include <QTimer>
 
-#include <synthrt/Core/Core/Runtime.h>
-#include <diffsinger/Session/ModelSetHandle.h>
+#include <cstdint>
+
+#include <synthrt/Core/SynthUnit.h>
+
+#include <lite/SynthrtEngine/SingerPipeline.h>
 
 #include "SingerSessionCache.h"
 
@@ -50,14 +53,26 @@ public:
     QString inferenceDriverPath() const;
     QString inferenceRuntimePath() const;
     QString inferenceInterpreterPath() const;
-    // Returns a const reference to the Runtime. Intended for public, read-only access.
-    const srt::core::Runtime &constRuntime() const;
-    // B1b: acquireSingerSession now returns a ModelSetHandle from
-    // VoicebankSession::ensureModelSet() instead of a SingerModelSession.
-    // The handle is the synthrt-side chokepoint for per-stage load/start/stop;
-    // ActiveInference adapts it into the same {inference, importOptions} Model
-    // shape the 4 DiffSinger tasks consume.
-    std::shared_ptr<ds::session::ModelSetHandle>
+
+    /// Retain a singer pipeline across refreshes and track its catalog generation.
+    class SingerPipelineLease final {
+    public:
+        SingerPipelineLease(std::shared_ptr<lite::synthrt::SingerPipeline> pipeline,
+                            std::uint64_t generation);
+
+        SingerPipelineLease(const SingerPipelineLease &) = delete;
+        SingerPipelineLease &operator=(const SingerPipelineLease &) = delete;
+
+        lite::synthrt::SingerPipeline *pipeline() const noexcept;
+
+        bool isStale() const;
+
+    private:
+        std::shared_ptr<lite::synthrt::SingerPipeline> m_pipeline;
+        std::uint64_t m_generation;
+    };
+
+    std::shared_ptr<SingerPipelineLease>
         acquireSingerSession(const SingerIdentifier &identifier) const;
     void retainSingerSessions(const QSet<SingerIdentifier> &identifiers);
 
@@ -66,7 +81,7 @@ public:
     void startInitialization();
 
 private:
-    using SingerSessionHandleList = SingerSessionCache<ds::session::ModelSetHandle>::HandleList;
+    using SingerSessionHandleList = SingerSessionCache<SingerPipelineLease>::HandleList;
 
     friend class InitInferEngineTask;
     friend class InferDurationTask;
@@ -79,14 +94,22 @@ private:
     void releaseSingerSessionsAsync(SingerSessionHandleList handles);
     void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles);
 
+    /// Snapshot AppOptions on the application thread before worker initialization.
+    struct StartOptions {
+        QString executionProvider;
+        QString selectedGpuId;
+        QStringList packageSearchPaths;
+    };
+
     mutable QReadWriteLock m_engineRwLock;
+    StartOptions m_startOptions;
     std::once_flag m_initFlag{};
     bool m_initialized = false;
     bool m_disposed = false;
     InferEnginePaths m_paths;
 
     std::mutex m_singerSessionSelectionMutex;
-    mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
+    mutable SingerSessionCache<SingerPipelineLease> m_singerSessions;
     QTimer m_singerSessionEvictionTimer;
     QThreadPool m_singerSessionReleasePool;
 };

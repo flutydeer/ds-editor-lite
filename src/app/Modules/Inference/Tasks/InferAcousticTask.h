@@ -3,7 +3,7 @@
 
 #include <atomic>
 
-#include <synthrt/SVS/Inference.h>
+#include <synthrt/SVS/InferenceExecutive.h>
 
 #include "IInferTask.h"
 #include "InferTaskCommon.h"
@@ -38,10 +38,13 @@ public:
 
     struct AcousticCacheLookup {
         GenericInferModel model;
+        QString modelHash;
         QString inputHash;
         QString inputCachePath;
         QString outputCachePath;
+        quint64 modelGeneration = 0;
         bool hit = false;
+        [[nodiscard]] bool isCurrent() const;
     };
 
     [[nodiscard]] int clipId() const override;
@@ -53,7 +56,8 @@ public:
     InferAcousticInput input() const;
     QString result() const;
     [[nodiscard]] QStringList cacheFileNames() const;
-    [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input);
+    [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input,
+                                                         const QString &cacheDirectory);
 
 private:
     void runTask() override;
@@ -66,6 +70,8 @@ private:
     InferAcousticInput m_input;
     QString m_result;
     QString m_inputHash;
+    /// Cache directory snapshot taken on the application thread.
+    QString m_cacheDirectory;
     std::atomic<bool> m_success{false};
     ActiveInference m_activeInference;
 };
