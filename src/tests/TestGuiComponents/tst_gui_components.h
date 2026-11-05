@@ -44,6 +44,7 @@ private slots:
     void reorderHandlesTrackRebuiltRowsAndIgnoreBodyDrags();
     void touchClaimsFinishOnSystemCancel_data();
     void touchClaimsFinishOnSystemCancel();
+    void touchClaimsIgnoreTouchpadContacts();
     void touchClaimsKeepControlsIndependentOfPageScrolling();
     void touchFlickContinuesAfterRelease();
     void comboPopupTouchKeepsScrollingAndSelectionSeparate_data();

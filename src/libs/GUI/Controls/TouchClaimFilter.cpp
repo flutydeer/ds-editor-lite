@@ -45,6 +45,9 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
         return QObject::eventFilter(watched, event);
 
     const auto *touchEvent = static_cast<QTouchEvent *>(event);
+    // Indirect touchpad contacts must not become touchscreen presses or drags.
+    if (touchEvent->deviceType() != QInputDevice::DeviceType::TouchScreen)
+        return QObject::eventFilter(watched, event);
 
     // A stream the hit test turned away is not ours: every event of it has to
     // pass through untouched, or the ancestor scroller that took it over would

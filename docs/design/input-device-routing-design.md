@@ -29,7 +29,9 @@ flowchart LR
 - `Mouse`：不吞。离散滚轮在动画开时做动画，关时即时跳变。
 - `TouchScreen`：`QTouchEvent` 交给 `EditorTouchController`。平台把主触点提升成的鼠标是重复流，按设备类型吞掉——不看 `source()`，它在 Windows 上是粘滞的（触点之前若有鼠标或触摸板的 `WM_POINTER`，被提升的触摸鼠标会以 `MouseEventNotSynthesized` 进来）。
 - `Stylus`、`Airbrush`、`Puck`：仍走 `EditorPenController` 的 tablet 路径。笔尖、侧键、反端的现有语义不变。
-- `TouchPad`：只走滚轮和 `QNativeGestureEvent`。它不是手指，不进 `EditorTouchController`，`EditorPointer::isTouchDevice()` 只认 `TouchScreen`。
+- `TouchPad`：系统鼠标事件负责点击和按下拖动，滚动与捏合走滚轮和 `QNativeGestureEvent`。原始触点不进触摸屏手势状态机，`EditorPointer::isTouchDevice()` 只认 `TouchScreen`。
+
+macOS 的 Qt Cocoa 后端还会发送设备类型为 `TouchPad` 的 `QTouchEvent`。`EditorTouchController` 和通用控件的 `TouchClaimFilter` 在处理触点前只接纳 `TouchScreen`，避免把触摸板上的接触、移动重复转换成点击、拖动或触摸屏缩放。这个检查也覆盖 `TouchCancel`，触摸板结束手势不能取消正在进行的触摸屏编辑。原始触点交回 Qt，系统生成的鼠标、滚轮和原生手势事件照常处理。
 
 ## 精确式触摸板（EditorWheelController）
 
