@@ -9,9 +9,24 @@ void BackgroundWorker::terminateTask(Task *task) {
     task->terminate();
 }
 
+namespace {
+    // A task that never honours termination must not keep the editor's exit
+    // waiting forever, so the pool wait is bounded and reports the leftovers.
+    int shutdownTimeoutMs() {
+        bool ok = false;
+        const auto value = qEnvironmentVariableIntValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", &ok);
+        return ok && value > 0 ? static_cast<int>(value) : 30000;
+    }
+}
+
 void BackgroundWorker::wait() {
     const auto threadPool = QThreadPool::globalInstance();
-    threadPool->waitForDone();
+    const auto timeout = shutdownTimeoutMs();
+    if (!threadPool->waitForDone(timeout)) {
+        qWarning() << "Background tasks did not finish within" << timeout
+                   << "ms; continuing shutdown with" << threadPool->activeThreadCount()
+                   << "task(s) still running";
+    }
     emit waitDone();
 }
 

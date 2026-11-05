@@ -1,5 +1,6 @@
 #include "AppContext.h"
 
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/AppOptionsAutomationAdapter.h"
 #include "Automation/AudioExportAutomationAdapter.h"
@@ -518,6 +519,8 @@ DocumentWorkflowController *AppContext::guiDocumentWorkflowController() const {
 }
 
 AppContext::~AppContext() {
+    auto &shutdownMonitor = ShutdownMonitor::instance();
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardown);
     // Reverse order of construction. GUI services are absent in the QCore host.
     if (m_guiContext) {
         m_audioDecodingController->setGuiServices(nullptr);
@@ -544,6 +547,7 @@ AppContext::~AppContext() {
         QMetaObject::invokeMethod(TaskManager::instance(), drainTasks,
                                   Qt::BlockingQueuedConnection);
     }
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTasksDrained);
 
     // Audio system
     m_audio.reset();
@@ -592,6 +596,7 @@ AppContext::~AppContext() {
     SingletonRegistry::destroy(m_appOptions);
     SingletonRegistry::destroy(m_appStatus);
 
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardownDone);
     SingletonRegistry::clear();
     s_self = nullptr;
 }

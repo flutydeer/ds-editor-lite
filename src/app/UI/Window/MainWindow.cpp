@@ -5,6 +5,7 @@
 #  include <WinUser.h>
 #endif
 
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -783,6 +784,8 @@ void MainWindow::clearFocusPreview() {
 
 void MainWindow::onAllDone() {
     if (m_isCloseRequested) {
+        qDebug() << "All background tasks are done, closing the window";
+        ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::BackgroundTasksDone);
         m_isAllDone = true;
         close();
     }
@@ -952,6 +955,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         return;
     }
     if (m_isAllDone) {
+        ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::ClosingWindow);
         if (m_waitDoneDialog)
             m_waitDoneDialog->forceClose();
         if (m_restartRequested)
@@ -959,10 +963,13 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         QMainWindow::closeEvent(event);
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
+        ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::WaitingForBackgroundTasks);
         event->ignore();
     } else {
         m_isCloseRequested = true;
         qDebug() << "Terminating background tasks...";
+        ShutdownMonitor::instance().begin();
+        ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::CloseRequested);
         m_waitDoneDialog = new TaskDialog(nullptr, false, false, this);
         m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
         m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));

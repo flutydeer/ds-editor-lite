@@ -2,6 +2,7 @@
 #include "PublicAutomationCodecs.h"
 #include "PublicCollectionPagination.h"
 
+#include "Bootstrap/ShutdownMonitor.h"
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
@@ -2032,7 +2033,15 @@ namespace Automation {
 
     PublicAutomationRegistry::~PublicAutomationRegistry() {
         m_lifetimeState->active.store(false, std::memory_order_release);
-        m_exportThreadPool.waitForDone();
+        const auto timeout = ShutdownMonitor::shutdownTimeoutMs();
+        if (!m_exportThreadPool->waitForDone(timeout)) {
+            // The pool's destructor waits for its runnables without a timeout, so
+            // the pool is abandoned instead: a leaked pool cannot block the exit.
+            qWarning() << "Automation export tasks did not finish within" << timeout
+                       << "ms during shutdown; abandoning"
+                       << m_exportThreadPool->activeThreadCount() << "running task(s)";
+            (void)m_exportThreadPool.release();
+        }
     }
 
     const QList<AutomationWire::ToolContract> &PublicAutomationRegistry::contracts() const {
@@ -3670,7 +3679,7 @@ namespace Automation {
                 completed.validatedOnly = context.validateOnly;
                 tasks->succeed(taskId, completed);
             };
-            m_exportThreadPool.start(std::move(execute));
+            m_exportThreadPool->start(std::move(execute));
             return AutomationResult<QJsonObject>(
                 encodeTaskAccepted({snapshot.taskId, context.expected, context.validateOnly}));
         });

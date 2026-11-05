@@ -17,6 +17,7 @@
 #include <QMutex>
 #include <QPointer>
 #include <QPromise>
+#include <QSemaphore>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
@@ -36,6 +37,14 @@ namespace Automation {
         using StatusCode = QHttpServerResponder::StatusCode;
         namespace Mcp = AutomationWire::Mcp;
         constexpr qsizetype maximumTransportBodyBytes = 1024 * 1024;
+
+        // Stopping the server must never outlast the editor's exit: a wedged
+        // server thread used to keep the whole application alive.
+        int shutdownWaitTimeoutMs() {
+            bool ok = false;
+            const auto value = qEnvironmentVariableIntValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", &ok);
+            return ok && value > 0 ? static_cast<int>(value) : 30000;
+        }
 
         QHttpServerResponse jsonResponse(const QJsonObject &body, const StatusCode status) {
             return QHttpServerResponse(QByteArrayLiteral("application/json"),
@@ -1412,13 +1421,25 @@ namespace Automation {
             return;
         m_stopping = true;
         auto *ownerThread = thread();
+        auto *worker = m_worker;
+        // The callback runs on the worker thread and may arrive after this server
+        // gave up on it (abandonServer) and was destroyed, so it must not read the
+        // members: the worker is captured by value and the server is guarded.
+        const QPointer<McpHttpServer> self(this);
         QMetaObject::invokeMethod(
-            m_worker,
-            [this, ownerThread] {
-                m_worker->stop();
-                m_worker->moveToThread(ownerThread);
+            worker,
+            [worker, ownerThread, self] {
+                worker->stop();
+                worker->moveToThread(ownerThread);
+                if (!self)
+                    return;
                 QMetaObject::invokeMethod(
-                    this, [this] { finalizeAsyncStop(); }, Qt::QueuedConnection);
+                    self.data(),
+                    [self] {
+                        if (self)
+                            self->finalizeAsyncStop();
+                    },
+                    Qt::QueuedConnection);
             },
             Qt::QueuedConnection);
     }
@@ -1426,12 +1447,23 @@ namespace Automation {
     void McpHttpServer::stop() {
         m_accepting.store(false, std::memory_order_release);
         m_transportState->stopAccepting();
+        const auto timeout = shutdownWaitTimeoutMs();
         if (m_stopping) {
             if (m_thread && m_worker) {
                 QEventLoop loop;
+                QTimer deadline;
+                deadline.setSingleShot(true);
                 connect(this, &McpHttpServer::stopped, &loop, &QEventLoop::quit,
                         Qt::SingleShotConnection);
+                connect(&deadline, &QTimer::timeout, &loop, &QEventLoop::quit);
+                deadline.start(timeout);
                 loop.exec();
+                if (m_stopping) {
+                    qWarning() << "Automation HTTP server did not confirm its asynchronous stop "
+                                  "within"
+                               << timeout << "ms; abandoning the server thread";
+                    abandonServer();
+                }
             }
             return;
         }
@@ -1441,15 +1473,33 @@ namespace Automation {
             return;
         }
         auto *ownerThread = thread();
+        auto *worker = m_worker;
+        // A blocking invocation would wait forever when the worker thread is busy
+        // answering a request that itself waits for this thread, so the stop
+        // handshake is queued and bounded instead.
+        auto acknowledged = std::make_shared<QSemaphore>();
         QMetaObject::invokeMethod(
-            m_worker,
-            [this, ownerThread] {
-                m_worker->stop();
-                m_worker->moveToThread(ownerThread);
+            worker,
+            [worker, ownerThread, acknowledged] {
+                worker->stop();
+                worker->moveToThread(ownerThread);
+                acknowledged->release();
             },
-            Qt::BlockingQueuedConnection);
+            Qt::QueuedConnection);
+        if (!acknowledged->tryAcquire(1, timeout)) {
+            qWarning() << "Automation HTTP server worker did not acknowledge the stop request "
+                          "within"
+                       << timeout << "ms; abandoning the server thread";
+            abandonServer();
+            return;
+        }
         m_thread->quit();
-        m_thread->wait();
+        if (!m_thread->wait(timeout)) {
+            qWarning() << "Automation HTTP server thread did not exit within" << timeout
+                       << "ms; abandoning it";
+            abandonServer();
+            return;
+        }
         delete m_worker;
         delete m_thread;
         m_worker = nullptr;
@@ -1461,8 +1511,21 @@ namespace Automation {
     void McpHttpServer::finalizeAsyncStop() {
         if (!m_stopping)
             return;
+        if (!m_thread || !m_worker) {
+            m_stopping = false;
+            m_port = 0;
+            m_routes = {};
+            emit stopped();
+            return;
+        }
+        const auto timeout = shutdownWaitTimeoutMs();
         m_thread->quit();
-        m_thread->wait();
+        if (!m_thread->wait(timeout)) {
+            qWarning() << "Automation HTTP server thread did not exit within" << timeout
+                       << "ms; abandoning it";
+            abandonServer();
+            return;
+        }
         delete m_worker;
         delete m_thread;
         m_worker = nullptr;
@@ -1471,6 +1534,18 @@ namespace Automation {
         m_routes = {};
         m_stopping = false;
         emit stopped();
+    }
+
+    void McpHttpServer::abandonServer() {
+        // The server thread is wedged. Deleting a QThread that still runs, or the
+        // worker it owns, would crash, so the server is intentionally leaked while
+        // the process exits. Callers stop waiting and let the application quit.
+        m_thread = nullptr;
+        m_worker = nullptr;
+        m_stopping = false;
+        m_port = 0;
+        m_routes = {};
+        m_accepting.store(false, std::memory_order_release);
     }
 
     bool McpHttpServer::isListening() const {

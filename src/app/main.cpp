@@ -9,6 +9,7 @@
 #include "Bootstrap/HeadlessTerminationHandler.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Bootstrap/StartupArguments.h"
 #include "Bootstrap/WindowPlacement.h"
@@ -217,6 +218,7 @@ int main(int argc, char *argv[]) {
 
             CrashHandler crashHandler;
             result = application->exec();
+            qInfo() << "Event loop finished";
             coordinator.stopAcceptingRequests();
             const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
                 {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
@@ -263,5 +265,6 @@ int main(int argc, char *argv[]) {
         }
     }
     coordinator.shutdown();
+    ShutdownMonitor::instance().finish();
     return Restarter(QDir::currentPath()).restartOrExit(result);
 }

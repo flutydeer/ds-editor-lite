@@ -5,6 +5,7 @@
 #include "McpHttpServer.h"
 #include "McpRequestDispatcher.h"
 #include "Automation/CoreRuntime.h"
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Model/AppOptions/AppOptions.h"
 
@@ -213,8 +214,12 @@ namespace Automation {
         m_admissionController.setAccepting(false);
         publishStatus(SingleInstanceAutomationState::EditorStopping, false);
         if (m_server->isListening() || m_server->isStopping()) {
+            qInfo() << "Stopping the automation server...";
+            ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::AutomationStopping);
             m_server->requestStop();
             m_server->stop();
+            ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::AutomationStopped);
+            qInfo() << "Automation server stopped";
         }
     }
 
