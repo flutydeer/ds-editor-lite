@@ -1,6 +1,7 @@
 #include "tst_automation_runtime.h"
 
 #include "Automation/AutomationDispatcher.h"
+#include "Automation/CoreRuntime.h"
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -240,6 +241,121 @@ void AutomationRuntimeTests::publicBusyAdmissionAndContinuation() {
               stalePublicValidation.getError().code ==
                   Automation::AutomationErrorCode::RevisionConflict),
              "public async admission must share the dispatcher revision contract");
+}
+
+void AutomationRuntimeTests::closingRejectsMutations_data() {
+    QTest::addColumn<int>("source");
+    QTest::newRow("gui") << int(Automation::InvocationSource::TrustedGui);
+    QTest::newRow("internal") << int(Automation::InvocationSource::InternalAutomation);
+    QTest::newRow("mcp") << int(Automation::InvocationSource::PublicMcp);
+    QTest::newRow("json-rpc") << int(Automation::InvocationSource::PublicJsonRpc);
+    QTest::newRow("continuation") << int(Automation::InvocationSource::PublicTaskContinuation);
+    QTest::newRow("test") << int(Automation::InvocationSource::Test);
+}
+
+void AutomationRuntimeTests::closingRejectsMutations() {
+    using namespace Automation;
+    QFETCH(int, source);
+    CoreRuntime runtime(nullptr, nullptr);
+    auto &dispatcher = runtime.dispatcher();
+    const auto operation = QStringLiteral("test.closing");
+    CommandContext replayContext{
+        .expected = runtime.documentVersion(),
+        .idempotencyKey = QStringLiteral("before-closing"),
+        .source = static_cast<InvocationSource>(source),
+    };
+    const auto fingerprint = QByteArrayLiteral("closing-request");
+    QVERIFY(dispatcher.dispatchIdempotentDocumentCommand(
+        operation, replayContext, fingerprint,
+        [](DocumentSession &session, bool) -> AutomationResult<MutationResult> {
+            return MutationResult{.previous = session.version(), .current = session.version()};
+        }));
+    CommandContext admitted{
+        .expected = runtime.documentVersion(),
+        .source = InvocationSource::PublicMcp,
+    };
+    QVERIFY(dispatcher.admitDocumentTask(admitted));
+    QCOMPARE(admitted.source, InvocationSource::PublicTaskContinuation);
+    QVERIFY(runtime.setDocumentBusy(admitted.expected.documentId, true));
+
+    QVERIFY(!runtime.shutdownCommitted());
+    runtime.commitShutdown();
+    runtime.commitShutdown();
+    QVERIFY(runtime.shutdownCommitted());
+    // Releasing the workflow lease must never reopen a committed shutdown.
+    runtime.setDocumentBusy(admitted.expected.documentId, false);
+
+    int handlerCalls = 0;
+    const auto handler = [&](DocumentSession &session, const bool validateOnly) {
+        ++handlerCalls;
+        return commit(session, validateOnly);
+    };
+    const auto replay = dispatcher.dispatchIdempotentDocumentCommand(operation, replayContext,
+                                                                     fingerprint, handler);
+    QVERIFY(!replay);
+    QCOMPARE(replay.getError().code, AutomationErrorCode::Busy);
+    for (const bool validateOnly : {false, true}) {
+        CommandContext context{
+            .expected = runtime.documentVersion(),
+            .validateOnly = validateOnly,
+            .source = static_cast<InvocationSource>(source),
+        };
+        const auto validated = dispatcher.validateDocumentCommand(context);
+        QVERIFY(!validated);
+        QCOMPARE(validated.getError().code, AutomationErrorCode::Busy);
+        const auto task = dispatcher.admitDocumentTask(context);
+        QVERIFY(!task);
+        QCOMPARE(task.getError().code, AutomationErrorCode::Busy);
+        QCOMPARE(context.source, static_cast<InvocationSource>(source));
+        const auto mutation = dispatcher.dispatchDocumentCommand(operation, context, handler);
+        QVERIFY(!mutation);
+        QCOMPARE(mutation.getError().code, AutomationErrorCode::Busy);
+        QCOMPARE(mutation.getError().operationId, operation);
+        const auto unchecked =
+            dispatcher.dispatchDocumentCommandWithoutRevisionCheck(operation, context, handler);
+        QVERIFY(!unchecked);
+        QCOMPARE(unchecked.getError().code, AutomationErrorCode::Busy);
+        const auto control = dispatcher.dispatchDocumentControlCommand(operation, context, handler);
+        QVERIFY(!control);
+        QCOMPARE(control.getError().code, AutomationErrorCode::Busy);
+        const auto gui = dispatcher.dispatchGuiDocumentCommand<MutationResult>(
+            operation,
+            {.documentId = context.expected.documentId,
+             .expectedRevision = context.expected.revision,
+             .windowId = *runtime.windowId(),
+             .validateOnly = validateOnly,
+             .source = context.source},
+            handler);
+        QVERIFY(!gui);
+        QCOMPARE(gui.getError().code, AutomationErrorCode::Busy);
+        // GUI controllers construct their own context but still dispatch through the facade.
+        const auto insertTrack = runtime.project().insertTrack(context, 0, {});
+        QVERIFY(!insertTrack);
+        QCOMPARE(insertTrack.getError().code, AutomationErrorCode::Busy);
+        const auto undo = runtime.history().undo(context);
+        QVERIFY(!undo);
+        QCOMPARE(undo.getError().code, AutomationErrorCode::Busy);
+    }
+    const auto continuation = dispatcher.dispatchDocumentCommand(operation, admitted, handler);
+    QVERIFY(!continuation);
+    QCOMPARE(continuation.getError().code, AutomationErrorCode::Busy);
+    const auto workflowContext = runtime.documentWorkflowCommitContext(admitted.expected);
+    QVERIFY(!workflowContext);
+    QCOMPARE(workflowContext.getError().code, AutomationErrorCode::Busy);
+    const auto writebackContext = runtime.derivedWritebackContext(admitted.expected, false);
+    QVERIFY(!writebackContext);
+    QCOMPARE(writebackContext.getError().code, AutomationErrorCode::Busy);
+    QCOMPARE(handlerCalls, 0);
+    QCOMPARE(runtime.documentVersion(), admitted.expected);
+
+    DocumentSession closingSession(nullptr, nullptr);
+    closingSession.commitClosing();
+    closingSession.setLifecycleState(DocumentLifecycleState::Replacing);
+    QCOMPARE(closingSession.lifecycleState(), DocumentLifecycleState::Closing);
+    closingSession.setLifecycleState(DocumentLifecycleState::Active);
+    QCOMPARE(closingSession.lifecycleState(), DocumentLifecycleState::Closing);
+    closingSession.replaceGeneration(QStringLiteral("late.dspx"), QStringLiteral("late"));
+    QCOMPARE(closingSession.lifecycleState(), DocumentLifecycleState::Closing);
 }
 
 void AutomationRuntimeTests::generationReplacementInvalidatesRoutes() {

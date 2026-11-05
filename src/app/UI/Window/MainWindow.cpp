@@ -141,6 +141,12 @@ MainWindow::MainWindow() {
     connect(historyManager, &HistoryManager::undoRedoChanged, this, &MainWindow::updateWindowTitle);
     connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
             [this](const TerminationMode mode) {
+                // This handler is the GUI's formal exit commit. The commit comes first
+                // on purpose: the watchdog budget and the closing fence have to be in
+                // place before the queued close(), before the task pool wait and
+                // before any synchronous log can take the main thread. A stall from
+                // here on is therefore bounded, and the document can no longer change.
+                documentWorkflowController->commitShutdown();
                 m_restartRequested = mode == TerminationMode::Restart;
                 m_documentCloseApproved = true;
                 QTimer::singleShot(0, this, [this] { close(); });
@@ -967,9 +973,12 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
     } else {
         m_isCloseRequested = true;
-        qDebug() << "Terminating background tasks...";
-        ShutdownMonitor::instance().begin();
+        // The exit was committed in the terminationApproved handler, so the watchdog
+        // is already armed. This call is the idempotent fallback for a close path that
+        // never went through the document decision.
+        ShutdownMonitor::instance().commit();
         ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::CloseRequested);
+        qDebug() << "Terminating background tasks...";
         m_waitDoneDialog = new TaskDialog(nullptr, false, false, this);
         m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
         m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));

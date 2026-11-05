@@ -88,6 +88,10 @@ namespace Automation {
 
         m_registry = std::make_unique<PublicAutomationRegistry>(
             runtime, m_accessPolicy, m_fileGuard, m_admissionController, std::move(hostServices));
+        // The host's exit commit is the only thing that closes admission by itself:
+        // binding it here keeps the policy object free of process-global state while
+        // still rejecting new work the moment the fence goes up.
+        m_admissionController.setAdmissionGate([&runtime] { return !runtime.shutdownCommitted(); });
         m_dispatcher = std::make_unique<McpRequestDispatcher>(*m_registry, editorServerInfo());
         m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(
             *m_registry, [this] { return nativeEndpoint(); });
@@ -193,6 +197,8 @@ namespace Automation {
                     return;
                 }
             }
+            // Accepting again is safe even after an exit commit: the admission gate is
+            // terminal and still rejects everything once the host is shutting down.
             m_admissionController.setAccepting(true);
             m_lastError.clear();
             if (routes.mcp) {
@@ -206,12 +212,18 @@ namespace Automation {
         transitionAfterStop(PendingTransition::Start);
     }
 
+    void EditorMcpController::stopAdmission() {
+        // Admission only. Stopping the server is a separate, much longer handshake and
+        // must never be implied by a caller that just wants to close the door.
+        m_admissionController.setAccepting(false);
+    }
+
     void EditorMcpController::shutdown() {
         if (m_shuttingDown)
             return;
         m_shuttingDown = true;
         m_pendingTransition = PendingTransition::None;
-        m_admissionController.setAccepting(false);
+        stopAdmission();
         publishStatus(SingleInstanceAutomationState::EditorStopping, false);
         if (m_server->isListening() || m_server->isStopping()) {
             qInfo() << "Stopping the automation server...";
@@ -307,6 +319,8 @@ namespace Automation {
         }
         m_boundRequestedPort = m_effectiveConfig.controlPort;
         m_everStarted = true;
+        // Same as in applyConfiguration(): a restarted server cannot reopen admission
+        // after the host committed its exit, because the gate is checked on its own.
         m_admissionController.setAccepting(true);
         m_lastError.clear();
         if (routes.mcp) {

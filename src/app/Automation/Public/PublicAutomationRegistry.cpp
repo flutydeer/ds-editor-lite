@@ -2,7 +2,6 @@
 #include "PublicAutomationCodecs.h"
 #include "PublicCollectionPagination.h"
 
-#include "Bootstrap/ShutdownMonitor.h"
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
@@ -2035,9 +2034,10 @@ namespace Automation {
         m_lifetimeState->active.store(false, std::memory_order_release);
         // The runnable keeps raw pointers into this registry and the runtime, so a
         // pool that never drains cannot be abandoned safely: leaking it only moves
-        // the use-after-free to whenever the runnable resumes.
-        if (!m_exportThreadPool.waitForDone(ShutdownMonitor::shutdownTimeoutMs()))
-            ShutdownMonitor::exitWithRunningThreads("automation export tasks did not stop");
+        // the use-after-free to whenever the runnable resumes. The join is unbounded
+        // on purpose and the process-lifetime watchdog bounds the process instead, so
+        // closing the automation service never decides on its own to end the editor.
+        m_exportThreadPool.waitForDone();
     }
 
     const QList<AutomationWire::ToolContract> &PublicAutomationRegistry::contracts() const {

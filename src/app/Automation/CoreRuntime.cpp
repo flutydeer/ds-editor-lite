@@ -1,5 +1,7 @@
 #include "CoreRuntime.h"
 
+#include <QDebug>
+
 namespace Automation {
     namespace {
         DocumentRuntimeServices bindGenerationLifecycle(DocumentRuntimeServices services,
@@ -64,8 +66,29 @@ namespace Automation {
         return documentId == m_session.documentId() && m_session.isBusy();
     }
 
-    AutomationResult<CommandContext> CoreRuntime::documentWorkflowCommitContext(
-        const DocumentVersion &generationAnchor) const {
+    void CoreRuntime::commitShutdown() {
+        if (m_shutdownCommitted.exchange(true, std::memory_order_acq_rel))
+            return;
+        // Closing is sticky inside the session, so an operation that was already in
+        // flight cannot reopen the document through a replacement commit.
+        m_session.commitClosing();
+        // Diagnostics only, and deliberately after the fence: a log call that blocks on
+        // a stuck process must not be able to delay the freeze itself.
+        qInfo().noquote() << QStringLiteral(
+            "[shutdown] document closed, the exit fence is committed");
+    }
+
+    bool CoreRuntime::shutdownCommitted() const {
+        return m_shutdownCommitted.load(std::memory_order_acquire);
+    }
+
+    AutomationResult<CommandContext>
+        CoreRuntime::documentWorkflowCommitContext(const DocumentVersion &generationAnchor) const {
+        // A committed exit owns the document: no workflow may still obtain a commit
+        // context, otherwise the permit would travel into a lower layer that only
+        // reports a conflict later.
+        if (shutdownCommitted())
+            return AutomationError::documentBusy(m_session.documentId());
         const auto rebased =
             rebaseDocumentVersionWithinGeneration(generationAnchor, documentVersion());
         if (!rebased)
@@ -79,6 +102,10 @@ namespace Automation {
     AutomationResult<CommandContext>
         CoreRuntime::derivedWritebackContext(const DocumentVersion &taskVersion,
                                              const bool validateOnly) const {
+        // Task continuations write back long after they were admitted, so the fence
+        // has to be re-checked here rather than only at admission time.
+        if (shutdownCommitted())
+            return AutomationError::documentBusy(m_session.documentId());
         const auto rebased = rebaseDocumentVersionWithinGeneration(taskVersion, documentVersion());
         if (!rebased)
             return rebased.getError();

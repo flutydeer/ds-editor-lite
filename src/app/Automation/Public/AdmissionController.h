@@ -5,6 +5,7 @@
 
 #include <QMutex>
 
+#include <functional>
 #include <memory>
 
 namespace Automation {
@@ -40,11 +41,17 @@ namespace Automation {
 
     class AdmissionController final {
     public:
+        // Host-provided gate. The editor binds it to its own exit commit so admission
+        // closes at the moment the host commits, without this policy object depending
+        // on where that state lives. It must be cheap and must not re-enter admission.
+        using AdmissionGate = std::function<bool()>;
+
         explicit AdmissionController(AdmissionLimits limits = {});
 
         [[nodiscard]] AutomationResult<AdmissionLease> tryAcquire(bool backgroundTask = false);
 
         void setAccepting(bool accepting);
+        void setAdmissionGate(AdmissionGate gate);
         [[nodiscard]] AdmissionSnapshot snapshot() const;
 
     private:

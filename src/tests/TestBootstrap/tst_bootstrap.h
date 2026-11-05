@@ -26,4 +26,11 @@ private slots:
     void forwardRequestReportsPeerFailureAndRecovers_data();
     void forwardRequestReportsPeerFailureAndRecovers();
     void queuedStartupConnectionIsAcknowledged();
+    void watchdogBoundsStalledExit();
+    void watchdogIgnoresIdleProcess();
+    void watchdogCoversLateQtTeardown();
+    void watchdogExitsWithoutLogging();
+    void watchdogUsesOneAbsoluteBudget();
+    void disabledHardExitIsLeftToTheParent();
+    void aboutToQuitFallbackCommitsBeforeBlockingCallbacks();
 };

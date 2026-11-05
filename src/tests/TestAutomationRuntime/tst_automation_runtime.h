@@ -10,6 +10,8 @@ private slots:
     void validateCommitAndStaleRevision();
     void publicBusyAdmissionAndContinuation_data();
     void publicBusyAdmissionAndContinuation();
+    void closingRejectsMutations_data();
+    void closingRejectsMutations();
     void generationReplacementInvalidatesRoutes();
     void headlessCapabilityRouting();
     void invocationSourceCapture();
@@ -37,6 +39,7 @@ private slots:
     void leaseCopiesReleaseOnlyOnce();
     void backgroundCapacityIsIndependent();
     void stoppingRejectsWithoutChangingCounters();
+    void committedHostGateCannotBeReopened();
     void existingReadUsesCanonicalPath();
     void rejectedRead_data();
     void rejectedRead();

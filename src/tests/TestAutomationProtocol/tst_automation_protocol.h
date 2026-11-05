@@ -59,6 +59,10 @@ private slots:
     void handlerResponseLimits();
     void listenerLifecycle_data();
     void listenerLifecycle();
+    void repeatedStopAndRestart();
+    void synchronousStopKeepsOwnerEventsQueued();
+    void queuedStopRetiresThePendingStopExactlyOnce();
+    void staleStopFinalizerDoesNotRetireTheNextStop();
     void responseSurvivesShutdown_data();
     void responseSurvivesShutdown();
     void nativeRequestValidation();

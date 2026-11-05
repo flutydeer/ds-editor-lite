@@ -10,6 +10,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <system_error>
 #include <thread>
 
 #if defined(Q_OS_WIN)
@@ -17,24 +18,39 @@
 #  include <tlhelp32.h>
 #endif
 
-// Watches the editor's shutdown sequence.
+// Watches the whole process lifetime from the exit decision to the end of the
+// process.
 //
 // Closing the editor is a chain of waits: the window waits for the background
-// task pool, then the automation server is stopped, then the application
-// context drains its subsystems. A single thread that never returns keeps the
-// "exiting" dialog on screen forever and leaves the user no choice but killing
-// the process. Those hangs are rare and timing dependent, so this monitor
-// records the shutdown stage the main thread has reached and, once a deadline
-// passes, keeps reporting the stuck stage from a watchdog thread. The log then
-// names the stage instead of ending in silence.
+// task pool, then the automation server is stopped, then the application context
+// drains its subsystems, and finally Qt tears down its global thread pool and
+// static objects. Every one of those waits is unbounded, and a single thread that
+// never returns leaves the "exiting" dialog on screen forever. Those hangs are
+// rare and timing dependent, so this monitor records the shutdown stage the host
+// has reached and, once the host commits the exit, bounds the process with one
+// absolute budget.
 //
-// The monitor is header-only on purpose: automation sources are compiled into
-// several targets (the editor, the protocol tests), and every one of them needs
-// the same stage log without a new library target.
+// Two properties are deliberate:
 //
-// Timeouts are in milliseconds and can be overridden with
-// DS_EDITOR_SHUTDOWN_TIMEOUT_MS (waits for background threads) and
-// DS_EDITOR_EXIT_WATCHDOG_MS (watchdog deadline).
+//   * The watchdog thread is created during normal startup. Creating a thread is
+//     itself an operation that can fail or block on a busy machine, so it must not
+//     be the first thing a stalled shutdown path does.
+//   * Once committed, the protection lasts until the operating system reclaims the
+//     process. There is no stop or join entry: the late Qt and static teardown is
+//     exactly the phase that needs it. A static instance whose destructor joined
+//     the thread would remove the protection it exists to provide, so the state is
+//     leaked on purpose and the process-lifetime thread ends with the process.
+//
+// The monitor is header-only on purpose: the editor and the exit-path subprocess
+// tests in TestBootstrap share this exact implementation, and a few dozen lines do
+// not justify a library target of their own.
+//
+// Environment variables:
+//   DS_EDITOR_EXIT_WATCHDOG_MS       stall report threshold after the commit
+//   DS_EDITOR_EXIT_FORCE_EXIT_MS     absolute budget after the commit; 0 disables
+//                                    the only hard exit this process has
+//   DS_EDITOR_SHUTDOWN_TIMEOUT_MS    per-phase wait threshold for runtime stops,
+//                                    not an exit policy (see the design document)
 class ShutdownMonitor {
 public:
     enum class Stage {
@@ -48,90 +64,102 @@ public:
         ContextTeardown,
         ContextTasksDrained,
         ContextTeardownDone,
-        Finished,
     };
 
+    // The state object lives as long as the process. See the note above about the
+    // deliberate leak: a destructor here would join the watchdog during static
+    // teardown and drop the protection for the final phase.
     static ShutdownMonitor &instance() {
-        static ShutdownMonitor monitor;
-        return monitor;
+        static ShutdownMonitor *monitor = new ShutdownMonitor();
+        return *monitor;
     }
 
     ShutdownMonitor(const ShutdownMonitor &) = delete;
     ShutdownMonitor &operator=(const ShutdownMonitor &) = delete;
 
-    // Arms the watchdog once. Later calls are ignored, so any participant of the
-    // shutdown sequence can arm it without coordinating with the others.
-    void begin() {
-        if (m_armed.exchange(true))
+    // Starts the watchdog and the diagnostics thread while the process is still
+    // healthy. Repeated calls are ignored. Targets that never call it (unit tests
+    // outside the exit probes) simply have no watchdog, which is also why commit()
+    // must stay usable without it.
+    void start() {
+        if (m_started.exchange(true))
             return;
-        m_stage.store(Stage::Idle, std::memory_order_release);
-        m_deadlineMs = watchdogDeadlineMs();
-        m_started = std::chrono::steady_clock::now();
-        m_stop.store(false, std::memory_order_release);
-        m_thread = std::thread([this] { watch(); });
-        qInfo().noquote() << QStringLiteral("[shutdown] watchdog armed, reports stalls over %1 ms")
-                                 .arg(m_deadlineMs);
+        m_reportAfterMs = positiveEnvironmentValue("DS_EDITOR_EXIT_WATCHDOG_MS", 10000);
+        m_forceExitMs = forcedExitDeadlineMs();
+        auto watchdogStarted = false;
+        try {
+            m_thread = std::thread([this] { watch(); });
+            watchdogStarted = true;
+        } catch (const std::system_error &error) {
+            // Thread creation is not guaranteed. Losing the watchdog is reported, but
+            // it must not take the whole editor down during startup.
+            qWarning().noquote()
+                << QStringLiteral("[shutdown] no exit watchdog, its thread could not be created "
+                                  "(%1); the process has no hard exit")
+                       .arg(QString::fromLocal8Bit(error.what()));
+        }
+        try {
+            // The diagnostics thread is separate on purpose: reports format strings,
+            // enumerate threads and take the logging mutex. A failure here costs the
+            // stall reports only, the exit budget above still runs.
+            m_reporter = std::thread([this] { reportLoop(); });
+        } catch (const std::system_error &error) {
+            qWarning().noquote()
+                << QStringLiteral("[shutdown] no stall reports, the diagnostics thread could not "
+                                  "be created (%1)")
+                       .arg(QString::fromLocal8Bit(error.what()));
+        }
+        if (!watchdogStarted)
+            return;
+        qInfo().noquote() << QStringLiteral(
+                                 "[shutdown] watchdog started, reports stalls over %1 ms from the "
+                                 "exit commit (budget: %2)")
+                                 .arg(m_reportAfterMs)
+                                 .arg(m_forceExitMs > 0 ? QStringLiteral("%1 ms").arg(m_forceExitMs)
+                                                        : QStringLiteral("disabled"));
     }
 
-    void setStage(const Stage stage) {
-        if (!m_armed.load(std::memory_order_acquire))
+    // Commits the formal exit. Later calls are ignored, so every participant of the
+    // shutdown sequence can commit without coordinating with the others. This is
+    // deliberately pure atomic work: the host freezes the runtime right after, and
+    // only then logs, so neither the fence nor the budget can be delayed by a log
+    // call that blocks on a stuck process.
+    void commit() {
+        if (m_committed.exchange(true, std::memory_order_acq_rel))
             return;
+        m_commitNanos.store(nowNanos(), std::memory_order_release);
+    }
+
+    [[nodiscard]] bool committed() const {
+        return m_committed.load(std::memory_order_acquire);
+    }
+
+    // Records the stage the host has reached. Stage records only matter once the
+    // exit is committed, so the log line is written from that point on.
+    void setStage(const Stage stage) {
         if (m_stage.exchange(stage, std::memory_order_acq_rel) == stage)
+            return;
+        if (!committed())
             return;
         qInfo().noquote() << QStringLiteral("[shutdown] stage %1 (+%2 ms)")
                                  .arg(stageName(stage))
                                  .arg(elapsedMs());
     }
 
-    // Stops the watchdog and reports the total shutdown time.
-    void finish() {
-        if (!m_armed.exchange(false))
-            return;
-        m_stage.store(Stage::Finished, std::memory_order_release);
-        m_stop.store(true, std::memory_order_release);
-        if (m_thread.joinable())
-            m_thread.join();
-        qInfo().noquote() << QStringLiteral("[shutdown] complete in %1 ms").arg(elapsedMs());
-    }
-
-    ~ShutdownMonitor() {
-        m_stop.store(true, std::memory_order_release);
-        if (m_thread.joinable())
-            m_thread.join();
-    }
-
-    // Shared timeout for waiting on background threads during shutdown. A task
-    // that ignores termination must not keep the editor alive forever.
+    // Threshold for a runtime stop handshake that has a deadline of its own (the
+    // automation server stop). It never decides whether the process keeps living:
+    // the exit budget above is the single hard exit.
     static int shutdownTimeoutMs() {
         return positiveEnvironmentValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", 30000);
-    }
-
-    // A shutdown wait gave up while a background thread still owns objects that
-    // the teardown is about to destroy. There is no safe way to continue: the
-    // abandoned thread would dereference freed state, and leaking it only moves
-    // the crash. Ending the process now is the only bounded and safe outcome.
-    [[noreturn]] static void exitWithRunningThreads(const char *reason) {
-        terminateNow(QStringLiteral("[shutdown] %1; ending the process instead of tearing down "
-                                    "state the background thread still uses%2")
-                         .arg(QString::fromLatin1(reason), threadSummary()));
     }
 
 private:
     ShutdownMonitor() = default;
 
-    // The record is best effort, the exit is not. The logging handler holds its
-    // mutex across the write and flush, and a thread that is stuck there because the
-    // output pipe is full would otherwise keep this call from ever reaching _Exit,
-    // so the record is written from a helper thread and given a bounded window.
-    [[noreturn]] static void terminateNow(const QString &message) {
-        reportWithoutBlocking(message);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        std::_Exit(EXIT_FAILURE);
-    }
-
-    // Diagnostics must never stall the watchdog itself, for the same reason.
-    static void reportWithoutBlocking(const QString &message) {
-        std::thread([message] { qWarning().noquote() << message; }).detach();
+    static qint64 nowNanos() {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+            .count();
     }
 
     static int positiveEnvironmentValue(const char *name, const int fallback) {
@@ -140,16 +168,12 @@ private:
         return ok && value > 0 ? static_cast<int>(value) : fallback;
     }
 
-    static int watchdogDeadlineMs() {
-        return positiveEnvironmentValue("DS_EDITOR_EXIT_WATCHDOG_MS", 10000);
-    }
-
-    // Hard-exit deadline. A runnable that ignores termination also blocks
-    // QThreadPool's destructor, which runs long after every bounded wait here
-    // has given up, so no in-process wait can bound the exit on its own. Once
-    // the document decision has been made nothing is left to save, therefore a
-    // process that cannot finish its shutdown leaves instead of hanging until
-    // the user kills it. Set the variable to 0 to disable the escape hatch.
+    // Hard-exit budget. A runnable that ignores termination also blocks
+    // QThreadPool's destructor, which runs long after every bounded wait has given
+    // up, and the dialogue decision behind us means nothing is left to save. A
+    // process that cannot finish its shutdown therefore leaves instead of hanging
+    // until the user kills it. Zero disables this, and with it every hard exit the
+    // editor has.
     static int forcedExitDeadlineMs() {
         bool ok = false;
         const auto value = qEnvironmentVariableIntValue("DS_EDITOR_EXIT_FORCE_EXIT_MS", &ok);
@@ -180,8 +204,6 @@ private:
                 return QStringLiteral("context-tasks-drained");
             case Stage::ContextTeardownDone:
                 return QStringLiteral("context-teardown-done");
-            case Stage::Finished:
-                return QStringLiteral("finished");
         }
         return QStringLiteral("unknown");
     }
@@ -263,52 +285,82 @@ private:
     }
 
     qint64 elapsedMs() const {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::steady_clock::now() - m_started)
-            .count();
+        const auto committedNanos = m_commitNanos.load(std::memory_order_acquire);
+        if (committedNanos == 0)
+            return 0;
+        return (nowNanos() - committedNanos) / 1000000;
+    }
+
+    // Diagnostics are a separate channel by construction. Formatting, thread
+    // enumeration and the logging mutex can each block on a stuck process, and a
+    // blocked reporter must not be able to delay the hard exit. The watchdog hands
+    // over elapsed time and stage through atomics and never waits for this thread.
+    void reportLoop() {
+        using namespace std::chrono_literals;
+        quint64 handled = 0;
+        while (true) {
+            std::this_thread::sleep_for(100ms);
+            const auto requested = m_reportSequence.load(std::memory_order_acquire);
+            if (requested == handled)
+                continue;
+            handled = requested;
+            const auto elapsed = m_reportElapsedMs.load(std::memory_order_relaxed);
+            const auto stage = m_reportStage.load(std::memory_order_relaxed);
+            qWarning().noquote() << QStringLiteral(
+                                        "[shutdown] still exiting after %1 ms, stuck at stage %2%3")
+                                        .arg(elapsed)
+                                        .arg(stageName(stage), threadSummary());
+        }
     }
 
     void watch() {
         using namespace std::chrono_literals;
         constexpr int maximumReports = 60;
-        const auto forceExitMs = forcedExitDeadlineMs();
+        // Read once: from here on the loop only reads the commit state and the
+        // clock, so nothing the shutdown path does can change the decision.
+        const auto forceExitMs = m_forceExitMs;
+        const auto reportAfterMs = m_reportAfterMs;
         int reports = 0;
         auto lastReport = std::chrono::steady_clock::now();
-        while (!m_stop.load(std::memory_order_acquire)) {
+        while (true) {
             std::this_thread::sleep_for(200ms);
-            if (m_stop.load(std::memory_order_acquire))
-                break;
-            const auto stage = m_stage.load(std::memory_order_acquire);
-            if (stage == Stage::Finished)
+            // An editor can run for hours without ever committing an exit.
+            if (!m_committed.load(std::memory_order_acquire))
                 continue;
             const auto elapsed = elapsedMs();
-            if (forceExitMs > 0 && elapsed >= forceExitMs) {
-                terminateNow(
-                    QStringLiteral("[shutdown] still stuck after %1 ms, forcing the process to "
-                                   "exit at stage %2%3")
-                        .arg(elapsed)
-                        .arg(stageName(stage), threadSummary()));
-            }
-            if (elapsed < m_deadlineMs || reports >= maximumReports)
+            // The one hard exit of the process. It reads the clock and two
+            // pre-initialised values, and then ends the process: no Qt call, no log,
+            // no thread enumeration, no allocation and no helper thread, because any
+            // of those can block on a process that is already stuck.
+            if (forceExitMs > 0 && elapsed >= forceExitMs)
+                std::_Exit(EXIT_FAILURE);
+            if (elapsed < reportAfterMs || reports >= maximumReports)
                 continue;
             const auto now = std::chrono::steady_clock::now();
             if (reports > 0 && now - lastReport < 10s)
                 continue;
             lastReport = now;
             ++reports;
-            reportWithoutBlocking(
-                QStringLiteral("[shutdown] still exiting after %1 ms, stuck at stage %2%3")
-                    .arg(elapsed)
-                    .arg(stageName(stage), threadSummary()));
+            // Hand-off only. Everything that can allocate, block or fail happens on
+            // the diagnostics thread, so this branch cannot keep the watchdog away
+            // from the deadline above.
+            m_reportElapsedMs.store(elapsed, std::memory_order_relaxed);
+            m_reportStage.store(m_stage.load(std::memory_order_acquire), std::memory_order_relaxed);
+            m_reportSequence.fetch_add(1, std::memory_order_release);
         }
     }
 
-    std::atomic_bool m_armed = false;
-    std::atomic_bool m_stop = false;
+    std::atomic_bool m_started = false;
+    std::atomic_bool m_committed = false;
     std::atomic<Stage> m_stage = Stage::Idle;
-    std::chrono::steady_clock::time_point m_started;
-    int m_deadlineMs = 10000;
+    std::atomic<qint64> m_commitNanos = 0;
+    std::atomic<quint64> m_reportSequence = 0;
+    std::atomic<qint64> m_reportElapsedMs = 0;
+    std::atomic<Stage> m_reportStage = Stage::Idle;
+    int m_reportAfterMs = 10000;
+    int m_forceExitMs = 30000;
     std::thread m_thread;
+    std::thread m_reporter;
 };
 
 #endif // BOOTSTRAP_SHUTDOWNMONITOR_H

@@ -7,6 +7,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
+#include "Bootstrap/ShutdownMonitor.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
@@ -153,6 +154,11 @@ void DocumentWorkflowController::requestSaveAs() {
 TerminationRequestResult
     DocumentWorkflowController::requestTermination(const TerminationMode mode,
                                                    const TerminationSavePolicy savePolicy) {
+    // The host is already exiting after a committed shutdown, so a repeated request
+    // is satisfied rather than started again: starting a workflow here would show a
+    // busy error to a user who already agreed to close.
+    if (shutdownCommitted())
+        return TerminationRequestResult::Accepted;
     if (m_busy) {
         if (savePolicy != TerminationSavePolicy::Prompt)
             return TerminationRequestResult::Busy;
@@ -191,6 +197,20 @@ void DocumentWorkflowController::cancelCurrentOperation() {
         return;
     closeProgressDialog();
     emit cancelSessionRequested();
+}
+
+void DocumentWorkflowController::commitShutdown() {
+    // Arm the process watchdog first. The exit decision is final at this point, so
+    // the absolute budget has to start before the next synchronous log, dialog or
+    // wait can take the main thread.
+    ShutdownMonitor::instance().commit();
+    if (auto *runtime = automationRuntime())
+        runtime->commitShutdown();
+}
+
+bool DocumentWorkflowController::shutdownCommitted() const {
+    const auto *runtime = automationRuntime();
+    return runtime && runtime->shutdownCommitted();
 }
 
 bool DocumentWorkflowController::busy() const {
@@ -389,6 +409,11 @@ void DocumentWorkflowController::initializeStateMachine() {
 }
 
 void DocumentWorkflowController::begin(const DocumentOperation operation, const QString &filePath) {
+    // Once the host has committed the exit, no new document decision may start: it
+    // would hand out a workflow lease and reopen a document that is already frozen.
+    // Queued external open requests and menu actions both end up here.
+    if (shutdownCommitted())
+        return;
     if (m_busy) {
         rejectBusyRequest();
         return;

@@ -5,6 +5,8 @@ lite_add_test(${PROJECT_NAME}
         test_main.cpp
         tst_bootstrap.h
         tst_arguments.cpp
+        tst_shutdown_probe.h
+        tst_shutdown_monitor.cpp
         tst_single_instance.cpp
         ../../app/Bootstrap/AppHostMode.cpp
         ../../app/Bootstrap/StartupArguments.cpp

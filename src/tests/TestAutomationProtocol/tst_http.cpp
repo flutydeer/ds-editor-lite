@@ -1078,6 +1078,43 @@ void AutomationProtocolTests::listenerLifecycle() {
     QVERIFY(bodyObject(response).contains(QStringLiteral("result")));
 }
 
+void AutomationProtocolTests::repeatedStopAndRestart() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto ping = requestObject(QString::fromLatin1(Mcp::PingMethod), QStringLiteral("ping"));
+    const auto pingEndpoint = [&](const QUrl &endpoint) {
+        return send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::PingMethod)),
+                    QJsonDocument(ping).toJson(QJsonDocument::Compact));
+    };
+    const auto first = pingEndpoint(fixture.endpoint());
+    QVERIFY(!first.timedOut);
+    QCOMPARE(first.status, 200);
+
+    int stoppedCount = 0;
+    const auto trackStop = connect(&server, &Automation::McpHttpServer::stopped, this,
+                                   [&stoppedCount] { ++stoppedCount; });
+    server.requestStop();
+    server.requestStop();
+    expect(waitForStop(server),
+           QStringLiteral("a repeated asynchronous stop must complete exactly once"));
+    QCOMPARE(stoppedCount, 1);
+
+    // A stop of an already stopped server must neither block nor notify again.
+    server.stop();
+    QCOMPARE(stoppedCount, 1);
+    QVERIFY(!server.isListening() && !server.isStopping());
+
+    QVERIFY2(server.start(0, fixture.error), qPrintable(fixture.error));
+    const auto restarted = pingEndpoint(fixture.endpoint());
+    QVERIFY(!restarted.timedOut);
+    QCOMPARE(restarted.status, 200);
+    QCOMPARE(stoppedCount, 1);
+    disconnect(trackStop);
+    server.stop();
+}
+
 void AutomationProtocolTests::responseSurvivesShutdown_data() {
     QTest::addColumn<bool>("consumeResponse");
     QTest::newRow("reading-peer") << true;

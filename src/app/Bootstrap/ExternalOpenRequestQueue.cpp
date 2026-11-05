@@ -16,6 +16,8 @@ ExternalOpenRequestQueue::ExternalOpenRequestQueue(DocumentWorkflowController *w
 }
 
 void ExternalOpenRequestQueue::enqueue(const SingleInstanceRequest &request) {
+    if (m_workflow->shutdownCommitted())
+        return;
     m_activatePending = true;
     if (request.command == SingleInstanceCommand::OpenProjects) {
         for (const auto &path : request.paths)
@@ -28,6 +30,14 @@ void ExternalOpenRequestQueue::dispatchNext() {
     if (m_activatePending) {
         m_activatePending = false;
         activateWindow();
+    }
+    // The single-instance coordinator stops handing out new requests on exit, but a
+    // dispatch that is already queued still runs. Opening a project after the host
+    // committed the exit would unfreeze the document that is going away, so the
+    // queue has to check the same fence instead of relying on the coordinator.
+    if (m_workflow->shutdownCommitted()) {
+        m_paths.clear();
+        return;
     }
     if (m_workflow->busy())
         return;
