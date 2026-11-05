@@ -110,7 +110,6 @@ public:
     // the teardown is about to destroy. There is no safe way to continue: the
     // abandoned thread would dereference freed state, and leaking it only moves
     // the crash. Ending the process now is the only bounded and safe outcome.
-    // The log handler flushes per line, so this record survives the exit.
     [[noreturn]] static void exitWithRunningThreads(const char *reason) {
         terminateNow(QStringLiteral("[shutdown] %1; ending the process instead of tearing down "
                                     "state the background thread still uses%2")
@@ -120,9 +119,19 @@ public:
 private:
     ShutdownMonitor() = default;
 
+    // The record is best effort, the exit is not. The logging handler holds its
+    // mutex across the write and flush, and a thread that is stuck there because the
+    // output pipe is full would otherwise keep this call from ever reaching _Exit,
+    // so the record is written from a helper thread and given a bounded window.
     [[noreturn]] static void terminateNow(const QString &message) {
-        qWarning().noquote() << message;
+        reportWithoutBlocking(message);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         std::_Exit(EXIT_FAILURE);
+    }
+
+    // Diagnostics must never stall the watchdog itself, for the same reason.
+    static void reportWithoutBlocking(const QString &message) {
+        std::thread([message] { qWarning().noquote() << message; }).detach();
     }
 
     static int positiveEnvironmentValue(const char *name, const int fallback) {
@@ -287,10 +296,10 @@ private:
                 continue;
             lastReport = now;
             ++reports;
-            qWarning().noquote() << QStringLiteral(
-                                        "[shutdown] still exiting after %1 ms, stuck at stage %2%3")
-                                        .arg(elapsed)
-                                        .arg(stageName(stage), threadSummary());
+            reportWithoutBlocking(
+                QStringLiteral("[shutdown] still exiting after %1 ms, stuck at stage %2%3")
+                    .arg(elapsed)
+                    .arg(stageName(stage), threadSummary()));
         }
     }
 
