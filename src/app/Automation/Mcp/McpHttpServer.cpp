@@ -4,6 +4,8 @@
 #include <lite/AutomationWire/OpenRpc.h>
 
 #include <QCryptographicHash>
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFuture>
 #include <QHttpHeaders>
@@ -1445,60 +1447,84 @@ namespace Automation {
             Qt::QueuedConnection);
     }
 
+    void McpHttpServer::postStopToWorker() {
+        auto *ownerThread = thread();
+        auto *worker = m_worker;
+        // The callback runs on the worker thread and may arrive after this server
+        // was destroyed, so it must not read the members: the worker is captured by
+        // value and the server is guarded.
+        const QPointer<McpHttpServer> self(this);
+        QMetaObject::invokeMethod(
+            worker,
+            [worker, ownerThread, self] {
+                worker->stop();
+                worker->moveToThread(ownerThread);
+                if (!self)
+                    return;
+                QMetaObject::invokeMethod(
+                    self.data(),
+                    [self] {
+                        if (self)
+                            self->finalizeAsyncStop();
+                    },
+                    Qt::QueuedConnection);
+            },
+            Qt::QueuedConnection);
+    }
+
     void McpHttpServer::stop() {
-        m_accepting.store(false, std::memory_order_release);
-        m_transportState->stopAccepting();
-        const auto timeout = shutdownWaitTimeoutMs();
-        if (m_stopping) {
-            if (m_thread && m_worker) {
-                QEventLoop loop;
-                QTimer deadline;
-                deadline.setSingleShot(true);
-                connect(this, &McpHttpServer::stopped, &loop, &QEventLoop::quit,
-                        Qt::SingleShotConnection);
-                connect(&deadline, &QTimer::timeout, &loop, &QEventLoop::quit);
-                deadline.start(timeout);
-                loop.exec();
-                if (m_stopping)
-                    ShutdownMonitor::exitWithRunningThreads(
-                        "the automation HTTP server did not confirm its asynchronous stop");
-            }
+        // Callers from another thread cannot drive this thread's events, so they
+        // hand the stop over and wait for it to finish.
+        if (QThread::currentThread() != thread()) {
+            auto done = std::make_shared<QSemaphore>();
+            QMetaObject::invokeMethod(
+                this,
+                [this, done] {
+                    stop();
+                    done->release();
+                },
+                Qt::QueuedConnection);
+            if (!done->tryAcquire(1, shutdownWaitTimeoutMs()))
+                ShutdownMonitor::exitWithRunningThreads(
+                    "the automation HTTP server did not finish stopping");
             return;
         }
+        m_accepting.store(false, std::memory_order_release);
+        m_transportState->stopAccepting();
         if (!m_thread || !m_worker) {
             m_port = 0;
             m_routes = {};
             return;
         }
-        auto *ownerThread = thread();
-        auto *worker = m_worker;
-        // A blocking invocation would wait forever when the worker thread is busy
-        // answering a request that itself waits for this thread, so the stop
-        // handshake is queued and bounded instead.
-        auto acknowledged = std::make_shared<QSemaphore>();
-        QMetaObject::invokeMethod(
-            worker,
-            [worker, ownerThread, acknowledged] {
-                worker->stop();
-                worker->moveToThread(ownerThread);
-                acknowledged->release();
-            },
-            Qt::QueuedConnection);
-        if (!acknowledged->tryAcquire(1, timeout)) {
-            ShutdownMonitor::exitWithRunningThreads(
-                "the automation HTTP server worker did not acknowledge the stop request");
+        if (!m_stopping) {
+            m_stopping = true;
+            postStopToWorker();
         }
-        m_thread->quit();
-        if (!m_thread->wait(timeout)) {
+        // Every stop funnels through the asynchronous path so exactly one place
+        // retires the worker. Events keep being processed while waiting, because
+        // the server thread may be blocked on a request callback that needs this
+        // thread, and a blocking wait here would deadlock both until the timeout.
+        const auto timeout = shutdownWaitTimeoutMs();
+        QElapsedTimer waited;
+        waited.start();
+        while (m_stopping && waited.elapsed() < timeout)
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+        if (m_stopping)
             ShutdownMonitor::exitWithRunningThreads(
-                "the automation HTTP server thread did not exit");
-        }
-        delete m_worker;
-        delete m_thread;
-        m_worker = nullptr;
-        m_thread = nullptr;
-        m_port = 0;
-        m_routes = {};
+                "the automation HTTP server did not finish stopping");
+    }
+
+    bool McpHttpServer::waitForThreadExit(const int timeoutMilliseconds) {
+        if (!m_thread)
+            return true;
+        // Joining with QThread::wait() would stop this thread from answering the
+        // request callbacks the server thread may still be waiting on, so the join
+        // keeps processing events with a deadline instead.
+        QElapsedTimer waited;
+        waited.start();
+        while (!m_thread->isFinished() && waited.elapsed() < timeoutMilliseconds)
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+        return m_thread->isFinished();
     }
 
     void McpHttpServer::finalizeAsyncStop() {
@@ -1513,7 +1539,7 @@ namespace Automation {
         }
         const auto timeout = shutdownWaitTimeoutMs();
         m_thread->quit();
-        if (!m_thread->wait(timeout)) {
+        if (!waitForThreadExit(timeout)) {
             ShutdownMonitor::exitWithRunningThreads(
                 "the automation HTTP server thread did not exit");
         }

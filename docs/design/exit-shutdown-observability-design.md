@@ -59,8 +59,8 @@ header-only 的进程内监视器，因为 `Automation/Mcp/McpHttpServer.cpp` �
 - **自动化服务**：`McpHttpServer::stop()` 原来用 `BlockingQueuedConnection` 叫 worker 停机。
   这条路径和请求处理互为反向等待：worker 线程在处理请求时会 `BlockingQueuedConnection`
   回到编辑器线程，若此时编辑器线程正阻塞等 worker，双方就永久互等。
-  现在改成「排队投递 + `QSemaphore` 限时确认」，`m_thread->wait()` 全部带超时，
-  异步停机那个 `QEventLoop` 也加了 deadline。
+  现在停机握手与线程 join 都改成「排队投递 + 带截止时间的事件循环等待」，
+  等待期间编辑器线程仍在处理事件，因此 worker 那边等着的请求回调可以正常返回。
 - **导出线程池**：`PublicAutomationRegistry` 析构时 `waitForDone()` 带超时。
 
 ### 等待超时之后：直接结束进程

@@ -78,6 +78,8 @@ namespace Automation {
         class Worker;
 
         void finalizeAsyncStop();
+        void postStopToWorker();
+        bool waitForThreadExit(int timeoutMilliseconds);
 
         RequestHandler m_handler;
         NativeRequestHandler m_nativeHandler;
