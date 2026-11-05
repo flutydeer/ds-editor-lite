@@ -3,6 +3,8 @@
 
 #include <QtConcurrent/QtConcurrent>
 
+#include <cstdlib>
+
 #include "Task.h"
 
 void BackgroundWorker::terminateTask(Task *task) {
@@ -11,22 +13,29 @@ void BackgroundWorker::terminateTask(Task *task) {
 
 namespace {
     // A task that never honours termination must not keep the editor's exit
-    // waiting forever, so the pool wait is bounded and reports the leftovers.
+    // waiting forever, so the pool wait is bounded.
     int shutdownTimeoutMs() {
         bool ok = false;
         const auto value = qEnvironmentVariableIntValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", &ok);
         return ok && value > 0 ? static_cast<int>(value) : 30000;
+    }
+
+    // Once the wait gives up, tasks are still running against objects that the
+    // teardown destroys right after this point. Continuing would be a
+    // use-after-free, so the process ends here instead.
+    [[noreturn]] void exitWithRunningTasks(const int timeout, const int activeTasks) {
+        qWarning() << "Background tasks did not stop within" << timeout << "ms;" << activeTasks
+                   << "task(s) are still running, ending the process instead of tearing down "
+                      "state they still use";
+        std::_Exit(EXIT_FAILURE);
     }
 }
 
 void BackgroundWorker::wait() {
     const auto threadPool = QThreadPool::globalInstance();
     const auto timeout = shutdownTimeoutMs();
-    if (!threadPool->waitForDone(timeout)) {
-        qWarning() << "Background tasks did not finish within" << timeout
-                   << "ms; continuing shutdown with" << threadPool->activeThreadCount()
-                   << "task(s) still running";
-    }
+    if (!threadPool->waitForDone(timeout))
+        exitWithRunningTasks(timeout, threadPool->activeThreadCount());
     emit waitDone();
 }
 

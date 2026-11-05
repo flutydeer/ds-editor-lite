@@ -1,5 +1,6 @@
 #include "McpHttpServer.h"
 
+#include "Bootstrap/ShutdownMonitor.h"
 #include <lite/AutomationWire/OpenRpc.h>
 
 #include <QCryptographicHash>
@@ -1423,8 +1424,8 @@ namespace Automation {
         auto *ownerThread = thread();
         auto *worker = m_worker;
         // The callback runs on the worker thread and may arrive after this server
-        // gave up on it (abandonServer) and was destroyed, so it must not read the
-        // members: the worker is captured by value and the server is guarded.
+        // was destroyed, so it must not read the members: the worker is captured by
+        // value and the server is guarded.
         const QPointer<McpHttpServer> self(this);
         QMetaObject::invokeMethod(
             worker,
@@ -1458,12 +1459,9 @@ namespace Automation {
                 connect(&deadline, &QTimer::timeout, &loop, &QEventLoop::quit);
                 deadline.start(timeout);
                 loop.exec();
-                if (m_stopping) {
-                    qWarning() << "Automation HTTP server did not confirm its asynchronous stop "
-                                  "within"
-                               << timeout << "ms; abandoning the server thread";
-                    abandonServer();
-                }
+                if (m_stopping)
+                    ShutdownMonitor::exitWithRunningThreads(
+                        "the automation HTTP server did not confirm its asynchronous stop");
             }
             return;
         }
@@ -1487,18 +1485,13 @@ namespace Automation {
             },
             Qt::QueuedConnection);
         if (!acknowledged->tryAcquire(1, timeout)) {
-            qWarning() << "Automation HTTP server worker did not acknowledge the stop request "
-                          "within"
-                       << timeout << "ms; abandoning the server thread";
-            abandonServer();
-            return;
+            ShutdownMonitor::exitWithRunningThreads(
+                "the automation HTTP server worker did not acknowledge the stop request");
         }
         m_thread->quit();
         if (!m_thread->wait(timeout)) {
-            qWarning() << "Automation HTTP server thread did not exit within" << timeout
-                       << "ms; abandoning it";
-            abandonServer();
-            return;
+            ShutdownMonitor::exitWithRunningThreads(
+                "the automation HTTP server thread did not exit");
         }
         delete m_worker;
         delete m_thread;
@@ -1521,10 +1514,8 @@ namespace Automation {
         const auto timeout = shutdownWaitTimeoutMs();
         m_thread->quit();
         if (!m_thread->wait(timeout)) {
-            qWarning() << "Automation HTTP server thread did not exit within" << timeout
-                       << "ms; abandoning it";
-            abandonServer();
-            return;
+            ShutdownMonitor::exitWithRunningThreads(
+                "the automation HTTP server thread did not exit");
         }
         delete m_worker;
         delete m_thread;
@@ -1534,18 +1525,6 @@ namespace Automation {
         m_routes = {};
         m_stopping = false;
         emit stopped();
-    }
-
-    void McpHttpServer::abandonServer() {
-        // The server thread is wedged. Deleting a QThread that still runs, or the
-        // worker it owns, would crash, so the server is intentionally leaked while
-        // the process exits. Callers stop waiting and let the application quit.
-        m_thread = nullptr;
-        m_worker = nullptr;
-        m_stopping = false;
-        m_port = 0;
-        m_routes = {};
-        m_accepting.store(false, std::memory_order_release);
     }
 
     bool McpHttpServer::isListening() const {

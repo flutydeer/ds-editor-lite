@@ -53,35 +53,34 @@ header-only 的进程内监视器，因为 `Automation/Mcp/McpHttpServer.cpp` �
 
 ## 4. 有界等待
 
-- **任务池**：`BackgroundWorker::wait()` 改成 `waitForDone(timeout)`。超时打警告并照常发 `allDone`，
-  让窗口能关掉而不是无限等待。
+- **任务池**：`BackgroundWorker::wait()` 改成 `waitForDone(timeout)`。
 - **自动化服务**：`McpHttpServer::stop()` 原来用 `BlockingQueuedConnection` 叫 worker 停机。
   这条路径和请求处理互为反向等待：worker 线程在处理请求时会 `BlockingQueuedConnection`
   回到编辑器线程，若此时编辑器线程正阻塞等 worker，双方就永久互等。
   现在改成「排队投递 + `QSemaphore` 限时确认」，`m_thread->wait()` 全部带超时，
   异步停机那个 `QEventLoop` 也加了 deadline。
-- **导出线程池**：`PublicAutomationRegistry` 的池子改成堆上持有（`std::unique_ptr`），析构时限时
-  `waitForDone()`，超时就 `release()` 让它泄漏。原因是 `QThreadPool` 的析构函数会等它所有 runnable
-  结束且没有超时，只把前面的 `waitForDone` 加上时限救不了紧随其后的成员析构。
+- **导出线程池**：`PublicAutomationRegistry` 析构时 `waitForDone()` 带超时。
 
-### 全局线程池与硬退出兜底
+### 等待超时之后：直接结束进程
+
+把等待加上时限只解决「无限等」，不解决「等完之后怎么办」。这些后台任务都按值捕获了裸指针，
+指向 registry、`CoreRuntime`、`AppModel` 这类马上就会被析构的对象（例如 `exports_midi_start`
+的 runnable 持有 `m_fileGuard`、`automationTasks()`、`files()`）。超时后继续往下拆，
+那个线程会在任意时刻解引用已释放的对象，或者把输出文件写坏。把线程或线程池泄漏掉也只是把
+崩溃推迟到它真正恢复执行的时候。
+
+所以四处等待的超时分支统一成：写下一条带阶段和线程清单的警告，然后 `std::_Exit` 结束进程。
+走到退出流程时文档去留已由用户决定、需要保存的内容早就处理完，硬退出不会丢用户数据，
+代价只是跳过窗口位置这类收尾写入。日志处理器按行 flush，那条记录一定落盘。
+
+### 全局线程池与看门狗兜底
 
 `QThreadPool::globalInstance()` 的析构同样是无限等，而它发生在 Qt 的应用退出阶段，比上面任何一处
-等待都晚，此时 `QApplication` 已经没了。也就是说，只要有一个 runnable 不听终止，进程最后一定会卡死
-在那里，任何进程内的限时等待都拦不住。
+等待都晚，此时 `QApplication` 已经没了。这条路径不在任何有界等待里面，所以由看门狗兜底：
+退出卡住超过 `DS_EDITOR_EXIT_FORCE_EXIT_MS`（默认 30 秒）后同样写诊断再 `std::_Exit`。
 
-因此看门狗在退出卡住超过 `DS_EDITOR_EXIT_FORCE_EXIT_MS`（默认 30 秒）后，先写下最后的诊断记录，
-再 `std::_Exit` 直接结束进程。走到退出流程时文档的去留已由用户决定、需要保存的内容早就处理完，
-所以硬退出不会丢用户数据，代价只是跳过窗口位置这类收尾写入。日志处理器按行 flush，因此那条记录一定落盘。
-
-### 超时之后：`abandonServer()`
-
-服务线程超时未退出时不去 `delete` 一个还在跑的 `QThread`，也不删它仍在使用的 worker 对象，
-而是把指针清空、故意泄漏，让进程能退出。退出阶段挂死比泄漏严重得多，
-这个取舍写在 `abandonServer()` 的注释里。
-
-因为放弃之后那个线程仍可能执行早就排进它事件循环的回调，`requestStop()` 投递的回调不再读
-成员变量：worker 指针按值捕获，`this` 用 `QPointer` 兜住，服务已销毁就直接返回。
+`requestStop()` 投递到服务线程的回调不再读成员变量：worker 指针按值捕获，`this` 用 `QPointer`
+兜住，服务已销毁就直接返回。这样即使回调晚于服务对象生命周期到达，也只会安静退出。
 
 ## 5. 刻意没做的部分
 
@@ -89,7 +88,5 @@ header-only 的进程内监视器，因为 `Automation/Mcp/McpHttpServer.cpp` �
   在 session 还在销毁时关掉 runtime，风险比挂住更大，所以留着由看门狗报阶段。
 - 硬退出是兜底而不是修复：真正该修的是让每个任务都响应终止请求，那需要逐个任务核对，
   不在本次范围。
-- 超时后带着仍在运行的任务退出，理论上可能在退出瞬间与后台任务竞争共享状态。这里选择
-  「退出失败但可观测」而不是「永远不退出」，因为后者用户唯一的选择是杀进程。
 - 没有做进程栈 dump。跨平台抓全线程栈需要额外依赖（gdb、DbgHelp），阶段加线程名
   已经能区分是任务池、自动化服务还是某层子系统在卡。

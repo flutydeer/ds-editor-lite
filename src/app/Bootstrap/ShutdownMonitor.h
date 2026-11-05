@@ -106,8 +106,24 @@ public:
         return positiveEnvironmentValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", 30000);
     }
 
+    // A shutdown wait gave up while a background thread still owns objects that
+    // the teardown is about to destroy. There is no safe way to continue: the
+    // abandoned thread would dereference freed state, and leaking it only moves
+    // the crash. Ending the process now is the only bounded and safe outcome.
+    // The log handler flushes per line, so this record survives the exit.
+    [[noreturn]] static void exitWithRunningThreads(const char *reason) {
+        terminateNow(QStringLiteral("[shutdown] %1; ending the process instead of tearing down "
+                                    "state the background thread still uses%2")
+                         .arg(QString::fromLatin1(reason), threadSummary()));
+    }
+
 private:
     ShutdownMonitor() = default;
+
+    [[noreturn]] static void terminateNow(const QString &message) {
+        qWarning().noquote() << message;
+        std::_Exit(EXIT_FAILURE);
+    }
 
     static int positiveEnvironmentValue(const char *name, const int fallback) {
         bool ok = false;
@@ -258,13 +274,11 @@ private:
                 continue;
             const auto elapsed = elapsedMs();
             if (forceExitMs > 0 && elapsed >= forceExitMs) {
-                // The log handler flushes per line, so this record survives the exit.
-                qWarning().noquote()
-                    << QStringLiteral("[shutdown] still stuck after %1 ms, forcing the process to "
-                                      "exit at stage %2%3")
-                           .arg(elapsed)
-                           .arg(stageName(stage), threadSummary());
-                std::_Exit(EXIT_FAILURE);
+                terminateNow(
+                    QStringLiteral("[shutdown] still stuck after %1 ms, forcing the process to "
+                                   "exit at stage %2%3")
+                        .arg(elapsed)
+                        .arg(stageName(stage), threadSummary()));
             }
             if (elapsed < m_deadlineMs || reports >= maximumReports)
                 continue;

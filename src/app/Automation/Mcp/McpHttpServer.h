@@ -78,7 +78,6 @@ namespace Automation {
         class Worker;
 
         void finalizeAsyncStop();
-        void abandonServer();
 
         RequestHandler m_handler;
         NativeRequestHandler m_nativeHandler;

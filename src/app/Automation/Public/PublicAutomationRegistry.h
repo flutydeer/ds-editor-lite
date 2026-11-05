@@ -216,9 +216,7 @@ namespace Automation {
         QHash<QString, Handler> m_handlers;
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
         AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
-        // Heap owned so that shutdown can abandon a pool whose runnables never
-        // finish: QThreadPool's destructor waits for them without a timeout.
-        std::unique_ptr<QThreadPool> m_exportThreadPool = std::make_unique<QThreadPool>();
+        QThreadPool m_exportThreadPool;
     };
 
 } // namespace Automation

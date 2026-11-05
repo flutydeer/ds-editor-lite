@@ -2033,15 +2033,11 @@ namespace Automation {
 
     PublicAutomationRegistry::~PublicAutomationRegistry() {
         m_lifetimeState->active.store(false, std::memory_order_release);
-        const auto timeout = ShutdownMonitor::shutdownTimeoutMs();
-        if (!m_exportThreadPool->waitForDone(timeout)) {
-            // The pool's destructor waits for its runnables without a timeout, so
-            // the pool is abandoned instead: a leaked pool cannot block the exit.
-            qWarning() << "Automation export tasks did not finish within" << timeout
-                       << "ms during shutdown; abandoning"
-                       << m_exportThreadPool->activeThreadCount() << "running task(s)";
-            (void)m_exportThreadPool.release();
-        }
+        // The runnable keeps raw pointers into this registry and the runtime, so a
+        // pool that never drains cannot be abandoned safely: leaking it only moves
+        // the use-after-free to whenever the runnable resumes.
+        if (!m_exportThreadPool.waitForDone(ShutdownMonitor::shutdownTimeoutMs()))
+            ShutdownMonitor::exitWithRunningThreads("automation export tasks did not stop");
     }
 
     const QList<AutomationWire::ToolContract> &PublicAutomationRegistry::contracts() const {
@@ -3679,7 +3675,7 @@ namespace Automation {
                 completed.validatedOnly = context.validateOnly;
                 tasks->succeed(taskId, completed);
             };
-            m_exportThreadPool->start(std::move(execute));
+            m_exportThreadPool.start(std::move(execute));
             return AutomationResult<QJsonObject>(
                 encodeTaskAccepted({snapshot.taskId, context.expected, context.validateOnly}));
         });
