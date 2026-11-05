@@ -97,7 +97,6 @@ void ApplicationGuiTests::pianoTouchpadPinchUsesTouchAxisLock() {
     auto *device = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
                                           QInputDevice::Capability::Position |
                                               QInputDevice::Capability::MouseEmulation);
-    view.viewport()->setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
     auto touch = QTest::touchEvent(view.viewport(), device, false);
     const auto cleanup = qScopeGuard([&] {
         QTouchEvent cancel(QEvent::TouchCancel, device);
@@ -118,7 +117,8 @@ void ApplicationGuiTests::pianoTouchpadPinchUsesTouchAxisLock() {
     };
     if (!contactsFirst)
         sendNative(Qt::BeginNativeGesture);
-    touch.press(0, first).press(1, second).commit();
+    touch.press(0, first).commit();
+    touch.stationary(0).press(1, second).commit();
     if (contactsFirst)
         sendNative(Qt::BeginNativeGesture);
 
@@ -147,11 +147,15 @@ void ApplicationGuiTests::pianoTouchpadPinchUsesTouchAxisLock() {
     QTest::qWait(20);
     sendNative(Qt::ZoomNativeGesture, 0.2);
     checkScale(1.65);
+    const auto lift = [&] {
+        touch.stationary(0).release(1, lastSecond).commit();
+        touch.release(0, lastFirst).commit();
+    };
     if (contactsFirst)
-        touch.release(0, lastFirst).release(1, lastSecond).commit();
+        lift();
     sendNative(Qt::EndNativeGesture);
     if (!contactsFirst)
-        touch.release(0, lastFirst).release(1, lastSecond).commit();
+        lift();
     const auto releasedX = view.scaleX();
     const auto releasedY = view.scaleY();
     QTRY_VERIFY(view.scaleX() > releasedX || view.scaleY() > releasedY);

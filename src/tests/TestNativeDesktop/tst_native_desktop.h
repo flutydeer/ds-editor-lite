@@ -58,6 +58,8 @@ private slots:
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
     void rhiPianoNavigationInputsReachTheActiveViewport();
+    void rhiTouchpadPinchLocksTheAxisWithoutEditing_data();
+    void rhiTouchpadPinchLocksTheAxisWithoutEditing();
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo();

@@ -156,7 +156,8 @@ bool EditorWheelController::handleTouchpadEvent(QEvent *event) {
         if (point.state() == QEventPoint::State::Unknown)
             continue;
         activeIds.append(point.id());
-        if (!m_touchpadGesture.tracksPoint(point.id()))
+        if (point.state() == QEventPoint::State::Pressed ||
+            !m_touchpadGesture.tracksPoint(point.id()))
             m_touchpadGesture.pressed(point.id(), point.position(), timestamp, true);
         else if (point.state() == QEventPoint::State::Updated)
             m_touchpadGesture.moved(point.id(), point.position(), timestamp);

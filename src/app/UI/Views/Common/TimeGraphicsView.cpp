@@ -38,6 +38,8 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     // Touch is delivered to the scroll area's viewport, not to the view itself,
     // so the attribute has to be on both.
     viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
+    // macOS otherwise omits the final one-finger release of a trackpad gesture.
+    viewport()->setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
     setAttribute(Qt::WA_Hover);
     setMinimumHeight(150);
     setAcceptDrops(true);
