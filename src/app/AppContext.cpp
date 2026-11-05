@@ -519,7 +519,10 @@ DocumentWorkflowController *AppContext::guiDocumentWorkflowController() const {
 }
 
 AppContext::~AppContext() {
+    // Teardown is the shutdown sequence for both hosts, and the QCore host has no
+    // MainWindow to arm the monitor, so arming here is what bounds a headless exit.
     auto &shutdownMonitor = ShutdownMonitor::instance();
+    shutdownMonitor.begin();
     shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardown);
     // Reverse order of construction. GUI services are absent in the QCore host.
     if (m_guiContext) {

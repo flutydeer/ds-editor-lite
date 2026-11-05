@@ -36,6 +36,8 @@ header-only 的进程内监视器，因为 `Automation/Mcp/McpHttpServer.cpp` �
 直接编译进测试目标，走独立库里加符号会让那个目标缺符号。
 
 - `begin()`：在 `MainWindow::closeEvent` 首次请求终止时 arm（重复调用忽略），起一个看门狗线程。
+  `AppContext` 的析构入口也会 arm 一次，因为 QCore 宿主没有 `MainWindow`，headless 退出只能靠
+  析构路径启动看门狗，否则那一侧的阶段标记与兜底都不生效。
 - `setStage()`：各阶段写一行 `[shutdown] stage <名字> (+<毫秒>)`，同阶段重复设置只记一次。
 - 超时后看门狗每 10 s 报一次 `[shutdown] still exiting after <毫秒>, stuck at stage <名字> (<线程清单>)`，
   上限 60 条，避免长期挂起把日志撑爆。
