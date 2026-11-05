@@ -412,10 +412,14 @@ bool TimeGraphicsView::viewportEvent(QEvent *event) {
         return true;
     if (m_touchController->handleEvent(event))
         return true;
+    if (m_wheelController.handleTouchpadEvent(event))
+        return true;
     return QGraphicsView::viewportEvent(event);
 }
 
 bool TimeGraphicsView::event(QEvent *event) {
+    if (m_wheelController.handleTouchpadEvent(event))
+        return true;
     if (event->type() == QEvent::WindowDeactivate) {
         // Subclasses have already discarded their interactions by the time
         // their event() override forwards here, so what is left is the input

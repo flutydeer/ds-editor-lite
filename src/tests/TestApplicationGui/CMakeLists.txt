@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_piano_roll.cpp
     tst_ghost_notes.cpp
     tst_pointer_delivery.cpp
+    tst_touchpad_zoom.cpp
     tst_track_editing.cpp
     tst_parameter_editing.cpp
     tst_anchor_editing.cpp

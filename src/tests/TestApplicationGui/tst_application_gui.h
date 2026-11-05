@@ -42,6 +42,10 @@ private slots:
     void pianoTouchDrawingCommitsOrCancels();
     void pianoTouchpadContactsDoNotEditOrNavigate_data();
     void pianoTouchpadContactsDoNotEditOrNavigate();
+    void pianoTouchpadPinchUsesTouchAxisLock_data();
+    void pianoTouchpadPinchUsesTouchAxisLock();
+    void pianoTouchpadInterruptedPinchDropsPendingZoom_data();
+    void pianoTouchpadInterruptedPinchDropsPendingZoom();
     void pianoTouchSelectionAndNavigationStayIndependent_data();
     void pianoTouchSelectionAndNavigationStayIndependent();
     void pianoTouchLongPressDefersMenus_data();
