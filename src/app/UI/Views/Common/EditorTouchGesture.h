@@ -108,6 +108,7 @@ public:
     // spot fingers that are on the glass but were never handed over, which is
     // what happens after a touch cancel or a grab change.
     [[nodiscard]] bool tracksPoint(int id) const;
+    [[nodiscard]] Qt::Orientations zoomAxes() const;
 
     // `adopted` marks a point the caller picked up mid-stream rather than one
     // that was really just pressed. Such a finger has been down for an unknown

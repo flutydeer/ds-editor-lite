@@ -166,24 +166,8 @@ bool EditorTouchController::handleEvent(QEvent *event) {
         case QEvent::TouchBegin:
         case QEvent::TouchUpdate:
         case QEvent::TouchEnd:
-            return handleTouchEvent(static_cast<QTouchEvent *>(event));
         case QEvent::TouchCancel:
-            // Worth a line of its own: the platform taking the touch grab away
-            // mid-gesture is the classic way for fingers to end up on the glass
-            // with nothing tracking them.
-            if (isProbeEnabled())
-                qDebug().noquote() << QStringLiteral("touch cancel (phase was %1, tracked=%2)")
-                                          .arg(QLatin1String(phaseName(m_gesture.phase())))
-                                          .arg(m_gesture.activePointCount());
-            // A stream an inline text editor took over never reaches the
-            // gesture machine, so an active relay has to count as active here
-            // too: without it the cancel would leave the line edit holding a
-            // synthetic press and the relay id latched forever.
-            if (!isGestureActive() && !m_textRelayActive)
-                return false;
-            cancel();
-            event->accept();
-            return true;
+            return handleTouchEvent(static_cast<QTouchEvent *>(event));
         case QEvent::MouseButtonPress:
         case QEvent::MouseButtonRelease:
         case QEvent::MouseButtonDblClick:
@@ -289,8 +273,23 @@ void EditorTouchController::dropPendingContextMenu() {
 }
 
 bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
-    if (!m_target || !m_widget)
+    // Touchpads also send raw contacts on macOS. Their mouse, wheel and native
+    // gesture events already own clicking and navigation.
+    if (!m_target || !m_widget || event->deviceType() != QInputDevice::DeviceType::TouchScreen)
         return false;
+
+    if (event->type() == QEvent::TouchCancel) {
+        if (isProbeEnabled())
+            qDebug().noquote() << QStringLiteral("touch cancel (phase was %1, tracked=%2)")
+                                      .arg(QLatin1String(phaseName(m_gesture.phase())))
+                                      .arg(m_gesture.activePointCount());
+        // Inline text relays own a synthetic press without entering the gesture machine.
+        if (!isGestureActive() && !m_textRelayActive)
+            return false;
+        cancel();
+        event->accept();
+        return true;
+    }
 
     m_device = event->pointingDevice();
     const auto timestamp = now();

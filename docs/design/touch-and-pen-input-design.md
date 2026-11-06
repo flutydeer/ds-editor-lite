@@ -19,7 +19,7 @@
 | 触摸（手指） | `EditorTouchController` 手势层，见第三节。平台自行合成的鼠标事件会被吞掉 |
 | 触控笔笔尖 | 不做特殊处理。控件不接受 `QTabletEvent`，由 Qt 合成鼠标事件，走既有鼠标逻辑（与改动前完全一致，双击、悬停提示、光标形状都在 Qt 手里） |
 | 触控笔反端 / 笔杆侧键 | `EditorPenController` 钢笔层：反端与"侧键+拖动"合成为带擦除意图的左键笔画，侧键原地点击合成为右键点击（上下文菜单），不适合擦除的工具整段吞掉，平台给侧键补的那份右键菜单也一并吞掉，见第五节 |
-| 精密触控板 | `EditorWheelController`：pixelDelta 即时平移，松手滑行与捏合惯性，捏合横纵两轴、锚点含 x 与 y |
+| 精密触控板 | `EditorWheelController`：pixelDelta 即时平移，松手滑行与捏合惯性。有原始触点时复用 `EditorTouchGesture` 的主导轴判定，锚点含 x 与 y |
 | 滚轮 | 既有离散滚轮逻辑，平滑与否由外观设置里的动画开关决定 |
 | 鼠标 | 既有逻辑，完全不变 |
 | 触摸（对话框/滚动容器） | `SmoothScroller` 挂接的 `QScroller`：单指拖动滚动、抬手惯性滑行；拖动型控件经 `TouchClaimFilter` 认领后继续走自己的鼠标逻辑，见第十三节 |

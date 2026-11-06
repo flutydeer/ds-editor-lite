@@ -1,6 +1,8 @@
 #ifndef EDITORWHEELCONTROLLER_H
 #define EDITORWHEELCONTROLLER_H
 
+#include "EditorTouchGesture.h"
+
 #include <QElapsedTimer>
 #include <QPointF>
 #include <QTimer>
@@ -9,7 +11,9 @@
 
 class EditorTouchTarget;
 class EditorViewportController;
+class QEvent;
 class QNativeGestureEvent;
+class QPointingDevice;
 class QWidget;
 class QWheelEvent;
 
@@ -26,7 +30,7 @@ class QWheelEvent;
 //
 // The pan and pinch strokes are applied through the view's EditorTouchTarget,
 // which is the same surface the two-finger touch gestures drive; both paths
-// therefore share the two-axis zoom and its anchors.
+// therefore share the axis-lock policy and zoom anchors.
 class EditorWheelController final {
 public:
     // RHI editors: the controller owns the wheel input and binds its scroll
@@ -42,6 +46,7 @@ public:
 
     bool handleWheel(QWheelEvent *event);
     bool handleNativeGesture(QNativeGestureEvent *event);
+    bool handleTouchpadEvent(QEvent *event);
     bool horizontalScale(QWheelEvent *event);
     bool verticalScale(QWheelEvent *event);
     bool horizontalScroll(QWheelEvent *event);
@@ -49,6 +54,9 @@ public:
     void stop();
 
 private:
+    void beginNativeZoom(const QPointingDevice *device);
+    void applyPendingZoom();
+    void zoomBy(double factor);
     // Touchpad bookkeeping shared by every wheel entry point. Input other than
     // the current stroke cancels a glide. ScrollUpdate keeps that stroke's
     // velocity so ScrollEnd can glide with it. `resolvedAction` limits the pan
@@ -84,6 +92,13 @@ private:
     double m_zoomRate = 0.0; // ln(factor) per second, smoothed
     QPointF m_zoomAnchor;
     qint64 m_zoomLastMs = 0;
+    EditorTouchGesture m_touchpadGesture;
+    const QPointingDevice *m_touchpadDevice = nullptr;
+    const QPointingDevice *m_zoomDevice = nullptr;
+    Qt::Orientations m_zoomAxes;
+    bool m_nativeZoomActive = false;
+    bool m_zoomUsesContacts = false;
+    double m_pendingZoomFactor = 1.0;
 };
 
 #endif // EDITORWHEELCONTROLLER_H

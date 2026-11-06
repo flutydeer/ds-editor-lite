@@ -29,7 +29,11 @@ flowchart LR
 - `Mouse`：不吞。离散滚轮在动画开时做动画，关时即时跳变。
 - `TouchScreen`：`QTouchEvent` 交给 `EditorTouchController`。平台把主触点提升成的鼠标是重复流，按设备类型吞掉——不看 `source()`，它在 Windows 上是粘滞的（触点之前若有鼠标或触摸板的 `WM_POINTER`，被提升的触摸鼠标会以 `MouseEventNotSynthesized` 进来）。
 - `Stylus`、`Airbrush`、`Puck`：仍走 `EditorPenController` 的 tablet 路径。笔尖、侧键、反端的现有语义不变。
-- `TouchPad`：只走滚轮和 `QNativeGestureEvent`。它不是手指，不进 `EditorTouchController`，`EditorPointer::isTouchDevice()` 只认 `TouchScreen`。
+- `TouchPad`：系统鼠标事件负责点击和按下拖动，滚动与捏合走滚轮和 `QNativeGestureEvent`。原始触点只用于判轴，不执行触摸屏编辑动作，`EditorPointer::isTouchDevice()` 只认 `TouchScreen`。
+
+macOS 的 Qt Cocoa 后端还会发送设备类型为 `TouchPad` 的 `QTouchEvent`。`EditorTouchController` 和通用控件的 `TouchClaimFilter` 在处理触点前只接纳 `TouchScreen`，避免把触摸板上的接触、移动重复转换成点击、拖动或触摸屏缩放。这个检查也覆盖 `TouchCancel`，触摸板结束手势不能取消正在进行的触摸屏编辑。
+
+编辑器的 `EditorWheelController` 接受触摸板原始触点，以便 Qt 继续投递后续触点。它复用一份 `EditorTouchGesture` 状态机观察双指变化，只读取 `zoomAxes()` 的主导轴判定，忽略状态机产生的单指、平移和缩放动作。系统鼠标、滚轮和原生捏合仍分别拥有点击、滚动和缩放，原始触点不会重复驱动视口。Legacy 的轨道窗、钢琴窗及其 RHI 后端共用这个入口。
 
 ## 精确式触摸板（EditorWheelController）
 
@@ -44,9 +48,10 @@ Qt 在窗口没有 `Activate` 时，把 `PT_TOUCHPAD` 交成带 `pixelDelta` 和
 
 捏合：
 
-- 处理 `BeginNativeGesture`、`ZoomNativeGesture`、`EndNativeGesture`，横向和纵向都缩放，锚点是事件位置映射到控件后的 x 和 y（与双指 `zoomTouchViewportBy` 的两个因子一致）；
-- `EndNativeGesture` 按最近的缩放速度做一段短惯性，衰减与平移同一套，下一次滚轮、手势或按下取消它；
-- `BeginNativeGesture` 停掉进行中的平移惯性与缩放惯性。
+- 处理 `BeginNativeGesture`、`ZoomNativeGesture`、`EndNativeGesture`，倍率采用系统提供的缩放量，锚点是事件位置映射到控件后的 x 和 y。
+- 有原始触点时，直接采用 `EditorTouchGesture` 的累计对数缩放量、阈值与主导轴比例，选择 X、Y 或 XY。判定前暂存原生缩放量，判定后一次应用，手势内保持选定的轴。只有原生手势、没有原始触点的平台保留原有双轴缩放。
+- `EndNativeGesture` 按最近的缩放速度做一段短惯性，沿用同一次手势的轴选择。原始触点先抬起或原生手势先结束，都不会把单轴惯性变成双轴。
+- `BeginNativeGesture` 停掉进行中的平移惯性与缩放惯性。触摸取消、窗口隐藏和失焦清除触点与尚未应用的缩放量，下一次手势重新判轴。
 
 像素增量不是离散事件，不进离散滚轮的动画档。
 
@@ -62,7 +67,8 @@ Qt 在窗口没有 `Activate` 时，把 `PT_TOUCHPAD` 交成带 `pixelDelta` 和
 
 - 全仓库不出现 `WITH_DIRECT_MANIPULATION`、`QWDMH`、`registerDirectManipulation`、`enableDirectManipulation`、`enableTouchGestures`。
 - 鼠标滚轮仍受动画开关控制；精确式触摸板的像素平移不走这档动画。
-- 钢琴卷帘、参数编辑器、轨道编排区的捏合都走 `EditorWheelController`，横向和纵向都缩放，锚点含 x 和 y。
+- 钢琴卷帘、参数编辑器、轨道编排区的捏合都走 `EditorWheelController`，锚点含 x 和 y。有原始触点时按主导轴缩放，两个渲染后端行为一致。
+- 触摸板原始触点独自到达时不能点击、拖动或移动视口。回归覆盖 X/Y/XY、触点与原生手势到达顺序、松手惯性、取消和下一次手势重新判轴。
 - `ScrollEnd` 有编辑器惯性，`ScrollMomentum` 不叠加，新输入能停掉滑行。
 - 吞合成鼠标看设备类型，不看 `source()`；自己的 `sendSyntheticMouse` 不会被吞掉。
 - `isTouchDevice` 不含 `TouchPad`。

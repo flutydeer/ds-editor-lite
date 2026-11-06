@@ -35,6 +35,15 @@ bool EditorTouchGesture::tracksPoint(const int id) const {
     return indexOf(id) >= 0;
 }
 
+Qt::Orientations EditorTouchGesture::zoomAxes() const {
+    Qt::Orientations axes;
+    if (m_horizontalZoomLocked)
+        axes |= Qt::Horizontal;
+    if (m_verticalZoomLocked)
+        axes |= Qt::Vertical;
+    return axes;
+}
+
 bool EditorTouchGesture::hasSingleStream() const {
     return m_phase == Phase::Single;
 }

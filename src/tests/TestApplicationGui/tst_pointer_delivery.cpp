@@ -31,6 +31,7 @@
 #include <QScopeGuard>
 #include <QTabletEvent>
 #include <QTouchEvent>
+#include <QTimer>
 #include <QtTest/QTest>
 
 namespace {
@@ -235,6 +236,86 @@ void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels_data() {
     QTest::newRow("second-finger-navigates") << QStringLiteral("navigation");
 }
 
+void ApplicationGuiTests::pianoTouchpadContactsDoNotEditOrNavigate_data() {
+    QTest::addColumn<QString>("gesture");
+    QTest::newRow("tap") << QStringLiteral("tap");
+    QTest::newRow("move") << QStringLiteral("move");
+    QTest::newRow("pinch") << QStringLiteral("pinch");
+    QTest::newRow("hold") << QStringLiteral("hold");
+}
+
+void ApplicationGuiTests::pianoTouchpadContactsDoNotEditOrNavigate() {
+    QFETCH(QString, gesture);
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    const auto id = insertSelectedNote();
+    QVERIFY(id >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    const bool selected = gesture == QStringLiteral("move");
+    if (!selected)
+        view->clearNoteSelections();
+    historyManager->reset();
+    const auto before = context->m_coreRuntime->documentVersion();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto viewport = view->visibleRect();
+    const auto selection = view->selectedNotesId();
+    const auto position = pointFor(600, 62);
+    const auto destination = position + QPoint(60, -40);
+    QVERIFY(view->viewport()->rect().contains(position));
+    QVERIFY(view->viewport()->rect().contains(destination));
+    // Cocoa supplies raw contacts alongside its mouse, wheel and native gesture events.
+    auto *device = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
+                                          QInputDevice::Capability::Position |
+                                              QInputDevice::Capability::MouseEmulation);
+    view->viewport()->setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
+    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    bool menuShown = false;
+    QTimer dismissUnexpectedMenu;
+    connect(&dismissUnexpectedMenu, &QTimer::timeout, this, [&] {
+        if (auto *popup = QApplication::activePopupWidget()) {
+            menuShown = true;
+            popup->close();
+        }
+    });
+    dismissUnexpectedMenu.start(10);
+    const auto cleanup = qScopeGuard([&] {
+        if (auto *popup = QApplication::activePopupWidget())
+            popup->close();
+        deactivate(*view);
+    });
+    sequence.press(0, position).commit();
+    if (gesture == QStringLiteral("hold")) {
+        QTest::qWait(EditorTouchGesture::Config{}.longPressMs + 50);
+        sequence.release(0, position).commit();
+    } else if (gesture == QStringLiteral("pinch")) {
+        const auto other = position + QPoint(90, -90);
+        sequence.stationary(0).press(1, other).commit();
+        sequence.move(0, position + QPoint(-20, 20))
+            .move(1, other + QPoint(20, -20)).commit();
+        QCOMPARE(view->visibleRect(), viewport);
+        sequence.release(0, position + QPoint(-20, 20))
+            .release(1, other + QPoint(20, -20)).commit();
+    } else {
+        const auto end = selected ? destination : position;
+        sequence.move(0, end).commit();
+        QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        sequence.release(0, end).commit();
+    }
+    QVERIFY(!menuShown);
+    QVERIFY(QApplication::activePopupWidget() == nullptr);
+    QCOMPARE(view->selectedNotesId(), selection);
+    QCOMPARE(view->visibleRect(), viewport);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(!EditorPointer::isTouchStreamActive());
+
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    QCOMPARE(view->selectedNotesId(), QList<int>{id});
+}
+
 void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels() {
     QFETCH(QString, finish);
     createPianoRoll();
@@ -261,6 +342,16 @@ void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels() {
     QVERIFY(EditorPointer::isTouchStreamActive());
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
+
+    const QPointingDevice touchpad(QStringLiteral("Test touchpad"), 1,
+                                  QInputDevice::DeviceType::TouchPad,
+                                  QPointingDevice::PointerType::Finger,
+                                  QInputDevice::Capability::Position, 2, 0);
+    QTouchEvent touchpadCancel(QEvent::TouchCancel, &touchpad);
+    QApplication::sendEvent(view->viewport(), &touchpadCancel);
+    QVERIFY(EditorPointer::isTouchStreamActive());
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
 
     if (finish == QStringLiteral("cancel")) {
         QTouchEvent cancel(QEvent::TouchCancel, device);

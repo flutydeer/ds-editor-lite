@@ -3355,6 +3355,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     setObjectName(QStringLiteral("PianoRollRhiWidget"));
     setMouseTracking(true);
     setAttribute(Qt::WA_AcceptTouchEvents);
+    setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
     d->touchController = new EditorTouchController(this, this);
     d->penController = new EditorPenController(this, this);
     d->initializeScrollBars();
@@ -3623,6 +3624,8 @@ bool PianoRollRhiWidget::event(QEvent *event) {
     if (d->penController->handleEvent(event))
         return true;
     if (d->touchController->handleEvent(event))
+        return true;
+    if (d->wheel.handleTouchpadEvent(event))
         return true;
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();

@@ -96,6 +96,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     setMouseTracking(true);
     setAcceptDrops(true);
     setAttribute(Qt::WA_AcceptTouchEvents);
+    setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
     m_viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_viewport.setScaleBounds(0.0001, 10000.0, 0.575, 8.0);
     m_viewport.setEnsureContentFillsViewport(true, false);
@@ -417,6 +418,8 @@ bool TracksRhiWidget::event(QEvent *event) {
     if (m_penController->handleEvent(event))
         return true;
     if (m_touchController->handleEvent(event))
+        return true;
+    if (m_wheelController->handleTouchpadEvent(event))
         return true;
     if (event->type() == QEvent::WindowDeactivate) {
         m_touchController->cancel();

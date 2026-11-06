@@ -335,6 +335,55 @@ void GuiComponentTests::touchClaimsFinishOnSystemCancel_data() {
     QTest::newRow("cancel-with-a-released-point") << true;
 }
 
+void GuiComponentTests::touchClaimsIgnoreTouchpadContacts() {
+    QLabel target;
+    target.resize(100, 50);
+    target.setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
+    target.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&target));
+    MouseButtonRecorder recorder;
+    target.installEventFilter(&recorder);
+    int hitTests = 0;
+    bool canceled = false;
+    TouchClaimFilter::install(
+        &target,
+        [&](const QPointF &) {
+            ++hitTests;
+            return true;
+        },
+        [&] { canceled = true; });
+    auto *touchpad = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
+                                            QInputDevice::Capability::Position |
+                                                QInputDevice::Capability::MouseEmulation);
+    const QPoint start(10, 10);
+    const QPoint finish(60, 30);
+    auto padSequence = QTest::touchEvent(&target, touchpad, false);
+    padSequence.press(0, start).commit();
+    padSequence.move(0, finish).commit();
+    padSequence.release(0, finish).commit();
+    QVERIFY(!recorder.sawPress);
+    QVERIFY(!recorder.sawRelease);
+    QCOMPARE(hitTests, 0);
+
+    auto *touchscreen = QTest::createTouchDevice();
+    auto screenSequence = QTest::touchEvent(&target, touchscreen, false);
+    screenSequence.press(0, start).commit();
+    QVERIFY(recorder.sawReplayedPress());
+    QCOMPARE(hitTests, 1);
+    QTouchEvent padCancel(QEvent::TouchCancel, touchpad);
+    QApplication::sendEvent(&target, &padCancel);
+    QVERIFY(!canceled);
+    QCOMPARE(recorder.releaseCount, 0);
+    screenSequence.move(0, finish).commit();
+    screenSequence.release(0, finish).commit();
+    QCOMPARE(recorder.releaseCount, 1);
+    QCOMPARE(recorder.releasePosition, QPointF(finish));
+
+    QTest::mouseClick(&target, Qt::LeftButton, Qt::NoModifier, start);
+    QCOMPARE(recorder.releaseCount, 2);
+    QCOMPARE(hitTests, 1);
+}
+
 void GuiComponentTests::touchClaimsFinishOnSystemCancel() {
     QFETCH(bool, withPoint);
     auto *touchDevice = QTest::createTouchDevice();

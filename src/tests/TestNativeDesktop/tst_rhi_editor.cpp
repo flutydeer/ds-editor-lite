@@ -26,6 +26,7 @@
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Views/TrackEditor/InfoLane/InfoLaneView.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
@@ -927,6 +928,108 @@ void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
+}
+
+void NativeDesktopTests::rhiTouchpadPinchLocksTheAxisWithoutEditing_data() {
+    QTest::addColumn<bool>("tracks");
+    QTest::addColumn<Qt::Orientations>("axes");
+    for (const bool tracks : {false, true}) {
+        const auto editor = tracks ? "tracks" : "piano";
+        QTest::newRow(qPrintable(QStringLiteral("%1-horizontal").arg(editor)))
+            << tracks << Qt::Orientations(Qt::Horizontal);
+        QTest::newRow(qPrintable(QStringLiteral("%1-vertical").arg(editor)))
+            << tracks << Qt::Orientations(Qt::Vertical);
+        QTest::newRow(qPrintable(QStringLiteral("%1-diagonal").arg(editor)))
+            << tracks << (Qt::Horizontal | Qt::Vertical);
+    }
+}
+
+void NativeDesktopTests::rhiTouchpadPinchLocksTheAxisWithoutEditing() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, tracks);
+    QFETCH(Qt::Orientations, axes);
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto &runtime = *fixture.context->m_coreRuntime;
+    const auto before = runtime.documentVersion();
+    const auto model = TestSupport::projectSnapshot(*fixture.context->m_appModel);
+    historyManager->reset();
+
+    const auto exercise = [&](auto &canvas, double verticalCenter) {
+        canvas.setApi(QRhiWidget::Api::Null);
+        TestSupport::placeWindowOnScreen(canvas, {900, 450});
+        canvas.show();
+        canvas.activateWindow();
+        QVERIFY(QTest::qWaitForWindowExposed(&canvas));
+        QTRY_VERIFY(canvas.isActiveWindow());
+        QVERIFY(canvas.setViewScale(1, 1));
+        QVERIFY(canvas.centerAt(1920, verticalCenter));
+        QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+        QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+        canvas.update();
+        QTRY_VERIFY(!frames.isEmpty());
+        auto *device = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
+                                              QInputDevice::Capability::Position |
+                                                  QInputDevice::Capability::MouseEmulation);
+        auto touch = QTest::touchEvent(&canvas, device, false);
+        const auto cleanup = qScopeGuard([&] {
+            QTouchEvent cancel(QEvent::TouchCancel, device);
+            QApplication::sendEvent(&canvas, &cancel);
+        });
+        const QPoint first(250, 120);
+        const QPoint second(450, 320);
+        const QPoint delta(axes.testFlag(Qt::Horizontal) ? 40 : 0,
+                           axes.testFlag(Qt::Vertical) ? 40 : 0);
+        const auto position = canvas.rect().center();
+        const auto global = canvas.mapToGlobal(position);
+        const auto tickAtPosition = [&] {
+            return canvas.startTick() +
+                   (canvas.endTick() - canvas.startTick()) * position.x() / canvas.width();
+        };
+        const auto anchorTick = tickAtPosition();
+        const auto ticksPerPixel = (canvas.endTick() - canvas.startTick()) / canvas.width();
+        const auto sendNative = [&](Qt::NativeGestureType type, double value = 0.0) {
+            QNativeGestureEvent event(type, device, 2, position, position, global, value, {});
+            QVERIFY(QApplication::sendEvent(&canvas, &event));
+        };
+        touch.press(0, first).commit();
+        touch.stationary(0).press(1, second).commit();
+        sendNative(Qt::BeginNativeGesture);
+        touch.move(0, first - delta).move(1, second + delta).commit();
+        QCOMPARE(canvas.scaleX(), 1.0);
+        QCOMPARE(canvas.scaleY(), 1.0);
+        QVERIFY(!EditorPointer::isTouchStreamActive());
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QTest::qWait(20);
+        sendNative(Qt::ZoomNativeGesture, 0.25);
+        QCOMPARE(canvas.scaleX(), axes.testFlag(Qt::Horizontal) ? 1.25 : 1.0);
+        QCOMPARE(canvas.scaleY(), axes.testFlag(Qt::Vertical) ? 1.25 : 1.0);
+        QVERIFY(qAbs(tickAtPosition() - anchorTick) <= ticksPerPixel);
+        touch.stationary(0).release(1, second + delta).commit();
+        touch.release(0, first - delta).commit();
+        sendNative(Qt::EndNativeGesture);
+        QTRY_VERIFY(canvas.scaleX() > 1.25 || canvas.scaleY() > 1.25);
+        if (!axes.testFlag(Qt::Horizontal))
+            QCOMPARE(canvas.scaleX(), 1.0);
+        if (!axes.testFlag(Qt::Vertical))
+            QCOMPARE(canvas.scaleY(), 1.0);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(failed.isEmpty());
+    };
+    if (tracks) {
+        TracksRhiWidget canvas;
+        exercise(canvas, 0.5);
+    } else {
+        PianoRollRhiWidget canvas;
+        auto *clip = dynamic_cast<SingingClip *>(
+            *fixture.context->m_appModel->tracks().first()->clips().begin());
+        QVERIFY(clip);
+        canvas.setDataContext(clip);
+        exercise(canvas, 60);
+    }
 }
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data() {
