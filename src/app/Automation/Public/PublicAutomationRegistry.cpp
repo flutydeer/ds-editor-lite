@@ -2032,6 +2032,11 @@ namespace Automation {
 
     PublicAutomationRegistry::~PublicAutomationRegistry() {
         m_lifetimeState->active.store(false, std::memory_order_release);
+        // The runnable keeps raw pointers into this registry and the runtime, so a
+        // pool that never drains cannot be abandoned safely: leaking it only moves
+        // the use-after-free to whenever the runnable resumes. The join is unbounded
+        // on purpose and the process-lifetime watchdog bounds the process instead, so
+        // closing the automation service never decides on its own to end the editor.
         m_exportThreadPool.waitForDone();
     }
 

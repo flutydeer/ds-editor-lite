@@ -33,6 +33,11 @@ namespace Automation {
         void setLifecycleState(DocumentLifecycleState state);
         void setBusy(bool busy);
 
+        // Commits the document to Closing. Irreversible: later lifecycle updates from
+        // an operation that was already in flight are ignored, so a replacement race
+        // cannot reopen a document that is on its way out.
+        void commitClosing();
+
         DocumentVersion replaceGeneration(QString path, QString projectName);
         DocumentVersion advanceRevision();
 
@@ -48,6 +53,7 @@ namespace Automation {
         QString m_projectName;
         DocumentLifecycleState m_lifecycleState = DocumentLifecycleState::Active;
         bool m_busy = false;
+        bool m_closingCommitted = false;
         IdempotencyStore m_idempotencyStore;
     };
 

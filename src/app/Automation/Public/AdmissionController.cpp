@@ -18,6 +18,7 @@ namespace Automation {
         mutable QMutex mutex;
         AdmissionLimits limits;
         bool accepting = true;
+        AdmissionController::AdmissionGate gate;
         int globalInFlight = 0;
         int backgroundTasks = 0;
     };
@@ -52,10 +53,12 @@ namespace Automation {
 
     AutomationResult<AdmissionLease> AdmissionController::tryAcquire(const bool backgroundTask) {
         const QMutexLocker locker(&m_state->mutex);
-        if (!m_state->accepting) {
-            return admissionError(
-                AutomationErrorCode::OperationUnavailable,
-                QStringLiteral("Automation server is not accepting new requests"));
+        // The host closes admission by committing its exit, and it does that without
+        // waiting for the owner thread to run a server stop handshake. The gate is the
+        // host's own state, so nothing here needs to know where that state lives.
+        if (!m_state->accepting || (m_state->gate && !m_state->gate())) {
+            return admissionError(AutomationErrorCode::OperationUnavailable,
+                                  QStringLiteral("Automation is not accepting new requests"));
         }
         if (m_state->globalInFlight >= m_state->limits.maximumGlobalInFlight) {
             return admissionError(
@@ -82,10 +85,17 @@ namespace Automation {
         m_state->accepting = accepting;
     }
 
+    void AdmissionController::setAdmissionGate(AdmissionGate gate) {
+        const QMutexLocker locker(&m_state->mutex);
+        m_state->gate = std::move(gate);
+    }
+
     AdmissionSnapshot AdmissionController::snapshot() const {
         const QMutexLocker locker(&m_state->mutex);
+        // The published state has to agree with tryAcquire: a closed gate means the
+        // controller is not accepting, even when someone re-enabled the flag.
         return {
-            .accepting = m_state->accepting,
+            .accepting = m_state->accepting && (!m_state->gate || m_state->gate()),
             .globalInFlight = m_state->globalInFlight,
             .backgroundTasks = m_state->backgroundTasks,
         };

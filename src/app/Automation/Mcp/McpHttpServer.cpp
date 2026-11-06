@@ -3,6 +3,7 @@
 #include <lite/AutomationWire/OpenRpc.h>
 
 #include <QCryptographicHash>
+#include <QDebug>
 #include <QEventLoop>
 #include <QFuture>
 #include <QHttpHeaders>
@@ -17,6 +18,7 @@
 #include <QMutex>
 #include <QPointer>
 #include <QPromise>
+#include <QSemaphore>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QThread>
@@ -36,6 +38,23 @@ namespace Automation {
         using StatusCode = QHttpServerResponder::StatusCode;
         namespace Mcp = AutomationWire::Mcp;
         constexpr qsizetype maximumTransportBodyBytes = 1024 * 1024;
+        // Upper bound for retiring the listener and draining the responses that were
+        // already accepted. It is the worker's own budget, not a policy for the
+        // process: the deadlines below only bound how long a caller waits for it.
+        constexpr int workerRetirementBudgetMs = 2000;
+
+        // Bounds how long a caller waits for the worker to acknowledge its stop.
+        // Running past the bound never ends the process: the server keeps the
+        // worker and every resource it still uses, and stays in the stopping state
+        // so a later call can retire them safely. The process-lifetime watchdog
+        // owns the final exit bound. The window is never shorter than the worker's
+        // own retirement budget, so a healthy stop is never reported as incomplete.
+        int shutdownWaitTimeoutMs() {
+            bool ok = false;
+            const auto value = qEnvironmentVariableIntValue("DS_EDITOR_SHUTDOWN_TIMEOUT_MS", &ok);
+            const auto configured = ok && value > 0 ? static_cast<int>(value) : 30000;
+            return std::max(configured, 2 * workerRetirementBudgetMs);
+        }
 
         QHttpServerResponse jsonResponse(const QJsonObject &body, const StatusCode status) {
             return QHttpServerResponse(QByteArrayLiteral("application/json"),
@@ -696,7 +715,7 @@ namespace Automation {
             }
             connect(&deadline, &QTimer::timeout, &drainLoop, &QEventLoop::quit);
             // Drain response bytes before deleting sockets, with one deadline for all peers.
-            deadline.start(2000);
+            deadline.start(workerRetirementBudgetMs);
             for (const auto &socket : sockets) {
                 if (socket)
                     socket->disconnectFromHost();
@@ -1330,7 +1349,14 @@ namespace Automation {
     }
 
     McpHttpServer::~McpHttpServer() {
-        stop();
+        // Destruction never emits stopped(): a listener must not start the server
+        // again while this object is going away. The worker always leaves once its
+        // stop is queued, so waiting without a bound here can only be reached when
+        // the thread itself is wedged, and the process-lifetime watchdog bounds the
+        // process exit instead of this wait killing the editor.
+        beginStop();
+        if (m_thread && m_thread->wait())
+            releaseWorkerAfterExit();
     }
 
     bool McpHttpServer::start(const quint16 requestedPort, QString &error) {
@@ -1401,76 +1427,115 @@ namespace Automation {
             QMetaObject::invokeMethod(this, [this] { requestStop(); }, Qt::QueuedConnection);
             return;
         }
+        if (!beginStop())
+            emit stopped();
+    }
+
+    bool McpHttpServer::beginStop() {
         m_accepting.store(false, std::memory_order_release);
         m_transportState->stopAccepting();
         m_port = 0;
-        if (!m_thread || !m_worker) {
-            emit stopped();
-            return;
-        }
+        m_routes = {};
+        if (!m_thread || !m_worker)
+            return false;
         if (m_stopping)
-            return;
+            return true;
         m_stopping = true;
+        postStopToWorker();
+        return true;
+    }
+
+    void McpHttpServer::postStopToWorker() {
         auto *ownerThread = thread();
+        auto *worker = m_worker;
+        // The callback runs on the worker thread and may arrive after this server
+        // was destroyed, so it must not read the members: the worker is captured by
+        // value and the server is guarded.
+        const QPointer<McpHttpServer> self(this);
+        // A stop that outlives its own generation must not retire a later one, so the
+        // finalizer carries the thread it belongs to. The guard is a weak pointer, not
+        // an address: a recycled QThread allocation can never look like the original.
+        const QPointer<QThread> retiringThread(m_thread);
         QMetaObject::invokeMethod(
-            m_worker,
-            [this, ownerThread] {
-                m_worker->stop();
-                m_worker->moveToThread(ownerThread);
+            worker,
+            [worker, ownerThread, self, retiringThread] {
+                worker->stop();
+                worker->moveToThread(ownerThread);
+                // The worker quits its own event loop, so its exit never depends on
+                // the owner thread processing a queued call while that thread is
+                // already blocked on the join.
+                QThread::currentThread()->quit();
+                if (!self)
+                    return;
                 QMetaObject::invokeMethod(
-                    this, [this] { finalizeAsyncStop(); }, Qt::QueuedConnection);
+                    self.data(),
+                    [self, retiringThread] {
+                        if (self && retiringThread &&
+                            self->m_thread == retiringThread.data())
+                            self->completeStop();
+                    },
+                    Qt::QueuedConnection);
             },
             Qt::QueuedConnection);
     }
 
     void McpHttpServer::stop() {
-        m_accepting.store(false, std::memory_order_release);
-        m_transportState->stopAccepting();
-        if (m_stopping) {
-            if (m_thread && m_worker) {
-                QEventLoop loop;
-                connect(this, &McpHttpServer::stopped, &loop, &QEventLoop::quit,
-                        Qt::SingleShotConnection);
-                loop.exec();
-            }
+        // Callers from another thread cannot drive this thread's events, so they
+        // hand the stop over and wait for it. A timeout leaves the server stopping
+        // with its resources intact instead of ending the process.
+        if (QThread::currentThread() != thread()) {
+            auto done = std::make_shared<QSemaphore>();
+            QMetaObject::invokeMethod(
+                this,
+                [this, done] {
+                    stop();
+                    done->release();
+                },
+                Qt::QueuedConnection);
+            if (!done->tryAcquire(1, shutdownWaitTimeoutMs()))
+                qWarning() << "the automation HTTP server did not finish stopping";
             return;
         }
-        if (!m_thread || !m_worker) {
-            m_port = 0;
-            m_routes = {};
+        if (!beginStop())
             return;
-        }
-        auto *ownerThread = thread();
-        QMetaObject::invokeMethod(
-            m_worker,
-            [this, ownerThread] {
-                m_worker->stop();
-                m_worker->moveToThread(ownerThread);
-            },
-            Qt::BlockingQueuedConnection);
-        m_thread->quit();
-        m_thread->wait();
-        delete m_worker;
-        delete m_thread;
-        m_worker = nullptr;
-        m_thread = nullptr;
-        m_port = 0;
-        m_routes = {};
+        // Stopping is a worker-side acknowledgement, so joining here never needs a
+        // nested event loop: the request callbacks this thread would have to run
+        // are already answered as stopping by the transport state.
+        completeStop();
     }
 
-    void McpHttpServer::finalizeAsyncStop() {
+    void McpHttpServer::completeStop() {
         if (!m_stopping)
             return;
-        m_thread->quit();
-        m_thread->wait();
+        if (!m_thread || !m_worker) {
+            m_stopping = false;
+            m_port = 0;
+            m_routes = {};
+            emit stopped();
+            return;
+        }
+        if (!m_thread->wait(shutdownWaitTimeoutMs())) {
+            // The worker has not exited yet. Deleting a running thread would let
+            // it touch freed state and terminating it would drop responses it is
+            // still writing, so the server keeps both objects and stays in the
+            // stopping state until a later call or its destructor retires them.
+            qWarning() << "the automation HTTP server thread did not exit in time";
+            return;
+        }
+        releaseWorkerAfterExit();
+        // Emitted only after every member is idle, so a listener may start the
+        // server again from its handler.
+        emit stopped();
+    }
+
+    void McpHttpServer::releaseWorkerAfterExit() {
         delete m_worker;
         delete m_thread;
         m_worker = nullptr;
         m_thread = nullptr;
+        m_stopping = false;
         m_port = 0;
         m_routes = {};
-        m_stopping = false;
-        emit stopped();
     }
 
     bool McpHttpServer::isListening() const {

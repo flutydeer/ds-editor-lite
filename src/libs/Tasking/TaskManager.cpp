@@ -10,8 +10,14 @@ void BackgroundWorker::terminateTask(Task *task) {
 }
 
 void BackgroundWorker::wait() {
-    const auto threadPool = QThreadPool::globalInstance();
-    threadPool->waitForDone();
+    // A task that never honours termination keeps its runtime, file guard and model
+    // pointers alive, and the teardown destroys those right after this call. A wait
+    // that gave up would therefore be a use-after-free, and leaking the pool only
+    // moves it to whenever the task resumes. The join is unbounded on purpose: this
+    // library owns cancellation, waiting and ownership only, and a process that
+    // cannot finish is ended by the application-level, process-lifetime watchdog
+    // instead of by an exit policy hidden in a generic task pool.
+    QThreadPool::globalInstance()->waitForDone();
     emit waitDone();
 }
 

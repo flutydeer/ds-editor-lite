@@ -23,6 +23,8 @@
 class AppModel;
 class HistoryManager;
 
+#include <atomic>
+
 namespace Automation {
 
     class CoreRuntime final {
@@ -45,6 +47,15 @@ namespace Automation {
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const QString &documentPath() const;
         [[nodiscard]] bool documentBusy(const DocumentId &documentId) const;
+
+        // Commits the irreversible closing fence once the host has decided that the
+        // process is going away. Idempotent. From this point the document admits no
+        // dispatched command, no generation replacement and no task continuation,
+        // whatever the invocation source, and the write-permit helpers below stop
+        // handing out contexts to lower layers.
+        void commitShutdown();
+        [[nodiscard]] bool shutdownCommitted() const;
+
         [[nodiscard]] AutomationResult<CommandContext>
             documentWorkflowCommitContext(const DocumentVersion &generationAnchor) const;
         [[nodiscard]] AutomationResult<CommandContext>
@@ -75,6 +86,7 @@ namespace Automation {
         bool setDocumentBusy(const DocumentId &documentId, bool busy);
 
     private:
+        std::atomic_bool m_shutdownCommitted = false;
         DocumentSession m_session;
         // 工作流租约由启动它的 generation 持有，换代后仍由该 generation 释放。
         DocumentId m_documentBusyOwner;

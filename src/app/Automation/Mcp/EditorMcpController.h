@@ -45,6 +45,11 @@ namespace Automation {
         void applyConfiguration();
         void shutdown();
 
+        // Stops admitting new automation work without touching the HTTP server or its
+        // threads. The host uses it as the narrow "close admission" entry; shutdown()
+        // reuses it so stopping the service and stopping admission cannot be confused.
+        void stopAdmission();
+
     private:
         enum class PendingTransition {
             None,

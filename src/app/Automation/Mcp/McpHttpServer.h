@@ -77,7 +77,10 @@ namespace Automation {
     private:
         class Worker;
 
-        void finalizeAsyncStop();
+        bool beginStop();
+        void completeStop();
+        void postStopToWorker();
+        void releaseWorkerAfterExit();
 
         RequestHandler m_handler;
         NativeRequestHandler m_nativeHandler;

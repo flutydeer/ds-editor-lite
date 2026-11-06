@@ -1,5 +1,6 @@
 #include "AppContext.h"
 
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/AppOptionsAutomationAdapter.h"
 #include "Automation/AudioExportAutomationAdapter.h"
@@ -368,6 +369,10 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
 
             auto *application = QCoreApplication::instance();
             const auto restart = mode == Automation::ApplicationTerminationMode::Restart;
+            // The document decision is final here, so the host commits before the
+            // queued quit: aboutToQuit callbacks run long before any teardown, and
+            // nothing may change the document while they are on the main thread.
+            commitShutdown();
             QTimer::singleShot(0, application, [application, restart] {
                 if (restart)
                     application->setProperty("restart", true);
@@ -517,7 +522,29 @@ DocumentWorkflowController *AppContext::guiDocumentWorkflowController() const {
     return m_guiContext ? m_guiContext->documentWorkflowInstance : nullptr;
 }
 
+void AppContext::commitShutdown() {
+    // Arm the process watchdog before the fence: from this point the exit is final,
+    // so the absolute budget has to run before the next synchronous log or wait.
+    ShutdownMonitor::instance().commit();
+    if (m_shutdownCommitted)
+        return;
+    m_shutdownCommitted = true;
+    if (m_coreRuntime)
+        m_coreRuntime->commitShutdown();
+}
+
+bool AppContext::shutdownCommitted() const {
+    return m_shutdownCommitted;
+}
+
 AppContext::~AppContext() {
+    // Fallback for an exit that never went through a host commit entry: a bootstrap
+    // failure unwinds before any termination request, and a host exit that skipped
+    // the composition-root callback still has to be bounded. The call is a no-op
+    // after a formal commit and it runs before the first blocking teardown step.
+    commitShutdown();
+    auto &shutdownMonitor = ShutdownMonitor::instance();
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardown);
     // Reverse order of construction. GUI services are absent in the QCore host.
     if (m_guiContext) {
         m_audioDecodingController->setGuiServices(nullptr);
@@ -544,6 +571,7 @@ AppContext::~AppContext() {
         QMetaObject::invokeMethod(TaskManager::instance(), drainTasks,
                                   Qt::BlockingQueuedConnection);
     }
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTasksDrained);
 
     // Audio system
     m_audio.reset();
@@ -592,6 +620,7 @@ AppContext::~AppContext() {
     SingletonRegistry::destroy(m_appOptions);
     SingletonRegistry::destroy(m_appStatus);
 
+    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardownDone);
     SingletonRegistry::clear();
     s_self = nullptr;
 }

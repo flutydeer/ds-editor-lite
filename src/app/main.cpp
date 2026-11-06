@@ -9,6 +9,7 @@
 #include "Bootstrap/HeadlessTerminationHandler.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
+#include "Bootstrap/ShutdownMonitor.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Bootstrap/StartupArguments.h"
 #include "Bootstrap/WindowPlacement.h"
@@ -117,6 +118,23 @@ int main(int argc, char *argv[]) {
     }
 
     LoggingBootstrap::init();
+
+    // The watchdog thread exists from here on, inside the healthiest part of the
+    // process, and it is never stopped again: the exit budget has to cover the late
+    // Qt and static teardown, which is exactly what a stop-before-return would remove.
+    auto &shutdownMonitor = ShutdownMonitor::instance();
+    shutdownMonitor.start();
+
+    // The earliest aboutToQuit fallback. Connecting it here puts it ahead of every
+    // callback a subsystem registers later (inference disposal, automation stop), so
+    // a blocking callback can no longer delay the commit that bounds the exit.
+    AppContext *activeContext = nullptr;
+    QObject::connect(application.get(), &QCoreApplication::aboutToQuit, application.get(),
+                     [&activeContext] {
+                         if (activeContext)
+                             activeContext->commitShutdown();
+                     });
+
     {
         // AppOptions must be constructed (and the UI language applied) before AppContext.
         auto options = std::make_unique<AppOptions>();
@@ -125,6 +143,7 @@ int main(int argc, char *argv[]) {
 
         // Construct the common composition first. GUI-only singletons are created only in Gui.
         AppContext appContext(std::move(options), hostMode);
+        activeContext = &appContext;
 
         if (hostMode == AppHostMode::Gui) {
             auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
@@ -164,9 +183,6 @@ int main(int argc, char *argv[]) {
             if (!headlessTerminationHandler->start(
                     [&](const HeadlessTerminationSignal signal) {
                         const auto signalName = headlessTerminationSignalName(signal);
-                        qInfo().noquote()
-                            << QStringLiteral("Received %1; requesting graceful headless exit")
-                                   .arg(signalName);
                         const auto termination =
                             appContext.m_coreRuntime->application().requestTermination(
                                 {
@@ -183,12 +199,19 @@ int main(int argc, char *argv[]) {
                                             Automation::errorCodeName(terminationError.code));
                             return false;
                         }
+                        // Only after the host committed the exit. Logging first would let
+                        // a blocked log writer swallow a termination signal that the
+                        // operator expects to end the process.
+                        qInfo().noquote()
+                            << QStringLiteral("Received %1; requesting graceful headless exit")
+                                   .arg(signalName);
                         headlessTerminationAccepted = true;
                         return true;
                     },
                     error)) {
                 reportBootstrapError(
-                    QStringLiteral("Failed to install headless termination handling: %1").arg(error));
+                    QStringLiteral("Failed to install headless termination handling: %1")
+                        .arg(error));
                 coordinator.stopAcceptingRequests();
                 coordinator.shutdown();
                 return EXIT_FAILURE;
@@ -217,6 +240,7 @@ int main(int argc, char *argv[]) {
 
             CrashHandler crashHandler;
             result = application->exec();
+            qInfo() << "Event loop finished";
             coordinator.stopAcceptingRequests();
             const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
                 {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
@@ -261,7 +285,11 @@ int main(int argc, char *argv[]) {
                 coordinator.stopAcceptingRequests();
             }
         }
+        activeContext = nullptr;
     }
     coordinator.shutdown();
+    // The watchdog is not stopped here: Restarter, the outer application object and
+    // static teardown all run after this point, and C++ static teardown is one of the
+    // phases that can hang. The process-lifetime thread ends with the process.
     return Restarter(QDir::currentPath()).restartOrExit(result);
 }

@@ -15,6 +15,8 @@ HeadlessOpenRequestQueue::HeadlessOpenRequestQueue(Automation::CoreRuntime &runt
 }
 
 void HeadlessOpenRequestQueue::enqueue(const SingleInstanceRequest &request) {
+    if (m_runtime.shutdownCommitted())
+        return;
     if (request.command == SingleInstanceCommand::OpenProjects) {
         for (const auto &path : request.paths)
             m_paths.enqueue(DocumentWorkflowPathUtils::normalizedProjectPath(path));
@@ -35,6 +37,14 @@ void HeadlessOpenRequestQueue::waitUntilIdle() {
 void HeadlessOpenRequestQueue::dispatchNext() {
     if (m_busy || !m_openDocument)
         return;
+    // A dispatch that was already queued still runs after the coordinator stops
+    // handing out requests. The exit commit is the only fence that survives that
+    // ordering, so a queued open cannot reopen the document the host is leaving.
+    if (m_runtime.shutdownCommitted()) {
+        m_paths.clear();
+        completeIdleWait();
+        return;
+    }
 
     while (!m_paths.isEmpty()) {
         const auto path = m_paths.dequeue();

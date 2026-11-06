@@ -48,6 +48,11 @@ namespace Automation {
     }
 
     void DocumentSession::setLifecycleState(const DocumentLifecycleState state) {
+        // A committed closing is final. An operation that was already running may
+        // still try to leave Closing (Replacing -> Active), and that would reopen a
+        // document the host has already frozen.
+        if (m_closingCommitted && state != DocumentLifecycleState::Closing)
+            return;
         m_lifecycleState = state;
     }
 
@@ -55,12 +60,18 @@ namespace Automation {
         m_busy = busy;
     }
 
+    void DocumentSession::commitClosing() {
+        m_closingCommitted = true;
+        m_lifecycleState = DocumentLifecycleState::Closing;
+    }
+
     DocumentVersion DocumentSession::replaceGeneration(QString path, QString projectName) {
         m_documentId = DocumentId::create();
         m_revision = 0;
         m_path = std::move(path);
         m_projectName = std::move(projectName);
-        m_lifecycleState = DocumentLifecycleState::Active;
+        if (!m_closingCommitted)
+            m_lifecycleState = DocumentLifecycleState::Active;
         // 工作流 busy 由外层操作持有，文档换代时必须保留。
         m_idempotencyStore.clear();
         return version();

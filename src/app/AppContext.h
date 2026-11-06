@@ -60,6 +60,13 @@ public:
     [[nodiscard]] bool hasGui() const;
     bool initializeDefaultDocument(QString *error = nullptr);
 
+    // Commits the host exit. Arms the process-lifetime watchdog first, then freezes
+    // the document through the core runtime. Idempotent, so every exit path can call
+    // it: the GUI terminationApproved handler, the headless termination request, the
+    // composition-root aboutToQuit fallback and this context's destructor.
+    void commitShutdown();
+    [[nodiscard]] bool shutdownCommitted() const;
+
     // L0: Basic data models
     AppStatus *m_appStatus = nullptr;
     AppOptions *m_appOptions = nullptr;
@@ -107,6 +114,7 @@ private:
 
     AppHostMode m_hostMode;
     std::unique_ptr<GuiContext> m_guiContext;
+    bool m_shutdownCommitted = false;
 };
 
 #endif // APPCONTEXT_H

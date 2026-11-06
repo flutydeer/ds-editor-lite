@@ -9,6 +9,7 @@ lite_add_test(${PROJECT_NAME}
         tst_registry.cpp
         tst_public_workflows.cpp
         tst_http.cpp
+        tst_shutdown.cpp
         ../../app/Automation/Mcp/McpHttpServer.cpp
         ../../app/Automation/Mcp/McpRequestDispatcher.cpp
         ../../app/Automation/Native/NativeJsonRpcDispatcher.cpp

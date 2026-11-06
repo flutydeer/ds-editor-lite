@@ -1,6 +1,7 @@
 #include "tst_automation_runtime.h"
 
 #include "Automation/Public/AdmissionController.h"
+#include "Automation/CoreRuntime.h"
 
 #include <QList>
 #include <QtTest>
@@ -67,4 +68,32 @@ void AutomationRuntimeTests::stoppingRejectsWithoutChangingCounters() {
     QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::OperationUnavailable);
     QVERIFY(!controller.snapshot().accepting);
     QCOMPARE(controller.snapshot().globalInFlight, 1);
+}
+
+void AutomationRuntimeTests::committedHostGateCannotBeReopened() {
+    Automation::CoreRuntime runtime(nullptr, nullptr);
+    Automation::AdmissionController controller;
+    controller.setAdmissionGate([&runtime] { return !runtime.shutdownCommitted(); });
+    auto existing = controller.tryAcquire(true);
+    QVERIFY(existing);
+    QVERIFY(controller.snapshot().accepting);
+
+    runtime.commitShutdown();
+    for (const bool backgroundTask : {false, true}) {
+        // Runtime reconfiguration may reopen a listener, but cannot reopen a
+        // committed host's admission gate or increment either concurrency counter.
+        controller.setAccepting(false);
+        controller.setAccepting(true);
+        const auto rejected = controller.tryAcquire(backgroundTask);
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::OperationUnavailable);
+        QVERIFY(!controller.snapshot().accepting);
+        QCOMPARE(controller.snapshot().globalInFlight, 1);
+        QCOMPARE(controller.snapshot().backgroundTasks, 1);
+    }
+
+    auto lease = std::move(existing.get());
+    lease = {};
+    QCOMPARE(controller.snapshot().globalInFlight, 0);
+    QCOMPARE(controller.snapshot().backgroundTasks, 0);
 }

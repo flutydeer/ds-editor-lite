@@ -52,6 +52,13 @@ public:
                            TerminationSavePolicy savePolicy = TerminationSavePolicy::Prompt);
     void cancelCurrentOperation();
 
+    // Commits the host exit: arms the process watchdog first, then freezes the
+    // document so no queued or later workflow can touch it. Idempotent. The GUI
+    // calls it from the direct terminationApproved handler, before the queued
+    // close() and before any synchronous log or wait.
+    void commitShutdown();
+    [[nodiscard]] bool shutdownCommitted() const;
+
     [[nodiscard]] bool busy() const;
     [[nodiscard]] std::optional<Automation::DocumentSnapshotDto> documentSnapshot() const;
     [[nodiscard]] QString projectPath() const;
