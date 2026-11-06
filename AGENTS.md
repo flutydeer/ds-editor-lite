@@ -7,15 +7,16 @@ DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice edit
 ## Build system
 
 - **CMake** with **vcpkg** for dependency management.
-- Clone with `--recursive` (git submodules: `src/3rdparty/qtmediate`, `scripts/vcpkg`).
+- Clone with `--recursive` (git submodule: `src/3rdparty/qtmediate`).
 - vcpkg manifest lives at `scripts/vcpkg-manifest/vcpkg.json`, not the repo root.
-- Toolchain file: `vcpkg/scripts/buildsystems/vcpkg.cmake`.
+- `scripts/vcpkg-sources.json` specifies vcpkg and the overlays. [vcpkg-workspace.cmake](https://github.com/stdware/dev-scripts/blob/main/docs/about-scripts/vcpkg-workspace.md), downloaded into `scripts/` and ignored by git, checks them out into `deps/` and installs the dependencies into `deps/vcpkg/installed`.
+- Toolchain file: `deps/vcpkg/scripts/buildsystems/vcpkg.cmake`.
 
 ### 前置条件
 
 - **Visual Studio 2026**：安装"使用 C++ 的桌面开发"工作负荷，包含 MSVC v145 生成工具和 Windows 11 SDK。
 - **Qt 6**：安装 Qt 6.11.1+，选择 MSVC 2022 64-bit、Qt State Machines 和 Qt HTTP Server 组件。
-- **vcpkg**：克隆到项目同级目录或全局安装，详见下方 vcpkg 安装步骤。
+- **vcpkg**：无需手动克隆。`vcpkg-workspace.cmake` 按 `scripts/vcpkg-sources.json` 把 vcpkg 与 overlay 检出到 `deps/`，详见下方 vcpkg 安装步骤。
 
 ### 配置和构建（Windows presets 主线）
 
@@ -48,13 +49,19 @@ set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR;CMAKE_PREFIX_PATH
 
 #### 3. 安装/更新 vcpkg 依赖
 
+首次使用前下载 `vcpkg-workspace.cmake` 到 `scripts/`：
+
 ```cmd
-cd vcpkg
-vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
-cd ..
+powershell -Command "Invoke-WebRequest -OutFile scripts/vcpkg-workspace.cmake https://raw.githubusercontent.com/stdware/dev-scripts/main/scripts/vcpkg-workspace.cmake"
 ```
 
-可选 CUDA 支持：在 vcpkg install 后追加 `--x-feature=cuda12`。
+然后安装依赖。脚本检出 vcpkg 与 overlay 到 `deps/`，并从 `QT_DIR` 向 vcpkg 传入 Qt：
+
+```cmd
+cmake -P scripts/vcpkg-workspace.cmake install --triplet x64-windows
+```
+
+可选 CUDA 支持：追加 `-- --x-feature=cuda12`。`cmake -P scripts/vcpkg-workspace.cmake help` 列出其他命令，`--dry-run` 只打印命令而不执行。`scripts/vcpkg-sources.local.json` 优先于 `scripts/vcpkg-sources.json`，可用于指定本地 overlay。
 
 #### 4. CMake 配置
 
@@ -77,17 +84,16 @@ cmake --preset release && cmake --build --preset release
 
 如果 presets 不可用，可以用等价的命令行：
 ```cmd
-cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=build/install -G Ninja
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=deps/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=build/install -G Ninja
 cmake --build build --target DsEditorLite
 ```
 
 #### 更新 vcpkg 依赖
 
-当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `vcpkg/installed` 与 manifest 同步。重新运行 vcpkg install 命令即可，vcpkg 会自动对比差异并增量更新：
+当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `deps/vcpkg/installed` 与 manifest 同步。重新运行安装命令即可，vcpkg 会自动对比差异并增量更新：
 
 ```cmd
-cd vcpkg
-vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
+cmake -P scripts/vcpkg-workspace.cmake install --triplet x64-windows
 ```
 
 也可使用 `docs/dev-scripts/` 下的辅助脚本（复制到项目根目录并修改 Qt 路径后使用）。
@@ -130,8 +136,10 @@ src/
   tools/        # Auxiliary tools
 scripts/
   cmake/        # CMake utilities (LiteBuildApi, OrtRuntimeGate, winrc, etc.)
-  vcpkg/        # Git submodule - vcpkg overlay ports/triplets
   vcpkg-manifest/ # vcpkg.json
+  vcpkg-project/  # Project overlay ports, preceding the shared overlay
+  vcpkg-sources.json # vcpkg and the overlays for vcpkg-workspace.cmake
+deps/           # vcpkg and the shared overlay vcpkg-overlay, checked out by vcpkg-workspace.cmake (ignored)
 docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, guides/ = 开发指南, theme/ = 主题文档, archive/ = 历史归档)
 ```
 
@@ -190,4 +198,4 @@ Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (aud
 - Windows build requires MSVC (not MinGW). Needs `dwmapi.lib` and a recent Windows SDK for DWM APIs.
 - `CMAKE_AUTOMOC/AUTORCC/AUTOUIC` are ON for the app target - Qt meta-object files are generated at build time.
 - `NOMINMAX` is defined project-wide - do not rely on Windows `min`/`max` macros.
-- vcpkg overlay ports are in `scripts/vcpkg/ports` (submodule), not upstream vcpkg.
+- vcpkg overlay ports are in `scripts/vcpkg-project/ports` and in the shared overlay `deps/vcpkg-overlay/ports`, not upstream vcpkg. `scripts/vcpkg-sources.json` specifies both, not the manifest.

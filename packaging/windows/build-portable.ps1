@@ -195,7 +195,7 @@ Invoke-Step "Install to a clean staging tree" {
 # PDB from the vcpkg release bin. Kept here (packaging), not in CMake, so the
 # build system stays vcpkg-agnostic.
 Invoke-Step "Copy vcpkg dependency PDBs" {
-    $vcpkgBin = Join-Path $RepoRoot "vcpkg\installed\x64-windows\bin"
+    $vcpkgBin = Join-Path $RepoRoot "deps\vcpkg\installed\x64-windows\bin"
     if (-not (Test-Path -LiteralPath $vcpkgBin -PathType Container)) {
         throw "vcpkg release bin not found: $vcpkgBin"
     }
