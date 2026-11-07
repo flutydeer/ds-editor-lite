@@ -61,6 +61,23 @@ private slots:
     void expressionSpinBoxMenuEditsTheDisplayedValue();
     void textInputMenusKeepEditingActionsAndCopyAppearance_data();
     void textInputMenusKeepEditingActionsAndCopyAppearance();
+    void adaptiveToolbarSolverExactFit_data();
+    void adaptiveToolbarSolverExactFit();
+    void adaptiveToolbarThresholdsKeepNaturalSizesAndIdentity();
+    void adaptiveToolbarInvalidatesHiddenSizesAndEmptyApplicability();
+    void adaptiveToolbarHiddenHintsRearm_data();
+    void adaptiveToolbarHiddenHintsRearm();
+    void adaptiveToolbarPopupUsesTheOriginalCombo();
+    void adaptiveToolbarClosingDoesNotStealNewEditorFocus();
+    void adaptiveToolbarGroupPopupsKeepControlsAndSwitchWithoutReplay();
+    void adaptiveToolbarRtlPopupTracksRuntimeDirection();
+    void adaptiveToolbarOversizedPopupWrapsWithoutSqueezing();
+    void adaptiveToolbarTeardownCancelsPendingLayout();
+    void inlineLabelMigratesTheOverlayHost_data();
+    void inlineLabelMigratesTheOverlayHost();
+    void inlineLabelSameHostKeepsEditingAndHostChangeCommitsOnce_data();
+    void inlineLabelSameHostKeepsEditingAndHostChangeCommitsOnce();
+    void inlineLabelPopupRoundTripKeepsContextMenuEditing();
 };
 
 #endif

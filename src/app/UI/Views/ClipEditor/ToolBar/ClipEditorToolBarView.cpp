@@ -14,7 +14,7 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
-#include <lite/GUI/Controls/ControlGroup.h>
+#include <lite/GUI/Controls/AdaptiveToolBar.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
@@ -25,6 +25,7 @@
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Utils/QuantizeOptions.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QButtonGroup>
 #include <QDialog>
@@ -33,10 +34,68 @@
 #include <QLabel>
 #include <QSignalBlocker>
 #include <QAbstractItemView>
+#include <QApplication>
+#include <QKeyEvent>
+#include <QPointer>
+#include <QShortcut>
 
 #include <optional>
 
 namespace {
+
+    class ToolShortcutOverrideFilter final : public QObject {
+    public:
+        ToolShortcutOverrideFilter(QWidget *owner,
+                                   const QList<QPair<QShortcut *, Button *>> &shortcuts)
+            : QObject(owner), m_owner(owner) {
+            for (const auto &entry : shortcuts)
+                m_shortcuts.append(entry.first);
+            qApp->installEventFilter(this);
+        }
+
+    protected:
+        bool eventFilter(QObject *watched, QEvent *event) override {
+            if (event->type() != QEvent::ShortcutOverride || !m_owner->isVisible() ||
+                !m_owner->isEnabled()) {
+                return false;
+            }
+
+            auto *window = m_owner->window();
+            auto *popup = QApplication::activePopupWidget();
+            const bool ownPopup = popup && window->isAncestorOf(popup);
+            if (popup && !ownPopup)
+                return false;
+            if (auto *modal = QApplication::activeModalWidget(); modal && modal != window)
+                return false;
+            if (QApplication::activeWindow() != window && !ownPopup)
+                return false;
+
+            auto *receiver = qobject_cast<QWidget *>(watched);
+            if (!receiver ||
+                (receiver->window() != window &&
+                 (!ownPopup || (receiver != popup && !popup->isAncestorOf(receiver))))) {
+                return false;
+            }
+            if (!ownPopup && !EditorShortcutUtils::isTextInput(QApplication::focusWidget())) {
+                return false;
+            }
+
+            auto *keyEvent = static_cast<QKeyEvent *>(event);
+            const QKeySequence key(keyEvent->keyCombination());
+            for (const auto &shortcut : m_shortcuts) {
+                if (shortcut && shortcut->isEnabled() && shortcut->key() == key) {
+                    // Override only tool keys, preserving text entry and popup type-search.
+                    keyEvent->accept();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+    private:
+        QWidget *m_owner;
+        QList<QPointer<QShortcut>> m_shortcuts;
+    };
 
     int quantizeIndex(int quantize) {
         return QuantizeOptions::indexOf(quantize);
@@ -75,6 +134,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_cbSinger = new TwoLevelComboBox;
     d->m_cbSinger->setObjectName("cbClipSinger");
+    d->m_cbSinger->setFixedHeight(d->m_contentHeight);
     d->m_cbSinger->installEventFilter(new ToolTipFilter(d->m_cbSinger, 500));
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 
@@ -93,7 +153,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             [d](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
                 if (module == AppStatus::ModuleType::Package &&
                     status == AppStatus::ModuleStatus::Ready) {
-                    d->m_cbSinger->setEnabled(true);
+                    d->m_cbSinger->setEnabled(d->m_singingClip != nullptr);
                     d->m_cbSinger->setLoadingText({});
                     d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
                     d->refreshSingerComboPresentation();
@@ -112,6 +172,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Handle);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
+    d->m_cbClipLanguage->setFixedHeight(d->m_contentHeight);
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
@@ -172,12 +233,12 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     const auto tracePitchDesc =
         tr("Trace automatic pitch inference results onto the edited pitch curve");
     d->m_btnPitchTrace = d->buildToolButton("btnPitchTrace", ":svg/icons/pitch_brush.svg",
-                                           tr("Trace Pitch"), Qt::Key_J, tracePitchDesc);
+                                            tr("Trace Pitch"), Qt::Key_J, tracePitchDesc);
     const auto pitchModulationDesc =
         tr("Modulate pitch deviations from the smoothed note pitch curve");
-    d->m_btnPitchModulation = d->buildToolButton(
-        "btnPitchModulation", ":svg/icons/pitch_modulation_24_filled.svg",
-        tr("Modulate Pitch"), Qt::Key_K, pitchModulationDesc);
+    d->m_btnPitchModulation =
+        d->buildToolButton("btnPitchModulation", ":svg/icons/pitch_modulation_24_filled.svg",
+                           tr("Modulate Pitch"), Qt::Key_K, pitchModulationDesc);
 
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
@@ -212,78 +273,47 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
-    auto clipInfoLayout = new QHBoxLayout;
-    clipInfoLayout->addWidget(d->m_leClipName);
-    clipInfoLayout->addWidget(d->m_cbSinger);
-    clipInfoLayout->addWidget(d->m_cbClipLanguage);
-    clipInfoLayout->setSpacing(1);
-    clipInfoLayout->setContentsMargins({});
+    d->m_adaptiveToolBar = new AdaptiveToolBar(this);
+    d->m_adaptiveToolBar->setItemSpacing(1);
+    d->m_adaptiveToolBar->setGroupSpacing(18);
+    connect(d->m_adaptiveToolBar, &AdaptiveToolBar::widgetAboutToRelocate, d,
+            [d](QWidget *widget, QWidget *destinationHost) {
+                if (widget == d->m_leClipName) {
+                    d->m_leClipName->finishEditing();
+                    d->m_leClipName->setOverlayParent(destinationHost);
+                }
+            });
 
-    auto clipInfoGroup = new ControlGroup;
-    clipInfoGroup->setLayout(clipInfoLayout);
-    d->m_clipInfoGroup = clipInfoGroup;
+    d->m_adaptiveToolBar->addWidget(d->m_leClipName, {0, 0, 2});
+    d->m_adaptiveToolBar->addWidget(d->m_cbSinger, {0, 1, 1});
+    d->m_adaptiveToolBar->addWidget(d->m_cbClipLanguage, {0, 2, 0});
+    d->m_adaptiveToolBar->addWidget(d->m_btnArrow, {1, 0, 12});
+    d->m_adaptiveToolBar->addWidget(d->m_btnBeam, {1, 1, 11});
+    d->m_adaptiveToolBar->addWidget(d->m_btnNotePencil, {1, 2, 10});
+    d->m_adaptiveToolBar->addWidget(d->m_btnNoteEraser, {1, 3, 9});
+    d->m_adaptiveToolBar->addWidget(d->m_btnNoteSplit, {1, 4, 8});
+    d->m_adaptiveToolBar->addWidget(d->m_btnPitchAnchor, {1, 5, 7});
+    d->m_adaptiveToolBar->addWidget(d->m_btnPitchPencil, {1, 6, 6});
+    d->m_adaptiveToolBar->addWidget(d->m_btnPitchEraser, {1, 7, 5});
+    d->m_adaptiveToolBar->addWidget(d->m_btnPitchTrace, {1, 8, 4});
+    d->m_adaptiveToolBar->addWidget(d->m_btnPitchModulation, {1, 9, 3});
+    d->m_adaptiveToolBar->addWidget(d->m_cbPianoRollQuantize, {2, 0, 14});
+    d->m_adaptiveToolBar->addWidget(d->m_btnAutoPageTurn, {3, 0, 13});
 
-    auto toolButtonLayout = new QHBoxLayout;
-    toolButtonLayout->addWidget(d->m_btnArrow);
-    toolButtonLayout->addWidget(d->m_btnBeam);
-    toolButtonLayout->addWidget(d->m_btnNotePencil);
-    toolButtonLayout->addWidget(d->m_btnNoteEraser);
-    toolButtonLayout->addWidget(d->m_btnNoteSplit);
-    toolButtonLayout->addWidget(d->m_btnPitchAnchor);
-    toolButtonLayout->addWidget(d->m_btnPitchPencil);
-    toolButtonLayout->addWidget(d->m_btnPitchEraser);
-    toolButtonLayout->addWidget(d->m_btnPitchTrace);
-    toolButtonLayout->addWidget(d->m_btnPitchModulation);
-    toolButtonLayout->setSpacing(1);
-    toolButtonLayout->setContentsMargins({});
-
-    auto toolButtonGroup = new ControlGroup;
-    toolButtonGroup->setLayout(toolButtonLayout);
-    d->m_toolButtonGroupView = toolButtonGroup;
-
-    auto quantizeLayout = new QHBoxLayout;
-    quantizeLayout->addWidget(d->m_cbPianoRollQuantize);
-    quantizeLayout->setSpacing(1);
-    quantizeLayout->setContentsMargins({});
-
-    auto quantizeGroup = new ControlGroup;
-    quantizeGroup->setLayout(quantizeLayout);
-    d->m_quantizeGroup = quantizeGroup;
-
-    auto autoPageTurnLayout = new QHBoxLayout;
-    autoPageTurnLayout->addWidget(d->m_btnAutoPageTurn);
-    autoPageTurnLayout->setSpacing(1);
-    autoPageTurnLayout->setContentsMargins({});
-
-    auto autoPageTurnGroup = new ControlGroup;
-    autoPageTurnGroup->setLayout(autoPageTurnLayout);
-    d->m_autoPageTurnGroup = autoPageTurnGroup;
-
-    // Spacers are widgets rather than addSpacing() stretches so they can be
-    // hidden together with the group they separate
-    const auto buildSpacer = [] {
-        auto *spacer = new QWidget;
-        spacer->setFixedWidth(16);
-        return spacer;
-    };
-    d->m_spacerAfterClipInfo = buildSpacer();
-    d->m_spacerAfterTools = buildSpacer();
-    d->m_spacerAfterQuantize = buildSpacer();
-    d->m_spacerAfterAutoPageTurn = buildSpacer();
+    for (int group = 0; group < 4; ++group) {
+        auto *moreButton = d->m_adaptiveToolBar->overflowButton(group);
+        moreButton->setText({});
+        d->configureCommonButton(moreButton, ":svg/icons/more_horizontal_24_regular.svg",
+                                 tr("More Controls"));
+        moreButton->setFixedWidth(28);
+        moreButton->setAccessibleName(tr("More Controls"));
+    }
+    new ToolShortcutOverrideFilter(this, d->m_toolShortcuts);
 
     const auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(clipInfoGroup);
-    mainLayout->addWidget(d->m_spacerAfterClipInfo);
-    mainLayout->addWidget(toolButtonGroup);
-    mainLayout->addWidget(d->m_spacerAfterTools);
-    mainLayout->addWidget(quantizeGroup);
-    mainLayout->addWidget(d->m_spacerAfterQuantize);
-    mainLayout->addWidget(autoPageTurnGroup);
-    mainLayout->addWidget(d->m_spacerAfterAutoPageTurn);
-    mainLayout->addStretch();
-
+    mainLayout->addWidget(d->m_adaptiveToolBar);
     mainLayout->setContentsMargins({});
-    mainLayout->setSpacing(1);
+    mainLayout->setSpacing(0);
     setLayout(mainLayout);
     setFixedHeight(d->m_contentHeight);
 
@@ -294,6 +324,7 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     Q_D(ClipEditorToolBarView);
     // Commit any in-progress edit before switching clips
     d->m_leClipName->finishEditing();
+    d->m_adaptiveToolBar->closeOverflow();
     d->m_editingClipId = -1;
 
     if (d->m_clip)
@@ -303,17 +334,20 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     if (clip == nullptr) {
         d->m_singingClip = nullptr;
         d->moveToNullClipState();
-        return;
+    } else {
+        connect(d->m_clip, &Clip::propertyChanged, d,
+                &ClipEditorToolBarViewPrivate::onClipPropertyChanged);
+        if (clip->clipType() == Clip::Singing) {
+            d->m_singingClip = static_cast<SingingClip *>(clip);
+            d->moveToSingingClipState();
+        } else if (clip->clipType() == Clip::Audio) {
+            d->m_singingClip = nullptr;
+            d->moveToAudioClipState();
+        }
     }
-    connect(d->m_clip, &Clip::propertyChanged, d,
-            &ClipEditorToolBarViewPrivate::onClipPropertyChanged);
-    if (clip->clipType() == Clip::Singing) {
-        d->m_singingClip = static_cast<SingingClip *>(clip);
-        d->moveToSingingClipState();
-    } else if (clip->clipType() == Clip::Audio) {
-        d->m_singingClip = nullptr;
-        d->moveToAudioClipState();
-    }
+    // Keep context applicability synchronous while resize work remains coalesced.
+    d->m_adaptiveToolBar->layout()->invalidate();
+    d->m_adaptiveToolBar->layout()->activate();
 }
 
 PianoRollEditMode ClipEditorToolBarView::editMode() const {
@@ -437,14 +471,14 @@ void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
-    setGroupsVisible(false, false, false, false);
+    setItemsApplicable(false, false);
 }
 
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_leClipName->setEnabled(true);
     m_leClipName->setText(m_clip->name());
 
-    setGroupsVisible(true, true, true, true);
+    setItemsApplicable(true, true);
     setPianoRollToolsEnabled(true);
 }
 
@@ -454,31 +488,27 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
 
     // An audio clip has no notes, no pitch anchors and no quantize, so the only
     // control that applies to it is its name
-    setGroupsVisible(true, false, false, false);
+    setItemsApplicable(true, false);
     setPianoRollToolsEnabled(false);
 }
 
-void ClipEditorToolBarViewPrivate::setGroupsVisible(const bool clipInfo, const bool tools,
-                                                    const bool quantize,
-                                                    const bool autoPageTurn) const {
-    if (m_clipInfoGroup)
-        m_clipInfoGroup->setVisible(clipInfo);
-    if (m_toolButtonGroupView)
-        m_toolButtonGroupView->setVisible(tools);
-    if (m_quantizeGroup)
-        m_quantizeGroup->setVisible(quantize);
-    if (m_autoPageTurnGroup)
-        m_autoPageTurnGroup->setVisible(autoPageTurn);
+void ClipEditorToolBarViewPrivate::setItemsApplicable(const bool name, const bool singing) const {
+    m_adaptiveToolBar->setItemApplicable(m_leClipName, name);
+    m_adaptiveToolBar->setItemApplicable(m_cbSinger, singing);
+    m_adaptiveToolBar->setItemApplicable(m_cbClipLanguage, singing);
+    for (auto *button : m_toolButtonGroup->buttons())
+        m_adaptiveToolBar->setItemApplicable(button, singing);
+    m_adaptiveToolBar->setItemApplicable(m_cbPianoRollQuantize, singing);
+    m_adaptiveToolBar->setItemApplicable(m_btnAutoPageTurn, singing);
+    updateToolShortcuts();
+}
 
-    // A spacer whose neighbour is hidden would leave a doubled gap
-    if (m_spacerAfterClipInfo)
-        m_spacerAfterClipInfo->setVisible(clipInfo && tools);
-    if (m_spacerAfterTools)
-        m_spacerAfterTools->setVisible(tools && quantize);
-    if (m_spacerAfterQuantize)
-        m_spacerAfterQuantize->setVisible(quantize && autoPageTurn);
-    if (m_spacerAfterAutoPageTurn)
-        m_spacerAfterAutoPageTurn->setVisible(autoPageTurn);
+void ClipEditorToolBarViewPrivate::updateToolShortcuts() const {
+    Q_Q(const ClipEditorToolBarView);
+    const bool available = q->isVisible() && q->isEnabled() && m_singingClip;
+    for (const auto &[shortcut, button] : m_toolShortcuts)
+        shortcut->setEnabled(available && button->isEnabled() &&
+                             m_adaptiveToolBar->isItemApplicable(button));
 }
 
 Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,
@@ -486,20 +516,30 @@ Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,
                                                       const QString &tipTitle,
                                                       const QKeySequence &shortcut,
                                                       const QString &tipDesc) const {
-    const auto btn = buildCommonButton(objName, svgPath, tipTitle, shortcut, tipDesc);
+    const auto btn = new Button;
+    btn->setObjectName(objName);
+    configureCommonButton(btn, svgPath, tipTitle, shortcut, tipDesc);
     btn->setCheckable(true);
     return btn;
 }
 
-Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
-                                                        const QString &svgPath,
-                                                        const QString &tipTitle,
-                                                        const QKeySequence &shortcut,
-                                                        const QString &tipDesc) const {
-    const auto btn = new Button;
-    btn->setObjectName(objName);
+void ClipEditorToolBarViewPrivate::configureCommonButton(Button *btn, const QString &svgPath,
+                                                         const QString &tipTitle,
+                                                         const QKeySequence &shortcut,
+                                                         const QString &tipDesc) const {
     btn->setFixedSize(36, m_contentHeight);
-    btn->setShortcut(shortcut);
+    if (!shortcut.isEmpty()) {
+        auto *toolShortcut = new QShortcut(shortcut, q_ptr);
+        toolShortcut->setContext(Qt::WindowShortcut);
+        m_toolShortcuts.append({toolShortcut, btn});
+        connect(toolShortcut, &QShortcut::activated, q_ptr, [this, btn] {
+            if (q_ptr->isVisible() && q_ptr->isEnabled() && m_singingClip && btn->isEnabled() &&
+                m_adaptiveToolBar->isItemApplicable(btn) && !QApplication::activePopupWidget() &&
+                !EditorShortcutUtils::isTextInput(QApplication::focusWidget())) {
+                btn->click();
+            }
+        });
+    }
 
     const QSize iconSize(16, 16);
     IconUtils::SvgIconToggleColorPalette palette;
@@ -513,34 +553,30 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
 
     btn->setToolTip(tipTitle);
     const auto toolTip = new ToolTipFilter(btn, 500, false, true);
+    toolTip->setShortcutKey(shortcut.toString());
     if (!tipDesc.isEmpty())
         toolTip->appendMessage(tipDesc);
     btn->installEventFilter(toolTip);
-    return btn;
 }
 
 void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const {
-    for (const auto btn : m_toolButtonGroup->buttons()) {
-        btn->setVisible(on);
+    for (const auto btn : m_toolButtonGroup->buttons())
         btn->setEnabled(on);
-    }
 
-    m_cbSinger->setVisible(on);
     m_cbSinger->setEnabled(on && appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready);
-    m_cbClipLanguage->setVisible(on);
     m_cbClipLanguage->setEnabled(on);
-    m_cbPianoRollQuantize->setVisible(on);
     m_cbPianoRollQuantize->setEnabled(on);
+    updateToolShortcuts();
 
     if (on) {
         refreshSingerComboPresentation();
         connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
-                &ClipEditorToolBarViewPrivate::onSingerEdited);
+                &ClipEditorToolBarViewPrivate::onSingerEdited, Qt::UniqueConnection);
         connect(m_singingClip, &SingingClip::voiceContextChanged, this,
                 [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
 
         connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
-                &ClipEditorToolBarViewPrivate::onLanguageEdited);
+                &ClipEditorToolBarViewPrivate::onLanguageEdited, Qt::UniqueConnection);
         connect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
                 &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
     } else {
@@ -555,6 +591,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         disconnect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
         m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
+        m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
     }
 }
 
@@ -578,8 +615,11 @@ void ClipEditorToolBarViewPrivate::onSingerEdited() const {
 }
 
 void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
-    if (!m_singingClip || !m_cbSinger)
+    if (!m_singingClip || !m_cbSinger) {
+        if (m_adaptiveToolBar && m_cbSinger)
+            m_adaptiveToolBar->invalidateItemSize(m_cbSinger);
         return;
+    }
 
     const bool inherit = m_singingClip->usesTrackVoiceContext();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
@@ -592,6 +632,7 @@ void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
     }
     m_cbSinger->setToolTip(m_cbSinger->currentText());
     populatePresetMenus();
+    m_adaptiveToolBar->invalidateItemSize(m_cbSinger);
     refreshLanguageComboPresentation();
 }
 
@@ -602,6 +643,7 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
     const auto singerInfo = m_singingClip->singerInfo();
     const auto language = m_cbClipLanguage->setLanguages(
         singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
+    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
     // latch singer default language only when singer is resolved; do not write back without a
     // singer
     if (singerInfo.resolutionState() == ResolutionState::Resolved &&
@@ -703,6 +745,15 @@ void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singe
     refreshSingerComboPresentation();
 }
 
+bool ClipEditorToolBarView::event(QEvent *event) {
+    const auto handled = QWidget::event(event);
+    if (event->type() == QEvent::Show || event->type() == QEvent::Hide ||
+        event->type() == QEvent::EnabledChange) {
+        d_ptr->updateToolShortcuts();
+    }
+    return handled;
+}
+
 void ClipEditorToolBarView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -748,7 +799,16 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
     setToolTip(
         m_btnPitchModulation, ClipEditorToolBarView::tr("Modulate Pitch"),
         ClipEditorToolBarView::tr("Modulate pitch deviations from the smoothed note pitch curve"));
+    setToolTip(m_btnAutoPageTurn, ClipEditorToolBarView::tr("Auto Page Turn"));
+    for (int group = 0; group < 4; ++group) {
+        auto *moreButton = m_adaptiveToolBar->overflowButton(group);
+        setToolTip(moreButton, ClipEditorToolBarView::tr("More Controls"));
+        moreButton->setAccessibleName(ClipEditorToolBarView::tr("More Controls"));
+    }
     refreshSingerComboPresentation();
+    m_adaptiveToolBar->invalidateItemSize(m_cbSinger);
+    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
+    m_adaptiveToolBar->invalidateItemSize(m_cbPianoRollQuantize);
 }
 
 void ClipEditorToolBarViewPrivate::rebuildIcons() const {

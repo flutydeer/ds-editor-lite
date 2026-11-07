@@ -1,4 +1,14 @@
 /* Panel Tool Bar */
+ClipEditorToolBarView QWidget#adaptiveToolBarPopup {
+    background-color: ${surface.popup};
+    border: 1px solid ${control.border.default};
+    color: ${text.primary};
+}
+
+ClipEditorToolBarView QWidget#adaptiveToolBarPopup[dwmBorder="true"] {
+    border: none;
+}
+
 ClipEditorToolBarView QPushButton {
     padding: 0px;
     border: none;
@@ -72,8 +82,18 @@ InlineEditLabel#leClipName {
     border: none;
     height: 28px;
     border-radius: 0px;
+}
+
+InlineEditLabel#leClipName[groupPos="first"],
+QLineEdit#inlineEditLineEdit[editRole="ClipName"][groupPos="first"] {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
+}
+
+InlineEditLabel#leClipName[groupPos="last"],
+QLineEdit#inlineEditLineEdit[editRole="ClipName"][groupPos="last"] {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
 }
 
 InlineEditLabel#leClipName[groupPos="only"] {
@@ -85,8 +105,6 @@ QLineEdit#inlineEditLineEdit[editRole="ClipName"] {
     border: none;
     border-bottom: 1px solid ${border.focus};
     border-radius: 0px;
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
     padding: 0px 8px;
 }
 
@@ -128,11 +146,20 @@ TwoLevelComboBox#cbClipSinger:disabled {
     color: ${control.foreground.disabled};
 }
 
-ComboBox#cbClipLanguage {
+TwoLevelComboBox#cbClipSinger[groupPos="first"],
+ComboBox#cbClipLanguage[groupPos="first"] {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+TwoLevelComboBox#cbClipSinger[groupPos="last"],
+ComboBox#cbClipLanguage[groupPos="last"] {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
 }
 
+TwoLevelComboBox#cbClipSinger[groupPos="only"],
+ComboBox#cbClipLanguage[groupPos="only"],
 ComboBox#cbPianoRollQuantize[groupPos="only"] {
     border-radius: 4px;
 }

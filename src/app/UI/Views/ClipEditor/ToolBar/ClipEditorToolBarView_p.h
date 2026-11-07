@@ -19,7 +19,8 @@ class InlineEditLabel;
 class Button;
 class ClipEditorToolBarView;
 class ComboBox;
-class ControlGroup;
+class AdaptiveToolBar;
+class QShortcut;
 class SingerInfo;
 
 class ClipEditorToolBarViewPrivate : public QObject {
@@ -43,15 +44,14 @@ public:
                                           const QString &tipTitle,
                                           const QKeySequence &shortcut = QKeySequence(),
                                           const QString &tipDesc = QString()) const;
-    Button *buildCommonButton(const QString &objName, const QString &svgPath,
-                              const QString &tipTitle,
-                              const QKeySequence &shortcut = QKeySequence(),
-                              const QString &tipDesc = QString()) const;
+    void configureCommonButton(Button *button, const QString &svgPath, const QString &tipTitle,
+                               const QKeySequence &shortcut = QKeySequence(),
+                               const QString &tipDesc = QString()) const;
 
     void setPianoRollToolsEnabled(bool on) const;
-    // A clip type shows only the groups that apply to it: an audio clip has a
-    // name and nothing else, a singing clip has all four
-    void setGroupsVisible(bool clipInfo, bool tools, bool quantize, bool autoPageTurn) const;
+    // Audio clips expose only their name; singing clips expose every item.
+    void setItemsApplicable(bool name, bool singing) const;
+    void updateToolShortcuts() const;
     // Re-tint all registered toggle-button icons from the current theme colors
     void rebuildIcons() const;
     int m_contentHeight = 28;
@@ -90,14 +90,8 @@ public:
     LanguageComboBox *m_cbClipLanguage = nullptr;
     ComboBox *m_cbPianoRollQuantize = nullptr;
 
-    ControlGroup *m_clipInfoGroup = nullptr;
-    ControlGroup *m_toolButtonGroupView = nullptr;
-    ControlGroup *m_quantizeGroup = nullptr;
-    ControlGroup *m_autoPageTurnGroup = nullptr;
-    QWidget *m_spacerAfterClipInfo = nullptr;
-    QWidget *m_spacerAfterTools = nullptr;
-    QWidget *m_spacerAfterQuantize = nullptr;
-    QWidget *m_spacerAfterAutoPageTurn = nullptr;
+    AdaptiveToolBar *m_adaptiveToolBar = nullptr;
+    mutable QList<QPair<QShortcut *, Button *>> m_toolShortcuts;
 public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
     void onClipNameEdited(const QString &text);

@@ -94,9 +94,21 @@ void InlineEditLabel::setEditRole(const EditRole role) {
 }
 
 void InlineEditLabel::setOverlayParent(QWidget *parent) {
-    if (m_overlayParent)
-        m_overlayParent->removeEventFilter(this);
+    auto *oldHost = m_overlay ? m_overlay->parentWidget()
+                              : (m_overlayParent ? m_overlayParent.data() : parentWidget());
+    auto *newHost = parent ? parent : parentWidget();
+    if (oldHost == newHost) {
+        m_overlayParent = parent;
+        return;
+    }
+
+    // Submit before moving the overlay so the current edit keeps its original target.
+    finishEditing();
+    if (oldHost)
+        oldHost->removeEventFilter(this);
     m_overlayParent = parent;
+    if (m_overlay)
+        m_overlay->setParent(newHost);
 }
 
 void InlineEditLabel::finishEditing() {
@@ -132,7 +144,7 @@ void InlineEditLabel::resizeEvent(QResizeEvent *event) {
 }
 
 bool InlineEditLabel::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == m_overlayParent && m_overlay && m_overlay->isEditing()) {
+    if (m_overlay && watched == m_overlay->parentWidget() && m_overlay->isEditing()) {
         switch (event->type()) {
             case QEvent::Wheel:
             case QEvent::Hide:
@@ -156,6 +168,11 @@ void InlineEditLabel::startEditing() {
     auto *overlayParent = m_overlayParent ? m_overlayParent.data() : parentWidget();
     if (!overlayParent)
         return;
+    if (m_overlay && m_overlay->parentWidget() != overlayParent) {
+        if (auto *oldHost = m_overlay->parentWidget())
+            oldHost->removeEventFilter(this);
+        m_overlay->setParent(overlayParent);
+    }
     overlayParent->installEventFilter(this);
 
     if (!m_overlay) {
@@ -175,7 +192,7 @@ void InlineEditLabel::startEditing() {
     const auto metaEnum = QMetaEnum::fromType<EditRole>();
     const QVariantMap editorProperties = {
         {QStringLiteral("editRole"), QString::fromLatin1(metaEnum.valueToKey(m_editRole))},
-        {QStringLiteral("groupPos"), property("groupPos")},
+        {QStringLiteral("groupPos"), property("groupPos")                                },
     };
     m_overlay->showAt(anchorRect, m_text, displayFont, editorProperties);
 

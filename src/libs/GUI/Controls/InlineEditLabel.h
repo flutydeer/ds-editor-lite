@@ -50,6 +50,8 @@ public:
 
     /// Set the widget that will parent the editing overlay (typically the viewport).
     /// When not set, the overlay is parented to this label's parent widget.
+    /// Changing the effective host submits an active edit and moves any existing overlay.
+    /// Setting the same effective host leaves an active edit untouched.
     void setOverlayParent(QWidget *parent);
 
     /// Finish editing immediately, submitting current text. No-op if not editing.

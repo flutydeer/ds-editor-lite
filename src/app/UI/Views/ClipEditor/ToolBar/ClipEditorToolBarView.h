@@ -32,6 +32,7 @@ signals:
     void editModeChanged(PianoRollEditMode mode);
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:
