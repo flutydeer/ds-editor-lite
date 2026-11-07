@@ -248,7 +248,7 @@
         "piano.roll.noteHandle.grip": "{neutral.black25}",
         "piano.roll.pronunciation": "{text.secondary}",
         "piano.roll.noteErrorMark": "#B3262E",
-        "piano.roll.overlay": "{overlay.scrim}",
+        "piano.roll.overlay": "{neutral.white28}",
         "piano.roll.background": "{transparent.default}",
 
         "phoneme.hint": "{neutral.600}",
