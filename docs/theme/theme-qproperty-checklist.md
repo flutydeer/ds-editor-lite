@@ -173,6 +173,8 @@
 | iconColor | #E0E0E0 |
 | iconDisabledColor | #909090 |
 
+这两个属性同时给菜单项图标和主菜单栏的三点溢出按钮图标着色，主题切换时由 `rebuildIcons()` 统一重新生成。溢出按钮是普通 `QAction`，不需要单独的样式表规则，见 `design/adaptive-main-menu-bar.md`。
+
 ### FilePopupWidget
 | 属性 | lite-dark 值 |
 |---|---|

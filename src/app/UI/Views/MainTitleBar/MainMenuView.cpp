@@ -41,17 +41,32 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QEvent>
+#include <QMenu>
+#include <QStyle>
+#include <QStyleOptionMenuItem>
 
 #include <algorithm>
 
 #include <lite/GUI/Controls/Menu.h>
+
+namespace {
+
+    const QSize kOverflowIconSize(16, 16);
+    constexpr auto kOverflowIconPath = ":/svg/icons/more_horizontal_24_regular.svg";
+    // Absorbs rounding differences between our pure measurement and Qt's own
+    // action geometry, so QMenuBar never needs its private extension widget.
+    constexpr int kOverflowSafetyMargin = 4;
+
+} // namespace
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
     Q_D(MainMenuView);
     d->q_ptr = this;
 
-    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    // Preferred lets the title bar shrink the menu bar before the other chrome.
+    // Our own action-based overflow then decides which trailing menus collapse.
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     connect(editorViewController, &EditorViewController::activeEditTargetChanged, this,
             [=](const EditorInteraction::Target target) { d->onActiveEditTargetChanged(target); });
@@ -77,9 +92,91 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     addMenu(d->buildEditMenu());
     addMenu(d->buildOptionsMenu());
     addMenu(d->buildHelpMenu());
+    d->initOverflowUi();
 }
 
-MainMenuView::~MainMenuView() = default;
+MainMenuView::~MainMenuView() {
+    // These QActions are owned by the private helper and by the QMenu children.
+    // Detach them before QMenuBar's destructor walks its action list.
+    const auto barActions = actions();
+    for (auto *action : barActions)
+        removeAction(action);
+    if (d_ptr->m_overflowMenu) {
+        const auto collapsed = d_ptr->m_overflowMenu->actions();
+        for (auto *action : collapsed)
+            d_ptr->m_overflowMenu->removeAction(action);
+    }
+}
+
+QAction *MainMenuView::overflowAction() const {
+    Q_D(const MainMenuView);
+    return d->m_overflowAction.data();
+}
+
+Menu *MainMenuView::overflowMenu() const {
+    Q_D(const MainMenuView);
+    return d->m_overflowMenu.data();
+}
+
+QList<QAction *> MainMenuView::topLevelMenuActions() const {
+    Q_D(const MainMenuView);
+    QList<QAction *> result;
+    for (const auto &action : d->m_topLevelMenus) {
+        if (action)
+            result.append(action.data());
+    }
+    return result;
+}
+
+QList<QAction *> MainMenuView::overflowedMenuActions() const {
+    Q_D(const MainMenuView);
+    return !d->m_overflowMenu.isNull() ? d->m_overflowMenu->actions() : QList<QAction *>{};
+}
+
+bool MainMenuView::isOverflowing() const {
+    Q_D(const MainMenuView);
+    return d->m_overflowAction && actions().contains(d->m_overflowAction.data());
+}
+
+QSize MainMenuView::sizeHint() const {
+    Q_D(const MainMenuView);
+    return {d->fullInlineWidth(), QMenuBar::sizeHint().height()};
+}
+
+QSize MainMenuView::minimumSizeHint() const {
+    Q_D(const MainMenuView);
+    return {d->minimumInlineWidth(), QMenuBar::sizeHint().height()};
+}
+
+int MainMenuView::menuItemWidth(const QAction *action) const {
+    if (!action)
+        return 0;
+    const int iconExtent = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this);
+    // QMenuBar only draws the icon when one is set, and measures the item by
+    // the same rule. Text is kept for the mnemonic but never drawn.
+    const QSize content = action->icon().isNull()
+                              ? fontMetrics().size(Qt::TextShowMnemonic, action->text())
+                              : QSize(iconExtent, iconExtent);
+    QStyleOptionMenuItem option;
+    initStyleOption(&option, action);
+    return style()->sizeFromContents(QStyle::CT_MenuBarItem, &option, content, this).width();
+}
+
+bool MainMenuView::event(QEvent *event) {
+    const bool handled = QMenuBar::event(event);
+    switch (event->type()) {
+    case QEvent::Resize:
+    case QEvent::ActionChanged:
+    case QEvent::FontChange:
+    case QEvent::StyleChange:
+    case QEvent::DevicePixelRatioChange:
+        d_ptr->updateOverflow();
+        break;
+    default:
+        break;
+    }
+    return handled;
+}
 
 QAction *MainMenuView::actionSave() {
     Q_D(MainMenuView);
@@ -108,8 +205,10 @@ void MainMenuView::openRecentProject(const QString &filePath) {
 
 void MainMenuView::changeEvent(QEvent *event) {
     QMenuBar::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange)
+    if (event->type() == QEvent::LanguageChange) {
         d_ptr->retranslateUi();
+        d_ptr->updateOverflow();
+    }
 }
 
 void MainMenuViewPrivate::onNew() const {
@@ -911,6 +1010,138 @@ void MainMenuViewPrivate::retranslateUi() {
     menuOptions->setTitle(tr("&Options"));
     menuHelp->setTitle(tr("&Help"));
     refreshRecentProjectsMenu();
+    retranslateOverflowUi();
+}
+
+void MainMenuViewPrivate::initOverflowUi() {
+    Q_Q(MainMenuView);
+    m_topLevelMenus = {menuFile->menuAction(), menuEdit->menuAction(),
+                       menuOptions->menuAction(), menuHelp->menuAction()};
+
+    // A plain QAction with an icon is measured and drawn by QMenuBar itself.
+    // The mnemonic stays available for Alt navigation even though the icon
+    // replaces the text on screen.
+    m_overflowAction = new QAction(this);
+    m_overflowMenu = new Menu(q);
+    m_overflowAction->setMenu(m_overflowMenu);
+
+    refreshOverflowIcon();
+    retranslateOverflowUi();
+    updateOverflow();
+}
+
+void MainMenuViewPrivate::refreshOverflowIcon() {
+    if (!m_overflowAction)
+        return;
+    m_overflowAction->setIcon(IconUtils::createTintedSvgIcon(
+        QString::fromLatin1(kOverflowIconPath), kOverflowIconSize, m_iconColor,
+        m_iconDisabledColor));
+}
+
+void MainMenuViewPrivate::retranslateOverflowUi() {
+    if (!m_overflowAction)
+        return;
+    m_overflowAction->setText(MainMenuView::tr("&More Menus"));
+    m_overflowAction->setToolTip(MainMenuView::tr("More Menus"));
+}
+
+int MainMenuViewPrivate::inlineRightEdge(const QList<QAction *> &items, int start,
+                                        int spacing) const {
+    Q_Q(const MainMenuView);
+    int x = start;
+    int lastRight = start;
+    for (auto *item : items) {
+        lastRight = x + q->menuItemWidth(item);
+        x = lastRight + spacing;
+    }
+    return items.isEmpty() ? start : lastRight;
+}
+
+int MainMenuViewPrivate::fullInlineWidth() const {
+    Q_Q(const MainMenuView);
+    const auto *style = q->style();
+    const int fw = style->pixelMetric(QStyle::PM_MenuBarPanelWidth, nullptr, q);
+    const int hmargin = style->pixelMetric(QStyle::PM_MenuBarHMargin, nullptr, q);
+    const int spacing = style->pixelMetric(QStyle::PM_MenuBarItemSpacing, nullptr, q);
+    const int start = fw + hmargin + spacing;
+    return inlineRightEdge(q->topLevelMenuActions(), start, spacing) + fw + hmargin + spacing;
+}
+
+int MainMenuViewPrivate::minimumInlineWidth() const {
+    Q_Q(const MainMenuView);
+    const auto *style = q->style();
+    const int fw = style->pixelMetric(QStyle::PM_MenuBarPanelWidth, nullptr, q);
+    const int hmargin = style->pixelMetric(QStyle::PM_MenuBarHMargin, nullptr, q);
+    const int spacing = style->pixelMetric(QStyle::PM_MenuBarItemSpacing, nullptr, q);
+    const int start = fw + hmargin + spacing;
+    QList<QAction *> minimal;
+    if (!m_topLevelMenus.isEmpty())
+        minimal.append(m_topLevelMenus.first().data());
+    if (m_overflowAction)
+        minimal.append(m_overflowAction.data());
+    return inlineRightEdge(minimal, start, spacing) + fw + hmargin + spacing +
+           kOverflowSafetyMargin;
+}
+
+void MainMenuViewPrivate::updateOverflow() {
+    Q_Q(MainMenuView);
+    if (m_updatingOverflow || !m_overflowAction || !m_overflowMenu ||
+        m_topLevelMenus.isEmpty())
+        return;
+    m_updatingOverflow = true;
+
+    const auto *style = q->style();
+    const int fw = style->pixelMetric(QStyle::PM_MenuBarPanelWidth, nullptr, q);
+    const int hmargin = style->pixelMetric(QStyle::PM_MenuBarHMargin, nullptr, q);
+    const int spacing = style->pixelMetric(QStyle::PM_MenuBarItemSpacing, nullptr, q);
+    const int start = fw + hmargin + spacing;
+    // QMenuBar's own menuRect ends at width() - fw. Keep a few pixels of slack
+    // so its private extension widget never becomes necessary.
+    const int rightEdge = q->width() - fw - kOverflowSafetyMargin;
+    const int buttonWidth = q->menuItemWidth(m_overflowAction.data());
+
+    const auto fits = [&](int keepCount) {
+        int x = start;
+        for (int i = 0; i < keepCount; ++i) {
+            x += q->menuItemWidth(m_topLevelMenus.at(i).data());
+            if (x > rightEdge)
+                return false;
+            x += spacing;
+        }
+        return keepCount == m_topLevelMenus.size() || x + buttonWidth <= rightEdge;
+    };
+
+    int keepCount = m_topLevelMenus.size();
+    if (!fits(keepCount)) {
+        // Collapse from the right. Every pass starts from the full menu set,
+        // so widening restores at exactly the same threshold with no hysteresis.
+        for (int candidate = m_topLevelMenus.size() - 1; candidate >= 0; --candidate) {
+            keepCount = candidate;
+            if (fits(candidate))
+                break;
+        }
+    }
+    syncOverflowActions(keepCount);
+    m_updatingOverflow = false;
+}
+
+void MainMenuViewPrivate::syncOverflowActions(int keepCount) {
+    Q_Q(MainMenuView);
+    // Rebuild both lists from the plan. No copies and no proxy actions: these
+    // are the original menuAction() objects of the four top-level menus.
+    const auto barActions = q->actions();
+    for (auto *action : barActions)
+        q->removeAction(action);
+    const auto collapsed = m_overflowMenu->actions();
+    for (auto *action : collapsed)
+        m_overflowMenu->removeAction(action);
+
+    for (int i = 0; i < keepCount; ++i)
+        q->addAction(m_topLevelMenus.at(i).data());
+    if (keepCount < m_topLevelMenus.size())
+        q->addAction(m_overflowAction.data());
+    for (int i = keepCount; i < m_topLevelMenus.size(); ++i)
+        m_overflowMenu->addAction(m_topLevelMenus.at(i).data());
 }
 
 void MainMenuViewPrivate::setMenuIcon(QAction *action, const QString &path, const QSize &size) {
@@ -922,6 +1153,7 @@ void MainMenuViewPrivate::rebuildIcons() {
     for (auto it = m_tintedActions.constBegin(); it != m_tintedActions.constEnd(); ++it)
         it.key()->setIcon(IconUtils::createTintedSvgIcon(it.value().first, it.value().second,
                                                          m_iconColor, m_iconDisabledColor));
+    refreshOverflowIcon();
 }
 
 QColor MainMenuView::iconColor() const {

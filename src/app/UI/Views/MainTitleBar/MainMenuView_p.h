@@ -6,8 +6,10 @@
 
 #include <QColor>
 #include <QHash>
+#include <QList>
 #include <QObject>
 #include <QPair>
+#include <QPointer>
 #include <QSize>
 
 class QAction;
@@ -83,6 +85,23 @@ public:
     Menu *menuEdit = nullptr;
     Menu *menuOptions = nullptr;
     Menu *menuHelp = nullptr;
+
+    // All geometry decisions are made from the full menu set. Qt's private
+    // extension button is never used or styled.
+    QPointer<QAction> m_overflowAction;
+    QPointer<Menu> m_overflowMenu;
+    QList<QPointer<QAction>> m_topLevelMenus;
+    bool m_updatingOverflow = false;
+
+    void initOverflowUi();
+    void refreshOverflowIcon();
+    void retranslateOverflowUi();
+    void updateOverflow();
+    void syncOverflowActions(int keepCount);
+    [[nodiscard]] int inlineRightEdge(const QList<QAction *> &items, int start,
+                                      int spacing) const;
+    [[nodiscard]] int fullInlineWidth() const;
+    [[nodiscard]] int minimumInlineWidth() const;
 
     QString m_undoName;
     QString m_redoName;

@@ -164,6 +164,9 @@ private slots:
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuPitchSourceCancellationKeepsDocument();
+    void mainMenuOverflowsFromRightToLeft();
+    void mainMenuOverflowRestoresWithoutHysteresis();
+    void mainMenuOverflowRecalculatesAfterTitleChange();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();

@@ -20,6 +20,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_dynamic_mix.cpp
     tst_speaker_mix.cpp
     tst_adaptive_clip_toolbar.cpp
+    tst_main_menu_overflow.cpp
     tst_resources.cpp
     tst_main_window.cpp
     tst_log_window.cpp
