@@ -36,6 +36,7 @@ private slots:
     void tooltipHoverRestoresUpdatedContent();
     void tooltipPointerAnchorsFollowContentAndVisibility_data();
     void tooltipPointerAnchorsFollowContentAndVisibility();
+    void tooltipYieldsToPopups();
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();
     void seekBarTrackingControlsWhenDraggedValuesCommit();
     void seekBarKeyboardStepsClampAndDoubleClickResets();

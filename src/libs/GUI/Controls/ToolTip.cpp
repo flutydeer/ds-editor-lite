@@ -4,6 +4,8 @@
 #include <QScreen>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QHideEvent>
+#include <QWidget>
 
 #include <algorithm>
 
@@ -93,6 +95,8 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
 }
 
 ToolTip::~ToolTip() {
+    if (m_watchingPopups && qApp)
+        qApp->removeEventFilter(this);
     delete m_opacityAnimation;
 }
 
@@ -233,6 +237,16 @@ void ToolTip::showAt(const QPoint &screenPos) {
 }
 
 void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
+    // A Qt::ToolTip is a HWND_TOPMOST window on Windows, and every show() raises
+    // it above the Qt::Popup windows (toolbar overflow, combo drop-downs). A
+    // delayed hover firing while a popup is open would bury the popup under this
+    // card. The popup also grabs the mouse, so the host widget never receives a
+    // Leave event and the card would stay on screen indefinitely.
+    if (QApplication::activePopupWidget()) {
+        hideImmediately();
+        return;
+    }
+
     move(clampToScreen(screenPos, screen));
 
     if (m_animationEnabled && m_opacityAnimation->duration() > 0) {
@@ -245,6 +259,12 @@ void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
     }
 
     show();
+    // Only a visible card needs to watch for popups. QEvent::Show is delivered
+    // before show_sys(), so the card is gone before the popup enters the z-order.
+    if (!m_watchingPopups) {
+        qApp->installEventFilter(this);
+        m_watchingPopups = true;
+    }
 }
 
 void ToolTip::resizeToContentHint() {
@@ -303,6 +323,32 @@ void ToolTip::hideWithAnimation() {
         hide();
         emit hideAnimationFinished();
     }
+}
+
+void ToolTip::hideImmediately() {
+    const bool wasVisible = isVisible();
+    m_opacityAnimation->stop();
+    setWindowOpacity(0);
+    hide();
+    if (wasVisible)
+        emit hideAnimationFinished();
+}
+
+void ToolTip::hideEvent(QHideEvent *event) {
+    if (m_watchingPopups && qApp) {
+        qApp->removeEventFilter(this);
+        m_watchingPopups = false;
+    }
+    QFrame::hideEvent(event);
+}
+
+bool ToolTip::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Show && watched != this) {
+        auto *widget = qobject_cast<QWidget *>(watched);
+        if (widget && widget->isWindow() && widget->windowType() == Qt::Popup)
+            hideImmediately();
+    }
+    return QFrame::eventFilter(watched, event);
 }
 
 void ToolTip::afterSetAnimationEnabled(bool enabled) {

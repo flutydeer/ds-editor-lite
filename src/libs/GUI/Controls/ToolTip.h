@@ -10,6 +10,7 @@ class QVBoxLayout;
 class QPropertyAnimation;
 class QGraphicsDropShadowEffect;
 class QScreen;
+class QHideEvent;
 
 class ToolTip : public QFrame, public IAnimatable {
     Q_OBJECT
@@ -44,6 +45,9 @@ public:
     [[nodiscard]] static int pointerClearance(const QScreen *screen = nullptr);
     void moveTo(const QPoint &screenPos);
     void hideWithAnimation();
+    // Drops the card without the fade-out. A fading card is still a topmost
+    // window and would keep covering a popup that has just opened.
+    void hideImmediately();
 
 signals:
     void hideAnimationFinished();
@@ -51,6 +55,8 @@ signals:
 protected:
     void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
+    void hideEvent(QHideEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     QString m_title;
     QString m_shortcutKey;
@@ -64,6 +70,7 @@ protected:
     QPropertyAnimation *m_opacityAnimation;
     QGraphicsDropShadowEffect *m_shadowEffect;
     bool m_animationEnabled = true;
+    bool m_watchingPopups = false;
 
     void updateMessage();
     void showAt(const QPoint &screenPos, const QScreen *screen);

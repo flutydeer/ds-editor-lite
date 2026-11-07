@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QLayout>
 #include <QScreen>
+#include <QWidget>
 #include <QtTest/QTest>
 
 namespace {
@@ -97,4 +98,32 @@ void GuiComponentTests::tooltipPointerAnchorsFollowContentAndVisibility() {
     card = visibleCard(toolTip);
     QVERIFY(closeEnough(card.center().x(), pointer.x()));
     QVERIFY(closeEnough(pointer.y() - card.bottom(), clearance));
+}
+
+void GuiComponentTests::tooltipYieldsToPopups() {
+    const auto *screen = QApplication::primaryScreen();
+    if (!screen)
+        QSKIP("Popup interaction requires a screen");
+    const QRect anchor(screen->availableGeometry().center() - QPoint(20, 10), QSize(40, 20));
+    ToolTip toolTip(QStringLiteral("card"));
+    toolTip.setAttribute(Qt::WA_DontShowOnScreen);
+    toolTip.setAnimationEnabled(false);
+
+    {
+        // A card is already up when a nested popup opens. The card is a topmost
+        // window on Windows, so it must get out of the way before the popup shows.
+        toolTip.showAbove(anchor);
+        QVERIFY(toolTip.isVisible());
+        QWidget popup(nullptr, Qt::Popup);
+        popup.show();
+        QVERIFY(popup.isVisible());
+        QVERIFY(!toolTip.isVisible());
+    }
+
+    // The hover delay fires while a popup is open: no card may be raised over it.
+    QWidget popup(nullptr, Qt::Popup);
+    popup.show();
+    QVERIFY(QApplication::activePopupWidget());
+    toolTip.showAbove(anchor);
+    QVERIFY(!toolTip.isVisible());
 }
