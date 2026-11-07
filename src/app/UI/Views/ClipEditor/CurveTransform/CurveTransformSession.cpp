@@ -486,8 +486,14 @@ namespace CurveTransform {
             const auto baseline = m_config.pitchBaselineAtTick
                                       ? m_config.pitchBaselineAtTick(tick).value_or(source)
                                       : source;
-            const auto value = std::clamp(baseline + lambda * (source - baseline), 0.0, 12700.0);
-            return qRound(value);
+            const auto minimum = m_config.properties
+                                     ? static_cast<double>(m_config.properties->minimum)
+                                     : 0.0;
+            const auto maximum =
+                m_config.properties
+                    ? static_cast<double>(m_config.properties->maximum)
+                    : static_cast<double>(ParamProperties::NormalizedMaximum);
+            return qRound(std::clamp(baseline + lambda * (source - baseline), minimum, maximum));
         }
 
         if (!m_config.properties)
