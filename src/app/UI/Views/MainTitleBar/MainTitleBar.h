@@ -32,6 +32,9 @@ public:
     [[nodiscard]] QList<DividerLine *> dividers() const;
 
     [[nodiscard]] MainMenuView *menuView() const;
+    // Empty unless the plan reserves the leading slot for the native macOS
+    // traffic lights. Hand it to QWindowKit's setSystemButtonArea().
+    [[nodiscard]] QWidget *trafficLightArea() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
     [[nodiscard]] PlaybackView *playbackView() const;
     [[nodiscard]] SystemWindowButton *minimizeButton() const;
@@ -68,6 +71,7 @@ private:
 
     QWidget *m_window;
     MainMenuView *m_menuView;
+    QWidget *m_trafficLightArea = nullptr;
     ActionButtonsView *m_actionButtonsView;
     PlaybackView *m_playbackView;
     SystemWindowButton *m_btnMin = nullptr;

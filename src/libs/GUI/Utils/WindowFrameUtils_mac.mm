@@ -43,4 +43,22 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
                                                             : NSAppearanceNameAqua)];
 }
 
+void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
+    if (!widget || QGuiApplication::platformName() != QStringLiteral("cocoa"))
+        return;
+
+    auto view = reinterpret_cast<NSView *>(widget->winId());
+    auto window = [view window];
+    if (!window)
+        return;
+
+    // QWindowKit does the same from its own winId hook, but that hook only fires
+    // once and gives up when the NSView is not attached to a window yet. Doing
+    // it again here is cheap and idempotent, and it is what actually lets a
+    // custom title bar reclaim the native title bar row.
+    window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+    window.titlebarAppearsTransparent = YES;
+    window.titleVisibility = NSWindowTitleHidden;
+}
+
 #endif

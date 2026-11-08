@@ -42,6 +42,25 @@ macOS 由平台持有菜单栏。`QMenuBarPrivate::init()` 一旦拿到 `platfor
 
 `isNativeMenuBar()` 覆盖所有由平台持有菜单栏的环境，包括 macOS 与使用 dbusmenu 的 Ubuntu Unity。开发者选项 `hideMainMenuInWindow` 把同一份计划扩展到 Windows/Linux，用于在没有 macOS 机器时预览那套外观。
 
+## macOS 无边框：红绿灯进标题栏
+
+macOS 开无边框时曾出现两个症状：红绿灯另起一行占掉整条原生标题栏，右侧却画着 Windows 风格的三个按钮。
+
+红绿灯那一行来自 QWindowKit 的一次性动作。`NSWindowProxy::setSystemTitleBarVisible(false)` 负责把窗口切成 full-size content（`NSWindowStyleMaskFullSizeContentView`、透明标题栏、隐藏标题），而它只在 `CocoaWindowContext::winIdChanged()` 和 NSView 的 `window` 属性 KVO 回调里各跑一次，函数开头 `[nsview window]` 为空就直接返回。错过这一次，窗口就永远停在原生标题栏状态。
+
+Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只看 `useNativeFrame`，macOS 无边框也满足条件，于是自绘了三键。QWindowKit 官方示例明确用 `#ifndef Q_OS_MAC` 把自绘系统按钮排除掉，macOS 只调 `setSystemButtonArea*`。
+
+现在的规则：
+
+- 计划里 `trafficLightArea` 与 `systemButtons` 互斥。macOS 无边框只置 `trafficLightArea`，`leftMargin` 随之取 0，让红绿灯贴住窗口左边。
+- 标题栏左端放一个 74 像素宽、不绘制、不参与 hit-test 的空 widget。它只提供几何，交给 `WidgetWindowAgent::setSystemButtonArea()`，QWK 会把三个标准按钮居中到该矩形内，并在窗口缩放、退出全屏动画后自行重算。不参与 hit-test 意味着这块区域仍然可以拖动窗口。
+- `setSystemButtonArea()` 必须在 `setTitleBar()` 之后调用，后者在 macOS 上会把区域清空。
+- 窗口 `Show` 时再调一次 `WindowFrameUtils::mergeTitleBarIntoContent()`，幂等地把 full-size content 补上。QWK 那一次能生效时这等于空操作。
+
+对话框走同一套：`DialogTitleBar` 的 `trafficLightArea` 参数打开时只留红绿灯槽位，不再创建自绘关闭按钮。
+
+`TabPanelTitleBar`（底部面板独立成窗）仍是旧路径，独立窗口上还会看到原生标题栏与自绘三键，属于后续待办。
+
 ## 与自适应溢出的关系
 
 计划里的 `inWindowMenu` 同时下发给 `MainMenuView::setInWindowMenu()`。原生菜单栏下自适应溢出整体不成立：`removeAction()` 会经过 `QMenuBar::actionEvent` 走到 `QPlatformMenuBar::removeMenu()`，把菜单从系统菜单栏里摘掉，窗口里省不下任何宽度，系统顶栏反而少几个菜单。该状态下的划分恒为"全部内联"，`sizeHint()` 退回 `QMenuBar` 自身的空提示。详见 `adaptive-main-menu-bar.md`。
@@ -50,7 +69,7 @@ macOS 由平台持有菜单栏。`QMenuBarPrivate::init()` 一旦拿到 `platfor
 
 `TestApplicationGui` 的 `tst_title_bar_layout.cpp` 覆盖以下内容。
 
-- 三组 `forChrome()` 组合的字段与间距契约。
+- 三组 `forChrome()` 组合的字段与间距契约：Windows 无边框、macOS 无边框、两种原生边框。
 - 有菜单段时两条分隔线，且首段是菜单控件。
 - 摘掉菜单段后只剩一条分隔线，首段是项目名下拉，下拉左侧没有任何分隔线。
 - 切回原计划后分段与分隔线数量完全复现。

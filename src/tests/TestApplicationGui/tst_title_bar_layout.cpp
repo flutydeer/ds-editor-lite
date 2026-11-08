@@ -29,27 +29,43 @@ namespace {
 } // namespace
 
 void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
-    // Frameless window: the app icon inset and the custom system buttons both
+    // Windows frameless: the app icon inset and the custom system buttons both
     // belong to the chrome, and the menu bar is drawn in the title bar.
-    const auto frameless = TitleBarLayoutPlan::forChrome(false, true);
+    const auto frameless = TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, false, true);
     QVERIFY(frameless.appIconInset);
     QVERIFY(frameless.inWindowMenu);
     QVERIFY(frameless.systemButtons);
+    QVERIFY(!frameless.trafficLightArea);
     QVERIFY(frameless.projectSelector);
     QVERIFY(frameless.documentActions);
     QVERIFY(frameless.playback);
 
-    // Native frame with a platform menu bar: no leading inset, no system
-    // buttons, and the menu section is gone.
-    const auto nativeFrame = TitleBarLayoutPlan::forChrome(true, false);
+    // macOS frameless: the platform keeps its traffic lights, so the leading
+    // slot is theirs and no Windows-style button may be drawn next to them.
+    const auto macFrameless = TitleBarLayoutPlan::forChrome(ChromePlatform::MacOS, false, false);
+    QVERIFY(!macFrameless.appIconInset);
+    QVERIFY(!macFrameless.systemButtons);
+    QVERIFY(macFrameless.trafficLightArea);
+    QVERIFY(!macFrameless.inWindowMenu);
+    // The lights sit against the window edge, so the title bar starts flush.
+    QCOMPARE(macFrameless.leftMargin, 0);
+
+    // Native frame on either platform: no leading slot, no custom buttons.
+    const auto nativeFrame = TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, true, false);
     QVERIFY(!nativeFrame.appIconInset);
     QVERIFY(!nativeFrame.inWindowMenu);
     QVERIFY(!nativeFrame.systemButtons);
+    QVERIFY(!nativeFrame.trafficLightArea);
 
-    // Only the sections differ. The spacing contract stays platform independent.
-    QCOMPARE(frameless.leftMargin, nativeFrame.leftMargin);
+    const auto macNativeFrame = TitleBarLayoutPlan::forChrome(ChromePlatform::MacOS, true, false);
+    QVERIFY(!macNativeFrame.appIconInset);
+    QVERIFY(!macNativeFrame.systemButtons);
+    QVERIFY(!macNativeFrame.trafficLightArea);
+    QCOMPARE(macNativeFrame, nativeFrame);
+
+    QVERIFY(frameless != macFrameless);
     QVERIFY(frameless != nativeFrame);
-    QVERIFY(TitleBarLayoutPlan::forChrome(true, true) != nativeFrame);
+    QVERIFY(TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, true, true) != nativeFrame);
 }
 
 void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow() {
@@ -67,6 +83,8 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
     // The fixture keeps the menu bar in the window: the leading cluster is
     // menu | combo | actions, separated by two dividers.
     QVERIFY(titleBar->layoutPlan().inWindowMenu);
+    if (TitleBarLayoutPlan::currentPlatform() != ChromePlatform::MacOS)
+        QVERIFY(!titleBar->trafficLightArea());
     QCOMPARE(titleBar->dividers().size(), 2);
     for (const auto *divider : titleBar->dividers())
         QVERIFY(!divider->isHidden());

@@ -26,6 +26,10 @@
 namespace {
     constexpr int kLeadingInset = 32;
     constexpr int kTrailingGap = 6;
+    // Wide enough for the three traffic lights and their system spacing, which
+    // QWindowKit centres inside the area widget.
+    constexpr int kTrafficLightAreaWidth = 74;
+    constexpr int kTitleBarHeight = 40;
 } // namespace
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
@@ -34,6 +38,15 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
     setAttribute(Qt::WA_StyledBackground);
 
     m_playbackView = new PlaybackView(this);
+
+    if (m_layoutPlan.trafficLightArea) {
+        // Painted by nothing on purpose: this widget only tells QWindowKit where
+        // the native traffic lights belong. It is not hit-test visible either,
+        // so dragging the window still works from the lights.
+        m_trafficLightArea = new QWidget(this);
+        m_trafficLightArea->setFixedWidth(kTrafficLightAreaWidth);
+        m_trafficLightArea->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    }
 
     m_actionButtonsView = new ActionButtonsView(this);
     connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, m_menuView->actionSave(),
@@ -86,7 +99,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
     m_menuView->setInWindowMenu(m_layoutPlan.inWindowMenu);
     buildSections();
 
-    setFixedHeight(40);
+    setFixedHeight(kTitleBarHeight);
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
     m_animation = new QVariantAnimation(this);
@@ -138,7 +151,9 @@ void MainTitleBar::buildSections() {
     if (!mainLayout)
         return;
 
-    if (m_layoutPlan.appIconInset)
+    if (m_layoutPlan.trafficLightArea && m_trafficLightArea)
+        mainLayout->addWidget(m_trafficLightArea);
+    else if (m_layoutPlan.appIconInset)
         mainLayout->addSpacerItem(new QSpacerItem(kLeadingInset, 20, QSizePolicy::Fixed));
 
     // The leading cluster is separated by dividers. A divider only exists when
@@ -210,6 +225,10 @@ void MainTitleBar::rebuildSystemButtonIcons() {
 
 MainMenuView *MainTitleBar::menuView() const {
     return m_menuView;
+}
+
+QWidget *MainTitleBar::trafficLightArea() const {
+    return m_trafficLightArea;
 }
 
 ActionButtonsView *MainTitleBar::actionButtonsView() const {

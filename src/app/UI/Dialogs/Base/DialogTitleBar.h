@@ -14,9 +14,13 @@ class DialogTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
 
 public:
-    explicit DialogTitleBar(QWidget *parent = nullptr);
+    // trafficLightArea reserves the leading slot for the native macOS traffic
+    // lights and drops the custom close button: the platform already draws one
+    // there, and a second Windows-style glyph was never right on macOS.
+    explicit DialogTitleBar(QWidget *parent = nullptr, bool trafficLightArea = false);
 
     [[nodiscard]] SystemWindowButton *closeButton() const;
+    [[nodiscard]] QWidget *trafficLightArea() const;
 
     // Returns the close button covering the window-level position pos, with
     // the button hit area extended to the window's right edge. Same rationale
@@ -41,6 +45,7 @@ private:
 
     QWidget *m_window;
     QLabel *m_lbTitle = nullptr;
+    QWidget *m_trafficLightArea = nullptr;
     SystemWindowButton *m_btnClose = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;

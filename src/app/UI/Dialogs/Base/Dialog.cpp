@@ -99,14 +99,26 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
 
     auto useNativeFrame = appOptions->appearance()->useNativeFrame;
     if (!useNativeFrame) {
-        m_dialogTitleBar = new DialogTitleBar(this);
+#ifdef Q_OS_MAC
+        // macOS keeps its traffic lights, so the title bar only has to give them
+        // a slot; drawing a Windows-style close button next to them duplicated
+        // what the platform already does.
+        constexpr bool trafficLightArea = true;
+#else
+        constexpr bool trafficLightArea = false;
+#endif
+        m_dialogTitleBar = new DialogTitleBar(this, trafficLightArea);
         m_mainLayout->insertWidget(0, m_dialogTitleBar);
 
         m_agent = new QWK::WidgetWindowAgent(this);
         m_agent->setup(this);
         m_agent->setTitleBar(m_dialogTitleBar);
+#ifdef Q_OS_MAC
+        m_agent->setSystemButtonArea(m_dialogTitleBar->trafficLightArea());
+#else
         m_agent->setSystemButton(QWK::WindowAgentBase::Close, m_dialogTitleBar->closeButton());
         connect(m_dialogTitleBar, &DialogTitleBar::closeTriggered, this, &QDialog::reject);
+#endif
     }
 
     ThemeManager::instance()->addWindow(this);
@@ -124,6 +136,10 @@ bool Dialog::event(QEvent *event) {
     if (event->type() == QEvent::WinIdChange) {
         if (auto *window = windowHandle())
             window->installEventFilter(this);
+    } else if (event->type() == QEvent::Show && m_dialogTitleBar) {
+        // Same reclaim as the main window: the custom title bar takes over the
+        // native title bar row, and the traffic lights move into their slot.
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
     }
     return QDialog::event(event);
 }

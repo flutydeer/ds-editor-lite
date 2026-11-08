@@ -77,23 +77,32 @@ MainWindow::MainWindow() {
         auto agent = new QWK::WidgetWindowAgent(this);
         agent->setup(this);
         agent->setTitleBar(m_titleBar);
-        agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
-        agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
-        agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+        // Custom buttons exist only on platforms that have no native ones left.
+        if (m_titleBar->minimizeButton()) {
+            agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
+            agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
+            agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+
+            connect(m_titleBar, &MainTitleBar::minimizeTriggered, this,
+                    &MainMenuView::showMinimized);
+            connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [this](bool max) {
+                if (max)
+                    showMaximized();
+                else
+                    showNormal();
+                emulateLeaveEvent(m_titleBar->maximizeButton());
+            });
+            connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+        }
+#ifdef Q_OS_MAC
+        // macOS keeps its traffic lights and only repositions them. The area has
+        // to be set after setTitleBar(), which clears it on macOS.
+        agent->setSystemButtonArea(m_titleBar->trafficLightArea());
+#endif
         agent->setHitTestVisible(m_titleBar->menuView());
         agent->setHitTestVisible(m_titleBar->actionButtonsView());
         agent->setHitTestVisible(m_titleBar->playbackView());
         agent->setHitTestVisible(m_titleBar->titleComboBox());
-
-        connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
-        connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
-            if (max)
-                showMaximized();
-            else
-                showNormal();
-            emulateLeaveEvent(m_titleBar->maximizeButton());
-        });
-        connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
     }
 
     // Connect file popup actions
@@ -275,7 +284,8 @@ TitleBarLayoutPlan MainWindow::titleBarLayoutPlan() const {
     // keep the menu bar in the window, so the macOS chrome can be previewed.
     const auto menuInWindow =
         !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
-    return TitleBarLayoutPlan::forChrome(m_useNativeFrame, menuInWindow);
+    return TitleBarLayoutPlan::forChrome(TitleBarLayoutPlan::currentPlatform(), m_useNativeFrame,
+                                         menuInWindow);
 }
 
 void MainWindow::updateWindowTitle() {
@@ -297,6 +307,11 @@ bool MainWindow::event(QEvent *event) {
     if (event->type() == QEvent::WinIdChange) {
         if (auto *window = windowHandle())
             window->installEventFilter(this);
+    } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
+        // The custom title bar reclaims the native title bar row. QWindowKit
+        // tries the same from its own hook, but that one gives up when the
+        // NSView has no NSWindow yet, so repeat it once the window is up.
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
     }
     return QMainWindow::event(event);
 }
