@@ -17,6 +17,7 @@ if(APPLE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
 endif()
-# Each detach case now builds a second full title bar (menu + transport), so
-# the native desktop suite needs more headroom than the default 60s.
-lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 90)
+# Each detach case now builds a second full title bar (menu + transport). Give
+# the suite the same headroom as the other GUI suites: slow CI runners have
+# measured close to twice the local runtime.
+lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 180)
