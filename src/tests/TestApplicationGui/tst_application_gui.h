@@ -188,6 +188,7 @@ private slots:
     void detachedBottomPanelReattachesWithItsEditingContext();
     void detachedPanelUsesReducedMainTitleBar();
     void detachedPanelWindowIsRegisteredForFrameEffects();
+    void detachButtonUsesRegularFluentIcon();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();

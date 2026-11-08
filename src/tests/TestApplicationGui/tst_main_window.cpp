@@ -67,6 +67,7 @@
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QDialogButtonBox>
@@ -2341,6 +2342,18 @@ void ApplicationGuiTests::detachedPanelWindowIsRegisteredForFrameEffects() {
     QTRY_VERIFY(detached->property("transparentWindow").isValid());
     QCOMPARE(detached->property("transparentWindow").toBool(), false);
     QCOMPARE(detached->styleSheet(), ThemeManager::instance()->styleSheet());
+}
+
+void ApplicationGuiTests::detachButtonUsesRegularFluentIcon() {
+    QVERIFY(QFile::exists(QStringLiteral(":svg/icons/panel_separate_window_20_regular.svg")));
+    QVERIFY(!QFile::exists(QStringLiteral(":svg/icons/panel_separate_window_20_filled.svg")));
+
+    TestSupport::MainWindowFixture host;
+    auto *bottom = host.window->findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detach);
+    QVERIFY(!detach->icon().isNull());
 }
 
 void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {

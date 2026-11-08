@@ -163,7 +163,7 @@ void TabPanelTitleBar::rebuildIcons() {
 
     if (m_btnDetach)
         m_btnDetach->setIcon(IconUtils::createTintedSvgIcon(
-            ":svg/icons/panel_separate_window_20_filled.svg", iconSize, actionPalette));
+            ":svg/icons/panel_separate_window_20_regular.svg", iconSize, actionPalette));
     if (m_btnMaximize)
         m_btnMaximize->setIcon(IconUtils::createTintedSvgIcon(
             ":svg/icons/panel_maximize_24_filled.svg", iconSize, togglePalette));
