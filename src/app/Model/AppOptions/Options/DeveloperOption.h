@@ -20,6 +20,9 @@ public:
     LITE_OPTION_ITEM(bool, logTouchEvents, false)
     LITE_OPTION_ITEM(bool, enablePanelDetach, false)
     LITE_OPTION_ITEM(bool, enableEmbeddedOptionsDialog, false)
+    // Hides the in-window main menu bar so the title bar chrome of a platform
+    // that owns the menu bar (macOS) can be inspected everywhere.
+    LITE_OPTION_ITEM(bool, hideMainMenuInWindow, false)
 
 public:
     EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;

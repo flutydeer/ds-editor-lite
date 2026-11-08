@@ -136,6 +136,7 @@ namespace Automation {
                 .logTouchEvents = value->logTouchEvents,
                 .enablePanelDetach = value->enablePanelDetach,
                 .enableEmbeddedOptionsDialog = value->enableEmbeddedOptionsDialog,
+                .hideMainMenuInWindow = value->hideMainMenuInWindow,
                 .editorRenderBackend = value->editorRenderBackend ==
                                                DeveloperOption::EditorRenderBackend::RhiExperimental
                                            ? EditorRenderBackend::RhiExperimental
@@ -152,6 +153,7 @@ namespace Automation {
             target->logTouchEvents = value.logTouchEvents;
             target->enablePanelDetach = value.enablePanelDetach;
             target->enableEmbeddedOptionsDialog = value.enableEmbeddedOptionsDialog;
+            target->hideMainMenuInWindow = value.hideMainMenuInWindow;
             target->editorRenderBackend =
                 value.editorRenderBackend == EditorRenderBackend::RhiExperimental
                     ? DeveloperOption::EditorRenderBackend::RhiExperimental

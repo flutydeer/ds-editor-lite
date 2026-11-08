@@ -30,6 +30,14 @@ Qt 内建的 `QMenuBarExtension` 会把放不下的 `menuAction` 平铺进一个
 
 三点图标来自 `more_horizontal_24_regular.svg`，用主题属性 `iconColor` 与 `iconDisabledColor` 着色。`rebuildIcons()` 会一并刷新它，`retranslateUi()` 刷新 `&More Menus` 文案和提示文字。实现不使用 `QProxyStyle`，不查找私有 objectName，不拦截快捷键事件，也不事后 `move()` 按钮。
 
+## 原生菜单栏与隐藏预览
+
+平台持有菜单栏时（macOS 的系统菜单栏、使用 dbusmenu 的 Ubuntu Unity），`QMenuBar` 会在 `QMenuBarPrivate::init()` 里自我隐藏，自适应溢出整体不成立。`removeAction()` 经过 `QMenuBar::actionEvent` 走到 `QPlatformMenuBar::removeMenu()`，把菜单从系统菜单栏里摘掉，而窗口内没有任何东西变窄。
+
+`MainMenuView::setInWindowMenu(false)` 表达这个状态：溢出划分恒为全部内联，`sizeHint()` 与 `minimumSizeHint()` 退回 `QMenuBar` 自身的提示，标题栏不再按内联宽度给菜单段留位置。原生环境由 `isNativeMenuBar()` 触发，开发者选项 `hideMainMenuInWindow` 把同一状态扩展到其它平台，用于预览 macOS 外观。标题栏那一侧的分段规则见 `main-title-bar-sections.md`。
+
+划分结果未变化时 `updateOverflow()` 直接返回。此前每轮 `ActionChanged` 都会清空并重建两边的 action 列表，撤销名变化就会触发一次，在原生菜单栏下等于每次都向系统菜单栏 `removeMenu` / `insertMenu` 一遍。
+
 ## 键盘行为与边界
 
 三点 action 保留 `&More Menus`，Alt+M 由 `QMenuBar` 的常规助记键处理，弹层里可以继续用键盘选子菜单。被收起的顶层菜单离开菜单栏后，它们各自的 Alt 字母键不再由菜单栏响应。这是与全部内联状态的行为差异，不是缺陷，也不需要为隐藏 action 做越界 `actionRect` 的弹层补偿。
@@ -46,3 +54,5 @@ Qt 内建的 `QMenuBarExtension` 会把放不下的 `menuAction` 平铺进一个
 - 用 `QProxyStyle` 把项间距和水平边距置 0、面板宽度置 2，模拟 Windows 原生样式的 metric，断言 `sizeHint()` 宽度下四个菜单全部内联且不触发 Qt 私有扩展，缩窄后仍按后缀顺序收起。
 
 设置 `LITE_MENU_SCREENSHOT_DIR` 可导出完整与溢出两种状态的离屏对比图。离屏测试只验证几何与划分，Windows 原生平台还需人工缩窄窗口，确认按钮垂直对齐、弹层焦点交接、Alt+M 与主题图标着色，不能把离屏成功等同于桌面交互成功。
+
+`tst_title_bar_layout.cpp` 覆盖标题栏分段与原生菜单栏下的划分守卫，两者共同保证"菜单离开窗口后既不留孤立分隔线，也不丢系统菜单"。详见 `main-title-bar-sections.md`。

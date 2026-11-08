@@ -30,6 +30,7 @@ private:
     SwitchButton *m_swLogTouchEvents;
     SwitchButton *m_swEnablePanelDetach;
     SwitchButton *m_swEnableEmbeddedOptionsDialog;
+    SwitchButton *m_swHideMainMenuInWindow;
     ComboBox *m_cbxEditorRenderBackend;
 };
 

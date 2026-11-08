@@ -92,6 +92,12 @@ public:
     QPointer<Menu> m_overflowMenu;
     QList<QPointer<QAction>> m_topLevelMenus;
     bool m_updatingOverflow = false;
+    // The menu bar renders its actions inside the window; see
+    // MainMenuView::setInWindowMenu.
+    bool m_inWindowMenu = true;
+    // Number of top-level menus currently inline on the menu bar. -1 forces the
+    // first update to rebuild both action lists.
+    int m_keepCount = -1;
 
     void initOverflowUi();
     void refreshOverflowIcon();

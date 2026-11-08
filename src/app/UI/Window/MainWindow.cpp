@@ -71,7 +71,7 @@ MainWindow::MainWindow() {
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
     auto useNativeFrame = m_useNativeFrame;
     m_mainMenu = new MainMenuView(this);
-    m_titleBar = new MainTitleBar(m_mainMenu, this, useNativeFrame);
+    m_titleBar = new MainTitleBar(m_mainMenu, this, titleBarLayoutPlan());
 
     if (!useNativeFrame) {
         auto agent = new QWK::WidgetWindowAgent(this);
@@ -160,6 +160,8 @@ MainWindow::MainWindow() {
                     updatePanelDetachEnabled();
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updateLogWindowVisible();
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                    m_titleBar->setLayoutPlan(titleBarLayoutPlan());
             });
     updateDiagnosticFilter();
     updateLogWindowVisible();
@@ -265,6 +267,15 @@ void MainWindow::updatePanelDetachEnabled() {
     if (!enabled && m_bottomPanelDetached)
         attachBottomPanel();
     m_bottomPanelView->titleBar()->setDetachButtonVisible(enabled);
+}
+
+TitleBarLayoutPlan MainWindow::titleBarLayoutPlan() const {
+    // isNativeMenuBar() reflects the platform (macOS global menu bar, Unity's
+    // dbusmenu). The developer switch extends the same plan to platforms that
+    // keep the menu bar in the window, so the macOS chrome can be previewed.
+    const auto menuInWindow =
+        !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
+    return TitleBarLayoutPlan::forChrome(m_useNativeFrame, menuInWindow);
 }
 
 void MainWindow::updateWindowTitle() {

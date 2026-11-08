@@ -72,6 +72,7 @@ namespace Automation {
         bool logTouchEvents = false;
         bool enablePanelDetach = false;
         bool enableEmbeddedOptionsDialog = false;
+        bool hideMainMenuInWindow = false;
         EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;
 
         friend bool operator==(const DeveloperSettingsDto &,

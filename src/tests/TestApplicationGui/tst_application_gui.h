@@ -168,6 +168,9 @@ private slots:
     void mainMenuOverflowRestoresWithoutHysteresis();
     void mainMenuOverflowRecalculatesAfterTitleChange();
     void mainMenuFitsAtSizeHintWithNativeMetrics();
+    void titleBarLayoutPlanFollowsPlatformChrome();
+    void titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow();
+    void hiddenMenuBarKeepsEveryTopLevelMenuInline();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();

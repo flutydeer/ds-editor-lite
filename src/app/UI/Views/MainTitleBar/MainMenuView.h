@@ -35,6 +35,14 @@ public:
     [[nodiscard]] QList<QAction *> overflowedMenuActions() const;
     [[nodiscard]] bool isOverflowing() const;
 
+    // Whether this menu bar renders its actions inside the window. False when
+    // the platform owns the menu bar (macOS global menu bar, Unity's dbusmenu)
+    // or when the title bar hides it. The adaptive overflow split only applies
+    // to an in-window menu bar: collapsing detaches the menu actions, and the
+    // platform menu bar drops them on ActionRemoved.
+    [[nodiscard]] bool isInWindowMenu() const;
+    void setInWindowMenu(bool inWindow);
+
     // Both hints are derived from the full menu set, never from the current
     // split, so resizing cannot feed back into the enclosing title bar layout.
     [[nodiscard]] QSize sizeHint() const override;

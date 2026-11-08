@@ -23,23 +23,25 @@
 #define ChromeRestore  QStringLiteral(u"\ue923")
 #define ChromeClose    QStringLiteral(u"\ue8bb")
 
-MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
-    : QWidget(parent), m_window(parent), m_menuView(menuView) {
+namespace {
+    constexpr int kLeadingInset = 32;
+    constexpr int kTrailingGap = 6;
+} // namespace
+
+MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
+                           const TitleBarLayoutPlan &plan)
+    : QWidget(parent), m_window(parent), m_menuView(menuView), m_layoutPlan(plan) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_playbackView = new PlaybackView(this);
 
-    auto menuBarContainer = new QHBoxLayout;
-    menuBarContainer->addWidget(menuView);
-    menuBarContainer->setContentsMargins({});
-
     m_actionButtonsView = new ActionButtonsView(this);
-    connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, menuView->actionSave(),
+    connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, m_menuView->actionSave(),
             &QAction::trigger);
 
     m_titleComboBox = new TitleBarComboBox;
 
-    if (!useNativeFrame) {
+    if (m_layoutPlan.systemButtons) {
         int systemButtonWidth = 48;
 
         m_btnMin = new SystemWindowButton;
@@ -72,36 +74,18 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
             rebuildSystemButtonIcons();
         }
 
-
         connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
         connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
         connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
     }
 
-    auto mainLayout = new QHBoxLayout;
-    if (!useNativeFrame) {
-        // TODO: app icon
-        mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
-    }
-    mainLayout->addLayout(menuBarContainer);
-    auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
-    mainLayout->addWidget(dividerBeforeTitle);
-    mainLayout->addWidget(m_titleComboBox);
-    auto dividerBeforeTools = new DividerLine(Qt::Vertical);
-    mainLayout->addWidget(dividerBeforeTools);
-    mainLayout->addWidget(m_actionButtonsView);
-    mainLayout->addStretch();
-    mainLayout->addWidget(m_playbackView);
-    mainLayout->addSpacing(6);
-    if (!useNativeFrame) {
-        mainLayout->addWidget(m_btnMin);
-        mainLayout->addWidget(m_btnMax);
-        mainLayout->addWidget(m_btnClose);
-    }
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(6, 0, 0, 0);
+    setLayout(new QHBoxLayout);
+    // The menu bar section owns its own visibility: a native platform menu bar
+    // is already hidden by Qt, and a hidden preview must not leave the widget
+    // floating over the title bar at its default geometry.
+    m_menuView->setInWindowMenu(m_layoutPlan.inWindowMenu);
+    buildSections();
 
-    setLayout(mainLayout);
     setFixedHeight(40);
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
@@ -116,6 +100,81 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         if (!SystemUtils::isWindows())
             rebuildSystemButtonIcons();
     });
+}
+
+void MainTitleBar::setLayoutPlan(const TitleBarLayoutPlan &plan) {
+    if (plan == m_layoutPlan)
+        return;
+    m_layoutPlan = plan;
+    m_menuView->setInWindowMenu(m_layoutPlan.inWindowMenu);
+    clearSections();
+    buildSections();
+    updateGeometry();
+}
+
+const TitleBarLayoutPlan &MainTitleBar::layoutPlan() const {
+    return m_layoutPlan;
+}
+
+QList<DividerLine *> MainTitleBar::dividers() const {
+    return m_dividers;
+}
+
+void MainTitleBar::clearSections() {
+    auto *mainLayout = qobject_cast<QHBoxLayout *>(layout());
+    if (!mainLayout)
+        return;
+
+    // Deleting the layout item never deletes its widget, so the permanent
+    // sections survive; only the dividers and spacers are disposable.
+    while (auto *item = mainLayout->takeAt(0))
+        delete item;
+    qDeleteAll(m_dividers);
+    m_dividers.clear();
+}
+
+void MainTitleBar::buildSections() {
+    auto *mainLayout = qobject_cast<QHBoxLayout *>(layout());
+    if (!mainLayout)
+        return;
+
+    if (m_layoutPlan.appIconInset)
+        mainLayout->addSpacerItem(new QSpacerItem(kLeadingInset, 20, QSizePolicy::Fixed));
+
+    // The leading cluster is separated by dividers. A divider only exists when
+    // the section before it is present, so removing the menu bar (native macOS
+    // menu bar, hidden preview) can never leave a divider at the far left.
+    bool hasLeadingSection = false;
+    const auto addLeadingSection = [&](QWidget *section) {
+        if (hasLeadingSection) {
+            auto *divider = new DividerLine(Qt::Vertical);
+            m_dividers.append(divider);
+            mainLayout->addWidget(divider);
+        }
+        mainLayout->addWidget(section);
+        hasLeadingSection = true;
+    };
+
+    if (m_layoutPlan.inWindowMenu)
+        addLeadingSection(m_menuView);
+    if (m_layoutPlan.projectSelector)
+        addLeadingSection(m_titleComboBox);
+    if (m_layoutPlan.documentActions)
+        addLeadingSection(m_actionButtonsView);
+
+    // The trailing cluster keeps the flex space in the middle and never gets a
+    // divider: playback and the system buttons are not part of the leading run.
+    mainLayout->addStretch();
+    if (m_layoutPlan.playback)
+        mainLayout->addWidget(m_playbackView);
+    mainLayout->addSpacing(kTrailingGap);
+    if (m_layoutPlan.systemButtons && m_btnMin) {
+        mainLayout->addWidget(m_btnMin);
+        mainLayout->addWidget(m_btnMax);
+        mainLayout->addWidget(m_btnClose);
+    }
+    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins(m_layoutPlan.leftMargin, 0, 0, 0);
 }
 
 void MainTitleBar::rebuildSystemButtonIcons() {

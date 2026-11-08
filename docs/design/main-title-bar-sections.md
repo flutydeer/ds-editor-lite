@@ -1,0 +1,57 @@
+# 主标题栏的分段布局契约
+
+主标题栏 `MainTitleBar` 的内容按固定顺序排列：应用图标位、主菜单、项目名下拉、文档操作、弹性空间、播放控制、系统按钮。分隔线只出现在前导簇内相邻的两段之间，即菜单与项目名之间、项目名与文档操作之间。播放控制和系统按钮不参与前导簇，不带分隔线。
+
+## 问题
+
+macOS 由平台持有菜单栏。`QMenuBarPrivate::init()` 一旦拿到 `platformMenuBar` 就直接 `q->hide()`（`qtbase/src/widgets/widgets/qmenubar.cpp`），控件本身不再显示在窗口里。隐藏控件在 `QLayout` 里是 empty item，宽度按 0 计算，于是菜单段塌成 0 宽，原本插在"菜单"和"项目名"之间的分隔线成了标题栏的第一个可见元素，在窗口最左侧留下一条孤立的竖线。
+
+用 `#ifdef Q_OS_MAC` 单独跳过这条线能修掉这一个症状，但平台差异会继续散落在构造函数的 `if` 链里。任何一次"某段在某个环境不存在"的改动都会重现同一类残骸。
+
+## 布局计划
+
+`TitleBarLayoutPlan`（`src/app/UI/Views/MainTitleBar/TitleBarLayoutPlan.h`）是纯数据加纯工厂，字段描述有哪些段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `appIconInset` | 无边框窗口在左端留出应用图标/拖拽位 |
+| `inWindowMenu` | 菜单栏画在本窗口内 |
+| `projectSelector` | 项目名下拉 |
+| `documentActions` | 保存等文档操作按钮 |
+| `playback` | 播放控制 |
+| `systemButtons` | 自绘的最小化/最大化/关闭 |
+| `leftMargin` | 左内边距 |
+
+`forChrome(useNativeFrame, menuInWindow)` 是纯函数，测试可以在任意平台直接断言，不需要模拟 macOS。
+
+## 构建规则
+
+`buildSections()` 顺序遍历计划。前导簇用 `addLeadingSection()` 追加，规则是"已有段时才先插一条分隔线"。于是"标题栏最左侧不会出现分隔线"成为结构上的不变量，而不是某一处判断的结果。摘掉菜单段只需把 `inWindowMenu` 置为 false，分隔线自动随之消失。
+
+`inWindowMenu` 为 false 时菜单控件不进入布局，但仍以主窗口为父对象。原生菜单栏挂在 `parentWidget()` 的 `windowHandle()` 上，与布局无关，因此两者互不影响。
+
+## 运行时切换
+
+`setLayoutPlan()` 清空布局项、重建分段。清空只删除布局项与分隔线，widget 本身保留（`takeAt()` 返回的 `QLayoutItem` 析构不会析构 widget）。计划和当前一致时直接返回，避免无意义的 relayout。
+
+计划在 `MainWindow::titleBarLayoutPlan()` 里计算：
+
+```cpp
+!m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow
+```
+
+`isNativeMenuBar()` 覆盖所有由平台持有菜单栏的环境，包括 macOS 与使用 dbusmenu 的 Ubuntu Unity。开发者选项 `hideMainMenuInWindow` 把同一份计划扩展到 Windows/Linux，用于在没有 macOS 机器时预览那套外观。
+
+## 与自适应溢出的关系
+
+计划里的 `inWindowMenu` 同时下发给 `MainMenuView::setInWindowMenu()`。原生菜单栏下自适应溢出整体不成立：`removeAction()` 会经过 `QMenuBar::actionEvent` 走到 `QPlatformMenuBar::removeMenu()`，把菜单从系统菜单栏里摘掉，窗口里省不下任何宽度，系统顶栏反而少几个菜单。该状态下的划分恒为"全部内联"，`sizeHint()` 退回 `QMenuBar` 自身的空提示。详见 `adaptive-main-menu-bar.md`。
+
+## 回归入口
+
+`TestApplicationGui` 的 `tst_title_bar_layout.cpp` 覆盖以下内容。
+
+- 三组 `forChrome()` 组合的字段与间距契约。
+- 有菜单段时两条分隔线，且首段是菜单控件。
+- 摘掉菜单段后只剩一条分隔线，首段是项目名下拉，下拉左侧没有任何分隔线。
+- 切回原计划后分段与分隔线数量完全复现。
+- 菜单栏离开窗口后划分保持全部内联，`overflowedMenuActions()` 为空。

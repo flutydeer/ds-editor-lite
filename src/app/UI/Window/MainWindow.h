@@ -11,6 +11,7 @@
 #include "Interface/IEditorView.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "UI/Views/BottomPanelView.h"
+#include "UI/Views/MainTitleBar/TitleBarLayoutPlan.h"
 
 
 class QSplitter;
@@ -104,6 +105,10 @@ private:
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
     void updateShutdownBlockReason();
+    // Section plan for the main title bar. The menu bar section drops out when
+    // the platform owns the menu bar (macOS) or when the developer preview
+    // hides the in-window one.
+    [[nodiscard]] TitleBarLayoutPlan titleBarLayoutPlan() const;
 
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;

@@ -1,10 +1,13 @@
 #ifndef MAINTITLEBAR_H
 #define MAINTITLEBAR_H
 
+#include "TitleBarLayoutPlan.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 
+#include <QList>
 #include <QWidget>
 
+class QHBoxLayout;
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
 class TitleBarComboBox;
@@ -12,12 +15,21 @@ class ActionButtonsView;
 class PlaybackView;
 class SystemWindowButton;
 class MainMenuView;
+class DividerLine;
 
 class MainTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
 
 public:
-    explicit MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame);
+    explicit MainTitleBar(MainMenuView *menuView, QWidget *parent,
+                          const TitleBarLayoutPlan &plan);
+
+    // Rebuilds the section layout from plan. The menu bar section is the only
+    // part that can appear and disappear at runtime, so the plan is applied
+    // instead of being baked in at construction.
+    void setLayoutPlan(const TitleBarLayoutPlan &plan);
+    [[nodiscard]] const TitleBarLayoutPlan &layoutPlan() const;
+    [[nodiscard]] QList<DividerLine *> dividers() const;
 
     [[nodiscard]] MainMenuView *menuView() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
@@ -51,6 +63,9 @@ private:
     // Tint the system button icons from the current theme (non-Windows only)
     void rebuildSystemButtonIcons();
 
+    void buildSections();
+    void clearSections();
+
     QWidget *m_window;
     MainMenuView *m_menuView;
     ActionButtonsView *m_actionButtonsView;
@@ -59,6 +74,9 @@ private:
     SystemWindowButton *m_btnMax = nullptr;
     SystemWindowButton *m_btnClose = nullptr;
     TitleBarComboBox *m_titleComboBox = nullptr;
+    TitleBarLayoutPlan m_layoutPlan;
+    // Dividers are created by buildSections() and owned by this title bar.
+    QList<DividerLine *> m_dividers;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
     bool m_targetActive = true;
