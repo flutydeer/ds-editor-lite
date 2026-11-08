@@ -69,6 +69,18 @@ MainWindow::MainWindow() {
     setAcceptDrops(true);
 
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
+#ifdef Q_OS_MAC
+    if (!m_useNativeFrame) {
+        // Let Qt own the AppKit side of "content under the title bar". These two
+        // hints give the platform window a full-size content view and a
+        // transparent title bar at creation time, so the client geometry is
+        // right from the first layout. Flipping NSWindowStyleMaskFullSizeContentView
+        // afterwards does not help: Qt keeps the content rect it computed when
+        // the window was created, and a native title bar strip stays on top.
+        setWindowFlag(Qt::ExpandedClientAreaHint, true);
+        setWindowFlag(Qt::NoTitleBarBackgroundHint, true);
+    }
+#endif
     auto useNativeFrame = m_useNativeFrame;
     m_mainMenu = new MainMenuView(this);
     m_titleBar = new MainTitleBar(m_mainMenu, this, titleBarLayoutPlan());
