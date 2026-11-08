@@ -33,12 +33,18 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
 
     qInfo("Chrome capture armed: %s in %d ms", qPrintable(path), delay);
     QTimer::singleShot(delay, &window, [&window, path] {
-        if (!WindowFrameUtils::captureWindowChrome(&window, path)) {
-            qCritical("Chrome capture failed: %s", qPrintable(path));
-            QCoreApplication::exit(2);
-            return;
-        }
-        qInfo("Chrome capture written: %s", qPrintable(path));
-        QCoreApplication::quit();
+        // The merge attempts during startup can land before AppKit attaches the
+        // window to its view. By now the window is definitely on screen, so make
+        // sure the chrome is in its settled shape before the shutter.
+        WindowFrameUtils::mergeTitleBarIntoContent(&window);
+        QTimer::singleShot(400, &window, [&window, path] {
+            if (!WindowFrameUtils::captureWindowChrome(&window, path)) {
+                qCritical("Chrome capture failed: %s", qPrintable(path));
+                QCoreApplication::exit(2);
+                return;
+            }
+            qInfo("Chrome capture written: %s", qPrintable(path));
+            QCoreApplication::quit();
+        });
     });
 }

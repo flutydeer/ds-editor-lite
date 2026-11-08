@@ -50,16 +50,22 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
 
     auto view = reinterpret_cast<NSView *>(widget->winId());
     auto window = [view window];
-    if (!window)
+    if (!window) {
+        qInfo("Title bar merge deferred: the NSView has no NSWindow yet");
         return;
+    }
 
     // QWindowKit does the same from its own winId hook, but that hook only fires
     // once and gives up when the NSView is not attached to a window yet. Doing
     // it again here is cheap and idempotent, and it is what actually lets a
     // custom title bar reclaim the native title bar row.
+    const auto before = window.styleMask;
     window.styleMask |= NSWindowStyleMaskFullSizeContentView;
     window.titlebarAppearsTransparent = YES;
     window.titleVisibility = NSWindowTitleHidden;
+    qInfo("Title bar merge applied: styleMask 0x%lx -> 0x%lx, contentLayoutRect %.0fx%.0f",
+          static_cast<unsigned long>(before), static_cast<unsigned long>(window.styleMask),
+          window.contentLayoutRect.size.width, window.contentLayoutRect.size.height);
 }
 
 bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
