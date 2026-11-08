@@ -247,6 +247,8 @@ private slots:
     void adaptiveClipToolbarNameMigrationKeepsTargetAndUndo();
     void adaptiveClipToolbarOverflowKeepsTheNoteShortcut();
     void adaptiveClipToolbarKeepsSizesInTitleBarAndDetachedPanel();
+    void themeQssDoesNotWarnOnAudioBackends_data();
+    void themeQssDoesNotWarnOnAudioBackends();
     void cleanup();
     void cleanupTestCase();
 

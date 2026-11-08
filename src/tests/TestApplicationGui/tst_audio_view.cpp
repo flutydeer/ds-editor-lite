@@ -15,6 +15,7 @@
 #include "Global/ControllerGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 
+#include <lite/GUI/Theme/ThemeLoader.h>
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -24,13 +25,18 @@
 #include "../TestSupport/MainWindowFixture.h"
 #include "../TestSupport/WaveFixture.h"
 
+#include <QColor>
 #include <QCoreApplication>
 #include <QScrollBar>
+#include <QScopeGuard>
 #include <QSignalSpy>
+#include <QStyle>
 #include <QTemporaryDir>
+#include <QWidget>
 #include <QtTest/QTest>
 
 #include <cmath>
+#include <cstdio>
 #include <numbers>
 
 namespace {
@@ -388,4 +394,73 @@ void ApplicationGuiTests::audioViewKeepsItsLocalScrollWhenTheClipMoves() {
              qPrintable(QStringLiteral("rhi local tick %1, expected %2")
                             .arg(rhiView.startTick() - content.contentStartTick())
                             .arg(rhiLocalTick)));
+}
+
+namespace {
+    QStringList *s_propertyWarnings = nullptr;
+    QtMessageHandler s_previousMessageHandler = nullptr;
+
+    void collectPropertyWarnings(const QtMsgType type, const QMessageLogContext &context,
+                                 const QString &message) {
+        if (s_propertyWarnings && type == QtWarningMsg &&
+            (message.contains(QStringLiteral("does not have a property named")) ||
+             message.contains(QStringLiteral("cannot design property named"))))
+            s_propertyWarnings->append(message);
+        if (s_previousMessageHandler) {
+            s_previousMessageHandler(type, context, message);
+        } else {
+            const auto bytes = message.toLocal8Bit();
+            std::fprintf(stderr, "%s\n", bytes.constData());
+        }
+    }
+} // namespace
+
+// Qt checks every qproperty-* declaration against the widget meta object while
+// polishing. A selector shared by the two audio backends must therefore only
+// name properties both of them declare, or the log fills up on every startup.
+void ApplicationGuiTests::themeQssDoesNotWarnOnAudioBackends_data() {
+    QTest::addColumn<QString>("themeId");
+    QTest::newRow("dark") << QStringLiteral("lite-dark");
+    QTest::newRow("light") << QStringLiteral("lite-light");
+}
+
+void ApplicationGuiTests::themeQssDoesNotWarnOnAudioBackends() {
+    QFETCH(QString, themeId);
+
+    const auto theme = ThemeLoader::load(themeId);
+    QVERIFY2(theme.has_value(), qPrintable(ThemeLoader::lastError()));
+    QVERIFY(!theme->styleSheet.isEmpty());
+
+    QWidget host;
+    AudioViewGraphicsScene scene;
+    auto *legacyView = new AudioViewGraphicsView(&scene, &host);
+    auto *rhiView = new AudioViewRhiWidget(&host);
+    QVERIFY(legacyView);
+    QVERIFY(rhiView);
+
+    QStringList warnings;
+    s_propertyWarnings = &warnings;
+    s_previousMessageHandler = qInstallMessageHandler(&collectPropertyWarnings);
+    const auto restoreHandler = qScopeGuard([] {
+        qInstallMessageHandler(s_previousMessageHandler);
+        s_previousMessageHandler = nullptr;
+        s_propertyWarnings = nullptr;
+    });
+
+    host.setStyleSheet(theme->styleSheet);
+    // QStyleSheetStyle::polish() is where the property names are resolved, so
+    // drive it explicitly rather than relying on a show event.
+    for (auto *widget : {static_cast<QWidget *>(legacyView), static_cast<QWidget *>(rhiView)}) {
+        widget->style()->unpolish(widget);
+        widget->style()->polish(widget);
+    }
+
+    // Guard against a vacuous pass: prove that setProperties() really ran on
+    // both backends with the stylesheet we just installed.
+    const auto expectedLane =
+        theme->semanticColors.value(QStringLiteral("editor.canvasAlternate")).name(QColor::HexRgb);
+    QCOMPARE(legacyView->laneBackgroundColor().name(QColor::HexRgb), expectedLane);
+    QCOMPARE(rhiView->laneBackgroundColor().name(QColor::HexRgb), expectedLane);
+    QVERIFY2(warnings.isEmpty(), qPrintable(QStringLiteral("%1 produced qproperty warnings:\n%2")
+                                                .arg(themeId, warnings.join(QLatin1Char('\n')))));
 }

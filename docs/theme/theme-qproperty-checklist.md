@@ -9,7 +9,13 @@
 - 新主题必须覆盖下表中的**每一项**；
 - 主题切换测试应使用"深 → 浅 → 深"往返验证，而不是分别启动各主题；
 - 将来做多主题时建议加自动校验脚本，对比各主题声明的 qproperty 集合是否一致；
-- 新增 qproperty 时须同步更新本清单。
+- 新增 qproperty 时须同步更新本清单；
+- **组合选择器里的每个类都必须声明该属性**。Qt 在 `QStyleSheetStyle::polish()` 阶段对每条
+  `qproperty-*` 调用 `metaObject->indexOfProperty()`，找不到就打印
+  `does not have a property named ...` 警告，而且每次 polish 都会重复。后端独有的属性必须
+  另起单类规则，不能塞进共用的组合选择器。自动校验见
+  `GuiComponentTests::themeQssPropertiesResolveForAllTargets`（静态扫描全部主题 QSS 与 C++ 头文件）
+  和 `ApplicationGuiTests::themeQssDoesNotWarnOnAudioBackends`（两主题 × 两后端的运行时 polish 检查）。
 
 值列为 lite-dark 当前值，供新主题参考。标注（非颜色）的属性为尺寸/开关类，通常各主题取相同值，但同样必须显式写出。
 
@@ -276,6 +282,29 @@
 | positionLineColor | `${phoneme.positionLine}` |
 | noteBoundaryColor | `${phoneme.noteBoundary}` |
 | waveformColor | `${phoneme.waveform}` |
+
+### AudioViewGraphicsView 与 AudioViewRhiWidget 共用
+| 属性 | lite-dark 值 |
+|---|---|
+| laneBackgroundColor | `${editor.canvasAlternate}` |
+| laneSeparatorColor | `${border.subtle}` |
+| waveformCenterLineColor | `${piano.roll.octaveDivider}` |
+| clipRangeOverlayColor | `${piano.roll.overlay}` |
+| barLineColor | `${editor.grid.bar}` |
+| beatLineColor | `${editor.grid.beat}` |
+| commonLineColor | `${editor.grid.subdivision}` |
+| playPosIndicatorColor | `${editor.playhead}` |
+| lastPlayPosIndicatorColor | `${editor.lastPlayhead}` |
+
+### AudioViewRhiWidget 独有
+| 属性 | lite-dark 值 |
+|---|---|
+| emptyViewBackgroundColor | `${editor.canvasAlternate}` |
+
+`AudioViewGraphicsView` 是 `QGraphicsView`，空画布由 QSS 的 `background:` 绘制，没有
+`emptyViewBackgroundColor` 属性。RHI 后端自行清屏，才需要这个属性。两者历史上一度被写进
+同一条组合选择器，导致启动时反复出现属性缺失警告。共用块与后端独有块现在分开，
+新增后端独有属性时也必须分开写。
 
 ### ClipEditorToolBarView
 | 属性 | lite-dark 值 |

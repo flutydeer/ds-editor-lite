@@ -15,6 +15,7 @@ private slots:
     void invalidPlaceholders();
     void appearanceThemePreference();
     void bundledStyleSheets();
+    void themeQssPropertiesResolveForAllTargets();
     void externalThemeRoot_data();
     void externalThemeRoot();
     void bundledThemeLoadingAndFallback();
