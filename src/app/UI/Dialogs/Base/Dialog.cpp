@@ -116,6 +116,9 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
         m_agent->setTitleBar(m_dialogTitleBar);
 #ifdef Q_OS_MAC
         m_agent->setSystemButtonArea(m_dialogTitleBar->trafficLightArea());
+        // Same early merge as the main window: setup() already created the native
+        // window, and the mask has to be in place before the content is laid out.
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
 #else
         m_agent->setSystemButton(QWK::WindowAgentBase::Close, m_dialogTitleBar->closeButton());
         connect(m_dialogTitleBar, &DialogTitleBar::closeTriggered, this, &QDialog::reject);

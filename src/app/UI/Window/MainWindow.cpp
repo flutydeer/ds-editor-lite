@@ -98,6 +98,11 @@ MainWindow::MainWindow() {
         // macOS keeps its traffic lights and only repositions them. The area has
         // to be set after setTitleBar(), which clears it on macOS.
         agent->setSystemButtonArea(m_titleBar->trafficLightArea());
+        // agent->setup() already forced the native window into existence, so this
+        // lands before the content view is laid out. Flipping the mask after
+        // show() is too late: Qt keeps the geometry it computed at creation and
+        // the window keeps a native title bar strip above our row.
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
 #endif
         agent->setHitTestVisible(m_titleBar->menuView());
         agent->setHitTestVisible(m_titleBar->actionButtonsView());

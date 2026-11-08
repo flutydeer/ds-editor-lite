@@ -60,11 +60,13 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
     // it again here is cheap and idempotent, and it is what actually lets a
     // custom title bar reclaim the native title bar row.
     const auto before = window.styleMask;
+    const auto contentBefore = window.contentLayoutRect;
     window.styleMask |= NSWindowStyleMaskFullSizeContentView;
     window.titlebarAppearsTransparent = YES;
     window.titleVisibility = NSWindowTitleHidden;
-    qInfo("Title bar merge applied: styleMask 0x%lx -> 0x%lx, contentLayoutRect %.0fx%.0f",
+    qInfo("Title bar merge applied: styleMask 0x%lx -> 0x%lx, content layout %.0fx%.0f -> %.0fx%.0f",
           static_cast<unsigned long>(before), static_cast<unsigned long>(window.styleMask),
+          contentBefore.size.width, contentBefore.size.height,
           window.contentLayoutRect.size.width, window.contentLayoutRect.size.height);
 }
 
