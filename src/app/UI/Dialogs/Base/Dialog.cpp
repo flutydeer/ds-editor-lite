@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QTimer>
 #include <QWKWidgets/widgetwindowagent.h>
 #include <QWindow>
 
@@ -137,8 +138,10 @@ bool Dialog::event(QEvent *event) {
         if (auto *window = windowHandle())
             window->installEventFilter(this);
     } else if (event->type() == QEvent::Show && m_dialogTitleBar) {
-        // Same reclaim as the main window: the custom title bar takes over the
-        // native title bar row, and the traffic lights move into their slot.
+        // Same reclaim as the main window. Show alone is too early: the NSView
+        // has no NSWindow yet at that point, so repeat it once the window is up.
+        QTimer::singleShot(0, this, [this] { WindowFrameUtils::mergeTitleBarIntoContent(this); });
+    } else if (event->type() == QEvent::WindowActivate && m_dialogTitleBar) {
         WindowFrameUtils::mergeTitleBarIntoContent(this);
     }
     return QDialog::event(event);

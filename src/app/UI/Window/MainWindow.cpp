@@ -321,9 +321,12 @@ bool MainWindow::event(QEvent *event) {
         if (auto *window = windowHandle())
             window->installEventFilter(this);
     } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
-        // The custom title bar reclaims the native title bar row. QWindowKit
-        // tries the same from its own hook, but that one gives up when the
-        // NSView has no NSWindow yet, so repeat it once the window is up.
+        // Show arrives before AppKit attaches the NSWindow to the NSView, so the
+        // first merge attempt can find [nsview window] nil and return without
+        // doing anything. Repeat it from the event loop and on the first
+        // activation, both of which happen once the window is really on screen.
+        QTimer::singleShot(0, this, [this] { WindowFrameUtils::mergeTitleBarIntoContent(this); });
+    } else if (event->type() == QEvent::WindowActivate && !m_useNativeFrame) {
         WindowFrameUtils::mergeTitleBarIntoContent(this);
     }
     return QMainWindow::event(event);
