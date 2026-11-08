@@ -5,6 +5,7 @@
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -113,10 +114,22 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     window.show();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
-    exerciseButtons(window, window.findChild<QWidget *>("MinimizeButton"),
-                    window.findChild<QWidget *>("MaximizeButton"));
-    if (QTest::currentTestFailed())
-        return;
+    auto *mainTitle = window.findChild<MainTitleBar *>();
+    QVERIFY(mainTitle);
+    if (TitleBarLayoutPlan::currentPlatform() == ChromePlatform::MacOS) {
+        // Only the main window reuses native traffic lights. Detached panels still
+        // have custom buttons, exercised below on every platform.
+        QVERIFY(mainTitle->layoutPlan().trafficLightArea);
+        QVERIFY(!mainTitle->layoutPlan().systemButtons);
+        QVERIFY(mainTitle->trafficLightArea() && mainTitle->trafficLightArea()->isVisible());
+        QVERIFY(!mainTitle->minimizeButton() && !mainTitle->maximizeButton() &&
+                !mainTitle->closeButton());
+    } else {
+        exerciseButtons(window, window.findChild<QWidget *>("MinimizeButton"),
+                        window.findChild<QWidget *>("MaximizeButton"));
+        if (QTest::currentTestFailed())
+            return;
+    }
     QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
@@ -204,8 +217,7 @@ void NativeDesktopTests::mainWindowSplitterDragRestoresPanelSizes() {
     QSignalSpy moved(splitter, &QSplitter::splitterMoved);
     const auto dragTo = [&](int y) {
         const auto press = handle->rect().center();
-        const auto global =
-            splitter->mapToGlobal(QPoint(splitter->width() / 2, y + press.y()));
+        const auto global = splitter->mapToGlobal(QPoint(splitter->width() / 2, y + press.y()));
         QTest::mousePress(handle, Qt::LeftButton, Qt::NoModifier, press);
         QMouseEvent move(QEvent::MouseMove, QPointF(handle->mapFromGlobal(global)), QPointF(global),
                          Qt::NoButton, Qt::LeftButton, Qt::NoModifier);

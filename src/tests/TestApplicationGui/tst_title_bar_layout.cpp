@@ -69,6 +69,36 @@ void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
     QVERIFY(TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, true, true) != nativeFrame);
 }
 
+void ApplicationGuiTests::titleBarLayoutFollowsThePlatformMenuBar() {
+    TestSupport::MainWindowFixture fixture(
+        TestSupport::MainWindowFixture::MenuPlacement::PlatformDefault);
+    fixture.show();
+
+    auto *titleBar = fixture.window->findChild<MainTitleBar *>();
+    auto *menu = fixture.window->findChild<MainMenuView *>();
+    QVERIFY(titleBar);
+    QVERIFY(menu);
+    settleLayout();
+#ifdef Q_OS_MAC
+    QVERIFY(menu->isNativeMenuBar());
+#endif
+    const bool inWindow = !menu->isNativeMenuBar();
+    QCOMPARE(titleBar->layoutPlan().inWindowMenu, inWindow);
+    QCOMPARE(titleBar->dividers().size(), inWindow ? 2 : 1);
+    QCOMPARE(firstSection(*titleBar),
+             inWindow ? static_cast<QWidget *>(menu) : titleBar->titleComboBox());
+    QCOMPARE(menu->topLevelMenuActions().size(), 4);
+
+    if (!inWindow) {
+        // A global menu must retain every top-level action, regardless of widget width.
+        menu->setFixedWidth(0);
+        settleLayout();
+        QVERIFY(!menu->isOverflowing());
+        QVERIFY(menu->overflowedMenuActions().isEmpty());
+        QCOMPARE(menu->actions(), menu->topLevelMenuActions());
+    }
+}
+
 void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow() {
     TestSupport::MainWindowFixture fixture;
     fixture.show();

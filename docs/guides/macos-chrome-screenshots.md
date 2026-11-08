@@ -79,6 +79,17 @@ Qt 6.11.2 中存在两层独立机制：
 
 safe-area 顶边距仍为 32，而根布局顶部边距和原生 view 顶部间距均为 0，与“扩展客户区已经生效，但 QWidget 默认把 safe area 再次加入布局边距”的根因链一致。系统边框对照保留 `styleMask 0xf`、原生标题栏和 `top inset 32`，不再被抓图过程改成 FullSizeContentView。
 
+## 配套的全量 GUI 测试
+
+截图通过不代表 `Tests` 工作流已经通过。[Tests 42487888440](https://github.com/flutydeer/ds-editor-lite/actions/runs/42487888440) 中，Windows 与 Linux 成功，macOS 的 `TestApplicationGui` 超时，`TestNativeDesktop` 有一项失败。日志对应的是测试的平台假设，不是顶部 safe-area 留白重新出现：
+
+- 窗口构造时已按 macOS 全局菜单生成标题栏布局。测试夹具随后只调用 `setNativeMenuBar(false)`，没有同步布局计划，导致菜单仍被隐藏、溢出计算仍被关闭，点击菜单的断言反复等待。窗口内菜单夹具必须同时更新标题栏计划，另保留使用平台默认菜单的用例，验证 Cocoa 全局菜单不因控件宽度丢失顶层菜单。
+- Qt 在 macOS 默认禁用 Alt 助记键，`QKeySequence::mnemonic()` 返回空序列。测试分别验证平台策略，不全局开启助记键来迁就 Windows 断言。
+- 固定的 `1200x900` 测试窗口超过 runner 可用桌面，Cocoa 可能将初始窗口报告为已缩放。夹具按可用桌面预留边距并限制尺寸，确保双击最大化测试确有普通窗口状态可恢复。
+- macOS 主窗口保留原生红绿灯，没有自绘最小化和最大化按钮。原生桌面测试应验证这个布局，不能查找不存在的 Windows 式按钮。分离面板仍有自绘按钮，其最小化、最大化、重新停靠、几何恢复及文档不变性检查在 macOS 上继续执行。
+
+上述修正只调整测试夹具与平台断言，不跳过 macOS 测试，也不增加超时上限。最终验收仍需推送后运行真正的 Cocoa 测试，不能用 Windows 通过代替。
+
 ## 已知限制
 
 非 macOS 平台退回 `QWidget::grab()`，只有客户区，看不到系统边框。macOS 上拿到的是 theme frame 的位图，含圆角与标题栏，但不含窗口阴影。Cocoa 捕获缺少原生窗口、frame view 或 bitmap 时会报错退出，不静默降级为缺少原生 chrome 的客户区截图。它是 AppKit 视图重绘捕获，不等同于 WindowServer 的屏幕合成结果。

@@ -6,22 +6,35 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Toast.h>
 
 #include <QCoreApplication>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QtTest/QTest>
 #include <memory>
 
 namespace TestSupport {
     struct MainWindowFixture {
-        MainWindowFixture() {
+        enum class MenuPlacement { InWindow, PlatformDefault };
+
+        explicit MainWindowFixture(MenuPlacement menuPlacement = MenuPlacement::InWindow) {
             appOptions->appearance()->useNativeFrame = true;
             appOptions->developer()->enablePanelDetach = true;
             appOptions->developer()->enableEmbeddedOptionsDialog = true;
             window = std::make_unique<MainWindow>();
-            window->findChild<MainMenuView *>()->setNativeMenuBar(false);
+            if (menuPlacement == MenuPlacement::InWindow) {
+                window->findChild<MainMenuView *>()->setNativeMenuBar(false);
+                // MainWindow chose its plan before the fixture disabled the platform menu.
+                // Keep the title-bar section and its overflow policy in sync with Qt.
+                auto *titleBar = window->findChild<MainTitleBar *>();
+                auto plan = titleBar->layoutPlan();
+                plan.inWindowMenu = true;
+                titleBar->setLayoutPlan(plan);
+            }
         }
 
         ~MainWindowFixture() {
@@ -40,7 +53,15 @@ namespace TestSupport {
         }
 
         void show() const {
-            window->resize(1200, 900);
+            if (QGuiApplication::platformName() == QStringLiteral("offscreen")) {
+                window->resize(1200, 900);
+            } else {
+                // Oversized windows can start zoomed on Cocoa, leaving no normal size to restore.
+                const auto available =
+                    window->screen()->availableGeometry().adjusted(40, 40, -40, -40);
+                window->resize(QSize(1200, 900).boundedTo(available.size()));
+                window->move(available.topLeft());
+            }
             window->show();
             window->activateWindow();
             QTRY_VERIFY(window->isActiveWindow());
