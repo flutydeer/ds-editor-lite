@@ -30,6 +30,7 @@
 #include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
@@ -38,6 +39,7 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/EmbeddedModalHost.h"
 #include "UI/Window/MainWindow.h"
 
@@ -73,6 +75,7 @@
 #include <QLabel>
 #include <QCursor>
 #include <QToolButton>
+#include <QVBoxLayout>
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -2225,8 +2228,9 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    QVERIFY(!bottom->parentWidget());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    QCOMPARE(detached->contentWidget(), bottom);
     QCOMPARE(splitter->indexOf(bottom), -1);
     QVERIFY(bottom->clipEditorView()->hasActiveSingingClip());
     QCOMPARE(bottom->clipEditorView()->viewState().editMode, EditorViewGlobal::DrawPitch);
@@ -2239,7 +2243,9 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QCloseEvent close;
     QApplication::sendEvent(bottom, &close);
     QVERIFY(!close.isAccepted());
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    QVERIFY(!detached->isVisible());
+    QVERIFY(bottom->isVisible());
+    QCOMPARE(detached->contentWidget(), nullptr);
     QCOMPARE(bottom->parentWidget(), splitter);
     QCOMPARE(splitter->indexOf(bottom), 1);
     QTRY_COMPARE(splitter->sizes(), sizes);
@@ -2253,6 +2259,62 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QCOMPARE(bottom->clipEditorView()->viewState().editMode, EditorViewGlobal::DrawPitch);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
+    const auto mainPlan = TitleBarSections::forMainWindow(false);
+    const auto detachedPlan = TitleBarSections::forDetachedPanel(false);
+    QVERIFY(mainPlan.appIconInset && mainPlan.systemButtons);
+    QVERIFY(mainPlan.mainMenu && mainPlan.projectSelector && mainPlan.documentActions &&
+            mainPlan.playback);
+    QVERIFY(detachedPlan.appIconInset && detachedPlan.systemButtons);
+    QVERIFY(detachedPlan.mainMenu && detachedPlan.playback);
+    QVERIFY(!detachedPlan.projectSelector && !detachedPlan.documentActions);
+    QCOMPARE(detachedPlan.leftMargin, mainPlan.leftMargin);
+
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *mainChrome = window.findChild<MainTitleBar *>();
+    QVERIFY(mainChrome);
+    QVERIFY(mainChrome->menuView() && mainChrome->playbackView());
+    QVERIFY(mainChrome->titleComboBox() && mainChrome->actionButtonsView());
+
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    QCOMPARE(detached->contentWidget(), bottom);
+    auto *chrome = detached->titleBar();
+    QVERIFY(chrome);
+    QVERIFY(chrome->menuView() && chrome->playbackView());
+    QVERIFY(!chrome->titleComboBox());
+    QVERIFY(!chrome->actionButtonsView());
+
+    // Window management lives in the chrome now; the panel toolbar has no
+    // system buttons of its own.
+    auto *panelTitle = bottom->titleBar();
+    QVERIFY(panelTitle);
+    QVERIFY(!panelTitle->findChild<QWidget *>("MinimizeButton"));
+    QVERIFY(!panelTitle->findChild<QWidget *>("MaximizeButton"));
+    QVERIFY(!panelTitle->findChild<QWidget *>("CloseButton"));
+
+    // The panel card is inset from the window edges like the main window content.
+    auto *contentHost = bottom->parentWidget();
+    QVERIFY(contentHost && contentHost != detached);
+    auto *contentLayout = qobject_cast<QVBoxLayout *>(contentHost->layout());
+    QVERIFY(contentLayout);
+    int left = 0, top = 0, right = 0, bottomMargin = 0;
+    contentLayout->getContentsMargins(&left, &top, &right, &bottomMargin);
+    QCOMPARE(left, 6);
+    QCOMPARE(top, 0);
+    QCOMPARE(right, 6);
+    QCOMPARE(bottomMargin, 6);
 }
 
 void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {

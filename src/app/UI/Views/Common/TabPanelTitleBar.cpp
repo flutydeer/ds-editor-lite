@@ -5,20 +5,13 @@
 #include "SegmentedTabBar.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
-#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/IconUtils.h>
-#include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QGraphicsOpacityEffect>
 #include <QStackedWidget>
 #include <QVariantAnimation>
-
-static const auto ChromeMinimize = QStringLiteral(u"\ue921");
-static const auto ChromeMaximize = QStringLiteral(u"\ue922");
-static const auto ChromeRestore = QStringLiteral(u"\ue923");
-static const auto ChromeClose = QStringLiteral(u"\ue8bb");
 
 TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -31,36 +24,26 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     m_btnLayout->setContentsMargins({});
     m_btnLayout->setSpacing(6);
 
-    m_innerLayout = new QHBoxLayout;
-    m_innerLayout->addWidget(m_tabBar);
-    m_innerLayout->addSpacing(24);
-    m_innerLayout->addWidget(m_toolBar);
-    m_innerLayout->addStretch();
-    m_innerLayout->addLayout(m_btnLayout);
-    m_innerLayout->setSpacing(0);
-    m_innerLayout->setContentsMargins(5, 6, 8, 6);
-
-    m_systemBtnLayout = new QHBoxLayout;
-    m_systemBtnLayout->setContentsMargins({});
-    m_systemBtnLayout->setSpacing(0);
-
-    m_outerLayout = new QHBoxLayout;
-    m_outerLayout->addLayout(m_innerLayout, 1);
-    m_outerLayout->addLayout(m_systemBtnLayout);
-    m_outerLayout->setSpacing(0);
-    m_outerLayout->setContentsMargins({});
-    setLayout(m_outerLayout);
+    auto *layout = new QHBoxLayout;
+    layout->addWidget(m_tabBar);
+    layout->addSpacing(24);
+    layout->addWidget(m_toolBar);
+    layout->addStretch();
+    layout->addLayout(m_btnLayout);
+    layout->setSpacing(0);
+    layout->setContentsMargins(5, 6, 8, 6);
+    setLayout(layout);
 
     buildDockedButtons();
+    updateButtonVisibility();
 
     m_animation = new QVariantAnimation(this);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
-
-    // Re-tint system button icons when the theme changes (non-Windows only)
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
-        if (!SystemUtils::isWindows() && m_btnMin)
-            rebuildSystemButtonIcons();
-    });
+    connect(m_animation, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant &value) {
+                if (m_opacityEffect)
+                    m_opacityEffect->setOpacity(value.toDouble());
+            });
 
     setContentsMargins({});
     initializeAnimation();
@@ -74,48 +57,41 @@ QStackedWidget *const &TabPanelTitleBar::toolBar() const {
     return m_toolBar;
 }
 
-Button *TabPanelTitleBar::minimizeButton() const {
-    return m_btnMin;
+void TabPanelTitleBar::setDetachButtonVisible(const bool visible) {
+    m_detachEnabled = visible;
+    updateButtonVisibility();
 }
 
-Button *TabPanelTitleBar::maximizeButton() const {
-    return m_btnMax;
-}
-
-Button *TabPanelTitleBar::closeButton() const {
-    return m_btnClose;
-}
-
-void TabPanelTitleBar::setDetachButtonVisible(bool visible) {
+void TabPanelTitleBar::updateButtonVisibility() {
+    // A detached panel has no dock controls: the window chrome owns window
+    // management and the detach action would be a no-op.
     if (m_btnDetach)
-        m_btnDetach->setVisible(visible);
+        m_btnDetach->setVisible(!m_detached && m_detachEnabled);
+    if (m_btnMaximize)
+        m_btnMaximize->setVisible(!m_detached);
+    if (m_btnHide)
+        m_btnHide->setVisible(!m_detached);
 }
 
-void TabPanelTitleBar::setDetached(bool detached, bool useNativeFrame) {
+void TabPanelTitleBar::setDetached(const bool detached) {
+    if (m_detached == detached)
+        return;
     if (m_detached && window())
         window()->removeEventFilter(this);
 
     m_detached = detached;
-    clearButtonLayout();
+    updateButtonVisibility();
+
     if (detached) {
-        buildDetachedButtons(useNativeFrame);
-
-        if (!m_opacityEffect) {
-            m_opacityEffect = new QGraphicsOpacityEffect(this);
-            m_opacityEffect->setOpacity(1.0);
-            setGraphicsEffect(m_opacityEffect);
-            connect(
-                m_animation, &QVariantAnimation::valueChanged, this,
-                [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
-        }
+        // QWidget::setGraphicsEffect() takes ownership and deletes the old
+        // effect, so each detached session gets a fresh one.
+        m_opacityEffect = new QGraphicsOpacityEffect(this);
+        m_opacityEffect->setOpacity(1.0);
+        setGraphicsEffect(m_opacityEffect);
     } else {
-        buildDockedButtons();
-
-        if (m_opacityEffect) {
-            m_animation->stop();
-            setGraphicsEffect(nullptr);
-            m_opacityEffect = nullptr;
-        }
+        m_animation->stop();
+        setGraphicsEffect(nullptr);
+        m_opacityEffect = nullptr;
     }
 
     if (m_detached) {
@@ -196,37 +172,6 @@ void TabPanelTitleBar::rebuildIcons() {
                                                           iconSize, actionPalette));
 }
 
-void TabPanelTitleBar::rebuildSystemButtonIcons() {
-    if (!m_btnMin || !m_btnMax || !m_btnClose)
-        return;
-
-    constexpr auto icoSize = QSize(14, 14);
-    const auto iconColor = ThemeManager::instance()->semanticColor(QStringLiteral("icon.primary"));
-    const auto disabledColor =
-        ThemeManager::instance()->semanticColor(QStringLiteral("icon.disabled"));
-
-    IconUtils::SvgIconColorPalette palette;
-    palette.normal = iconColor.isValid() ? iconColor : QColor(240, 240, 240);
-    palette.disabled = disabledColor.isValid() ? disabledColor : QColor(240, 240, 240, 102);
-    palette.active = palette.normal;
-    palette.selected = palette.normal;
-
-    m_btnMin->setIconSize(icoSize);
-    m_btnMin->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/minimize_16_filled_white.svg",
-                                                     icoSize, palette));
-
-    const bool maximized = window() && window()->isMaximized();
-    const auto maximizePath = maximized
-                                  ? QStringLiteral(":svg/title-bar/restore_16_filled_white.svg")
-                                  : QStringLiteral(":svg/title-bar/maximize_16_filled_white.svg");
-    m_btnMax->setIconSize(icoSize);
-    m_btnMax->setIcon(IconUtils::createTintedSvgIcon(maximizePath, icoSize, palette));
-
-    m_btnClose->setIconSize(icoSize);
-    m_btnClose->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg",
-                                                       icoSize, palette));
-}
-
 QColor TabPanelTitleBar::iconColor() const {
     return m_iconColor;
 }
@@ -275,78 +220,12 @@ void TabPanelTitleBar::setIconOnDisabledColor(const QColor &color) {
     update();
 }
 
-void TabPanelTitleBar::buildDetachedButtons(bool useNativeFrame) {
-    if (useNativeFrame)
-        return;
-
-    int systemButtonWidth = 48;
-
-    m_btnMin = new Button;
-    m_btnMin->setObjectName("MinimizeButton");
-    m_btnMin->setFixedWidth(systemButtonWidth);
-
-    m_btnMax = new Button;
-    m_btnMax->setCheckable(true);
-    m_btnMax->setObjectName("MaximizeButton");
-    m_btnMax->setFixedWidth(systemButtonWidth);
-
-    m_btnClose = new Button;
-    m_btnClose->setObjectName("CloseButton");
-    m_btnClose->setFixedWidth(systemButtonWidth);
-
-    if (SystemUtils::isWindows()) {
-        auto fontFamily =
-            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-        auto font = QFont(fontFamily);
-        font.setPointSizeF(7.2);
-
-        m_btnMin->setText(ChromeMinimize);
-        m_btnMin->setFont(font);
-        m_btnMax->setText(ChromeMaximize);
-        m_btnMax->setFont(font);
-        m_btnClose->setText(ChromeClose);
-        m_btnClose->setFont(font);
-    } else {
-        rebuildSystemButtonIcons();
-    }
-
-    m_systemBtnLayout->addWidget(m_btnMin);
-    m_systemBtnLayout->addWidget(m_btnMax);
-    m_systemBtnLayout->addWidget(m_btnClose);
-}
-
-void TabPanelTitleBar::clearButtonLayout() {
-    auto safeDelete = [](Button *&btn) {
-        if (btn) {
-            btn->deleteLater();
-            btn = nullptr;
-        }
-    };
-
-    safeDelete(m_btnDetach);
-    safeDelete(m_btnMaximize);
-    safeDelete(m_btnHide);
-    safeDelete(m_btnMin);
-    safeDelete(m_btnMax);
-    safeDelete(m_btnClose);
-
-    m_btnLayout->setSpacing(6);
-}
-
 bool TabPanelTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (m_detached && watched == window()) {
         if (event->type() == QEvent::WindowActivate)
             setActiveStyle(true);
         else if (event->type() == QEvent::WindowDeactivate)
             setActiveStyle(false);
-        else if (event->type() == QEvent::WindowStateChange && m_btnMax) {
-            auto checked = window()->isMaximized();
-            m_btnMax->setChecked(checked);
-            if (SystemUtils::isWindows())
-                m_btnMax->setText(checked ? ChromeRestore : ChromeMaximize);
-            else
-                rebuildSystemButtonIcons();
-        }
     }
     return QWidget::eventFilter(watched, event);
 }
@@ -377,7 +256,7 @@ void TabPanelTitleBar::afterSetTimeScale(double scale) {
 }
 
 void TabPanelTitleBar::setActiveStyle(bool active) {
-    if (!m_opacityEffect)
+    if (!m_detached || !m_opacityEffect)
         return;
 
     m_targetActive = active;

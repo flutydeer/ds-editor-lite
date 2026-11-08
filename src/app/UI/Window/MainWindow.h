@@ -16,6 +16,7 @@
 class QSplitter;
 class MainTitleBar;
 class MainMenuView;
+class DetachedPanelWindow;
 class TaskDialog;
 class LogWindow;
 class TrackEditorView;
@@ -24,10 +25,6 @@ class EmbeddedModalHost;
 class AppOptionsDialog;
 class QAction;
 class QShortcut;
-
-namespace QWK {
-    class WidgetWindowAgent;
-}
 
 class MainWindow final : public QMainWindow,
                          public IMainWindow,
@@ -124,7 +121,7 @@ private:
     bool m_useNativeFrame = false;
     QByteArray m_detachSplitterState;
     QRect m_detachedWindowGeometry;
-    QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
+    DetachedPanelWindow *m_detachedWindow = nullptr;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
 

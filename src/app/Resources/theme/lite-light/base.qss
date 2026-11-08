@@ -6,12 +6,14 @@ QWidget {
    themed (the transparentWindow property is only set after QEvent::Show). */
 Dialog,
 Window,
-QMainWindow {
+QMainWindow,
+DetachedPanelWindow {
     background: ${surface.window};
 }
 
 Dialog[transparentWindow="true"],
 Window[transparentWindow="true"],
-QMainWindow[transparentWindow="true"] {
+QMainWindow[transparentWindow="true"],
+DetachedPanelWindow[transparentWindow="true"] {
     background: transparent
 }

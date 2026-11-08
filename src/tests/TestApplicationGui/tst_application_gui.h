@@ -186,6 +186,7 @@ private slots:
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
+    void detachedPanelUsesReducedMainTitleBar();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();

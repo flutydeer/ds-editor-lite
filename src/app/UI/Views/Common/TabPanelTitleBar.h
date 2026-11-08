@@ -25,11 +25,7 @@ public:
     [[nodiscard]] SegmentedTabBar *const &tabBar() const;
     [[nodiscard]] QStackedWidget *const &toolBar() const;
 
-    [[nodiscard]] Button *minimizeButton() const;
-    [[nodiscard]] Button *maximizeButton() const;
-    [[nodiscard]] Button *closeButton() const;
-
-    void setDetached(bool detached, bool useNativeFrame);
+    void setDetached(bool detached);
     void setDetachButtonVisible(bool visible);
 
 signals:
@@ -44,14 +40,11 @@ protected:
 private:
     void retranslateUi();
     void buildDockedButtons();
-    void buildDetachedButtons(bool useNativeFrame);
-    void clearButtonLayout();
+    void updateButtonVisibility();
     void setActiveStyle(bool active);
     void updateAnimationSettings();
     // Re-tint docked button icons from the current theme colors
     void rebuildIcons();
-    // Tint the detached-window system buttons from the current theme (non-Windows)
-    void rebuildSystemButtonIcons();
 
     // Theme color accessors (QSS-overridable via qproperty-*); setters
     // re-tint the already-generated icons
@@ -71,20 +64,14 @@ private:
 
     SegmentedTabBar *m_tabBar;
     QStackedWidget *m_toolBar;
-    QHBoxLayout *m_outerLayout;
-    QHBoxLayout *m_innerLayout;
     QHBoxLayout *m_btnLayout;
-    QHBoxLayout *m_systemBtnLayout;
 
     Button *m_btnDetach = nullptr;
     Button *m_btnMaximize = nullptr;
     Button *m_btnHide = nullptr;
 
-    Button *m_btnMin = nullptr;
-    Button *m_btnMax = nullptr;
-    Button *m_btnClose = nullptr;
-
     bool m_detached = false;
+    bool m_detachEnabled = true;
     QGraphicsOpacityEffect *m_opacityEffect = nullptr;
     QVariantAnimation *m_animation = nullptr;
     bool m_targetActive = true;
