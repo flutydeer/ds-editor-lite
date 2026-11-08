@@ -64,6 +64,7 @@ private slots:
     void draggingExistingNoteCommitsOrCancels();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
+    void activeClipMoveRebindsThePianoTrackColor_data();
     void activeClipMoveRebindsThePianoTrackColor();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();

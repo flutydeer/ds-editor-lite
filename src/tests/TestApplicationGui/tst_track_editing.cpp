@@ -490,11 +490,19 @@ void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::activeClipMoveRebindsThePianoTrackColor_data() {
+    QTest::addColumn<QSize>("maximumWindowSize");
+    QTest::newRow("default-window") << QSize(1200, 900);
+    QTest::newRow("small-desktop") << QSize(944, 565);
+}
+
 void ApplicationGuiTests::activeClipMoveRebindsThePianoTrackColor() {
+    QFETCH(QSize, maximumWindowSize);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
     TestSupport::MainWindowFixture host;
+    host.window->setMaximumSize(maximumWindowSize);
     Automation::ClipDraftDto clipDraft;
     clipDraft.type = Automation::ClipDraftDto::Type::Singing;
     clipDraft.properties.start = 480;
@@ -522,16 +530,31 @@ void ApplicationGuiTests::activeClipMoveRebindsThePianoTrackColor() {
     auto *keyboard = host.window->findChild<PianoKeyboardView *>();
     QVERIFY(editor && canvas && keyboard);
     canvas->setAnimationEnabled(false);
-    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    // Use compact track rows when the native desktop constrains the window.
+    QVERIFY(canvas->setViewportScale(2.0, canvas->scaleYMin()));
     canvas->setViewportStartTick(0);
+    canvas->setVerticalBarValue(0);
     QCoreApplication::processEvents();
     auto *item = editor->findClipItemById(clip->id());
     QVERIFY(item);
-    const auto press = canvas->mapFromScene(item->sceneBoundingRect().center());
-    const auto release = canvas->mapFromScene(item->sceneBoundingRect().center() +
-                                              QPointF(0, TracksEditorGlobal::trackHeight));
-    QVERIFY(canvas->viewport()->rect().contains(press));
-    QVERIFY(canvas->viewport()->rect().contains(release));
+    const auto rowHeight = TracksEditorGlobal::trackHeight * canvas->scaleY();
+    // The target row can be partially visible, so its center need not be a valid drop point.
+    const auto pressArea =
+        item->sceneBoundingRect().intersected(canvas->visibleRect().adjusted(0, 0, 0, -rowHeight));
+    QVERIFY(!pressArea.isEmpty());
+    const auto press = canvas->mapFromScene(pressArea.center());
+    const auto release = canvas->mapFromScene(pressArea.center() + QPointF(0, rowHeight));
+    const auto geometryDiagnostic =
+        QStringLiteral("Viewport %1x%2, press (%3, %4), release (%5, %6), scaleY %7")
+            .arg(canvas->viewport()->width())
+            .arg(canvas->viewport()->height())
+            .arg(press.x())
+            .arg(press.y())
+            .arg(release.x())
+            .arg(release.y())
+            .arg(canvas->scaleY());
+    QVERIFY2(canvas->viewport()->rect().contains(press), qPrintable(geometryDiagnostic));
+    QVERIFY2(canvas->viewport()->rect().contains(release), qPrintable(geometryDiagnostic));
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(appStatus->activeClipId.get(), clip->id());
     QTRY_VERIFY(keyboard->isVisible());
