@@ -44,7 +44,7 @@ gh run download <run-id> -n chrome-screenshots -D ./shots
 - `titleBarRect[1] == 0`，自定义标题栏在根窗口坐标中从顶部开始。
 - `frameMargins[1] == 0`，Qt 客户区外没有额外的原生标题栏高度。
 
-日志中的 `Chrome native geometry` 另记录 Qt 原生 view 相对 AppKit frame view 的顶部间距，以及 view、screen 两种 safe-area 顶边距。这样可以区分原生 view 没有扩展与 Qt 布局主动留边，不再仅凭 PNG 文件非空判定修复成功。
+日志中的 `Chrome native geometry` 另记录 Qt 原生 view 相对 AppKit frame view 的顶部间距，以及 view、screen 两种 safe-area 顶边距。验收时还需确认无边框的 `top inset` 为 0，并查看实际截图。Qt 的 `frameMargins` 不完全等同于原生 view 的真实位置，前面的自动检查不能代替这一步。这样可以区分原生 view 没有扩展与 Qt 布局主动留边，不再仅凭 PNG 文件非空判定修复成功。
 
 ### Qt safe area 与 FullSizeContentView
 
@@ -55,7 +55,29 @@ Qt 6.11.2 中存在两层独立机制：
 
 所以仅设置 `ExpandedClientAreaHint` 或反复设置 `NSWindowStyleMaskFullSizeContentView` 不足以消除布局留边。macOS 无边框主窗口在创建原生窗口前显式关闭 `WA_ContentsMarginsRespectsSafeArea`，让自定义标题栏及其 traffic-light 区域使用整个客户区，系统边框模式保持默认行为。不使用固定 32px 或负边距补偿。
 
-这里的修正仍需由新一轮 Cocoa 截图验证。旧日志中的 `styleMask 0x800f -> 0x800f` 只能证明扩展标志早已生效。`contentLayoutRect` 表示未遮挡区域，不能把它与 frame 的高度差直接当作 content view 没有扩展的证据。
+旧日志中的 `styleMask 0x800f -> 0x800f` 只能证明扩展标志早已生效。`contentLayoutRect` 表示未遮挡区域，不能把它与 frame 的高度差直接当作 content view 没有扩展的证据。下面的新一轮 Cocoa 运行确认了 safe-area 修正后的实际效果。
+
+## Safe-area 修正的 CI 验证
+
+修复提交 [`cf0dca71`](https://github.com/flutydeer/ds-editor-lite/commit/cf0dca710dc0b9ff0fc8b375c49d7336f6372114) 对应的 [CI 42487888425](https://github.com/flutydeer/ds-editor-lite/actions/runs/42487888425) 构建、两种模式截图和产物上传均成功，总耗时 14 分 2 秒。验证环境为 macOS arm64 runner、Qt 6.11.2、Cocoa，窗口处于非全屏最大化状态，DPR 为 1。
+
+已下载原始 artifact，检查两张完整截图、几何报告及原生日志。无边框模式的结果为：
+
+| 观测项 | 实测值 |
+| --- | --- |
+| `respectsSafeArea` | `false` |
+| `safeAreaMargins` | `[0, 32, 0, 0]` |
+| `contentsMargins` | `[0, 0, 0, 0]` |
+| `contentsRect` | `[0, 0, 1024, 674]` |
+| `titleBarRect` | `[0, 0, 1024, 40]` |
+| `frameMargins` | `[0, 0, 0, 0]` |
+| 原生 frame / Qt view 尺寸 | 均为 `1024x674` |
+| 原生 `top inset` | `0` |
+| 原生 `styleMask` | `0x800f` |
+
+对比父提交 `51ecebc9` 的 [CI 42485229296](https://github.com/flutydeer/ds-editor-lite/actions/runs/42485229296) 原始无边框截图，红色交通灯的像素包围盒从 `[6, 44, 19, 57]` 变成 `[6, 12, 19, 25]`，恰好上移 32px，自定义标题栏上方的空白条已消失。这里的包围盒为 `[minX, minY, maxX, maxY]`，坐标均取自未经裁剪的原始截图。
+
+safe-area 顶边距仍为 32，而根布局顶部边距和原生 view 顶部间距均为 0，与“扩展客户区已经生效，但 QWidget 默认把 safe area 再次加入布局边距”的根因链一致。系统边框对照保留 `styleMask 0xf`、原生标题栏和 `top inset 32`，不再被抓图过程改成 FullSizeContentView。
 
 ## 已知限制
 
