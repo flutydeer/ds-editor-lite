@@ -12,6 +12,7 @@
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QLayoutItem>
+#include <QtTest/QTest>
 
 namespace {
     void settleLayout() {
@@ -146,4 +147,40 @@ void ApplicationGuiTests::hiddenMenuBarKeepsEveryTopLevelMenuInline() {
     QVERIFY(!menu->isOverflowing());
     QCOMPARE(menu->actions(), menus);
     QVERIFY(menu->overflowedMenuActions().isEmpty());
+}
+
+void ApplicationGuiTests::titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow() {
+    TestSupport::MainWindowFixture fixture;
+    fixture.show();
+
+    auto *titleBar = fixture.window->findChild<MainTitleBar *>();
+    QVERIFY(titleBar);
+    settleLayout();
+
+    // Any pixel of the bar not covered by a child counts as background. Narrow
+    // windows can squeeze the stretch between the actions and the playback
+    // controls down to nothing, so search instead of assuming a fixed spot.
+    const auto emptyPoint = [&] {
+        const int y = titleBar->height() / 2;
+        for (int x = 0; x < titleBar->width(); ++x) {
+            if (!titleBar->childAt(QPoint(x, y)))
+                return QPoint(x, y);
+        }
+        return QPoint(-1, -1);
+    };
+
+    QVERIFY(!fixture.window->isMaximized());
+    const auto point = emptyPoint();
+    QVERIFY(point.x() >= 0);
+    // A native frame has no window agent to turn a double click on the title bar
+    // into a zoom, and the platform title bar is another strip above this row,
+    // so the row itself has to provide the gesture.
+    QTest::mouseDClick(titleBar, Qt::LeftButton, Qt::NoModifier, point);
+    QTRY_VERIFY(fixture.window->isMaximized());
+
+    settleLayout();
+    const auto restorePoint = emptyPoint();
+    QVERIFY(restorePoint.x() >= 0);
+    QTest::mouseDClick(titleBar, Qt::LeftButton, Qt::NoModifier, restorePoint);
+    QTRY_VERIFY(!fixture.window->isMaximized());
 }

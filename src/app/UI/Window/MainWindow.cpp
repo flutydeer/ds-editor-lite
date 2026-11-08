@@ -103,6 +103,19 @@ MainWindow::MainWindow() {
         agent->setHitTestVisible(m_titleBar->actionButtonsView());
         agent->setHitTestVisible(m_titleBar->playbackView());
         agent->setHitTestVisible(m_titleBar->titleComboBox());
+    } else {
+        // With a native frame there is no window agent to turn a double click on
+        // the title bar into a zoom, and the platform's own title bar is a
+        // separate strip above this row. The custom title bar handles it itself,
+        // so double clicking anywhere on the title bar behaves the same.
+        connect(m_titleBar, &MainTitleBar::doubleClicked, this, [this] {
+            if (isFullScreen())
+                return;
+            if (isMaximized())
+                showNormal();
+            else
+                showMaximized();
+        });
     }
 
     // Connect file popup actions

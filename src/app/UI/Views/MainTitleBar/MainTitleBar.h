@@ -54,10 +54,15 @@ signals:
     void minimizeTriggered();
     void maximizeTriggered(bool max = false);
     void closeTriggered();
+    // Double click on the empty background of this title bar. Children that
+    // ignore mouse events forward their press up here as well, so the handler
+    // filters them out and only the bar itself reports the gesture.
+    void doubleClicked();
 
 protected:
     void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;

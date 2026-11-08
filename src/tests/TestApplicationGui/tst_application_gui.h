@@ -171,6 +171,7 @@ private slots:
     void titleBarLayoutPlanFollowsPlatformChrome();
     void titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow();
     void hiddenMenuBarKeepsEveryTopLevelMenuInline();
+    void titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();

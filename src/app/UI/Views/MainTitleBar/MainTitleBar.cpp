@@ -15,6 +15,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QStyle>
 #include <QVariantAnimation>
 
@@ -307,6 +308,17 @@ void MainTitleBar::afterSetAnimationEnabled(bool enabled) {
 void MainTitleBar::afterSetTimeScale(double scale) {
     Q_UNUSED(scale)
     updateAnimationSettings();
+}
+
+void MainTitleBar::mouseDoubleClickEvent(QMouseEvent *event) {
+    // A child that ignores the press forwards it here too, so require a real
+    // hit on the bar's own background before reporting the gesture.
+    if (event->button() == Qt::LeftButton && !childAt(event->position().toPoint())) {
+        emit doubleClicked();
+        event->accept();
+        return;
+    }
+    QWidget::mouseDoubleClickEvent(event);
 }
 
 void MainTitleBar::setActiveStyle(bool active) {

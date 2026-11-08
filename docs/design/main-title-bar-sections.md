@@ -61,6 +61,12 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 `TabPanelTitleBar`（底部面板独立成窗）仍是旧路径，独立窗口上还会看到原生标题栏与自绘三键，属于后续待办。
 
+## 双击标题栏
+
+系统边框模式下没有 window agent，平台自己的标题栏是这一行之上的另一条窄带，双击这一行的空白处原本什么都不发生，与 macOS 上"整个标题栏都能铺满/还原"的预期不符。
+
+`MainTitleBar` 现在自己上报这个手势：`mouseDoubleClickEvent()` 只在落点没有子控件时发 `doubleClicked()`，因为忽略鼠标事件的子控件会把按下事件冒泡上来。`MainWindow` 只在系统边框模式下连接它（无边框时 QWK 自己的 `MouseButtonDblClick` 分支已经在 `isInTitleBarDraggableArea()` 里处理，两处都连会导致来回切换两次），行为是最大化与还原互切，全屏时忽略。
+
 ## 与自适应溢出的关系
 
 计划里的 `inWindowMenu` 同时下发给 `MainMenuView::setInWindowMenu()`。原生菜单栏下自适应溢出整体不成立：`removeAction()` 会经过 `QMenuBar::actionEvent` 走到 `QPlatformMenuBar::removeMenu()`，把菜单从系统菜单栏里摘掉，窗口里省不下任何宽度，系统顶栏反而少几个菜单。该状态下的划分恒为"全部内联"，`sizeHint()` 退回 `QMenuBar` 自身的空提示。详见 `adaptive-main-menu-bar.md`。
@@ -74,3 +80,4 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 - 摘掉菜单段后只剩一条分隔线，首段是项目名下拉，下拉左侧没有任何分隔线。
 - 切回原计划后分段与分隔线数量完全复现。
 - 菜单栏离开窗口后划分保持全部内联，`overflowedMenuActions()` 为空。
+- 双击标题栏空白处最大化，再次双击还原；落点在子控件上时不触发。
