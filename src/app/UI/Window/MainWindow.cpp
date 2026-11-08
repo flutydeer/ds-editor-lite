@@ -71,14 +71,13 @@ MainWindow::MainWindow() {
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
 #ifdef Q_OS_MAC
     if (!m_useNativeFrame) {
-        // Let Qt own the AppKit side of "content under the title bar". These two
-        // hints give the platform window a full-size content view and a
-        // transparent title bar at creation time, so the client geometry is
-        // right from the first layout. Flipping NSWindowStyleMaskFullSizeContentView
-        // afterwards does not help: Qt keeps the content rect it computed when
-        // the window was created, and a native title bar strip stays on top.
+        // Expand the native client area, then opt out of QWidget's automatic
+        // safe-area padding. Cocoa still reports the native title bar as unsafe
+        // in a full-size content view. Otherwise QMainWindow's layout reserves
+        // that row again, above our title bar and its traffic-light area.
         setWindowFlag(Qt::ExpandedClientAreaHint, true);
         setWindowFlag(Qt::NoTitleBarBackgroundHint, true);
+        setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
     }
 #endif
     auto useNativeFrame = m_useNativeFrame;
@@ -110,10 +109,7 @@ MainWindow::MainWindow() {
         // macOS keeps its traffic lights and only repositions them. The area has
         // to be set after setTitleBar(), which clears it on macOS.
         agent->setSystemButtonArea(m_titleBar->trafficLightArea());
-        // agent->setup() already forced the native window into existence, so this
-        // lands before the content view is laid out. Flipping the mask after
-        // show() is too late: Qt keeps the geometry it computed at creation and
-        // the window keeps a native title bar strip above our row.
+        // Keep the AppKit title hidden as well as its background transparent.
         WindowFrameUtils::mergeTitleBarIntoContent(this);
 #endif
         agent->setHitTestVisible(m_titleBar->menuView());

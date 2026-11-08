@@ -40,8 +40,8 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     [content addSubview:visualEffectView positioned:NSWindowBelow relativeTo:nullptr];
 
     window.titlebarAppearsTransparent = YES;
-    window.appearance = [NSAppearance appearanceNamed:(dark ? NSAppearanceNameDarkAqua
-                                                            : NSAppearanceNameAqua)];
+    window.appearance =
+        [NSAppearance appearanceNamed:(dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua)];
 }
 
 void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
@@ -55,19 +55,19 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
         return;
     }
 
-    // QWindowKit does the same from its own winId hook, but that hook only fires
-    // once and gives up when the NSView is not attached to a window yet. Doing
-    // it again here is cheap and idempotent, and it is what actually lets a
-    // custom title bar reclaim the native title bar row.
+    // QWindowKit also maintains FullSizeContentView when the NSView attaches
+    // to its NSWindow. This is an idempotent native-state safeguard, not a
+    // replacement for the QWidget safe-area policy.
     const auto before = window.styleMask;
     const auto contentBefore = window.contentLayoutRect;
     window.styleMask |= NSWindowStyleMaskFullSizeContentView;
     window.titlebarAppearsTransparent = YES;
     window.titleVisibility = NSWindowTitleHidden;
-    qInfo("Title bar merge applied: styleMask 0x%lx -> 0x%lx, content layout %.0fx%.0f -> %.0fx%.0f",
-          static_cast<unsigned long>(before), static_cast<unsigned long>(window.styleMask),
-          contentBefore.size.width, contentBefore.size.height,
-          window.contentLayoutRect.size.width, window.contentLayoutRect.size.height);
+    qInfo(
+        "Title bar merge applied: styleMask 0x%lx -> 0x%lx, content layout %.0fx%.0f -> %.0fx%.0f",
+        static_cast<unsigned long>(before), static_cast<unsigned long>(window.styleMask),
+        contentBefore.size.width, contentBefore.size.height, window.contentLayoutRect.size.width,
+        window.contentLayoutRect.size.height);
 }
 
 bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
@@ -82,16 +82,30 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
     // recording consent prompt cannot be answered from a headless CI job.
     auto view = reinterpret_cast<NSView *>(widget->winId());
     NSWindow *window = [view window];
-    if (!window)
-        return widget->grab().save(filePath);
+    if (!window) {
+        qWarning("Chrome capture has no NSWindow");
+        return false;
+    }
     NSView *frameView = [[window contentView] superview];
-    if (!frameView)
-        return widget->grab().save(filePath);
+    if (!frameView) {
+        qWarning("Chrome capture has no AppKit frame view");
+        return false;
+    }
 
     const NSRect bounds = frameView.bounds;
+    const NSRect clientRect = [view convertRect:view.bounds toView:frameView];
+    const auto topInset = frameView.isFlipped ? NSMinY(clientRect) - NSMinY(bounds)
+                                              : NSMaxY(bounds) - NSMaxY(clientRect);
+    qInfo("Chrome native geometry: frame %.0fx%.0f, Qt view %.0fx%.0f, top inset %.0f, "
+          "view safe-area top %.0f, screen safe-area top %.0f, styleMask 0x%lx",
+          bounds.size.width, bounds.size.height, clientRect.size.width, clientRect.size.height,
+          topInset, view.safeAreaInsets.top, window.screen.safeAreaInsets.top,
+          static_cast<unsigned long>(window.styleMask));
     NSBitmapImageRep *rep = [frameView bitmapImageRepForCachingDisplayInRect:bounds];
-    if (!rep)
-        return widget->grab().save(filePath);
+    if (!rep) {
+        qWarning("Chrome capture could not allocate an AppKit bitmap");
+        return false;
+    }
     [frameView cacheDisplayInRect:bounds toBitmapImageRep:rep];
     NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
     if (!png)
@@ -100,8 +114,8 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly))
         return false;
-    return file.write(static_cast<const char *>(png.bytes),
-                      static_cast<qint64>(png.length)) == static_cast<qint64>(png.length);
+    return file.write(static_cast<const char *>(png.bytes), static_cast<qint64>(png.length)) ==
+           static_cast<qint64>(png.length);
 }
 
 #endif

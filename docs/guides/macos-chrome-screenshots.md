@@ -16,7 +16,9 @@
 | `LITE_FORCE_NATIVE_FRAME` | `1` 系统边框，`0` 无边框，只覆盖本次运行，不写配置 |
 | `LITE_CHROME_CAPTURE_DELAY_MS` | 抓图前等待时间，默认 6000 |
 
-抓到后写 `<目录>/title-bar-native-frame.png` 或 `title-bar-frameless.png`，然后退出，退出码 0 表示成功、2 表示抓图失败。等待时间是给首帧绘制、主题样式和初始文档留的余量，冷启动的 runner 上必要时可以调大。
+抓到后写 `<目录>/title-bar-native-frame.png` 或 `title-bar-frameless.png`，并写出同名 `.json` 几何报告，然后退出。退出码 0 表示成功，2 表示截图或报告写入失败，3 表示 macOS 非全屏无边框窗口仍在自定义标题栏上方保留空间。失败时保留截图和报告，便于检查 artifact。
+
+等待时间是给首帧绘制、主题样式和初始文档留的余量，冷启动的 runner 上必要时可以调大。抓图定时器只观察窗口，不修改 style mask 或触发布局，系统边框模式也不会在快门前被改成 FullSizeContentView。
 
 本地任意平台都能跑：
 
@@ -34,12 +36,35 @@ LITE_CHROME_CAPTURE=/tmp/shots LITE_FORCE_NATIVE_FRAME=0 ./DsEditorLite
 gh run download <run-id> -n chrome-screenshots -D ./shots
 ```
 
+## 检查顶部留白
+
+几何报告里的矩形数组为 `[x, y, width, height]`，边距数组为 `[left, top, right, bottom]`。macOS 非全屏无边框截图必须满足：
+
+- `contentsRect[1] == 0`，根窗口没有额外的内容区顶部缩进。
+- `titleBarRect[1] == 0`，自定义标题栏在根窗口坐标中从顶部开始。
+- `frameMargins[1] == 0`，Qt 客户区外没有额外的原生标题栏高度。
+
+日志中的 `Chrome native geometry` 另记录 Qt 原生 view 相对 AppKit frame view 的顶部间距，以及 view、screen 两种 safe-area 顶边距。这样可以区分原生 view 没有扩展与 Qt 布局主动留边，不再仅凭 PNG 文件非空判定修复成功。
+
+### Qt safe area 与 FullSizeContentView
+
+Qt 6.11.2 中存在两层独立机制：
+
+1. [Cocoa 平台窗口](https://github.com/qt/qtbase/blob/v6.11.2/src/plugins/platforms/cocoa/qcocoawindow.mm#L313-L355)在 FullSizeContentView 模式下仍把原生标题栏区域计入 safe area。
+2. [QWidget](https://github.com/qt/qtbase/blob/v6.11.2/src/widgets/kernel/qwidget.cpp#L1217-L1227)默认让顶层窗口遵守 safe area，[contentsMargins()](https://github.com/qt/qtbase/blob/v6.11.2/src/widgets/kernel/qwidget.cpp#L7746-L7752)将其合入内容边距，根布局再按 contentsRect 排版。
+
+所以仅设置 `ExpandedClientAreaHint` 或反复设置 `NSWindowStyleMaskFullSizeContentView` 不足以消除布局留边。macOS 无边框主窗口在创建原生窗口前显式关闭 `WA_ContentsMarginsRespectsSafeArea`，让自定义标题栏及其 traffic-light 区域使用整个客户区，系统边框模式保持默认行为。不使用固定 32px 或负边距补偿。
+
+这里的修正仍需由新一轮 Cocoa 截图验证。旧日志中的 `styleMask 0x800f -> 0x800f` 只能证明扩展标志早已生效。`contentLayoutRect` 表示未遮挡区域，不能把它与 frame 的高度差直接当作 content view 没有扩展的证据。
+
 ## 已知限制
 
-非 macOS 平台退回 `QWidget::grab()`，只有客户区，看不到系统边框。macOS 上拿到的是 theme frame 的位图，含圆角与标题栏，但不含窗口阴影。
+非 macOS 平台退回 `QWidget::grab()`，只有客户区，看不到系统边框。macOS 上拿到的是 theme frame 的位图，含圆角与标题栏，但不含窗口阴影。Cocoa 捕获缺少原生窗口、frame view 或 bitmap 时会报错退出，不静默降级为缺少原生 chrome 的客户区截图。它是 AppKit 视图重绘捕获，不等同于 WindowServer 的屏幕合成结果。
+
+关闭根窗口的自动 safe-area 留边也会取消 Qt 对屏幕刘海区域的自动避让。当前几何验收针对非全屏窗口，全屏和刘海屏上的交互控件避让仍需单独实机验证，不能把标题栏 safe-area 顶边距整体加回，否则普通窗口的顶部留白会重新出现。
 
 截图里如果出现模态对话框，说明启动路径上有东西需要人工确认，本身就是有价值的信号：抓图定时器跑在同一个事件循环里，模态不会拦住它。
 
 ## 首次运行记录
 
-PR #202 触发的一次完整流程：依赖与配置约 6 分钟，构建加两次抓图共 14 分 52 秒，`macos-latest` 当时是 macOS 26。产物 `chrome-screenshots` 里两张图分别是 63 KB 与 64 KB。无边框那张可以看到红绿灯与项目名下拉同行、右侧没有自绘按钮，系统边框那张是原生标题栏一条加上我们的标题栏一条。
+PR #202 触发的一次完整流程：依赖与配置约 6 分钟，构建加两次抓图共 14 分 52 秒，`macos-latest` 当时是 macOS 26。产物 `chrome-screenshots` 里两张图分别是 63 KB 与 64 KB。无边框那张可以看到红绿灯与项目名下拉同行、右侧没有自绘按钮，但这不足以证明顶部留白已消除。早期抓图路径还会修改系统边框窗口的 style mask，旧的系统边框截图不应视为未经扰动的对照。

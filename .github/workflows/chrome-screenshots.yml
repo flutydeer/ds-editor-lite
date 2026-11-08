@@ -129,6 +129,8 @@ jobs:
           ls -l "$out"
           test -s "$out/title-bar-native-frame.png"
           test -s "$out/title-bar-frameless.png"
+          test -s "$out/title-bar-native-frame.json"
+          test -s "$out/title-bar-frameless.json"
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7
