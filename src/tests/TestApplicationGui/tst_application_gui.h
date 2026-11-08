@@ -187,6 +187,7 @@ private slots:
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
     void detachedPanelUsesReducedMainTitleBar();
+    void detachedPanelWindowIsRegisteredForFrameEffects();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
     void settingsDialogsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();

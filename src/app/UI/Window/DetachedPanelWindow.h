@@ -1,7 +1,7 @@
 #ifndef DETACHEDPANELWINDOW_H
 #define DETACHEDPANELWINDOW_H
 
-#include <QWidget>
+#include "Base/Window.h"
 
 class QHBoxLayout;
 class QVBoxLayout;
@@ -19,7 +19,10 @@ namespace QWK {
 // docking it back is just a reparent, and all window-level concerns (QWindowKit
 // agent, title, activation, theme registration, system buttons) live here
 // instead of being spread across MainWindow.
-class DetachedPanelWindow : public QWidget {
+// Window is the shared base that registers a top-level widget with
+// ThemeManager for frame effects. Deriving from it is what makes the native
+// border follow the light/dark scheme exactly like the main window does.
+class DetachedPanelWindow : public Window {
     Q_OBJECT
 
 public:

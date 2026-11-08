@@ -4,16 +4,16 @@ QWidget {
 
 /* Opaque background is the default so the first frame after show() is already
    themed (the transparentWindow property is only set after QEvent::Show). */
+/* Window is the shared base of the standalone editor windows, so its selector
+   also covers DetachedPanelWindow. */
 Dialog,
 Window,
-QMainWindow,
-DetachedPanelWindow {
+QMainWindow {
     background: ${surface.window};
 }
 
 Dialog[transparentWindow="true"],
 Window[transparentWindow="true"],
-QMainWindow[transparentWindow="true"],
-DetachedPanelWindow[transparentWindow="true"] {
+QMainWindow[transparentWindow="true"] {
     background: transparent
 }

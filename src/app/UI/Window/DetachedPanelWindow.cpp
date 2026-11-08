@@ -23,7 +23,8 @@ namespace {
 } // namespace
 
 DetachedPanelWindow::DetachedPanelWindow(MainWindow *mainWindow, const bool useNativeFrame)
-    : QWidget(mainWindow, Qt::Window), m_mainWindow(mainWindow), m_useNativeFrame(useNativeFrame) {
+    : Window(mainWindow, Qt::Window), m_mainWindow(mainWindow),
+      m_useNativeFrame(useNativeFrame) {
     setAttribute(Qt::WA_StyledBackground);
     setProperty(EditorShortcutUtils::kEditorWindowProperty, true);
     setWindowTitle(mainWindow ? mainWindow->windowTitle() : QString());

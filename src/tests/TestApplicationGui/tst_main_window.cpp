@@ -47,6 +47,7 @@
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/History/ActionSequence.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
@@ -2315,6 +2316,31 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QCOMPARE(top, 0);
     QCOMPARE(right, 6);
     QCOMPARE(bottomMargin, 6);
+}
+
+void ApplicationGuiTests::detachedPanelWindowIsRegisteredForFrameEffects() {
+    // MainWindowFixture uses a native frame, which is the mode where the DWM
+    // border is drawn by the system instead of by QWindowKit.
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+
+    // ThemeManager marks every frame-registered window on Show, right after
+    // applying WindowFrameUtils::applyFrameEffects(). A detached window that
+    // only registered as a style root never receives this property, and its
+    // native border stays in the light scheme.
+    QTRY_VERIFY(detached->property("transparentWindow").isValid());
+    QCOMPARE(detached->property("transparentWindow").toBool(), false);
+    QCOMPARE(detached->styleSheet(), ThemeManager::instance()->styleSheet());
 }
 
 void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {
