@@ -167,6 +167,7 @@ private slots:
     void mainMenuOverflowsFromRightToLeft();
     void mainMenuOverflowRestoresWithoutHysteresis();
     void mainMenuOverflowRecalculatesAfterTitleChange();
+    void mainMenuFitsAtSizeHintWithNativeMetrics();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();

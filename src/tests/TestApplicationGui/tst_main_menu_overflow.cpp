@@ -12,8 +12,10 @@
 #include <QKeySequence>
 #include <QMenu>
 #include <QPixmap>
+#include <QProxyStyle>
 #include <QScopeGuard>
 #include <QSizePolicy>
+#include <QStyle>
 #include <QToolButton>
 
 namespace {
@@ -248,4 +250,70 @@ void ApplicationGuiTests::mainMenuOverflowRecalculatesAfterTitleChange() {
     QVERIFY(probe.menuBar->isOverflowing());
     QVERIFY(!probe.menuBar->overflowedMenuActions().isEmpty());
     QVERIFY(!probe.overflowAction->text().isEmpty());
+}
+
+void ApplicationGuiTests::mainMenuFitsAtSizeHintWithNativeMetrics() {
+    MenuBarProbe probe;
+    QVERIFY(probe.menuBar);
+    QVERIFY(probe.overflowAction);
+
+    // Fusion reports 6px of PM_MenuBarItemSpacing, which absorbs a budget
+    // error in sizeHint(). The Windows native style reports 0 spacing and a
+    // 0 horizontal margin, so the full sizeHint must be usable as-is.
+    class NativeMetricsStyle final : public QProxyStyle {
+    public:
+        using QProxyStyle::QProxyStyle;
+
+        int pixelMetric(PixelMetric metric, const QStyleOption *option = nullptr,
+                        const QWidget *widget = nullptr) const override {
+            switch (metric) {
+            case PM_MenuBarItemSpacing:
+            case PM_MenuBarHMargin:
+                return 0;
+            case PM_MenuBarPanelWidth:
+                return 2;
+            default:
+                return QProxyStyle::pixelMetric(metric, option, widget);
+            }
+        }
+    };
+
+    probe.menuBar->setStyle(new NativeMetricsStyle);
+    const auto restore = qScopeGuard([&probe] {
+        probe.menuBar->setMinimumWidth(0);
+        probe.menuBar->setMaximumWidth(QWIDGETSIZE_MAX);
+        probe.menuBar->setStyle(nullptr);
+        settleMenuBar();
+    });
+    settleMenuBar();
+    QCOMPARE(probe.menuBar->style()->pixelMetric(QStyle::PM_MenuBarItemSpacing), 0);
+
+    const auto menus = probe.menuBar->topLevelMenuActions();
+    const auto allTitles = titles(menus);
+    const int fullWidth = probe.menuBar->sizeHint().width();
+    const int minWidth = probe.menuBar->minimumSizeHint().width();
+    QVERIFY(fullWidth > minWidth);
+
+    probe.setWidth(fullWidth);
+    QVERIFY2(!probe.menuBar->isOverflowing(),
+             qPrintable(QStringLiteral("sizeHint=%1 collapsed=%2")
+                            .arg(fullWidth)
+                            .arg(titles(probe.menuBar->overflowedMenuActions()).join(','))));
+    QCOMPARE(probe.menuBar->actions(), menus);
+
+    auto *nativeExtension =
+        probe.menuBar->findChild<QToolButton *>(QStringLiteral("qt_menubar_ext_button"));
+    QVERIFY(!nativeExtension || nativeExtension->isHidden());
+
+    bool sawOverflow = false;
+    for (int width = fullWidth - 4; width >= minWidth; width -= 4) {
+        probe.setWidth(width);
+        const auto overflowed = probe.menuBar->overflowedMenuActions();
+        if (overflowed.isEmpty())
+            continue;
+        sawOverflow = true;
+        QCOMPARE(titles(overflowed), allTitles.mid(allTitles.size() - overflowed.size()));
+        QVERIFY(!nativeExtension || nativeExtension->isHidden());
+    }
+    QVERIFY(sawOverflow);
 }

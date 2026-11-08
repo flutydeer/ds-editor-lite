@@ -53,8 +53,10 @@ namespace {
 
     const QSize kOverflowIconSize(16, 16);
     constexpr auto kOverflowIconPath = ":/svg/icons/more_horizontal_24_regular.svg";
-    // Absorbs rounding differences between our pure measurement and Qt's own
-    // action geometry, so QMenuBar never needs its private extension widget.
+    // Added to the width demand and to sizeHint(), never subtracted from the
+    // available width. QMenuBar's menuRect ends at width() - fw, so reserving
+    // the margin on the demand side keeps our split strictly inside Qt's own
+    // geometry and QMenuBar never needs its private extension widget.
     constexpr int kOverflowSafetyMargin = 4;
 
 } // namespace
@@ -1064,7 +1066,12 @@ int MainMenuViewPrivate::fullInlineWidth() const {
     const int hmargin = style->pixelMetric(QStyle::PM_MenuBarHMargin, nullptr, q);
     const int spacing = style->pixelMetric(QStyle::PM_MenuBarItemSpacing, nullptr, q);
     const int start = fw + hmargin + spacing;
-    return inlineRightEdge(q->topLevelMenuActions(), start, spacing) + fw + hmargin + spacing;
+    // sizeHint() must include the same margin that updateOverflow() adds to
+    // its demand. Otherwise the title bar grants exactly the full width and
+    // our own split still collapses the last menu (notably on the Windows
+    // native style, where both hmargin and itemSpacing are zero).
+    return inlineRightEdge(q->topLevelMenuActions(), start, spacing) + fw + hmargin + spacing +
+           kOverflowSafetyMargin;
 }
 
 int MainMenuViewPrivate::minimumInlineWidth() const {
@@ -1095,20 +1102,24 @@ void MainMenuViewPrivate::updateOverflow() {
     const int hmargin = style->pixelMetric(QStyle::PM_MenuBarHMargin, nullptr, q);
     const int spacing = style->pixelMetric(QStyle::PM_MenuBarItemSpacing, nullptr, q);
     const int start = fw + hmargin + spacing;
-    // QMenuBar's own menuRect ends at width() - fw. Keep a few pixels of slack
-    // so its private extension widget never becomes necessary.
-    const int rightEdge = q->width() - fw - kOverflowSafetyMargin;
+    // QMenuBar's menuRect ends at width() - fw. The margin is applied to the
+    // demand below instead, which keeps this boundary identical to Qt's.
+    const int rightEdge = q->width() - fw;
     const int buttonWidth = q->menuItemWidth(m_overflowAction.data());
 
     const auto fits = [&](int keepCount) {
         int x = start;
         for (int i = 0; i < keepCount; ++i) {
             x += q->menuItemWidth(m_topLevelMenus.at(i).data());
-            if (x > rightEdge)
-                return false;
             x += spacing;
         }
-        return keepCount == m_topLevelMenus.size() || x + buttonWidth <= rightEdge;
+        const int lastRight = x - spacing;
+        // With everything inline the ellipsis action is absent. Otherwise it
+        // takes the slot after the last inline menu, one item spacing away.
+        const int required = keepCount == m_topLevelMenus.size()
+                                 ? lastRight
+                                 : lastRight + spacing + buttonWidth;
+        return required + kOverflowSafetyMargin <= rightEdge;
     };
 
     int keepCount = m_topLevelMenus.size();
