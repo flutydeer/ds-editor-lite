@@ -77,4 +77,11 @@ void WindowFrameUtils::applyPopupEffects(QWidget *widget, const CornerPreference
     applyTheme(hwnd, dark ? kDwmColorDefault : kDwmColorNone);
 }
 
+bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
+    // Windows keeps the native frame outside the Qt backing store, so this only
+    // covers the client area. The CI screenshot harness runs on macOS, where the
+    // theme frame capture above is the whole point.
+    return widget && widget->grab().save(filePath);
+}
+
 #endif

@@ -9,6 +9,7 @@
 #  include <QWidget>
 #  include <QStyle>
 #  include <QGuiApplication>
+#  include <QFile>
 
 // ReSharper disable once CppParameterMayBeConstPtrOrRef
 void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
@@ -59,6 +60,40 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
     window.styleMask |= NSWindowStyleMaskFullSizeContentView;
     window.titlebarAppearsTransparent = YES;
     window.titleVisibility = NSWindowTitleHidden;
+}
+
+bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
+    if (!widget)
+        return false;
+    if (QGuiApplication::platformName() != QStringLiteral("cocoa"))
+        return widget->grab().save(filePath);
+
+    // Caching the theme frame instead of the Qt content is the whole point: the
+    // traffic lights and the title bar are AppKit views that live outside the
+    // QWidget backing store. It also avoids screencapture(1), whose screen
+    // recording consent prompt cannot be answered from a headless CI job.
+    auto view = reinterpret_cast<NSView *>(widget->winId());
+    NSWindow *window = [view window];
+    if (!window)
+        return widget->grab().save(filePath);
+    NSView *frameView = [[window contentView] superview];
+    if (!frameView)
+        return widget->grab().save(filePath);
+
+    const NSRect bounds = frameView.bounds;
+    NSBitmapImageRep *rep = [frameView bitmapImageRepForCachingDisplayInRect:bounds];
+    if (!rep)
+        return widget->grab().save(filePath);
+    [frameView cacheDisplayInRect:bounds toBitmapImageRep:rep];
+    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+    if (!png)
+        return false;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    return file.write(static_cast<const char *>(png.bytes),
+                      static_cast<qint64>(png.length)) == static_cast<qint64>(png.length);
 }
 
 #endif

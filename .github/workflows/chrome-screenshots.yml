@@ -1,0 +1,139 @@
+name: Chrome screenshots
+
+# Captures the real main window on macOS, in both frame modes, and uploads the
+# PNGs as an artifact. Reviewing the chrome of a macOS window otherwise needs a
+# Mac in front of you, which most contributors do not have.
+#
+# Why the capture happens inside the app and not via screencapture(1): since
+# macOS 15 a second screencapture in the same job pops an unclickable "bypass
+# the system private window picker" consent dialog, so the step would hang.
+# A process may always read its own window pixels, and on top of that the AppKit
+# theme frame includes the traffic lights, which QWidget::grab() cannot show.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/app/UI/Views/MainTitleBar/**'
+      - 'src/app/UI/Window/**'
+      - 'src/app/UI/Dialogs/Base/**'
+      - 'src/app/Utils/WindowChromeCapture.*'
+      - 'src/libs/GUI/Utils/WindowFrameUtils*'
+      - '.github/workflows/chrome-screenshots.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-screenshots-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-chrome:
+    name: macOS arm64 chrome screenshots
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      QT_VERSION: '6.11.2'
+      CMAKE_BUILD_PARALLEL_LEVEL: 3
+      VCPKG_MAX_CONCURRENCY: '2'
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Prepare directories
+        run: mkdir -p build/ci/vcpkg-cache build/chrome-shots
+      - name: macOS dependencies
+        run: brew install autoconf automake autoconf-archive libtool ninja pkg-config
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: 'qt5compat qtshadertools qtscxml qthttpserver qtwebsockets'
+          cache: true
+      - name: Restore dependency packages
+        id: packages
+        uses: actions/cache/restore@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: macos-chrome-arm64-osx-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          restore-keys: |
+            macos-chrome-arm64-osx-qt${{ env.QT_VERSION }}-
+            arm64-osx-qt${{ env.QT_VERSION }}-
+      - name: Build dependencies
+        id: dependencies
+        run: python scripts/ci/bootstrap-vcpkg.py --triplet arm64-osx 2>&1 | tee build/chrome-shots/dependencies.log
+      - name: Save dependency packages
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: ${{ steps.packages.outputs.cache-primary-key }}
+      - name: Configure
+        run: |
+          cmake --preset tests -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx \
+            2>&1 | tee build/chrome-shots/configure.log
+      - name: Build editor
+        run: |
+          cmake --build --preset tests --target DsEditorLite DsConnectorLite 2>&1 |
+            tee build/chrome-shots/build.log
+      - name: Capture both frame modes
+        run: |
+          set -euo pipefail
+          # The binary runs straight from the build tree; point the loader at the
+          # aqt Qt so the frameworks and the cocoa plugin resolve.
+          export DYLD_FRAMEWORK_PATH="$QT_ROOT_DIR/lib"
+          export QT_PLUGIN_PATH="$QT_ROOT_DIR/plugins"
+          export QT_QPA_PLATFORM=cocoa
+          app="$(find build/Tests/out/bin -maxdepth 1 -name 'DsEditorLite.app' -print -quit)"
+          test -n "$app" || { echo "DsEditorLite.app not found"; exit 1; }
+          binary="$app/Contents/MacOS/DsEditorLite"
+          out="$PWD/build/chrome-shots"
+
+          capture() {
+            local mode="$1"
+            echo "::group::capture LITE_FORCE_NATIVE_FRAME=$mode"
+            LITE_CHROME_CAPTURE="$out" LITE_FORCE_NATIVE_FRAME="$mode" "$binary" \
+              > "$out/run-$mode.log" 2>&1 &
+            local pid=$!
+            for _ in $(seq 1 180); do
+              kill -0 "$pid" 2>/dev/null || break
+              sleep 1
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "capture did not exit within 180s, terminating"
+              kill "$pid" 2>/dev/null || true
+              wait "$pid" 2>/dev/null || true
+              echo "::endgroup::"
+              return 1
+            fi
+            wait "$pid"
+            local status=$?
+            echo "exit status: $status"
+            echo "::endgroup::"
+            return $status
+          }
+
+          capture 1
+          capture 0
+
+          ls -l "$out"
+          test -s "$out/title-bar-native-frame.png"
+          test -s "$out/title-bar-frameless.png"
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chrome-screenshots
+          path: build/chrome-shots
+          if-no-files-found: warn
+          retention-days: 14
