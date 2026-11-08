@@ -22,6 +22,7 @@ private slots:
     void modeAwareCommandRouting();
     void forwardingAndSnapshots();
     void activePanels();
+    void activePanelFollowsActiveWindow();
     void interactionRouting();
     void panelVisibilityRouting();
     void readOnlyClipEditorDropsTheEditTarget();

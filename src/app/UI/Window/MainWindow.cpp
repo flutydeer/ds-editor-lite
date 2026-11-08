@@ -294,11 +294,6 @@ void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         updateWindowTitle();
-    else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
-             m_bottomPanelDetached) {
-        editorViewController->activatePanelContext(
-            m_trackEditorView->isVisible() ? AppGlobal::TracksEditor : AppGlobal::Generic);
-    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -877,6 +872,12 @@ void MainWindow::detachBottomPanel() {
     }
     m_bottomPanelView->show();
 
+    // From here on the active panel belongs to whichever editor window is
+    // active. The controller owns that mapping and listens for WindowActivate.
+    editorViewController->setPanelWindow(m_trackEditorView, this);
+    editorViewController->setPanelWindow(m_bottomPanelView, m_bottomPanelView);
+    editorViewController->activateWindowPanel(m_bottomPanelView);
+
     m_bottomPanelView->installEventFilter(this);
 }
 
@@ -884,6 +885,7 @@ void MainWindow::attachBottomPanel() {
     if (!m_bottomPanelDetached)
         return;
 
+    editorViewController->clearPanelWindows();
     m_bottomPanelDetached = false;
     m_detachedWindowGeometry = m_bottomPanelView->geometry();
 
@@ -938,10 +940,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
             default:
                 break;
         }
-    }
-    if (watched == m_bottomPanelView && event->type() == QEvent::WindowActivate) {
-        editorViewController->activatePanelContext(m_bottomPanelView->panelType());
-        return false;
     }
     if (watched == m_bottomPanelView && event->type() == QEvent::Close) {
         event->ignore();
