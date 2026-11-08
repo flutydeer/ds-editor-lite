@@ -213,6 +213,7 @@ private slots:
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
+    void trackHeaderLaneMenuTogglesBothLanes();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();

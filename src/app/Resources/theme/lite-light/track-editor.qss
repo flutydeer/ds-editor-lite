@@ -33,7 +33,13 @@ InfoLaneHeaderView>QLabel {
 TrackListHeaderView {
     background: ${editor.trackListHeader};
     border-top-left-radius: 6px;
-    qproperty-iconCheckedColor: ${accent.default};
+}
+
+/* QPushButton paints a drop-down arrow once setMenu() is used.
+   The lane options button is an icon-only overflow trigger. */
+TrackListHeaderView>ToolButton#btnLaneOptions::menu-indicator {
+    image: none;
+    width: 0px;
 }
 
 

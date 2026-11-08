@@ -2,11 +2,14 @@
 
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
+#include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/ToolButton.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 
 #include <QHBoxLayout>
+#include <QAction>
 #include <QEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QPushButton>
 
@@ -24,45 +27,53 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TrackController::onNewTrack);
 
-    const auto btnToggleTempoLane = new ToolButton;
-    m_btnToggleTempoLane = btnToggleTempoLane;
-    btnToggleTempoLane->setObjectName("btnToggleTempoLane");
-    btnToggleTempoLane->setFixedSize(28, 28);
-    btnToggleTempoLane->setCheckable(true);
-    btnToggleTempoLane->setChecked(true);
-    btnToggleTempoLane->setToolTip(tr("Show Tempo Track"));
-    btnToggleTempoLane->installEventFilter(new ToolTipFilter(btnToggleTempoLane));
-    connect(btnToggleTempoLane, &QPushButton::toggled, this,
-            &TrackListHeaderView::tempoLaneToggled);
+    // Both info lanes are toggled from a single overflow-style menu instead of
+    // dedicating one toolbar slot to each of them.
+    m_laneMenu = new Menu(this);
+    m_laneMenu->setObjectName("laneVisibilityMenu");
 
-    const auto btnToggleTimeSignatureLane = new ToolButton;
-    m_btnToggleTimeSignatureLane = btnToggleTimeSignatureLane;
-    btnToggleTimeSignatureLane->setObjectName("btnToggleTimeSignatureLane");
-    btnToggleTimeSignatureLane->setFixedSize(28, 28);
-    btnToggleTimeSignatureLane->setCheckable(true);
-    btnToggleTimeSignatureLane->setChecked(true);
-    btnToggleTimeSignatureLane->setToolTip(tr("Show Time Signature Track"));
-    btnToggleTimeSignatureLane->installEventFilter(new ToolTipFilter(btnToggleTimeSignatureLane));
-    connect(btnToggleTimeSignatureLane, &QPushButton::toggled, this,
+    m_actionTempoLane = m_laneMenu->addAction(tr("Tempo Track"));
+    m_actionTempoLane->setObjectName("actionTempoLane");
+    m_actionTempoLane->setCheckable(true);
+    m_actionTempoLane->setChecked(true);
+
+    m_actionTimeSignatureLane = m_laneMenu->addAction(tr("Time Signature Track"));
+    m_actionTimeSignatureLane->setObjectName("actionTimeSignatureLane");
+    m_actionTimeSignatureLane->setCheckable(true);
+    m_actionTimeSignatureLane->setChecked(true);
+
+    connect(m_actionTempoLane, &QAction::toggled, this,
+            &TrackListHeaderView::tempoLaneToggled);
+    connect(m_actionTimeSignatureLane, &QAction::toggled, this,
             &TrackListHeaderView::timeSignatureLaneToggled);
-    rebuildToggleIcons();
+
+    const auto btnLaneOptions = new ToolButton;
+    m_btnLaneOptions = btnLaneOptions;
+    btnLaneOptions->setObjectName("btnLaneOptions");
+    btnLaneOptions->setFixedSize(28, 28);
+    btnLaneOptions->setActionIcon(
+        QStringLiteral(":/svg/icons/more_horizontal_24_regular.svg"));
+    const auto laneVisibilityText = tr("Lane Visibility");
+    btnLaneOptions->setToolTip(laneVisibilityText);
+    btnLaneOptions->setAccessibleName(laneVisibilityText);
+    btnLaneOptions->installEventFilter(new ToolTipFilter(btnLaneOptions));
+    btnLaneOptions->setMenu(m_laneMenu);
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(btnNewTrack);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    mainLayout->addWidget(btnToggleTempoLane);
-    mainLayout->addWidget(btnToggleTimeSignatureLane);
+    mainLayout->addWidget(btnLaneOptions);
     mainLayout->setContentsMargins(4, 4, 4, 4);
 
     setLayout(mainLayout);
 }
 
 bool TrackListHeaderView::tempoLaneVisible() const {
-    return m_btnToggleTempoLane->isChecked();
+    return m_actionTempoLane->isChecked();
 }
 
 bool TrackListHeaderView::timeSignatureLaneVisible() const {
-    return m_btnToggleTimeSignatureLane->isChecked();
+    return m_actionTimeSignatureLane->isChecked();
 }
 
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
@@ -73,31 +84,10 @@ void TrackListHeaderView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange) {
         m_btnNewTrack->setToolTip(tr("New Track"));
-        m_btnToggleTempoLane->setToolTip(tr("Show Tempo Track"));
-        m_btnToggleTimeSignatureLane->setToolTip(tr("Show Time Signature Track"));
+        const auto laneVisibilityText = tr("Lane Visibility");
+        m_btnLaneOptions->setToolTip(laneVisibilityText);
+        m_btnLaneOptions->setAccessibleName(laneVisibilityText);
+        m_actionTempoLane->setText(tr("Tempo Track"));
+        m_actionTimeSignatureLane->setText(tr("Time Signature Track"));
     }
-}
-
-QColor TrackListHeaderView::iconCheckedColor() const {
-    return m_iconCheckedColor;
-}
-
-void TrackListHeaderView::setIconCheckedColor(const QColor &color) {
-    if (m_iconCheckedColor == color)
-        return;
-    m_iconCheckedColor = color;
-    rebuildToggleIcons();
-}
-
-void TrackListHeaderView::rebuildToggleIcons() {
-    const auto applyIcon = [this](QAbstractButton *abstractButton) {
-        const auto button = qobject_cast<ToolButton *>(abstractButton);
-        if (!button)
-            return;
-        // Placeholder icon until the lane toggles get a dedicated design.
-        button->setToggleIcon(QStringLiteral(":/svg/icons/music_note_2_16_filled.svg"),
-                              QSize(16, 16), m_iconCheckedColor);
-    };
-    applyIcon(m_btnToggleTempoLane);
-    applyIcon(m_btnToggleTimeSignatureLane);
 }

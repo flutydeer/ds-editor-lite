@@ -1,14 +1,14 @@
 #ifndef TRACKLISTHEADERVIEW_H
 #define TRACKLISTHEADERVIEW_H
 
-#include <QColor>
 #include <QWidget>
 
 class QAbstractButton;
+class QAction;
+class QMenu;
 
 class TrackListHeaderView final : public QWidget {
     Q_OBJECT
-    Q_PROPERTY(QColor iconCheckedColor READ iconCheckedColor WRITE setIconCheckedColor)
 
 public:
     explicit TrackListHeaderView(QWidget *parent = nullptr);
@@ -24,18 +24,12 @@ private:
     void changeEvent(QEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
 
-    // Theme color accessor (QSS-overridable via qproperty-*); the setter
-    // re-tints the checked state of the lane toggle icon
-    [[nodiscard]] QColor iconCheckedColor() const;
-    void setIconCheckedColor(const QColor &color);
-    void rebuildToggleIcons();
-
-    QColor m_iconCheckedColor = {155, 186, 255};
     QAbstractButton *m_btnNewTrack = nullptr;
-    QAbstractButton *m_btnToggleTempoLane = nullptr;
-    QAbstractButton *m_btnToggleTimeSignatureLane = nullptr;
+    QAbstractButton *m_btnLaneOptions = nullptr;
+    QMenu *m_laneMenu = nullptr;
+    QAction *m_actionTempoLane = nullptr;
+    QAction *m_actionTimeSignatureLane = nullptr;
 };
-
 
 
 #endif // TRACKLISTHEADERVIEW_H

@@ -8,6 +8,7 @@
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TrackListHeaderView.h"
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Views/TrackEditor/InfoLane/TempoLaneView.h"
@@ -335,6 +336,61 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
     QCOMPARE(runtime.documentVersion(), document);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::trackHeaderLaneMenuTogglesBothLanes() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearDialogParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+    editor.resize(1100, 500);
+    editor.show();
+    QTRY_VERIFY(editor.isVisible());
+
+    auto *header = editor.findChild<TrackListHeaderView *>();
+    QVERIFY(header);
+    auto *menuButton = header->findChild<QPushButton *>(QStringLiteral("btnLaneOptions"));
+    QVERIFY(menuButton);
+    auto *menu = menuButton->menu();
+    QVERIFY(menu);
+    // The two dedicated toggle buttons are gone; one overflow menu owns both lanes.
+    QVERIFY(!header->findChild<QAbstractButton *>(QStringLiteral("btnToggleTempoLane")));
+    QVERIFY(!header->findChild<QAbstractButton *>(QStringLiteral("btnToggleTimeSignatureLane")));
+
+    auto *tempoAction = header->findChild<QAction *>(QStringLiteral("actionTempoLane"));
+    auto *meterAction = header->findChild<QAction *>(QStringLiteral("actionTimeSignatureLane"));
+    QVERIFY(tempoAction && meterAction);
+    QVERIFY(menu->actions().size() == 2);
+    QCOMPARE(menu->actions().at(0), tempoAction);
+    QCOMPARE(menu->actions().at(1), meterAction);
+    QVERIFY(tempoAction->isCheckable() && meterAction->isCheckable());
+    QVERIFY(tempoAction->isChecked() && meterAction->isChecked());
+    QVERIFY(header->tempoLaneVisible() && header->timeSignatureLaneVisible());
+
+    auto *tempoLane = editor.findChild<TempoLaneView *>();
+    auto *tempoHeader = editor.findChild<QWidget *>(QStringLiteral("tempoLaneHeaderView"));
+    auto *meterLane = editor.findChild<TimeSignatureLaneView *>();
+    auto *meterHeader = editor.findChild<QWidget *>(QStringLiteral("timeSignatureLaneHeaderView"));
+    QVERIFY(tempoLane && tempoHeader && meterLane && meterHeader);
+    QVERIFY(tempoLane->isVisible() && tempoHeader->isVisible());
+    QVERIFY(meterLane->isVisible() && meterHeader->isVisible());
+
+    tempoAction->trigger();
+    QVERIFY(!tempoAction->isChecked() && meterAction->isChecked());
+    QVERIFY(!tempoLane->isVisible() && !tempoHeader->isVisible());
+    QVERIFY(meterLane->isVisible() && meterHeader->isVisible());
+    QVERIFY(!header->tempoLaneVisible() && header->timeSignatureLaneVisible());
+
+    meterAction->trigger();
+    QVERIFY(!meterAction->isChecked());
+    QVERIFY(!meterLane->isVisible() && !meterHeader->isVisible());
+
+    tempoAction->trigger();
+    meterAction->trigger();
+    QVERIFY(tempoAction->isChecked() && meterAction->isChecked());
+    QVERIFY(tempoLane->isVisible() && tempoHeader->isVisible());
+    QVERIFY(meterLane->isVisible() && meterHeader->isVisible());
 }
 
 void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {

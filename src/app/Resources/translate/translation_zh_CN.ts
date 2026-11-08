@@ -6250,22 +6250,28 @@ All current mix settings will be lost.</source>
 <context>
     <name>TrackListHeaderView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="23"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="75"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="56"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="87"/>
+        <source>Lane Visibility</source>
+        <translation>轨道显示</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="26"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="86"/>
         <source>New Track</source>
         <translation>新建轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="33"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="76"/>
-        <source>Show Tempo Track</source>
-        <translation>显示曲速轨</translation>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="35"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="90"/>
+        <source>Tempo Track</source>
+        <translation>曲速轨</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="44"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="77"/>
-        <source>Show Time Signature Track</source>
-        <translation>显示拍号轨</translation>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="40"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="91"/>
+        <source>Time Signature Track</source>
+        <translation>拍号轨</translation>
     </message>
 </context>
 <context>
