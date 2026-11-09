@@ -884,22 +884,32 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 
 Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
+    // A menu bar reports which top-level window hosts it. MainWindow uses that
+    // to pick the embedded overlay or a standalone dialog, so a secondary menu
+    // in a detached panel window never opens chrome hidden behind that window.
+    // Resolve the host when the action fires: at construction time this menu
+    // bar is still parented to MainWindow and only later gets reparented into
+    // the detached window's title bar.
+    const auto openOptions = [this, q](const AppOptionsGlobal::Option option) {
+        m_mainWindow->openAppOptions(option, q->window());
+    };
+
     actionGeneralOptions = new QAction(tr("&General..."), this);
     setMenuIcon(actionGeneralOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionGeneralOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::General); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::General); });
     actionAudioSettings = new QAction(tr("&Audio..."), this);
     setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/speaker_2_16_regular.svg"));
     connect(actionAudioSettings, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Audio); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Audio); });
     actionMidiSettings = new QAction(tr("&MIDI..."), this);
     setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/midi_16_regular.svg"));
     connect(actionMidiSettings, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Midi); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Midi); });
     actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/color_16_regular.svg"));
     connect(actionAppearanceOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Appearance); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Appearance); });
     // const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
     // connect(actionLanguageOptions, &QAction::triggered, this, [] {
     //     AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
@@ -908,15 +918,15 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     actionInferenceOptions = new QAction(tr("&Inference..."), this);
     setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/sparkle_16_regular.svg"));
     connect(actionInferenceOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Inference); });
     actionAutomationOptions = new QAction(tr("A&utomation..."), this);
     setMenuIcon(actionAutomationOptions, QStringLiteral(":/svg/icons/flow_16_regular.svg"));
     connect(actionAutomationOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Automation); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Automation); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
     setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/code_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::DeveloperOptions); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::DeveloperOptions); });
 
     menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);

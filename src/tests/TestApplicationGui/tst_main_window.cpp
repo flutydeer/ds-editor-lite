@@ -2396,6 +2396,54 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
              "the detached menu's Save / Save As are not wired to the document workflow");
 }
 
+void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
+    MainWindowFixture host;
+    appOptions->developer()->enableEmbeddedOptionsDialog = true;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    auto *menu = detached->menuView();
+    QVERIFY(menu);
+
+    QAction *general = nullptr;
+    for (auto *entry : menu->actions()) {
+        if (auto *submenu = entry->menu()) {
+            for (auto *action : submenu->actions()) {
+                auto text = action->text();
+                text.remove(QLatin1Char('&'));
+                if (text.startsWith(QStringLiteral("General")))
+                    general = action;
+            }
+        }
+    }
+    QVERIFY(general);
+
+    // The standalone dialog enters a nested event loop. Close it from inside
+    // that loop. The embedded overlay is not a modal dialog, so this also
+    // tells the two hosting modes apart.
+    QPointer<QWidget> modal;
+    QTimer::singleShot(0, [&] {
+        modal = QApplication::activeModalWidget();
+        if (modal)
+            modal->close();
+    });
+    general->trigger();
+    QCoreApplication::processEvents();
+    QVERIFY2(modal,
+             "Options from the detached menu opened the main window's embedded "
+             "overlay, which stays hidden behind the detached window");
+    auto *embedded = window.findChild<EmbeddedModalHost *>();
+    QVERIFY(!embedded || !embedded->isOpen());
+}
+
 void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {
     QTest::addColumn<bool>("embedded");
     QTest::newRow("embedded") << true;

@@ -74,8 +74,10 @@ public:
 public slots:
     void onAllDone();
 
-    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
-    void openAppOptions(AppOptionsGlobal::Option option);
+    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）。
+    // requestingWindow 是发出命令的菜单所在的顶层窗口；从脱离面板窗口发起时
+    // 会退化为独立设置对话框，避免遮罩被该窗口盖住。
+    void openAppOptions(AppOptionsGlobal::Option option, QWidget *requestingWindow = nullptr);
     void closeAppOptions();
 
 protected:

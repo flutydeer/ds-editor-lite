@@ -306,7 +306,20 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
         m_modalHost->setGeometry(rect());
 }
 
-void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
+void MainWindow::openAppOptions(const AppOptionsGlobal::Option option,
+                                QWidget *requestingWindow) {
+    // The embedded overlay is a child of this window. A detached panel window
+    // is an owned top-level window that stays above its owner in the native
+    // z-order, so an Options request coming from that window's menu would open
+    // an overlay the user cannot see. Show a standalone modal owned by the
+    // requesting window instead. From the main window the configured
+    // embedded/standalone preference still applies.
+    auto *hostWindow = requestingWindow ? requestingWindow->window() : this;
+    if (hostWindow != this) {
+        AppOptionsDialog::showStandaloneDialog(option, hostWindow);
+        return;
+    }
+
     // The embedded panel is experimental and opt-in (Developer Options ->
     // Embedded options dialog); the standalone dialog stays the default.
     if (!appOptions->developer()->enableEmbeddedOptionsDialog) {
