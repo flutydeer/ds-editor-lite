@@ -5,6 +5,8 @@
 #include <QString>
 #include <QStringList>
 
+class QLocalSocket;
+
 enum class SingleInstanceCommand {
     Activate,
     OpenProjects,
@@ -173,6 +175,14 @@ namespace SingleInstanceProtocol {
 
     QByteArray frame(const QByteArray &payload);
     bool takeFrame(QByteArray &buffer, QByteArray &payload, QString &error);
+
+    // Blocking read of exactly one framed control response. A local socket is
+    // a byte stream: one frame can arrive across several reads, so the caller
+    // must keep accumulating until a complete frame, a framing error or the
+    // deadline. Using a single waitForReadyRead()/readAll() silently turns a
+    // split but valid response into a control failure.
+    bool readFrame(QLocalSocket &socket, QByteArray &buffer, QByteArray &payload,
+                   QString &error, int timeoutMs);
 }
 
 #endif // SINGLEINSTANCEPROTOCOL_H

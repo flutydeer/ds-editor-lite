@@ -33,6 +33,7 @@ private slots:
     void handoffTerminalLedgerEvictsPredictably();
     void handoffExpiredTerminalQueryReturnsUnknown();
     void handoffPollsHeartbeatWhilePending();
+    void handoffControlResponseSurvivesSplitFrames();
     void watchdogBoundsStalledExit();
     void watchdogIgnoresIdleProcess();
     void watchdogCoversLateQtTeardown();

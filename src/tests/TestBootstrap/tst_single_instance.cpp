@@ -1263,3 +1263,57 @@ void BootstrapTests::handoffPollsHeartbeatWhilePending() {
            "the pending handoff must be polled repeatedly");
     primary.shutdown();
 }
+
+void BootstrapTests::handoffControlResponseSurvivesSplitFrames() {
+    const auto serverName = uniqueServerName();
+    SingleInstanceHandoffResponse expected;
+    expected.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    expected.instanceId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    expected.state = HandoffRequestState::Taken;
+    expected.handoffVersion = SingleInstanceProtocol::handoffVersion;
+    const auto message =
+        SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeHandoffResponse(expected));
+    QVERIFY(message.size() > 8);
+
+    // A local socket is a byte stream. Deliver one framed response in two
+    // writes separated in time so the reader must accumulate reads.
+    QSemaphore listening;
+    const auto serverThread = std::unique_ptr<QThread>(QThread::create([&] {
+        QLocalServer server;
+        if (!server.listen(serverName)) {
+            listening.release();
+            return;
+        }
+        listening.release();
+        if (!server.waitForNewConnection(3000))
+            return;
+        auto *peer = server.nextPendingConnection();
+        if (!peer)
+            return;
+        const auto half = message.size() / 2;
+        peer->write(message.constData(), half);
+        peer->flush();
+        peer->waitForBytesWritten(1000);
+        QThread::msleep(60);
+        peer->write(message.constData() + half, message.size() - half);
+        peer->flush();
+        peer->waitForBytesWritten(1000);
+        QThread::msleep(120);
+    }));
+    serverThread->start();
+    QVERIFY(listening.tryAcquire(1, 3000));
+
+    QLocalSocket client;
+    client.connectToServer(serverName, QIODevice::ReadOnly);
+    QVERIFY(client.waitForConnected(2000));
+    QByteArray buffer;
+    QByteArray payload;
+    QString error;
+    QVERIFY2(SingleInstanceProtocol::readFrame(client, buffer, payload, error, 3000),
+             qPrintable(error));
+    SingleInstanceHandoffResponse decoded;
+    QVERIFY(SingleInstanceProtocol::decodeHandoffResponse(payload, decoded, error));
+    QCOMPARE(decoded.state, HandoffRequestState::Taken);
+    QCOMPARE(decoded.requestId, expected.requestId);
+    QVERIFY(serverThread->wait(5000));
+}

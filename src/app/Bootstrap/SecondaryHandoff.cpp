@@ -227,13 +227,11 @@ namespace {
             return false;
         }
         QByteArray buffer;
-        if (!socket.waitForReadyRead(1500)) {
-            error = QStringLiteral("control_response_timeout");
-            return false;
-        }
-        buffer.append(socket.readAll());
         QByteArray payload;
-        if (!SingleInstanceProtocol::takeFrame(buffer, payload, error))
+        // A control response is framed, not packet-sized. Accumulate reads
+        // until a whole frame arrives; otherwise a valid query/cancel answer
+        // split across reads would be reported as a control failure.
+        if (!SingleInstanceProtocol::readFrame(socket, buffer, payload, error, 1500))
             return false;
         return SingleInstanceProtocol::decodeHandoffResponse(payload, response, error);
     }

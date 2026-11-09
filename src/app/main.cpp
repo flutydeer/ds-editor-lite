@@ -290,7 +290,12 @@ int main(int argc, char *argv[]) {
             WindowPlacement windowPlacement(w);
             windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
             ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
-            [[maybe_unused]] const auto startupAdmission = requestQueue.take(startupRequest);
+            const auto startupAdmission = requestQueue.take(startupRequest, true);
+            if (!startupAdmission.taken)
+                qWarning().noquote()
+                    << QStringLiteral("Local startup request was not admitted: %1. Command-line "
+                                      "project paths may not be opened.")
+                           .arg(startupAdmission.error);
             coordinator.setAdmissionHandler(
                 [&requestQueue](const SingleInstanceRequest &request) {
                     return requestQueue.take(request);
@@ -321,7 +326,12 @@ int main(int argc, char *argv[]) {
         } else {
             HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
                                                   hostServices.openDocument);
-            [[maybe_unused]] const auto startupAdmission = requestQueue.take(startupRequest);
+            const auto startupAdmission = requestQueue.take(startupRequest, true);
+            if (!startupAdmission.taken)
+                qWarning().noquote()
+                    << QStringLiteral("Local startup request was not admitted: %1. Command-line "
+                                      "project paths may not be opened.")
+                           .arg(startupAdmission.error);
             coordinator.setAdmissionHandler(
                 [&requestQueue](const SingleInstanceRequest &request) {
                     return requestQueue.take(request);

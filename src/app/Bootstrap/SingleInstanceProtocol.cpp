@@ -1,9 +1,11 @@
 #include "SingleInstanceProtocol.h"
 
+#include <QCryptographicHash>
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QCryptographicHash>
+#include <QLocalSocket>
 
 namespace {
     QString commandName(const SingleInstanceCommand command) {
@@ -488,4 +490,37 @@ bool SingleInstanceProtocol::takeFrame(QByteArray &buffer, QByteArray &payload, 
     payload = buffer.mid(4, size);
     buffer.remove(0, 4 + size);
     return true;
+}
+
+bool SingleInstanceProtocol::readFrame(QLocalSocket &socket, QByteArray &buffer,
+                                       QByteArray &payload, QString &error,
+                                       const int timeoutMs) {
+    QElapsedTimer timer;
+    timer.start();
+    while (true) {
+        if (socket.bytesAvailable() > 0)
+            buffer.append(socket.readAll());
+        error.clear();
+        if (takeFrame(buffer, payload, error))
+            return true;
+        if (!error.isEmpty())
+            return false;
+        const auto remaining = timeoutMs - timer.elapsed();
+        if (remaining <= 0) {
+            error = QStringLiteral("control_response_timeout");
+            return false;
+        }
+        if (!socket.waitForReadyRead(static_cast<int>(remaining))) {
+            // Data can arrive just as the wait expires. Give the accumulated
+            // buffer one last chance before declaring a timeout.
+            if (socket.bytesAvailable() > 0)
+                buffer.append(socket.readAll());
+            error.clear();
+            if (takeFrame(buffer, payload, error))
+                return true;
+            if (error.isEmpty())
+                error = QStringLiteral("control_response_timeout");
+            return false;
+        }
+    }
 }

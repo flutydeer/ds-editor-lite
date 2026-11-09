@@ -18,14 +18,16 @@ namespace {
     constexpr qsizetype maxQueuedProjectPaths = 64;
 }
 
-AdmissionResult HeadlessOpenRequestQueue::take(const SingleInstanceRequest &request) {
+AdmissionResult HeadlessOpenRequestQueue::take(const SingleInstanceRequest &request,
+                                               const bool localStartup) {
     if (m_runtime.shutdownCommitted())
         return AdmissionResult::rejected(QStringLiteral("primary_shutting_down"));
     const auto incoming = request.command == SingleInstanceCommand::OpenProjects ||
                                   request.command == SingleInstanceCommand::ApplicationHandoff
                               ? request.paths.size()
                               : 0;
-    if (incoming > 0 && m_paths.size() + incoming > maxQueuedProjectPaths)
+    if (!localStartup && incoming > 0 &&
+        m_paths.size() + incoming > maxQueuedProjectPaths)
         return AdmissionResult::rejected(QStringLiteral("request_queue_full"));
 
     if (incoming > 0) {
