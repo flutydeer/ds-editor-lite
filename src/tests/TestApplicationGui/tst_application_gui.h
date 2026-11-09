@@ -191,8 +191,7 @@ private slots:
     void detachButtonUsesRegularFluentIcon();
     void detachedMenuSaveActionsReachDocumentWorkflow();
     void detachedMenuOptionsUseStandaloneDialog();
-    void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
-    void settingsDialogsSuspendAndRestoreBackgroundInteraction();
+    void standaloneOptionsDialogBlocksBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void audioHashCompletionWaitsForTheSaveDecision_data();
     void audioHashCompletionWaitsForTheSaveDecision();

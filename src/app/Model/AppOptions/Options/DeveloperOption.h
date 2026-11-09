@@ -19,7 +19,6 @@ public:
     LITE_OPTION_ITEM(bool, showClipDebugInfo, false)
     LITE_OPTION_ITEM(bool, logTouchEvents, false)
     LITE_OPTION_ITEM(bool, enablePanelDetach, false)
-    LITE_OPTION_ITEM(bool, enableEmbeddedOptionsDialog, false)
 
 public:
     EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;

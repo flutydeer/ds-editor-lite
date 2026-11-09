@@ -12,7 +12,7 @@
    `setValue`。注意：探针实测 Qt 6.11 的 0 时长动画会**同步落点并结束**，本身不卡死；真正造成
    「内嵌设置页无法滚动、必须重开对话框」的根因是 **`MainWindow` 的 Appearance `optionsChanged`
    挂钩在模态打开时重新注册 Direct Manipulation**（DM 劫持主窗 WM_MOUSEWHEEL，内嵌面板是主窗
-   子级故滚轮永远到不了）——已于 2026-08-11 用 `m_modalHost->isOpen()` 守卫修复。此处仍保留
+   子级故滚轮永远到不了）。该守卫已在内嵌设置实验功能移除时一并删除。此处仍保留
    instant-mode 作为设计目标：`duration==0` 应是执行器主动选择的「瞬时执行」，而非被动特例。
 2. **滚轮来源判定两套实现** —— TimeGraphicsView::isMouseEventFromWheel()（120 倍数 + 400ms 单锁）
    vs SmoothScroller::m_stepWindow（6 项滑动窗口）。同一概念、两套语义，未来必然再次分叉出 bug。
