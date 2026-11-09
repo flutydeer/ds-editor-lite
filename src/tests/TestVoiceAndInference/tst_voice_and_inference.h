@@ -56,6 +56,7 @@ private slots:
     void singerSessionCacheActiveCallerAndStaleReplacement();
     void singerSessionCacheLeastRecentlyUsedEviction();
     void singerSessionCacheIdleEvictionAndActiveReuse();
+    void singerSessionCacheRejectsStaleRetentionSnapshot();
     void inferCacheScanAndClean();
     void inferCacheClearRegisteredFiles();
 };

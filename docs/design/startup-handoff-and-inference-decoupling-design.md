@@ -96,7 +96,8 @@ GUI 侧的会话保留只发布最新选择与 generation。`retainSingerSession
 ## 5. 验收
 
 - 按项目 MSVC 与 CMake preset 增量构建 `DsEditorLite` 成功。
-- `TestBootstrap` 全量 46 个用例通过，含改写后的 `coordinator`、`queuedStartupConnectionIsAcknowledged`，以及新增的 `handoffProtocolRoundTrips`、`handoffWaitsForMainThreadTakeover`、`handoffLedgerDedupeCancelAndQuery`、`handoffCancelAfterDispatchIsNotConfirmed`、`handoffTerminalLedgerEvictsPredictably`。
+- `TestBootstrap` 全量 48 个用例通过，含改写后的 `coordinator`、`queuedStartupConnectionIsAcknowledged`，以及新增的 `handoffProtocolRoundTrips`、`handoffWaitsForMainThreadTakeover`、`handoffLedgerDedupeCancelAndQuery`、`handoffCancelAfterDispatchIsNotConfirmed`、`handoffTerminalLedgerEvictsPredictably`、`handoffExpiredTerminalQueryReturnsUnknown`、`handoffPollsHeartbeatWhilePending`。
+- `TestVoiceAndInference` 全量 59 个用例通过，含新增的 `singerSessionCacheRejectsStaleRetentionSnapshot`。
 - `TestProcessIntegration` 全量 16 个用例通过。
 - 原先把"提前 ACK"视为成功的断言已改为验证"先收件、后接管"，底层收件与应用交接保持区分。
 
@@ -126,6 +127,14 @@ GUI 侧的会话保留只发布最新选择与 generation。`retainSingerSession
 - GUI 请求被健康 Headless 接管时，除 stderr 外增加可见信息框，覆盖快速成功时进度窗口尚未出现的情形。
 - 新 handoff 路径恢复 `AllowSetForegroundWindow` 前台授权，在连接建立后、发送交接前授予锁所有者，避免 Windows 拒绝主实例的 `activateWindow()`。
 
-### 7.4 仍未覆盖
+### 7.4 Codex 自动审查（PR #206）
+
+`chatgpt-codex-connector` 对 `a7d0ca12` 给出 3 条 P2，均核实成立并修复：
+
+- **query 不淘汰过期终态**：`handleQuery()` 原先只在 `finalize()` 时顺带剪枝，安静的主实例会让超过 10 分钟保留期的记录仍返回 `Taken`，违背 §2.4。现在 `handleQuery()` 与 `handleCancel()` 在读账本前调用 `pruneTerminalRecords()`，并对查到的终态再校验一次 `finishedMs`，超期返回 `Unknown + result_unknown`。保留期改为 worker 可注入值（生产仍用协议默认），测试用 `setLedgerRetentionForTest()` 缩短窗口，新增 `handoffExpiredTerminalQueryReturnsUnknown()`：窗口内 query 得 `Taken`，期间不产生任何新的 finalize，等待后再 query 得 `Unknown`。
+- **Pending 期间心跳年龄不刷新**：`m_heartbeatAgeMs` 原先只在 `onFrame()` 写入，而进度定时器是 singleShot 且只启动一次；收件后主线程卡住时界面永远停在"正在启动"。新增每秒一次的 `application.query` 轮询（`m_statusPollTimer`），查询响应统一经 `applyQueriedState()` 刷新实例信息、启动阶段、心跳年龄与状态文案，终态才结束，非终态继续观察；查询失败视为瞬时故障，由预算定时器最终裁决。`HandoffResult` 增加 `status` 与 `statusPollCount` 诊断。新增 `handoffPollsHeartbeatWhilePending()`：停掉主实例心跳且不开放接管，验证状态从"正在启动"变为"主线程暂未响应"、心跳年龄超过 3 秒阈值、轮询次数不少于 2。
+- **缓存变更前未复核 generation**：`runSessionMaintenance()` 取完快照后可能在 `retainOnly()` 内等待 model factory 锁，期间 GUI 发布的新选择会被旧快照覆盖，导致刚重新选中的歌手模型被释放。`SingerSessionCache::retainOnly()` 增加在缓存锁内执行的准入谓词与 `applied` 标志；维护任务把 generation 校验推进到缓存变更的准入点，被拒绝时不动缓存、不消费 eviction 请求、重新排队一次合并维护。新增 `singerSessionCacheRejectsStaleRetentionSnapshot()` 验证过期快照只返回 `applied=false` 且缓存与句柄完全不变，当前快照仍按原语义生效。
+
+### 7.5 仍未覆盖
 
 进程级恢复安全测试（错误 PID、路径变更、创建时间变化、权限不足、确认期间目标替换的真实进程验证）与 GUI/Headless 四组合矩阵仍未做。本轮修复的是代码路径与协议层确定性用例，不能替代真实 Windows 恢复路径的端到端验证。

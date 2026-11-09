@@ -237,6 +237,14 @@ namespace {
             return false;
         return SingleInstanceProtocol::decodeHandoffResponse(payload, response, error);
     }
+
+    SingleInstanceRequest statusQuery(const QString &targetRequestId) {
+        SingleInstanceRequest request;
+        request.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        request.command = SingleInstanceCommand::ApplicationQuery;
+        request.targetRequestId = targetRequestId;
+        return request;
+    }
 }
 
 // A deliberately small, self-contained dialog. It must not reference
@@ -341,6 +349,7 @@ HandoffResult SecondaryHandoffController::run(const SingleInstanceRequest &start
     m_options = options;
     m_result = {};
     m_finished = false;
+    m_statusPollCount = 0;
     m_restartAfterRecovery = false;
     m_recoveryOffered = false;
     m_diagnostics.clear();
@@ -487,6 +496,14 @@ HandoffResult SecondaryHandoffController::run(const SingleInstanceRequest &start
     });
     m_budgetTimer->start(m_options.totalBudgetMs);
 
+    // The primary only pushes a frame when the request changes state. A main
+    // thread that stalls after the receipt never sends anything, so poll the
+    // ledger to keep the heartbeat age, startup stage and status text current.
+    m_statusPollTimer = new QTimer(this);
+    QObject::connect(m_statusPollTimer, &QTimer::timeout, &loop,
+                     [this] { pollPendingState(); });
+    m_statusPollTimer->start(1000);
+
     connectToPrimary();
     loop.exec();
 
@@ -565,10 +582,12 @@ void SecondaryHandoffController::finish(const HandoffOutcome outcome, QString er
     m_result.hostMode = m_primaryHostMode;
     m_result.stage = m_stage;
     m_result.heartbeatAgeMs = m_heartbeatAgeMs;
+    m_result.status = m_status;
+    appendDiagnostic(QStringLiteral("statusPollCount"), QString::number(m_statusPollCount));
     m_result.diagnostics = m_diagnostics;
     m_result.restartAfterRecovery = m_restartAfterRecovery;
 
-    for (auto *timer : {m_progressTimer, m_recoveryTimer, m_budgetTimer}) {
+    for (auto *timer : {m_progressTimer, m_statusPollTimer, m_recoveryTimer, m_budgetTimer}) {
         if (timer)
             timer->stop();
     }
@@ -630,22 +649,51 @@ void SecondaryHandoffController::cancelPendingRequest() {
 void SecondaryHandoffController::queryPendingResult() {
     if (m_finished)
         return;
-    SingleInstanceRequest request;
-    request.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    request.command = SingleInstanceCommand::ApplicationQuery;
-    request.targetRequestId = m_requestId;
     SingleInstanceHandoffResponse response;
     QString error;
-    if (!sendControlCommand(m_serverName, request, response, error)) {
+    if (!sendControlCommand(m_serverName, statusQuery(m_requestId), response, error)) {
         finish(HandoffOutcome::Unknown,
                QObject::tr("Lost the connection to the running instance. The handoff result "
                            "is unknown; the project was not reopened."));
         return;
     }
-    // The query response carries its own requestId, so it must be interpreted
-    // here rather than fed through onFrame's request-id filter.
     appendDiagnostic(QStringLiteral("queryState"),
                      SingleInstanceProtocol::handoffStateName(response.state));
+    // The connection was lost, so a non-terminal answer means the result can no
+    // longer be observed on this channel.
+    applyQueriedState(response, true);
+}
+
+void SecondaryHandoffController::pollPendingState() {
+    if (m_finished)
+        return;
+    SingleInstanceHandoffResponse response;
+    QString error;
+    if (!sendControlCommand(m_serverName, statusQuery(m_requestId), response, error)) {
+        // A transient control-connection failure is not proof of a lost
+        // handoff. Keep observing; the budget timer remains the final authority.
+        return;
+    }
+    ++m_statusPollCount;
+    applyQueriedState(response, false);
+}
+
+void SecondaryHandoffController::applyQueriedState(
+    const SingleInstanceHandoffResponse &response, const bool requireTerminal) {
+    // Query responses carry their own requestId, so they cannot be routed
+    // through onFrame's request-id filter.
+    if (!response.instanceId.isEmpty())
+        m_primaryInstanceId = response.instanceId;
+    if (response.primaryProcessId > 0)
+        m_primaryProcessId = response.primaryProcessId;
+    if (!response.hostMode.isEmpty())
+        m_primaryHostMode = response.hostMode;
+    m_stage = response.stage;
+    m_heartbeatAgeMs = response.heartbeatAgeMs;
+    publishStatus(stateText(response.state, m_stage, m_heartbeatAgeMs, m_primaryHostMode,
+                            m_ownHostMode == AppHostMode::Gui));
+    refreshFeedback();
+
     switch (response.state) {
         case HandoffRequestState::Taken:
             finish(HandoffOutcome::Taken, {});
@@ -664,10 +712,12 @@ void SecondaryHandoffController::queryPendingResult() {
             return;
         case HandoffRequestState::Received:
         case HandoffRequestState::Pending:
-            break;
+            if (requireTerminal)
+                finish(HandoffOutcome::Unknown,
+                       QObject::tr("The running instance has not reported a terminal handoff "
+                                   "result."));
+            return;
     }
-    finish(HandoffOutcome::Unknown,
-           QObject::tr("The running instance has not reported a terminal handoff result."));
 }
 
 bool SecondaryHandoffController::recoverStuckPrimary() {

@@ -96,6 +96,10 @@ public:
         m_lastHeartbeatMs = m_clock.elapsed();
     }
 
+    void setTerminalLifetimeMs(const qint64 lifetimeMs) {
+        m_terminalLifetimeMs = lifetimeMs;
+    }
+
     void setAdmissionOpen() {
         if (m_admissionOpen)
             return;
@@ -384,7 +388,7 @@ private:
             const auto it = m_ledger.constFind(oldest);
             const bool expired =
                 it != m_ledger.constEnd() && it->terminal &&
-                now - it->finishedMs > SingleInstanceProtocol::terminalRecordLifetimeMs;
+                now - it->finishedMs > m_terminalLifetimeMs;
             if (m_terminalOrder.size() <= SingleInstanceProtocol::maxTerminalRecords && !expired)
                 break;
             m_terminalOrder.dequeue();
@@ -422,8 +426,15 @@ private:
 
     void handleQuery(QLocalSocket *socket, const SingleInstanceRequest &request) {
         auto response = makeResponse(request.requestId);
+        // Expiration must be evaluated on read, not only when another request
+        // happens to be finalized. A quiet primary must not keep promising a
+        // terminal result it no longer owns.
+        pruneTerminalRecords();
         const auto it = m_ledger.constFind(request.targetRequestId);
-        if (it == m_ledger.constEnd()) {
+        const bool expired =
+            it != m_ledger.constEnd() && it->terminal &&
+            m_clock.elapsed() - it->finishedMs > m_terminalLifetimeMs;
+        if (it == m_ledger.constEnd() || expired) {
             response.state = HandoffRequestState::Unknown;
             response.error = QStringLiteral("result_unknown");
         } else {
@@ -438,6 +449,7 @@ private:
 
     void handleCancel(QLocalSocket *socket, const SingleInstanceRequest &request) {
         auto response = makeResponse(request.requestId);
+        pruneTerminalRecords();
         auto it = m_ledger.find(request.targetRequestId);
         if (it == m_ledger.end()) {
             response.state = HandoffRequestState::Unknown;
@@ -623,6 +635,7 @@ private:
     QString m_hostMode;
     PrimaryStartupStage m_stage = PrimaryStartupStage::Starting;
     qint64 m_lastHeartbeatMs = -1;
+    qint64 m_terminalLifetimeMs = SingleInstanceProtocol::terminalRecordLifetimeMs;
     bool m_admissionOpen = false;
     bool m_requestDispatchPaused = false;
     bool m_stopping = false;
@@ -829,6 +842,15 @@ void SingleInstanceCoordinator::setPrimaryStage(const PrimaryStartupStage stage)
         return;
     QMetaObject::invokeMethod(
         m_worker, [this, stage] { m_worker->setPrimaryStage(stage); }, Qt::QueuedConnection);
+}
+
+void SingleInstanceCoordinator::setLedgerRetentionForTest(const qint64 lifetimeMs) {
+    if (!m_worker || !m_ipcThread)
+        return;
+    QMetaObject::invokeMethod(
+        m_worker,
+        [worker = m_worker, lifetimeMs] { worker->setTerminalLifetimeMs(lifetimeMs); },
+        Qt::BlockingQueuedConnection);
 }
 
 void SingleInstanceCoordinator::noteMainThreadHeartbeat() {

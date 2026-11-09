@@ -31,6 +31,8 @@ private slots:
     void handoffLedgerDedupeCancelAndQuery();
     void handoffCancelAfterDispatchIsNotConfirmed();
     void handoffTerminalLedgerEvictsPredictably();
+    void handoffExpiredTerminalQueryReturnsUnknown();
+    void handoffPollsHeartbeatWhilePending();
     void watchdogBoundsStalledExit();
     void watchdogIgnoresIdleProcess();
     void watchdogCoversLateQtTeardown();

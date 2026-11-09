@@ -394,12 +394,21 @@ void InferEngine::runSessionMaintenance() {
         capacity = m_maintenanceCapacity;
         idleTimeout = m_maintenanceIdleTimeout;
     }
+    // Cache-side bookkeeping and any waiting on the factory-owned mutex now
+    // happen off the GUI thread. The generation is revalidated *inside* the
+    // cache lock: a pass blocked behind a model factory must not apply a
+    // selection that the GUI has already superseded.
+    auto retainResult = m_singerSessions.retainOnly(selection, [this, generation] {
+        return generation == m_selectionGeneration.load(std::memory_order_acquire) &&
+               !m_disposed.load(std::memory_order_acquire);
+    });
+    if (!retainResult.applied) {
+        // Leave the eviction request pending and re-run with the newest snapshot.
+        scheduleSessionMaintenance();
+        return;
+    }
     const bool evictionRequested =
         m_evictionRequested.exchange(false, std::memory_order_acq_rel);
-
-    // Cache-side bookkeeping and any waiting on the factory-owned mutex now
-    // happen off the GUI thread.
-    auto retainResult = m_singerSessions.retainOnly(selection);
     if (!m_initialized.load(std::memory_order_acquire) ||
         m_disposed.load(std::memory_order_acquire)) {
         if (retainResult.released > 0) {

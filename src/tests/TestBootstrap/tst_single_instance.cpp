@@ -2,6 +2,7 @@
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Bootstrap/SingleInstanceIdentity.h"
 #include "Bootstrap/SingleInstanceProtocol.h"
+#include "Bootstrap/SecondaryHandoff.h"
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -12,6 +13,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalServer>
+#include <QRegularExpression>
+#include <QTimer>
 #include <QLocalSocket>
 #include <QScopeGuard>
 #include <QStandardPaths>
@@ -1165,4 +1168,98 @@ void BootstrapTests::handoffTerminalLedgerEvictsPredictably() {
            "recent terminal records must remain queryable after eviction");
     expect(queryState(ids.at(total / 2)) == HandoffRequestState::Taken,
            "records inside the retention window must survive eviction");
+}
+
+void BootstrapTests::handoffExpiredTerminalQueryReturnsUnknown() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+    primary.setLedgerRetentionForTest(60);
+    QList<SingleInstanceRequest> received;
+    primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
+    primary.enableAdmission();
+
+    const auto request = handoffRequest({directory.filePath("expiring.dspx")});
+    FramedClient handoffClient;
+    expect(handoffClient.connectTo(serverName) && handoffClient.send(request),
+           "handoff client must connect");
+    QByteArray payload;
+    QString error;
+    SingleInstanceHandoffResponse state;
+    expect(receiveWithEventLoop(handoffClient, payload, error) &&
+               decodeState(payload, state, error),
+           "handoff must report a state");
+    if (state.state == HandoffRequestState::Received ||
+        state.state == HandoffRequestState::Pending) {
+        expect(receiveWithEventLoop(handoffClient, payload, error) &&
+                   decodeState(payload, state, error),
+               "a receipt must be followed by a terminal state");
+    }
+    expect(state.state == HandoffRequestState::Taken,
+           "the request must be taken before expiry testing");
+
+    const auto queryState = [&] {
+        SingleInstanceRequest query;
+        query.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        query.command = SingleInstanceCommand::ApplicationQuery;
+        query.targetRequestId = request.requestId;
+        FramedClient client;
+        if (!client.connectTo(serverName) || !client.send(query))
+            return HandoffRequestState::Unknown;
+        QByteArray responsePayload;
+        QString responseError;
+        if (!receiveWithEventLoop(client, responsePayload, responseError))
+            return HandoffRequestState::Unknown;
+        SingleInstanceHandoffResponse response;
+        if (!decodeState(responsePayload, response, responseError))
+            return HandoffRequestState::Unknown;
+        return response.state;
+    };
+    expect(queryState() == HandoffRequestState::Taken,
+           "a terminal record inside the retention window must be queryable");
+    // No further request is finalized during this wait: expiry has to be
+    // evaluated by the query itself, not as a side effect of finalize().
+    QTest::qWait(150);
+    expect(queryState() == HandoffRequestState::Unknown,
+           "an expired terminal record must answer result_unknown");
+    primary.shutdown();
+}
+
+void BootstrapTests::handoffPollsHeartbeatWhilePending() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+
+    // A stalled main thread: the IPC worker stays alive, admission never opens
+    // and no new heartbeat is published. The secondary must still notice the
+    // heartbeat ageing out instead of reporting "starting" forever.
+    for (auto *timer : primary.findChildren<QTimer *>())
+        timer->stop();
+    primary.noteMainThreadHeartbeat();
+
+    SecondaryHandoffOptions options;
+    options.interactive = false;
+    options.connectTimeoutMs = 1000;
+    options.progressDelayMs = 20;
+    options.recoveryDelayMs = 100000;
+    options.totalBudgetMs = 4200;
+    SecondaryHandoffController secondary(serverName, directory.path(), AppHostMode::Gui);
+    const auto result =
+        secondary.run(handoffRequest({directory.filePath("stalled.dspx")}), options);
+
+    expect(result.outcome == HandoffOutcome::Unknown,
+           "a primary that never takes the request must not report success");
+    expect(result.heartbeatAgeMs > 3000,
+           "polling must refresh the heartbeat age past the stalled threshold");
+    expect(result.status.contains(QStringLiteral("not responding"), Qt::CaseInsensitive),
+           "the status text must report an unresponsive main thread");
+    const QRegularExpression pollCount(QStringLiteral("statusPollCount=(\\d+)"));
+    const auto match = pollCount.match(secondary.diagnostics());
+    expect(match.hasMatch() && match.captured(1).toInt() >= 2,
+           "the pending handoff must be polled repeatedly");
+    primary.shutdown();
 }

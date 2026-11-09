@@ -35,6 +35,7 @@ struct HandoffResult {
     QString hostMode;
     PrimaryStartupStage stage = PrimaryStartupStage::Starting;
     qint64 heartbeatAgeMs = -1;
+    QString status;
     QString diagnostics;
     // Set when the user explicitly confirmed terminating a stuck primary. The
     // caller re-enters the normal lock race instead of force-taking ownership.
@@ -79,6 +80,9 @@ public:
     void enableAdmission();
     void setPrimaryStage(PrimaryStartupStage stage);
     void noteMainThreadHeartbeat();
+    // Test-only: shorten the terminal-record retention window so expiry can be
+    // exercised deterministically. Production always uses the protocol default.
+    void setLedgerRetentionForTest(qint64 lifetimeMs);
 
     void pauseRequestDispatchAndFlush();
     void resumeRequestDispatch();

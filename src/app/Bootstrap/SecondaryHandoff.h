@@ -55,6 +55,8 @@ private:
     void finish(HandoffOutcome outcome, QString error, bool closeSocket = true);
     void cancelPendingRequest();
     void queryPendingResult();
+    void pollPendingState();
+    void applyQueriedState(const SingleInstanceHandoffResponse &response, bool requireTerminal);
     bool recoverStuckPrimary();
     void appendDiagnostic(const QString &key, const QString &value);
     void refreshFeedback();
@@ -64,6 +66,7 @@ private:
     AppHostMode m_ownHostMode;
     QLocalSocket *m_socket = nullptr;
     QTimer *m_progressTimer = nullptr;
+    QTimer *m_statusPollTimer = nullptr;
     QTimer *m_recoveryTimer = nullptr;
     QTimer *m_budgetTimer = nullptr;
     HandoffFeedbackDialog *m_feedback = nullptr;
@@ -79,6 +82,7 @@ private:
     HandoffResult m_result;
     SecondaryHandoffOptions m_options;
     bool m_finished = false;
+    int m_statusPollCount = 0;
     bool m_recoveryOffered = false;
     bool m_restartAfterRecovery = false;
     std::function<void()> m_stopLoop;
