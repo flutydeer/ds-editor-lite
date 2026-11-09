@@ -1,6 +1,8 @@
 #ifndef MAINMENUVIEW_H
 #define MAINMENUVIEW_H
 
+#include "TitleBarSections.h"
+
 #include <QMenuBar>
 #include <QList>
 
@@ -16,7 +18,8 @@ class MainMenuView : public QMenuBar {
     Q_PROPERTY(QColor iconDisabledColor READ iconDisabledColor WRITE setIconDisabledColor)
 
 public:
-    explicit MainMenuView(MainWindow *mainWindow);
+    explicit MainMenuView(MainWindow *mainWindow,
+                          TitleBarRole role = TitleBarRole::Primary);
     ~MainMenuView() override;
 
     [[nodiscard]] QAction *actionNew();

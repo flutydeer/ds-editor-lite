@@ -23,86 +23,27 @@
 #define ChromeRestore  QStringLiteral(u"\ue923")
 #define ChromeClose    QStringLiteral(u"\ue8bb")
 
-MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
-    : QWidget(parent), m_window(parent), m_menuView(menuView) {
+MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
+                           const TitleBarSections &sections, const TitleBarRole role)
+    : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections) {
     setAttribute(Qt::WA_StyledBackground);
 
-    m_playbackView = new PlaybackView(this);
-
-    auto menuBarContainer = new QHBoxLayout;
-    menuBarContainer->addWidget(menuView);
-    menuBarContainer->setContentsMargins({});
-
-    m_actionButtonsView = new ActionButtonsView(this);
-    connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, menuView->actionSave(),
-            &QAction::trigger);
-
-    m_titleComboBox = new TitleBarComboBox;
-
-    if (!useNativeFrame) {
-        int systemButtonWidth = 48;
-
-        m_btnMin = new SystemWindowButton;
-        m_btnMin->setObjectName("MinimizeButton");
-        m_btnMin->setFixedSize(systemButtonWidth, 40);
-
-        m_btnMax = new SystemWindowButton;
-        m_btnMax->setCheckable(true);
-        m_btnMax->setObjectName("MaximizeButton");
-        m_btnMax->setFixedSize(systemButtonWidth, 40);
-
-        m_btnClose = new SystemWindowButton;
-        m_btnClose->setCloseStyle(true);
-        m_btnClose->setObjectName("CloseButton");
-        m_btnClose->setFixedSize(systemButtonWidth, 40);
-
-        if (SystemUtils::isWindows()) {
-            auto fontFamily =
-                QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-            auto font = QFont(fontFamily);
-            font.setPointSizeF(7.2);
-
-            m_btnMin->setText(ChromeMinimize);
-            m_btnMin->setFont(font);
-            m_btnMax->setText(ChromeMaximize);
-            m_btnMax->setFont(font);
-            m_btnClose->setText(ChromeClose);
-            m_btnClose->setFont(font);
-        } else {
-            rebuildSystemButtonIcons();
-        }
-
-
-        connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
-        connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
-        connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
+    if (sections.playback)
+        m_playbackView = new PlaybackView(this, role);
+    if (sections.projectSelector)
+        m_titleComboBox = new TitleBarComboBox;
+    if (sections.documentActions) {
+        m_actionButtonsView = new ActionButtonsView(this);
+        if (menuView)
+            connect(m_actionButtonsView, &ActionButtonsView::saveTriggered,
+                    menuView->actionSave(), &QAction::trigger);
     }
+    if (sections.systemButtons)
+        createSystemButtons();
 
-    auto mainLayout = new QHBoxLayout;
-    if (!useNativeFrame) {
-        // TODO: app icon
-        mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
-    }
-    mainLayout->addLayout(menuBarContainer);
-    auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
-    mainLayout->addWidget(dividerBeforeTitle);
-    mainLayout->addWidget(m_titleComboBox);
-    auto dividerBeforeTools = new DividerLine(Qt::Vertical);
-    mainLayout->addWidget(dividerBeforeTools);
-    mainLayout->addWidget(m_actionButtonsView);
-    mainLayout->addStretch();
-    mainLayout->addWidget(m_playbackView);
-    mainLayout->addSpacing(6);
-    if (!useNativeFrame) {
-        mainLayout->addWidget(m_btnMin);
-        mainLayout->addWidget(m_btnMax);
-        mainLayout->addWidget(m_btnClose);
-    }
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(6, 0, 0, 0);
-
-    setLayout(mainLayout);
+    buildSections();
     setFixedHeight(40);
+
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
     m_animation = new QVariantAnimation(this);
@@ -111,11 +52,100 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
             [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
     initializeAnimation();
 
+    // The bar follows its own window instead of relying on the caller to wire
+    // the filter up. This is what makes the same chrome reusable as-is.
+    if (m_window)
+        m_window->installEventFilter(this);
+
     // Re-tint system button icons when the theme changes (non-Windows only)
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
         if (!SystemUtils::isWindows())
             rebuildSystemButtonIcons();
     });
+}
+
+void MainTitleBar::createSystemButtons() {
+    constexpr int systemButtonWidth = 48;
+
+    m_btnMin = new SystemWindowButton;
+    m_btnMin->setObjectName("MinimizeButton");
+    m_btnMin->setFixedSize(systemButtonWidth, 40);
+
+    m_btnMax = new SystemWindowButton;
+    m_btnMax->setCheckable(true);
+    m_btnMax->setObjectName("MaximizeButton");
+    m_btnMax->setFixedSize(systemButtonWidth, 40);
+
+    m_btnClose = new SystemWindowButton;
+    m_btnClose->setCloseStyle(true);
+    m_btnClose->setObjectName("CloseButton");
+    m_btnClose->setFixedSize(systemButtonWidth, 40);
+
+    if (SystemUtils::isWindows()) {
+        auto fontFamily =
+            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+        auto font = QFont(fontFamily);
+        font.setPointSizeF(7.2);
+
+        m_btnMin->setText(ChromeMinimize);
+        m_btnMin->setFont(font);
+        m_btnMax->setText(ChromeMaximize);
+        m_btnMax->setFont(font);
+        m_btnClose->setText(ChromeClose);
+        m_btnClose->setFont(font);
+    } else {
+        rebuildSystemButtonIcons();
+    }
+
+    connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
+    connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
+    connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
+}
+
+void MainTitleBar::addLeadingDivider() {
+    // Only adjacent leading sections are separated. A reduced plan therefore
+    // never leaves a divider as the first visible element of the title bar.
+    if (m_leadingSectionCount > 0)
+        m_layout->addWidget(new DividerLine(Qt::Vertical));
+    ++m_leadingSectionCount;
+}
+
+void MainTitleBar::buildSections() {
+    m_layout = new QHBoxLayout;
+    m_leadingSectionCount = 0;
+
+    if (m_sections.appIconInset) {
+        // TODO: app icon
+        m_layout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
+    }
+    if (m_sections.mainMenu && m_menuView) {
+        addLeadingDivider();
+        auto *menuBarContainer = new QHBoxLayout;
+        menuBarContainer->addWidget(m_menuView);
+        menuBarContainer->setContentsMargins({});
+        m_layout->addLayout(menuBarContainer);
+    }
+    if (m_sections.projectSelector && m_titleComboBox) {
+        addLeadingDivider();
+        m_layout->addWidget(m_titleComboBox);
+    }
+    if (m_sections.documentActions && m_actionButtonsView) {
+        addLeadingDivider();
+        m_layout->addWidget(m_actionButtonsView);
+    }
+
+    m_layout->addStretch();
+    if (m_playbackView)
+        m_layout->addWidget(m_playbackView);
+    m_layout->addSpacing(6);
+    if (m_btnMin) {
+        m_layout->addWidget(m_btnMin);
+        m_layout->addWidget(m_btnMax);
+        m_layout->addWidget(m_btnClose);
+    }
+    m_layout->setSpacing(0);
+    m_layout->setContentsMargins(m_sections.leftMargin, 0, 0, 0);
+    setLayout(m_layout);
 }
 
 void MainTitleBar::rebuildSystemButtonIcons() {

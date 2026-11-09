@@ -16,6 +16,7 @@
 class QSplitter;
 class MainTitleBar;
 class MainMenuView;
+class DetachedPanelWindow;
 class TaskDialog;
 class LogWindow;
 class TrackEditorView;
@@ -24,10 +25,6 @@ class EmbeddedModalHost;
 class AppOptionsDialog;
 class QAction;
 class QShortcut;
-
-namespace QWK {
-    class WidgetWindowAgent;
-}
 
 class MainWindow final : public QMainWindow,
                          public IMainWindow,
@@ -77,8 +74,10 @@ public:
 public slots:
     void onAllDone();
 
-    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
-    void openAppOptions(AppOptionsGlobal::Option option);
+    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）。
+    // requestingWindow 是发出命令的菜单所在的顶层窗口；从脱离面板窗口发起时
+    // 会退化为独立设置对话框，避免遮罩被该窗口盖住。
+    void openAppOptions(AppOptionsGlobal::Option option, QWidget *requestingWindow = nullptr);
     void closeAppOptions();
 
 protected:
@@ -124,7 +123,7 @@ private:
     bool m_useNativeFrame = false;
     QByteArray m_detachSplitterState;
     QRect m_detachedWindowGeometry;
-    QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
+    DetachedPanelWindow *m_detachedWindow = nullptr;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
 

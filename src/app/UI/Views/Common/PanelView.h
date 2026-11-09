@@ -15,6 +15,10 @@ public:
         setAcceptDrops(true);
     }
 
+    [[nodiscard]] bool panelVisible() const override {
+        return isVisible();
+    }
+
 private:
     void afterSetActive() override {
         setProperty("activePanel", panelActive());

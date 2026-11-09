@@ -56,7 +56,6 @@ REPLACE_ICONS = [
     # Layout / Panels
     "layer_20_filled.svg",
     "panel_bottom_20_filled.svg",
-    "panel_separate_window_20_filled.svg",
 ]
 
 # ============================================================
@@ -116,6 +115,8 @@ NEW_ICONS = [
     "arrow_join_20_filled.svg",
 
     # 面板
+    # 分离面板按钮使用 Regular 版本，与其余面板图标的描边风格一致
+    "panel_separate_window_20_regular.svg",
     "panel_left_16_filled.svg",
     "panel_left_contract_16_filled.svg",
     "panel_left_expand_16_filled.svg",
@@ -171,6 +172,9 @@ DELETE_REDUNDANT = [
     "panel_hide_24_filled_white.svg",
     "snow_flake_24_filled_white.svg",
     "restore_16_filled_white_alt.svg",
+
+    # 分离面板按钮已改用 Regular 版本
+    "panel_separate_window_20_filled.svg",
 ]
 
 # ============================================================

@@ -18,6 +18,12 @@ public:
         return m_active;
     }
 
+    // Whether the panel is currently on screen. Widget-backed panels override
+    // this so a collapsed panel cannot claim the active context.
+    [[nodiscard]] virtual bool panelVisible() const {
+        return true;
+    }
+
     void setPanelActive(const bool b) {
         m_active = b;
         afterSetActive();

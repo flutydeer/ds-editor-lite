@@ -15,7 +15,9 @@
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QScopeGuard>
 #include <QTextStream>
+#include <QWidget>
 
 #include <cmath>
 #include <utility>
@@ -256,6 +258,20 @@ namespace {
     private:
         void afterSetActive() override {
             ++updateCount;
+        }
+    };
+
+    class HiddenPanel final : public IPanel {
+    public:
+        explicit HiddenPanel(const AppGlobal::PanelType type) : IPanel(type) {
+        }
+
+        [[nodiscard]] bool panelVisible() const override {
+            return false;
+        }
+
+    private:
+        void afterSetActive() override {
         }
     };
 
@@ -634,6 +650,67 @@ void EditorInteractionTests::activePanels() {
     QObject::disconnect(connection);
     controller->unregisterPanel(&bottomPanel);
     controller->unregisterPanel(&trackPanel);
+}
+
+void EditorInteractionTests::activePanelFollowsActiveWindow() {
+    ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
+    auto *controller = editorViewController;
+    FakePanel trackPanel(AppGlobal::TracksEditor);
+    FakePanel bottomPanel(AppGlobal::ClipEditor);
+    controller->registerPanel(&trackPanel);
+    controller->registerPanel(&bottomPanel);
+    controller->setActivePanel(AppGlobal::TracksEditor);
+
+    QWidget mainWindow;
+    mainWindow.setWindowFlags(Qt::Window);
+    QWidget detachedWindow;
+    detachedWindow.setWindowFlags(Qt::Window);
+    const auto cleanup = qScopeGuard([&] {
+        controller->clearPanelWindows();
+        controller->unregisterPanel(&bottomPanel);
+        controller->unregisterPanel(&trackPanel);
+    });
+
+    controller->setPanelWindow(&trackPanel, &mainWindow);
+    controller->setPanelWindow(&bottomPanel, &mainWindow);
+    expect(!controller->hasSeparatedPanelWindows(),
+           "panels sharing one window must not be window-scoped");
+    controller->setActivePanel(AppGlobal::ClipEditor);
+    expect(controller->activePanel() == AppGlobal::ClipEditor,
+           "docked mode keeps interaction-based activation");
+
+    controller->setPanelWindow(&bottomPanel, &detachedWindow);
+    expect(controller->hasSeparatedPanelWindows(),
+           "panels in two windows must enable window-scoped activation");
+
+    QEvent mainActivated(QEvent::WindowActivate);
+    QCoreApplication::sendEvent(&mainWindow, &mainActivated);
+    expect(controller->activePanel() == AppGlobal::TracksEditor,
+           "activating the main window selects its panel");
+    expect(trackPanel.panelActive() && !bottomPanel.panelActive(),
+           "window activation must refresh every registered panel");
+
+    QEvent detachedActivated(QEvent::WindowActivate);
+    QCoreApplication::sendEvent(&detachedWindow, &detachedActivated);
+    expect(controller->activePanel() == AppGlobal::ClipEditor,
+           "activating the detached window selects its panel");
+    expect(bottomPanel.panelActive() && !trackPanel.panelActive(),
+           "window activation must refresh every registered panel");
+
+    controller->clearPanelWindows();
+    HiddenPanel collapsedPanel(AppGlobal::TracksEditor);
+    controller->setPanelWindow(&collapsedPanel, &mainWindow);
+    controller->setPanelWindow(&bottomPanel, &detachedWindow);
+    controller->activateWindowPanel(&mainWindow);
+    expect(controller->activePanel() == AppGlobal::Generic,
+           "a collapsed panel resolves to the generic context");
+
+    controller->clearPanelWindows();
+    expect(!controller->hasSeparatedPanelWindows(), "re-docking clears the window bindings");
+    controller->setActivePanel(AppGlobal::TracksEditor);
+    expect(controller->activePanel() == AppGlobal::TracksEditor,
+           "re-docking restores interaction-based activation");
 }
 
 void EditorInteractionTests::interactionRouting() {

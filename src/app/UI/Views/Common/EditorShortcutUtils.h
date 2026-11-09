@@ -12,12 +12,22 @@
 #include <QPlainTextEdit>
 #include <QShortcut>
 #include <QTextEdit>
+#include <QVariant>
 #include <QWidget>
 
 #include <functional>
 #include <utility>
 
 namespace EditorShortcutUtils {
+
+    // Top-level editor windows mark themselves with this property. Shortcuts
+    // owned by the primary window stay application-wide, so every editor window
+    // must be recognized here instead of hard-coding class names.
+    inline constexpr const char kEditorWindowProperty[] = "dsEditorWindow";
+
+    inline bool isEditorWindow(const QWidget *window) {
+        return window && window->property(kEditorWindowProperty).toBool();
+    }
 
     inline bool isTextInput(const QWidget *widget) {
         return qobject_cast<const QLineEdit *>(widget) || qobject_cast<const QTextEdit *>(widget) ||

@@ -11,6 +11,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QWidget>
 #include <optional>
 
 class IEditorView;
@@ -56,6 +57,15 @@ public:
 
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);
+
+    // Bind a panel to the top-level window it lives in. While panels are spread
+    // across more than one window, the active panel is derived from window
+    // activation instead of the last clicked interaction area.
+    void setPanelWindow(IPanel *panel, QWidget *window);
+    void clearPanelWindows();
+    [[nodiscard]] bool hasSeparatedPanelWindows() const;
+    void activateWindowPanel(QWidget *window);
+
     void setActivePanel(AppGlobal::PanelType panel);
     void setActiveRegion(EditorViewGlobal::Region region);
     void activatePanelContext(AppGlobal::PanelType panel);
@@ -111,7 +121,10 @@ private:
     bool applyRevealFocus(const HistoryFocus &focus, bool finalize) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);
+    void applyActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);
     void setActiveEditTarget(EditorInteraction::Target target);
+    [[nodiscard]] std::optional<AppGlobal::PanelType> panelTypeForWindow(
+        const QWidget *window) const;
 
     struct InteractionArea {
         QPointer<QObject> object;
@@ -119,9 +132,15 @@ private:
         EditorInteraction::Target target = EditorInteraction::Target::None;
     };
 
+    struct PanelWindowBinding {
+        QPointer<QWidget> window;
+        IPanel *panel = nullptr;
+    };
+
     IEditorView *m_view = nullptr;
     QList<IPanel *> m_panels;
     QList<InteractionArea> m_interactionAreas;
+    QList<PanelWindowBinding> m_panelWindows;
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
     EditorInteraction::Target m_activeEditTarget = EditorInteraction::Target::Tracks;
     EditorInteraction::Target m_lastClipEditTarget = EditorInteraction::Target::PianoRoll;
