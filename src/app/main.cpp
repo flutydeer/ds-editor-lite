@@ -10,7 +10,9 @@
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
 #include "Bootstrap/ShutdownMonitor.h"
+#include "Bootstrap/SecondaryHandoff.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
+#include "Bootstrap/SingleInstanceIdentity.h"
 #include "Bootstrap/StartupArguments.h"
 #include "Bootstrap/WindowPlacement.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -30,6 +32,7 @@
 #include <QEventLoop>
 #include <QMessageBox>
 #include <QTextStream>
+#include <QTimer>
 #include <QUuid>
 
 #include <cstdlib>
@@ -88,6 +91,15 @@ int main(int argc, char *argv[]) {
 
     int result = EXIT_FAILURE;
     SingleInstanceCoordinator coordinator(hostMode);
+    const auto runSecondaryHandoff = [&](const bool allowRecovery) {
+        SecondaryHandoffOptions options;
+        options.interactive = hostMode == AppHostMode::Gui && !nonInteractiveBootstrapErrors;
+        options.allowTerminateRecovery = allowRecovery && options.interactive;
+        SecondaryHandoffController controller(
+            coordinator.serverName(),
+            SingleInstanceIdentity::normalizeDataDirectory({}), hostMode);
+        return controller.run(startupRequest, options);
+    };
     switch (coordinator.start()) {
         case SingleInstanceCoordinator::StartResult::Secondary: {
             if (!parsedArguments.automation.isEmpty()) {
@@ -96,18 +108,38 @@ int main(int argc, char *argv[]) {
                     "instance is running"));
                 return EXIT_FAILURE;
             }
-            QString error;
-            if (coordinator.forwardRequest(startupRequest, error)) {
+            auto handoff = runSecondaryHandoff(true);
+            if (handoff.restartAfterRecovery) {
+                // Wait for the old process to leave (done in the recovery step),
+                // then re-enter the normal lock race. If another instance won,
+                // hand off to it instead of forcing ownership.
+                coordinator.shutdown();
+                if (coordinator.start() == SingleInstanceCoordinator::StartResult::Primary)
+                    break;
+                handoff = runSecondaryHandoff(false);
+            }
+            if (handoff.success()) {
                 if (hostMode == AppHostMode::Headless) {
                     QTextStream(stderr)
                         << LiteProductMetadata::ProductName
                         << ": another editor instance is already running; the request was "
-                           "forwarded and no new Headless instance was started."
+                           "taken over and no new Headless instance was started."
+                        << Qt::endl;
+                } else if (handoff.hostMode.contains(QStringLiteral("headless"),
+                                                     Qt::CaseInsensitive)) {
+                    QTextStream(stderr)
+                        << LiteProductMetadata::ProductName
+                        << ": the request was taken over by a background instance. No window "
+                           "will be opened."
                         << Qt::endl;
                 }
                 return EXIT_SUCCESS;
             }
-            reportBootstrapError(error);
+            const auto message = handoff.error.isEmpty()
+                                     ? QStringLiteral(
+                                           "Could not hand the request to the running instance.")
+                                     : handoff.error;
+            reportBootstrapError(message + QStringLiteral("\n\n") + handoff.diagnostics);
             return EXIT_FAILURE;
         }
         case SingleInstanceCoordinator::StartResult::Error:
@@ -117,7 +149,23 @@ int main(int argc, char *argv[]) {
             break;
     }
 
+    // Startup phase observability. The log line carries the primary instance
+    // UUID and the startup request ID so a stalled phase can be correlated with
+    // a secondary's handoff diagnostics. None of these reads take an inference
+    // lock, so diagnostics stay available while the GPU is initializing.
+    const auto logStage = [&](const QString &stage) {
+        qInfo().noquote()
+            << QStringLiteral("[startup] instance=%1 request=%2 stage=%3 elapsed_ms=%4")
+                   .arg(coordinator.instanceId())
+                   .arg(startupRequest.requestId)
+                   .arg(stage)
+                   .arg(QString::number(mstimer.elapsed()));
+    };
+    logStage(QStringLiteral("single_instance_resolved"));
+
     LoggingBootstrap::init();
+    coordinator.setPrimaryStage(PrimaryStartupStage::Initializing);
+    logStage(QStringLiteral("core_initializing"));
 
     // The watchdog thread exists from here on, inside the healthiest part of the
     // process, and it is never stopped again: the exit budget has to cover the late
@@ -144,6 +192,8 @@ int main(int argc, char *argv[]) {
         // Construct the common composition first. GUI-only singletons are created only in Gui.
         AppContext appContext(std::move(options), hostMode);
         activeContext = &appContext;
+        coordinator.noteMainThreadHeartbeat();
+        logStage(QStringLiteral("core_ready"));
 
         if (hostMode == AppHostMode::Gui) {
             auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
@@ -163,6 +213,8 @@ int main(int argc, char *argv[]) {
         }
 
         packageManager->initialize(appOptions->general()->packageSearchPaths);
+        coordinator.noteMainThreadHeartbeat();
+        logStage(QStringLiteral("packages_ready"));
 
         if (hostMode == AppHostMode::Headless) {
             QString error;
@@ -223,17 +275,29 @@ int main(int argc, char *argv[]) {
 
         if (hostMode == AppHostMode::Gui) {
             MainWindow w;
+            logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
                 parsedArguments.automation, hostServices);
             WindowPlacement windowPlacement(w);
             windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
             ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
-            requestQueue.enqueue(startupRequest);
-            coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
-                requestQueue.enqueue(request);
-            });
+            [[maybe_unused]] const auto startupAdmission = requestQueue.take(startupRequest);
+            coordinator.setAdmissionHandler(
+                [&requestQueue](const SingleInstanceRequest &request) {
+                    return requestQueue.take(request);
+                });
             w.show();
+            coordinator.setPrimaryStage(PrimaryStartupStage::WindowShown);
+            coordinator.noteMainThreadHeartbeat();
+            logStage(QStringLiteral("window_shown"));
+            // Open takeover only after the event loop has actually spun. An
+            // instance stuck before this point owns the lock and answers IPC,
+            // but never admits a request, so a secondary cannot silently exit.
+            QTimer::singleShot(0, &coordinator, [&coordinator, &logStage] {
+                coordinator.enableAdmission();
+                logStage(QStringLiteral("event_loop_ready"));
+            });
 
             const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
             qInfo() << "App launched in" << time << "ms";
@@ -249,10 +313,17 @@ int main(int argc, char *argv[]) {
         } else {
             HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
                                                   hostServices.openDocument);
-            requestQueue.enqueue(startupRequest);
-            coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
-                requestQueue.enqueue(request);
-            });
+            [[maybe_unused]] const auto startupAdmission = requestQueue.take(startupRequest);
+            coordinator.setAdmissionHandler(
+                [&requestQueue](const SingleInstanceRequest &request) {
+                    return requestQueue.take(request);
+                });
+            // A healthy Headless primary has no window. Admission depends on the
+            // queue being usable, not on GUI or MCP readiness.
+            coordinator.setPrimaryStage(PrimaryStartupStage::Ready);
+            coordinator.enableAdmission();
+            coordinator.noteMainThreadHeartbeat();
+            logStage(QStringLiteral("headless_admission_open"));
             requestQueue.waitUntilIdle();
             coordinator.pauseRequestDispatchAndFlush();
             requestQueue.waitUntilIdle();

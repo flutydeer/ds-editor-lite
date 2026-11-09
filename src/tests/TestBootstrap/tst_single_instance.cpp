@@ -147,6 +147,33 @@ namespace {
             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
     }
 
+    // Drive the primary's main-thread metacalls while waiting for a framed
+    // response. The IPC worker cannot acknowledge a request on its own any
+    // more, so tests must let the main thread actually run.
+    bool receiveWithEventLoop(FramedClient &client, QByteArray &payload, QString &error,
+                              const int timeoutMs = 3000) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < timeoutMs) {
+            QCoreApplication::processEvents();
+            if (client.receive(payload, error, 10))
+                return true;
+        }
+        return false;
+    }
+
+    SingleInstanceRequest handoffRequest(const QStringList &paths) {
+        auto request = openRequest(paths);
+        request.command = SingleInstanceCommand::ApplicationHandoff;
+        request.handoffVersion = SingleInstanceProtocol::handoffVersion;
+        return request;
+    }
+
+    bool decodeState(const QByteArray &payload, SingleInstanceHandoffResponse &response,
+                     QString &error) {
+        return SingleInstanceProtocol::decodeHandoffResponse(payload, response, error);
+    }
+
 }
 
 void BootstrapTests::initTestCase() {
@@ -582,72 +609,74 @@ void BootstrapTests::coordinator() {
     expect(secondary.start() == SingleInstanceCoordinator::StartResult::Secondary,
            "second coordinator must detect the primary");
 
+    // IPC receipt is not a successful handoff. Until the main thread admits the
+    // request, a legacy client must not receive an accepted ACK.
     const auto firstRequest = openRequest({QDir(directory.path()).filePath("first.dspx")});
-    QString error;
     FramedClient earlyClient;
-    earlyClient.socket.connectToServer(serverName, QIODevice::ReadWrite);
-    const auto firstFrame =
-        SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(firstRequest));
-    QCOMPARE(earlyClient.socket.write(firstFrame), firstFrame.size());
-    QVERIFY(earlyClient.socket.state() == QLocalSocket::ConnectedState ||
-            earlyClient.socket.waitForConnected(2000));
-    QByteArray firstPayload;
-    QVERIFY2(earlyClient.receive(firstPayload, error), qPrintable(error));
-    SingleInstanceResponse firstResponse;
-    QVERIFY(SingleInstanceProtocol::decodeResponse(firstPayload, firstResponse, error));
-    QVERIFY(firstResponse.accepted);
-    QCOMPARE(firstResponse.requestId, firstRequest.requestId);
+    expect(earlyClient.connectTo(serverName) && earlyClient.send(firstRequest),
+           "early client must connect and send");
+    QByteArray payload;
+    QString error;
+    expect(!earlyClient.receive(payload, error, 150),
+           "bytes received by the IPC worker must not acknowledge a legacy request");
 
     QList<SingleInstanceRequest> received;
     primary.setRequestHandler(
         [&received](const SingleInstanceRequest &request) { received.append(request); });
-    primary.pauseRequestDispatchAndFlush();
+    primary.enableAdmission();
+    expect(receiveWithEventLoop(earlyClient, payload, error),
+           "the main thread must be driven to admit the first request");
+    SingleInstanceResponse firstResponse;
+    expect(SingleInstanceProtocol::decodeResponse(payload, firstResponse, error),
+           "legacy response format must be preserved");
+    expect(firstResponse.accepted && firstResponse.requestId == firstRequest.requestId,
+           "ACK must arrive only after the main thread took the request");
     expect(received.size() == 1 && received.first().requestId == firstRequest.requestId,
-           "acknowledged request before handler setup must be flushed deterministically");
-    primary.resumeRequestDispatch();
+           "the request must reach the installed handler exactly once");
 
+    // A second request is acknowledged only after the same takeover boundary.
     const auto secondRequest = openRequest({QDir(directory.path()).filePath("second.dspx")});
-    error.clear();
-    expect(secondary.forwardRequest(secondRequest, error),
-           "request after handler setup must be acknowledged");
-    primary.pauseRequestDispatchAndFlush();
+    FramedClient secondClient;
+    expect(secondClient.connectTo(serverName) && secondClient.send(secondRequest),
+           "second client must connect and send");
+    expect(receiveWithEventLoop(secondClient, payload, error),
+           "second request must be acknowledged after main-thread takeover");
+    SingleInstanceResponse secondResponse;
+    expect(SingleInstanceProtocol::decodeResponse(payload, secondResponse, error) &&
+               secondResponse.accepted && secondResponse.requestId == secondRequest.requestId,
+           "second legacy request must retain its v1 response format");
     expect(received.size() == 2 && received.last().requestId == secondRequest.requestId,
-           "acknowledged request after handler setup must be flushed deterministically");
-    primary.resumeRequestDispatch();
+           "two distinct requests must reach the handler exactly once each");
 
+    // The Headless readiness barrier still defers dispatch.
     primary.pauseRequestDispatchAndFlush();
     const auto deferredRequest = openRequest({QDir(directory.path()).filePath("deferred.dspx")});
     FramedClient deferredClient;
     expect(deferredClient.connectTo(serverName) && deferredClient.send(deferredRequest),
            "request client must connect while dispatch is paused");
-    QByteArray deferredPayload;
-    QString deferredError;
-    expect(!deferredClient.receive(deferredPayload, deferredError, 100),
-           "request accepted after the barrier must not be acknowledged while paused");
+    expect(!deferredClient.receive(payload, error, 100),
+           "a paused request must not be acknowledged");
     primary.resumeRequestDispatch();
     SingleInstanceResponse deferredResponse;
-    expect(deferredClient.receive(deferredPayload, deferredError) &&
-               SingleInstanceProtocol::decodeResponse(deferredPayload, deferredResponse,
-                                                      deferredError) &&
+    expect(receiveWithEventLoop(deferredClient, payload, error) &&
+               SingleInstanceProtocol::decodeResponse(payload, deferredResponse, error) &&
                deferredResponse.accepted && deferredResponse.requestId == deferredRequest.requestId,
            "paused request must be acknowledged after dispatch resumes");
-    primary.pauseRequestDispatchAndFlush();
     expect(received.size() == 3 && received.last().requestId == deferredRequest.requestId,
            "resumed request must reach the installed handler");
-    primary.resumeRequestDispatch();
 
+    // Legacy activate keeps its request shape and is still deferred to takeover.
     SingleInstanceRequest activateRequest;
     activateRequest.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     activateRequest.command = SingleInstanceCommand::Activate;
-    error.clear();
-    expect(secondary.forwardRequest(activateRequest, error),
+    FramedClient activateClient;
+    expect(activateClient.connectTo(serverName) && activateClient.send(activateRequest),
            "legacy activate request must remain supported");
-    primary.pauseRequestDispatchAndFlush();
-    expect(received.size() == 4 && received.last().requestId == activateRequest.requestId &&
-               received.last().command == SingleInstanceCommand::Activate &&
+    expect(receiveWithEventLoop(activateClient, payload, error),
+           "legacy activate must be acknowledged after takeover");
+    expect(received.size() == 4 && received.last().command == SingleInstanceCommand::Activate &&
                received.last().paths.isEmpty(),
            "legacy activate request must retain its v1 behavior");
-    primary.resumeRequestDispatch();
 
     primary.shutdown();
     SingleInstanceCoordinator replacement(dataPath, serverName);
@@ -759,48 +788,241 @@ void BootstrapTests::forwardRequestReportsPeerFailureAndRecovers() {
 }
 
 void BootstrapTests::queuedStartupConnectionIsAcknowledged() {
+    // Old behavior asserted an early ACK while the main thread did not process
+    // events. The new contract is the opposite: receipt and takeover are two
+    // distinct states, and only Taken lets a secondary exit successfully.
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto serverName = uniqueServerName();
-    const auto request = openRequest({directory.filePath("startup.dspx")});
-    QSemaphore clientStarted;
-    bool connected = false;
-    bool acknowledged = false;
-    QByteArray payload;
-    QString error;
-    const auto clientThread = std::unique_ptr<QThread>(QThread::create([&] {
-        FramedClient client;
-        QElapsedTimer timer;
-        timer.start();
-        clientStarted.release();
-        while (timer.elapsed() < 3000) {
-            client.socket.abort();
-            if (client.connectTo(serverName, 10)) {
-                connected = true;
-                break;
-            }
-            QThread::yieldCurrentThread();
-        }
-        if (connected && client.send(request))
-            acknowledged = client.receive(payload, error, 3000);
-        else
-            error = client.socket.errorString();
-    }));
-    clientThread->start();
-    QVERIFY(clientStarted.tryAcquire(1, 3000));
+    const auto request = handoffRequest({directory.filePath("startup.dspx")});
+
     SingleInstanceCoordinator primary(directory.path(), serverName);
     QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
-    QVERIFY(clientThread->wait(10000));
-    QVERIFY2(connected, qPrintable(error));
-    QVERIFY2(acknowledged, qPrintable(error));
-    SingleInstanceResponse response;
-    QVERIFY(SingleInstanceProtocol::decodeResponse(payload, response, error));
-    QVERIFY(response.accepted);
-    QCOMPARE(response.requestId, request.requestId);
+
+    FramedClient client;
+    expect(client.connectTo(serverName) && client.send(request),
+           "handoff client must connect before the primary is ready");
+    QByteArray payload;
+    QString error;
+    expect(receiveWithEventLoop(client, payload, error, 1000),
+           "the IPC worker must report receipt even while the main thread is stalled");
+    SingleInstanceHandoffResponse receipt;
+    expect(decodeState(payload, receipt, error), "receipt must use the handoff response format");
+    expect(receipt.state == HandoffRequestState::Received,
+           "receipt proves only that the IPC worker is alive");
+    expect(receipt.requestId == request.requestId, "receipt must carry the request ID");
+    expect(receipt.handoffVersion == SingleInstanceProtocol::handoffVersion,
+           "receipt must advertise the handoff version");
+    expect(!client.receive(payload, error, 150),
+           "no terminal state may be published before main-thread takeover");
+
     QList<SingleInstanceRequest> received;
     primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
-    primary.pauseRequestDispatchAndFlush();
-    QCOMPARE(received.size(), 1);
-    QCOMPARE(received.first().requestId, request.requestId);
-    QCOMPARE(received.first().paths, request.paths);
+    primary.enableAdmission();
+    expect(receiveWithEventLoop(client, payload, error),
+           "the primary must publish a terminal state after takeover");
+    SingleInstanceHandoffResponse terminal;
+    expect(decodeState(payload, terminal, error), "terminal state must decode");
+    expect(terminal.state == HandoffRequestState::Taken,
+           "Taken is the only successful terminal state");
+    expect(received.size() == 1, "the handoff must be admitted exactly once");
+    expect(received.first().requestId == request.requestId &&
+               received.first().paths == request.paths,
+           "the admitted request must match the submitted payload");
+
+    // Same UUID and payload must replay the existing state, never enqueue twice.
+    FramedClient replay;
+    expect(replay.connectTo(serverName) && replay.send(request),
+           "duplicate submission must connect");
+    expect(receiveWithEventLoop(replay, payload, error),
+           "duplicate submission must return the existing state");
+    SingleInstanceHandoffResponse replayResponse;
+    expect(decodeState(payload, replayResponse, error) &&
+               replayResponse.state == HandoffRequestState::Taken,
+           "duplicate submission must replay Taken, not enqueue again");
+    expect(received.size() == 1, "duplicate submission must not reach the handler twice");
+}
+
+void BootstrapTests::handoffProtocolRoundTrips() {
+    const auto request = handoffRequest({QStringLiteral("C:/projects/a.dspx")});
+    const auto encoded = SingleInstanceProtocol::encodeRequest(request);
+    SingleInstanceRequest decoded;
+    QString error;
+    expect(SingleInstanceProtocol::decodeRequest(encoded, decoded, error),
+           "handoff request must round-trip");
+    expect(decoded.command == SingleInstanceCommand::ApplicationHandoff,
+           "handoff command must survive serialization");
+    expect(decoded.handoffVersion == SingleInstanceProtocol::handoffVersion,
+           "handoff version must survive serialization");
+    expect(decoded.paths == request.paths, "handoff paths must survive serialization");
+
+    SingleInstanceHandoffResponse response;
+    response.requestId = request.requestId;
+    response.instanceId = QStringLiteral("instance-uuid");
+    response.primaryProcessId = 4242;
+    response.hostMode = QStringLiteral("Gui");
+    response.stage = PrimaryStartupStage::Initializing;
+    response.heartbeatAgeMs = 3500;
+    response.state = HandoffRequestState::Pending;
+    response.error = QStringLiteral("waiting");
+    response.handoffVersion = SingleInstanceProtocol::handoffVersion;
+    const auto responseFrame = SingleInstanceProtocol::encodeHandoffResponse(response);
+    SingleInstanceHandoffResponse decodedResponse;
+    expect(SingleInstanceProtocol::decodeHandoffResponse(responseFrame, decodedResponse, error),
+           "handoff response must round-trip");
+    expect(decodedResponse.requestId == request.requestId &&
+               decodedResponse.instanceId == response.instanceId &&
+               decodedResponse.primaryProcessId == response.primaryProcessId &&
+               decodedResponse.hostMode == response.hostMode &&
+               decodedResponse.stage == response.stage &&
+               decodedResponse.heartbeatAgeMs == response.heartbeatAgeMs &&
+               decodedResponse.state == response.state && decodedResponse.error == response.error &&
+               decodedResponse.handoffVersion == response.handoffVersion,
+           "all handoff response fields must survive serialization");
+
+    // A legacy response must not be mistaken for a handoff state.
+    const SingleInstanceResponse legacy{request.requestId, true, {}, 4242};
+    const auto legacyFrame = SingleInstanceProtocol::encodeResponse(legacy);
+    SingleInstanceHandoffResponse notAHandoff;
+    error.clear();
+    expect(!SingleInstanceProtocol::decodeHandoffResponse(legacyFrame, notAHandoff, error),
+           "a legacy ACK must not decode as a handoff state");
+    SingleInstanceResponse decodedLegacy;
+    error.clear();
+    expect(SingleInstanceProtocol::decodeResponse(legacyFrame, decodedLegacy, error) &&
+               decodedLegacy.accepted,
+           "legacy response format must remain decodable");
+
+    // Digest stability and payload conflict detection.
+    auto conflicting = request;
+    conflicting.paths = QStringList{QStringLiteral("C:/projects/b.dspx")};
+    expect(SingleInstanceProtocol::requestDigest(request) !=
+               SingleInstanceProtocol::requestDigest(conflicting),
+           "different payloads must produce different digests");
+    expect(SingleInstanceProtocol::requestDigest(request) ==
+               SingleInstanceProtocol::requestDigest(request),
+           "the same payload must produce a stable digest");
+
+    SingleInstanceRequest cancel;
+    cancel.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    cancel.command = SingleInstanceCommand::ApplicationCancel;
+    cancel.targetRequestId = request.requestId;
+    SingleInstanceRequest decodedCancel;
+    error.clear();
+    expect(SingleInstanceProtocol::decodeRequest(
+               SingleInstanceProtocol::encodeRequest(cancel), decodedCancel, error) &&
+               decodedCancel.targetRequestId == request.requestId,
+           "cancel target must survive serialization");
+}
+
+void BootstrapTests::handoffWaitsForMainThreadTakeover() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+
+    const auto request = handoffRequest({directory.filePath("stuck.dspx")});
+    FramedClient client;
+    expect(client.connectTo(serverName) && client.send(request),
+           "client must connect while the primary main thread is stalled");
+    QByteArray payload;
+    QString error;
+    expect(receiveWithEventLoop(client, payload, error, 1000), "receipt must arrive");
+    SingleInstanceHandoffResponse receipt;
+    expect(decodeState(payload, receipt, error) &&
+               receipt.state == HandoffRequestState::Received,
+           "a stalled main thread must not produce Taken");
+    // The primary owns the lock and answers IPC, but no handler is installed.
+    // Simulate the stalled window: do not enable admission at all.
+    expect(!client.receive(payload, error, 250),
+           "a secondary must keep waiting instead of exiting successfully");
+
+    // After the main thread recovers, the queued request is taken exactly once.
+    QList<SingleInstanceRequest> received;
+    primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
+    primary.enableAdmission();
+    expect(receiveWithEventLoop(client, payload, error),
+           "recovery must publish a terminal state");
+    SingleInstanceHandoffResponse terminal;
+    expect(decodeState(payload, terminal, error) &&
+               terminal.state == HandoffRequestState::Taken,
+           "recovery must end in Taken");
+    expect(received.size() == 1 && received.first().requestId == request.requestId,
+           "the queued request must be admitted exactly once after recovery");
+}
+
+void BootstrapTests::handoffLedgerDedupeCancelAndQuery() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+
+    const auto request = handoffRequest({directory.filePath("cancel.dspx")});
+    // Cancel before the main thread takes over.
+    FramedClient pendingClient;
+    expect(pendingClient.connectTo(serverName) && pendingClient.send(request),
+           "pending client must connect");
+    QByteArray payload;
+    QString error;
+    expect(receiveWithEventLoop(pendingClient, payload, error, 1000),
+           "pending request must report receipt");
+
+    SingleInstanceRequest cancel;
+    cancel.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    cancel.command = SingleInstanceCommand::ApplicationCancel;
+    cancel.targetRequestId = request.requestId;
+    FramedClient cancelClient;
+    expect(cancelClient.connectTo(serverName) && cancelClient.send(cancel),
+           "cancel client must connect");
+    expect(receiveWithEventLoop(cancelClient, payload, error),
+           "cancel must receive a state response");
+    SingleInstanceHandoffResponse cancelResponse;
+    expect(decodeState(payload, cancelResponse, error) &&
+               cancelResponse.state == HandoffRequestState::Cancelled,
+           "an unclaimed request must be cancellable");
+
+    // Query must recover the terminal state instead of replaying the open.
+    SingleInstanceRequest query;
+    query.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    query.command = SingleInstanceCommand::ApplicationQuery;
+    query.targetRequestId = request.requestId;
+    FramedClient queryClient;
+    expect(queryClient.connectTo(serverName) && queryClient.send(query),
+           "query client must connect");
+    expect(receiveWithEventLoop(queryClient, payload, error),
+           "query must receive a state response");
+    SingleInstanceHandoffResponse queryResponse;
+    expect(decodeState(payload, queryResponse, error) &&
+               queryResponse.state == HandoffRequestState::Cancelled,
+           "query must recover the terminal state");
+
+    // Same UUID with a different payload is rejected, never enqueued.
+    auto conflicting = request;
+    conflicting.paths = QStringList{directory.filePath("other.dspx")};
+    FramedClient conflictClient;
+    expect(conflictClient.connectTo(serverName) && conflictClient.send(conflicting),
+           "conflicting client must connect");
+    expect(receiveWithEventLoop(conflictClient, payload, error),
+           "conflicting payload must be answered");
+    SingleInstanceHandoffResponse conflictResponse;
+    expect(decodeState(payload, conflictResponse, error) &&
+               conflictResponse.state == HandoffRequestState::Rejected &&
+               conflictResponse.error ==
+                   QStringLiteral("duplicate_request_id_with_different_payload"),
+           "a reused UUID with a different payload must be rejected");
+
+    // An unknown ID returns result_unknown rather than promising exactly-once.
+    query.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    query.targetRequestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    FramedClient unknownClient;
+    expect(unknownClient.connectTo(serverName) && unknownClient.send(query),
+           "unknown query must connect");
+    expect(receiveWithEventLoop(unknownClient, payload, error),
+           "unknown query must be answered");
+    SingleInstanceHandoffResponse unknownResponse;
+    expect(decodeState(payload, unknownResponse, error) &&
+               unknownResponse.state == HandoffRequestState::Unknown,
+           "an unknown request ID must report result_unknown");
 }

@@ -227,12 +227,12 @@ bool SynthrtEngine::waitForInitialization(int timeoutMs) const {
 }
 
 bool SynthrtEngine::sessionReady() const noexcept {
-    return m_sessionInitialized;
+    return m_sessionInitialized.load(std::memory_order_acquire);
 }
 
 bool SynthrtEngine::waitForSession(int timeoutMs) const {
     // Fast path: session already ready.
-    if (m_sessionInitialized) {
+    if (m_sessionInitialized.load(std::memory_order_acquire)) {
         return true;
     }
     // Wait until either the session becomes ready, or initialize() finishes
@@ -241,7 +241,8 @@ bool SynthrtEngine::waitForSession(int timeoutMs) const {
     // refreshVoicebanks() error rather than wait out the full timeout.
     std::unique_lock lock(m_sessionReadyMutex);
     return m_sessionReadyCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_sessionInitialized || m_initializationDone.load(std::memory_order_acquire);
+        return m_sessionInitialized.load(std::memory_order_acquire) ||
+               m_initializationDone.load(std::memory_order_acquire);
     });
 }
 
@@ -269,7 +270,7 @@ void SynthrtEngine::shutdown() noexcept {
         m_runtimeInitialized.store(false, std::memory_order_release);
         m_pitchExtractionReady.store(false, std::memory_order_release);
         m_midiExtractionReady.store(false, std::memory_order_release);
-        m_sessionInitialized = false;
+        m_sessionInitialized.store(false, std::memory_order_release);
     }
     completeInitializationAttempt();
     std::unique_lock lock(m_runtimeLifecycleMutex);
@@ -442,11 +443,15 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
     // snapshot consumers can query refreshVoicebanks() / singerSnapshot() from
     // this point onward, even while Stage 2 (ONNX model loading) is still in
     // progress below.
-    m_sessionInitialized = true;
-    {
-        std::lock_guard lk(m_sessionReadyMutex);
+    // A shutdown that started during Stage 1 must not be overwritten by a late
+    // Ready publication from the initialization task.
+    if (!m_aboutToQuit.load(std::memory_order_acquire)) {
+        m_sessionInitialized.store(true, std::memory_order_release);
+        {
+            std::lock_guard lk(m_sessionReadyMutex);
+        }
+        m_sessionReadyCv.notify_all();
     }
-    m_sessionReadyCv.notify_all();
 
     // --- 8. LanguageService: initialize models (Stage 2, loads ONNX DLLs) ---
     // VoicebankSession::refresh() only calls initializeMetadata() (Stage 1).
@@ -614,7 +619,7 @@ bool SynthrtEngine::initializeG2pOnnxDriver() {
 // === refreshVoicebanks ===
 srt::core::Expected<ds::session::RefreshResult>
     SynthrtEngine::refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths) {
-    if (!m_sessionInitialized) {
+    if (!m_sessionInitialized.load(std::memory_order_acquire)) {
         return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
                                 "SynthrtEngine::refreshVoicebanks: session not initialized");
     }

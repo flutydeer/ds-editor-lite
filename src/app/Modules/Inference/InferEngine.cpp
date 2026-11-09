@@ -93,12 +93,25 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
 void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
+        // Capture all GUI-owned inputs here, on the application thread, before
+        // the task starts. The worker reads only this immutable snapshot.
+        const auto *inference = appOptions->inference();
+        m_initInput.executionProvider = inference->executionProvider;
+        m_initInput.selectedGpuIndex = inference->selectedGpuIndex;
+        m_initInput.selectedGpuId = inference->selectedGpuId;
+        m_initInput.packageSearchPaths = appOptions->general()->packageSearchPaths;
+        m_initInput.generation = 1;
+
         const auto initTask = new InitInferEngineTask;
         connect(
             initTask, &Task::finished, this,
             [this, initTask] {
-                QWriteLocker lock(&m_engineRwLock);
-                if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
+                // Deliberately lock-free. The completion callback runs on the
+                // application thread; taking the engine write lock here would
+                // stall the GUI behind any long-running background work.
+                // Never publish a stale Ready once shutdown has started.
+                if (m_disposed.load(std::memory_order_acquire) ||
+                    SynthrtEngine::instance().isAboutToQuit()) {
                     return;
                 }
 
@@ -138,8 +151,7 @@ void InferEngine::startInitialization() {
 }
 
 bool InferEngine::initialized() const {
-    QReadLocker lock(&m_engineRwLock);
-    return m_initialized;
+    return m_initialized.load(std::memory_order_acquire);
 }
 
 bool InferEngine::isAboutToQuit() const noexcept {
@@ -147,20 +159,23 @@ bool InferEngine::isAboutToQuit() const noexcept {
 }
 
 bool InferEngine::initialize(QString &error) {
-    QWriteLocker lock(&m_engineRwLock);
+    // Deliberately no long write lock here. GPU enumeration, plugin loading and
+    // ORT session creation can block for seconds; holding m_engineRwLock across
+    // them makes the GUI's initialized()/path reads stall before the first
+    // window appears. Only the final path publication takes a short write lock.
     const auto finishAttempt = qScopeGuard([] {
         SynthrtEngine::instance().completeInitializationAttempt();
     });
-    if (m_disposed) {
+    if (m_disposed.load(std::memory_order_acquire)) {
         error = "Application is about to quit.";
         return false;
     }
-    if (m_initialized) {
+    if (m_initialized.load(std::memory_order_acquire)) {
         qDebug() << "InferEngine already initialized";
         return true;
     }
 
-    const auto persistedProvider = appOptions->inference()->executionProvider;
+    const auto persistedProvider = m_initInput.executionProvider;
     const auto requestedProvider = ExecutionProviderUtils::fromString(persistedProvider);
     const auto gpuDeviceList = requestedProvider ? [&requestedProvider]() -> QList<GpuInfo> {
         if (*requestedProvider == ExecutionProvider::DirectML)
@@ -190,20 +205,34 @@ bool InferEngine::initialize(QString &error) {
         // and AppStatus are owned by the application thread.
         QMetaObject::invokeMethod(
             qApp,
-            [unavailableProvider = persistedProvider, ep] {
-                appOptions->inference()->executionProvider = ep;
-                appOptions->inference()->selectedGpuIndex = -1;
-                appOptions->inference()->selectedGpuId.clear();
+            [unavailableProvider = persistedProvider, ep,
+             expectedGpuId = m_initInput.selectedGpuId] {
+                // The fallback is computed from the startup snapshot. If the
+                // user changed the provider or GPU while initialization was
+                // running, their newer choice wins: an old callback must never
+                // overwrite it. The diagnostic is published in that case only.
+                auto *inference = appOptions->inference();
+                if (inference->executionProvider != unavailableProvider ||
+                    inference->selectedGpuId != expectedGpuId) {
+                    appStatus->unavailableExecutionProvider = unavailableProvider;
+                    return;
+                }
+                inference->executionProvider = ep;
+                inference->selectedGpuIndex = -1;
+                inference->selectedGpuId.clear();
                 appOptions->saveAndNotify(AppOptionsGlobal::Inference);
                 appStatus->unavailableExecutionProvider = unavailableProvider;
             },
             Qt::QueuedConnection);
     }
 
-    const auto [index, description, deviceId, memory] = [&resolution]() -> GpuInfo {
+    // Copy the immutable snapshot field into a local so the GPU selection
+    // lambda does not need to capture this.
+    const auto selectedGpuId = m_initInput.selectedGpuId;
+    const auto [index, description, deviceId, memory] =
+        [&resolution, &selectedGpuId]() -> GpuInfo {
         if (resolution.provider == ExecutionProvider::DirectML) {
-            auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(
-                appOptions->inference()->selectedGpuId);
+            auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(selectedGpuId);
             if (selectedGpu_.index < 0) {
                 qInfo() << "Auto selecting GPU";
                 selectedGpu_ = DmlGpuUtils::getRecommendedGpu();
@@ -213,7 +242,7 @@ bool InferEngine::initialize(QString &error) {
             return selectedGpu_;
         }
         if (resolution.provider == ExecutionProvider::Cuda) {
-            auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
+            auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(selectedGpuId);
             if (selectedGpu_.index < 0) {
                 qInfo() << "Auto selecting GPU";
                 selectedGpu_ = CudaGpuUtils::getRecommendedGpu();
@@ -237,7 +266,7 @@ bool InferEngine::initialize(QString &error) {
     const auto inferenceInterpreterDir = diffsingerPluginDir / "inferenceinterpreters";
 
     QStringList packagePathsQt;
-    for (const auto &pathQt : appOptions->general()->packageSearchPaths) {
+    for (const auto &pathQt : m_initInput.packageSearchPaths) {
         const auto path = StringUtils::qstr_to_path(pathQt);
         std::error_code error;
         const bool exists = std::filesystem::exists(path, error);
@@ -263,12 +292,16 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
-    m_paths.singerProvider = StringUtils::path_to_qstr(singerProviderDir);
-    m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
-    m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
     const auto runtimeDir = inferenceDriverDir / "srt-onnxdriver" / "runtimes" / "onnx" /
                             (resolution.provider == ExecutionProvider::Cuda ? "cuda" : "default");
-    m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
+    // Short publication only. No GPU/ORT work happens under this lock.
+    {
+        QWriteLocker lock(&m_engineRwLock);
+        m_paths.singerProvider = StringUtils::path_to_qstr(singerProviderDir);
+        m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
+        m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
+        m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
+    }
 
     if (ExecutionProviderUtils::requiresGpu(resolution.provider)) {
         qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
@@ -277,7 +310,7 @@ bool InferEngine::initialize(QString &error) {
                                  .arg(memory);
     }
 
-    m_initialized = true;
+    m_initialized.store(true, std::memory_order_release);
     qInfo().noquote() << "Successfully initialized InferEngine. Execution provider:" << ep;
     return true;
 }
@@ -312,11 +345,22 @@ std::shared_ptr<ds::session::ModelSetHandle>
     });
 }
 
-void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers) {
-    QReadLocker lock(&m_engineRwLock);
+quint64 InferEngine::publishSingerSelection(const QSet<SingerIdentifier> &identifiers) {
     std::lock_guard selectionLock(m_singerSessionSelectionMutex);
+    m_latestSingerSelection = identifiers;
+    return m_selectionGeneration.fetch_add(1, std::memory_order_acq_rel) + 1;
+}
+
+void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers) {
+    const auto generation = publishSingerSelection(identifiers);
+    // No engine read lock here. This runs on the GUI thread during controller
+    // construction and must return immediately, even while a background model
+    // factory or unload is in progress.
+    if (m_disposed.load(std::memory_order_acquire))
+        return;
     auto result = m_singerSessions.retainOnly(identifiers);
-    if (!m_initialized || m_disposed) {
+    if (!m_initialized.load(std::memory_order_acquire) ||
+        m_disposed.load(std::memory_order_acquire)) {
         if (result.released > 0) {
             qInfo() << "Singer session retention dropped" << result.released
                     << "deselected resident entries";
@@ -324,7 +368,7 @@ void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers
         releaseSingerSessionsAsync(std::move(result.handles));
         return;
     }
-    releaseDeselectedSingerSessionsAsync(std::move(result.handles));
+    releaseDeselectedSingerSessionsAsync(std::move(result.handles), generation);
 }
 
 void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
@@ -337,19 +381,35 @@ void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
     });
 }
 
-void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles) {
+void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles,
+                                                        const quint64 generation) {
     const auto releasedSessions = handles.size();
-    m_singerSessionReleasePool.start([this, handles = std::move(handles),
-                                      releasedSessions]() mutable {
+    m_singerSessionReleasePool.start([this, handles = std::move(handles), releasedSessions,
+                                      generation]() mutable {
         InferDirectMLSerializationGuard dmlGuard;
         handles.clear();
+
+        // A superseded selection must not submit a fresh unload. Work already
+        // started is not forcibly terminated; active handles still protect
+        // their users, and a later maintenance pass re-acquires what is needed.
+        if (generation != m_selectionGeneration.load(std::memory_order_acquire) ||
+            m_disposed.load(std::memory_order_acquire))
+            return;
+        QSet<SingerIdentifier> selection;
+        {
+            std::lock_guard selectionLock(m_singerSessionSelectionMutex);
+            selection = m_latestSingerSelection;
+        }
+        if (generation != m_selectionGeneration.load(std::memory_order_acquire))
+            return;
 
         auto &session = SynthrtEngine::instance().session();
         std::size_t unloadedPackages = 0;
         std::size_t packagesInUse = 0;
         for (const auto &package : session.loadedVoicebanks()) {
-            std::lock_guard selectionLock(m_singerSessionSelectionMutex);
-            if (packageIsSelected(package, m_singerSessions.retainedIdentifiers())) {
+            // The selection mutex is NOT held across unloadVoicebank: that call
+            // can load or destroy model resources and must never block the GUI.
+            if (packageIsSelected(package, selection)) {
                 continue;
             }
 
@@ -377,8 +437,10 @@ void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList h
 }
 
 void InferEngine::evictSingerSessions() {
-    QReadLocker lock(&m_engineRwLock);
-    if (!m_initialized || m_disposed) {
+    // Maintenance must stay cheap on the GUI thread. State is atomic and the
+    // cache performs only short bookkeeping; the heavy release is serialized.
+    if (!m_initialized.load(std::memory_order_acquire) ||
+        m_disposed.load(std::memory_order_acquire)) {
         return;
     }
 
@@ -399,13 +461,12 @@ void InferEngine::evictSingerSessions() {
 }
 
 void InferEngine::dispose() {
-    QWriteLocker lock(&m_engineRwLock);
-    if (m_disposed) {
+    // Close the gate first so no worker can publish a stale Ready afterwards.
+    if (m_disposed.exchange(true, std::memory_order_acq_rel)) {
         return;
     }
     m_singerSessionEvictionTimer.stop();
-    m_disposed = true;
-    m_initialized = false;
+    m_initialized.store(false, std::memory_order_release);
     qDebug() << "dispose InferEngine inference sessions";
     SingerSessionHandleList handles;
     {

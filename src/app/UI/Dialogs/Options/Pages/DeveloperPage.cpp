@@ -208,11 +208,15 @@ QWidget *DeveloperPage::createContentWidget() {
             }
             return str_;
         };
-        const auto &su = inferEngine->constRuntime();
+        const auto engineInitialized = inferEngine->initialized();
+        // While the engine is loading, do not walk raw Runtime internals: the
+        // background initialization task may still be constructing them. Show
+        // a clear not-ready state instead of borrowing those objects.
+        const auto *runtime = engineInitialized ? &inferEngine->constRuntime() : nullptr;
         // TODO(Task 7): Runtime no longer exposes packagePaths()/packages().
         // Use appOptions directly; singer list will come from SynthrtEngine.
         const auto &packagePaths = appOptions->general()->packageSearchPaths;
-        const auto singerCat = su.moduleCategory("singer");
+        const auto singerCat = runtime ? runtime->moduleCategory("singer") : nullptr;
         // TODO(Task 6/7): singer category may be null until packages are opened;
         // SynthrtEngine::singers() will provide singer snapshots instead.
         const auto &singers = singerCat ? singerCat->as<srt::svs::SingerCategory>()->singers()
@@ -221,8 +225,6 @@ QWidget *DeveloperPage::createContentWidget() {
         const auto languageManager = UiLanguageManager::instance();
         const auto bcp47Candidates = languageManager ? languageManager->effectiveBcp47Candidates()
                                                      : QLocale::system().uiLanguages();
-
-        const auto engineInitialized = inferEngine->initialized();
         const auto driverPath = fillEmpty(inferEngine->inferenceDriverPath());
         const auto interpreterPath = fillEmpty(inferEngine->inferenceInterpreterPath());
         const auto singerProviderPath = fillEmpty(inferEngine->singerProviderPath());
@@ -240,6 +242,13 @@ QWidget *DeveloperPage::createContentWidget() {
         auto engineItem = new QStandardItem(tr("initialized"));
         auto engineValue = new QStandardItem(engineInitialized ? kStringYes : kStringNo);
         engineRoot->appendRow({engineItem, engineValue});
+
+        if (!engineInitialized) {
+            auto diagnosticsItem = new QStandardItem(tr("diagnostics"));
+            auto diagnosticsValue = new QStandardItem(
+                tr("Engine is initializing. Runtime details are unavailable."));
+            engineRoot->appendRow({diagnosticsItem, diagnosticsValue});
+        }
 
         auto enginePathRoot = new QStandardItem(tr("plugins"));
 

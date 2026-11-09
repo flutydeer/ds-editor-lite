@@ -14,7 +14,10 @@ public:
     ExternalOpenRequestQueue(DocumentWorkflowController *workflow, QWidget *window,
                              QObject *parent = nullptr);
 
-    void enqueue(const SingleInstanceRequest &request);
+    // Returns whether the main thread actually admitted the request into its
+    // bounded work queue. A rejection is propagated back to the secondary
+    // instead of being silently dropped after an early ACK.
+    AdmissionResult take(const SingleInstanceRequest &request);
 
 private:
     void dispatchNext();
