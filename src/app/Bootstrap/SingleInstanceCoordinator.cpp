@@ -378,7 +378,9 @@ private:
     void pruneTerminalRecords() {
         const auto now = m_clock.elapsed();
         while (!m_terminalOrder.isEmpty()) {
-            const auto &oldest = m_terminalOrder.head();
+            // Copy by value: head() returns a reference into the queue, and
+            // dequeue() invalidates it. Using that reference afterwards is UB.
+            const auto oldest = m_terminalOrder.head();
             const auto it = m_ledger.constFind(oldest);
             const bool expired =
                 it != m_ledger.constEnd() && it->terminal &&

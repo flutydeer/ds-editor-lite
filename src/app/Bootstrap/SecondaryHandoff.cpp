@@ -7,6 +7,7 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDialog>
+#include <QDir>
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -27,6 +28,31 @@
 #endif
 
 namespace {
+    // Windows reports native backslashes while QFileInfo::canonicalFilePath()
+    // returns Qt separators. Comparing them directly rejects the same binary
+    // on a normal installation, so both sides must use one representation.
+    QString normalizedExecutablePath(const QString &path) {
+        return QDir::cleanPath(QDir::fromNativeSeparators(path)).toLower();
+    }
+
+    void allowPrimaryToTakeForeground(const QString &dataDirectory) {
+        if (dataDirectory.isEmpty())
+            return;
+        QLockFile lock(SingleInstanceIdentity::lockFilePath(
+            SingleInstanceIdentity::normalizeDataDirectory(dataDirectory)));
+        qint64 pid = 0;
+        QString hostname;
+        QString applicationName;
+        if (!lock.getLockInfo(&pid, &hostname, &applicationName) || pid <= 0)
+            return;
+#ifdef Q_OS_WIN
+        // Windows restricts activateWindow() on a background process. The
+        // secondary grants the primary foreground rights before the handoff,
+        // matching what the legacy forwardRequest() path used to do.
+        AllowSetForegroundWindow(static_cast<DWORD>(pid));
+#endif
+    }
+
 #ifdef Q_OS_WIN
     struct ProcessIdentity {
         qint64 pid = 0;
@@ -39,7 +65,7 @@ namespace {
             error = QStringLiteral("invalid_primary_pid");
             return false;
         }
-        auto *handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE,
+        auto *handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE,
                                    static_cast<DWORD>(pid));
         if (!handle) {
             error = QStringLiteral("open_process_failed");
@@ -61,7 +87,8 @@ namespace {
             return false;
         }
         identity.pid = pid;
-        identity.executablePath = QString::fromWCharArray(imagePath, imageLength);
+        identity.executablePath =
+            normalizedExecutablePath(QString::fromWCharArray(imagePath, imageLength));
         identity.creationFileTime =
             (static_cast<qint64>(creation.dwHighDateTime) << 32) | creation.dwLowDateTime;
         return true;
@@ -75,7 +102,7 @@ namespace {
     // The handle is opened once and used for both the final identity check and
     // the termination, so a recycled PID cannot redirect the kill.
     bool terminateVerifiedPrimary(const ProcessIdentity &expected, QString &error) {
-        auto *handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE,
+        auto *handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE,
                                    static_cast<DWORD>(expected.pid));
         if (!handle) {
             error = QStringLiteral("open_process_failed");
@@ -98,10 +125,12 @@ namespace {
         }
         ProcessIdentity current;
         current.pid = expected.pid;
-        current.executablePath = QString::fromWCharArray(imagePath, imageLength);
+        current.executablePath =
+            normalizedExecutablePath(QString::fromWCharArray(imagePath, imageLength));
         current.creationFileTime =
             (static_cast<qint64>(creation.dwHighDateTime) << 32) | creation.dwLowDateTime;
-        const auto ownPath = QFileInfo(QCoreApplication::applicationFilePath()).canonicalFilePath();
+        const auto ownPath = normalizedExecutablePath(
+            QFileInfo(QCoreApplication::applicationFilePath()).canonicalFilePath());
         if (!sameIdentity(current, expected) ||
             current.executablePath.compare(ownPath, Qt::CaseInsensitive) != 0) {
             error = QStringLiteral("primary_identity_changed");
@@ -118,6 +147,20 @@ namespace {
             return false;
         }
         return true;
+    }
+
+    bool captureLockOwner(const QString &dataDirectory, ProcessIdentity &identity,
+                          QString &error) {
+        QLockFile lock(SingleInstanceIdentity::lockFilePath(
+            SingleInstanceIdentity::normalizeDataDirectory(dataDirectory)));
+        qint64 pid = 0;
+        QString hostname;
+        QString applicationName;
+        if (!lock.getLockInfo(&pid, &hostname, &applicationName) || pid <= 0) {
+            error = QStringLiteral("lock_identity_unavailable");
+            return false;
+        }
+        return captureProcessIdentity(pid, identity, error);
     }
 #endif
 
@@ -323,6 +366,10 @@ HandoffResult SecondaryHandoffController::run(const SingleInstanceRequest &start
     m_socket = new QLocalSocket(this);
     const auto sendHandoff = [this, handoff] {
         appendDiagnostic(QStringLiteral("connected"), QStringLiteral("yes"));
+        // Restore the foreground grant that the legacy forwardRequest() path
+        // used to make. Without it Windows may refuse the primary's
+        // activateWindow() call when the request arrives from the background.
+        allowPrimaryToTakeForeground(m_dataDirectory);
         const auto message =
             SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(handoff));
         if (m_socket->write(message) != message.size())
@@ -553,11 +600,27 @@ void SecondaryHandoffController::cancelPendingRequest() {
     if (sendControlCommand(m_serverName, request, response, error)) {
         appendDiagnostic(QStringLiteral("cancelState"),
                          SingleInstanceProtocol::handoffStateName(response.state));
-        if (response.state == HandoffRequestState::Taken)
-            finish(HandoffOutcome::Taken, {});
-        else
-            finish(HandoffOutcome::Cancelled, response.error);
-        return;
+        switch (SingleInstanceProtocol::cancelDisposition(response.state)) {
+            case HandoffCancelDisposition::Cancelled:
+                appendDiagnostic(QStringLiteral("cancel"), QStringLiteral("confirmed"));
+                finish(HandoffOutcome::Cancelled, {});
+                return;
+            case HandoffCancelDisposition::AlreadyTaken:
+                finish(HandoffOutcome::Taken, {});
+                return;
+            case HandoffCancelDisposition::Rejected:
+                finish(HandoffOutcome::Rejected, response.error);
+                return;
+            case HandoffCancelDisposition::NotConfirmed:
+                // The primary already dispatched the request to its main
+                // thread. Cancelling is impossible, so keep observing the
+                // original handoff instead of claiming a successful cancel.
+                appendDiagnostic(QStringLiteral("cancel"), QStringLiteral("not_confirmed"));
+                publishStatus(QObject::tr(
+                    "Cancellation was not confirmed. The request was already dispatched, "
+                    "so its result is unknown. Still waiting for the previous instance."));
+                return;
+        }
     }
     appendDiagnostic(QStringLiteral("cancelError"), error);
     finish(HandoffOutcome::Unknown,
@@ -614,8 +677,21 @@ bool SecondaryHandoffController::recoverStuckPrimary() {
                                          "Windows. Please close it manually."));
     return false;
 #else
-    if (!m_options.allowTerminateRecovery)
+    if (!m_options.allowTerminateRecovery || m_finished)
         return false;
+
+    // Bind the target BEFORE the modal confirmations. While the user reads
+    // those dialogs the stuck primary can exit and a healthy instance can take
+    // the lock. That healthy instance must never become the kill target.
+    ProcessIdentity target;
+    QString error;
+    if (!captureLockOwner(m_dataDirectory, target, error)) {
+        appendDiagnostic(QStringLiteral("recovery"), error);
+        return false;
+    }
+    appendDiagnostic(QStringLiteral("recoveryTargetPid"), QString::number(target.pid));
+    appendDiagnostic(QStringLiteral("recoveryTargetPath"), target.executablePath);
+
     const auto warning = QMessageBox::warning(
         nullptr, QObject::tr("End the previous instance?"),
         QObject::tr("The previous instance has not responded. Ending it may discard unsaved "
@@ -631,27 +707,45 @@ bool SecondaryHandoffController::recoverStuckPrimary() {
     if (confirmation != QMessageBox::Yes)
         return false;
 
-    QLockFile lock(SingleInstanceIdentity::lockFilePath(
-        SingleInstanceIdentity::normalizeDataDirectory(m_dataDirectory)));
-    qint64 pid = 0;
-    QString hostname;
-    QString applicationName;
-    if (!lock.getLockInfo(&pid, &hostname, &applicationName) || pid <= 0) {
-        appendDiagnostic(QStringLiteral("recovery"), QStringLiteral("lock_identity_unavailable"));
+    // The original handoff may have completed while the dialogs were open.
+    if (m_finished) {
+        appendDiagnostic(QStringLiteral("recovery"),
+                         QStringLiteral("handoff_already_finished"));
         return false;
     }
-    ProcessIdentity first;
-    QString error;
-    if (!captureProcessIdentity(pid, first, error)) {
-        appendDiagnostic(QStringLiteral("recovery"), error);
+
+    // Never end a primary that already resolved this request, and never end
+    // anything when the result cannot be verified.
+    SingleInstanceRequest query;
+    query.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    query.command = SingleInstanceCommand::ApplicationQuery;
+    query.targetRequestId = m_requestId;
+    SingleInstanceHandoffResponse queryResponse;
+    QString queryError;
+    if (!sendControlCommand(m_serverName, query, queryResponse, queryError) ||
+        queryResponse.state == HandoffRequestState::Taken ||
+        queryResponse.state == HandoffRequestState::Rejected ||
+        queryResponse.state == HandoffRequestState::Cancelled ||
+        queryResponse.state == HandoffRequestState::Unknown) {
+        appendDiagnostic(QStringLiteral("recovery"),
+                         QStringLiteral("handoff_resolved_or_unverifiable"));
         return false;
     }
-    ProcessIdentity second;
-    if (!captureProcessIdentity(pid, second, error) || !sameIdentity(first, second)) {
-        appendDiagnostic(QStringLiteral("recovery"), QStringLiteral("identity_changed"));
+
+    // Re-read the lock owner after confirmation. A different PID, image path
+    // or creation time means the target was replaced while we were asking.
+    ProcessIdentity confirmedTarget;
+    if (!captureLockOwner(m_dataDirectory, confirmedTarget, error) ||
+        !sameIdentity(target, confirmedTarget)) {
+        appendDiagnostic(QStringLiteral("recovery"), QStringLiteral("target_changed"));
+        QMessageBox::information(
+            nullptr, QObject::tr("Recovery cancelled"),
+            QObject::tr("The running instance changed while you were confirming. No process "
+                        "was ended. Please check the running instances manually."));
         return false;
     }
-    if (!terminateVerifiedPrimary(second, error)) {
+
+    if (!terminateVerifiedPrimary(confirmedTarget, error)) {
         appendDiagnostic(QStringLiteral("recovery"), error);
         QMessageBox::information(nullptr, QObject::tr("Manual recovery required"),
                                  QObject::tr("The previous instance could not be ended safely "

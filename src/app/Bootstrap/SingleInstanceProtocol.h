@@ -49,6 +49,16 @@ enum class HandoffRequestState {
     Unknown,
 };
 
+// How a secondary must interpret the response to application.cancel. Only an
+// explicit Cancelled is a confirmed cancellation. A request already dispatched
+// to the main thread reports Pending and must never be claimed as cancelled.
+enum class HandoffCancelDisposition {
+    Cancelled,
+    AlreadyTaken,
+    Rejected,
+    NotConfirmed,
+};
+
 struct SingleInstanceConnectorInfo {
     QString instanceId;
     QString version;
@@ -148,6 +158,7 @@ namespace SingleInstanceProtocol {
     // Stable digest of the request payload used to detect duplicate IDs with
     // conflicting content. The digest is computed on the primary side.
     QByteArray requestDigest(const SingleInstanceRequest &request);
+    HandoffCancelDisposition cancelDisposition(HandoffRequestState state);
 
     QString handoffStateName(HandoffRequestState state);
     bool parseHandoffState(const QString &name, HandoffRequestState &state);

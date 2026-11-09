@@ -276,6 +276,23 @@ bool SingleInstanceProtocol::parseStartupStage(const QString &name,
     return true;
 }
 
+HandoffCancelDisposition SingleInstanceProtocol::cancelDisposition(
+    const HandoffRequestState state) {
+    switch (state) {
+        case HandoffRequestState::Cancelled:
+            return HandoffCancelDisposition::Cancelled;
+        case HandoffRequestState::Taken:
+            return HandoffCancelDisposition::AlreadyTaken;
+        case HandoffRequestState::Rejected:
+            return HandoffCancelDisposition::Rejected;
+        case HandoffRequestState::Received:
+        case HandoffRequestState::Pending:
+        case HandoffRequestState::Unknown:
+            return HandoffCancelDisposition::NotConfirmed;
+    }
+    return HandoffCancelDisposition::NotConfirmed;
+}
+
 QByteArray SingleInstanceProtocol::requestDigest(const SingleInstanceRequest &request) {
     QByteArray data = commandName(request.command).toUtf8();
     data.append('\n');

@@ -96,9 +96,36 @@ GUI 侧的会话保留只发布最新选择与 generation。`retainSingerSession
 ## 5. 验收
 
 - 按项目 MSVC 与 CMake preset 增量构建 `DsEditorLite` 成功。
-- `TestBootstrap` 全量 44 个用例通过，含改写后的 `coordinator`、`queuedStartupConnectionIsAcknowledged`，以及新增的 `handoffProtocolRoundTrips`、`handoffWaitsForMainThreadTakeover`、`handoffLedgerDedupeCancelAndQuery`。
+- `TestBootstrap` 全量 46 个用例通过，含改写后的 `coordinator`、`queuedStartupConnectionIsAcknowledged`，以及新增的 `handoffProtocolRoundTrips`、`handoffWaitsForMainThreadTakeover`、`handoffLedgerDedupeCancelAndQuery`、`handoffCancelAfterDispatchIsNotConfirmed`、`handoffTerminalLedgerEvictsPredictably`。
+- `TestProcessIntegration` 全量 16 个用例通过。
 - 原先把"提前 ACK"视为成功的断言已改为验证"先收件、后接管"，底层收件与应用交接保持区分。
 
 ## 6. 后续建议
 
 按方案剩余部分补进程级兼容性与恢复安全测试，补生命周期与模型维护暂停用例，然后在目标机器做 Windows 窗口冒烟。若后续要引入推理子进程隔离，交接协议和账本已经提供了不依赖窗口的就绪语义，可以作为独立工程继续推进。
+
+## 7. 评审修复记录
+
+首轮提交 `57382a85` 经评审发现实现缺陷，本轮做聚焦修正，未推倒重来。
+
+### 7.1 P1
+
+- **账本淘汰悬空引用**：`pruneTerminalRecords()` 原先以 `const auto &` 绑定 `QQueue::head()`，随后 `dequeue()` 使引用失效仍继续使用，属于未定义行为。改为按值保存 ID。新增 `handoffTerminalLedgerEvictsPredictably()`，连续提交超过 `maxTerminalRecords` 的请求，验证最老记录被淘汰为 `Unknown`、窗口内记录仍为 `Taken`。
+- **取消被谎报为已取消**：原客户端把取消响应中除 `Taken` 外的全部状态都当作 `Cancelled`。抽出纯函数 `SingleInstanceProtocol::cancelDisposition()`，只有显式 `Cancelled` 才是确认取消，`Taken` 为已接管，`Rejected` 为拒绝，`Received/Pending/Unknown` 为 `NotConfirmed` 并继续观察原交接，不再退出。新增 `handoffCancelAfterDispatchIsNotConfirmed()`，用独立线程发取消，精确复现"已投递、主线程尚未接管"窗口，验证服务端返回 `Pending + request_already_dispatched`，且该状态不得判为取消成功。
+- **GUI 被后台模型工厂卡住**：`retainOnly()` 与 `evict()` 原先仍在 GUI 线程同步取缓存锁，而该锁被后台 `acquire()` 的整个 model factory 持有。现在 GUI 只发布选择、策略快照与 generation，`scheduleSessionMaintenance()` 把维护合并到串行释放池执行，10 秒定时器也不再同步取缓存锁。generation 在维护任务末尾复核，变化则再排一次合并后的维护。
+
+### 7.2 P2
+
+- **退出状态被迟到结果覆盖**：`InferEngine` 新增短 `m_stateMutex`，`initialize()` 发布 Ready 与 `dispose()` 清除状态在同一临界区内。`SynthrtEngine` 发布 session ready 与 `shutdown()` 的 `aboutToQuit + clear` 共用 `m_stateMutex`，避免 `refreshVoicebanks()` 看到已拆除的会话。
+- **generation 过期后仍发起新卸载**：`releaseDeselectedSingerSessionsAsync()` 改为在每次新的 `unloadVoicebank()` 准入前重新读取 generation 与最新选择，过期即停止循环。
+- **Windows 恢复路径**：统一 `QueryFullProcessImageNameW` 的原生分隔符与 `canonicalFilePath()` 的 Qt 分隔符（`QDir::fromNativeSeparators` + `cleanPath` + 小写），`OpenProcess` 补 `SYNCHRONIZE` 使 `WaitForSingleObject` 不再 `WAIT_FAILED / ERROR_ACCESS_DENIED`。
+- **确认期间目标被替换**：确认前先固定锁所有者身份（PID、归一化路径、创建时间），两次确认后重新读取并比对。同时检查原交接是否已结束或已产生终态，任一变化都中止恢复，不结束任何进程。最终仍由同一固定句柄完成身份复核与终止。
+
+### 7.3 交互缺口
+
+- GUI 请求被健康 Headless 接管时，除 stderr 外增加可见信息框，覆盖快速成功时进度窗口尚未出现的情形。
+- 新 handoff 路径恢复 `AllowSetForegroundWindow` 前台授权，在连接建立后、发送交接前授予锁所有者，避免 Windows 拒绝主实例的 `activateWindow()`。
+
+### 7.4 仍未覆盖
+
+进程级恢复安全测试（错误 PID、路径变更、创建时间变化、权限不足、确认期间目标替换的真实进程验证）与 GUI/Headless 四组合矩阵仍未做。本轮修复的是代码路径与协议层确定性用例，不能替代真实 Windows 恢复路径的端到端验证。

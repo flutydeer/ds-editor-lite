@@ -29,6 +29,8 @@ private slots:
     void handoffProtocolRoundTrips();
     void handoffWaitsForMainThreadTakeover();
     void handoffLedgerDedupeCancelAndQuery();
+    void handoffCancelAfterDispatchIsNotConfirmed();
+    void handoffTerminalLedgerEvictsPredictably();
     void watchdogBoundsStalledExit();
     void watchdogIgnoresIdleProcess();
     void watchdogCoversLateQtTeardown();

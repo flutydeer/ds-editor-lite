@@ -1026,3 +1026,143 @@ void BootstrapTests::handoffLedgerDedupeCancelAndQuery() {
                unknownResponse.state == HandoffRequestState::Unknown,
            "an unknown request ID must report result_unknown");
 }
+
+void BootstrapTests::handoffCancelAfterDispatchIsNotConfirmed() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+
+    const auto request = handoffRequest({directory.filePath("dispatched.dspx")});
+    FramedClient handoffClient;
+    expect(handoffClient.connectTo(serverName) && handoffClient.send(request),
+           "handoff client must connect");
+    QByteArray payload;
+    QString error;
+    expect(receiveWithEventLoop(handoffClient, payload, error, 1000),
+           "handoff must report receipt");
+    SingleInstanceHandoffResponse receipt;
+    expect(decodeState(payload, receipt, error) &&
+               receipt.state == HandoffRequestState::Received,
+           "receipt must precede any dispatch");
+
+    QList<SingleInstanceRequest> received;
+    primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
+    // Admission dispatches to the main thread, but this test deliberately does
+    // not run main-thread events yet: the request is dispatched, not taken.
+    primary.enableAdmission();
+
+    // Run the cancel from a worker thread so the test's main thread cannot
+    // accidentally service the queued admitRequest metacall.
+    bool cancelAnswered = false;
+    SingleInstanceHandoffResponse cancelResponse;
+    QString cancelError;
+    const auto cancelThread = std::unique_ptr<QThread>(QThread::create([&] {
+        SingleInstanceRequest cancel;
+        cancel.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        cancel.command = SingleInstanceCommand::ApplicationCancel;
+        cancel.targetRequestId = request.requestId;
+        FramedClient client;
+        if (!client.connectTo(serverName) || !client.send(cancel)) {
+            cancelError = QStringLiteral("cancel client could not send");
+            return;
+        }
+        QByteArray responsePayload;
+        QString responseError;
+        if (client.receive(responsePayload, responseError, 2000) &&
+            SingleInstanceProtocol::decodeHandoffResponse(responsePayload, cancelResponse,
+                                                          responseError))
+            cancelAnswered = true;
+        else
+            cancelError = responseError;
+    }));
+    cancelThread->start();
+    QVERIFY(cancelThread->wait(6000));
+    expect(cancelAnswered, cancelError.isEmpty() ? QStringLiteral("no cancel response")
+                                                 : cancelError);
+    expect(cancelResponse.state == HandoffRequestState::Pending,
+           "cancelling a dispatched-but-untaken request must report Pending");
+    expect(cancelResponse.error == QStringLiteral("request_already_dispatched"),
+           "the primary must explain why cancellation was refused");
+    expect(SingleInstanceProtocol::cancelDisposition(cancelResponse.state) ==
+               HandoffCancelDisposition::NotConfirmed,
+           "Pending must never be interpreted as a confirmed cancellation");
+    expect(SingleInstanceProtocol::cancelDisposition(HandoffRequestState::Cancelled) ==
+               HandoffCancelDisposition::Cancelled,
+           "only an explicit Cancelled is a confirmed cancellation");
+    expect(SingleInstanceProtocol::cancelDisposition(HandoffRequestState::Taken) ==
+               HandoffCancelDisposition::AlreadyTaken,
+           "a taken request must not be reported as cancelled");
+
+    // Once the main thread recovers, the original request is still taken once.
+    expect(receiveWithEventLoop(handoffClient, payload, error),
+           "the original handoff must still reach a terminal state");
+    SingleInstanceHandoffResponse terminal;
+    expect(decodeState(payload, terminal, error) &&
+               terminal.state == HandoffRequestState::Taken,
+           "an unconfirmed cancel must not stop the original takeover");
+    expect(received.size() == 1, "the request must be admitted exactly once");
+}
+
+void BootstrapTests::handoffTerminalLedgerEvictsPredictably() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+    QList<SingleInstanceRequest> received;
+    primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
+    primary.enableAdmission();
+
+    const auto total = static_cast<int>(SingleInstanceProtocol::maxTerminalRecords) + 4;
+    QStringList ids;
+    ids.reserve(total);
+    for (int index = 0; index < total; ++index) {
+        auto request = handoffRequest(
+            {directory.filePath(QStringLiteral("project-%1.dspx").arg(index))});
+        ids.append(request.requestId);
+        FramedClient client;
+        expect(client.connectTo(serverName) && client.send(request),
+               "each handoff client must connect and send");
+        QByteArray payload;
+        QString error;
+        expect(receiveWithEventLoop(client, payload, error),
+               "each handoff must report a state");
+        SingleInstanceHandoffResponse state;
+        expect(decodeState(payload, state, error), "each state must decode");
+        if (state.state == HandoffRequestState::Received ||
+            state.state == HandoffRequestState::Pending) {
+            expect(receiveWithEventLoop(client, payload, error),
+                   "a receipt must be followed by a terminal state");
+            expect(decodeState(payload, state, error), "terminal state must decode");
+        }
+        expect(state.state == HandoffRequestState::Taken,
+               "every admitted request must end in Taken");
+    }
+    expect(received.size() == total, "every request must be admitted exactly once");
+
+    const auto queryState = [&](const QString &target) {
+        SingleInstanceRequest query;
+        query.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        query.command = SingleInstanceCommand::ApplicationQuery;
+        query.targetRequestId = target;
+        FramedClient client;
+        if (!client.connectTo(serverName) || !client.send(query))
+            return HandoffRequestState::Unknown;
+        QByteArray payload;
+        QString error;
+        if (!receiveWithEventLoop(client, payload, error))
+            return HandoffRequestState::Unknown;
+        SingleInstanceHandoffResponse response;
+        if (!decodeState(payload, response, error))
+            return HandoffRequestState::Unknown;
+        return response.state;
+    };
+    expect(queryState(ids.first()) == HandoffRequestState::Unknown,
+           "terminal records beyond the retention cap must be evicted");
+    expect(queryState(ids.last()) == HandoffRequestState::Taken,
+           "recent terminal records must remain queryable after eviction");
+    expect(queryState(ids.at(total / 2)) == HandoffRequestState::Taken,
+           "records inside the retention window must survive eviction");
+}

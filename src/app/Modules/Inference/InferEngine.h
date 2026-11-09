@@ -4,6 +4,7 @@
 #define inferEngine InferEngine::instance()
 
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 
@@ -89,6 +90,8 @@ private:
     bool initialize(QString &error);
     void dispose();
     void evictSingerSessions();
+    void scheduleSessionMaintenance();
+    void runSessionMaintenance();
     void releaseSingerSessionsAsync(SingerSessionHandleList handles);
     void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles,
                                               quint64 generation);
@@ -99,6 +102,10 @@ private:
     // session: the GUI reads those same state flags during startup.
     mutable QReadWriteLock m_engineRwLock;
     std::once_flag m_initFlag{};
+    // Short lock shared by initialize()/dispose() so a late initialization
+    // result can never resurrect Ready after shutdown has begun. It is never
+    // held across GPU enumeration or ORT work.
+    std::mutex m_stateMutex;
     std::atomic<bool> m_initialized{false};
     std::atomic<bool> m_disposed{false};
     InferEnginePaths m_paths;
@@ -108,6 +115,9 @@ private:
     QSet<SingerIdentifier> m_latestSingerSelection;
     std::atomic<quint64> m_selectionGeneration{0};
     std::atomic<bool> m_sessionMaintenanceScheduled{false};
+    std::atomic<bool> m_evictionRequested{false};
+    std::size_t m_maintenanceCapacity = 0;
+    std::chrono::seconds m_maintenanceIdleTimeout{0};
     mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
     QTimer m_singerSessionEvictionTimer;
     QThreadPool m_singerSessionReleasePool;

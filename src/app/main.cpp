@@ -127,11 +127,19 @@ int main(int argc, char *argv[]) {
                         << Qt::endl;
                 } else if (handoff.hostMode.contains(QStringLiteral("headless"),
                                                      Qt::CaseInsensitive)) {
-                    QTextStream(stderr)
-                        << LiteProductMetadata::ProductName
-                        << ": the request was taken over by a background instance. No window "
-                           "will be opened."
-                        << Qt::endl;
+                    // A fast handoff finishes before the progress dialog ever
+                    // appears. An Explorer double-click still needs visible
+                    // feedback, otherwise the launch simply vanishes.
+                    const auto notice = QObject::tr(
+                        "The request was taken over by a background instance. No window will "
+                        "be opened.");
+                    QTextStream(stderr) << LiteProductMetadata::ProductName << ": " << notice
+                                        << Qt::endl;
+                    if (!nonInteractiveBootstrapErrors) {
+                        QMessageBox::information(
+                            nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                            notice);
+                    }
                 }
                 return EXIT_SUCCESS;
             }

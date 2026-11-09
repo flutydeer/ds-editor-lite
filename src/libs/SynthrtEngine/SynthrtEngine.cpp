@@ -443,10 +443,19 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
     // snapshot consumers can query refreshVoicebanks() / singerSnapshot() from
     // this point onward, even while Stage 2 (ONNX model loading) is still in
     // progress below.
-    // A shutdown that started during Stage 1 must not be overwritten by a late
-    // Ready publication from the initialization task.
-    if (!m_aboutToQuit.load(std::memory_order_acquire)) {
-        m_sessionInitialized.store(true, std::memory_order_release);
+    // Publishing Ready and shutdown's "aboutToQuit + clear Ready" must be the
+    // same critical section. A plain check-then-store lets shutdown slip in
+    // between the two, which would let refreshVoicebanks() observe a Ready
+    // session that has already been torn down.
+    bool published = false;
+    {
+        std::lock_guard stateLock(m_stateMutex);
+        if (!m_aboutToQuit.load(std::memory_order_acquire)) {
+            m_sessionInitialized.store(true, std::memory_order_release);
+            published = true;
+        }
+    }
+    if (published) {
         {
             std::lock_guard lk(m_sessionReadyMutex);
         }
