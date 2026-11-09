@@ -646,14 +646,22 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionClearRecentProjects, &QAction::triggered, this,
             [this] { onClearRecentProjects(); });
 
+    // Every MainMenuView owns its action wiring. A detached panel window hosts
+    // a second menu bar, so wiring these from MainWindow would leave its Save
+    // commands silently inert. The rest of the file actions follow the same
+    // pattern above and below.
     actionSave = new QAction(tr("&Save"), this);
     setMenuIcon(actionSave, QStringLiteral(":/svg/icons/save_16_regular.svg"));
     setActionShortcut(actionSave, QKeySequence("Ctrl+S"), Qt::ApplicationShortcut);
+    connect(actionSave, &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSave);
 
     actionSaveAs = new QAction(tr("Save &as..."), this);
     setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"),
                 QSize(20, 20));
     setActionShortcut(actionSaveAs, QKeySequence("Ctrl+Shift+S"), Qt::ApplicationShortcut);
+    connect(actionSaveAs, &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSaveAs);
 
     actionImportMidi = new QAction(tr("MIDI file..."), this);
     setMenuIcon(actionImportMidi, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));

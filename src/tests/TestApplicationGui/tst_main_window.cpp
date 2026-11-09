@@ -62,6 +62,7 @@
 
 #include <QApplication>
 #include <QAbstractButton>
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCloseEvent>
@@ -2354,6 +2355,45 @@ void ApplicationGuiTests::detachButtonUsesRegularFluentIcon() {
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach);
     QVERIFY(!detach->icon().isNull());
+}
+
+void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    // Only the primary menu exists before the panel is detached.
+    auto *primaryMenu = window.findChild<MainMenuView *>();
+    QVERIFY(primaryMenu);
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    auto *secondaryMenu = detached->menuView();
+    QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
+
+    // Save / Save As used to be wired only from MainWindow, so a second menu's
+    // actions silently did nothing. disconnect() doubles as the only public
+    // probe for an existing connection. Both menus live inside this fixture and
+    // are destroyed with it, so probing never starts a real document workflow.
+    const auto ownsSaveWiring = [](MainMenuView *menu) {
+        if (!menu || !menu->actionSave() || !menu->actionSaveAs())
+            return false;
+        const bool save = QObject::disconnect(menu->actionSave(), &QAction::triggered,
+                                              documentWorkflowController,
+                                              &DocumentWorkflowController::requestSave);
+        const bool saveAs = QObject::disconnect(menu->actionSaveAs(), &QAction::triggered,
+                                                documentWorkflowController,
+                                                &DocumentWorkflowController::requestSaveAs);
+        return save && saveAs;
+    };
+    QVERIFY2(ownsSaveWiring(primaryMenu), "the primary menu lost its save wiring");
+    QVERIFY2(ownsSaveWiring(secondaryMenu),
+             "the detached menu's Save / Save As are not wired to the document workflow");
 }
 
 void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {

@@ -180,11 +180,6 @@ MainWindow::MainWindow() {
                 dialog->show();
             });
 
-    connect(m_mainMenu->actionSave(), &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSave);
-    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSaveAs);
-
     m_trackEditorView = new TrackEditorView;
     m_bottomPanelView = new BottomPanelView(this);
     connect(m_bottomPanelView, &BottomPanelView::detachRequested, this,
