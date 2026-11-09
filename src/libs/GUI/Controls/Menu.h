@@ -12,9 +12,13 @@ public:
     explicit Menu(const QString &title, QWidget *parent = nullptr);
     static Menu *fromLineEdit(QLineEdit *editor, QWidget *parent = nullptr);
 
+protected:
+    bool event(QEvent *event) override;
+
 private:
     void paintEvent(QPaintEvent *event) override;
     void initUi();
+    void updateSubMenuArrowSpace();
 };
 
 #endif // MENU_H

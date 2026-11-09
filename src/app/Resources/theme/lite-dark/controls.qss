@@ -614,6 +614,15 @@ QMenu[stats=icon]::item {
     padding-left: 12px;
 }
 
+/* QStyleSheetStyle::sizeFromContents(CT_MenuItem) does not reserve any width
+   for ::right-arrow (QWindowsStyle does), so long labels run under the arrow.
+   Menus carrying submenus opt in via Menu::hasSubMenu: 14px arrow + 6px right
+   inset + 12px text gap, plus 4px slack. Padding also widens the menu because
+   QStyleSheetStyle::boxSize() includes it in the item size. */
+QMenu[hasSubMenu="true"]::item {
+    padding-right: 36px;
+}
+
 QMenu::item:selected {
     background-color: ${control.fill.hover};
     border-style: none;

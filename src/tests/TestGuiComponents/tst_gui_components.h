@@ -27,6 +27,9 @@ private slots:
     void mixDisplay();
     void selectSinger_data();
     void selectSinger();
+    void submenuLabelKeepsGapBeforeArrow_data();
+    void submenuLabelKeepsGapBeforeArrow();
+    void submenuArrowSpaceTracksActionChanges();
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();
