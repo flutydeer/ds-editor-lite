@@ -7,6 +7,8 @@
 #include <QPaintEvent>
 #include <QStyleOptionMenuItem>
 #include <QLineEdit>
+#include <QEvent>
+#include <QStyle>
 
 #include <array>
 #include <utility>
@@ -58,6 +60,45 @@ void Menu::initUi() {
         setProperty("dwmBorder", true);
     }
 #endif
+}
+
+void Menu::updateSubMenuArrowSpace() {
+    bool hasSubMenu = false;
+    for (const auto action : actions()) {
+        if (action && action->menu()) {
+            hasSubMenu = true;
+            break;
+        }
+    }
+
+    const QVariant current = property("hasSubMenu");
+    if (current.isValid() && current.toBool() == hasSubMenu)
+        return;
+
+    // QStyleSheetStyle::sizeFromContents(CT_MenuItem) never reserves room for the
+    // ::right-arrow subcontrol (QWindowsStyle adds windowsArrowHMargin for
+    // SubMenu items). The stylesheet rule keyed on this property supplies that
+    // room instead, so long labels stop short of the arrow. Re-polish because
+    // attribute selectors are only re-evaluated on polish.
+    setProperty("hasSubMenu", hasSubMenu);
+    if (style()) {
+        style()->unpolish(this);
+        style()->polish(this);
+    }
+}
+
+bool Menu::event(QEvent *event) {
+    switch (event->type()) {
+        case QEvent::ActionAdded:
+        case QEvent::ActionChanged:
+        case QEvent::ActionRemoved:
+            // Run before CMenu::event(), which re-polishes for its `stats` property.
+            updateSubMenuArrowSpace();
+            break;
+        default:
+            break;
+    }
+    return CMenu::event(event);
 }
 
 void Menu::paintEvent(QPaintEvent *event) {
