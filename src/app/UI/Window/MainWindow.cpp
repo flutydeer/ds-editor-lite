@@ -39,7 +39,6 @@
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Window/DetachedPanelWindow.h"
-#include "UI/Window/EmbeddedModalHost.h"
 #include "UI/Window/EventDiagFilter.h"
 #include "UI/Window/LogWindow.h"
 
@@ -298,103 +297,13 @@ void MainWindow::changeEvent(QEvent *event) {
         updateWindowTitle();
 }
 
-void MainWindow::resizeEvent(QResizeEvent *event) {
-    QMainWindow::resizeEvent(event);
-    // Keep the floating modal overlay in sync (layout-less overlay, same
-    // pattern as the OverlaySplitter grip).
-    if (m_modalHost)
-        m_modalHost->setGeometry(rect());
-}
-
 void MainWindow::openAppOptions(const AppOptionsGlobal::Option option,
                                 QWidget *requestingWindow) {
-    // The embedded overlay is a child of this window. A detached panel window
-    // is an owned top-level window that stays above its owner in the native
-    // z-order, so an Options request coming from that window's menu would open
-    // an overlay the user cannot see. Show a standalone modal owned by the
-    // requesting window instead. From the main window the configured
-    // embedded/standalone preference still applies.
+    // A detached panel window owns the menu that triggered this action. Parent
+    // the modal to that top-level window so it sits above it in the native
+    // z-order and follows its activation state.
     auto *hostWindow = requestingWindow ? requestingWindow->window() : this;
-    if (hostWindow != this) {
-        AppOptionsDialog::showStandaloneDialog(option, hostWindow);
-        return;
-    }
-
-    // The embedded panel is experimental and opt-in (Developer Options ->
-    // Embedded options dialog); the standalone dialog stays the default.
-    if (!appOptions->developer()->enableEmbeddedOptionsDialog) {
-        AppOptionsDialog::showStandaloneDialog(option, this);
-        return;
-    }
-    if (!m_modalHost) {
-        m_modalHost = new EmbeddedModalHost(this);
-        m_modalHost->setGeometry(rect());
-        connect(m_modalHost, &EmbeddedModalHost::closed, this,
-                &MainWindow::restoreBackgroundInteraction);
-    }
-    if (!m_appOptionsDialog)
-        m_appOptionsDialog = new AppOptionsDialog(this);
-    m_focusBeforeModal = qApp->focusWidget();
-    m_appOptionsDialog->selectOption(option);
-    m_modalHost->open(m_appOptionsDialog, QSize(900, 600));
-    // Suspend AFTER opening so that the panel (a descendant of the host) is
-    // excluded from the isAncestorOf()-based filtering.
-    suspendBackgroundInteraction();
-    // Defer focus transfer to the next event-loop iteration: the menu popup
-    // restores focus to the pre-menu widget after the triggering action runs.
-    // On Windows the wheel event follows keyboard focus (delivered to the
-    // focus widget instead of the widget under the cursor), so without this
-    // the panel would never receive wheel events.
-    QTimer::singleShot(0, m_appOptionsDialog, [this] { m_appOptionsDialog->setFocus(); });
-}
-
-void MainWindow::closeAppOptions() {
-    if (m_modalHost)
-        m_modalHost->closePanel();
-}
-
-void MainWindow::suspendBackgroundInteraction() {
-    const auto insideModal = [this](const QObject *object) {
-        for (const QObject *p = object; p; p = p->parent())
-            if (p == m_modalHost)
-                return true;
-        return false;
-    };
-    for (auto *action : findChildren<QAction *>()) {
-        if (insideModal(action))
-            continue;
-        if (!action->isEnabled())
-            continue;
-        m_suspendedActions.append(action);
-        action->setEnabled(false);
-    }
-    for (auto *shortcut : findChildren<QShortcut *>()) {
-        if (insideModal(shortcut))
-            continue;
-        if (!shortcut->isEnabled())
-            continue;
-        m_suspendedShortcuts.append(shortcut);
-        shortcut->setEnabled(false);
-    }
-}
-
-void MainWindow::restoreBackgroundInteraction() {
-    // Skip actions that were destroyed while the modal was open (see
-    // m_suspendedActions); QPointer turns them into null automatically.
-    for (const auto &action : std::as_const(m_suspendedActions)) {
-        if (action)
-            action->setEnabled(true);
-    }
-    m_suspendedActions.clear();
-    for (const auto shortcut : std::as_const(m_suspendedShortcuts))
-        shortcut->setEnabled(true);
-    m_suspendedShortcuts.clear();
-
-    // Give focus back to the widget that had it before the modal opened,
-    // so it does not linger on the (now hidden) settings panel.
-    if (m_focusBeforeModal && m_focusBeforeModal->isVisible())
-        m_focusBeforeModal->setFocus();
-    m_focusBeforeModal.clear();
+    AppOptionsDialog::showStandaloneDialog(option, hostWindow);
 }
 
 QWidget *MainWindow::documentWorkflowParentWidget() {
@@ -763,7 +672,7 @@ EditorViewGlobal::Region MainWindow::focusedEditorRegion() const {
 }
 
 bool MainWindow::editorFocusControlBlocked() const {
-    return (m_modalHost && m_modalHost->isOpen()) || QApplication::activeModalWidget();
+    return QApplication::activeModalWidget() != nullptr;
 }
 
 bool MainWindow::revealFocus(const HistoryFocus &focus) {

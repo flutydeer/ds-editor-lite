@@ -884,12 +884,11 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 
 Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
-    // A menu bar reports which top-level window hosts it. MainWindow uses that
-    // to pick the embedded overlay or a standalone dialog, so a secondary menu
-    // in a detached panel window never opens chrome hidden behind that window.
-    // Resolve the host when the action fires: at construction time this menu
-    // bar is still parented to MainWindow and only later gets reparented into
-    // the detached window's title bar.
+    // A menu bar reports which top-level window hosts it, so the options dialog
+    // can be parented to that window and stay above it. Resolve the host when
+    // the action fires: at construction time this menu bar is still parented to
+    // MainWindow and only later gets reparented into the detached window's
+    // title bar.
     const auto openOptions = [this, q](const AppOptionsGlobal::Option option) {
         m_mainWindow->openAppOptions(option, q->window());
     };

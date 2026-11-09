@@ -3,7 +3,6 @@
 
 #include <QAction>
 #include <QMainWindow>
-#include <QPointer>
 #include <QTimer>
 
 #include "Global/AppOptionsGlobal.h"
@@ -21,10 +20,7 @@ class TaskDialog;
 class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
-class EmbeddedModalHost;
-class AppOptionsDialog;
 class QAction;
-class QShortcut;
 
 class MainWindow final : public QMainWindow,
                          public IMainWindow,
@@ -74,16 +70,13 @@ public:
 public slots:
     void onAllDone();
 
-    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）。
-    // requestingWindow 是发出命令的菜单所在的顶层窗口；从脱离面板窗口发起时
-    // 会退化为独立设置对话框，避免遮罩被该窗口盖住。
+    // Opens the standalone options dialog parented to the window whose menu
+    // triggered the action (a detached panel window owns its own menu bar).
     void openAppOptions(AppOptionsGlobal::Option option, QWidget *requestingWindow = nullptr);
-    void closeAppOptions();
 
 protected:
     bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
 
@@ -126,25 +119,6 @@ private:
     DetachedPanelWindow *m_detachedWindow = nullptr;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
-
-    // Embedded modal: backdrop overlay plus the settings panel.
-    EmbeddedModalHost *m_modalHost = nullptr;
-    AppOptionsDialog *m_appOptionsDialog = nullptr;
-    // Actions/shortcuts of the background that are disabled while the modal is
-    // open; restored on close. Stored as QPointer so that actions destroyed
-    // while the modal is open (e.g. the track-control view rebuilding its
-    // injected mix-preset actions in response to an option change) are
-    // automatically dropped instead of dangling.
-    QList<QPointer<QAction>> m_suspendedActions;
-    QList<QShortcut *> m_suspendedShortcuts;
-    // Focus holder before the modal opened. Restored on close: on Windows,
-    // wheel events are delivered to the focus widget rather than the widget
-    // under the cursor, so focus must live inside the modal for scrolling to
-    // reach the settings pages.
-    QPointer<QWidget> m_focusBeforeModal;
-
-    void suspendBackgroundInteraction();
-    void restoreBackgroundInteraction();
 };
 
 

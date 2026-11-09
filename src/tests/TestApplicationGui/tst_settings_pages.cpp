@@ -227,27 +227,11 @@ void ApplicationGuiTests::experimentalSettingsPersistWhenRestartIsDeferred() {
         for (auto *prompt : page->findChildren<RestartDialog *>())
             QVERIFY(!prompt->isVisible());
 
-        auto *embedded = page->findChild<SwitchButton *>("developerEmbeddedOptionsDialog");
-        QVERIFY(embedded);
-        QCOMPARE(embedded->value(), initial.enableEmbeddedOptionsDialog);
-        page->ensureWidgetVisible(embedded);
-        QTest::mouseClick(embedded, Qt::LeftButton);
-        QCOMPARE(appOptions->developer()->enableEmbeddedOptionsDialog,
-                 initial.enableEmbeddedOptionsDialog);
-        QCOMPARE(embedded->value(), initial.enableEmbeddedOptionsDialog);
-        for (auto *prompt : page->findChildren<RestartDialog *>())
-            QVERIFY(!prompt->isVisible());
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBeforeFailure);
         QCOMPARE(historyManager->nextUndoEntry(), undoBeforeFailure);
         QVERIFY(QDir(config).isEmpty());
         QVERIFY(writeFailure.restore());
-        QTest::mouseClick(embedded, Qt::LeftButton);
-        deferRestart(page);
-        if (QTest::currentTestFailed())
-            return;
-        QCOMPARE(appOptions->developer()->enableEmbeddedOptionsDialog,
-                 !initial.enableEmbeddedOptionsDialog);
         page->ensureWidgetVisible(backend);
         const auto index = backend->findData(experimental);
         QVERIFY(index >= 0);
@@ -266,8 +250,6 @@ void ApplicationGuiTests::experimentalSettingsPersistWhenRestartIsDeferred() {
     QVERIFY(engineStateModel.isNull());
     AppOptions persisted;
     QCOMPARE(static_cast<int>(persisted.developer()->editorRenderBackend), experimental);
-    QCOMPARE(persisted.developer()->enableEmbeddedOptionsDialog,
-             !initial.enableEmbeddedOptionsDialog);
     AppOptionsDialog reopened;
     openOptionsPage(reopened, AppOptionsGlobal::DeveloperOptions);
     if (QTest::currentTestFailed())
@@ -277,9 +259,6 @@ void ApplicationGuiTests::experimentalSettingsPersistWhenRestartIsDeferred() {
     auto *backend = page->findChild<ComboBox *>();
     QVERIFY(backend);
     QCOMPARE(backend->currentData().toInt(), experimental);
-    auto *embedded = page->findChild<SwitchButton *>("developerEmbeddedOptionsDialog");
-    QVERIFY(embedded);
-    QCOMPARE(embedded->value(), !initial.enableEmbeddedOptionsDialog);
     QVERIFY(!reopened.findChild<RestartDialog *>());
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());

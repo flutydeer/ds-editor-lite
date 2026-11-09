@@ -442,17 +442,15 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   位置。
 - **动作 B（restart-required）**：对 `Use native frame` 先切换并在提示中选择 Restart Later，
   确认进程和边框未变；再执行 Restart Now，重新绑定窗口并观察原生/自绘标题栏差异，然后
-  成对恢复并重启。以独立子运行对 `Embedded options dialog` 做同样流程，重启后从 Options
-  入口确认设置页嵌入主窗口而不是独立模态窗口，再恢复。`CAP-RHI` 已装备时选择
-  `Experimental (QRhiWidget)`，Restart Later 后再 Restart Now；在 RHI 下重复轨道/片段选择、
+  成对恢复并重启。`CAP-RHI` 已装备时选择 `Experimental (QRhiWidget)`，
+  Restart Later 后再 Restart Now；在 RHI 下重复轨道/片段选择、
   拖动、缩放、钢琴卷帘画音符和参数曲线观察，随后恢复 `Legacy (QGraphicsView)` 并重启。
 - **可观察断言**：主题、字体和动画即时反映；diagnostic 开关不仅持久，还在操作后产生预期
   性能诊断输出；Log window、debug overlay 和 detach 按钮随开关出现/消失。Restart Later 不
-  替换进程，也不提前改变 native frame、Embedded Options 或 backend；Restart Now 后三者分别
-  真实生效。RHI 与 Legacy 的核心编辑结果一致，无空白帧、输入偏移或持续闪烁；窗口几何跨正常
+  替换进程，也不提前改变 native frame 或 backend；Restart Now 后两者分别真实生效。RHI 与 Legacy 的核心编辑结果一致，无空白帧、输入偏移或持续闪烁；窗口几何跨正常
   重启恢复。
 - **恢复/清理**：关闭 Log window 和 diagnostic output，重新附着 panel；恢复主题、字体、
-  动画、native frame、Embedded Options、Legacy backend 和窗口几何，对所有 restart-required
+  动画、native frame、Legacy backend 和窗口几何，对所有 restart-required
   项完成成对重启。把一次已保存的几何变化留给 `GUI-G24` 复核。
 - **未能自动观察的限制**：RHI 的内部渲染 API、diagnostic 统计精度和
   `settings.update_window` 回调次数仍需日志/契约测试；GUI 负责证明实际窗口形态、输入与画面。

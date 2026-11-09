@@ -1756,11 +1756,6 @@ Right drag: Erase</source>
 <context>
     <name>DeveloperPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="135"/>
-        <source>The embedded options dialog setting will take effect after restarting the app. Do you want to restart now?</source>
-        <translation>内嵌选项对话框设置需要重启应用后生效。要立即重启应用吗？</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="143"/>
         <source>Legacy (QGraphicsView)</source>
         <translation>旧版 (QGraphicsView)</translation>
@@ -1871,16 +1866,6 @@ Right drag: Erase</source>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="200"/>
         <source>Show the detach button on panel title bars to separate panels into standalone windows</source>
         <translation>在面板标题栏上显示分离按钮，将面板分离为独立窗口</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="202"/>
-        <source>Embedded options dialog</source>
-        <translation>内嵌选项对话框</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="203"/>
-        <source>Open the settings window inside the main window instead of a standalone dialog (experimental, applies after restart)</source>
-        <translation>在主窗口内打开设置窗口，而不是独立对话框（实验性，重启后生效）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="206"/>
