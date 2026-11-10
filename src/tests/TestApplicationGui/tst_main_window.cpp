@@ -2395,7 +2395,14 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
              "the detached menu's Save / Save As are not wired to the document workflow");
 }
 
+void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog_data() {
+    QTest::addColumn<bool>("forceOverflow");
+    QTest::newRow("platform-default") << false;
+    QTest::newRow("overflowed") << true;
+}
+
 void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
+    QFETCH(bool, forceOverflow);
     MainWindowFixture host;
     host.show();
     if (QTest::currentTestFailed())
@@ -2411,8 +2418,15 @@ void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
     auto *menu = detached->menuView();
     QVERIFY(menu);
 
+    if (forceOverflow) {
+        if (menu->isNativeMenuBar())
+            QSKIP("Native menu bars do not use the window's overflow layout");
+        menu->setFixedWidth(0);
+        QTRY_COMPARE(menu->overflowedMenuActions().size(), menu->topLevelMenuActions().size());
+    }
+
     QAction *general = nullptr;
-    for (auto *entry : menu->actions()) {
+    for (auto *entry : menu->topLevelMenuActions()) {
         if (auto *submenu = entry->menu()) {
             for (auto *action : submenu->actions()) {
                 auto text = action->text();

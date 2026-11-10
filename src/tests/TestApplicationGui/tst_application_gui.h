@@ -190,6 +190,7 @@ private slots:
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();
     void detachedMenuSaveActionsReachDocumentWorkflow();
+    void detachedMenuOptionsUseStandaloneDialog_data();
     void detachedMenuOptionsUseStandaloneDialog();
     void standaloneOptionsDialogBlocksBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
