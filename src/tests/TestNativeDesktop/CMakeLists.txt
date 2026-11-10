@@ -17,4 +17,7 @@ if(APPLE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
 endif()
-lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI)
+# Each detach case now builds a second full title bar (menu + transport). Give
+# the suite the same headroom as the other GUI suites: slow CI runners have
+# measured close to twice the local runtime.
+lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 180)

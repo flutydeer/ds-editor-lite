@@ -24,21 +24,17 @@ namespace TestSupport {
         explicit MainWindowFixture(MenuPlacement menuPlacement = MenuPlacement::InWindow) {
             appOptions->appearance()->useNativeFrame = true;
             appOptions->developer()->enablePanelDetach = true;
-            appOptions->developer()->enableEmbeddedOptionsDialog = true;
             window = std::make_unique<MainWindow>();
             if (menuPlacement == MenuPlacement::InWindow) {
                 window->findChild<MainMenuView *>()->setNativeMenuBar(false);
                 // MainWindow chose its plan before the fixture disabled the platform menu.
                 // Keep the title-bar section and its overflow policy in sync with Qt.
                 auto *titleBar = window->findChild<MainTitleBar *>();
-                auto plan = titleBar->layoutPlan();
-                plan.inWindowMenu = true;
-                titleBar->setLayoutPlan(plan);
+                titleBar->setInWindowMenu(true);
             }
         }
 
         ~MainWindowFixture() {
-            window->closeAppOptions();
             appOptions->developer()->enablePanelDetach = false;
             window->updatePanelDetachEnabled();
             window->setEditorPanelVisibility(trackVisible, bottomVisible);
@@ -49,7 +45,6 @@ namespace TestSupport {
             window.reset();
             appOptions->appearance()->useNativeFrame = nativeFrame;
             appOptions->developer()->enablePanelDetach = detachEnabled;
-            appOptions->developer()->enableEmbeddedOptionsDialog = embeddedEnabled;
         }
 
         void show() const {
@@ -71,7 +66,6 @@ namespace TestSupport {
 
         const bool nativeFrame = appOptions->appearance()->useNativeFrame;
         const bool detachEnabled = appOptions->developer()->enablePanelDetach;
-        const bool embeddedEnabled = appOptions->developer()->enableEmbeddedOptionsDialog;
         const bool trackVisible = !appStatus->trackPanelCollapsed;
         const bool bottomVisible = !appStatus->bottomPanelCollapsed;
         std::unique_ptr<MainWindow> window;

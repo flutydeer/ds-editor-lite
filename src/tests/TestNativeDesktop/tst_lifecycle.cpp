@@ -7,6 +7,7 @@
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
@@ -74,7 +75,8 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    QTRY_VERIFY(bottom->isWindow());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
 
     PendingExitTask pending;
     connect(&pending, &Task::finished, &window, [&] { taskManager->removeTask(&pending); });
@@ -138,7 +140,7 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     QCOMPARE(approved.first().first().value<TerminationMode>(),
              restart ? TerminationMode::Restart : TerminationMode::Exit);
     QVERIFY(window.isVisible());
-    QVERIFY(!bottom->isWindow());
+    QVERIFY(!detached->isVisible());
     QVERIFY(completed.isEmpty());
     QVERIFY(!pending.stopped());
     QVERIFY(!qApp->property("restart").toBool());

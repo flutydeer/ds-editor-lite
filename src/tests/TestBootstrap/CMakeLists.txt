@@ -8,6 +8,8 @@ lite_add_test(${PROJECT_NAME}
         tst_shutdown_probe.h
         tst_shutdown_monitor.cpp
         tst_single_instance.cpp
+        ../../app/Bootstrap/SecondaryHandoff.cpp
+        ../../app/Bootstrap/SecondaryHandoff.h
         ../../app/Bootstrap/AppHostMode.cpp
         ../../app/Bootstrap/StartupArguments.cpp
         ../../app/Bootstrap/SingleInstanceCoordinator.cpp
@@ -16,6 +18,6 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Model/AppOptions/Options/AutomationOption.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
-find_package(Qt6 REQUIRED COMPONENTS Core Network)
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Network Gui Widgets)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Network Qt6::Gui Qt6::Widgets)
 lite_register_test(${PROJECT_NAME} CATEGORY protocol)

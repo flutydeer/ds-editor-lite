@@ -75,7 +75,6 @@ bool DeveloperPage::applyOptions() {
     settings.showClipDebugInfo = m_swShowClipDebugInfo->value();
     settings.logTouchEvents = m_swLogTouchEvents->value();
     settings.enablePanelDetach = m_swEnablePanelDetach->value();
-    settings.enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
     settings.hideMainMenuInWindow = m_swHideMainMenuInWindow->value();
     settings.editorRenderBackend =
         m_cbxEditorRenderBackend->currentData().toInt() ==
@@ -95,7 +94,6 @@ bool DeveloperPage::applyOptions() {
     restoreSwitch(m_swShowClipDebugInfo, previous.showClipDebugInfo);
     restoreSwitch(m_swLogTouchEvents, previous.logTouchEvents);
     restoreSwitch(m_swEnablePanelDetach, previous.enablePanelDetach);
-    restoreSwitch(m_swEnableEmbeddedOptionsDialog, previous.enableEmbeddedOptionsDialog);
     restoreSwitch(m_swHideMainMenuInWindow, previous.hideMainMenuInWindow);
     const auto backend =
         previous.editorRenderBackend == Automation::EditorRenderBackend::RhiExperimental
@@ -128,17 +126,6 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
-
-    m_swEnableEmbeddedOptionsDialog = new SwitchButton(option->enableEmbeddedOptionsDialog);
-    m_swEnableEmbeddedOptionsDialog->setObjectName("developerEmbeddedOptionsDialog");
-    connect(m_swEnableEmbeddedOptionsDialog, &SwitchButton::toggled, this, [this] {
-        if (!applyOptions())
-            return;
-        const auto message = tr("The embedded options dialog setting will take effect after "
-                                "restarting the app. Do you want to restart now?");
-        const auto dialog = new RestartDialog(message, true, this);
-        dialog->show();
-    });
 
     m_swHideMainMenuInWindow = new SwitchButton(option->hideMainMenuInWindow);
     m_swHideMainMenuInWindow->setObjectName("developerHideMainMenuInWindow");
@@ -205,10 +192,6 @@ QWidget *DeveloperPage::createContentWidget() {
         tr("Enable panel detach"),
         tr("Show the detach button on panel title bars to separate panels into standalone windows"),
         m_swEnablePanelDetach);
-    experimentalCard->addItem(tr("Embedded options dialog"),
-                              tr("Open the settings window inside the main window instead of a "
-                                 "standalone dialog (experimental, applies after restart)"),
-                              m_swEnableEmbeddedOptionsDialog);
     experimentalCard->addItem(
         tr("Hide the main menu bar in the window"),
         tr("Drop the menu bar section from the title bar to preview the macOS chrome, where the "
@@ -236,11 +219,15 @@ QWidget *DeveloperPage::createContentWidget() {
             }
             return str_;
         };
-        const auto &su = inferEngine->constRuntime();
+        const auto engineInitialized = inferEngine->initialized();
+        // While the engine is loading, do not walk raw Runtime internals: the
+        // background initialization task may still be constructing them. Show
+        // a clear not-ready state instead of borrowing those objects.
+        const auto *runtime = engineInitialized ? &inferEngine->constRuntime() : nullptr;
         // TODO(Task 7): Runtime no longer exposes packagePaths()/packages().
         // Use appOptions directly; singer list will come from SynthrtEngine.
         const auto &packagePaths = appOptions->general()->packageSearchPaths;
-        const auto singerCat = su.moduleCategory("singer");
+        const auto singerCat = runtime ? runtime->moduleCategory("singer") : nullptr;
         // TODO(Task 6/7): singer category may be null until packages are opened;
         // SynthrtEngine::singers() will provide singer snapshots instead.
         const auto &singers = singerCat ? singerCat->as<srt::svs::SingerCategory>()->singers()
@@ -249,8 +236,6 @@ QWidget *DeveloperPage::createContentWidget() {
         const auto languageManager = UiLanguageManager::instance();
         const auto bcp47Candidates = languageManager ? languageManager->effectiveBcp47Candidates()
                                                      : QLocale::system().uiLanguages();
-
-        const auto engineInitialized = inferEngine->initialized();
         const auto driverPath = fillEmpty(inferEngine->inferenceDriverPath());
         const auto interpreterPath = fillEmpty(inferEngine->inferenceInterpreterPath());
         const auto singerProviderPath = fillEmpty(inferEngine->singerProviderPath());
@@ -268,6 +253,13 @@ QWidget *DeveloperPage::createContentWidget() {
         auto engineItem = new QStandardItem(tr("initialized"));
         auto engineValue = new QStandardItem(engineInitialized ? kStringYes : kStringNo);
         engineRoot->appendRow({engineItem, engineValue});
+
+        if (!engineInitialized) {
+            auto diagnosticsItem = new QStandardItem(tr("diagnostics"));
+            auto diagnosticsValue = new QStandardItem(
+                tr("Engine is initializing. Runtime details are unavailable."));
+            engineRoot->appendRow({diagnosticsItem, diagnosticsValue});
+        }
 
         auto enginePathRoot = new QStandardItem(tr("plugins"));
 

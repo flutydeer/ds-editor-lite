@@ -26,6 +26,14 @@ private slots:
     void forwardRequestReportsPeerFailureAndRecovers_data();
     void forwardRequestReportsPeerFailureAndRecovers();
     void queuedStartupConnectionIsAcknowledged();
+    void handoffProtocolRoundTrips();
+    void handoffWaitsForMainThreadTakeover();
+    void handoffLedgerDedupeCancelAndQuery();
+    void handoffCancelAfterDispatchIsNotConfirmed();
+    void handoffTerminalLedgerEvictsPredictably();
+    void handoffExpiredTerminalQueryReturnsUnknown();
+    void handoffPollsHeartbeatWhilePending();
+    void handoffControlResponseSurvivesSplitFrames();
     void watchdogBoundsStalledExit();
     void watchdogIgnoresIdleProcess();
     void watchdogCoversLateQtTeardown();

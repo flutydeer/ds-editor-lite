@@ -2,7 +2,9 @@
 #include "../TestSupport/GuiAppFixture.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
@@ -10,6 +12,7 @@
 
 #include <lite/GUI/Controls/OverlaySplitter.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
@@ -116,11 +119,11 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QTRY_VERIFY(window.isActiveWindow());
     auto *mainTitle = window.findChild<MainTitleBar *>();
     QVERIFY(mainTitle);
-    if (TitleBarLayoutPlan::currentPlatform() == ChromePlatform::MacOS) {
+    if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
         // Only the main window reuses native traffic lights. Detached panels still
         // have custom buttons, exercised below on every platform.
-        QVERIFY(mainTitle->layoutPlan().trafficLightArea);
-        QVERIFY(!mainTitle->layoutPlan().systemButtons);
+        QVERIFY(mainTitle->sections().trafficLightArea);
+        QVERIFY(!mainTitle->sections().systemButtons);
         QVERIFY(mainTitle->trafficLightArea() && mainTitle->trafficLightArea()->isVisible());
         QVERIFY(!mainTitle->minimizeButton() && !mainTitle->maximizeButton() &&
                 !mainTitle->closeButton());
@@ -137,8 +140,9 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QVERIFY(splitter);
     QCoreApplication::processEvents();
     const auto reattach = qScopeGuard([&] {
-        if (bottom->isWindow())
-            bottom->close();
+        if (auto *detached = window.findChild<DetachedPanelWindow *>();
+            detached && detached->isVisible())
+            detached->close();
     });
     const auto before = fixture.context->m_coreRuntime->documentVersion();
     const auto beforeModel = TestSupport::projectSnapshot(*fixture.context->m_appModel);
@@ -148,13 +152,14 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    TestSupport::placeWindowOnScreen(*bottom, {960, 400});
-    bottom->activateWindow();
-    QTRY_VERIFY(bottom->isActiveWindow());
-    auto *title = bottom->titleBar();
-    QVERIFY(title->maximizeButton() && title->minimizeButton() && title->closeButton());
-    exerciseButtons(*bottom, title->minimizeButton(), title->maximizeButton());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    TestSupport::placeWindowOnScreen(*detached, {960, 400});
+    detached->activateWindow();
+    QTRY_VERIFY(detached->isActiveWindow());
+    auto *chrome = detached->titleBar();
+    QVERIFY(chrome->maximizeButton() && chrome->minimizeButton() && chrome->closeButton());
+    exerciseButtons(*detached, chrome->minimizeButton(), chrome->maximizeButton());
     if (QTest::currentTestFailed())
         return;
     QVERIFY(window.setEditorPanelVisibility(true, false));
@@ -174,20 +179,24 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
-    const auto detachedGeometry = bottom->geometry();
-    QTest::mouseClick(title->closeButton(), Qt::LeftButton);
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    const auto detachedGeometry = detached->geometry();
+    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
+    QCOMPARE(detached->contentWidget(), nullptr);
     QCOMPARE(bottom->parentWidget(), splitter);
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(bottom->currentPageId(), QStringLiteral("MixConsole"));
-    // Docking rebuilds the title-bar buttons.
+    // Docking restores the panel's own dock controls.
     detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    QTRY_COMPARE(bottom->geometry(), detachedGeometry);
-    QTest::mouseClick(title->closeButton(), Qt::LeftButton);
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    QTRY_COMPARE(detached->geometry(), detachedGeometry);
+    chrome = detached->titleBar();
+    QVERIFY(chrome->closeButton());
+    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);

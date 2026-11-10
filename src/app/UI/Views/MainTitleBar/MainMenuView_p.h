@@ -3,9 +3,11 @@
 
 #include "Global/AppGlobal.h"
 #include "Interface/EditorInteraction.h"
+#include "UI/Views/MainTitleBar/TitleBarSections.h"
 
 #include <QColor>
 #include <QHash>
+#include <QKeySequence>
 #include <QList>
 #include <QObject>
 #include <QPair>
@@ -22,10 +24,12 @@ class MainMenuViewPrivate : QObject {
 
     Q_DECLARE_PUBLIC(MainMenuView)
 public:
-    explicit MainMenuViewPrivate(MainWindow *window) : m_mainWindow(window) {
+    explicit MainMenuViewPrivate(MainWindow *window, const TitleBarRole role)
+        : m_mainWindow(window), m_role(role) {
     }
 
     MainWindow *m_mainWindow;
+    TitleBarRole m_role = TitleBarRole::Primary;
 
     // Theme colors for tinted menu icons (exposed as QSS properties on MainMenuView)
     QColor m_iconColor = {0xE0, 0xE0, 0xE0};
@@ -157,6 +161,10 @@ public:
     void initFileActions();
     void initEditActions();
     void initEditShortcuts();
+    // Registers a key sequence only on the primary window's menu. Secondary
+    // menus show the same actions without claiming a second global shortcut.
+    void setActionShortcut(QAction *action, const QKeySequence &key,
+                           Qt::ShortcutContext context);
 
     Menu *buildFileMenu();
     Menu *buildEditMenu();

@@ -3,7 +3,6 @@
 
 #include <QAction>
 #include <QMainWindow>
-#include <QPointer>
 #include <QTimer>
 
 #include "Global/AppOptionsGlobal.h"
@@ -11,24 +10,17 @@
 #include "Interface/IEditorView.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "UI/Views/BottomPanelView.h"
-#include "UI/Views/MainTitleBar/TitleBarLayoutPlan.h"
 
 
 class QSplitter;
 class MainTitleBar;
 class MainMenuView;
+class DetachedPanelWindow;
 class TaskDialog;
 class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
-class EmbeddedModalHost;
-class AppOptionsDialog;
 class QAction;
-class QShortcut;
-
-namespace QWK {
-    class WidgetWindowAgent;
-}
 
 class MainWindow final : public QMainWindow,
                          public IMainWindow,
@@ -78,14 +70,13 @@ public:
 public slots:
     void onAllDone();
 
-    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
-    void openAppOptions(AppOptionsGlobal::Option option);
-    void closeAppOptions();
+    // Opens the standalone options dialog parented to the window whose menu
+    // triggered the action (a detached panel window owns its own menu bar).
+    void openAppOptions(AppOptionsGlobal::Option option, QWidget *requestingWindow = nullptr);
 
 protected:
     bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
 
@@ -105,10 +96,7 @@ private:
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
     void updateShutdownBlockReason();
-    // Section plan for the main title bar. The menu bar section drops out when
-    // the platform owns the menu bar (macOS) or when the developer preview
-    // hides the in-window one.
-    [[nodiscard]] TitleBarLayoutPlan titleBarLayoutPlan() const;
+    [[nodiscard]] bool mainMenuInWindow() const;
 
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;
@@ -129,28 +117,9 @@ private:
     bool m_useNativeFrame = false;
     QByteArray m_detachSplitterState;
     QRect m_detachedWindowGeometry;
-    QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
+    DetachedPanelWindow *m_detachedWindow = nullptr;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
-
-    // Embedded modal: backdrop overlay plus the settings panel.
-    EmbeddedModalHost *m_modalHost = nullptr;
-    AppOptionsDialog *m_appOptionsDialog = nullptr;
-    // Actions/shortcuts of the background that are disabled while the modal is
-    // open; restored on close. Stored as QPointer so that actions destroyed
-    // while the modal is open (e.g. the track-control view rebuilding its
-    // injected mix-preset actions in response to an option change) are
-    // automatically dropped instead of dangling.
-    QList<QPointer<QAction>> m_suspendedActions;
-    QList<QShortcut *> m_suspendedShortcuts;
-    // Focus holder before the modal opened. Restored on close: on Windows,
-    // wheel events are delivered to the focus widget rather than the widget
-    // under the cursor, so focus must live inside the modal for scrolling to
-    // reach the settings pages.
-    QPointer<QWidget> m_focusBeforeModal;
-
-    void suspendBackgroundInteraction();
-    void restoreBackgroundInteraction();
 };
 
 

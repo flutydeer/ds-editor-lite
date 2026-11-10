@@ -1,39 +1,38 @@
 #ifndef MAINTITLEBAR_H
 #define MAINTITLEBAR_H
 
-#include "TitleBarLayoutPlan.h"
+#include "TitleBarSections.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 
 #include <QList>
 #include <QWidget>
 
-class QHBoxLayout;
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
+class QHBoxLayout;
+class DividerLine;
 class TitleBarComboBox;
 class ActionButtonsView;
 class PlaybackView;
 class SystemWindowButton;
 class MainMenuView;
-class DividerLine;
 
 class MainTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
 
 public:
+    // The bar is the window chrome for both the main window and a detached
+    // panel window. `sections` selects the content, `role` decides whether the
+    // transport owns the application-level shortcuts.
     explicit MainTitleBar(MainMenuView *menuView, QWidget *parent,
-                          const TitleBarLayoutPlan &plan);
+                          const TitleBarSections &sections,
+                          TitleBarRole role = TitleBarRole::Primary);
 
-    // Rebuilds the section layout from plan. The menu bar section is the only
-    // part that can appear and disappear at runtime, so the plan is applied
-    // instead of being baked in at construction.
-    void setLayoutPlan(const TitleBarLayoutPlan &plan);
-    [[nodiscard]] const TitleBarLayoutPlan &layoutPlan() const;
+    void setInWindowMenu(bool inWindow);
+    [[nodiscard]] const TitleBarSections &sections() const;
     [[nodiscard]] QList<DividerLine *> dividers() const;
 
     [[nodiscard]] MainMenuView *menuView() const;
-    // Empty unless the plan reserves the leading slot for the native macOS
-    // traffic lights. Hand it to QWindowKit's setSystemButtonArea().
     [[nodiscard]] QWidget *trafficLightArea() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
     [[nodiscard]] PlaybackView *playbackView() const;
@@ -54,9 +53,6 @@ signals:
     void minimizeTriggered();
     void maximizeTriggered(bool max = false);
     void closeTriggered();
-    // Double click on the empty background of this title bar. Children that
-    // ignore mouse events forward their press up here as well, so the handler
-    // filters them out and only the bar itself reports the gesture.
     void doubleClicked();
 
 protected:
@@ -66,31 +62,28 @@ protected:
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void buildSections();
+    void createSystemButtons();
     void setActiveStyle(bool active);
     void updateAnimationSettings();
     // Tint the system button icons from the current theme (non-Windows only)
     void rebuildSystemButtonIcons();
 
-    void buildSections();
-    void clearSections();
-
     QWidget *m_window;
     MainMenuView *m_menuView;
+    TitleBarSections m_sections;
+    QHBoxLayout *m_layout;
+    QList<DividerLine *> m_dividers;
     QWidget *m_trafficLightArea = nullptr;
-    ActionButtonsView *m_actionButtonsView;
-    PlaybackView *m_playbackView;
+    ActionButtonsView *m_actionButtonsView = nullptr;
+    PlaybackView *m_playbackView = nullptr;
     SystemWindowButton *m_btnMin = nullptr;
     SystemWindowButton *m_btnMax = nullptr;
     SystemWindowButton *m_btnClose = nullptr;
     TitleBarComboBox *m_titleComboBox = nullptr;
-    TitleBarLayoutPlan m_layoutPlan;
-    // Dividers are created by buildSections() and owned by this title bar.
-    QList<DividerLine *> m_dividers;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
     bool m_targetActive = true;
 };
-
-
 
 #endif // MAINTITLEBAR_H

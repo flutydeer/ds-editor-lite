@@ -53,8 +53,7 @@ namespace {
 
 } // namespace
 
-AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
-    : QWidget(parent), m_standalone(standalone) {
+AppOptionsDialog::AppOptionsDialog(QWidget *parent) : QWidget(parent) {
     for (const auto &contract : AutomationWire::publicToolContracts()) {
         if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
             m_automationCustomPermissionOperationIds.append(contract.operationId);
@@ -76,9 +75,6 @@ AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
     m_sidebar = new QWidget;
     m_sidebar->setObjectName(QStringLiteral("AppOptionsSidebar"));
     m_sidebar->setAttribute(Qt::WA_StyledBackground);
-    // Standalone mode: flush against the square window edge, so the QSS
-    // drops the left rounding (QWidget#AppOptionsSidebar[standalone="true"]).
-    m_sidebar->setProperty("standalone", m_standalone);
     const auto sidebarLayout = new QVBoxLayout(m_sidebar);
     sidebarLayout->setContentsMargins(8, 8, 8, 8);
     sidebarLayout->addWidget(m_tabList);
@@ -115,7 +111,7 @@ AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
 
 int AppOptionsDialog::showStandaloneDialog(const AppOptionsGlobal::Option option, QWidget *parent) {
     auto *dialog = new Dialog(parent);
-    auto *panel = new AppOptionsDialog(dialog, /*standalone=*/true);
+    auto *panel = new AppOptionsDialog(dialog);
     panel->selectOption(option);
 
     dialog->setModal(true);
@@ -202,11 +198,9 @@ void AppOptionsDialog::changeEvent(QEvent *event) {
 }
 
 void AppOptionsDialog::retranslateUi() {
-    // In standalone mode the wrapping Dialog (the panel's window) owns the
-    // title bar; the title must be set on it so DialogTitleBar picks it up via
-    // WindowTitleChange (skipped when embedded).
-    if (m_standalone)
-        window()->setWindowTitle(tr("Options"));
+    // The wrapping Dialog (the panel's window) owns the title bar; the title
+    // must be set on it so DialogTitleBar picks it up via WindowTitleChange.
+    window()->setWindowTitle(tr("Options"));
 
     // 16px regular Fluent glyphs, one per sidebar page (index-aligned with
     // pageNames). Icons keep the default action palette so they follow the

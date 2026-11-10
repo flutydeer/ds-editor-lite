@@ -192,8 +192,12 @@ private slots:
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
-    void settingsDialogsSuspendAndRestoreBackgroundInteraction_data();
-    void settingsDialogsSuspendAndRestoreBackgroundInteraction();
+    void detachedPanelUsesReducedMainTitleBar();
+    void detachedPanelWindowIsRegisteredForFrameEffects();
+    void detachButtonUsesRegularFluentIcon();
+    void detachedMenuSaveActionsReachDocumentWorkflow();
+    void detachedMenuOptionsUseStandaloneDialog();
+    void standaloneOptionsDialogBlocksBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void audioHashCompletionWaitsForTheSaveDecision_data();
     void audioHashCompletionWaitsForTheSaveDecision();

@@ -61,8 +61,8 @@ namespace {
 
 } // namespace
 
-MainMenuView::MainMenuView(MainWindow *mainWindow)
-    : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
+MainMenuView::MainMenuView(MainWindow *mainWindow, const TitleBarRole role)
+    : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow, role)) {
     Q_D(MainMenuView);
     d->q_ptr = this;
 
@@ -142,7 +142,7 @@ bool MainMenuView::isOverflowing() const {
 
 bool MainMenuView::isInWindowMenu() const {
     Q_D(const MainMenuView);
-    return d->m_inWindowMenu;
+    return d->m_inWindowMenu && !isNativeMenuBar();
 }
 
 void MainMenuView::setInWindowMenu(const bool inWindow) {
@@ -164,14 +164,14 @@ QSize MainMenuView::sizeHint() const {
     // Outside the window the overflow split does not apply: the platform
     // measures the menu bar itself, and a native QMenuBar reports an empty
     // hint. Claiming the full inline width would push the title bar layout.
-    if (!d->m_inWindowMenu)
+    if (!isInWindowMenu())
         return QMenuBar::sizeHint();
     return {d->fullInlineWidth(), QMenuBar::sizeHint().height()};
 }
 
 QSize MainMenuView::minimumSizeHint() const {
     Q_D(const MainMenuView);
-    if (!d->m_inWindowMenu)
+    if (!isInWindowMenu())
         return QMenuBar::minimumSizeHint();
     return {d->minimumInlineWidth(), QMenuBar::sizeHint().height()};
 }
@@ -644,20 +644,27 @@ void MainMenuViewPrivate::updatePasteActionState() {
 void MainMenuViewPrivate::initActions() {
     initFileActions();
     initEditActions();
-    initEditShortcuts();
+    if (m_role == TitleBarRole::Primary)
+        initEditShortcuts();
+}
+
+void MainMenuViewPrivate::setActionShortcut(QAction *action, const QKeySequence &key,
+                                            const Qt::ShortcutContext context) {
+    if (m_role != TitleBarRole::Primary)
+        return;
+    action->setShortcut(key);
+    action->setShortcutContext(context);
 }
 
 void MainMenuViewPrivate::initFileActions() {
     actionNew = new QAction(tr("&New"), this);
     setMenuIcon(actionNew, QStringLiteral(":/svg/icons/document_add_16_regular.svg"));
-    actionNew->setShortcut(QKeySequence("Ctrl+N"));
-    actionNew->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::ApplicationShortcut);
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
 
     actionOpen = new QAction(tr("&Open..."));
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
-    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
-    actionOpen->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionOpen, QKeySequence("Ctrl+O"), Qt::ApplicationShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
     actionClearRecentProjects = new QAction(tr("Clear Recent Projects"), this);
@@ -665,16 +672,22 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionClearRecentProjects, &QAction::triggered, this,
             [this] { onClearRecentProjects(); });
 
+    // Every MainMenuView owns its action wiring. A detached panel window hosts
+    // a second menu bar, so wiring these from MainWindow would leave its Save
+    // commands silently inert. The rest of the file actions follow the same
+    // pattern above and below.
     actionSave = new QAction(tr("&Save"), this);
     setMenuIcon(actionSave, QStringLiteral(":/svg/icons/save_16_regular.svg"));
-    actionSave->setShortcut(QKeySequence("Ctrl+S"));
-    actionSave->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionSave, QKeySequence("Ctrl+S"), Qt::ApplicationShortcut);
+    connect(actionSave, &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSave);
 
     actionSaveAs = new QAction(tr("Save &as..."), this);
     setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"),
                 QSize(20, 20));
-    actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    actionSaveAs->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionSaveAs, QKeySequence("Ctrl+Shift+S"), Qt::ApplicationShortcut);
+    connect(actionSaveAs, &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSaveAs);
 
     actionImportMidi = new QAction(tr("MIDI file..."), this);
     setMenuIcon(actionImportMidi, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
@@ -713,16 +726,14 @@ void MainMenuViewPrivate::initEditActions() {
     actionUndo = new QAction(tr("&Undo"), this);
     setMenuIcon(actionUndo, QStringLiteral(":/svg/icons/arrow_undo_16_regular.svg"));
     actionUndo->setEnabled(false);
-    actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
-    actionUndo->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionUndo, QKeySequence("Ctrl+Z"), Qt::ApplicationShortcut);
     actionUndo->setAutoRepeat(false);
     connect(actionUndo, &QAction::triggered, undoRedoController, &UndoRedoController::requestUndo);
 
     actionRedo = new QAction(tr("&Redo"), this);
     setMenuIcon(actionRedo, QStringLiteral(":/svg/icons/arrow_redo_16_regular.svg"));
     actionRedo->setEnabled(false);
-    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
-    actionRedo->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionRedo, QKeySequence("Ctrl+Y"), Qt::ApplicationShortcut);
     actionRedo->setAutoRepeat(false);
     connect(actionRedo, &QAction::triggered, undoRedoController, &UndoRedoController::requestRedo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
@@ -732,58 +743,49 @@ void MainMenuViewPrivate::initEditActions() {
 
     actionSelectAll = new QAction(tr("Select &all"), this);
     setMenuIcon(actionSelectAll, QStringLiteral(":/svg/icons/select_all_on_16_regular.svg"));
-    actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
-    actionSelectAll->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionSelectAll, QKeySequence("Ctrl+A"), Qt::WidgetShortcut);
     actionSelectAll->setEnabled(false);
     connect(actionSelectAll, &QAction::triggered, this, [this] { onSelectAll(); });
 
     actionDelete = new QAction(tr("&Delete"), this);
     setMenuIcon(actionDelete, QStringLiteral(":/svg/icons/delete_16_regular.svg"));
-    actionDelete->setShortcut(Qt::Key_Delete);
-    actionDelete->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionDelete, Qt::Key_Delete, Qt::WidgetShortcut);
     actionDelete->setEnabled(false);
     connect(actionDelete, &QAction::triggered, this, [this] { onDelete(); });
 
     actionCut = new QAction(tr("Cu&t"), this);
     setMenuIcon(actionCut, QStringLiteral(":/svg/icons/cut_16_regular.svg"));
-    actionCut->setShortcut(QKeySequence("Ctrl+X"));
-    actionCut->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionCut, QKeySequence("Ctrl+X"), Qt::WidgetShortcut);
     connect(actionCut, &QAction::triggered, this, [this] { onCut(); });
 
     actionCopy = new QAction(tr("&Copy"), this);
     setMenuIcon(actionCopy, QStringLiteral(":/svg/icons/copy_16_regular.svg"));
-    actionCopy->setShortcut(QKeySequence("Ctrl+C"));
-    actionCopy->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionCopy, QKeySequence("Ctrl+C"), Qt::WidgetShortcut);
     connect(actionCopy, &QAction::triggered, this, [this] { onCopy(); });
 
     actionPaste = new QAction(tr("&Paste"), this);
     setMenuIcon(actionPaste, QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg"));
-    actionPaste->setShortcut(QKeySequence("Ctrl+V"));
-    actionPaste->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionPaste, QKeySequence("Ctrl+V"), Qt::WidgetShortcut);
     connect(actionPaste, &QAction::triggered, this, [this] { onPaste(); });
 
     actionOctaveUp = new QAction(tr("Move an octave up"), this);
-    actionOctaveUp->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up));
-    actionOctaveUp->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionOctaveUp, QKeySequence(Qt::CTRL | Qt::Key_Up), Qt::ApplicationShortcut);
     connect(actionOctaveUp, &QAction::triggered, this, [this] { onOctaveUp(); });
 
     actionOctaveDown = new QAction(tr("Move an octave down"), this);
-    actionOctaveDown->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down));
-    actionOctaveDown->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionOctaveDown, QKeySequence(Qt::CTRL | Qt::Key_Down), Qt::ApplicationShortcut);
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
     // TODO: 恢复工程文件图标后再补回这里的菜单图标。
-    actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
-    actionFillLyrics->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionFillLyrics, QKeySequence("Ctrl+L"), Qt::ApplicationShortcut);
     actionFillLyrics->setEnabled(false);
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onFillLyric(q); });
 
     actionSearchLyrics = new QAction(tr("Search lyrics..."), this);
     setMenuIcon(actionSearchLyrics, QStringLiteral(":/svg/icons/search_16_regular.svg"));
-    actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
-    actionSearchLyrics->setShortcutContext(Qt::ApplicationShortcut);
+    setActionShortcut(actionSearchLyrics, QKeySequence("Ctrl+F"), Qt::ApplicationShortcut);
     connect(actionSearchLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onSearchLyric(q); });
 
@@ -791,8 +793,7 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionExtractPitchParam, &QAction::triggered, this, [this] { onExtractPitchParam(); });
 
     actionQuantize = new QAction(tr("Quantize..."), this);
-    actionQuantize->setShortcut(QKeySequence("Q"));
-    actionQuantize->setShortcutContext(Qt::WidgetShortcut);
+    setActionShortcut(actionQuantize, QKeySequence("Q"), Qt::WidgetShortcut);
     actionQuantize->setEnabled(false);
     connect(actionQuantize, &QAction::triggered, this, [this] { onQuantize(); });
 }
@@ -800,8 +801,7 @@ void MainMenuViewPrivate::initEditActions() {
 void MainMenuViewPrivate::initEditShortcuts() {
     Q_Q(MainMenuView);
     const auto isEditorWindow = [](const QWidget *window) {
-        return qobject_cast<const MainWindow *>(window) ||
-               qobject_cast<const BottomPanelView *>(window);
+        return EditorShortcutUtils::isEditorWindow(window);
     };
     const auto addShortcut = [q, isEditorWindow](const QKeySequence &key,
                                                  const EditorInteraction::Command command) {
@@ -910,22 +910,31 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 
 Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
+    // A menu bar reports which top-level window hosts it, so the options dialog
+    // can be parented to that window and stay above it. Resolve the host when
+    // the action fires: at construction time this menu bar is still parented to
+    // MainWindow and only later gets reparented into the detached window's
+    // title bar.
+    const auto openOptions = [this, q](const AppOptionsGlobal::Option option) {
+        m_mainWindow->openAppOptions(option, q->window());
+    };
+
     actionGeneralOptions = new QAction(tr("&General..."), this);
     setMenuIcon(actionGeneralOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionGeneralOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::General); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::General); });
     actionAudioSettings = new QAction(tr("&Audio..."), this);
     setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/speaker_2_16_regular.svg"));
     connect(actionAudioSettings, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Audio); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Audio); });
     actionMidiSettings = new QAction(tr("&MIDI..."), this);
     setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/midi_16_regular.svg"));
     connect(actionMidiSettings, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Midi); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Midi); });
     actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/color_16_regular.svg"));
     connect(actionAppearanceOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Appearance); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Appearance); });
     // const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
     // connect(actionLanguageOptions, &QAction::triggered, this, [] {
     //     AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
@@ -934,15 +943,15 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     actionInferenceOptions = new QAction(tr("&Inference..."), this);
     setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/sparkle_16_regular.svg"));
     connect(actionInferenceOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Inference); });
     actionAutomationOptions = new QAction(tr("A&utomation..."), this);
     setMenuIcon(actionAutomationOptions, QStringLiteral(":/svg/icons/flow_16_regular.svg"));
     connect(actionAutomationOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Automation); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::Automation); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
     setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/code_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this,
-            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::DeveloperOptions); });
+            [openOptions] { openOptions(AppOptionsGlobal::Option::DeveloperOptions); });
 
     menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);
@@ -1127,7 +1136,7 @@ void MainMenuViewPrivate::updateOverflow() {
     // removeAction() reaches QMenuBar::actionEvent, which removes that menu
     // from the platform menu bar, so collapsing here would empty the system
     // menu bar instead of shrinking anything on screen.
-    if (!m_inWindowMenu) {
+    if (!q->isInWindowMenu()) {
         if (m_keepCount == m_topLevelMenus.size())
             return;
         m_updatingOverflow = true;

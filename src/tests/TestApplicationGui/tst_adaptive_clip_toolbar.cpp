@@ -5,6 +5,8 @@
 #include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
 #include "../TestSupport/WaveFixture.h"
 #include "../TestSupport/MainWindowFixture.h"
+#include "UI/Window/DetachedPanelWindow.h"
+#include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
@@ -273,26 +275,30 @@ void ApplicationGuiTests::adaptiveClipToolbarKeepsSizesInTitleBarAndDetachedPane
     auto *detach = bottom->findChild<QAbstractButton *>(QStringLiteral("btnPanelDetach"));
     QVERIFY(detach && detach->isVisible() && detach->isEnabled());
     QTest::mouseClick(detach, Qt::LeftButton);
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    QVERIFY(!bottom->parentWidget());
-    bottom->activateWindow();
-    QTRY_VERIFY(bottom->isActiveWindow());
-    const int floatingMinimum = qMax(bottom->minimumWidth(), bottom->minimumSizeHint().width());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    QCOMPARE(detached->contentWidget(), bottom.data());
+    detached->activateWindow();
+    QTRY_VERIFY(detached->isActiveWindow());
+    const int floatingMinimum =
+        qMax(detached->minimumWidth(), detached->minimumSizeHint().width());
     for (const int width : {900, 600, floatingMinimum}) {
-        // Respect the production detached-panel minimum instead of overriding constraints.
-        bottom->resize(width, bottom->height());
+        // Respect the production detached-window minimum instead of overriding constraints.
+        detached->resize(width, detached->height());
         settleToolbar();
         verifyGeometry();
         if (QTest::currentTestFailed())
             return;
         QVERIFY(saveToolbarEvidence(
-            *bottom, QStringLiteral("floating-%1-actual-%2").arg(width).arg(bottom->width())));
+            *detached,
+            QStringLiteral("floating-%1-actual-%2").arg(width).arg(detached->width())));
     }
 
     QCloseEvent close;
     QApplication::sendEvent(bottom.data(), &close);
     QVERIFY(!close.isAccepted());
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    QVERIFY(!detached->isVisible());
+    QVERIFY(bottom->isVisible());
     QCOMPARE(bottom->parentWidget(), attachedParent);
     settleToolbar();
     verifyGeometry();

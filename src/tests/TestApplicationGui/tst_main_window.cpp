@@ -30,6 +30,7 @@
 #include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
@@ -38,13 +39,14 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
-#include "UI/Window/EmbeddedModalHost.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/History/ActionSequence.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
@@ -59,11 +61,13 @@
 
 #include <QApplication>
 #include <QAbstractButton>
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QDialogButtonBox>
@@ -73,6 +77,7 @@
 #include <QLabel>
 #include <QCursor>
 #include <QToolButton>
+#include <QVBoxLayout>
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -2225,8 +2230,9 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    QVERIFY(!bottom->parentWidget());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    QCOMPARE(detached->contentWidget(), bottom);
     QCOMPARE(splitter->indexOf(bottom), -1);
     QVERIFY(bottom->clipEditorView()->hasActiveSingingClip());
     QCOMPARE(bottom->clipEditorView()->viewState().editMode, EditorViewGlobal::DrawPitch);
@@ -2239,7 +2245,9 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QCloseEvent close;
     QApplication::sendEvent(bottom, &close);
     QVERIFY(!close.isAccepted());
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    QVERIFY(!detached->isVisible());
+    QVERIFY(bottom->isVisible());
+    QCOMPARE(detached->contentWidget(), nullptr);
     QCOMPARE(bottom->parentWidget(), splitter);
     QCOMPARE(splitter->indexOf(bottom), 1);
     QTRY_COMPARE(splitter->sizes(), sizes);
@@ -2255,21 +2263,187 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction_data() {
-    QTest::addColumn<bool>("embedded");
-    QTest::newRow("embedded") << true;
-    QTest::newRow("standalone") << false;
+void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
+    const auto mainPlan = TitleBarSections::forMainWindow(false, ChromePlatform::Windows);
+    const auto detachedPlan = TitleBarSections::forDetachedPanel(false);
+    QVERIFY(mainPlan.appIconInset && mainPlan.systemButtons);
+    QVERIFY(mainPlan.mainMenu && mainPlan.projectSelector && mainPlan.documentActions &&
+            mainPlan.playback);
+    QVERIFY(detachedPlan.appIconInset && detachedPlan.systemButtons);
+    QVERIFY(detachedPlan.mainMenu && detachedPlan.playback);
+    QVERIFY(!detachedPlan.projectSelector && !detachedPlan.documentActions);
+    QCOMPARE(detachedPlan.leftMargin, mainPlan.leftMargin);
+
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *mainChrome = window.findChild<MainTitleBar *>();
+    QVERIFY(mainChrome);
+    QVERIFY(mainChrome->menuView() && mainChrome->playbackView());
+    QVERIFY(mainChrome->titleComboBox() && mainChrome->actionButtonsView());
+
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    QCOMPARE(detached->contentWidget(), bottom);
+    auto *chrome = detached->titleBar();
+    QVERIFY(chrome);
+    QVERIFY(chrome->menuView() && chrome->playbackView());
+    QVERIFY(!chrome->titleComboBox());
+    QVERIFY(!chrome->actionButtonsView());
+
+    // Window management lives in the chrome now; the panel toolbar has no
+    // system buttons of its own.
+    auto *panelTitle = bottom->titleBar();
+    QVERIFY(panelTitle);
+    QVERIFY(!panelTitle->findChild<QWidget *>("MinimizeButton"));
+    QVERIFY(!panelTitle->findChild<QWidget *>("MaximizeButton"));
+    QVERIFY(!panelTitle->findChild<QWidget *>("CloseButton"));
+
+    // The panel card is inset from the window edges like the main window content.
+    auto *contentHost = bottom->parentWidget();
+    QVERIFY(contentHost && contentHost != detached);
+    auto *contentLayout = qobject_cast<QVBoxLayout *>(contentHost->layout());
+    QVERIFY(contentLayout);
+    int left = 0, top = 0, right = 0, bottomMargin = 0;
+    contentLayout->getContentsMargins(&left, &top, &right, &bottomMargin);
+    QCOMPARE(left, 6);
+    QCOMPARE(top, 0);
+    QCOMPARE(right, 6);
+    QCOMPARE(bottomMargin, 6);
 }
 
-void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction() {
-    QFETCH(bool, embedded);
+void ApplicationGuiTests::detachedPanelWindowIsRegisteredForFrameEffects() {
+    // MainWindowFixture uses a native frame, which is the mode where the DWM
+    // border is drawn by the system instead of by QWindowKit.
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+
+    // ThemeManager marks every frame-registered window on Show, right after
+    // applying WindowFrameUtils::applyFrameEffects(). A detached window that
+    // only registered as a style root never receives this property, and its
+    // native border stays in the light scheme.
+    QTRY_VERIFY(detached->property("transparentWindow").isValid());
+    QCOMPARE(detached->property("transparentWindow").toBool(), false);
+    QCOMPARE(detached->styleSheet(), ThemeManager::instance()->styleSheet());
+}
+
+void ApplicationGuiTests::detachButtonUsesRegularFluentIcon() {
+    QVERIFY(QFile::exists(QStringLiteral(":svg/icons/panel_separate_window_20_regular.svg")));
+    QVERIFY(!QFile::exists(QStringLiteral(":svg/icons/panel_separate_window_20_filled.svg")));
+
+    TestSupport::MainWindowFixture host;
+    auto *bottom = host.window->findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detach);
+    QVERIFY(!detach->icon().isNull());
+}
+
+void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    // Only the primary menu exists before the panel is detached.
+    auto *primaryMenu = window.findChild<MainMenuView *>();
+    QVERIFY(primaryMenu);
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    auto *secondaryMenu = detached->menuView();
+    QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
+
+    // Save / Save As used to be wired only from MainWindow, so a second menu's
+    // actions silently did nothing. disconnect() doubles as the only public
+    // probe for an existing connection. Both menus live inside this fixture and
+    // are destroyed with it, so probing never starts a real document workflow.
+    const auto ownsSaveWiring = [](MainMenuView *menu) {
+        if (!menu || !menu->actionSave() || !menu->actionSaveAs())
+            return false;
+        const bool save = QObject::disconnect(menu->actionSave(), &QAction::triggered,
+                                              documentWorkflowController,
+                                              &DocumentWorkflowController::requestSave);
+        const bool saveAs = QObject::disconnect(menu->actionSaveAs(), &QAction::triggered,
+                                                documentWorkflowController,
+                                                &DocumentWorkflowController::requestSaveAs);
+        return save && saveAs;
+    };
+    QVERIFY2(ownsSaveWiring(primaryMenu), "the primary menu lost its save wiring");
+    QVERIFY2(ownsSaveWiring(secondaryMenu),
+             "the detached menu's Save / Save As are not wired to the document workflow");
+}
+
+void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isVisible());
+    auto *menu = detached->menuView();
+    QVERIFY(menu);
+
+    QAction *general = nullptr;
+    for (auto *entry : menu->actions()) {
+        if (auto *submenu = entry->menu()) {
+            for (auto *action : submenu->actions()) {
+                auto text = action->text();
+                text.remove(QLatin1Char('&'));
+                if (text.startsWith(QStringLiteral("General")))
+                    general = action;
+            }
+        }
+    }
+    QVERIFY(general);
+
+    // The standalone dialog enters a nested event loop. Close it from inside
+    // that loop so the test does not block.
+    QPointer<QWidget> modal;
+    QTimer::singleShot(0, [&] {
+        modal = QApplication::activeModalWidget();
+        if (modal)
+            modal->close();
+    });
+    general->trigger();
+    QCoreApplication::processEvents();
+    QVERIFY2(modal, "Options from the detached menu did not open a modal dialog");
+}
+
+void ApplicationGuiTests::standaloneOptionsDialogBlocksBackgroundInteraction() {
     auto &runtime = *context->m_coreRuntime;
     const auto options = runtime.settings().getSettings();
     QVERIFY(options);
     const auto restoreOptions =
         qScopeGuard([&] { runtime.settings().updateAppearance({}, options.get().appearance); });
     MainWindowFixture host;
-    appOptions->developer()->enableEmbeddedOptionsDialog = embedded;
     host.show();
     if (QTest::currentTestFailed())
         return;
@@ -2320,76 +2494,47 @@ void ApplicationGuiTests::settingsDialogsSuspendAndRestoreBackgroundInteraction(
         QVERIFY(singingClip->findNoteById(noteId));
         QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     };
-    if (embedded) {
-        openAppearanceFromMenu(window);
-        if (QTest::currentTestFailed())
-            return;
-        auto *modal = window.findChild<EmbeddedModalHost *>();
-        auto *panel = window.findChild<AppOptionsDialog *>();
-        QVERIFY(modal && panel);
-        QTRY_VERIFY(modal->isOpen() && panel->isVisible());
-        QVERIFY(!window.focusEditorRegion(EditorViewGlobal::Region::TrackPanel));
-        exercisePanel(panel, true);
-        if (QTest::currentTestFailed())
-            return;
-        QTest::keyClick(panel, Qt::Key_Escape);
-        QTRY_VERIFY(!modal->isOpen());
-        QTRY_COMPARE(QApplication::focusWidget(), previousFocus.data());
-        openAppearanceFromMenu(window);
-        if (QTest::currentTestFailed())
-            return;
-        QTRY_VERIFY(modal->isOpen() && panel->isVisible());
-        exercisePanel(panel, false);
-        if (QTest::currentTestFailed())
-            return;
-        auto *frame = modal->findChild<QWidget *>("EmbeddedModalPanel");
-        QVERIFY(frame);
-        QVERIFY(!frame->geometry().contains(QPoint(2, 2)));
-        QTest::mouseClick(modal, Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
-        QTRY_VERIFY(!modal->isOpen());
-    } else {
-        for (const bool change : {true, false}) {
-            bool handled = false;
-            QPointer<Dialog> observed;
-            QTimer answer;
-            QObject::connect(&answer, &QTimer::timeout, &window, [&] {
-                auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-                if (!dialog)
-                    return;
-                auto *panel = dialog->findChild<AppOptionsDialog *>();
-                if (!panel)
-                    return;
-                answer.stop();
-                handled = true;
-                observed = dialog;
-                const auto closeOnFailure = qScopeGuard([&] {
-                    if (observed)
-                        observed->reject();
-                });
-                exercisePanel(panel, change);
-                if (QTest::currentTestFailed())
-                    return;
-                QTest::keyClick(panel, Qt::Key_Escape);
-            });
-            QTimer deadline;
-            deadline.setSingleShot(true);
-            QObject::connect(&deadline, &QTimer::timeout, &window, [] {
-                if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                    dialog->reject();
-            });
-            answer.start(10);
-            deadline.start(10000);
-            openAppearanceFromMenu(window);
+    for (const bool change : {true, false}) {
+        bool handled = false;
+        QPointer<Dialog> observed;
+        QTimer answer;
+        QObject::connect(&answer, &QTimer::timeout, &window, [&] {
+            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            auto *panel = dialog->findChild<AppOptionsDialog *>();
+            if (!panel)
+                return;
             answer.stop();
-            deadline.stop();
+            handled = true;
+            observed = dialog;
+            const auto closeOnFailure = qScopeGuard([&] {
+                if (observed)
+                    observed->reject();
+            });
+            exercisePanel(panel, change);
             if (QTest::currentTestFailed())
                 return;
-            QVERIFY2(handled, "The standalone options dialog did not become available");
-            QTRY_VERIFY(observed.isNull());
-            // Offscreen has no window manager to reactivate the owner after a modal closes.
-            if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
-                window.activateWindow();
-        }
+            QTest::keyClick(panel, Qt::Key_Escape);
+        });
+        QTimer deadline;
+        deadline.setSingleShot(true);
+        QObject::connect(&deadline, &QTimer::timeout, &window, [] {
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                dialog->reject();
+        });
+        answer.start(10);
+        deadline.start(10000);
+        openAppearanceFromMenu(window);
+        answer.stop();
+        deadline.stop();
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY2(handled, "The standalone options dialog did not become available");
+        QTRY_VERIFY(observed.isNull());
+        // Offscreen has no window manager to reactivate the owner after a modal closes.
+        if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+            window.activateWindow();
     }
     QTRY_COMPARE(QApplication::focusWidget(), previousFocus.data());
     QCOMPARE(runtime.documentVersion(), before);

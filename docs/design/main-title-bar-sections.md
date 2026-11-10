@@ -10,31 +10,32 @@ macOS 由平台持有菜单栏。`QMenuBarPrivate::init()` 一旦拿到 `platfor
 
 ## 布局计划
 
-`TitleBarLayoutPlan`（`src/app/UI/Views/MainTitleBar/TitleBarLayoutPlan.h`）是纯数据加纯工厂，字段描述有哪些段：
+主窗口和分离面板窗口共用 `TitleBarSections`（`src/app/UI/Views/MainTitleBar/TitleBarSections.h`）。字段描述标题栏中的各段。
 
 | 字段 | 含义 |
 | --- | --- |
 | `appIconInset` | 无边框窗口在左端留出应用图标/拖拽位 |
-| `inWindowMenu` | 菜单栏画在本窗口内 |
+| `mainMenu` | 菜单栏画在本窗口内 |
+| `trafficLightArea` | 主窗口在 macOS 无边框模式下的红绿灯槽位 |
 | `projectSelector` | 项目名下拉 |
 | `documentActions` | 保存等文档操作按钮 |
 | `playback` | 播放控制 |
 | `systemButtons` | 自绘的最小化/最大化/关闭 |
 | `leftMargin` | 左内边距 |
 
-`forChrome(useNativeFrame, menuInWindow)` 是纯函数，测试可以在任意平台直接断言，不需要模拟 macOS。
+`forMainWindow(useNativeFrame, platform)` 计算主窗口的边框布局，测试可以在任意平台传入目标平台。分离面板通过 `forDetachedPanel(useNativeFrame)` 选择缩减后的布局。
 
 ## 构建规则
 
-`buildSections()` 顺序遍历计划。前导簇用 `addLeadingSection()` 追加，规则是"已有段时才先插一条分隔线"。于是"标题栏最左侧不会出现分隔线"成为结构上的不变量，而不是某一处判断的结果。摘掉菜单段只需把 `inWindowMenu` 置为 false，分隔线自动随之消失。
+`buildSections()` 按顺序添加控件。追加前导段时，已有前导段才插入分隔线。调用 `setInWindowMenu(false)` 摘掉菜单段时，它与项目名之间的分隔线也会消失。
 
-`inWindowMenu` 为 false 时菜单控件不进入布局，但仍以主窗口为父对象。原生菜单栏挂在 `parentWidget()` 的 `windowHandle()` 上，与布局无关，因此两者互不影响。
+平台持有菜单栏时，菜单控件保留主窗口父对象，原生菜单栏继续关联主窗口的 `windowHandle()`。
 
 ## 运行时切换
 
-`setLayoutPlan()` 清空布局项、重建分段。清空只删除布局项与分隔线，widget 本身保留（`takeAt()` 返回的 `QLayoutItem` 析构不会析构 widget）。计划和当前一致时直接返回，避免无意义的 relayout。
+`setInWindowMenu()` 在菜单位置变动时清空布局项并重建分段。清空只删除布局项与分隔线，保留各段的控件。
 
-计划在 `MainWindow::titleBarLayoutPlan()` 里计算：
+主窗口通过 `MainWindow::mainMenuInWindow()` 判断菜单是否放在窗口内。
 
 ```cpp
 !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow
@@ -59,7 +60,7 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 对话框走同一套：`DialogTitleBar` 的 `trafficLightArea` 参数打开时只留红绿灯槽位，不再创建自绘关闭按钮。
 
-`TabPanelTitleBar`（底部面板独立成窗）仍是旧路径，独立窗口上还会看到原生标题栏与自绘三键，属于后续待办。
+独立面板使用 `MainTitleBar` 的缩减布局。无边框分离窗口的红绿灯定位仍待后续处理。
 
 ## 双击标题栏
 
@@ -69,13 +70,13 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 ## 与自适应溢出的关系
 
-计划里的 `inWindowMenu` 同时下发给 `MainMenuView::setInWindowMenu()`。原生菜单栏下自适应溢出整体不成立：`removeAction()` 会经过 `QMenuBar::actionEvent` 走到 `QPlatformMenuBar::removeMenu()`，把菜单从系统菜单栏里摘掉，窗口里省不下任何宽度，系统顶栏反而少几个菜单。该状态下的划分恒为"全部内联"，`sizeHint()` 退回 `QMenuBar` 自身的空提示。详见 `adaptive-main-menu-bar.md`。
+`MainTitleBar::setInWindowMenu()` 将菜单位置同步给 `MainMenuView`。在原生菜单栏上，`removeAction()` 会通过 `QMenuBar::actionEvent` 调用 `QPlatformMenuBar::removeMenu()`，从系统菜单栏里摘掉菜单。该状态下的划分恒为“全部内联”，`sizeHint()` 使用 `QMenuBar` 自身的提示。详见 `adaptive-main-menu-bar.md`。
 
 ## 回归入口
 
 `TestApplicationGui` 的 `tst_title_bar_layout.cpp` 覆盖以下内容。
 
-- 三组 `forChrome()` 组合的字段与间距契约：Windows 无边框、macOS 无边框、两种原生边框。
+- `forMainWindow()` 在 Windows 和 macOS 上的无边框及原生边框布局和间距。
 - 有菜单段时两条分隔线，且首段是菜单控件。
 - 摘掉菜单段后只剩一条分隔线，首段是项目名下拉，下拉左侧没有任何分隔线。
 - 切回原计划后分段与分隔线数量完全复现。

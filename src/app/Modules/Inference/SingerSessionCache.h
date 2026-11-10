@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -20,6 +21,9 @@ public:
     using HandleList = std::vector<std::shared_ptr<Handle>>;
 
     struct RetentionResult {
+        // False when an admission predicate rejected the caller's snapshot.
+        // In that case the cache was left completely untouched.
+        bool applied = true;
         std::size_t released = 0;
         HandleList handles;
     };
@@ -56,10 +60,19 @@ public:
         return result;
     }
 
-    RetentionResult retainOnly(const QSet<SingerIdentifier> &identifiers) {
+    // isCurrent is evaluated while holding the cache mutex, immediately before
+    // any mutation. A caller can thus pass a generation check: if a newer
+    // selection was published while this call waited behind a long-running
+    // acquire()/factory(), the stale snapshot must not touch the cache.
+    RetentionResult retainOnly(const QSet<SingerIdentifier> &identifiers,
+                               const std::function<bool()> &isCurrent = {}) {
         RetentionResult result;
         {
             std::lock_guard lock(m_mutex);
+            if (isCurrent && !isCurrent()) {
+                result.applied = false;
+                return result;
+            }
             m_retainedIdentifiers = identifiers;
             for (auto it = m_entries.begin(); it != m_entries.end();) {
                 if (identifiers.contains(it.key())) {

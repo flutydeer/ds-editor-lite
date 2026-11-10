@@ -9,7 +9,7 @@
 
 namespace TestSupport {
     inline void openOptionsPage(AppOptionsDialog &panel, AppOptionsGlobal::Option option) {
-        // Product windows supply this style root to their embedded options panel.
+        // Product windows supply this style root to the options panel.
         ThemeManager::instance()->addStyleRoot(&panel);
         panel.resize(920, 720);
         panel.show();

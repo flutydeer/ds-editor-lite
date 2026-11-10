@@ -27,6 +27,7 @@
 #include "UI/Views/TrackEditor/InfoLane/InfoLaneView.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
@@ -751,21 +752,23 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
     const auto reattach = qScopeGuard([&] {
-        if (bottom->isWindow())
-            bottom->close();
+        if (auto *detached = window.findChild<DetachedPanelWindow *>();
+            detached && detached->isVisible())
+            detached->close();
     });
     auto *detachButton = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detachButton && detachButton->isVisible());
     const auto beforeDetach = runtime.documentVersion();
     const auto beforeDetachFrame = pianoFrames.size();
     QTest::mouseClick(detachButton, Qt::LeftButton);
-    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
-    TestSupport::placeWindowOnScreen(*bottom, {1000, 650});
-    bottom->raise();
-    bottom->activateWindow();
-    QTRY_VERIFY(bottom->isActiveWindow());
+    auto *detached = window.findChild<DetachedPanelWindow *>();
+    QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    TestSupport::placeWindowOnScreen(*detached, {1000, 650});
+    detached->raise();
+    detached->activateWindow();
+    QTRY_VERIFY(detached->isActiveWindow());
     QTRY_VERIFY(pianoFrames.size() > beforeDetachFrame);
-    QCOMPARE(piano->window(), bottom);
+    QCOMPARE(piano->window(), detached);
     QCOMPARE(bottom->currentPageId(), QStringLiteral("ClipEditor"));
     QCOMPARE(runtime.documentVersion(), beforeDetach);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
@@ -776,8 +779,9 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
 
     const auto beforeDock = runtime.documentVersion();
     const auto beforeDockFrame = pianoFrames.size();
-    bottom->close();
-    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    detached->close();
+    QVERIFY(!detached->isVisible());
+    QVERIFY(bottom->isVisible());
     window.raise();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());

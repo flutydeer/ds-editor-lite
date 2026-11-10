@@ -33,11 +33,12 @@
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/EditorShortcutUtils.h"
 #include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
-#include "UI/Window/EmbeddedModalHost.h"
+#include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/EventDiagFilter.h"
 #include "UI/Window/LogWindow.h"
 
@@ -81,8 +82,11 @@ MainWindow::MainWindow() {
     }
 #endif
     auto useNativeFrame = m_useNativeFrame;
+    setProperty(EditorShortcutUtils::kEditorWindowProperty, true);
     m_mainMenu = new MainMenuView(this);
-    m_titleBar = new MainTitleBar(m_mainMenu, this, titleBarLayoutPlan());
+    auto sections = TitleBarSections::forMainWindow(useNativeFrame);
+    sections.mainMenu = mainMenuInWindow();
+    m_titleBar = new MainTitleBar(m_mainMenu, this, sections);
 
     if (!useNativeFrame) {
         auto agent = new QWK::WidgetWindowAgent(this);
@@ -139,7 +143,6 @@ MainWindow::MainWindow() {
             &QAction::trigger);
     connect(filePopup, &FilePopupWidget::openRecentProject, m_mainMenu,
             &MainMenuView::openRecentProject);
-    installEventFilter(m_titleBar);
 
     ThemeManager::instance()->addStyleRoot(this);
 
@@ -193,10 +196,10 @@ MainWindow::MainWindow() {
                     updateDiagnosticFilter();
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updatePanelDetachEnabled();
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All) {
                     updateLogWindowVisible();
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
-                    m_titleBar->setLayoutPlan(titleBarLayoutPlan());
+                    m_titleBar->setInWindowMenu(mainMenuInWindow());
+                }
             });
     updateDiagnosticFilter();
     updateLogWindowVisible();
@@ -213,11 +216,6 @@ MainWindow::MainWindow() {
                 dialog->finalizePages();
                 dialog->show();
             });
-
-    connect(m_mainMenu->actionSave(), &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSave);
-    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSaveAs);
 
     m_trackEditorView = new TrackEditorView;
     m_bottomPanelView = new BottomPanelView(this);
@@ -264,6 +262,10 @@ MainWindow::MainWindow() {
 }
 
 MainWindow::~MainWindow() {
+    // The detached window is a child window, so it would otherwise destroy the
+    // panel together with itself. Dock the panel back before tearing down.
+    if (m_bottomPanelDetached)
+        attachBottomPanel();
 #ifdef Q_OS_WIN
     ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
 #endif
@@ -304,14 +306,8 @@ void MainWindow::updatePanelDetachEnabled() {
     m_bottomPanelView->titleBar()->setDetachButtonVisible(enabled);
 }
 
-TitleBarLayoutPlan MainWindow::titleBarLayoutPlan() const {
-    // isNativeMenuBar() reflects the platform (macOS global menu bar, Unity's
-    // dbusmenu). The developer switch extends the same plan to platforms that
-    // keep the menu bar in the window, so the macOS chrome can be previewed.
-    const auto menuInWindow =
-        !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
-    return TitleBarLayoutPlan::forChrome(TitleBarLayoutPlan::currentPlatform(), m_useNativeFrame,
-                                         menuInWindow);
+bool MainWindow::mainMenuInWindow() const {
+    return !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
 }
 
 void MainWindow::updateWindowTitle() {
@@ -349,97 +345,15 @@ void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         updateWindowTitle();
-    else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
-             m_bottomPanelDetached) {
-        editorViewController->activatePanelContext(
-            m_trackEditorView->isVisible() ? AppGlobal::TracksEditor : AppGlobal::Generic);
-    }
 }
 
-void MainWindow::resizeEvent(QResizeEvent *event) {
-    QMainWindow::resizeEvent(event);
-    // Keep the floating modal overlay in sync (layout-less overlay, same
-    // pattern as the OverlaySplitter grip).
-    if (m_modalHost)
-        m_modalHost->setGeometry(rect());
-}
-
-void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
-    // The embedded panel is experimental and opt-in (Developer Options ->
-    // Embedded options dialog); the standalone dialog stays the default.
-    if (!appOptions->developer()->enableEmbeddedOptionsDialog) {
-        AppOptionsDialog::showStandaloneDialog(option, this);
-        return;
-    }
-    if (!m_modalHost) {
-        m_modalHost = new EmbeddedModalHost(this);
-        m_modalHost->setGeometry(rect());
-        connect(m_modalHost, &EmbeddedModalHost::closed, this,
-                &MainWindow::restoreBackgroundInteraction);
-    }
-    if (!m_appOptionsDialog)
-        m_appOptionsDialog = new AppOptionsDialog(this);
-    m_focusBeforeModal = qApp->focusWidget();
-    m_appOptionsDialog->selectOption(option);
-    m_modalHost->open(m_appOptionsDialog, QSize(900, 600));
-    // Suspend AFTER opening so that the panel (a descendant of the host) is
-    // excluded from the isAncestorOf()-based filtering.
-    suspendBackgroundInteraction();
-    // Defer focus transfer to the next event-loop iteration: the menu popup
-    // restores focus to the pre-menu widget after the triggering action runs.
-    // On Windows the wheel event follows keyboard focus (delivered to the
-    // focus widget instead of the widget under the cursor), so without this
-    // the panel would never receive wheel events.
-    QTimer::singleShot(0, m_appOptionsDialog, [this] { m_appOptionsDialog->setFocus(); });
-}
-
-void MainWindow::closeAppOptions() {
-    if (m_modalHost)
-        m_modalHost->closePanel();
-}
-
-void MainWindow::suspendBackgroundInteraction() {
-    const auto insideModal = [this](const QObject *object) {
-        for (const QObject *p = object; p; p = p->parent())
-            if (p == m_modalHost)
-                return true;
-        return false;
-    };
-    for (auto *action : findChildren<QAction *>()) {
-        if (insideModal(action))
-            continue;
-        if (!action->isEnabled())
-            continue;
-        m_suspendedActions.append(action);
-        action->setEnabled(false);
-    }
-    for (auto *shortcut : findChildren<QShortcut *>()) {
-        if (insideModal(shortcut))
-            continue;
-        if (!shortcut->isEnabled())
-            continue;
-        m_suspendedShortcuts.append(shortcut);
-        shortcut->setEnabled(false);
-    }
-}
-
-void MainWindow::restoreBackgroundInteraction() {
-    // Skip actions that were destroyed while the modal was open (see
-    // m_suspendedActions); QPointer turns them into null automatically.
-    for (const auto &action : std::as_const(m_suspendedActions)) {
-        if (action)
-            action->setEnabled(true);
-    }
-    m_suspendedActions.clear();
-    for (const auto shortcut : std::as_const(m_suspendedShortcuts))
-        shortcut->setEnabled(true);
-    m_suspendedShortcuts.clear();
-
-    // Give focus back to the widget that had it before the modal opened,
-    // so it does not linger on the (now hidden) settings panel.
-    if (m_focusBeforeModal && m_focusBeforeModal->isVisible())
-        m_focusBeforeModal->setFocus();
-    m_focusBeforeModal.clear();
+void MainWindow::openAppOptions(const AppOptionsGlobal::Option option,
+                                QWidget *requestingWindow) {
+    // A detached panel window owns the menu that triggered this action. Parent
+    // the modal to that top-level window so it sits above it in the native
+    // z-order and follows its activation state.
+    auto *hostWindow = requestingWindow ? requestingWindow->window() : this;
+    AppOptionsDialog::showStandaloneDialog(option, hostWindow);
 }
 
 QWidget *MainWindow::documentWorkflowParentWidget() {
@@ -620,6 +534,9 @@ bool MainWindow::setEditorPanelVisibility(const bool trackPanelVisible,
 
     if (m_bottomPanelDetached) {
         m_trackEditorView->setVisible(trackPanelVisible);
+        // Hide the whole window, not just its content, so no empty frame is
+        // left behind when the detached panel is collapsed.
+        m_detachedWindow->setVisible(bottomPanelVisible);
         m_bottomPanelView->setVisible(bottomPanelVisible);
     } else {
         // Detached mode controls widget visibility directly. Re-enable both children before
@@ -805,7 +722,7 @@ EditorViewGlobal::Region MainWindow::focusedEditorRegion() const {
 }
 
 bool MainWindow::editorFocusControlBlocked() const {
-    return (m_modalHost && m_modalHost->isOpen()) || QApplication::activeModalWidget();
+    return QApplication::activeModalWidget() != nullptr;
 }
 
 bool MainWindow::revealFocus(const HistoryFocus &focus) {
@@ -882,55 +799,41 @@ void MainWindow::detachBottomPanel() {
     m_bottomPanelDetached = true;
     m_detachSplitterState = m_splitter->saveState();
 
-    m_bottomPanelView->setParent(nullptr, Qt::Window);
-    m_bottomPanelView->titleBar()->setDetached(true, m_useNativeFrame);
+    // The chrome window is created lazily and kept across detach/attach cycles,
+    // just like the log window. Keeping it alive also means a close request can
+    // never delete the object that emitted it.
+    if (!m_detachedWindow) {
+        m_detachedWindow = new DetachedPanelWindow(this, m_useNativeFrame);
+        connect(m_detachedWindow, &DetachedPanelWindow::reattachRequested, this,
+                &MainWindow::attachBottomPanel);
 
-    if (!m_useNativeFrame) {
-        m_detachedAgent = new QWK::WidgetWindowAgent(m_bottomPanelView);
-        m_detachedAgent->setup(m_bottomPanelView);
-        m_detachedAgent->setTitleBar(m_bottomPanelView->titleBar());
-        auto *titleBar = m_bottomPanelView->titleBar();
-        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Minimize,
-                                         titleBar->minimizeButton());
-        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Maximize,
-                                         titleBar->maximizeButton());
-        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Close, titleBar->closeButton());
-        m_detachedAgent->setHitTestVisible(static_cast<QWidget *>(titleBar->tabBar()));
-        m_detachedAgent->setHitTestVisible(static_cast<QWidget *>(titleBar->toolBar()));
+        if (m_detachedWindowGeometry.isValid()) {
+            m_detachedWindow->setGeometry(m_detachedWindowGeometry);
+        } else {
+            int panelHeight = m_bottomPanelView->height();
+            int panelWidth = 960;
+            m_detachedWindow->resize(panelWidth, panelHeight);
 
-        connect(titleBar->minimizeButton(), &Button::clicked, m_bottomPanelView,
-                &QWidget::showMinimized);
-        connect(titleBar->maximizeButton(), &Button::clicked, m_bottomPanelView, [this] {
-            if (m_bottomPanelView->isMaximized())
-                m_bottomPanelView->showNormal();
-            else
-                m_bottomPanelView->showMaximized();
-        });
-        connect(titleBar->closeButton(), &Button::clicked, this, &MainWindow::attachBottomPanel);
-    }
-
-    ThemeManager::instance()->addStyleRoot(m_bottomPanelView);
-
-    m_bottomPanelView->setMinimumWidth(960);
-
-    if (m_detachedWindowGeometry.isValid()) {
-        m_bottomPanelView->setGeometry(m_detachedWindowGeometry);
-    } else {
-        int panelHeight = m_bottomPanelView->height();
-        int panelWidth = 960;
-        m_bottomPanelView->resize(panelWidth, panelHeight);
-
-        auto scr = QApplication::screenAt(QCursor::pos());
-        if (!scr)
-            scr = QApplication::primaryScreen();
-        if (scr) {
-            auto availableRect = scr->availableGeometry();
-            int x = availableRect.x() + (availableRect.width() - panelWidth) / 2;
-            int y = availableRect.y() + (availableRect.height() - panelHeight) / 2;
-            m_bottomPanelView->move(x, y);
+            auto scr = QApplication::screenAt(QCursor::pos());
+            if (!scr)
+                scr = QApplication::primaryScreen();
+            if (scr) {
+                auto availableRect = scr->availableGeometry();
+                int x = availableRect.x() + (availableRect.width() - panelWidth) / 2;
+                int y = availableRect.y() + (availableRect.height() - panelHeight) / 2;
+                m_detachedWindow->move(x, y);
+            }
         }
     }
-    m_bottomPanelView->show();
+    m_detachedWindow->setContent(m_bottomPanelView);
+    m_bottomPanelView->titleBar()->setDetached(true);
+    m_detachedWindow->show();
+
+    // From here on the active panel belongs to whichever editor window is
+    // active. The controller owns that mapping and listens for WindowActivate.
+    editorViewController->setPanelWindow(m_trackEditorView, this);
+    editorViewController->setPanelWindow(m_bottomPanelView, m_detachedWindow);
+    editorViewController->activateWindowPanel(m_detachedWindow);
 
     m_bottomPanelView->installEventFilter(this);
 }
@@ -939,25 +842,19 @@ void MainWindow::attachBottomPanel() {
     if (!m_bottomPanelDetached)
         return;
 
+    editorViewController->clearPanelWindows();
     m_bottomPanelDetached = false;
-    m_detachedWindowGeometry = m_bottomPanelView->geometry();
+    m_detachedWindowGeometry = m_detachedWindow->geometry();
 
     m_bottomPanelView->removeEventFilter(this);
-
-    if (m_detachedAgent) {
-        delete m_detachedAgent;
-        m_detachedAgent = nullptr;
-    }
-
-    m_bottomPanelView->hide();
-    m_bottomPanelView->titleBar()->setDetached(false, m_useNativeFrame);
-    m_bottomPanelView->setParent(m_splitter, Qt::Widget);
-    m_bottomPanelView->setMinimumWidth(0);
-
-    m_splitter->insertWidget(1, m_bottomPanelView);
-    ThemeManager::instance()->removeStyleRoot(m_bottomPanelView);
+    m_bottomPanelView->titleBar()->setDetached(false);
+    m_detachedWindow->hide();
+    auto *panel = m_detachedWindow->takeContent();
+    Q_ASSERT(panel == m_bottomPanelView);
+    m_splitter->insertWidget(1, panel);
     m_splitter->restoreState(m_detachSplitterState);
     m_bottomPanelView->show();
+
     setEditorPanelVisibility(!appStatus->trackPanelCollapsed, !appStatus->bottomPanelCollapsed);
 }
 
@@ -994,13 +891,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
                 break;
         }
     }
-    if (watched == m_bottomPanelView && event->type() == QEvent::WindowActivate) {
-        editorViewController->activatePanelContext(m_bottomPanelView->panelType());
-        return false;
-    }
-    if (watched == m_bottomPanelView && event->type() == QEvent::Close) {
+    // A close request can arrive at the panel itself (automation, keyboard
+    // shortcuts, tests) as well as at its window. Both mean "dock it back".
+    if (watched == m_bottomPanelView && event->type() == QEvent::Close && m_detachedWindow) {
         event->ignore();
-        attachBottomPanel();
+        m_detachedWindow->close();
         return true;
     }
     return QMainWindow::eventFilter(watched, event);

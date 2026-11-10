@@ -5,8 +5,10 @@
 #include "Interface/IEditorView.h"
 #include "Interface/IPanel.h"
 
+#include <QApplication>
 #include <QCoreApplication>
 #include <QEvent>
+#include <QWidget>
 
 #include <algorithm>
 #include <utility>
@@ -306,6 +308,71 @@ void EditorViewController::registerPanel(IPanel *panel) {
 
 void EditorViewController::unregisterPanel(IPanel *panel) {
     m_panels.removeAll(panel);
+    m_panelWindows.erase(std::remove_if(m_panelWindows.begin(), m_panelWindows.end(),
+                                        [panel](const PanelWindowBinding &binding) {
+                                            return binding.panel == panel;
+                                        }),
+                         m_panelWindows.end());
+}
+
+void EditorViewController::setPanelWindow(IPanel *panel, QWidget *window) {
+    if (!panel || !window)
+        return;
+    for (auto &binding : m_panelWindows) {
+        if (binding.panel == panel) {
+            binding.window = window;
+            return;
+        }
+    }
+    m_panelWindows.append({window, panel});
+}
+
+void EditorViewController::clearPanelWindows() {
+    m_panelWindows.clear();
+}
+
+bool EditorViewController::hasSeparatedPanelWindows() const {
+    QWidget *firstWindow = nullptr;
+    for (const auto &binding : std::as_const(m_panelWindows)) {
+        auto *window = binding.window.data();
+        if (!window)
+            continue;
+        if (!firstWindow)
+            firstWindow = window;
+        else if (window != firstWindow)
+            return true;
+    }
+    return false;
+}
+
+std::optional<AppGlobal::PanelType> EditorViewController::panelTypeForWindow(
+    const QWidget *window) const {
+    if (!window)
+        return std::nullopt;
+    bool hostsPanel = false;
+    for (const auto &binding : std::as_const(m_panelWindows)) {
+        if (binding.window.data() != window)
+            continue;
+        hostsPanel = true;
+        // A window can host several pages; only a visible one can claim focus.
+        if (const auto *panel = binding.panel; panel && panel->panelVisible())
+            return panel->panelType();
+    }
+    return hostsPanel ? std::optional<AppGlobal::PanelType>(AppGlobal::Generic) : std::nullopt;
+}
+
+void EditorViewController::activateWindowPanel(QWidget *window) {
+    if (!hasSeparatedPanelWindows())
+        return;
+    const auto type = panelTypeForWindow(window);
+    if (!type)
+        return;
+    const auto target = *type == AppGlobal::ClipEditor
+                            ? m_lastClipEditTarget
+                            : EditorInteraction::defaultTargetForPanel(*type);
+    // Bypass the active-window clamp in setActiveContext(): this call *is* the
+    // activation, and QApplication::activeWindow() may still name the old window.
+    applyActiveContext(*type, target);
 }
 
 void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
@@ -446,6 +513,11 @@ void EditorViewController::requestEditCommand(const EditorInteraction::Command c
 }
 
 bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::WindowActivate) {
+        if (auto *widget = qobject_cast<QWidget *>(watched); widget && widget->isWindow())
+            activateWindowPanel(widget);
+        return QObject::eventFilter(watched, event);
+    }
     if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::FocusIn)
         return QObject::eventFilter(watched, event);
 
@@ -460,8 +532,26 @@ bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
     return QObject::eventFilter(watched, event);
 }
 
-void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
-                                            const EditorInteraction::Target target) {
+void EditorViewController::setActiveContext(AppGlobal::PanelType panel,
+                                            EditorInteraction::Target target) {
+    // In detached mode window activation owns the active panel. A page switch,
+    // a visibility sync or a click in the other window must not steal it. The
+    // edit target has to follow the clamped panel, otherwise it would name a
+    // surface belonging to a window that is not active.
+    if (hasSeparatedPanelWindows()) {
+        if (const auto owner = panelTypeForWindow(QApplication::activeWindow());
+            owner && *owner != panel) {
+            panel = *owner;
+            target = panel == AppGlobal::ClipEditor
+                         ? m_lastClipEditTarget
+                         : EditorInteraction::defaultTargetForPanel(panel);
+        }
+    }
+    applyActiveContext(panel, target);
+}
+
+void EditorViewController::applyActiveContext(const AppGlobal::PanelType panel,
+                                             const EditorInteraction::Target target) {
     auto effectiveTarget = target;
     if (panel == AppGlobal::ClipEditor) {
         if (m_clipEditorReadOnly) {

@@ -3,6 +3,8 @@
 
 #define inferEngine InferEngine::instance()
 
+#include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 
@@ -29,6 +31,18 @@ struct InferEnginePaths {
     QString inferenceDriver;
     QString inferenceRuntime;
     QString inferenceInterpreter;
+};
+
+// Immutable startup snapshot captured on the application thread. The
+// background initialization task reads only this value, never AppOptions or
+// other GUI-owned state, and never publishes a correction over a setting the
+// user changed while initialization was running.
+struct InferEngineInitInput {
+    QString executionProvider;
+    int selectedGpuIndex = 0;
+    QString selectedGpuId;
+    QStringList packageSearchPaths;
+    quint64 generation = 0;
 };
 
 class InferEngine final : public QObject {
@@ -76,16 +90,34 @@ private:
     bool initialize(QString &error);
     void dispose();
     void evictSingerSessions();
+    void scheduleSessionMaintenance();
+    void runSessionMaintenance();
     void releaseSingerSessionsAsync(SingerSessionHandleList handles);
-    void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles);
+    void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles,
+                                              quint64 generation);
+    quint64 publishSingerSelection(const QSet<SingerIdentifier> &identifiers);
 
+    // m_engineRwLock protects only the short publication of m_paths. It must
+    // never be held while enumerating GPUs, loading plugins or creating an ORT
+    // session: the GUI reads those same state flags during startup.
     mutable QReadWriteLock m_engineRwLock;
     std::once_flag m_initFlag{};
-    bool m_initialized = false;
-    bool m_disposed = false;
+    // Short lock shared by initialize()/dispose() so a late initialization
+    // result can never resurrect Ready after shutdown has begun. It is never
+    // held across GPU enumeration or ORT work.
+    std::mutex m_stateMutex;
+    std::atomic<bool> m_initialized{false};
+    std::atomic<bool> m_disposed{false};
     InferEnginePaths m_paths;
+    InferEngineInitInput m_initInput;
 
     std::mutex m_singerSessionSelectionMutex;
+    QSet<SingerIdentifier> m_latestSingerSelection;
+    std::atomic<quint64> m_selectionGeneration{0};
+    std::atomic<bool> m_sessionMaintenanceScheduled{false};
+    std::atomic<bool> m_evictionRequested{false};
+    std::size_t m_maintenanceCapacity = 0;
+    std::chrono::seconds m_maintenanceIdleTimeout{0};
     mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
     QTimer m_singerSessionEvictionTimer;
     QThreadPool m_singerSessionReleasePool;

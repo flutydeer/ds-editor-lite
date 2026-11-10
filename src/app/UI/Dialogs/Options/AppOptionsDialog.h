@@ -10,16 +10,13 @@ class IOptionPage;
 class QListWidget;
 class QStackedWidget;
 
-// Options settings panel shared by both hosting modes:
-//  - Embedded (default): serves as the EmbeddedModalHost content; there is no
-//    title bar — the modal is closed by clicking the backdrop or pressing Esc.
-//  - Standalone: showStandaloneDialog() wraps the panel in a Dialog (title
-//    bar, modal exec) for the classic floating options window.
+// Options settings panel. showStandaloneDialog() wraps it in a Dialog (title
+// bar, modal exec) to produce the floating options window.
 class AppOptionsDialog : public QWidget {
     Q_OBJECT
 
 public:
-    explicit AppOptionsDialog(QWidget *parent = nullptr, bool standalone = false);
+    explicit AppOptionsDialog(QWidget *parent = nullptr);
 
     // Switches to the requested settings page (matching the old menu item
     // semantics: General -> page 1, ...).
@@ -44,7 +41,6 @@ private:
     QListWidget *m_tabList = nullptr;
     QStackedWidget *m_pageContent = nullptr;
     QWidget *m_sidebar = nullptr;
-    bool m_standalone = false;
 
     QList<IOptionPage *> m_pages;
     QStringList m_automationCustomPermissionOperationIds;

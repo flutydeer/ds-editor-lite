@@ -15,15 +15,31 @@ ExternalOpenRequestQueue::ExternalOpenRequestQueue(DocumentWorkflowController *w
     });
 }
 
-void ExternalOpenRequestQueue::enqueue(const SingleInstanceRequest &request) {
+namespace {
+    constexpr qsizetype maxQueuedProjectPaths = 64;
+}
+
+AdmissionResult ExternalOpenRequestQueue::take(const SingleInstanceRequest &request,
+                                               const bool localStartup) {
     if (m_workflow->shutdownCommitted())
-        return;
+        return AdmissionResult::rejected(QStringLiteral("primary_shutting_down"));
+    const auto incoming = request.command == SingleInstanceCommand::OpenProjects ||
+                                  request.command == SingleInstanceCommand::ApplicationHandoff
+                              ? request.paths.size()
+                              : 0;
+    if (!localStartup && incoming > 0 &&
+        m_paths.size() + incoming > maxQueuedProjectPaths)
+        return AdmissionResult::rejected(QStringLiteral("request_queue_full"));
+
     m_activatePending = true;
-    if (request.command == SingleInstanceCommand::OpenProjects) {
+    if (incoming > 0) {
         for (const auto &path : request.paths)
             m_paths.enqueue(DocumentWorkflowPathUtils::normalizedProjectPath(path));
     }
     QTimer::singleShot(0, this, [this] { dispatchNext(); });
+    // Takeover means the request is owned by this queue. It does not mean the
+    // project has finished loading, nor that the OS granted foreground focus.
+    return AdmissionResult::accepted();
 }
 
 void ExternalOpenRequestQueue::dispatchNext() {

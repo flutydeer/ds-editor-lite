@@ -11,7 +11,6 @@ void DeveloperOption::load(const QJsonObject &object) {
     load_showClipDebugInfo(object);
     load_logTouchEvents(object);
     load_enablePanelDetach(object);
-    load_enableEmbeddedOptionsDialog(object);
     load_hideMainMenuInWindow(object);
     editorRenderBackend = editorRenderBackendFromString(
         object.value(QLatin1String(kEditorRenderBackendKey)).toString());
@@ -25,7 +24,6 @@ void DeveloperOption::save(QJsonObject &object) {
         serialize_showClipDebugInfo(),
         serialize_logTouchEvents(),
         serialize_enablePanelDetach(),
-        serialize_enableEmbeddedOptionsDialog(),
         serialize_hideMainMenuInWindow(),
         {QLatin1String(kEditorRenderBackendKey), editorRenderBackendToString(editorRenderBackend)},
     };

@@ -4,7 +4,6 @@
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
-#include "UI/Views/MainTitleBar/TitleBarLayoutPlan.h"
 
 #include <lite/GUI/Controls/DividerLine.h>
 
@@ -32,9 +31,9 @@ namespace {
 void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
     // Windows frameless: the app icon inset and the custom system buttons both
     // belong to the chrome, and the menu bar is drawn in the title bar.
-    const auto frameless = TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, false, true);
+    const auto frameless = TitleBarSections::forMainWindow(false, ChromePlatform::Windows);
     QVERIFY(frameless.appIconInset);
-    QVERIFY(frameless.inWindowMenu);
+    QVERIFY(frameless.mainMenu);
     QVERIFY(frameless.systemButtons);
     QVERIFY(!frameless.trafficLightArea);
     QVERIFY(frameless.projectSelector);
@@ -43,22 +42,20 @@ void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
 
     // macOS frameless: the platform keeps its traffic lights, so the leading
     // slot is theirs and no Windows-style button may be drawn next to them.
-    const auto macFrameless = TitleBarLayoutPlan::forChrome(ChromePlatform::MacOS, false, false);
+    const auto macFrameless = TitleBarSections::forMainWindow(false, ChromePlatform::MacOS);
     QVERIFY(!macFrameless.appIconInset);
     QVERIFY(!macFrameless.systemButtons);
     QVERIFY(macFrameless.trafficLightArea);
-    QVERIFY(!macFrameless.inWindowMenu);
     // The lights sit against the window edge, so the title bar starts flush.
     QCOMPARE(macFrameless.leftMargin, 0);
 
     // Native frame on either platform: no leading slot, no custom buttons.
-    const auto nativeFrame = TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, true, false);
+    const auto nativeFrame = TitleBarSections::forMainWindow(true, ChromePlatform::Windows);
     QVERIFY(!nativeFrame.appIconInset);
-    QVERIFY(!nativeFrame.inWindowMenu);
     QVERIFY(!nativeFrame.systemButtons);
     QVERIFY(!nativeFrame.trafficLightArea);
 
-    const auto macNativeFrame = TitleBarLayoutPlan::forChrome(ChromePlatform::MacOS, true, false);
+    const auto macNativeFrame = TitleBarSections::forMainWindow(true, ChromePlatform::MacOS);
     QVERIFY(!macNativeFrame.appIconInset);
     QVERIFY(!macNativeFrame.systemButtons);
     QVERIFY(!macNativeFrame.trafficLightArea);
@@ -66,7 +63,6 @@ void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
 
     QVERIFY(frameless != macFrameless);
     QVERIFY(frameless != nativeFrame);
-    QVERIFY(TitleBarLayoutPlan::forChrome(ChromePlatform::Windows, true, true) != nativeFrame);
 }
 
 void ApplicationGuiTests::titleBarLayoutFollowsThePlatformMenuBar() {
@@ -83,7 +79,7 @@ void ApplicationGuiTests::titleBarLayoutFollowsThePlatformMenuBar() {
     QVERIFY(menu->isNativeMenuBar());
 #endif
     const bool inWindow = !menu->isNativeMenuBar();
-    QCOMPARE(titleBar->layoutPlan().inWindowMenu, inWindow);
+    QCOMPARE(titleBar->sections().mainMenu, inWindow);
     QCOMPARE(titleBar->dividers().size(), inWindow ? 2 : 1);
     QCOMPARE(firstSection(*titleBar),
              inWindow ? static_cast<QWidget *>(menu) : titleBar->titleComboBox());
@@ -113,9 +109,8 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
 
     // The fixture keeps the menu bar in the window: the leading cluster is
     // menu | combo | actions, separated by two dividers.
-    QVERIFY(titleBar->layoutPlan().inWindowMenu);
-    if (TitleBarLayoutPlan::currentPlatform() != ChromePlatform::MacOS)
-        QVERIFY(!titleBar->trafficLightArea());
+    QVERIFY(titleBar->sections().mainMenu);
+    QVERIFY(!titleBar->trafficLightArea());
     QCOMPARE(titleBar->dividers().size(), 2);
     for (const auto *divider : titleBar->dividers())
         QVERIFY(!divider->isHidden());
@@ -126,25 +121,22 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
     // A platform that owns the menu bar removes the section. The divider that
     // used to separate the menu from the project selector has to go with it,
     // otherwise it is left alone at the leading edge.
-    auto hiddenMenuPlan = titleBar->layoutPlan();
-    hiddenMenuPlan.inWindowMenu = false;
-    titleBar->setLayoutPlan(hiddenMenuPlan);
+    titleBar->setInWindowMenu(false);
     settleLayout();
 
-    QVERIFY(!titleBar->layoutPlan().inWindowMenu);
+    QVERIFY(!titleBar->sections().mainMenu);
     QVERIFY(!menu->isVisible());
     QCOMPARE(titleBar->dividers().size(), 1);
     QVERIFY(firstSection(*titleBar) == combo);
     QVERIFY(titleBar->dividers().first()->x() > combo->x());
-    QVERIFY(combo->x() >= titleBar->layoutPlan().leftMargin);
+    QVERIFY(combo->x() >= titleBar->sections().leftMargin);
 
     // Restoring the section rebuilds the same chrome as before, so the toggle
     // is symmetric and safe to expose to the developer options page.
-    hiddenMenuPlan.inWindowMenu = true;
-    titleBar->setLayoutPlan(hiddenMenuPlan);
+    titleBar->setInWindowMenu(true);
     settleLayout();
 
-    QVERIFY(titleBar->layoutPlan().inWindowMenu);
+    QVERIFY(titleBar->sections().mainMenu);
     QVERIFY(menu->isVisible());
     QCOMPARE(titleBar->dividers().size(), 2);
     QVERIFY(firstSection(*titleBar) == menu);

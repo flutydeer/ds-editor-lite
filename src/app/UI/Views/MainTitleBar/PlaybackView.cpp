@@ -47,7 +47,7 @@ namespace {
     }
 }
 
-PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
+PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     // Apply music font to time-related UI elements
@@ -112,13 +112,12 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     });
     m_btnPlayPause->setFixedSize(0, 0);
 
-    EditorShortcutUtils::addApplication(
-        this, QKeySequence(Qt::Key_Space),
-        [](const QWidget *window) {
-            return qobject_cast<const MainWindow *>(window) ||
-                   qobject_cast<const BottomPanelView *>(window);
-        },
-        m_btnPlayPause, &QPushButton::click);
+    if (role == TitleBarRole::Primary) {
+        EditorShortcutUtils::addApplication(
+            this, QKeySequence(Qt::Key_Space),
+            [](const QWidget *window) { return EditorShortcutUtils::isEditorWindow(window); },
+            m_btnPlayPause, &QPushButton::click);
+    }
 
     m_btnLoop = new QPushButton;
     m_btnLoop->setObjectName("btnLoop");
@@ -128,9 +127,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                                        playAccentColor()));
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
-    auto loopShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this);
-    loopShortcut->setContext(Qt::ApplicationShortcut);
-    connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::click);
+    if (role == TitleBarRole::Primary) {
+        auto loopShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this);
+        loopShortcut->setContext(Qt::ApplicationShortcut);
+        connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::click);
+    }
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;

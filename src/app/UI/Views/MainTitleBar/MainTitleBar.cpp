@@ -25,82 +25,39 @@
 #define ChromeClose    QStringLiteral(u"\ue8bb")
 
 namespace {
-    constexpr int kLeadingInset = 32;
-    constexpr int kTrailingGap = 6;
-    // Wide enough for the three traffic lights and their system spacing, which
-    // QWindowKit centres inside the area widget.
-    constexpr int kTrafficLightAreaWidth = 74;
     constexpr int kTitleBarHeight = 40;
-} // namespace
+    constexpr int kTrafficLightAreaWidth = 74;
+}
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
-                           const TitleBarLayoutPlan &plan)
-    : QWidget(parent), m_window(parent), m_menuView(menuView), m_layoutPlan(plan) {
+                           const TitleBarSections &sections, const TitleBarRole role)
+    : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections),
+      m_layout(new QHBoxLayout(this)) {
     setAttribute(Qt::WA_StyledBackground);
 
-    m_playbackView = new PlaybackView(this);
-
-    if (m_layoutPlan.trafficLightArea) {
-        // Painted by nothing on purpose: this widget only tells QWindowKit where
-        // the native traffic lights belong. It is not hit-test visible either,
-        // so dragging the window still works from the lights.
+    if (sections.trafficLightArea) {
+        // QWindowKit centres the native buttons within this placeholder.
         m_trafficLightArea = new QWidget(this);
-        m_trafficLightArea->setFixedWidth(kTrafficLightAreaWidth);
-        m_trafficLightArea->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+        m_trafficLightArea->setFixedSize(kTrafficLightAreaWidth, kTitleBarHeight);
     }
-
-    m_actionButtonsView = new ActionButtonsView(this);
-    connect(m_actionButtonsView, &ActionButtonsView::saveTriggered, m_menuView->actionSave(),
-            &QAction::trigger);
-
-    m_titleComboBox = new TitleBarComboBox;
-
-    if (m_layoutPlan.systemButtons) {
-        int systemButtonWidth = 48;
-
-        m_btnMin = new SystemWindowButton;
-        m_btnMin->setObjectName("MinimizeButton");
-        m_btnMin->setFixedSize(systemButtonWidth, 40);
-
-        m_btnMax = new SystemWindowButton;
-        m_btnMax->setCheckable(true);
-        m_btnMax->setObjectName("MaximizeButton");
-        m_btnMax->setFixedSize(systemButtonWidth, 40);
-
-        m_btnClose = new SystemWindowButton;
-        m_btnClose->setCloseStyle(true);
-        m_btnClose->setObjectName("CloseButton");
-        m_btnClose->setFixedSize(systemButtonWidth, 40);
-
-        if (SystemUtils::isWindows()) {
-            auto fontFamily =
-                QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-            auto font = QFont(fontFamily);
-            font.setPointSizeF(7.2);
-
-            m_btnMin->setText(ChromeMinimize);
-            m_btnMin->setFont(font);
-            m_btnMax->setText(ChromeMaximize);
-            m_btnMax->setFont(font);
-            m_btnClose->setText(ChromeClose);
-            m_btnClose->setFont(font);
-        } else {
-            rebuildSystemButtonIcons();
-        }
-
-        connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
-        connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
-        connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
+    if (sections.playback)
+        m_playbackView = new PlaybackView(this, role);
+    if (sections.projectSelector)
+        m_titleComboBox = new TitleBarComboBox;
+    if (sections.documentActions) {
+        m_actionButtonsView = new ActionButtonsView(this);
+        if (menuView)
+            connect(m_actionButtonsView, &ActionButtonsView::saveTriggered,
+                    menuView->actionSave(), &QAction::trigger);
     }
+    if (sections.systemButtons)
+        createSystemButtons();
 
-    setLayout(new QHBoxLayout);
-    // The menu bar section owns its own visibility: a native platform menu bar
-    // is already hidden by Qt, and a hidden preview must not leave the widget
-    // floating over the title bar at its default geometry.
-    m_menuView->setInWindowMenu(m_layoutPlan.inWindowMenu);
+    if (m_menuView)
+        m_menuView->setInWindowMenu(m_sections.mainMenu);
     buildSections();
-
     setFixedHeight(kTitleBarHeight);
+
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
     m_animation = new QVariantAnimation(this);
@@ -109,6 +66,11 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
             [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
     initializeAnimation();
 
+    // The bar follows its own window instead of relying on the caller to wire
+    // the filter up. This is what makes the same chrome reusable as-is.
+    if (m_window)
+        m_window->installEventFilter(this);
+
     // Re-tint system button icons when the theme changes (non-Windows only)
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
         if (!SystemUtils::isWindows())
@@ -116,81 +78,101 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
     });
 }
 
-void MainTitleBar::setLayoutPlan(const TitleBarLayoutPlan &plan) {
-    if (plan == m_layoutPlan)
+void MainTitleBar::createSystemButtons() {
+    constexpr int systemButtonWidth = 48;
+
+    m_btnMin = new SystemWindowButton;
+    m_btnMin->setObjectName("MinimizeButton");
+    m_btnMin->setFixedSize(systemButtonWidth, 40);
+
+    m_btnMax = new SystemWindowButton;
+    m_btnMax->setCheckable(true);
+    m_btnMax->setObjectName("MaximizeButton");
+    m_btnMax->setFixedSize(systemButtonWidth, 40);
+
+    m_btnClose = new SystemWindowButton;
+    m_btnClose->setCloseStyle(true);
+    m_btnClose->setObjectName("CloseButton");
+    m_btnClose->setFixedSize(systemButtonWidth, 40);
+
+    if (SystemUtils::isWindows()) {
+        auto fontFamily =
+            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+        auto font = QFont(fontFamily);
+        font.setPointSizeF(7.2);
+
+        m_btnMin->setText(ChromeMinimize);
+        m_btnMin->setFont(font);
+        m_btnMax->setText(ChromeMaximize);
+        m_btnMax->setFont(font);
+        m_btnClose->setText(ChromeClose);
+        m_btnClose->setFont(font);
+    } else {
+        rebuildSystemButtonIcons();
+    }
+
+    connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
+    connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
+    connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
+}
+
+void MainTitleBar::setInWindowMenu(const bool inWindow) {
+    if (!m_menuView || m_sections.mainMenu == inWindow)
         return;
-    m_layoutPlan = plan;
-    m_menuView->setInWindowMenu(m_layoutPlan.inWindowMenu);
-    clearSections();
+    m_sections.mainMenu = inWindow;
+    m_menuView->setInWindowMenu(inWindow);
+
+    while (auto *item = m_layout->takeAt(0))
+        delete item;
+    qDeleteAll(m_dividers);
+    m_dividers.clear();
     buildSections();
     updateGeometry();
 }
 
-const TitleBarLayoutPlan &MainTitleBar::layoutPlan() const {
-    return m_layoutPlan;
+const TitleBarSections &MainTitleBar::sections() const {
+    return m_sections;
 }
 
 QList<DividerLine *> MainTitleBar::dividers() const {
     return m_dividers;
 }
 
-void MainTitleBar::clearSections() {
-    auto *mainLayout = qobject_cast<QHBoxLayout *>(layout());
-    if (!mainLayout)
-        return;
-
-    // Deleting the layout item never deletes its widget, so the permanent
-    // sections survive; only the dividers and spacers are disposable.
-    while (auto *item = mainLayout->takeAt(0))
-        delete item;
-    qDeleteAll(m_dividers);
-    m_dividers.clear();
-}
-
 void MainTitleBar::buildSections() {
-    auto *mainLayout = qobject_cast<QHBoxLayout *>(layout());
-    if (!mainLayout)
-        return;
-
-    if (m_layoutPlan.trafficLightArea && m_trafficLightArea)
-        mainLayout->addWidget(m_trafficLightArea);
-    else if (m_layoutPlan.appIconInset)
-        mainLayout->addSpacerItem(new QSpacerItem(kLeadingInset, 20, QSizePolicy::Fixed));
-
-    // The leading cluster is separated by dividers. A divider only exists when
-    // the section before it is present, so removing the menu bar (native macOS
-    // menu bar, hidden preview) can never leave a divider at the far left.
+    if (m_trafficLightArea) {
+        m_layout->addWidget(m_trafficLightArea);
+    } else if (m_sections.appIconInset) {
+        // TODO: app icon
+        m_layout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
+    }
     bool hasLeadingSection = false;
     const auto addLeadingSection = [&](QWidget *section) {
         if (hasLeadingSection) {
             auto *divider = new DividerLine(Qt::Vertical);
             m_dividers.append(divider);
-            mainLayout->addWidget(divider);
+            m_layout->addWidget(divider);
         }
-        mainLayout->addWidget(section);
+        m_layout->addWidget(section);
         hasLeadingSection = true;
     };
-
-    if (m_layoutPlan.inWindowMenu)
+    if (m_sections.mainMenu && m_menuView)
         addLeadingSection(m_menuView);
-    if (m_layoutPlan.projectSelector)
+    if (m_titleComboBox)
         addLeadingSection(m_titleComboBox);
-    if (m_layoutPlan.documentActions)
+    if (m_actionButtonsView)
         addLeadingSection(m_actionButtonsView);
 
-    // The trailing cluster keeps the flex space in the middle and never gets a
-    // divider: playback and the system buttons are not part of the leading run.
-    mainLayout->addStretch();
-    if (m_layoutPlan.playback)
-        mainLayout->addWidget(m_playbackView);
-    mainLayout->addSpacing(kTrailingGap);
-    if (m_layoutPlan.systemButtons && m_btnMin) {
-        mainLayout->addWidget(m_btnMin);
-        mainLayout->addWidget(m_btnMax);
-        mainLayout->addWidget(m_btnClose);
+    m_layout->addStretch();
+    if (m_playbackView)
+        m_layout->addWidget(m_playbackView);
+    m_layout->addSpacing(6);
+    if (m_btnMin) {
+        m_layout->addWidget(m_btnMin);
+        m_layout->addWidget(m_btnMax);
+        m_layout->addWidget(m_btnClose);
     }
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(m_layoutPlan.leftMargin, 0, 0, 0);
+    m_layout->setSpacing(0);
+    m_layout->setContentsMargins(m_sections.leftMargin, 0, 0, 0);
 }
 
 void MainTitleBar::rebuildSystemButtonIcons() {
@@ -311,8 +293,6 @@ void MainTitleBar::afterSetTimeScale(double scale) {
 }
 
 void MainTitleBar::mouseDoubleClickEvent(QMouseEvent *event) {
-    // A child that ignores the press forwards it here too, so require a real
-    // hit on the bar's own background before reporting the gesture.
     if (event->button() == Qt::LeftButton && !childAt(event->position().toPoint())) {
         emit doubleClicked();
         event->accept();
