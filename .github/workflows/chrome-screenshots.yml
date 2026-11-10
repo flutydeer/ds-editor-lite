@@ -1,8 +1,7 @@
 name: Chrome screenshots
 
-# Captures the real main window on macOS, in both frame modes, and uploads the
-# PNGs as an artifact. Reviewing the chrome of a macOS window otherwise needs a
-# Mac in front of you, which most contributors do not have.
+# Captures the main window in both frame modes and a gallery of macOS panels
+# and dialogs. The artifact contains originals and a labelled contact sheet.
 #
 # Why the capture happens inside the app and not via screencapture(1): since
 # macOS 15 a second screencapture in the same job pops an unclickable "bypass
@@ -14,11 +13,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/app/UI/Views/MainTitleBar/**'
-      - 'src/app/UI/Window/**'
-      - 'src/app/UI/Dialogs/Base/**'
+      - 'src/app/UI/**'
       - 'src/app/Utils/WindowChromeCapture.*'
       - 'src/libs/GUI/Utils/WindowFrameUtils*'
+      - 'src/tests/TestApplicationGui/tst_ui_gallery.cpp'
       - '.github/workflows/chrome-screenshots.yml'
 
 permissions:
@@ -82,9 +80,10 @@ jobs:
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
             -DVCPKG_TARGET_TRIPLET=arm64-osx \
             2>&1 | tee build/chrome-shots/configure.log
-      - name: Build editor
+      - name: Build editor and gallery fixture
+        id: build
         run: |
-          cmake --build --preset tests --target DsEditorLite DsConnectorLite 2>&1 |
+          cmake --build --preset tests --target TestApplicationGui DsConnectorLite 2>&1 |
             tee build/chrome-shots/build.log
       - name: Capture both frame modes
         run: |
@@ -131,6 +130,18 @@ jobs:
           test -s "$out/title-bar-frameless.png"
           test -s "$out/title-bar-native-frame.json"
           test -s "$out/title-bar-frameless.json"
+      - name: Capture panels and windows and assemble review sheet
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 6
+        run: |
+          export DYLD_FRAMEWORK_PATH="$QT_ROOT_DIR/lib"
+          export QT_PLUGIN_PATH="$QT_ROOT_DIR/plugins"
+          export QT_QPA_PLATFORM=cocoa
+          export QT_FORCE_STDERR_LOGGING=1
+          export LITE_UI_GALLERY="$PWD/build/chrome-shots"
+          cd build/Tests/out/bin
+          ./TestApplicationGui captureUiGallery -v1 2>&1 | tee "$LITE_UI_GALLERY/gallery.log"
+          test -s "$LITE_UI_GALLERY/ui-review.png"
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7

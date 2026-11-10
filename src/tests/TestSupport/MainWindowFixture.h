@@ -21,8 +21,9 @@ namespace TestSupport {
     struct MainWindowFixture {
         enum class MenuPlacement { InWindow, PlatformDefault };
 
-        explicit MainWindowFixture(MenuPlacement menuPlacement = MenuPlacement::InWindow) {
-            appOptions->appearance()->useNativeFrame = true;
+        explicit MainWindowFixture(MenuPlacement menuPlacement = MenuPlacement::InWindow,
+                                   const bool useNativeFrame = true) {
+            appOptions->appearance()->useNativeFrame = useNativeFrame;
             appOptions->developer()->enablePanelDetach = true;
             window = std::make_unique<MainWindow>();
             if (menuPlacement == MenuPlacement::InWindow) {

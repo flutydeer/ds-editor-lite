@@ -1,6 +1,6 @@
 # 在 CI 里给 macOS 窗口截图
 
-贡献者手里不一定有 Mac，但标题栏、红绿灯、系统按钮这些属于窗口 chrome 的东西只能在 macOS 上看。这个流程让 GitHub 的 macOS runner 跑一遍主程序，把两种边框模式各截一张图作为 artifact 带回来。
+GitHub 的 macOS runner 启动主程序，分别截取系统边框和无边框，再用包含歌声和音频片段的示例工程拍摄编辑面板、设置页和独立窗口。
 
 ## 为什么不用 screencapture
 
@@ -28,7 +28,11 @@ LITE_CHROME_CAPTURE=/tmp/shots LITE_FORCE_NATIVE_FRAME=0 ./DsEditorLite
 
 ## CI
 
-`.github/workflows/chrome-screenshots.yml` 只在改动标题栏、主窗口或 `WindowFrameUtils` 时随 PR 触发，也可以手动 `workflow_dispatch`。它复用 `tests.yml` 的依赖与缓存步骤，只构建 `DsEditorLite` 与 `DsConnectorLite`，然后连续跑两次进程，各截一张图。
+`.github/workflows/chrome-screenshots.yml` 随界面、截图或窗口边框相关的 PR 改动触发，也支持 `workflow_dispatch`。先用主程序捕获两种边框的参考图，再通过 `TestApplicationGui captureUiGallery` 打开其余界面。未设置 `LITE_UI_GALLERY` 时，常规测试会跳过该场景。
+
+产物 `chrome-screenshots` 中的 `ui-review.png` 按拍摄顺序从左到右、从上到下排列，每张图上方有编号和标题。`gallery/` 保留编号对应的原图，主窗口参考图仍以 `title-bar-*.png` 保存。工作流还保留 `gallery.log`，可用于定位中途失败的场景。
+
+画册包括轨道、钢琴卷帘、参数、波形、混音台、分离面板、日志和任务窗口，以及设置各页、自动化工具组、歌词预览与各标签、包管理详情和各类编辑、导入、导出对话框。系统文件选择器、全局菜单和需要触发异常才出现的系统提示不在应用窗口截图范围内。
 
 取图：
 
