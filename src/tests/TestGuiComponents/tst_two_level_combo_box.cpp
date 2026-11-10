@@ -6,10 +6,12 @@
 
 #include <QtTest/QTest>
 #include <QVersionNumber>
+#include <QAction>
 #include <QColor>
 #include <QDir>
 #include <QHash>
 #include <QImage>
+#include <QKeySequence>
 #include <QMenu>
 #include <QPixmap>
 #include <QWidget>
@@ -57,6 +59,22 @@ namespace {
                 return x;
         }
         return -1;
+    }
+
+    // Distance from the item's right edge to the last ink pixel of its shortcut
+    // column. QStyleSheetStyle right-aligns shortcut text to contentsRect().right(),
+    // so this offset grows by the whole extra padding when the arrow reservation
+    // is wrongly applied to a menu that has shortcuts.
+    int shortcutRightOffset(QMenu *menu, QAction *action) {
+        QPixmap pixmap(menu->size());
+        pixmap.fill(Qt::transparent);
+        menu->render(&pixmap);
+        const QImage image = pixmap.toImage();
+        const QRect item = menu->actionGeometry(action);
+        const QRgb background = dominantColor(image, item.adjusted(2, 2, -2, -2));
+        const int last = rightmostInkColumn(image, item.left(), item.right(), item.top() + 2,
+                                            item.bottom() - 2, background);
+        return item.right() - last;
     }
 }
 
@@ -172,7 +190,7 @@ void GuiComponentTests::submenuLabelKeepsGapBeforeArrow() {
     }
     QVERIFY(submenuAction);
     QVERIFY(submenuAction->menu());
-    QCOMPARE(menu->property("hasSubMenu").toBool(), true);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), true);
 
     root.show();
     QApplication::processEvents();
@@ -233,7 +251,7 @@ void GuiComponentTests::submenuArrowSpaceTracksActionChanges() {
     auto *menu = comboBox.mainMenu();
 
     auto *action = menu->addAction(QStringLiteral("Shisakune-Demo-Long-Singer-Name-0811"));
-    QCOMPARE(menu->property("hasSubMenu").toBool(), false);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
 
     root.show();
     QApplication::processEvents();
@@ -246,14 +264,72 @@ void GuiComponentTests::submenuArrowSpaceTracksActionChanges() {
     // popup has been shown once would drop the reservation.
     const int plainWidth = menu->sizeHint().width();
     action->setMenu(new QMenu(menu));
-    QCOMPARE(menu->property("hasSubMenu").toBool(), true);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), true);
     const int subMenuWidth = menu->sizeHint().width();
     QVERIFY2(subMenuWidth - plainWidth >= 30,
              qPrintable(QStringLiteral("stylesheet was not re-evaluated: %1 -> %2")
                             .arg(plainWidth)
                             .arg(subMenuWidth)));
 
+    // Introducing a shortcut column hands the right edge over to the shortcuts,
+    // so the arrow reservation must be dropped even though the submenu is still
+    // there. Otherwise every shortcut would be pushed left by the padding.
+    auto *shortcutAction = menu->addAction(QStringLiteral("Save"));
+    shortcutAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+S")));
+    shortcutAction->setShortcutVisibleInContextMenu(true);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
+
     menu->hide();
     menu->clear();
-    QCOMPARE(menu->property("hasSubMenu").toBool(), false);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
+}
+
+void GuiComponentTests::submenuArrowSpaceKeepsShortcutColumnAligned_data() {
+    QTest::addColumn<QString>("themeId");
+    QTest::newRow("dark") << QStringLiteral("lite-dark");
+    QTest::newRow("light") << QStringLiteral("lite-light");
+}
+
+void GuiComponentTests::submenuArrowSpaceKeepsShortcutColumnAligned() {
+    QFETCH(QString, themeId);
+    const auto theme = ThemeLoader::load(themeId);
+    QVERIFY2(theme.has_value(), qPrintable(ThemeLoader::lastError()));
+
+    QWidget root;
+    root.setStyleSheet(theme->styleSheet);
+    TwoLevelComboBox comboBox(&root);
+    auto *menu = comboBox.mainMenu();
+
+    auto *shortcutAction = menu->addAction(QStringLiteral("Save"));
+    shortcutAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+S")));
+    shortcutAction->setShortcutVisibleInContextMenu(true);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
+
+    root.show();
+    QApplication::processEvents();
+    menu->popup(root.mapToGlobal(QPoint(10, 10)));
+    QTRY_VERIFY(menu->isVisible());
+    QApplication::processEvents();
+
+    const int offsetWithoutSubMenu = shortcutRightOffset(menu, shortcutAction);
+
+    // Adding a submenu used to switch on the arrow reservation and shift the
+    // shortcut column 30px to the left (see the File menu regression).
+    auto *subAction = menu->addAction(QStringLiteral("More"));
+    subAction->setMenu(new QMenu(menu));
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
+    QApplication::processEvents();
+
+    const int offsetWithSubMenu = shortcutRightOffset(menu, shortcutAction);
+    QVERIFY2(qAbs(offsetWithSubMenu - offsetWithoutSubMenu) <= 2,
+             qPrintable(QStringLiteral("%1: shortcut column moved %2 -> %3 px from the right edge")
+                            .arg(themeId)
+                            .arg(offsetWithoutSubMenu)
+                            .arg(offsetWithSubMenu)));
+    QVERIFY2(offsetWithSubMenu <= 12,
+             qPrintable(QStringLiteral("%1: shortcut column sits %2 px from the right edge")
+                            .arg(themeId)
+                            .arg(offsetWithSubMenu)));
+
+    menu->hide();
 }

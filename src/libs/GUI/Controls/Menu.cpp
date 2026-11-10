@@ -8,6 +8,7 @@
 #include <QStyleOptionMenuItem>
 #include <QLineEdit>
 #include <QEvent>
+#include <QKeySequence>
 #include <QStyle>
 
 #include <array>
@@ -64,23 +65,32 @@ void Menu::initUi() {
 
 void Menu::updateSubMenuArrowSpace() {
     bool hasSubMenu = false;
+    bool hasShortcutColumn = false;
     for (const auto action : actions()) {
-        if (action && action->menu()) {
+        if (!action)
+            continue;
+        if (action->menu())
             hasSubMenu = true;
-            break;
-        }
+        if (!action->shortcut().isEmpty() || action->text().contains(QLatin1Char('\t')))
+            hasShortcutColumn = true;
     }
 
-    const QVariant current = property("hasSubMenu");
-    if (current.isValid() && current.toBool() == hasSubMenu)
+    // QStyleSheetStyle::sizeFromContents(CT_MenuItem) never reserves room for the
+    // ::right-arrow subcontrol (QWindowsStyle adds windowsArrowHMargin for SubMenu
+    // items). Extra padding-right supplies that room, but it also moves
+    // QRenderRule::contentsRect().right(), which is exactly where CE_MenuItem
+    // right-aligns shortcut text. A menu that already has a shortcut column would
+    // therefore shift its whole shortcut column to the left. Those menus keep the
+    // default padding: the shortcut column owns the right edge and the arrow
+    // shares that column on different rows.
+    const bool needsSpace = hasSubMenu && !hasShortcutColumn;
+
+    const QVariant current = property("submenuArrowSpace");
+    if (current.isValid() && current.toBool() == needsSpace)
         return;
 
-    // QStyleSheetStyle::sizeFromContents(CT_MenuItem) never reserves room for the
-    // ::right-arrow subcontrol (QWindowsStyle adds windowsArrowHMargin for
-    // SubMenu items). The stylesheet rule keyed on this property supplies that
-    // room instead, so long labels stop short of the arrow. Re-polish because
-    // attribute selectors are only re-evaluated on polish.
-    setProperty("hasSubMenu", hasSubMenu);
+    // Re-polish because attribute selectors are only re-evaluated on polish.
+    setProperty("submenuArrowSpace", needsSpace);
     if (style()) {
         style()->unpolish(this);
         style()->polish(this);
