@@ -15,7 +15,6 @@ namespace {
     // PREFERRED_APP_MODE, Win10 1809+ (PAM_DARK/LIGHT need 1903+).
     enum PreferredAppMode {
         PamDefault = 0,
-        PamAllowDark = 1,
         PamDark = 2,
         PamLight = 3,
     };
@@ -23,6 +22,26 @@ namespace {
     using SetPreferredAppModeFunc = PreferredAppMode(WINAPI *)(PreferredAppMode);
     using AllowDarkModeForAppFunc = bool(WINAPI *)(bool);
     using FlushMenuThemesFunc = void(WINAPI *)();
+
+    // Ordinal 135 is SetPreferredAppMode on Win10 1903+ but AllowDarkModeForApp on
+    // 1809-1903: same export slot, mutually exclusive signatures. Calling the
+    // 1809 function through the SetPreferredAppMode signature makes the light path
+    // pass PamLight (3), which bool interpretation reads as true, so the requested
+    // light mode never lands. Pick one side based on the OS build, as Chromium and
+    // QWindowKit do.
+    bool isWin101903OrGreater() {
+        OSVERSIONINFOEXW info{};
+        info.dwOSVersionInfoSize = sizeof(info);
+        info.dwMajorVersion = 10;
+        info.dwMinorVersion = 0;
+        info.dwBuildNumber = 18362;
+        const auto mask = ::VerSetConditionMask(
+            ::VerSetConditionMask(::VerSetConditionMask(0, VER_MAJORVERSION, VER_GREATER_EQUAL),
+                                  VER_MINORVERSION, VER_GREATER_EQUAL),
+            VER_BUILDNUMBER, VER_GREATER_EQUAL);
+        return ::VerifyVersionInfoW(&info, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER,
+                                    mask) != FALSE;
+    }
 
     struct UxThemeApis {
         SetPreferredAppModeFunc setPreferredAppMode = nullptr;
@@ -39,13 +58,16 @@ namespace {
                 ::LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
             if (!library)
                 return resolved;
-            // Ordinal 135 is SetPreferredAppMode on 1903+ and AllowDarkModeForApp
-            // on 1809-1903 (mutually exclusive per build); resolve both names
-            // against the same ordinal and pick at runtime.
-            resolved.setPreferredAppMode = reinterpret_cast<SetPreferredAppModeFunc>(
-                ::GetProcAddress(library, MAKEINTRESOURCEA(135)));
-            resolved.allowDarkModeForApp = reinterpret_cast<AllowDarkModeForAppFunc>(
-                ::GetProcAddress(library, MAKEINTRESOURCEA(135)));
+            // Ordinal 135 carries a different signature per build, so only the
+            // side matching the current OS is resolved; the two must never both
+            // be non-null.
+            if (isWin101903OrGreater()) {
+                resolved.setPreferredAppMode = reinterpret_cast<SetPreferredAppModeFunc>(
+                    ::GetProcAddress(library, MAKEINTRESOURCEA(135)));
+            } else {
+                resolved.allowDarkModeForApp = reinterpret_cast<AllowDarkModeForAppFunc>(
+                    ::GetProcAddress(library, MAKEINTRESOURCEA(135)));
+            }
             resolved.flushMenuThemes = reinterpret_cast<FlushMenuThemesFunc>(
                 ::GetProcAddress(library, MAKEINTRESOURCEA(136)));
             return resolved;
