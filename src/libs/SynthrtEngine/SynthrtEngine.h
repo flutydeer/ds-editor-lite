@@ -218,7 +218,9 @@ private:
     // instance. VoicebankSession handles internal locking; no external mutex
     // is needed for refreshVoicebanks().
     ds::session::VoicebankSession m_session;
-    bool m_sessionInitialized = false;
+    // Published with release/acquire: waitForSession() polls this from the
+    // application thread while Stage 1 runs on the initialization task.
+    std::atomic<bool> m_sessionInitialized{false};
 
     mutable std::mutex m_stateMutex;
     mutable std::shared_mutex m_runtimeLifecycleMutex;

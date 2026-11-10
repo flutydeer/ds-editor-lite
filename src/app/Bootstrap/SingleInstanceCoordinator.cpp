@@ -25,6 +25,7 @@
 namespace {
     constexpr int connectionTimeoutMs = 3000;
     constexpr int connectionAttemptMs = 100;
+    constexpr int heartbeatIntervalMs = 1000;
 
     QString executablePath() {
         const QFileInfo executable(QCoreApplication::applicationFilePath());
@@ -51,11 +52,14 @@ class SingleInstanceIpcWorker final : public QObject {
 public:
     explicit SingleInstanceIpcWorker(SingleInstanceCoordinator *coordinator)
         : m_coordinator(coordinator) {
+        m_clock.start();
     }
 
     bool start(const QString &serverName, const SingleInstanceAutomationStatus &status,
-               QString &error) {
+               const QString &instanceId, const QString &hostMode, QString &error) {
         m_automationStatus = status;
+        m_instanceId = instanceId;
+        m_hostMode = hostMode;
         m_server = new QLocalServer(this);
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         m_server->setMaxPendingConnections(
@@ -84,13 +88,45 @@ public:
             sendAutomationSnapshot(socket, {}, false);
     }
 
+    void setPrimaryStage(const PrimaryStartupStage stage) {
+        m_stage = stage;
+    }
+
+    void noteHeartbeat() {
+        m_lastHeartbeatMs = m_clock.elapsed();
+    }
+
+    void setTerminalLifetimeMs(const qint64 lifetimeMs) {
+        m_terminalLifetimeMs = lifetimeMs;
+    }
+
+    void setAdmissionOpen() {
+        if (m_admissionOpen)
+            return;
+        m_admissionOpen = true;
+        dispatchAllEligible();
+    }
+
     void stop(const SingleInstanceAutomationStatus &status) {
         if (m_stopping)
             return;
         m_stopping = true;
+        m_stage = PrimaryStartupStage::Stopping;
         m_automationStatus = status;
         if (m_server)
             m_server->close();
+
+        // Requests that never reached the main thread must not be left hanging:
+        // tell their secondaries that the primary is shutting down.
+        const auto pendingIds = m_ledger.keys();
+        for (const auto &id : pendingIds) {
+            auto it = m_ledger.find(id);
+            if (it == m_ledger.end() || it->terminal || it->dispatchCommitted)
+                continue;
+            it->state = HandoffRequestState::Rejected;
+            it->error = QStringLiteral("primary_stopping");
+            finalize(*it);
+        }
 
         const auto sockets = m_connections.keys();
         const auto finalMessage =
@@ -109,7 +145,6 @@ public:
             }
         }
         m_watchers.clear();
-        m_deferredRequests.clear();
     }
 
     void pauseRequestDispatch() {
@@ -120,11 +155,24 @@ public:
         if (!m_requestDispatchPaused)
             return;
         m_requestDispatchPaused = false;
-        while (!m_deferredRequests.isEmpty()) {
-            const auto pending = m_deferredRequests.dequeue();
-            if (pending.socket && m_connections.contains(pending.socket))
-                dispatchApplicationRequest(pending.socket, pending.request);
+        dispatchAllEligible();
+    }
+
+    // Called on the IPC thread after the main thread has admitted (or refused)
+    // a request. Nothing else may transition an entry to a terminal state.
+    void finishRequest(const QString &requestId, const AdmissionResult &result) {
+        auto it = m_ledger.find(requestId);
+        if (it == m_ledger.end() || it->terminal)
+            return;
+        if (it->state == HandoffRequestState::Cancelled) {
+            // A cancel won the race before the main thread reported back. Keep
+            // the cancellation instead of claiming a successful takeover.
+            finalize(*it);
+            return;
         }
+        it->state = result.taken ? HandoffRequestState::Taken : HandoffRequestState::Rejected;
+        it->error = result.taken ? QString() : result.error;
+        finalize(*it);
     }
 
 private:
@@ -138,9 +186,18 @@ private:
         bool closeWhenDrained = false;
     };
 
-    struct DeferredRequest {
+    struct LedgerEntry {
+        QString requestId;
+        QByteArray digest;
+        HandoffRequestState state = HandoffRequestState::Received;
+        QString error;
         QPointer<QLocalSocket> socket;
+        bool legacy = false;
+        bool dispatchCommitted = false;
+        bool terminal = false;
         SingleInstanceRequest request;
+        qint64 createdMs = 0;
+        qint64 finishedMs = 0;
     };
 
     void acceptConnections() {
@@ -164,6 +221,7 @@ private:
                     [this, socket](const qint64 bytes) { accountBytesWritten(socket, bytes); });
             connect(socket, &QLocalSocket::disconnected, socket, [this, socket] {
                 m_watchers.remove(socket);
+                dropUnclaimedForSocket(socket);
                 m_connections.remove(socket);
                 socket->deleteLater();
             });
@@ -217,11 +275,16 @@ private:
         switch (request.command) {
             case SingleInstanceCommand::Activate:
             case SingleInstanceCommand::OpenProjects:
-                if (m_requestDispatchPaused) {
-                    m_deferredRequests.enqueue({socket, request});
-                    return;
-                }
-                dispatchApplicationRequest(socket, request);
+                beginApplicationRequest(socket, request, true);
+                return;
+            case SingleInstanceCommand::ApplicationHandoff:
+                beginApplicationRequest(socket, request, false);
+                return;
+            case SingleInstanceCommand::ApplicationQuery:
+                handleQuery(socket, request);
+                return;
+            case SingleInstanceCommand::ApplicationCancel:
+                handleCancel(socket, request);
                 return;
             case SingleInstanceCommand::AutomationDiscover:
                 sendAutomationSnapshot(socket, request.requestId, true);
@@ -237,13 +300,244 @@ private:
         }
     }
 
-    void dispatchApplicationRequest(QLocalSocket *socket, const SingleInstanceRequest &request) {
-        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()},
-                     true);
+    void beginApplicationRequest(QLocalSocket *socket, const SingleInstanceRequest &request,
+                                 const bool legacy) {
+        const auto digest = SingleInstanceProtocol::requestDigest(request);
+        auto existing = m_ledger.find(request.requestId);
+        if (existing != m_ledger.end()) {
+            if (existing->digest != digest) {
+                rejectHandoff(socket, request.requestId,
+                              QStringLiteral("duplicate_request_id_with_different_payload"), legacy);
+                return;
+            }
+            // Idempotent replay: return the state we already own, never enqueue twice.
+            existing->socket = socket;
+            sendCurrentState(*existing, existing->terminal);
+            return;
+        }
+        if (m_stopping || m_stage == PrimaryStartupStage::Stopping) {
+            rejectHandoff(socket, request.requestId, QStringLiteral("primary_stopping"), legacy);
+            return;
+        }
+        if (inFlightCount() >= SingleInstanceProtocol::maxInFlightRequests) {
+            rejectHandoff(socket, request.requestId,
+                          QStringLiteral("too_many_in_flight_requests"), legacy);
+            return;
+        }
+
+        LedgerEntry entry;
+        entry.requestId = request.requestId;
+        entry.digest = digest;
+        entry.socket = socket;
+        entry.legacy = legacy;
+        entry.request = request;
+        entry.createdMs = m_clock.elapsed();
+        m_ledger.insert(entry.requestId, entry);
+        auto &stored = m_ledger[entry.requestId];
+
+        // A Received frame only proves the IPC worker is alive. It is never a
+        // success terminal state and never lets a secondary exit successfully.
+        if (!legacy)
+            sendHandoffState(stored.socket.data(), makeResponse(stored), false);
+        maybeDispatch(stored);
+    }
+
+    void maybeDispatch(LedgerEntry &entry) {
+        if (!m_admissionOpen || m_requestDispatchPaused || m_stopping || entry.terminal ||
+            entry.dispatchCommitted)
+            return;
+        entry.dispatchCommitted = true;
+        entry.state = HandoffRequestState::Pending;
+        const auto requestId = entry.requestId;
+        const auto request = entry.request;
         QMetaObject::invokeMethod(
             m_coordinator,
-            [coordinator = m_coordinator, request] { coordinator->receiveRequest(request); },
+            [coordinator = m_coordinator, requestId, request] {
+                coordinator->admitRequest(requestId, request);
+            },
             Qt::QueuedConnection);
+    }
+
+    void dispatchAllEligible() {
+        // Copy the ids: dispatch itself only mutates entry fields, but keeping a
+        // stable iteration set makes the transition order deterministic.
+        const auto ids = m_ledger.keys();
+        for (const auto &id : ids) {
+            auto it = m_ledger.find(id);
+            if (it != m_ledger.end())
+                maybeDispatch(*it);
+        }
+    }
+
+    void finalize(LedgerEntry &entry) {
+        if (entry.terminal)
+            return;
+        entry.terminal = true;
+        entry.finishedMs = m_clock.elapsed();
+        sendCurrentState(entry.socket, entry, true);
+        m_terminalOrder.enqueue(entry.requestId);
+        pruneTerminalRecords();
+    }
+
+    void pruneTerminalRecords() {
+        const auto now = m_clock.elapsed();
+        while (!m_terminalOrder.isEmpty()) {
+            // Copy by value: head() returns a reference into the queue, and
+            // dequeue() invalidates it. Using that reference afterwards is UB.
+            const auto oldest = m_terminalOrder.head();
+            const auto it = m_ledger.constFind(oldest);
+            const bool expired =
+                it != m_ledger.constEnd() && it->terminal &&
+                now - it->finishedMs > m_terminalLifetimeMs;
+            if (m_terminalOrder.size() <= SingleInstanceProtocol::maxTerminalRecords && !expired)
+                break;
+            m_terminalOrder.dequeue();
+            auto victim = m_ledger.find(oldest);
+            // In-flight entries are never evicted: losing their ownership would
+            // allow a duplicate submission to enqueue the same request twice.
+            if (victim != m_ledger.end() && victim->terminal)
+                m_ledger.erase(victim);
+        }
+    }
+
+    qsizetype inFlightCount() const {
+        qsizetype count = 0;
+        for (const auto &entry : m_ledger) {
+            if (!entry.terminal)
+                ++count;
+        }
+        return count;
+    }
+
+    void dropUnclaimedForSocket(QLocalSocket *socket) {
+        const auto ids = m_ledger.keys();
+        for (const auto &id : ids) {
+            auto it = m_ledger.find(id);
+            if (it == m_ledger.end() || it->socket != socket)
+                continue;
+            it->socket = nullptr;
+            if (it->terminal || it->dispatchCommitted)
+                continue;
+            it->state = HandoffRequestState::Cancelled;
+            it->error = QStringLiteral("secondary_disconnected");
+            finalize(*it);
+        }
+    }
+
+    void handleQuery(QLocalSocket *socket, const SingleInstanceRequest &request) {
+        auto response = makeResponse(request.requestId);
+        // Expiration must be evaluated on read, not only when another request
+        // happens to be finalized. A quiet primary must not keep promising a
+        // terminal result it no longer owns.
+        pruneTerminalRecords();
+        const auto it = m_ledger.constFind(request.targetRequestId);
+        const bool expired =
+            it != m_ledger.constEnd() && it->terminal &&
+            m_clock.elapsed() - it->finishedMs > m_terminalLifetimeMs;
+        if (it == m_ledger.constEnd() || expired) {
+            response.state = HandoffRequestState::Unknown;
+            response.error = QStringLiteral("result_unknown");
+        } else {
+            response.state = it->state;
+            response.error = it->error;
+        }
+        enqueue(socket,
+                SingleInstanceProtocol::frame(
+                    SingleInstanceProtocol::encodeHandoffResponse(response)),
+                true);
+    }
+
+    void handleCancel(QLocalSocket *socket, const SingleInstanceRequest &request) {
+        auto response = makeResponse(request.requestId);
+        pruneTerminalRecords();
+        auto it = m_ledger.find(request.targetRequestId);
+        if (it == m_ledger.end()) {
+            response.state = HandoffRequestState::Unknown;
+            response.error = QStringLiteral("result_unknown");
+        } else if (it->terminal && it->state == HandoffRequestState::Taken) {
+            response.state = HandoffRequestState::Taken;
+            response.error = QStringLiteral("request_already_taken");
+        } else if (it->dispatchCommitted) {
+            response.state = it->state;
+            response.error = QStringLiteral("request_already_dispatched");
+        } else if (!it->terminal) {
+            it->state = HandoffRequestState::Cancelled;
+            it->error = QStringLiteral("cancelled_by_secondary");
+            finalize(*it);
+            response.state = HandoffRequestState::Cancelled;
+        } else {
+            response.state = it->state;
+            response.error = it->error;
+        }
+        enqueue(socket,
+                SingleInstanceProtocol::frame(
+                    SingleInstanceProtocol::encodeHandoffResponse(response)),
+                true);
+    }
+
+    SingleInstanceHandoffResponse makeResponse(const QString &requestId) const {
+        SingleInstanceHandoffResponse response;
+        response.requestId = requestId;
+        response.instanceId = m_instanceId;
+        response.primaryProcessId = QCoreApplication::applicationPid();
+        response.hostMode = m_hostMode;
+        response.stage = m_stage;
+        response.heartbeatAgeMs =
+            m_lastHeartbeatMs < 0 ? -1 : m_clock.elapsed() - m_lastHeartbeatMs;
+        response.handoffVersion = SingleInstanceProtocol::handoffVersion;
+        return response;
+    }
+
+    SingleInstanceHandoffResponse makeResponse(const LedgerEntry &entry) const {
+        auto response = makeResponse(entry.requestId);
+        response.state = entry.state;
+        response.error = entry.error;
+        return response;
+    }
+
+    void sendCurrentState(const LedgerEntry &entry, const bool closeWhenDrained) {
+        sendCurrentState(entry.socket, entry, closeWhenDrained);
+    }
+
+    void sendCurrentState(const QPointer<QLocalSocket> &socket, const LedgerEntry &entry,
+                          const bool closeWhenDrained) {
+        auto *rawSocket = socket.data();
+        if (!rawSocket)
+            return;
+        if (entry.legacy) {
+            const SingleInstanceResponse response{
+                entry.requestId,
+                entry.terminal && entry.state == HandoffRequestState::Taken,
+                entry.state == HandoffRequestState::Taken ? QString() : entry.error,
+                QCoreApplication::applicationPid(),
+            };
+            sendResponse(rawSocket, response, closeWhenDrained);
+            return;
+        }
+        sendHandoffState(rawSocket, makeResponse(entry), closeWhenDrained);
+    }
+
+    void sendHandoffState(QLocalSocket *socket,
+                          const SingleInstanceHandoffResponse &response,
+                          const bool closeWhenDrained) {
+        if (!socket)
+            return;
+        enqueue(socket,
+                SingleInstanceProtocol::frame(
+                    SingleInstanceProtocol::encodeHandoffResponse(response)),
+                closeWhenDrained);
+    }
+
+    void rejectHandoff(QLocalSocket *socket, const QString &requestId, const QString &error,
+                       const bool legacy) {
+        if (legacy) {
+            reject(socket, requestId, error);
+            return;
+        }
+        auto response = makeResponse(requestId);
+        response.state = HandoffRequestState::Rejected;
+        response.error = error;
+        sendHandoffState(socket, response, true);
     }
 
     void reject(QLocalSocket *socket, const QString &requestId, const QString &error) {
@@ -324,6 +618,7 @@ private:
 
     void dropConnection(QLocalSocket *socket) {
         m_watchers.remove(socket);
+        dropUnclaimedForSocket(socket);
         if (socket)
             socket->abort();
     }
@@ -332,8 +627,16 @@ private:
     QLocalServer *m_server = nullptr;
     QHash<QLocalSocket *, ConnectionState> m_connections;
     QSet<QLocalSocket *> m_watchers;
-    QQueue<DeferredRequest> m_deferredRequests;
+    QHash<QString, LedgerEntry> m_ledger;
+    QQueue<QString> m_terminalOrder;
     SingleInstanceAutomationStatus m_automationStatus;
+    QElapsedTimer m_clock;
+    QString m_instanceId;
+    QString m_hostMode;
+    PrimaryStartupStage m_stage = PrimaryStartupStage::Starting;
+    qint64 m_lastHeartbeatMs = -1;
+    qint64 m_terminalLifetimeMs = SingleInstanceProtocol::terminalRecordLifetimeMs;
+    bool m_admissionOpen = false;
     bool m_requestDispatchPaused = false;
     bool m_stopping = false;
 };
@@ -380,14 +683,29 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
 
     bool started = false;
     const auto status = automationState();
+    const auto instanceId = status.editorInstanceId;
+    const auto hostMode = status.hostMode;
     QMetaObject::invokeMethod(
         m_worker,
-        [this, &started, status] { started = m_worker->start(m_serverName, status, m_error); },
+        [this, &started, status, instanceId, hostMode] {
+            started = m_worker->start(m_serverName, status, instanceId, hostMode, m_error);
+        },
         Qt::BlockingQueuedConnection);
     if (!started) {
         shutdown();
         return StartResult::Error;
     }
+
+    // The heartbeat is driven by the main thread. If the main thread stalls in
+    // AppContext construction, the IPC worker keeps serving but the heartbeat
+    // ages out, which the secondary can report without blocking on a window.
+    m_heartbeatTimer = new QTimer(this);
+    m_heartbeatTimer->setInterval(heartbeatIntervalMs);
+    connect(m_heartbeatTimer, &QTimer::timeout, this,
+            [this] { noteMainThreadHeartbeat(); });
+    m_heartbeatTimer->start();
+    noteMainThreadHeartbeat();
+    setPrimaryStage(PrimaryStartupStage::Starting);
 
     return StartResult::Primary;
 }
@@ -457,7 +775,8 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
                    << "written_ms=" << writtenMs << "elapsed_ms=" << timer.elapsed()
                    << "state=" << socket.state() << "error=" << socket.errorString()
                    << "available=" << socket.bytesAvailable() << "buffered=" << buffer.size();
-        error = tr("The running instance did not acknowledge the request");
+        error = tr("The running instance did not acknowledge the request. Its main thread may be "
+                   "stalled; the request was not handed over.");
         return false;
     }
 
@@ -476,15 +795,86 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
     return true;
 }
 
-void SingleInstanceCoordinator::setRequestHandler(
-    std::function<void(const SingleInstanceRequest &)> handler) {
+void SingleInstanceCoordinator::installHandler(AdmissionHandler handler) {
     m_requestHandler = std::move(handler);
     if (!m_requestHandler)
         return;
     const auto pending = std::move(m_pendingRequests);
     m_pendingRequests.clear();
     for (const auto &request : pending)
-        m_requestHandler(request);
+        admitRequest(request.requestId, request);
+}
+
+void SingleInstanceCoordinator::setAdmissionHandler(AdmissionHandler handler) {
+    installHandler(std::move(handler));
+}
+
+void SingleInstanceCoordinator::setRequestHandler(
+    std::function<void(const SingleInstanceRequest &)> handler) {
+    if (!handler) {
+        installHandler({});
+        return;
+    }
+    installHandler([handler = std::move(handler)](const SingleInstanceRequest &request) {
+        handler(request);
+        return AdmissionResult::accepted();
+    });
+}
+
+void SingleInstanceCoordinator::enableAdmission() {
+    if (!m_worker || !m_ipcThread)
+        return;
+    // BlockingQueuedConnection is intentional: the Headless path opens
+    // admission before QCoreApplication::exec(), so there is no main-thread
+    // event loop yet to service a plain queued call. The worker never waits on
+    // the main thread here, so this cannot deadlock.
+    QMetaObject::invokeMethod(
+        m_worker,
+        [this] {
+            m_worker->setPrimaryStage(PrimaryStartupStage::Ready);
+            m_worker->setAdmissionOpen();
+        },
+        Qt::BlockingQueuedConnection);
+}
+
+void SingleInstanceCoordinator::setPrimaryStage(const PrimaryStartupStage stage) {
+    if (!m_worker || !m_ipcThread)
+        return;
+    QMetaObject::invokeMethod(
+        m_worker, [this, stage] { m_worker->setPrimaryStage(stage); }, Qt::QueuedConnection);
+}
+
+void SingleInstanceCoordinator::setLedgerRetentionForTest(const qint64 lifetimeMs) {
+    if (!m_worker || !m_ipcThread)
+        return;
+    QMetaObject::invokeMethod(
+        m_worker,
+        [worker = m_worker, lifetimeMs] { worker->setTerminalLifetimeMs(lifetimeMs); },
+        Qt::BlockingQueuedConnection);
+}
+
+void SingleInstanceCoordinator::noteMainThreadHeartbeat() {
+    if (!m_worker || !m_ipcThread)
+        return;
+    QMetaObject::invokeMethod(
+        m_worker, [this] { m_worker->noteHeartbeat(); }, Qt::QueuedConnection);
+}
+
+void SingleInstanceCoordinator::admitRequest(const QString &requestId,
+                                             const SingleInstanceRequest &request) {
+    AdmissionResult result;
+    if (m_requestHandler) {
+        result = m_requestHandler(request);
+    } else {
+        m_pendingRequests.append(request);
+        return;
+    }
+    if (!m_worker || !m_ipcThread)
+        return;
+    QMetaObject::invokeMethod(
+        m_worker,
+        [this, requestId, result] { m_worker->finishRequest(requestId, result); },
+        Qt::QueuedConnection);
 }
 
 void SingleInstanceCoordinator::pauseRequestDispatchAndFlush() {
@@ -539,6 +929,8 @@ void SingleInstanceCoordinator::broadcastAutomationState() {
 void SingleInstanceCoordinator::stopAcceptingRequests() {
     m_requestHandler = {};
     m_pendingRequests.clear();
+    if (m_heartbeatTimer)
+        m_heartbeatTimer->stop();
     if (m_worker && m_ipcThread) {
         auto status = automationState();
         status.state = SingleInstanceAutomationState::EditorStopping;
@@ -555,6 +947,11 @@ void SingleInstanceCoordinator::stopAcceptingRequests() {
 
 void SingleInstanceCoordinator::shutdown() {
     stopAcceptingRequests();
+    if (m_heartbeatTimer) {
+        m_heartbeatTimer->stop();
+        m_heartbeatTimer->deleteLater();
+        m_heartbeatTimer = nullptr;
+    }
     if (m_worker && m_ipcThread) {
         auto *coordinatorThread = thread();
         QMetaObject::invokeMethod(
@@ -587,11 +984,19 @@ SingleInstanceAutomationStatus SingleInstanceCoordinator::automationState() cons
     return m_automationStatus;
 }
 
-void SingleInstanceCoordinator::receiveRequest(const SingleInstanceRequest &request) {
-    if (m_requestHandler)
-        m_requestHandler(request);
-    else
-        m_pendingRequests.append(request);
+QString SingleInstanceCoordinator::instanceId() const {
+    return automationState().editorInstanceId;
+}
+
+qint64 SingleInstanceCoordinator::primaryProcessIdFromLock() const {
+    if (!m_lockFile)
+        return 0;
+    qint64 processId = 0;
+    QString hostname;
+    QString applicationName;
+    if (!m_lockFile->getLockInfo(&processId, &hostname, &applicationName))
+        return 0;
+    return processId;
 }
 
 void SingleInstanceCoordinator::allowPrimaryToTakeForeground(const qint64 processId) const {

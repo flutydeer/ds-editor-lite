@@ -1,8 +1,11 @@
 #include "SingleInstanceProtocol.h"
 
+#include <QCryptographicHash>
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocalSocket>
 
 namespace {
     QString commandName(const SingleInstanceCommand command) {
@@ -15,6 +18,12 @@ namespace {
                 return QStringLiteral("automation.discover");
             case SingleInstanceCommand::AutomationWatch:
                 return QStringLiteral("automation.watch");
+            case SingleInstanceCommand::ApplicationHandoff:
+                return QStringLiteral("application.handoff");
+            case SingleInstanceCommand::ApplicationQuery:
+                return QStringLiteral("application.query");
+            case SingleInstanceCommand::ApplicationCancel:
+                return QStringLiteral("application.cancel");
         }
         return {};
     }
@@ -57,7 +66,8 @@ QByteArray SingleInstanceProtocol::encodeRequest(const SingleInstanceRequest &re
         {QStringLiteral("command"),         commandName(request.command)},
     };
     if (request.command == SingleInstanceCommand::Activate ||
-        request.command == SingleInstanceCommand::OpenProjects) {
+        request.command == SingleInstanceCommand::OpenProjects ||
+        request.command == SingleInstanceCommand::ApplicationHandoff) {
         object.insert(QStringLiteral("paths"), QJsonArray::fromStringList(request.paths));
     } else if (request.command == SingleInstanceCommand::AutomationWatch) {
         object.insert(QStringLiteral("connector"),
@@ -65,6 +75,12 @@ QByteArray SingleInstanceProtocol::encodeRequest(const SingleInstanceRequest &re
                           {QStringLiteral("instanceId"), request.connector.instanceId},
                           {QStringLiteral("version"),    request.connector.version   },
         });
+    }
+    if (request.command == SingleInstanceCommand::ApplicationHandoff)
+        object.insert(QStringLiteral("handoffVersion"), request.handoffVersion);
+    if (request.command == SingleInstanceCommand::ApplicationQuery ||
+        request.command == SingleInstanceCommand::ApplicationCancel) {
+        object.insert(QStringLiteral("targetRequestId"), request.targetRequestId);
     }
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
@@ -89,6 +105,12 @@ bool SingleInstanceProtocol::decodeRequest(const QByteArray &payload,
         request.command = SingleInstanceCommand::AutomationDiscover;
     } else if (command == QStringLiteral("automation.watch")) {
         request.command = SingleInstanceCommand::AutomationWatch;
+    } else if (command == QStringLiteral("application.handoff")) {
+        request.command = SingleInstanceCommand::ApplicationHandoff;
+    } else if (command == QStringLiteral("application.query")) {
+        request.command = SingleInstanceCommand::ApplicationQuery;
+    } else if (command == QStringLiteral("application.cancel")) {
+        request.command = SingleInstanceCommand::ApplicationCancel;
     } else {
         error = QStringLiteral("Unsupported command");
         return false;
@@ -96,8 +118,11 @@ bool SingleInstanceProtocol::decodeRequest(const QByteArray &payload,
 
     request.paths.clear();
     request.connector = {};
+    request.targetRequestId.clear();
+    request.handoffVersion = 0;
     if (request.command == SingleInstanceCommand::Activate ||
-        request.command == SingleInstanceCommand::OpenProjects) {
+        request.command == SingleInstanceCommand::OpenProjects ||
+        request.command == SingleInstanceCommand::ApplicationHandoff) {
         const auto paths = object.value(QStringLiteral("paths"));
         if (!paths.isArray()) {
             error = QStringLiteral("Invalid project path list");
@@ -130,6 +155,27 @@ bool SingleInstanceProtocol::decodeRequest(const QByteArray &payload,
             return false;
         }
     }
+    if (request.command == SingleInstanceCommand::ApplicationHandoff) {
+        const auto version = object.value(QStringLiteral("handoffVersion"));
+        if (!version.isDouble()) {
+            error = QStringLiteral("Missing handoff version");
+            return false;
+        }
+        request.handoffVersion = version.toInt();
+        if (request.handoffVersion != SingleInstanceProtocol::handoffVersion) {
+            error = QStringLiteral("Unsupported handoff version");
+            return false;
+        }
+    }
+    if (request.command == SingleInstanceCommand::ApplicationQuery ||
+        request.command == SingleInstanceCommand::ApplicationCancel) {
+        const auto target = object.value(QStringLiteral("targetRequestId"));
+        if (!target.isString() || target.toString().isEmpty()) {
+            error = QStringLiteral("Missing handoff target request ID");
+            return false;
+        }
+        request.targetRequestId = target.toString();
+    }
     return true;
 }
 
@@ -157,6 +203,153 @@ bool SingleInstanceProtocol::decodeResponse(const QByteArray &payload,
     response.accepted = object.value(QStringLiteral("accepted")).toBool();
     response.error = object.value(QStringLiteral("error")).toString();
     response.primaryProcessId = object.value(QStringLiteral("primaryProcessId")).toInteger();
+    return true;
+}
+
+QString SingleInstanceProtocol::handoffStateName(const HandoffRequestState state) {
+    switch (state) {
+        case HandoffRequestState::Received:
+            return QStringLiteral("received");
+        case HandoffRequestState::Pending:
+            return QStringLiteral("pending");
+        case HandoffRequestState::Taken:
+            return QStringLiteral("taken");
+        case HandoffRequestState::Rejected:
+            return QStringLiteral("rejected");
+        case HandoffRequestState::Cancelled:
+            return QStringLiteral("cancelled");
+        case HandoffRequestState::Unknown:
+            return QStringLiteral("unknown");
+    }
+    return {};
+}
+
+bool SingleInstanceProtocol::parseHandoffState(const QString &name,
+                                               HandoffRequestState &state) {
+    if (name == QStringLiteral("received")) {
+        state = HandoffRequestState::Received;
+    } else if (name == QStringLiteral("pending")) {
+        state = HandoffRequestState::Pending;
+    } else if (name == QStringLiteral("taken")) {
+        state = HandoffRequestState::Taken;
+    } else if (name == QStringLiteral("rejected")) {
+        state = HandoffRequestState::Rejected;
+    } else if (name == QStringLiteral("cancelled")) {
+        state = HandoffRequestState::Cancelled;
+    } else if (name == QStringLiteral("unknown")) {
+        state = HandoffRequestState::Unknown;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+QString SingleInstanceProtocol::startupStageName(const PrimaryStartupStage stage) {
+    switch (stage) {
+        case PrimaryStartupStage::Starting:
+            return QStringLiteral("starting");
+        case PrimaryStartupStage::Initializing:
+            return QStringLiteral("initializing");
+        case PrimaryStartupStage::WindowShown:
+            return QStringLiteral("windowShown");
+        case PrimaryStartupStage::Ready:
+            return QStringLiteral("ready");
+        case PrimaryStartupStage::Stopping:
+            return QStringLiteral("stopping");
+    }
+    return {};
+}
+
+bool SingleInstanceProtocol::parseStartupStage(const QString &name,
+                                               PrimaryStartupStage &stage) {
+    if (name == QStringLiteral("starting")) {
+        stage = PrimaryStartupStage::Starting;
+    } else if (name == QStringLiteral("initializing")) {
+        stage = PrimaryStartupStage::Initializing;
+    } else if (name == QStringLiteral("windowShown")) {
+        stage = PrimaryStartupStage::WindowShown;
+    } else if (name == QStringLiteral("ready")) {
+        stage = PrimaryStartupStage::Ready;
+    } else if (name == QStringLiteral("stopping")) {
+        stage = PrimaryStartupStage::Stopping;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+HandoffCancelDisposition SingleInstanceProtocol::cancelDisposition(
+    const HandoffRequestState state) {
+    switch (state) {
+        case HandoffRequestState::Cancelled:
+            return HandoffCancelDisposition::Cancelled;
+        case HandoffRequestState::Taken:
+            return HandoffCancelDisposition::AlreadyTaken;
+        case HandoffRequestState::Rejected:
+            return HandoffCancelDisposition::Rejected;
+        case HandoffRequestState::Received:
+        case HandoffRequestState::Pending:
+        case HandoffRequestState::Unknown:
+            return HandoffCancelDisposition::NotConfirmed;
+    }
+    return HandoffCancelDisposition::NotConfirmed;
+}
+
+QByteArray SingleInstanceProtocol::requestDigest(const SingleInstanceRequest &request) {
+    QByteArray data = commandName(request.command).toUtf8();
+    data.append('\n');
+    for (const auto &path : request.paths) {
+        data.append(path.toUtf8());
+        data.append('\n');
+    }
+    return QCryptographicHash::hash(data, QCryptographicHash::Sha256);
+}
+
+QByteArray SingleInstanceProtocol::encodeHandoffResponse(
+    const SingleInstanceHandoffResponse &response) {
+    const QJsonObject object{
+        {QStringLiteral("protocolVersion"),  protocolVersion                       },
+        {QStringLiteral("kind"),             QStringLiteral("application.handoffState")},
+        {QStringLiteral("requestId"),        response.requestId                   },
+        {QStringLiteral("instanceId"),       response.instanceId                  },
+        {QStringLiteral("primaryProcessId"), response.primaryProcessId             },
+        {QStringLiteral("hostMode"),         response.hostMode                     },
+        {QStringLiteral("stage"),            startupStageName(response.stage)      },
+        {QStringLiteral("heartbeatAgeMs"),   response.heartbeatAgeMs               },
+        {QStringLiteral("state"),            handoffStateName(response.state)      },
+        {QStringLiteral("error"),            response.error                        },
+        {QStringLiteral("handoffVersion"),   response.handoffVersion               },
+    };
+    return QJsonDocument(object).toJson(QJsonDocument::Compact);
+}
+
+bool SingleInstanceProtocol::decodeHandoffResponse(const QByteArray &payload,
+                                                   SingleInstanceHandoffResponse &response,
+                                                   QString &error) {
+    QJsonObject object;
+    if (!parseEnvelope(payload, object, error))
+        return false;
+    if (object.value(QStringLiteral("kind")).toString() !=
+        QStringLiteral("application.handoffState")) {
+        error = QStringLiteral("Not a handoff state response");
+        return false;
+    }
+    response.requestId = object.value(QStringLiteral("requestId")).toString();
+    if (response.requestId.isEmpty() ||
+        !parseHandoffState(object.value(QStringLiteral("state")).toString(), response.state)) {
+        error = QStringLiteral("Invalid handoff state response");
+        return false;
+    }
+    if (!parseStartupStage(object.value(QStringLiteral("stage")).toString(), response.stage)) {
+        error = QStringLiteral("Invalid primary startup stage");
+        return false;
+    }
+    response.instanceId = object.value(QStringLiteral("instanceId")).toString();
+    response.primaryProcessId = object.value(QStringLiteral("primaryProcessId")).toInteger();
+    response.hostMode = object.value(QStringLiteral("hostMode")).toString();
+    response.heartbeatAgeMs = object.value(QStringLiteral("heartbeatAgeMs")).toInteger(-1);
+    response.error = object.value(QStringLiteral("error")).toString();
+    response.handoffVersion = object.value(QStringLiteral("handoffVersion")).toInt(0);
     return true;
 }
 
@@ -297,4 +490,37 @@ bool SingleInstanceProtocol::takeFrame(QByteArray &buffer, QByteArray &payload, 
     payload = buffer.mid(4, size);
     buffer.remove(0, 4 + size);
     return true;
+}
+
+bool SingleInstanceProtocol::readFrame(QLocalSocket &socket, QByteArray &buffer,
+                                       QByteArray &payload, QString &error,
+                                       const int timeoutMs) {
+    QElapsedTimer timer;
+    timer.start();
+    while (true) {
+        if (socket.bytesAvailable() > 0)
+            buffer.append(socket.readAll());
+        error.clear();
+        if (takeFrame(buffer, payload, error))
+            return true;
+        if (!error.isEmpty())
+            return false;
+        const auto remaining = timeoutMs - timer.elapsed();
+        if (remaining <= 0) {
+            error = QStringLiteral("control_response_timeout");
+            return false;
+        }
+        if (!socket.waitForReadyRead(static_cast<int>(remaining))) {
+            // Data can arrive just as the wait expires. Give the accumulated
+            // buffer one last chance before declaring a timeout.
+            if (socket.bytesAvailable() > 0)
+                buffer.append(socket.readAll());
+            error.clear();
+            if (takeFrame(buffer, payload, error))
+                return true;
+            if (error.isEmpty())
+                error = QStringLiteral("control_response_timeout");
+            return false;
+        }
+    }
 }

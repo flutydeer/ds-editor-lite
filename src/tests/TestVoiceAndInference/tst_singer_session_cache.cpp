@@ -253,3 +253,52 @@ void VoiceAndInferenceTests::singerSessionCacheIdleEvictionAndActiveReuse() {
     QVERIFY2(activeWeak.expired(), "promoted handle releases when the cache is cleared");
     QCOMPARE(destroyedCount, 2);
 }
+
+void VoiceAndInferenceTests::singerSessionCacheRejectsStaleRetentionSnapshot() {
+    FakeClock::reset();
+    FakeCache cache;
+    const auto first = makeIdentifier(QStringLiteral("first"));
+    const auto second = makeIdentifier(QStringLiteral("second"));
+    int destroyedCount = 0;
+    const auto createHandle = [&] {
+        return std::make_shared<FakeHandle>(destroyedCount);
+    };
+    auto generation = std::make_shared<quint64>(1);
+
+    const auto applied = cache.retainOnly({first}, [generation, snapshot = *generation] {
+        return *generation == snapshot;
+    });
+    QVERIFY(applied.applied);
+    auto handle = cache.acquire(first, createHandle);
+    QVERIFY(handle);
+
+    // The GUI publishes a newer selection while this maintenance pass is
+    // blocked behind a factory. Its snapshot is now stale and must not mutate
+    // the cache at all.
+    *generation = 2;
+    const auto stale = cache.retainOnly({second}, [generation, snapshot = quint64{1}] {
+        return *generation == snapshot;
+    });
+    QVERIFY2(!stale.applied, "a superseded snapshot must be rejected at the admission point");
+    QVERIFY(stale.handles.empty());
+    QCOMPARE(stale.released, 0);
+    QVERIFY(cache.retainedIdentifiers().contains(first));
+    QVERIFY(!cache.retainedIdentifiers().contains(second));
+    QCOMPARE(cache.acquire(first, createHandle), handle);
+    QCOMPARE(destroyedCount, 0);
+
+    // A current snapshot still applies normally.
+    const auto current = cache.retainOnly({second}, [generation, snapshot = *generation] {
+        return *generation == snapshot;
+    });
+    QVERIFY(current.applied);
+    QCOMPARE(current.released, 1);
+    QCOMPARE(current.handles.size(), 1);
+    QVERIFY(cache.retainedIdentifiers().contains(second));
+    QVERIFY(!cache.retainedIdentifiers().contains(first));
+
+    // No admission predicate keeps the original, unguarded behavior.
+    cache.retainOnly({first});
+    QVERIFY(cache.retainedIdentifiers().contains(first));
+    QVERIFY(!cache.retainedIdentifiers().contains(second));
+}

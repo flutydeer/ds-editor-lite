@@ -14,14 +14,28 @@ HeadlessOpenRequestQueue::HeadlessOpenRequestQueue(Automation::CoreRuntime &runt
     : QObject(parent), m_runtime(runtime), m_openDocument(std::move(openDocument)) {
 }
 
-void HeadlessOpenRequestQueue::enqueue(const SingleInstanceRequest &request) {
+namespace {
+    constexpr qsizetype maxQueuedProjectPaths = 64;
+}
+
+AdmissionResult HeadlessOpenRequestQueue::take(const SingleInstanceRequest &request,
+                                               const bool localStartup) {
     if (m_runtime.shutdownCommitted())
-        return;
-    if (request.command == SingleInstanceCommand::OpenProjects) {
+        return AdmissionResult::rejected(QStringLiteral("primary_shutting_down"));
+    const auto incoming = request.command == SingleInstanceCommand::OpenProjects ||
+                                  request.command == SingleInstanceCommand::ApplicationHandoff
+                              ? request.paths.size()
+                              : 0;
+    if (!localStartup && incoming > 0 &&
+        m_paths.size() + incoming > maxQueuedProjectPaths)
+        return AdmissionResult::rejected(QStringLiteral("request_queue_full"));
+
+    if (incoming > 0) {
         for (const auto &path : request.paths)
             m_paths.enqueue(DocumentWorkflowPathUtils::normalizedProjectPath(path));
     }
     QTimer::singleShot(0, this, [this] { dispatchNext(); });
+    return AdmissionResult::accepted();
 }
 
 void HeadlessOpenRequestQueue::waitUntilIdle() {

@@ -21,7 +21,10 @@ public:
     HeadlessOpenRequestQueue(Automation::CoreRuntime &runtime, OpenDocument openDocument,
                              QObject *parent = nullptr);
 
-    void enqueue(const SingleInstanceRequest &request);
+    // Admission is independent of GUI readiness: a healthy Headless primary
+    // has no window, and that is not a failure. localStartup bypasses the
+    // external in-flight cap for this process's own command-line paths.
+    AdmissionResult take(const SingleInstanceRequest &request, bool localStartup = false);
     void waitUntilIdle();
 
 private:
