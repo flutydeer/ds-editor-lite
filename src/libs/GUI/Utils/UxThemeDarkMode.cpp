@@ -3,6 +3,8 @@
 #include <QtGlobal>
 
 #ifdef Q_OS_WIN
+#  include <QSysInfo>
+#  include <QVersionNumber>
 #  include <windows.h>
 
 // Undocumented uxtheme exports that control how Windows renders system-drawn
@@ -29,18 +31,17 @@ namespace {
     // pass PamLight (3), which bool interpretation reads as true, so the requested
     // light mode never lands. Pick one side based on the OS build, as Chromium and
     // QWindowKit do.
+    //
+    // QSysInfo::productVersion() reports the real OS version via RtlGetVersion.
+    // VerifyVersionInfoW is not usable here: this project links with /manifest:no
+    // (CMakeLists.txt), and without a supported-OS manifest the version APIs are
+    // subject to compatibility shims that can report an older build.
     bool isWin101903OrGreater() {
-        OSVERSIONINFOEXW info{};
-        info.dwOSVersionInfoSize = sizeof(info);
-        info.dwMajorVersion = 10;
-        info.dwMinorVersion = 0;
-        info.dwBuildNumber = 18362;
-        const auto mask = ::VerSetConditionMask(
-            ::VerSetConditionMask(::VerSetConditionMask(0, VER_MAJORVERSION, VER_GREATER_EQUAL),
-                                  VER_MINORVERSION, VER_GREATER_EQUAL),
-            VER_BUILDNUMBER, VER_GREATER_EQUAL);
-        return ::VerifyVersionInfoW(&info, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER,
-                                    mask) != FALSE;
+        static const bool cached = [] {
+            const QVersionNumber build = QVersionNumber::fromString(QSysInfo::productVersion());
+            return build >= QVersionNumber(10, 0, 18362);
+        }();
+        return cached;
     }
 
     struct UxThemeApis {
