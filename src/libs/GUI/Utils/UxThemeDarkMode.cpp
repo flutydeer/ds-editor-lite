@@ -32,13 +32,15 @@ namespace {
     // light mode never lands. Pick one side based on the OS build, as Chromium and
     // QWindowKit do.
     //
-    // QSysInfo::productVersion() reports the real OS version via RtlGetVersion.
-    // VerifyVersionInfoW is not usable here: this project links with /manifest:no
-    // (CMakeLists.txt), and without a supported-OS manifest the version APIs are
-    // subject to compatibility shims that can report an older build.
+    // QSysInfo::kernelVersion() reports the full kernel build (10.0.18362) via
+    // RtlGetVersion. productVersion() only carries the release number ("10",
+    // "11"), which parses below any build gate, and VerifyVersionInfoW is not
+    // usable here either: this project links with /manifest:no (CMakeLists.txt),
+    // and without a supported-OS manifest the version APIs are subject to
+    // compatibility shims that can report an older build.
     bool isWin101903OrGreater() {
         static const bool cached = [] {
-            const QVersionNumber build = QVersionNumber::fromString(QSysInfo::productVersion());
+            const QVersionNumber build = QVersionNumber::fromString(QSysInfo::kernelVersion());
             return build >= QVersionNumber(10, 0, 18362);
         }();
         return cached;
