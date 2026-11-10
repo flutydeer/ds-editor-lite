@@ -1,6 +1,7 @@
 #include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/UxThemeDarkMode.h>
 
 #ifdef Q_OS_WIN
 #  include <QWidget>
@@ -19,6 +20,10 @@ namespace {
     void applyTheme(HWND hwnd, const COLORREF borderColor) {
         const BOOL dark =
             ThemeManager::instance()->colorType() != ThemeManager::ThemeColorType::Light;
+        // uxtheme's preferred app mode drives the system-drawn menus (title-bar
+        // right-click, Alt+Space); DWMWA_USE_IMMERSIVE_DARK_MODE does not touch
+        // them, so push both paths in sync.
+        UxThemeDarkMode::updateFromColorType(dark != FALSE);
         DwmSetWindowAttribute(hwnd, kImmersiveDarkMode, &dark, sizeof(dark));
 
         // Update the border color for the new scheme. Do NOT force a synchronous non-client
@@ -74,6 +79,10 @@ void WindowFrameUtils::applyPopupEffects(QWidget *widget, const CornerPreference
     // the popup outline stays visible against the dark backdrop; in light mode it is suppressed
     // and the QSS border stands alone. Do not suppress the DWM border unconditionally.
     const bool dark = ThemeManager::instance()->colorType() != ThemeManager::ThemeColorType::Light;
+    // Popup windows can be shown before any frame window registers with
+    // ThemeManager, so mirror the app-mode push here as well. The uxtheme side
+    // is idempotent per color type, so double pushes are cheap.
+    UxThemeDarkMode::updateFromColorType(dark);
     applyTheme(hwnd, dark ? kDwmColorDefault : kDwmColorNone);
 }
 
