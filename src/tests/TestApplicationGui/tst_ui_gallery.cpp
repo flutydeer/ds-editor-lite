@@ -162,7 +162,10 @@ namespace {
 
         void take(QWidget &widget, const Module module, const QString &title,
                   const Capture capture = Capture::NativeWindow) {
-            QVERIFY2(QTest::qWaitForWindowExposed(widget.window()), qPrintable(title));
+            // QWidget::grab renders the panel directly, even when its native host
+            // is occluded. Only compositor captures require an exposed window.
+            if (capture == Capture::NativeWindow)
+                QVERIFY2(QTest::qWaitForWindowExposed(widget.window()), qPrintable(title));
             QTRY_VERIFY(widget.isVisible());
             // Tab/preview switches can resize a native window. Complete Qt layout
             // and repaint before allowing the compositor to capture its next frame.

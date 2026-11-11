@@ -17,25 +17,160 @@
 #  include <QImage>
 #  include <QLibrary>
 
+#  if defined(Q_OS_WIN)
+#    include <Windows.h>
+#    include <dwmapi.h>
+#  endif
+
 #  if defined(Q_OS_LINUX) && __has_include(<X11/Xlib.h>)
 #    include <X11/Xlib.h>
-#    include <bit>
 #    define LITE_HAS_X11_CAPTURE 1
 #  endif
 
 namespace {
+#  if defined(Q_OS_WIN)
+    QPixmap capturePrintedWindow(QWidget *widget, QString &reason) {
+        if (!widget->isWindow() || !widget->isVisible() || widget->isMinimized()) {
+            reason = QStringLiteral("PrintWindow requires a visible top-level window");
+            return {};
+        }
+        const auto hwnd = reinterpret_cast<HWND>(widget->winId());
+        DWORD processId = 0;
+        const auto threadId = GetWindowThreadProcessId(hwnd, &processId);
+        if (processId != GetCurrentProcessId() || threadId != GetCurrentThreadId()) {
+            reason = QStringLiteral("PrintWindow target is not owned by this GUI thread");
+            return {};
+        }
+        // GetWindowRect can be DPI-virtualized, whereas DWM frame bounds are
+        // physical pixels. Do not combine them unless this thread is PM-aware.
+        if (GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) !=
+            DPI_AWARENESS_PER_MONITOR_AWARE) {
+            reason = QStringLiteral("PrintWindow requires per-monitor DPI awareness");
+            return {};
+        }
+        RECT frame{};
+        RECT client{};
+        POINT clientOrigin{};
+        if (!GetWindowRect(hwnd, &frame) || !GetClientRect(hwnd, &client) ||
+            !ClientToScreen(hwnd, &clientOrigin)) {
+            reason = QStringLiteral("cannot query native PrintWindow geometry");
+            return {};
+        }
+        const int width = frame.right - frame.left;
+        const int height = frame.bottom - frame.top;
+        if (width <= 0 || height <= 0 || width > 16384 || height > 16384 ||
+            static_cast<qint64>(width) * height > 64 * 1024 * 1024) {
+            reason = QStringLiteral("PrintWindow dimensions are invalid or too large");
+            return {};
+        }
+        HDC windowDc = GetDC(hwnd);
+        if (!windowDc) {
+            reason = QStringLiteral("cannot acquire window drawing context");
+            return {};
+        }
+        const auto releaseDc = qScopeGuard([&] { ReleaseDC(hwnd, windowDc); });
+        HDC memoryDc = CreateCompatibleDC(windowDc);
+        if (!memoryDc) {
+            reason = QStringLiteral("cannot allocate PrintWindow drawing context");
+            return {};
+        }
+        const auto deleteDc = qScopeGuard([&] { DeleteDC(memoryDc); });
+        BITMAPINFO bitmapInfo{};
+        bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bitmapInfo.bmiHeader.biWidth = width;
+        bitmapInfo.bmiHeader.biHeight = -height;
+        bitmapInfo.bmiHeader.biPlanes = 1;
+        bitmapInfo.bmiHeader.biBitCount = 32;
+        bitmapInfo.bmiHeader.biCompression = BI_RGB;
+        void *bits = nullptr;
+        HBITMAP bitmap = CreateDIBSection(windowDc, &bitmapInfo, DIB_RGB_COLORS, &bits, nullptr, 0);
+        if (!bitmap || !bits) {
+            if (bitmap)
+                DeleteObject(bitmap);
+            reason = QStringLiteral("cannot allocate PrintWindow bitmap");
+            return {};
+        }
+        const auto deleteBitmap = qScopeGuard([&] { DeleteObject(bitmap); });
+        HGDIOBJ previous = SelectObject(memoryDc, bitmap);
+        if (!previous || previous == HGDI_ERROR) {
+            reason = QStringLiteral("cannot select PrintWindow bitmap");
+            return {};
+        }
+        const auto restoreBitmap = qScopeGuard([&] { SelectObject(memoryDc, previous); });
+        QImage buffer(static_cast<uchar *>(bits), width, height, width * 4, QImage::Format_RGB32);
+        constexpr QRgb unpainted = qRgb(255, 0, 255);
+        buffer.fill(unpainted);
+        // Same-process, same-GUI-thread only: WM_PRINT can dispatch directly.
+        // PrintWindow is synchronous; do not move it to a worker and then block
+        // the GUI thread waiting for that worker (which would deadlock WM_PRINT).
+        constexpr UINT renderFullContent = 0x00000002;
+        if (!PrintWindow(hwnd, memoryDc, renderFullContent)) {
+            reason = QStringLiteral("PrintWindow failed");
+            return {};
+        }
+        GdiFlush();
+        const QRect clientPixels(clientOrigin.x - frame.left, clientOrigin.y - frame.top,
+                                 client.right - client.left, client.bottom - client.top);
+        if (!buffer.rect().contains(clientPixels) || clientPixels.isEmpty()) {
+            reason = QStringLiteral("PrintWindow did not contain the complete client rectangle");
+            return {};
+        }
+        int black = 0, missing = 0, count = 0;
+        for (int y = clientPixels.top(); y <= clientPixels.bottom();
+             y += qMax(1, clientPixels.height() / 64)) {
+            for (int x = clientPixels.left(); x <= clientPixels.right();
+                 x += qMax(1, clientPixels.width() / 64)) {
+                const auto pixel = buffer.pixel(x, y);
+                black += qRed(pixel) <= 2 && qGreen(pixel) <= 2 && qBlue(pixel) <= 2;
+                missing += (pixel & 0x00ffffff) == (unpainted & 0x00ffffff);
+                ++count;
+            }
+        }
+        if (black * 100 >= count * 99 || missing) {
+            reason = QStringLiteral("PrintWindow rejected: black or unpainted client pixels");
+            return {};
+        }
+        QRect crop = buffer.rect();
+        RECT visible{};
+        if (SUCCEEDED(DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &visible,
+                                            sizeof(visible)))) {
+            const QRect visiblePixels(visible.left - frame.left, visible.top - frame.top,
+                                      visible.right - visible.left, visible.bottom - visible.top);
+            if (!visiblePixels.isEmpty() && crop.contains(visiblePixels) &&
+                visiblePixels.contains(clientPixels))
+                crop = visiblePixels;
+        }
+        auto image = buffer.copy(crop);
+        // The native frame must have painted too. Do not export the diagnostic
+        // initialization color as a fabricated border when WM_PRINT omits it.
+        for (int y = 0; y < image.height(); ++y) {
+            const auto *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < image.width(); ++x) {
+                if ((line[x] & 0x00ffffff) == (unpainted & 0x00ffffff)) {
+                    reason = QStringLiteral(
+                        "PrintWindow rejected: native frame contains unpainted pixels");
+                    return {};
+                }
+            }
+        }
+        image.setDevicePixelRatio(widget->devicePixelRatioF());
+        qInfo("PrintWindow frame capture: native nonclient rendering, no DWM shadow/corner "
+              "guarantee");
+        return QPixmap::fromImage(image);
+    }
+#  endif
+
 #  if defined(LITE_HAS_X11_CAPTURE)
-    QPixmap captureX11Output(QWidget *target, const QRect &captureRect, QString &reason) {
-        // Read the compositor's final output, not Qt XCB's CopyArea from root
-        // with IncludeInferiors. Redirected, different-depth child windows can
-        // otherwise replace their composed contents with black rectangles.
+    QPixmap captureX11WithoutCompositor(QWidget *widget, const QRect &captureRect,
+                                        QString &reason) {
+        // This deliberately captures the real Openbox frame without shadows.
+        // Do not read redirected root contents or retain an overlay fallback.
         if (QGuiApplication::screens().size() != 1 ||
-            target->screen()->geometry().topLeft() != QPoint(0, 0)) {
-            reason = QStringLiteral("X11 compositor capture requires one screen at origin (0,0)");
+            widget->screen()->geometry().topLeft() != QPoint(0, 0)) {
+            reason = QStringLiteral("X11 capture requires one screen at origin (0,0)");
             return {};
         }
         QLibrary xlib(QStringLiteral("X11"), 6);
-        QLibrary composite(QStringLiteral("Xcomposite"), 1);
         const auto openDisplay =
             reinterpret_cast<decltype(&XOpenDisplay)>(xlib.resolve("XOpenDisplay"));
         const auto closeDisplay =
@@ -48,16 +183,9 @@ namespace {
             reinterpret_cast<decltype(&XInternAtom)>(xlib.resolve("XInternAtom"));
         const auto selectionOwner =
             reinterpret_cast<decltype(&XGetSelectionOwner)>(xlib.resolve("XGetSelectionOwner"));
-        const auto translate = reinterpret_cast<decltype(&XTranslateCoordinates)>(
-            xlib.resolve("XTranslateCoordinates"));
-        const auto getImage = reinterpret_cast<decltype(&XGetImage)>(xlib.resolve("XGetImage"));
-        const auto getOverlay = reinterpret_cast<Window (*)(Display *, Window)>(
-            composite.resolve("XCompositeGetOverlayWindow"));
-        const auto releaseOverlay = reinterpret_cast<void (*)(Display *, Window)>(
-            composite.resolve("XCompositeReleaseOverlayWindow"));
         if (!openDisplay || !closeDisplay || !attributes || !screenNumber || !internAtom ||
-            !selectionOwner || !translate || !getImage || !getOverlay || !releaseOverlay) {
-            reason = QStringLiteral("X11 compositor capture libraries are unavailable");
+            !selectionOwner) {
+            reason = QStringLiteral("cannot check X11 compositor ownership");
             return {};
         }
         Display *display = openDisplay(nullptr);
@@ -67,86 +195,77 @@ namespace {
         }
         const auto close = qScopeGuard([&] { closeDisplay(display); });
         XWindowAttributes info{};
-        const auto window = static_cast<Window>(target->winId());
-        if (!attributes(display, window, &info)) {
+        if (!attributes(display, static_cast<Window>(widget->winId()), &info)) {
             reason = QStringLiteral("cannot query the X11 target window");
             return {};
         }
         const auto selection =
             QByteArray("_NET_WM_CM_S") + QByteArray::number(screenNumber(info.screen));
         const auto atom = internAtom(display, selection.constData(), True);
-        if (!atom || !selectionOwner(display, atom)) {
-            reason = QStringLiteral("X11 screen has no active compositor");
+        if (atom && selectionOwner(display, atom)) {
+            reason = QStringLiteral("X11 frame capture requires a desktop without a compositor");
             return {};
         }
-        // Reference the already-running compositor's overlay. Never redirect
-        // windows or change the overlay's input/visual shape or stacking.
-        const Window overlay = getOverlay(display, info.root);
-        if (!overlay) {
-            reason = QStringLiteral("X11 compositor overlay is unavailable");
+        const auto scale = widget->screen()->devicePixelRatio();
+        XWindowAttributes root{};
+        if (!attributes(display, info.root, &root) ||
+            root.width != qRound(widget->screen()->geometry().width() * scale) ||
+            root.height != qRound(widget->screen()->geometry().height() * scale) ||
+            info.width != qRound(widget->width() * scale) ||
+            info.height != qRound(widget->height() * scale)) {
+            reason = QStringLiteral("X11 target/screen dimensions do not match Qt scaling");
             return {};
         }
-        const auto release = qScopeGuard([&] { releaseOverlay(display, info.root); });
-        int clientX = 0, clientY = 0;
-        Window child = 0;
-        if (!translate(display, window, overlay, 0, 0, &clientX, &clientY, &child)) {
-            reason = QStringLiteral("cannot locate target in the compositor output");
+
+        QPointer<QWidget> target(widget);
+        widget->raise();
+        QEventLoop settle;
+        QTimer::singleShot(250, &settle, &QEventLoop::quit);
+        settle.exec(QEventLoop::ExcludeUserInputEvents);
+        if (!target || !target->isVisible() || target->frameGeometry() != captureRect) {
+            reason = QStringLiteral("target disappeared or moved during X11 capture setup");
             return {};
         }
-        const auto scale = target->screen()->devicePixelRatio();
-        const auto offset = target->mapToGlobal(QPoint()) - captureRect.topLeft();
-        const int x = clientX - qRound(offset.x() * scale);
-        const int y = clientY - qRound(offset.y() * scale);
-        const int width = qRound(captureRect.width() * scale);
-        const int height = qRound(captureRect.height() * scale);
-        XWindowAttributes outputInfo{};
-        if (!attributes(display, overlay, &outputInfo) || x < 0 || y < 0 ||
-            x + width > outputInfo.width || y + height > outputInfo.height ||
-            outputInfo.width != qRound(target->screen()->geometry().width() * scale) ||
-            outputInfo.height != qRound(target->screen()->geometry().height() * scale) ||
-            info.width != qRound(target->width() * scale) ||
-            info.height != qRound(target->height() * scale) ||
-            clientX != qRound(target->mapToGlobal(QPoint()).x() * scale) ||
-            clientY != qRound(target->mapToGlobal(QPoint()).y() * scale)) {
-            reason = QStringLiteral(
-                "X11 target/screen coordinates or scale do not match compositor output");
-            return {};
-        }
-        XImage *pixels = getImage(display, overlay, x, y, width, height, AllPlanes, ZPixmap);
-        if (!pixels) {
-            reason = QStringLiteral("XGetImage returned no compositor output");
-            return {};
-        }
-        const auto destroy = qScopeGuard([&] { pixels->f.destroy_image(pixels); });
-        const auto channel = [](unsigned long pixel, unsigned long mask) -> int {
-            if (!mask)
-                return 0;
-            const auto shift = std::countr_zero(mask);
-            return static_cast<int>(((pixel & mask) >> shift) * 255 / (mask >> shift));
+        // Probe the target client, not WM-owned decorations, for occlusion.
+        // In the isolated CI display this also detects raised fixture windows.
+        const QRect clientRect(target->mapToGlobal(QPoint()), target->size());
+        const QPoint center = clientRect.center();
+        const QPoint probes[] = {
+            clientRect.topLeft(),
+            clientRect.topRight(),
+            clientRect.bottomLeft(),
+            clientRect.bottomRight(),
+            center,
+            {center.x(),         clientRect.top()   },
+            {center.x(),         clientRect.bottom()},
+            {clientRect.left(),  center.y()         },
+            {clientRect.right(), center.y()         }
         };
-        QImage image(width, height, QImage::Format_RGB32);
-        if (image.isNull()) {
-            reason = QStringLiteral("cannot allocate compositor capture image");
-            return {};
-        }
-        for (int row = 0; row < height; ++row) {
-            auto *line = reinterpret_cast<QRgb *>(image.scanLine(row));
-            for (int column = 0; column < width; ++column) {
-                const auto pixel = pixels->f.get_pixel(pixels, column, row);
-                line[column] =
-                    qRgb(channel(pixel, pixels->red_mask), channel(pixel, pixels->green_mask),
-                         channel(pixel, pixels->blue_mask));
+        for (const auto &point : probes) {
+            if (QGuiApplication::topLevelAt(point) != target->windowHandle()) {
+                reason = QStringLiteral("X11 target client is obscured at (%1,%2)")
+                             .arg(point.x())
+                             .arg(point.y());
+                return {};
             }
         }
-        image.setDevicePixelRatio(scale);
-        // Reject the observed redirected-window failure using only client
-        // pixels, excluding the shadow, backdrop and window-manager frame.
-        const QRect client(qRound(offset.x() * scale), qRound(offset.y() * scale),
-                           qRound(target->width() * scale), qRound(target->height() * scale));
-        if (!image.rect().contains(client) || client.isEmpty()) {
-            reason = QStringLiteral("client pixels are outside compositor capture");
+        const auto currentAtom = internAtom(display, selection.constData(), True);
+        if (currentAtom && selectionOwner(display, currentAtom)) {
+            reason = QStringLiteral("X11 compositor started during capture setup");
             return {};
         }
+        const QPixmap capture = target->screen()->grabWindow(
+            0, captureRect.x(), captureRect.y(), captureRect.width(), captureRect.height());
+        const auto image = capture.toImage();
+        const auto offset = clientRect.topLeft() - captureRect.topLeft();
+        const QRect client(qRound(offset.x() * scale), qRound(offset.y() * scale),
+                           qRound(target->width() * scale), qRound(target->height() * scale));
+        if (image.isNull() || !image.rect().contains(client) || client.isEmpty()) {
+            reason = QStringLiteral("X11 frame capture returned no complete client image");
+            return {};
+        }
+        // Retain the regression guard for the observed black-window failure,
+        // excluding all window-manager decorations from the sampled rectangle.
         int black = 0, count = 0;
         for (int row = client.top(); row <= client.bottom(); row += qMax(1, client.height() / 64)) {
             for (int column = client.left(); column <= client.right();
@@ -157,11 +276,12 @@ namespace {
             }
         }
         if (black * 100 >= count * 99) {
-            reason = QStringLiteral("compositor capture rejected: at least 99% of sampled client "
+            reason = QStringLiteral("X11 frame capture rejected: at least 99% of sampled client "
                                     "pixels are black (RGB <= 2)");
             return {};
         }
-        return QPixmap::fromImage(image);
+        qInfo("X11 frame capture: no compositor, no synthetic shadows or corners");
+        return capture;
     }
 #  endif
 
@@ -206,7 +326,7 @@ namespace {
             return {};
         }
         auto *screen = widget->screen();
-        constexpr int shadowMargin = 40;
+        const int shadowMargin = platform == QStringLiteral("xcb") ? 0 : 40;
         if (!screen) {
             reason = QStringLiteral("target has no screen");
             return {};
@@ -241,27 +361,15 @@ namespace {
             reason = QStringLiteral("window manager did not place target within the screen");
             return {};
         }
-        CaptureBackdrop backdrop;
-        QPointer<QWindow> nativeTarget = widget->windowHandle();
-        if (!nativeTarget) {
-            reason = QStringLiteral("target has no native window handle");
+        if (platform == QStringLiteral("xcb")) {
+#  if defined(LITE_HAS_X11_CAPTURE)
+            return captureX11WithoutCompositor(target, captureRect, reason);
+#  else
+            reason = QStringLiteral("built without X11 capture headers");
             return {};
+#  endif
         }
-        const QPointer<QWindow> originalTransientParent = nativeTarget->transientParent();
-        const bool insertBackdrop = platform == QStringLiteral("xcb");
-        // Openbox raises a dialog's owner chain with the dialog. An unrelated
-        // backdrop then ends up below the host, exposing the host around it.
-        // Insert the backdrop between owner and dialog, never above the target.
-        if (insertBackdrop) {
-            backdrop.winId();
-            backdrop.windowHandle()->setTransientParent(originalTransientParent);
-            nativeTarget->setTransientParent(backdrop.windowHandle());
-        }
-        // Restore before destroying the backdrop, including every early return.
-        const auto restoreTransientParent = qScopeGuard([&] {
-            if (insertBackdrop && nativeTarget)
-                nativeTarget->setTransientParent(originalTransientParent);
-        });
+        CaptureBackdrop backdrop;
         // Cover the complete capture rectangle so neither the host nor other
         // fixtures appear through the target's actual corner mask and shadow.
         // Avoid a screen-sized window: some WMs give fullscreen windows a
@@ -316,15 +424,6 @@ namespace {
             return {};
         }
 
-        if (platform == QStringLiteral("xcb")) {
-#  if defined(LITE_HAS_X11_CAPTURE)
-            return captureX11Output(target, captureRect, reason);
-#  else
-            reason = QStringLiteral("built without X11 capture headers");
-            return {};
-#  endif
-        }
-
         // Windows QScreen root coordinates are screen-relative logical pixels.
         // Qt supplies the matching device-pixel-ratio image.
         const QPoint origin = captureRect.topLeft() - screen->geometry().topLeft();
@@ -351,7 +450,7 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
         const bool saved = desktopImage.save(filePath);
         const auto method = QGuiApplication::platformName() == QStringLiteral("windows")
                                 ? QStringLiteral("windows-desktop-window")
-                                : QStringLiteral("x11-desktop-window");
+                                : QStringLiteral("x11-window-without-compositor");
         if (saved && captureMethod)
             *captureMethod = method;
         qInfo("Window capture: %s (actual desktop pixels, available system effects only)",
@@ -359,6 +458,21 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
         return saved;
     }
     qWarning("Window capture fallback: %s", qPrintable(reason));
+#  if defined(Q_OS_WIN)
+    if (target && QGuiApplication::platformName() == QStringLiteral("windows") &&
+        qEnvironmentVariable("LITE_SCREENSHOT_DESKTOP_CAPTURE") == QStringLiteral("1")) {
+        const auto printedImage = capturePrintedWindow(target, reason);
+        if (!printedImage.isNull()) {
+            const bool saved = printedImage.save(filePath);
+            if (saved && captureMethod)
+                *captureMethod = QStringLiteral("windows-printwindow-frame");
+            qInfo("Window capture: %s",
+                  saved ? "windows-printwindow-frame" : "failed to write PNG");
+            return saved;
+        }
+        qWarning("PrintWindow capture fallback: %s", qPrintable(reason));
+    }
+#  endif
     const bool saved = target && target->grab().save(filePath);
     if (captureMethod)
         *captureMethod = saved ? QStringLiteral("qt-client-fallback") : QStringLiteral("failed");

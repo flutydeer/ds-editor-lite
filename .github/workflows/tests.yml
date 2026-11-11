@@ -62,7 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
-            automake libtool libltdl-dev python3-venv xvfb xauth openbox picom \
+            automake libtool libltdl-dev python3-venv xvfb xauth openbox \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
@@ -171,10 +171,6 @@ jobs:
           cat build/test-results/coverage/files.csv
       # Capture is separate from CTest, uses fresh processes for both themes, and
       # only runs after this platform's full test suite has passed.
-      - name: Prepare Windows screenshot desktop
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Set-DisplayResolution -Width 1920 -Height 1200 -Force
       - name: Capture UI screenshots
         id: screenshots
         timeout-minutes: 15
