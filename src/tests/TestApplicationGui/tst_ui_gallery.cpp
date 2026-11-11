@@ -51,7 +51,6 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QScopeGuard>
-#include <QScrollArea>
 #include <QTabWidget>
 #include <QTimer>
 
@@ -337,21 +336,6 @@ void ApplicationGuiTests::captureUiGallery() {
         QVERIFY(toolset && toolset->isEnabled());
         toolset->click();
         gallery.take(*dialog, QStringLiteral("Options - Automation custom toolset"));
-        const QString prefix = QStringLiteral("automationCustomToolGroupExpand_");
-        for (auto *button : dialog->findChildren<QAbstractButton *>()) {
-            if (!button->objectName().startsWith(prefix))
-                continue;
-            for (auto *parent = button->parentWidget(); parent; parent = parent->parentWidget()) {
-                if (auto *scroll = qobject_cast<QScrollArea *>(parent)) {
-                    scroll->ensureWidgetVisible(button);
-                    break;
-                }
-            }
-            button->click();
-            gallery.take(*dialog, QStringLiteral("Custom toolset - %1")
-                                      .arg(button->objectName().sliced(prefix.size())));
-            button->click();
-        }
     });
     window.openAppOptions(AppOptionsGlobal::General);
     if (QTest::currentTestFailed())
