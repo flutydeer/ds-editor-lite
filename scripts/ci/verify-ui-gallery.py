@@ -70,6 +70,7 @@ def verify(directory, theme=None):
         rows = collections.defaultdict(list)
         for item in section["images"]:
             assert item["caption"].strip()
+            assert "empty" not in item["caption"].lower(), "Empty panels should use their name only"
             assert Path(item["file"]).parent == module_directory, "Screenshot is not classified"
             assert png_size(directory / item["file"]) == item["sourceSize"]
             image, caption = item["imageRect"], item["captionRect"]
@@ -97,7 +98,9 @@ def verify(directory, theme=None):
                "qt-widget-content"}
     assert methods.keys() <= allowed, methods
     assert methods["qt-widget-content"] > 0, "No standalone custom panel captures"
-    assert sum(methods.values()) == 49, "Screenshot coverage is incomplete"
+    assert sum(methods.values()) == 50, "Screenshot coverage is incomplete"
+    captions = {item["caption"] for section in report["sections"] for item in section["images"]}
+    assert {"Parameter curves", "Task list", "Fill lyrics - Help"} <= captions
     print(f"Verified {sum(methods.values())} screenshots in {len(expected_modules)} UI modules")
     for method, count in sorted(methods.items()):
         print(f"  {method}: {count}")
