@@ -98,9 +98,15 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
-    auto useNativeFrame = appOptions->appearance()->useNativeFrame;
+    const auto useNativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
     if (!useNativeFrame) {
 #ifdef Q_OS_MAC
+        // Match the main window before the agent creates the native window.
+        // Cocoa reports the title bar as a safe area even after expanding the
+        // client view; QWidget must not reserve that row above our title bar.
+        setWindowFlag(Qt::ExpandedClientAreaHint, true);
+        setWindowFlag(Qt::NoTitleBarBackgroundHint, true);
+        setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
         // macOS keeps its traffic lights, so the title bar only has to give them
         // a slot; drawing a Windows-style close button next to them duplicated
         // what the platform already does.

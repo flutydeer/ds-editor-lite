@@ -61,6 +61,8 @@ Qt 6.11.2 中存在两层独立机制：
 
 所以仅设置 `ExpandedClientAreaHint` 或反复设置 `NSWindowStyleMaskFullSizeContentView` 不足以消除布局留边。macOS 无边框主窗口在创建原生窗口前显式关闭 `WA_ContentsMarginsRespectsSafeArea`，让自定义标题栏及其 traffic-light 区域使用整个客户区，系统边框模式保持默认行为。不使用固定 32px 或负边距补偿。
 
+无边框对话框采用同样的 Qt 扩展客户区标记和 safe-area 策略，避免在自定义标题栏上方再次留出原生标题栏高度。`dialogTitleBarFollowsFrameMode` 分别验证保存的两种边框设置和截图临时覆盖，macOS 还检查标题栏起点、内容区和原生 frame 顶边距。临时截图覆盖单独保存在运行期字段，配置序列化始终使用用户保存的边框偏好，截图过程中保存其他设置也不会写回临时模式。
+
 旧日志中的 `styleMask 0x800f -> 0x800f` 只能证明扩展标志早已生效。`contentLayoutRect` 表示未遮挡区域，不能把它与 frame 的高度差直接当作 content view 没有扩展的证据。下面的新一轮 Cocoa 运行确认了 safe-area 修正后的实际效果。
 
 ## Safe-area 修正的 CI 验证

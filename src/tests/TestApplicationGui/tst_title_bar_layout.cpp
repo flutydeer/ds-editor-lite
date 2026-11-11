@@ -4,6 +4,8 @@
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
+#include "UI/Dialogs/Base/DialogTitleBar.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 
 #include <lite/GUI/Controls/DividerLine.h>
 
@@ -11,6 +13,8 @@
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QLayoutItem>
+#include <QScopeGuard>
+#include <QWindow>
 #include <QtTest/QTest>
 
 namespace {
@@ -27,6 +31,51 @@ namespace {
         return item ? item->widget() : nullptr;
     }
 } // namespace
+
+void ApplicationGuiTests::dialogTitleBarFollowsFrameMode_data() {
+    QTest::addColumn<bool>("storedFrame");
+    QTest::addColumn<int>("forcedFrame");
+    QTest::newRow("stored-native") << true << -1;
+    QTest::newRow("stored-frameless") << false << -1;
+    QTest::newRow("capture-native") << false << 1;
+    QTest::newRow("capture-frameless") << true << 0;
+}
+
+void ApplicationGuiTests::dialogTitleBarFollowsFrameMode() {
+    QFETCH(bool, storedFrame);
+    QFETCH(int, forcedFrame);
+    auto *appearance = appOptions->appearance();
+    const auto previousFrame = appearance->useNativeFrame;
+    const auto previousOverride = appearance->nativeFrameOverride;
+    const auto restore = qScopeGuard([&] {
+        appearance->useNativeFrame = previousFrame;
+        appearance->nativeFrameOverride = previousOverride;
+    });
+    appearance->useNativeFrame = storedFrame;
+    appearance->nativeFrameOverride = forcedFrame < 0 ? std::nullopt
+                                                     : std::optional<bool>(forcedFrame != 0);
+    const bool nativeFrame = appearance->effectiveUseNativeFrame();
+    MessageDialog dialog(QStringLiteral("Window frame test"), QStringLiteral("Dialog content"));
+    dialog.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+    settleLayout();
+    auto *titleBar = dialog.findChild<DialogTitleBar *>();
+    QCOMPARE(titleBar == nullptr, nativeFrame);
+#ifdef Q_OS_MAC
+    QCOMPARE(dialog.windowFlags().testFlag(Qt::ExpandedClientAreaHint), !nativeFrame);
+    QCOMPARE(dialog.windowFlags().testFlag(Qt::NoTitleBarBackgroundHint), !nativeFrame);
+    QCOMPARE(dialog.testAttribute(Qt::WA_ContentsMarginsRespectsSafeArea), nativeFrame);
+    if (!nativeFrame) {
+        QTRY_COMPARE(dialog.contentsMargins().top(), 0);
+        QCOMPARE(dialog.contentsRect().top(), 0);
+        QTRY_COMPARE(titleBar->geometry().top(), 0);
+        QVERIFY(dialog.windowHandle());
+        QTRY_COMPARE(dialog.windowHandle()->frameMargins().top(), 0);
+    }
+#endif
+    // The runtime capture selection must never rewrite the user's preference.
+    QCOMPARE(appearance->useNativeFrame, storedFrame);
+}
 
 void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
     // Windows frameless: the app icon inset and the custom system buttons both

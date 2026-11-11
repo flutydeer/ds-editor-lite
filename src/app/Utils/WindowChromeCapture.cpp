@@ -41,7 +41,7 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
         qEnvironmentVariableIntValue("LITE_CHROME_CAPTURE_DELAY_MS", &hasDelay);
     const auto delay = hasDelay && requestedDelay > 0 ? requestedDelay : kDefaultDelayMs;
 
-    const bool nativeFrame = appOptions->appearance()->useNativeFrame;
+    const bool nativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
     const auto mode = nativeFrame ? QStringLiteral("native-frame") : QStringLiteral("frameless");
     const auto basePath = QDir(directory).filePath(QStringLiteral("title-bar-%1").arg(mode));
     QDir().mkpath(QFileInfo(basePath).absolutePath());

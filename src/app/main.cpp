@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
         if (!qEnvironmentVariable("LITE_CHROME_CAPTURE").trimmed().isEmpty()) {
             const auto forcedFrame = qEnvironmentVariable("LITE_FORCE_NATIVE_FRAME").trimmed();
             if (!forcedFrame.isEmpty())
-                options->appearance()->useNativeFrame = forcedFrame == QStringLiteral("1");
+                options->appearance()->nativeFrameOverride = forcedFrame == QStringLiteral("1");
         }
         UiLanguageManager uiLanguageManager;
         uiLanguageManager.setPreference(options->general()->uiLanguage);

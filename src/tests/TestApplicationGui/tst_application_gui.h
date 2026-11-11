@@ -170,6 +170,8 @@ private slots:
     void mainMenuOverflowRecalculatesAfterTitleChange();
     void mainMenuFitsAtSizeHintWithNativeMetrics();
     void titleBarLayoutPlanFollowsPlatformChrome();
+    void dialogTitleBarFollowsFrameMode_data();
+    void dialogTitleBarFollowsFrameMode();
     void titleBarLayoutFollowsThePlatformMenuBar();
     void titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow();
     void hiddenMenuBarKeepsEveryTopLevelMenuInline();
