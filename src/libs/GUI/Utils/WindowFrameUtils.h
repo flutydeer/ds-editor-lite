@@ -17,11 +17,14 @@ public:
     // so a custom title bar can reclaim that row and the traffic lights can be
     // moved inside it. Idempotent, safe to call on every show.
     static void mergeTitleBarIntoContent(QWidget *widget);
-    // Writes the whole window, chrome included, to filePath. macOS captures the
-    // AppKit frame view so the traffic lights and the native title bar are part
-    // of the image, which a QWidget::grab() can never show. Used by the CI
-    // screenshot harness only.
-    [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath);
+    // Screenshot harness only, called on the GUI thread. macOS 14.4+ first uses
+    // own-process ScreenCaptureKit window capture (native corners and shadows).
+    // AppKit frame caching is a fallback, not a system-compositor screenshot.
+    // Other platforms capture only the Qt client area. captureMethod identifies
+    // the actual backend: screencapturekit-window, appkit-frame-fallback,
+    // qt-client-fallback, or failed. No screen-recording permission is requested.
+    [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
+                                                 QString *captureMethod = nullptr);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)

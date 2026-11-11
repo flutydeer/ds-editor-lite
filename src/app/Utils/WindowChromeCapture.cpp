@@ -54,7 +54,7 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
         const auto *titleBar = window.findChild<MainTitleBar *>();
         const auto titleBarRect =
             titleBar ? QRect(titleBar->mapTo(&window, QPoint()), titleBar->size()) : QRect();
-        const QJsonObject geometry{
+        QJsonObject geometry{
             {QStringLiteral("mode"),             mode                                 },
             {QStringLiteral("platform"),         QGuiApplication::platformName()      },
             {QStringLiteral("devicePixelRatio"), window.devicePixelRatioF()           },
@@ -71,6 +71,11 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
              marginsJson(handle ? handle->frameMargins() : QMargins())                },
             {QStringLiteral("titleBarRect"),     rectJson(titleBarRect)               }
         };
+        const auto imagePath = basePath + QStringLiteral(".png");
+        QString captureMethod;
+        const bool captured =
+            WindowFrameUtils::captureWindowChrome(&window, imagePath, &captureMethod);
+        geometry.insert(QStringLiteral("captureMethod"), captureMethod);
         const auto json = QJsonDocument(geometry).toJson();
         qInfo().noquote() << "Chrome Qt geometry:"
                           << QJsonDocument(geometry).toJson(QJsonDocument::Compact);
@@ -82,8 +87,7 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
         }
         report.close();
 
-        const auto imagePath = basePath + QStringLiteral(".png");
-        if (!WindowFrameUtils::captureWindowChrome(&window, imagePath)) {
+        if (!captured) {
             qCritical("Chrome capture failed: %s", qPrintable(imagePath));
             QCoreApplication::exit(2);
             return;

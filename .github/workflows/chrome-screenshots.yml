@@ -1,13 +1,9 @@
 name: Chrome screenshots
 
-# Captures the main window in both frame modes and a gallery of macOS panels
-# and dialogs. The artifact contains originals and a labelled contact sheet.
-#
-# Why the capture happens inside the app and not via screencapture(1): since
-# macOS 15 a second screencapture in the same job pops an unclickable "bypass
-# the system private window picker" consent dialog, so the step would hang.
-# A process may always read its own window pixels, and on top of that the AppKit
-# theme frame includes the traffic lights, which QWidget::grab() cannot show.
+# Captures real app windows and custom UI panels, grouped by editor module.
+# Native macOS windows use ScreenCaptureKit's own-process window capture when
+# available, including system shadows and rounded corners. Capture methods and
+# any permission-safe AppKit fallback are recorded in the artifact manifest.
 on:
   workflow_dispatch:
   pull_request:
@@ -17,6 +13,7 @@ on:
       - 'src/app/Utils/WindowChromeCapture.*'
       - 'src/libs/GUI/Utils/WindowFrameUtils*'
       - 'src/tests/TestApplicationGui/tst_ui_gallery.cpp'
+      - 'scripts/ci/verify-ui-gallery.py'
       - '.github/workflows/chrome-screenshots.yml'
 
 permissions:
@@ -130,7 +127,7 @@ jobs:
           test -s "$out/title-bar-frameless.png"
           test -s "$out/title-bar-native-frame.json"
           test -s "$out/title-bar-frameless.json"
-      - name: Capture panels and windows and assemble review sheet
+      - name: Capture UI modules and assemble review sheet
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 6
         run: |
@@ -140,8 +137,10 @@ jobs:
           export QT_FORCE_STDERR_LOGGING=1
           export LITE_UI_GALLERY="$PWD/build/chrome-shots"
           cd build/Tests/out/bin
-          ./TestApplicationGui captureUiGallery -v1 2>&1 | tee "$LITE_UI_GALLERY/gallery.log"
+          ./TestApplicationGui uiGalleryLayoutGroupsModules captureUiGallery -v1 2>&1 | tee "$LITE_UI_GALLERY/gallery.log"
           test -s "$LITE_UI_GALLERY/ui-review.png"
+      - name: Verify gallery layout and capture provenance
+        run: python scripts/ci/verify-ui-gallery.py build/chrome-shots
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7
