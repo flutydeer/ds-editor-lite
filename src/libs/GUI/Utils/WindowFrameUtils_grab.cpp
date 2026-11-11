@@ -253,9 +253,14 @@ namespace {
             reinterpret_cast<decltype(&XInternAtom)>(xlib.resolve("XInternAtom"));
         const auto selectionOwner =
             reinterpret_cast<decltype(&XGetSelectionOwner)>(xlib.resolve("XGetSelectionOwner"));
+        const auto getProperty =
+            reinterpret_cast<decltype(&XGetWindowProperty)>(xlib.resolve("XGetWindowProperty"));
+        const auto translateCoordinates = reinterpret_cast<decltype(&XTranslateCoordinates)>(
+            xlib.resolve("XTranslateCoordinates"));
+        const auto freeProperty = reinterpret_cast<decltype(&XFree)>(xlib.resolve("XFree"));
         if (!openDisplay || !closeDisplay || !attributes || !screenNumber || !internAtom ||
-            !selectionOwner) {
-            reason = QStringLiteral("cannot check X11 compositor ownership");
+            !selectionOwner || !getProperty || !translateCoordinates || !freeProperty) {
+            reason = QStringLiteral("cannot query X11 compositor ownership and frame geometry");
             return {};
         }
         Display *display = openDisplay(nullptr);
@@ -327,6 +332,54 @@ namespace {
             reason = QStringLiteral("stable X11 target/screen dimensions do not match Qt scaling");
             return {};
         }
+        // QWidget::frameGeometry can briefly expose only the client even after
+        // Openbox has created decorations. Read the WM's physical frame extents
+        // and the actual X11 client origin instead of trusting that cached rect.
+        const auto nativeFrame = [&]() -> QRect {
+            XWindowAttributes nativeInfo{};
+            if (!attributes(display, static_cast<Window>(nativeId), &nativeInfo) ||
+                nativeInfo.root != rootId || nativeInfo.width != qRound(target->width() * scale) ||
+                nativeInfo.height != qRound(target->height() * scale))
+                return {};
+            const auto property = internAtom(display, "_NET_FRAME_EXTENTS", True);
+            const auto cardinal = internAtom(display, "CARDINAL", True);
+            if (!property || !cardinal)
+                return {};
+            Atom actualType{};
+            int format = 0;
+            unsigned long length = 0, remaining = 0;
+            unsigned char *bytes = nullptr;
+            const auto release = qScopeGuard([&] {
+                if (bytes)
+                    freeProperty(bytes);
+            });
+            if (getProperty(display, static_cast<Window>(nativeId), property, 0, 4, False, cardinal,
+                            &actualType, &format, &length, &remaining, &bytes) != Success ||
+                actualType != cardinal || format != 32 || length != 4 || remaining || !bytes)
+                return {};
+            const auto *extents = reinterpret_cast<const unsigned long *>(bytes);
+            for (int i = 0; i < 4; ++i) {
+                if (extents[i] > 256)
+                    return {};
+            }
+            int x = 0, y = 0;
+            Window child{};
+            if (!translateCoordinates(display, static_cast<Window>(nativeId), rootId, 0, 0, &x, &y,
+                                      &child))
+                return {};
+            const QRect actualClient(qRound(x / scale), qRound(y / scale), target->width(),
+                                     target->height());
+            if (actualClient != QRect(target->mapToGlobal(QPoint()), target->size()))
+                return {};
+            return actualClient.adjusted(-qRound(extents[0] / scale), -qRound(extents[2] / scale),
+                                         qRound(extents[1] / scale), qRound(extents[3] / scale));
+        };
+        captureRect = nativeFrame();
+        if (captureRect.isEmpty() || !screen->geometry().contains(captureRect)) {
+            reason =
+                QStringLiteral("X11 native frame extents are unavailable or outside the screen");
+            return {};
+        }
         // Probe the target client, not WM-owned decorations, for occlusion.
         // In the isolated CI display this also detects raised fixture windows.
         const QRect clientRect(target->mapToGlobal(QPoint()), target->size());
@@ -357,6 +410,10 @@ namespace {
         }
         const QPixmap capture = target->screen()->grabWindow(
             0, captureRect.x(), captureRect.y(), captureRect.width(), captureRect.height());
+        if (!target || nativeFrame() != captureRect) {
+            reason = QStringLiteral("X11 native frame geometry changed during capture");
+            return {};
+        }
         const auto image = capture.toImage();
         const auto offset = clientRect.topLeft() - captureRect.topLeft();
         const QRect client(qRound(offset.x() * scale), qRound(offset.y() * scale),
@@ -381,7 +438,9 @@ namespace {
                                     "pixels are black (RGB <= 2)");
             return {};
         }
-        qInfo("X11 frame capture: no compositor, no synthetic shadows or corners");
+        qInfo("X11 frame capture: native frame %dx%d, client %dx%d; no compositor or synthetic "
+              "shadows/corners",
+              captureRect.width(), captureRect.height(), target->width(), target->height());
         return capture;
     }
 #  endif
