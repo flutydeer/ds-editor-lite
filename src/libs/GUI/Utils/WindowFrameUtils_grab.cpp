@@ -6,8 +6,13 @@
 
 #  include <QWidget>
 
-bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
-    return widget && widget->grab().save(filePath);
+bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath,
+                                           QString *captureMethod) {
+    const bool saved = widget && widget->grab().save(filePath);
+    if (captureMethod)
+        *captureMethod = saved ? QStringLiteral("qt-client-fallback") : QStringLiteral("failed");
+    qInfo("Window capture: %s (Qt client area only)", saved ? "qt-client-fallback" : "failed");
+    return saved;
 }
 
 #endif
