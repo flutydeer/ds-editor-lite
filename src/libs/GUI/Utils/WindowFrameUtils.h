@@ -21,9 +21,10 @@ public:
     // own-process ScreenCaptureKit window capture (native corners and shadows).
     // AppKit frame caching is a fallback, not a system-compositor screenshot.
     // Windows/X11 can opt into isolated desktop pixel capture, including native
-    // decorations actually supplied by the runner's compositor. Otherwise only
-    // the Qt client area is captured. captureMethod reports the actual backend
-    // or fallback. No screen-recording permission is requested.
+    // decorations actually supplied by the runner. Windows can also render the
+    // native frame with PrintWindow when desktop capture is unavailable. The
+    // final fallback is Qt client content. captureMethod reports the source.
+    // No screen-recording permission is requested.
     [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
                                                   QString *captureMethod = nullptr);
 };
