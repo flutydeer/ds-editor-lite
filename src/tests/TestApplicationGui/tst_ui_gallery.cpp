@@ -5,6 +5,7 @@
 #include "../TestSupport/WaveFixture.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Model/Utils/ParamUtils.h"
 #include "Modules/Audio/AudioExporter.h"
 #include "Modules/ProjectConverters/MidiBatchImportDialog.h"
 #include "Modules/ProjectConverters/MidiConfigPage.h"
@@ -30,11 +31,13 @@
 #include "UI/Dialogs/Timeline/EditTempoDialog.h"
 #include "UI/Dialogs/Timeline/EditTimeSignatureDialog.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/GhostNoteOverlay.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Window/DetachedPanelWindow.h"
@@ -47,6 +50,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/Task.h>
 #include <lite/Tasking/TaskManager.h>
 
@@ -63,6 +67,7 @@
 #include <QJsonObject>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QPainter>
 #include <QScopeGuard>
@@ -640,8 +645,46 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(runtime.project().setTrackMute(commandContext(), audioTrackId, true));
     QVERIFY(runtime.project().setTrackGain(commandContext(), audioTrackId, -6.0));
     QVERIFY(runtime.project().setTrackPan(commandContext(), audioTrackId, -0.3));
+    QVERIFY(runtime.project().setTrackPan(commandContext(), trackId, 0.3));
     QVERIFY(context->m_appModel->tracks().at(0)->control().solo());
     QVERIFY(context->m_appModel->tracks().at(1)->control().mute());
+
+    // The fixture already contains a third track. Give it useful reference
+    // notes and resolve every track's color in its final visual order.
+    QCOMPARE(context->m_appModel->tracks().size(), 3);
+    for (qsizetype index = 0; index < context->m_appModel->tracks().size(); ++index) {
+        auto *item = context->m_appModel->tracks().at(index);
+        QVERIFY(runtime.project().setTrackColor(commandContext(), Automation::TrackId(item->id()),
+                                                static_cast<int>(index)));
+    }
+    const auto harmonyTrackId = Automation::TrackId(context->m_appModel->tracks().last()->id());
+    QVERIFY(runtime.project().renameTrack(commandContext(), harmonyTrackId,
+                                          QStringLiteral("Harmony reference")));
+    Automation::ClipDraftDto harmony;
+    harmony.properties.name = QStringLiteral("Harmony reference");
+    harmony.properties.length = harmony.properties.clipLen = 3840;
+    harmony.defaultLanguage = QStringLiteral("eng");
+    for (int index = 0; index < 4; ++index) {
+        Automation::NoteDraftDto note;
+        note.localStart = 240 + index * 720;
+        note.length = 480;
+        note.keyIndex = index % 2 == 0 ? 62 : 64;
+        note.lyric = QStringLiteral("la");
+        note.language = QStringLiteral("eng");
+        harmony.notes.append(note);
+    }
+    QVERIFY(runtime.project().insertClips(commandContext(),
+                                          {
+                                              {.trackId = harmonyTrackId, .clip = harmony}
+    }));
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto originalAppearance = settings.get().appearance;
+    const auto restoreAppearance =
+        qScopeGuard([&] { runtime.settings().updateAppearance({}, originalAppearance); });
+    auto appearance = originalAppearance;
+    appearance.showGhostNotes = true;
+    QVERIFY(runtime.settings().updateAppearance({}, appearance));
 
     // Seed the same model layers used by generated, hand-drawn and anchor data.
     // These deterministic fixture values do not require a live inference service.
@@ -669,12 +712,7 @@ void ApplicationGuiTests::captureUiGallery() {
     };
     const auto clipId = Automation::ClipId(singingClip->id());
     QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Breathiness,
-                                                  Param::Original, {generated}));
-    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Breathiness,
                                                   Param::Edited, {handDrawn, anchors}));
-    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Tension,
-                                                  Param::Original, {background}));
-    QCOMPARE(singingClip->params.breathiness.curves(Param::Original).size(), 1);
     QCOMPARE(singingClip->params.breathiness.curves(Param::Edited).size(), 2);
 
     Automation::CurveDraftDto generatedPitch;
@@ -701,6 +739,32 @@ void ApplicationGuiTests::captureUiGallery() {
                                                   Param::Edited, {drawnPitch, pitchAnchors}));
     QCOMPARE(singingClip->params.pitch.curves(Param::Original).size(), 1);
     QCOMPARE(singingClip->params.pitch.curves(Param::Edited).size(), 2);
+
+    // Pitch edits invalidate variance inference. Wait for that work before
+    // seeding the generated parameter layer, or inference replaces it with
+    // the bundled voicebank's flat defaults while screenshots are being taken.
+    QTRY_VERIFY_WITH_TIMEOUT(
+        std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
+                    [](const InferPiece *piece) {
+                        return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                               piece->state == QStringLiteral("Ready");
+                    }) &&
+            taskManager->tasks().isEmpty(),
+        15000);
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Breathiness,
+                                                  Param::Original, {generated}));
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Tension,
+                                                  Param::Original, {background}));
+    const auto verifyGeneratedParameters = [&] {
+        const auto &curves = singingClip->params.breathiness.curves(Param::Original);
+        QCOMPARE(curves.size(), 1);
+        const auto *curve = dynamic_cast<const DrawCurve *>(curves.first());
+        QVERIFY(curve);
+        QCOMPARE(curve->values(), generated.values);
+        QVERIFY(*std::max_element(curve->values().cbegin(), curve->values().cend()) -
+                    *std::min_element(curve->values().cbegin(), curve->values().cend()) >
+                30000);
+    };
 
     QVERIFY(window.setEditorPanelVisibility(true, false));
     for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
@@ -734,6 +798,13 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(editor->setParameterBackground(ParamInfo::Tension));
     auto *piano = editor->findChild<PianoRollGraphicsView *>();
     QVERIFY(piano);
+    GhostNoteOverlay *ghostNotes = nullptr;
+    for (auto *item : piano->scene()->items()) {
+        if (auto *ghost = dynamic_cast<GhostNoteOverlay *>(item))
+            ghostNotes = ghost;
+    }
+    QVERIFY(ghostNotes);
+    QTRY_VERIFY(ghostNotes->isVisible());
     const auto framePitchCurves = [&] {
         // Settle panel resizing before centering. Otherwise a small desktop can
         // leave the upper pitch anchors outside the resized piano viewport.
@@ -751,6 +822,13 @@ void ApplicationGuiTests::captureUiGallery() {
     gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
     QVERIFY(window.setEditorPanelVisibility(false, true));
     QVERIFY(framePitchCurves());
+    auto *parameters = editor->findChild<ParamEditorView *>();
+    QVERIFY(parameters);
+    auto *parameterPrompt = parameters->findChild<QWidget *>("speakerMixEmptyState");
+    QVERIFY(parameterPrompt);
+    QTRY_VERIFY(!parameterPrompt->isVisible());
+    parameters->graphicsView()->setForegroundBaseCurveVisible(true);
+    parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
     // Representative tools for Final, Draw and Anchor display styles. Other
     // tools share those static appearances and do not need duplicate pictures.
     const std::pair<EditorViewGlobal::PianoRollEditMode, const char *> pianoStyles[] = {
@@ -760,23 +838,61 @@ void ApplicationGuiTests::captureUiGallery() {
     };
     for (const auto &[mode, caption] : pianoStyles) {
         QVERIFY(editor->setEditMode(mode));
+        QVERIFY(editor->setParameterEditMode(mode == EditorViewGlobal::EditPitchAnchor
+                                                 ? EditorViewGlobal::ParameterEditMode::Anchor
+                                                 : EditorViewGlobal::ParameterEditMode::Draw));
         QCOMPARE(editor->viewState().editMode, mode);
+        verifyGeneratedParameters();
+        if (QTest::currentTestFailed())
+            return;
         gallery.take(*bottom, Module::Notes, QString::fromLatin1(caption),
                      Gallery::Capture::WidgetContent);
     }
-    QVERIFY(editor->setEditMode(EditorViewGlobal::Select));
-    auto *parameters = editor->findChild<ParamEditorView *>();
-    QVERIFY(parameters);
-    auto *parameterPrompt = parameters->findChild<QWidget *>("speakerMixEmptyState");
-    QVERIFY(parameterPrompt);
-    QTRY_VERIFY(!parameterPrompt->isVisible());
-    parameters->graphicsView()->setForegroundBaseCurveVisible(true);
-    parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
-    // Parameter anchors stay visible across tools. One view shows all curve
-    // layers and interpolations without repeating toolbar highlight changes.
-    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
-    gallery.take(*parameters, Module::Notes, QStringLiteral("Parameters"),
+    // Shape and Scale share the range/shoulder/percentage overlay. Show one
+    // alongside pitch modulation instead of duplicating every armed tool.
+    QVERIFY(editor->setEditMode(EditorViewGlobal::ModulatePitch));
+    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Scale));
+    const auto selectTransformRange = [&](TimeGraphicsView &graphics, double value) {
+        CommonParamEditorView *foreground = nullptr;
+        for (auto *item : graphics.scene()->items()) {
+            auto *candidate = dynamic_cast<CommonParamEditorView *>(item);
+            if (candidate && !candidate->transparentMouseEvents()) {
+                foreground = candidate;
+                break;
+            }
+        }
+        QVERIFY(foreground);
+        const auto point = [&](int tick) {
+            const auto visible = graphics.visibleRect();
+            const auto ratio =
+                (tick - graphics.startTick()) / (graphics.endTick() - graphics.startTick());
+            return graphics.mapFromScene(QPointF(visible.left() + ratio * visible.width(),
+                                                 foreground->sceneYForValue(value)));
+        };
+        const auto start = point(480);
+        const auto end = point(1080);
+        QVERIFY(graphics.viewport()->rect().contains(start));
+        QVERIFY(graphics.viewport()->rect().contains(end));
+        const auto before = graphics.viewport()->grab().toImage();
+        QTest::mousePress(graphics.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+        QMouseEvent move(QEvent::MouseMove, QPointF(end),
+                         QPointF(graphics.viewport()->mapToGlobal(end)), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(graphics.viewport(), &move);
+        QTest::mouseRelease(graphics.viewport(), Qt::LeftButton, Qt::NoModifier, end);
+        QCoreApplication::processEvents();
+        QVERIFY(before != graphics.viewport()->grab().toImage());
+    };
+    selectTransformRange(*piano, 6000);
+    if (QTest::currentTestFailed())
+        return;
+    selectTransformRange(*parameters->graphicsView(), -40000);
+    if (QTest::currentTestFailed())
+        return;
+    gallery.take(*bottom, Module::Notes, QStringLiteral("Pitch and parameter transform ranges"),
                  Gallery::Capture::WidgetContent);
+    QVERIFY(editor->setEditMode(EditorViewGlobal::Select));
+    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
@@ -950,36 +1066,54 @@ void ApplicationGuiTests::captureUiGallery() {
                          QStringLiteral("Fill lyrics - %1").arg(tabs->tabText(i)));
         }
     }
-    const SingerInfo singer(
-        {QStringLiteral("mix-test"), QStringLiteral("gallery"), QVersionNumber(1, 0)},
-        QStringLiteral("Demo voice"),
-        {SpeakerInfo(QStringLiteral("bright"), QStringLiteral("Bright")),
-         SpeakerInfo(QStringLiteral("warm"), QStringLiteral("Warm"))});
+    SingerInfo singer({QStringLiteral("mix-test"), QStringLiteral("gallery"), QVersionNumber(1, 0)},
+                      QStringLiteral("Demo voice"),
+                      {SpeakerInfo(QStringLiteral("bright"), QStringLiteral("Bright")),
+                       SpeakerInfo(QStringLiteral("warm"), QStringLiteral("Warm"))});
+    SingerCapabilitySummary capability;
+    capability.acousticParameters =
+        QStringList{QStringLiteral("breathiness"), QStringLiteral("tension")};
+    singer.setCapability(capability);
     // Use the same two-speaker data as the dynamic-mix interaction tests rather
     // than capturing an unavailable-state placeholder under an editor caption.
     const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
     const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
     SpeakerMixModel::SpeakerMixData mix;
-    mix.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+    mix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
     mix.sources = {{bright}, {warm}};
     mix.fixedWeights = {0.5};
-    mix.dynamicKeyframes = {
-        {0,   {0.5} },
-        {480, {0.25}},
-        {960, {0.75}}
-    };
     QVERIFY(runtime.parameters().applyClipSpeakerMix(
         commandContext(), Automation::ClipId(singingClip->id()), singer, bright, mix));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     QVERIFY(window.setEditorPanelVisibility(false, true));
     editor->onActiveClipChanged(singingClip->id());
+    QVERIFY(!paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singingClip->singerInfo()));
+    QVERIFY(editor->setParameterForeground(ParamInfo::MouthOpening));
+    QTRY_VERIFY(parameterPrompt->isVisible());
+    gallery.take(*parameters, Module::Notes, QStringLiteral("Unsupported parameter"),
+                 Gallery::Capture::WidgetContent);
     QVERIFY(editor->setParameterForeground(ParamInfo::SpeakerMix));
     auto *mixEmpty = editor->findChild<QWidget *>("speakerMixEmptyState");
     QVERIFY(mixEmpty);
-    QTRY_VERIFY(!mixEmpty->isVisible());
+    QTRY_VERIFY(mixEmpty->isVisible());
     auto *mixEditor = editor->findChild<ParamEditorView *>();
     QVERIFY(mixEditor);
     QTRY_VERIFY(mixEditor->isVisible());
+    gallery.take(*mixEditor, Module::Mixing, QStringLiteral("Enable dynamic speaker mix"),
+                 Gallery::Capture::WidgetContent);
+    auto *enableDynamicMix = mixEmpty->findChild<QAbstractButton *>();
+    QVERIFY(enableDynamicMix && enableDynamicMix->isVisible() && enableDynamicMix->isEnabled());
+    QTest::mouseClick(enableDynamicMix, Qt::LeftButton);
+    QTRY_VERIFY(!mixEmpty->isVisible());
+    QCOMPARE(singingClip->speakerMixData().mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    mix = singingClip->speakerMixData();
+    mix.dynamicKeyframes = {
+        {0,   {0.5} },
+        {480, {0.25}},
+        {960, {0.75}}
+    };
+    QVERIFY(
+        runtime.parameters().applyClipSpeakerMix(commandContext(), clipId, singer, bright, mix));
     gallery.take(*mixEditor, Module::Mixing, QStringLiteral("Dynamic speaker mix"),
                  Gallery::Capture::WidgetContent);
     show(SpeakerMixDialog(singer, {}, &window), Module::Mixing, QStringLiteral("Speaker mix"));

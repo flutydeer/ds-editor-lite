@@ -98,10 +98,12 @@ def verify(directory, theme=None):
                "qt-widget-content"}
     assert methods.keys() <= allowed, methods
     assert methods["qt-widget-content"] > 0, "No standalone custom panel captures"
-    assert sum(methods.values()) == 50, "Screenshot coverage is incomplete"
+    assert sum(methods.values()) == 52, "Screenshot coverage is incomplete"
     captions = {item["caption"] for section in report["sections"] for item in section["images"]}
     expected_styles = {
-        "Piano roll - notes", "Pitch - draw", "Pitch - anchor", "Parameters",
+        "Piano roll - notes", "Pitch - draw", "Pitch - anchor",
+        "Pitch and parameter transform ranges", "Unsupported parameter",
+        "Enable dynamic speaker mix", "Dynamic speaker mix",
     }
     assert expected_styles | {"Task list", "Fill lyrics - Help"} <= captions
     print(f"Verified {sum(methods.values())} screenshots in {len(expected_modules)} UI modules")
