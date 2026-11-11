@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_preferences.h
     tst_automation_option.cpp
     tst_ui_language.cpp
+    tst_appearance_option.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorPreferencesCore)
