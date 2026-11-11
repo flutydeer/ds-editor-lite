@@ -30,6 +30,12 @@ private slots:
     void submenuLabelKeepsGapBeforeArrow_data();
     void submenuLabelKeepsGapBeforeArrow();
     void submenuArrowSpaceTracksActionChanges();
+    void submenuArrowSpaceKeepsShortcutColumnAligned_data();
+    void submenuArrowSpaceKeepsShortcutColumnAligned();
+    void shortcutTextUsesIndependentThemeColors_data();
+    void shortcutTextUsesIndependentThemeColors();
+    void submenuShortcutKeepsThemeColorAndGap_data();
+    void submenuShortcutKeepsThemeColorAndGap();
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();
