@@ -38,6 +38,14 @@ def verify(directory, theme=None):
             geometry = json.loads((directory / "modules/01-workspace" /
                                    f"title-bar-{mode}.json").read_text(encoding="utf-8"))
             assert geometry["themeId"] == f"lite-{theme}", "Wrong main-window theme"
+            if geometry["captureMethod"] == "x11-window-without-compositor":
+                left, top, right, bottom = geometry["frameMargins"]
+                _, _, width, height = geometry["widgetRect"]
+                scale = geometry["devicePixelRatio"]
+                expected_size = [round((width + left + right) * scale),
+                                 round((height + top + bottom) * scale)]
+                assert png_size(directory / "modules/01-workspace" /
+                                f"title-bar-{mode}.png") == expected_size, "X11 capture omits the recorded native frame"
     assert png_size(directory / "ui-review.png") == report["size"]
     canvas = [0, 0, *report["size"]]
     expected_modules = ["Project & workspace", "Tracks & timeline", "Notes & pitch editing",
