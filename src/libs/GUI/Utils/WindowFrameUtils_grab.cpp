@@ -20,6 +20,7 @@
 #  if defined(Q_OS_WIN)
 #    include <Windows.h>
 #    include <dwmapi.h>
+#    include <cstring>
 #  endif
 
 #  if defined(Q_OS_LINUX) && __has_include(<X11/Xlib.h>)
@@ -63,6 +64,40 @@ namespace {
             reason = QStringLiteral("PrintWindow dimensions are invalid or too large");
             return {};
         }
+        // WM_PRINT may report success while returning stale or clipped Qt
+        // backing-store content after a resize. Render the complete Qt client
+        // independently, including any app-drawn title bar and close button.
+        const QPointer<QWidget> target(widget);
+        auto qtClient = widget->grab().toImage();
+        const auto geometryMatches = [&] {
+            RECT currentFrame{}, currentClient{};
+            POINT currentOrigin{};
+            return target && target->internalWinId() == reinterpret_cast<WId>(hwnd) &&
+                   GetWindowRect(hwnd, &currentFrame) && GetClientRect(hwnd, &currentClient) &&
+                   ClientToScreen(hwnd, &currentOrigin) && EqualRect(&frame, &currentFrame) &&
+                   EqualRect(&client, &currentClient) && currentOrigin.x == clientOrigin.x &&
+                   currentOrigin.y == clientOrigin.y;
+        };
+        if (qtClient.isNull() ||
+            qtClient.size() != QSize(client.right - client.left, client.bottom - client.top) ||
+            !geometryMatches()) {
+            reason = QStringLiteral("PrintWindow/Qt client dimensions or native geometry changed");
+            return {};
+        }
+        // An opaque native DIB cannot accurately preserve a translucent Qt
+        // client. Refuse that case instead of inventing its desktop background.
+        if (qtClient.hasAlphaChannel()) {
+            for (int y = 0; y < qtClient.height(); ++y) {
+                for (int x = 0; x < qtClient.width(); ++x) {
+                    if (qAlpha(qtClient.pixel(x, y)) != 255) {
+                        reason =
+                            QStringLiteral("PrintWindow/Qt composition requires an opaque client");
+                        return {};
+                    }
+                }
+            }
+        }
+        qtClient = qtClient.convertToFormat(QImage::Format_RGB32);
         HDC windowDc = GetDC(hwnd);
         if (!windowDc) {
             reason = QStringLiteral("cannot acquire window drawing context");
@@ -109,11 +144,22 @@ namespace {
             return {};
         }
         GdiFlush();
+        if (!geometryMatches()) {
+            reason = QStringLiteral("native geometry changed while PrintWindow was rendering");
+            return {};
+        }
         const QRect clientPixels(clientOrigin.x - frame.left, clientOrigin.y - frame.top,
                                  client.right - client.left, client.bottom - client.top);
         if (!buffer.rect().contains(clientPixels) || clientPixels.isEmpty()) {
             reason = QStringLiteral("PrintWindow did not contain the complete client rectangle");
             return {};
+        }
+        // Copy actual Qt pixels 1:1 only inside the Win32 client rectangle.
+        // Outside it, keep exclusively the native WM_PRINT output. Do not scale
+        // the client, redraw a system caption, or fabricate frame effects.
+        for (int y = 0; y < qtClient.height(); ++y) {
+            std::memcpy(buffer.scanLine(clientPixels.y() + y) + clientPixels.x() * 4,
+                        qtClient.constScanLine(y), static_cast<size_t>(qtClient.width()) * 4);
         }
         int black = 0, missing = 0, count = 0;
         for (int y = clientPixels.top(); y <= clientPixels.bottom();
@@ -140,6 +186,29 @@ namespace {
                 visiblePixels.contains(clientPixels))
                 crop = visiblePixels;
         }
+        // A genuine native caption lies above the Win32 client. Its wide black
+        // stripe cannot be repaired with a Qt grab. Reject that failure while
+        // leaving ordinary one-pixel dark borders alone. App-drawn captions are
+        // already inside clientPixels and were captured by QWidget above.
+        const int captionTop = crop.top() + 2;
+        const int captionBottom = clientPixels.top() - 3;
+        if (captionBottom - captionTop + 1 >= 8) {
+            int blackRun = 0;
+            for (int x = crop.left() + 2; x <= crop.right() - 2; ++x) {
+                int blackPixels = 0;
+                for (int y = captionTop; y <= captionBottom; ++y) {
+                    const auto pixel = buffer.pixel(x, y);
+                    blackPixels += qRed(pixel) <= 2 && qGreen(pixel) <= 2 && qBlue(pixel) <= 2;
+                }
+                blackRun =
+                    blackPixels * 100 >= (captionBottom - captionTop + 1) * 90 ? blackRun + 1 : 0;
+                if (blackRun >= qMax(32, crop.width() / 8)) {
+                    reason =
+                        QStringLiteral("PrintWindow rejected: incomplete black native caption");
+                    return {};
+                }
+            }
+        }
         auto image = buffer.copy(crop);
         // The native frame must have painted too. Do not export the diagnostic
         // initialization color as a fabricated border when WM_PRINT omits it.
@@ -154,8 +223,10 @@ namespace {
             }
         }
         image.setDevicePixelRatio(widget->devicePixelRatioF());
-        qInfo("PrintWindow frame capture: native nonclient rendering, no DWM shadow/corner "
-              "guarantee");
+        qInfo("PrintWindow + Qt capture: native frame %dx%d, client (%d,%d %dx%d), "
+              "Qt client %dx%d; no DWM shadow/corner guarantee",
+              width, height, clientPixels.x(), clientPixels.y(), clientPixels.width(),
+              clientPixels.height(), qtClient.width(), qtClient.height());
         return QPixmap::fromImage(image);
     }
 #  endif
@@ -495,9 +566,9 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
         if (!printedImage.isNull()) {
             const bool saved = printedImage.save(filePath);
             if (saved && captureMethod)
-                *captureMethod = QStringLiteral("windows-printwindow-frame");
+                *captureMethod = QStringLiteral("windows-printwindow-frame-qt-client");
             qInfo("Window capture: %s",
-                  saved ? "windows-printwindow-frame" : "failed to write PNG");
+                  saved ? "windows-printwindow-frame-qt-client" : "failed to write PNG");
             return saved;
         }
         qWarning("PrintWindow capture fallback: %s", qPrintable(reason));
