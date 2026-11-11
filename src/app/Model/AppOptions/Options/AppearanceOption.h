@@ -3,8 +3,6 @@
 
 #include "Model/AppOptions/IOption.h"
 
-#include <optional>
-
 class AppearanceOption : public IOption {
 public:
     explicit AppearanceOption() : IOption("appearance") {
@@ -17,12 +15,6 @@ public:
 #else
     bool useNativeFrame = false;
 #endif
-    // Runtime-only override for screenshot capture. Serialization keeps useNativeFrame.
-    std::optional<bool> nativeFrameOverride;
-    [[nodiscard]] bool effectiveUseNativeFrame() const {
-        return nativeFrameOverride.value_or(useNativeFrame);
-    }
-
     // themeId is stored as an opaque persisted string; the theme system owns
     // the vocabulary and converts at the boundary. Animation is a plain on/off
     // toggle; a missing or unparseable value defaults to enabled.

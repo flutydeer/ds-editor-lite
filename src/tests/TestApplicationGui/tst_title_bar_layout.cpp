@@ -34,27 +34,19 @@ namespace {
 
 void ApplicationGuiTests::dialogTitleBarFollowsFrameMode_data() {
     QTest::addColumn<bool>("storedFrame");
-    QTest::addColumn<int>("forcedFrame");
-    QTest::newRow("stored-native") << true << -1;
-    QTest::newRow("stored-frameless") << false << -1;
-    QTest::newRow("capture-native") << false << 1;
-    QTest::newRow("capture-frameless") << true << 0;
+    QTest::newRow("stored-native") << true;
+    QTest::newRow("stored-frameless") << false;
 }
 
 void ApplicationGuiTests::dialogTitleBarFollowsFrameMode() {
     QFETCH(bool, storedFrame);
-    QFETCH(int, forcedFrame);
     auto *appearance = appOptions->appearance();
     const auto previousFrame = appearance->useNativeFrame;
-    const auto previousOverride = appearance->nativeFrameOverride;
     const auto restore = qScopeGuard([&] {
         appearance->useNativeFrame = previousFrame;
-        appearance->nativeFrameOverride = previousOverride;
     });
     appearance->useNativeFrame = storedFrame;
-    appearance->nativeFrameOverride = forcedFrame < 0 ? std::nullopt
-                                                     : std::optional<bool>(forcedFrame != 0);
-    const bool nativeFrame = appearance->effectiveUseNativeFrame();
+    const bool nativeFrame = appearance->useNativeFrame;
     MessageDialog dialog(QStringLiteral("Window frame test"), QStringLiteral("Dialog content"));
     dialog.show();
     QVERIFY(QTest::qWaitForWindowExposed(&dialog));
@@ -73,7 +65,6 @@ void ApplicationGuiTests::dialogTitleBarFollowsFrameMode() {
         QTRY_COMPARE(dialog.windowHandle()->frameMargins().top(), 0);
     }
 #endif
-    // The runtime capture selection must never rewrite the user's preference.
     QCOMPARE(appearance->useNativeFrame, storedFrame);
 }
 

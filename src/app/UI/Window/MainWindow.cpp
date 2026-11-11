@@ -69,7 +69,7 @@
 MainWindow::MainWindow() {
     setAcceptDrops(true);
 
-    m_useNativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
+    m_useNativeFrame = appOptions->appearance()->useNativeFrame;
 #ifdef Q_OS_MAC
     if (!m_useNativeFrame) {
         // Expand the native client area, then opt out of QWidget's automatic

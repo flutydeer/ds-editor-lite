@@ -98,7 +98,7 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
-    const auto useNativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
+    const auto useNativeFrame = appOptions->appearance()->useNativeFrame;
     if (!useNativeFrame) {
 #ifdef Q_OS_MAC
         // Match the main window before the agent creates the native window.

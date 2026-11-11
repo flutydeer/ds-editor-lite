@@ -9,7 +9,6 @@
 #  include <QWidget>
 #  include <QStyle>
 #  include <QGuiApplication>
-#  include <QFile>
 
 // ReSharper disable once CppParameterMayBeConstPtrOrRef
 void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
@@ -68,54 +67,6 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
         static_cast<unsigned long>(before), static_cast<unsigned long>(window.styleMask),
         contentBefore.size.width, contentBefore.size.height, window.contentLayoutRect.size.width,
         window.contentLayoutRect.size.height);
-}
-
-bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath) {
-    if (!widget)
-        return false;
-    if (QGuiApplication::platformName() != QStringLiteral("cocoa"))
-        return widget->grab().save(filePath);
-
-    // Caching the theme frame instead of the Qt content is the whole point: the
-    // traffic lights and the title bar are AppKit views that live outside the
-    // QWidget backing store. It also avoids screencapture(1), whose screen
-    // recording consent prompt cannot be answered from a headless CI job.
-    auto view = reinterpret_cast<NSView *>(widget->winId());
-    NSWindow *window = [view window];
-    if (!window) {
-        qWarning("Chrome capture has no NSWindow");
-        return false;
-    }
-    NSView *frameView = [[window contentView] superview];
-    if (!frameView) {
-        qWarning("Chrome capture has no AppKit frame view");
-        return false;
-    }
-
-    const NSRect bounds = frameView.bounds;
-    const NSRect clientRect = [view convertRect:view.bounds toView:frameView];
-    const auto topInset = frameView.isFlipped ? NSMinY(clientRect) - NSMinY(bounds)
-                                              : NSMaxY(bounds) - NSMaxY(clientRect);
-    qInfo("Chrome native geometry: frame %.0fx%.0f, Qt view %.0fx%.0f, top inset %.0f, "
-          "view safe-area top %.0f, screen safe-area top %.0f, styleMask 0x%lx",
-          bounds.size.width, bounds.size.height, clientRect.size.width, clientRect.size.height,
-          topInset, view.safeAreaInsets.top, window.screen.safeAreaInsets.top,
-          static_cast<unsigned long>(window.styleMask));
-    NSBitmapImageRep *rep = [frameView bitmapImageRepForCachingDisplayInRect:bounds];
-    if (!rep) {
-        qWarning("Chrome capture could not allocate an AppKit bitmap");
-        return false;
-    }
-    [frameView cacheDisplayInRect:bounds toBitmapImageRep:rep];
-    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-    if (!png)
-        return false;
-
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly))
-        return false;
-    return file.write(static_cast<const char *>(png.bytes), static_cast<qint64>(png.length)) ==
-           static_cast<qint64>(png.length);
 }
 
 #endif
