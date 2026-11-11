@@ -340,7 +340,7 @@ namespace {
             QImage sheet(sheetWidth, sheetHeight, QImage::Format_RGB32);
             QVERIFY(!sheet.isNull());
             const bool dark = captureTheme() == QStringLiteral("dark");
-            sheet.fill(QColor(dark ? "#353f50" : "#d7dee8"));
+            sheet.fill(QColor(dark ? "#353f50" : "#c4cdd9"));
             QPainter painter(&sheet);
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
             painter.setPen(QColor(dark ? "#e6eaf0" : "#182433"));
@@ -565,7 +565,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     QVERIFY(!QImage(output.filePath("ui-review.png")).isNull());
     QVERIFY(!QImage(output.filePath("modules/01-workspace/review.png")).isNull());
     QCOMPARE(QImage(output.filePath("ui-review.png")).pixelColor(0, 0),
-             QColor(captureTheme() == "dark" ? "#353f50" : "#d7dee8"));
+             QColor(captureTheme() == "dark" ? "#353f50" : "#c4cdd9"));
 }
 
 void ApplicationGuiTests::captureUiGallery() {
