@@ -710,7 +710,6 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(window.setEditorPanelVisibility(false, true));
     gallery.take(*bottom, Module::Notes, QStringLiteral("Piano roll and parameters"),
                  Gallery::Capture::WidgetContent);
-    QVERIFY(editor->setRegionVisibility(false, true));
     QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
     auto *parameters = editor->findChild<ParamEditorView *>();
     QVERIFY(parameters);
@@ -721,7 +720,6 @@ void ApplicationGuiTests::captureUiGallery() {
     parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
     gallery.take(*parameters, Module::Notes, QStringLiteral("Parameter curves"),
                  Gallery::Capture::WidgetContent);
-    QVERIFY(editor->setRegionVisibility(true, true));
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
