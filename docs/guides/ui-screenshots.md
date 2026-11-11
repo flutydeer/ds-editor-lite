@@ -21,7 +21,7 @@ captureMethod 记录实际来源：screencapturekit-window、windows-desktop-win
 
 ## 产物包
 
-Tests 工作流上传 ui-screenshots-arm64-osx、ui-screenshots-x64-windows 和 ui-screenshots-x64-linux 三个包。每个平台目录都有 capture.json，包含操作系统版本、已完成主题和完整性状态。其 light/、dark/ 子目录包含：
+Tests 工作流沿用测试诊断产物的命名风格，上传 `<triplet>-ui-screenshots-<run_id>-<run_attempt>`，其中 triplet 为 arm64-osx、x64-windows 或 x64-linux。每个平台目录都有 capture.json，包含操作系统版本、已完成主题和完整性状态。其 light/、dark/ 子目录包含：
 
 - ui-review.png：全部模块的合成总览。
 - ui-review.json：实际主题、模块、图注、原图路径、捕获来源、原始尺寸与排版坐标。
