@@ -1,6 +1,7 @@
 #ifndef WINDOWFRAMEUTILS_H
 #define WINDOWFRAMEUTILS_H
 
+#include <QString>
 #include <QtGlobal>
 
 class QWidget;
@@ -16,6 +17,11 @@ public:
     // so a custom title bar can reclaim that row and the traffic lights can be
     // moved inside it. Idempotent, safe to call on every show.
     static void mergeTitleBarIntoContent(QWidget *widget);
+    // Writes the whole window, chrome included, to filePath. macOS captures the
+    // AppKit frame view so the traffic lights and the native title bar are part
+    // of the image, which a QWidget::grab() can never show. Used by the CI
+    // screenshot harness only.
+    [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
