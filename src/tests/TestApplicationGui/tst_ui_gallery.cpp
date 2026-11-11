@@ -66,7 +66,6 @@
 #include <QRegularExpression>
 #include <QStringList>
 
-#include <cmath>
 #include <numbers>
 
 namespace {
@@ -248,28 +247,43 @@ namespace {
                         module, QRect(margin, y, width - 2 * margin, headingHeight), {}, {}};
                     y += headingHeight + headingGap;
                     int x = margin;
-                    int rowHeight = 0;
+                    int rowImageHeight = 0;
+                    int rowCaptionHeight = 0;
+                    qsizetype rowStart = 0;
+                    const auto finishRow = [&] {
+                        for (qsizetype i = rowStart; i < section.images.size(); ++i) {
+                            auto &placement = section.images[i];
+                            placement.image.moveTop(
+                                y + (rowImageHeight - placement.image.height()) / 2);
+                            placement.caption.moveTop(y + rowImageHeight + captionGap);
+                        }
+                        y += rowImageHeight + captionGap + rowCaptionHeight;
+                    };
                     for (const auto *entry : entries) {
                         const int itemWidth = qMax(minimumCaptionWidth, entry->image.width());
                         if (x > margin && x + itemWidth > width - margin) {
-                            y += rowHeight + rowGap;
+                            finishRow();
+                            y += rowGap;
                             x = margin;
-                            rowHeight = 0;
+                            rowImageHeight = 0;
+                            rowCaptionHeight = 0;
+                            rowStart = section.images.size();
                         }
-                        const int captionHeight = qMax(
-                            54, captionMetrics.boundingRect(
-                                    QRect(0, 0, itemWidth, 10000),
-                                    Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
-                                    entry->title).height());
+                        const int captionHeight =
+                            captionMetrics
+                                .boundingRect(QRect(0, 0, itemWidth, 10000),
+                                              Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
+                                              entry->title)
+                                .height();
                         const int imageX = x + (itemWidth - entry->image.width()) / 2;
                         section.images.append({entry, QRect(QPoint(imageX, y), entry->image.size()),
                                                QRect(x, y + entry->image.height() + captionGap,
                                                      itemWidth, captionHeight)});
-                        rowHeight =
-                            qMax(rowHeight, entry->image.height() + captionGap + captionHeight);
+                        rowImageHeight = qMax(rowImageHeight, entry->image.height());
+                        rowCaptionHeight = qMax(rowCaptionHeight, captionHeight);
                         x += itemWidth + columnGap;
                     }
-                    y += rowHeight;
+                    finishRow();
                     section.bounds = QRect(0, sectionTop - 24, width, y - sectionTop + 48);
                     if (result)
                         result->append(std::move(section));
@@ -282,28 +296,28 @@ namespace {
                 minimumWidth = qMax(minimumWidth, entry.image.width() + 2 * margin);
             const QFontMetrics headingMetrics(headingFont);
             for (const auto module : modules)
-                minimumWidth = qMax(minimumWidth,
-                                    headingMetrics.horizontalAdvance(moduleTitle(module)) +
-                                        2 * margin);
-            constexpr double targetAspect = 1.55;
-            // Bracket a landscape canvas using the complete measured gallery,
-            // then search widths without imposing a row count on any module.
-            int maximumWidth = minimumWidth;
-            while (double(maximumWidth) / layout(maximumWidth) < targetAspect)
-                maximumWidth *= 2;
-            int sheetWidth = maximumWidth;
-            double bestDistance =
-                std::abs(double(maximumWidth) / layout(maximumWidth) - targetAspect);
-            for (int width = minimumWidth; width <= maximumWidth; width += 32) {
-                const double aspect = double(width) / layout(width);
-                const double distance = std::abs(aspect - targetAspect);
-                if (aspect >= 1.0 && distance < bestDistance) {
-                    sheetWidth = width;
-                    bestDistance = distance;
+                minimumWidth =
+                    qMax(minimumWidth,
+                         headingMetrics.horizontalAdvance(moduleTitle(module)) + 2 * margin);
+            // Each module wraps independently at this maximum, with no aspect
+            // target or column count. Stacking more modules only adds height.
+            constexpr int maximumRowWidth = 5120;
+            QVERIFY(minimumWidth <= maximumRowWidth);
+            const auto contentWidth = [&](const QList<Section> &sections) {
+                int right = minimumWidth - margin;
+                for (const auto &section : sections) {
+                    for (const auto &placement : section.images)
+                        right = qMax(right, placement.caption.right() + 1);
                 }
-            }
+                return right + margin;
+            };
             QList<Section> sections;
-            const int sheetHeight = layout(sheetWidth, &sections);
+            const int sheetHeight = layout(maximumRowWidth, &sections);
+            const int sheetWidth = contentWidth(sections);
+            for (auto &section : sections) {
+                section.heading.setWidth(sheetWidth - 2 * margin);
+                section.bounds.setWidth(sheetWidth);
+            }
             QImage sheet(sheetWidth, sheetHeight, QImage::Format_RGB32);
             QVERIFY(!sheet.isNull());
             const bool dark = captureTheme() == QStringLiteral("dark");
@@ -437,6 +451,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     gallery.addReference(Module::Workspace, QStringLiteral("Small workspace"), "small.png");
     gallery.addReference(Module::Workspace, QStringLiteral("Third workspace"), "wide.png");
     gallery.addReference(Module::Workspace, QStringLiteral("Fourth workspace"), "wide.png");
+    gallery.addReference(Module::Workspace, QStringLiteral("Fifth workspace"), "wide.png");
     gallery.writeSheet();
     if (QTest::currentTestFailed())
         return;
@@ -449,7 +464,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     QVERIFY(!report.contains("columns"));
     const int sheetWidth = report.value("size").toArray()[0].toInt();
     const int sheetHeight = report.value("size").toArray()[1].toInt();
-    QVERIFY(sheetWidth > sheetHeight);
+    QVERIFY(sheetWidth <= 5120);
     const auto sections = report.value("sections").toArray();
     QCOMPARE(sections.size(), 2);
     QCOMPARE(sections[0].toObject().value("title").toString(), moduleTitle(Module::Workspace));
@@ -464,6 +479,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
         return QRect(a[0].toInt(), a[1].toInt(), a[2].toInt(), a[3].toInt());
     };
     int previousBottom = -1;
+    int contentRight = 0;
     for (const auto &sectionValue : sections) {
         const auto section = sectionValue.toObject();
         const auto heading = rect(section.value("headingRect"));
@@ -482,9 +498,22 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
             const auto caption = rect(image.value("captionRect"));
             QVERIFY(pixels.top() > heading.bottom());
             QVERIFY(caption.top() > pixels.bottom());
+            int rowTop = pixels.top();
+            int rowImageHeight = pixels.height();
+            for (const auto &peerValue : images) {
+                const auto peer = peerValue.toObject();
+                if (rect(peer.value("captionRect")).top() != caption.top())
+                    continue;
+                const auto peerPixels = rect(peer.value("imageRect"));
+                rowTop = qMin(rowTop, peerPixels.top());
+                rowImageHeight = qMax(rowImageHeight, peerPixels.height());
+            }
+            QCOMPARE(pixels.top(), rowTop + (rowImageHeight - pixels.height()) / 2);
+            QCOMPARE(caption.top(), rowTop + rowImageHeight + 12);
             QVERIFY(pixels.width() <= 1168);
             QVERIFY(pixels.height() <= 850);
             const auto bounds = pixels.united(caption);
+            contentRight = qMax(contentRight, bounds.right() + 1);
             QVERIFY(QRect(64, 0, sheetWidth - 128, sheetHeight).contains(bounds));
             for (const auto &other : occupied)
                 QVERIFY(!bounds.intersects(other));
@@ -492,15 +521,14 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
             previousBottom = qMax(previousBottom, bounds.bottom());
         }
     }
+    QCOMPARE(sheetWidth, contentRight + 64);
     const auto workspace = sections[0].toObject().value("images").toArray();
-    QCOMPARE(workspace.size(), 5);
+    QCOMPARE(workspace.size(), 6);
     bool wrapped = false;
     for (int i = 1; i < workspace.size(); ++i) {
         const auto previous = rect(workspace[i - 1].toObject().value("captionRect"));
         const auto current = rect(workspace[i].toObject().value("captionRect"));
-        const auto image = rect(workspace[i].toObject().value("imageRect"));
-        const auto previousImage = rect(workspace[i - 1].toObject().value("imageRect"));
-        if (image.top() == previousImage.top()) {
+        if (current.top() == previous.top()) {
             QCOMPARE(current.left(), previous.right() + 1 + 48);
         } else {
             wrapped = true;
