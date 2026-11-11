@@ -59,6 +59,10 @@ endif()
 if(APPLE)
     # Exercise menu and touch focus restoration through the macOS window system.
     lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 300)
+elseif(WIN32)
+    # The full Debug GUI suite can exceed five minutes on slower hosted runners.
+    # Keep every assertion and the test-before-screenshots gate intact.
+    lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 600)
 else()
     lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 300)
 endif()

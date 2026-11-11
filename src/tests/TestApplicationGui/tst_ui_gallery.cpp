@@ -29,6 +29,7 @@
 #include "UI/Dialogs/Timeline/EditTempoDialog.h"
 #include "UI/Dialogs/Timeline/EditTimeSignatureDialog.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
@@ -710,7 +711,10 @@ void ApplicationGuiTests::captureUiGallery() {
     auto *mixEmpty = editor->findChild<QWidget *>("speakerMixEmptyState");
     QVERIFY(mixEmpty);
     QTRY_VERIFY(!mixEmpty->isVisible());
-    gallery.take(*bottom, Module::Mixing, QStringLiteral("Dynamic speaker mix"),
+    auto *mixEditor = editor->findChild<ParamEditorView *>();
+    QVERIFY(mixEditor);
+    QTRY_VERIFY(mixEditor->isVisible());
+    gallery.take(*mixEditor, Module::Mixing, QStringLiteral("Dynamic speaker mix"),
                  Gallery::Capture::WidgetContent);
     show(SpeakerMixDialog(singer, {}, &window), Module::Mixing, QStringLiteral("Speaker mix"));
 
