@@ -161,7 +161,15 @@ void Menu::paintEvent(QPaintEvent *event) {
             QPalette::Text);
 
         const int tab = option.text.indexOf(QLatin1Char('\t'));
-        const bool repaintShortcut = customShortcutColor && tab >= 0;
+        // Disabled rows stay on Qt's native pass. CE_MenuItem draws the label
+        // and the shortcut with one pen, and the themed disabled colour comes
+        // from QMenu::item:disabled inside QStyleSheetStyle -- it is not exposed
+        // through QStyleOptionMenuItem::palette (neither QPalette::Text nor
+        // buttonText() returns it). Repainting here would put the shortcut back
+        // in an enabled-looking colour. With repaintShortcut false, clearSlot()
+        // also keeps the full text, so Qt redraws the shortcut itself.
+        const bool rowEnabled = (option.state & QStyle::State_Enabled) != 0;
+        const bool repaintShortcut = customShortcutColor && rowEnabled && tab >= 0;
         const bool hasSubMenu = action->menu() != nullptr;
         const QString shortcutText = repaintShortcut ? option.text.mid(tab + 1) : QString();
 
@@ -235,10 +243,9 @@ void Menu::paintEvent(QPaintEvent *event) {
 
         if (repaintShortcut) {
             QColor shortcutColor = m_shortcutTextColor;
-            if (!(option.state & QStyle::State_Enabled))
-                shortcutColor = color;
-            else if ((option.state & QStyle::State_Selected) &&
-                     m_shortcutSelectedTextColor.isValid())
+            // Disabled rows never reach this pass; see repaintShortcut above.
+            if ((option.state & QStyle::State_Selected) &&
+                m_shortcutSelectedTextColor.isValid())
                 shortcutColor = m_shortcutSelectedTextColor;
 
             int textFlags = Qt::AlignLeft | Qt::AlignVCenter | Qt::TextShowMnemonic |

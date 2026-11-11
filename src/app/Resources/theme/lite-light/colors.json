@@ -77,13 +77,13 @@
         "surface.sidebar": "{neutral.0}",
 
         "text.primary": "{neutral.850}",
-        "text.secondary": "{neutral.700}",
+        "text.secondary": "{neutral.650}",
         "text.emphasis": "{neutral.1000}",
         "text.accent": "{accent.500}",
         "text.onAccent": "{accent.ink}",
 
         "icon.primary": "{neutral.850}",
-        "icon.secondary": "{neutral.700}",
+        "icon.secondary": "{neutral.650}",
         "icon.disabled": "{neutral.black38}",
         "icon.onAccent": "{neutral.0}",
 
