@@ -29,6 +29,8 @@ def intersects(a, b):
 def verify(directory, theme=None):
     report = json.loads((directory / "ui-review.json").read_text(encoding="utf-8"))
     assert report["complete"], "Gallery capture did not finish successfully"
+    assert report["layout"] == "flow", "Wrong gallery layout"
+    assert report["size"][0] > report["size"][1], "The complete gallery must be landscape"
     if theme:
         assert report["theme"] == theme, "Wrong gallery theme"
         assert report["themeId"] == f"lite-{theme}", "Wrong application theme"
@@ -56,7 +58,6 @@ def verify(directory, theme=None):
         assert heading[0] == 64 and heading[2] == report["size"][0] - 128
         assert png_size(directory / section["file"])[0] == report["size"][0]
         occupied = []
-        rows = collections.Counter()
         for item in section["images"]:
             assert item["caption"].strip()
             assert Path(item["file"]).parent == module_directory, "Screenshot is not classified"
@@ -68,10 +69,9 @@ def verify(directory, theme=None):
             bounds = [caption[0], image[1], caption[2], caption[1] + caption[3] - image[1]]
             assert not any(intersects(bounds, other) for other in occupied), item["caption"]
             occupied.append(bounds)
-            rows[image[1]] += 1
             previous_bottom = max(previous_bottom, caption[1] + caption[3])
             methods[item["captureMethod"]] += 1
-        assert section["images"] and max(rows.values()) <= 2
+        assert section["images"]
     allowed = {"screencapturekit-window", "windows-desktop-window", "windows-printwindow-frame",
                "x11-window-without-compositor",
                "appkit-frame-fallback", "qt-client-fallback",
