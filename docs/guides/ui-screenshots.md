@@ -11,13 +11,13 @@ Windows、macOS 和 Linux 的 CI 在本平台单元测试通过后，运行独�
 ## 系统窗体捕获
 
 - macOS 14.4+ 使用 ScreenCaptureKit 的本进程窗口接口和 SCScreenshotManager，保留系统合成的真实圆角、阴影和透明背景。只枚举本进程窗口，不申请屏幕录制权限。服务不可用或 3 秒超时时回退 AppKit frame 缓存并明确记录，不能保证回退图含真实阴影。
-- Windows 优先使用 QScreen 读取目标窗体周围的实际桌面像素。CI 的同进程背景窗覆盖截图区域，目标置前，预留阴影空间并检查屏幕边界和窗口堆叠。屏幕尺寸或遮挡不允许时，使用 PrintWindow 捕获本 GUI 线程拥有的窗体，保留真实标题栏和边框，不保证 DWM 阴影。GitHub hosted runner 为 Windows Server，虚拟机可能没有 Windows 11 的圆角效果，截图不补画系统没有提供的效果。
+- Windows 优先使用 QScreen 读取目标窗体周围的实际桌面像素。CI 的同进程背景窗覆盖截图区域，目标置前，预留阴影空间并检查屏幕边界和窗口堆叠。屏幕尺寸或遮挡不允许时，使用 PrintWindow 保留真实系统非客户区，以同一窗体的 QWidget::grab 完整像素替换客户区，并校验像素尺寸及窗体几何保持一致。该混合来源在清单中单独标注，不保证 DWM 阴影。GitHub hosted runner 为 Windows Server，虚拟机可能没有 Windows 11 的圆角效果，截图不补画系统没有提供的效果。
 - Linux 使用独立 Xvfb 和 Openbox，不启动额外合成器。浅色使用 Clearlooks 装饰，深色使用 Onyx 装饰。截图包含该环境真实绘制的标题栏和边框，不添加该环境没有的阴影或圆角，不代表所有 Linux 桌面。Wayland 不走无提示桌面读取路径。
 - 自绘面板和弹层使用 QWidget::grab，直接保存内容，不拼接重复的完整宿主。
 
 Windows/X11 桌面读取只在 LITE_SCREENSHOT_DESKTOP_CAPTURE=1 时启用，面向独立 CI 桌面。桌面捕获及可用的原生窗框捕获均不可用时，明确回退 Qt 客户区截图。不要在含个人信息或其他应用窗口的桌面上开启该选项。
 
-captureMethod 记录实际来源：screencapturekit-window、windows-desktop-window、windows-printwindow-frame、x11-window-without-compositor、appkit-frame-fallback、qt-client-fallback 或 qt-widget-content。验证脚本说明原生窗框方式的阴影限制，并对客户区或 AppKit 回退输出 warning，不能仅凭任务成功宣称全部窗口具有系统阴影。
+captureMethod 记录实际来源：screencapturekit-window、windows-desktop-window、windows-printwindow-frame-qt-client、x11-window-without-compositor、appkit-frame-fallback、qt-client-fallback 或 qt-widget-content。验证脚本说明 Windows 混合来源与原生窗框方式的阴影限制，并对客户区或 AppKit 回退输出 warning，不能仅凭任务成功宣称全部窗口具有系统阴影。
 
 ## 产物包
 

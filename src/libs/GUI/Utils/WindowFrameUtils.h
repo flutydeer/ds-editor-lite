@@ -22,7 +22,9 @@ public:
     // AppKit frame caching is a fallback, not a system-compositor screenshot.
     // Windows/X11 can opt into isolated desktop pixel capture, including native
     // decorations actually supplied by the runner. Windows can also render the
-    // native frame with PrintWindow when desktop capture is unavailable. The
+    // nonclient frame with PrintWindow and combine it with an unscaled QWidget
+    // client grab (windows-printwindow-frame-qt-client) when desktop capture is
+    // unavailable. This mixed-source image does not guarantee DWM effects. The
     // final fallback is Qt client content. captureMethod reports the source.
     // No screen-recording permission is requested.
     [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
