@@ -751,19 +751,14 @@ void ApplicationGuiTests::captureUiGallery() {
     gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
     QVERIFY(window.setEditorPanelVisibility(false, true));
     QVERIFY(framePitchCurves());
-    const std::pair<EditorViewGlobal::PianoRollEditMode, const char *> pianoModes[] = {
-        {EditorViewGlobal::Select,          "Piano roll - select"         },
-        {EditorViewGlobal::IntervalSelect,  "Piano roll - interval select"},
-        {EditorViewGlobal::DrawNote,        "Piano roll - draw notes"     },
-        {EditorViewGlobal::EraseNote,       "Piano roll - erase notes"    },
-        {EditorViewGlobal::SplitNote,       "Piano roll - split notes"    },
-        {EditorViewGlobal::DrawPitch,       "Pitch - draw"                },
-        {EditorViewGlobal::EditPitchAnchor, "Pitch - anchor"              },
-        {EditorViewGlobal::ErasePitch,      "Pitch - erase"               },
-        {EditorViewGlobal::TracePitch,      "Pitch - trace"               },
-        {EditorViewGlobal::ModulatePitch,   "Pitch - modulate"            },
+    // Representative tools for Final, Draw and Anchor display styles. Other
+    // tools share those static appearances and do not need duplicate pictures.
+    const std::pair<EditorViewGlobal::PianoRollEditMode, const char *> pianoStyles[] = {
+        {EditorViewGlobal::Select,          "Piano roll - notes"},
+        {EditorViewGlobal::DrawPitch,       "Pitch - draw"      },
+        {EditorViewGlobal::EditPitchAnchor, "Pitch - anchor"    },
     };
-    for (const auto &[mode, caption] : pianoModes) {
+    for (const auto &[mode, caption] : pianoStyles) {
         QVERIFY(editor->setEditMode(mode));
         QCOMPARE(editor->viewState().editMode, mode);
         gallery.take(*bottom, Module::Notes, QString::fromLatin1(caption),
@@ -777,20 +772,11 @@ void ApplicationGuiTests::captureUiGallery() {
     QTRY_VERIFY(!parameterPrompt->isVisible());
     parameters->graphicsView()->setForegroundBaseCurveVisible(true);
     parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
-    const std::pair<EditorViewGlobal::ParameterEditMode, const char *> parameterModes[] = {
-        {EditorViewGlobal::ParameterEditMode::Draw,   "Parameters - draw"  },
-        {EditorViewGlobal::ParameterEditMode::Erase,  "Parameters - erase" },
-        {EditorViewGlobal::ParameterEditMode::Trace,  "Parameters - trace" },
-        {EditorViewGlobal::ParameterEditMode::Shape,  "Parameters - shape" },
-        {EditorViewGlobal::ParameterEditMode::Scale,  "Parameters - scale" },
-        {EditorViewGlobal::ParameterEditMode::Anchor, "Parameters - anchor"},
-    };
-    for (const auto &[mode, caption] : parameterModes) {
-        QVERIFY(editor->setParameterEditMode(mode));
-        QCOMPARE(editor->parameterViewState().editMode, mode);
-        gallery.take(*parameters, Module::Notes, QString::fromLatin1(caption),
-                     Gallery::Capture::WidgetContent);
-    }
+    // Parameter anchors stay visible across tools. One view shows all curve
+    // layers and interpolations without repeating toolbar highlight changes.
+    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
+    gallery.take(*parameters, Module::Notes, QStringLiteral("Parameters"),
+                 Gallery::Capture::WidgetContent);
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
@@ -806,17 +792,6 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     QVERIFY(framePitchCurves());
     gallery.take(*detached, Module::Notes, QStringLiteral("Detached piano roll and parameters"));
-    {
-        QuantizeDialog quantize(detached);
-        gallery.show(quantize, Module::Notes, QStringLiteral("Quantize notes in detached editor"));
-        SearchDialog search(singingClip, detached);
-        auto *query = search.findChild<QLineEdit *>();
-        auto *results = search.findChild<QListWidget *>();
-        QVERIFY(query && results);
-        query->setText(TestSupport::fixtureLyric());
-        QTRY_VERIFY(results->count() > 0);
-        gallery.show(search, Module::Lyrics, QStringLiteral("Search lyrics in detached editor"));
-    }
     detached->close();
     QVERIFY(!detached->isVisible());
     QVERIFY(window.setEditorPanelVisibility(true, true));

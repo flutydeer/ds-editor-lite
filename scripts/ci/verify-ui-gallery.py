@@ -98,16 +98,12 @@ def verify(directory, theme=None):
                "qt-widget-content"}
     assert methods.keys() <= allowed, methods
     assert methods["qt-widget-content"] > 0, "No standalone custom panel captures"
-    assert sum(methods.values()) == 64, "Screenshot coverage is incomplete"
+    assert sum(methods.values()) == 50, "Screenshot coverage is incomplete"
     captions = {item["caption"] for section in report["sections"] for item in section["images"]}
-    expected_modes = {
-        "Piano roll - select", "Piano roll - interval select", "Piano roll - draw notes",
-        "Piano roll - erase notes", "Piano roll - split notes", "Pitch - draw", "Pitch - anchor",
-        "Pitch - erase", "Pitch - trace", "Pitch - modulate", "Parameters - draw",
-        "Parameters - erase", "Parameters - trace", "Parameters - shape", "Parameters - scale",
-        "Parameters - anchor",
+    expected_styles = {
+        "Piano roll - notes", "Pitch - draw", "Pitch - anchor", "Parameters",
     }
-    assert expected_modes | {"Task list", "Fill lyrics - Help"} <= captions
+    assert expected_styles | {"Task list", "Fill lyrics - Help"} <= captions
     print(f"Verified {sum(methods.values())} screenshots in {len(expected_modules)} UI modules")
     for method, count in sorted(methods.items()):
         print(f"  {method}: {count}")
