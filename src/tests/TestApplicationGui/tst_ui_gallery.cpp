@@ -10,6 +10,7 @@
 #include "Modules/ProjectConverters/MidiConfigPage.h"
 #include "Modules/ProjectConverters/MidiConverterDialog.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
+#include "Modules/FillLyric/Controls/PhonicTextEdit.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Audio/AudioExportProgressDialog.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -30,6 +31,7 @@
 #include "UI/Dialogs/Timeline/EditTimeSignatureDialog.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
@@ -44,6 +46,9 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/Task.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -57,6 +62,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QListWidget>
+#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QPainter>
 #include <QScopeGuard>
 #include <QTabWidget>
@@ -69,6 +76,15 @@
 #include <numbers>
 
 namespace {
+    // Keep the real task widget at a reproducible progress point during capture.
+    class GalleryTask final : public Task {
+    protected:
+        void runTask() override {
+            while (!isTerminateRequested())
+                QThread::msleep(20);
+        }
+    };
+
     enum class Module {
         Workspace,
         Tracks,
@@ -324,7 +340,7 @@ namespace {
             QImage sheet(sheetWidth, sheetHeight, QImage::Format_RGB32);
             QVERIFY(!sheet.isNull());
             const bool dark = captureTheme() == QStringLiteral("dark");
-            sheet.fill(QColor(dark ? "#171b22" : "#f1f3f6"));
+            sheet.fill(QColor(dark ? "#353f50" : "#d7dee8"));
             QPainter painter(&sheet);
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
             painter.setPen(QColor(dark ? "#e6eaf0" : "#182433"));
@@ -549,7 +565,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     QVERIFY(!QImage(output.filePath("ui-review.png")).isNull());
     QVERIFY(!QImage(output.filePath("modules/01-workspace/review.png")).isNull());
     QCOMPARE(QImage(output.filePath("ui-review.png")).pixelColor(0, 0),
-             QColor(captureTheme() == "dark" ? "#171b22" : "#f1f3f6"));
+             QColor(captureTheme() == "dark" ? "#353f50" : "#d7dee8"));
 }
 
 void ApplicationGuiTests::captureUiGallery() {
@@ -617,6 +633,48 @@ void ApplicationGuiTests::captureUiGallery() {
         context->m_appModel->findClipById(inserted.get().affectedObjects.first().value));
     QVERIFY(audioClip);
 
+    const auto audioTrackId = Automation::TrackId(track.get().affectedObjects.first().value);
+    QVERIFY(runtime.project().setTrackSolo(commandContext(), trackId, true));
+    QVERIFY(runtime.project().setTrackMute(commandContext(), audioTrackId, true));
+    QVERIFY(runtime.project().setTrackGain(commandContext(), audioTrackId, -6.0));
+    QVERIFY(runtime.project().setTrackPan(commandContext(), audioTrackId, -0.3));
+    QVERIFY(context->m_appModel->tracks().at(0)->control().solo());
+    QVERIFY(context->m_appModel->tracks().at(1)->control().mute());
+
+    // Seed the same model layers used by generated, hand-drawn and anchor data.
+    // These deterministic fixture values do not require a live inference service.
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    Automation::CurveDraftDto generated;
+    Automation::CurveDraftDto handDrawn;
+    Automation::CurveDraftDto background;
+    generated.localStart = background.localStart = 0;
+    handDrawn.localStart = 240;
+    for (int tick = 0; tick < 3840; tick += generated.step) {
+        const double phase = 2 * std::numbers::pi * tick / 1440.0;
+        generated.values.append(static_cast<int>(-36000 + 18000 * std::sin(phase)));
+        background.values.append(static_cast<int>(2500 * std::cos(phase * 0.7)));
+        if (tick >= 240 && tick < 1200)
+            handDrawn.values.append(static_cast<int>(-20000 + 10000 * std::sin(phase * 1.7)));
+    }
+    Automation::CurveDraftDto anchors;
+    anchors.type = Automation::CurveDraftDto::Type::Anchor;
+    anchors.nodes = {
+        {1440, -52000, AnchorNode::Linear },
+        {1980, -14000, AnchorNode::Hermite},
+        {2520, -44000, AnchorNode::Hermite},
+        {3060, -18000, AnchorNode::None   },
+        {3600, -60000, AnchorNode::Linear }
+    };
+    const auto clipId = Automation::ClipId(singingClip->id());
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Breathiness,
+                                                  Param::Original, {generated}));
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Breathiness,
+                                                  Param::Edited, {handDrawn, anchors}));
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Tension,
+                                                  Param::Original, {background}));
+    QCOMPARE(singingClip->params.breathiness.curves(Param::Original).size(), 1);
+    QCOMPARE(singingClip->params.breathiness.curves(Param::Edited).size(), 2);
+
     QVERIFY(window.setEditorPanelVisibility(true, false));
     for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
         auto *action = window.findChild<QAction *>(name);
@@ -645,11 +703,25 @@ void ApplicationGuiTests::captureUiGallery() {
     editor->onActiveClipChanged(singingClip->id());
     QTRY_VERIFY(editor->hasActiveSingingClip());
     QVERIFY(editor->setRegionVisibility(true, true));
+    QVERIFY(editor->setParameterForeground(ParamInfo::Breathiness));
+    QVERIFY(editor->setParameterBackground(ParamInfo::Tension));
     QVERIFY(window.centerPianoRollAt(1440, 60));
     gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
     QVERIFY(window.setEditorPanelVisibility(false, true));
     gallery.take(*bottom, Module::Notes, QStringLiteral("Piano roll and parameters"),
                  Gallery::Capture::WidgetContent);
+    QVERIFY(editor->setRegionVisibility(false, true));
+    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
+    auto *parameters = editor->findChild<ParamEditorView *>();
+    QVERIFY(parameters);
+    auto *parameterPrompt = parameters->findChild<QWidget *>("speakerMixEmptyState");
+    QVERIFY(parameterPrompt);
+    QTRY_VERIFY(!parameterPrompt->isVisible());
+    parameters->graphicsView()->setForegroundBaseCurveVisible(true);
+    parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
+    gallery.take(*parameters, Module::Notes, QStringLiteral("Parameter curves"),
+                 Gallery::Capture::WidgetContent);
+    QVERIFY(editor->setRegionVisibility(true, true));
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
@@ -668,6 +740,11 @@ void ApplicationGuiTests::captureUiGallery() {
         QuantizeDialog quantize(detached);
         gallery.show(quantize, Module::Notes, QStringLiteral("Quantize notes in detached editor"));
         SearchDialog search(singingClip, detached);
+        auto *query = search.findChild<QLineEdit *>();
+        auto *results = search.findChild<QListWidget *>();
+        QVERIFY(query && results);
+        query->setText(TestSupport::fixtureLyric());
+        QTRY_VERIFY(results->count() > 0);
         gallery.show(search, Module::Lyrics, QStringLiteral("Search lyrics in detached editor"));
     }
     detached->close();
@@ -676,8 +753,27 @@ void ApplicationGuiTests::captureUiGallery() {
 
     LogWindow log(&window);
     gallery.show(log, Module::Diagnostics, QStringLiteral("Log viewer"));
-    TaskWindow tasks(&window);
-    gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list - empty"));
+    {
+        GalleryTask rendering;
+        TaskStatus status;
+        status.id = rendering.id();
+        status.title = QStringLiteral("Render guide audio");
+        status.message = QStringLiteral("Rendering audio resources");
+        status.progress = 45;
+        rendering.setStatus(status);
+        taskManager->addAndStartTask(&rendering);
+        const auto finish = qScopeGuard([&] {
+            rendering.terminate();
+            taskManager->wait();
+            QCoreApplication::sendPostedEvents(&rendering, QEvent::MetaCall);
+            taskManager->removeTask(&rendering);
+        });
+        QTRY_VERIFY(rendering.started());
+        TaskWindow tasks(&window);
+        auto *list = tasks.findChild<QListWidget *>("taskList");
+        QVERIFY(list && list->count() > 0);
+        gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list"));
+    }
 
     // Use the real modal wrapper, then step through its sidebar before dismissing it.
     QTimer::singleShot(0, &window, [&] {
@@ -719,8 +815,9 @@ void ApplicationGuiTests::captureUiGallery() {
     show(Audio::Internal::AudioExportDialog(&window), Module::Audio,
          QStringLiteral("Export audio - configuration"));
     Audio::AudioExporter exporter(nullptr);
-    show(Audio::Internal::AudioExportProgressDialog(&exporter, &window), Module::Audio,
-         QStringLiteral("Export audio - progress"));
+    Audio::Internal::AudioExportProgressDialog exportProgress(&exporter, &window);
+    emit exporter.progressChanged(0.45, -1);
+    gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - progress"));
 
     const QList<MidiImportTrackInfo> midiTracks{
         {.name = "Lead",
@@ -747,7 +844,15 @@ void ApplicationGuiTests::captureUiGallery() {
     show(EditTimeSignatureDialog(1, 4, 4, &window), Module::Tracks,
          QStringLiteral("Edit time signature"));
     show(QuantizeDialog(&window), Module::Notes, QStringLiteral("Quantize notes"));
-    show(SearchDialog(singingClip, &window), Module::Lyrics, QStringLiteral("Search lyrics"));
+    {
+        SearchDialog search(singingClip, &window);
+        auto *query = search.findChild<QLineEdit *>();
+        auto *results = search.findChild<QListWidget *>();
+        QVERIFY(query && results);
+        query->setText(TestSupport::fixtureLyric());
+        QTRY_VERIFY(results->count() > 0);
+        gallery.show(search, Module::Lyrics, QStringLiteral("Search lyrics"));
+    }
     QList<Note *> notes;
     for (auto *note : singingClip->notes())
         notes.append(note);
@@ -759,6 +864,9 @@ void ApplicationGuiTests::captureUiGallery() {
                            {TestSupport::fixtureLanguage()}, &window);
         lyrics.show();
         lyrics.activateWindow();
+        auto *input = lyrics.findChild<FillLyric::PhonicTextEdit *>();
+        QVERIFY(input);
+        input->setPlainText(QStringLiteral("la la la"));
         lyrics.resize(960, 640);
         gallery.take(lyrics, Module::Lyrics, QStringLiteral("Fill lyrics"));
         bool previewToggled = false;
@@ -767,8 +875,7 @@ void ApplicationGuiTests::captureUiGallery() {
                 button->text() == QStringLiteral("Fold Preview")) {
                 button->click();
                 lyrics.resize(960, 640);
-                gallery.take(lyrics, Module::Lyrics,
-                             QStringLiteral("Fill lyrics - preview toggled"));
+                gallery.take(lyrics, Module::Lyrics, QStringLiteral("Fill lyrics - preview"));
                 previewToggled = true;
                 break;
             }
@@ -778,12 +885,24 @@ void ApplicationGuiTests::captureUiGallery() {
         QVERIFY(tabs && tabs->count() > 1);
         for (int i = 1; i < tabs->count(); ++i) {
             tabs->setCurrentIndex(i);
+            if (auto *testInput =
+                    tabs->currentWidget()->findChild<QPlainTextEdit *>("testInputEdit")) {
+                testInput->setPlainText(QStringLiteral("la la la"));
+                bool tested = false;
+                for (auto *button : tabs->currentWidget()->findChildren<QAbstractButton *>()) {
+                    if (button->text() == QStringLiteral("Run Test")) {
+                        button->click();
+                        tested = true;
+                        break;
+                    }
+                }
+                QVERIFY(tested);
+                auto *result = tabs->currentWidget()->findChild<QPlainTextEdit *>("testOutputEdit");
+                QVERIFY(result && !result->toPlainText().isEmpty());
+            }
             lyrics.resize(960, 640);
             gallery.take(lyrics, Module::Lyrics,
-                         QStringLiteral("Fill lyrics - %1%2")
-                             .arg(tabs->tabText(i), tabs->tabText(i) == QStringLiteral("Help")
-                                                        ? QStringLiteral(" (empty placeholder)")
-                                                        : QString()));
+                         QStringLiteral("Fill lyrics - %1").arg(tabs->tabText(i)));
         }
     }
     const SingerInfo singer(
