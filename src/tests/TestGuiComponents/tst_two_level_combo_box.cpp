@@ -362,12 +362,16 @@ void GuiComponentTests::submenuArrowSpaceKeepsShortcutColumnAligned() {
 
 void GuiComponentTests::shortcutTextUsesIndependentThemeColors_data() {
     QTest::addColumn<QString>("themeId");
-    QTest::newRow("dark") << QStringLiteral("lite-dark");
-    QTest::newRow("light") << QStringLiteral("lite-light");
+    QTest::addColumn<bool>("compactShortcut");
+    QTest::newRow("dark") << QStringLiteral("lite-dark") << false;
+    QTest::newRow("light") << QStringLiteral("lite-light") << false;
+    QTest::newRow("dark-compact") << QStringLiteral("lite-dark") << true;
+    QTest::newRow("light-compact") << QStringLiteral("lite-light") << true;
 }
 
 void GuiComponentTests::shortcutTextUsesIndependentThemeColors() {
     QFETCH(QString, themeId);
+    QFETCH(bool, compactShortcut);
     const auto theme = ThemeLoader::load(themeId);
     QVERIFY2(theme.has_value(), qPrintable(ThemeLoader::lastError()));
 
@@ -383,7 +387,8 @@ void GuiComponentTests::shortcutTextUsesIndependentThemeColors() {
     auto *menu = comboBox.mainMenu();
 
     auto *labelAction = menu->addAction(QStringLiteral("Save"));
-    auto *shortcutAction = menu->addAction(QStringLiteral("Open"));
+    auto *shortcutAction = menu->addAction(compactShortcut ? QStringLiteral("Open\tO")
+                                                          : QStringLiteral("Open"));
     shortcutAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+O")));
     shortcutAction->setShortcutVisibleInContextMenu(true);
 
@@ -415,7 +420,15 @@ void GuiComponentTests::shortcutTextUsesIndependentThemeColors() {
     const QRect shortcutItem = menu->actionGeometry(shortcutAction);
     const QRect labelArea(labelItem.left() + 12, labelItem.top() + 2, 110,
                           labelItem.height() - 4);
-    const QRect shortcutArea(shortcutItem.right() - 100, shortcutItem.top() + 2, 96,
+    // Native macOS shortcuts can be much narrower than "Ctrl+O". A fixed
+    // 100px sample also includes the primary-coloured label in those menus.
+    const auto shortcutText = compactShortcut
+                                  ? QStringLiteral("O")
+                                  : shortcutAction->shortcut().toString(QKeySequence::NativeText);
+    const int shortcutWidth = menu->fontMetrics().horizontalAdvance(shortcutText);
+    constexpr int shortcutRightPadding = 6;
+    const QRect shortcutArea(shortcutItem.right() - shortcutRightPadding - shortcutWidth - 2,
+                             shortcutItem.top() + 2, shortcutWidth + 4,
                              shortcutItem.height() - 4);
 
     QImage image = render();
