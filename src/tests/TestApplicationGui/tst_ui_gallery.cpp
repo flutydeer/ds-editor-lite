@@ -31,6 +31,8 @@
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/MainTitleBar/FilePopupWidget.h"
+#include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/LogWindow.h"
 #include "UI/Window/TaskWindow.h"
@@ -66,13 +68,71 @@ namespace {
             addImage(title, m_output.filePath(name));
         }
 
+        void setHost(QWidget &window) {
+            m_host = &window;
+        }
+
         void take(QWidget &window, const QString &title) {
             QVERIFY2(QTest::qWaitForWindowExposed(&window), qPrintable(title));
             QTest::qWait(100);
+            const auto number = QStringLiteral("%1").arg(m_entries.size() + 1, 2, 10,
+                                                         QLatin1Char('0'));
             const auto path = m_output.filePath(
-                QStringLiteral("gallery/%1.png").arg(m_entries.size() + 1, 2, 10, QLatin1Char('0')));
+                QStringLiteral("gallery/%1.png").arg(number));
             qInfo().noquote() << "Capturing" << title << "to" << path;
-            QVERIFY2(WindowFrameUtils::captureWindowChrome(&window, path), qPrintable(title));
+
+            // Capture each native frame in-process, then place the transient over
+            // its complete editor host. A dialog-only grab hides the very border
+            // and title-bar relationships this gallery is meant to review.
+            auto *host = m_host;
+            for (auto *parent = window.parentWidget(); parent; parent = parent->parentWidget()) {
+                if (qobject_cast<MainWindow *>(parent) ||
+                    qobject_cast<DetachedPanelWindow *>(parent)) {
+                    host = parent;
+                    break;
+                }
+            }
+            const bool isEditor = qobject_cast<MainWindow *>(&window) ||
+                                  qobject_cast<DetachedPanelWindow *>(&window);
+            if (!host || host == &window || isEditor) {
+                QVERIFY2(WindowFrameUtils::captureWindowChrome(&window, path), qPrintable(title));
+            } else {
+                QVERIFY2(host->isVisible(), qPrintable(title));
+                QVERIFY(m_output.mkpath(QStringLiteral("gallery/layers")));
+                const auto hostPath = m_output.filePath(
+                    QStringLiteral("gallery/layers/%1-host.png").arg(number));
+                const auto targetPath = m_output.filePath(
+                    QStringLiteral("gallery/layers/%1-target.png").arg(number));
+                QVERIFY2(WindowFrameUtils::captureWindowChrome(host, hostPath), qPrintable(title));
+                QVERIFY2(WindowFrameUtils::captureWindowChrome(&window, targetPath), qPrintable(title));
+                QImage hostImage(hostPath);
+                QImage targetImage(targetPath);
+                QVERIFY(!hostImage.isNull() && !targetImage.isNull());
+                const auto bounds = [](QWidget &widget, const QImage &image) {
+                    // Cocoa captures the native frame. Other platforms currently
+                    // return QWidget::grab(), whose origin is the client area.
+                    const auto origin = QGuiApplication::platformName() == QStringLiteral("cocoa")
+                                            ? widget.frameGeometry().topLeft()
+                                            : widget.mapToGlobal(QPoint());
+                    return QRectF(origin, QSizeF(image.size()) / widget.devicePixelRatioF());
+                };
+                const auto hostRect = bounds(*host, hostImage);
+                const auto targetRect = bounds(window, targetImage);
+                const auto sceneRect = hostRect.united(targetRect).adjusted(-12, -12, 12, 12);
+                const auto dpr = qMax(host->devicePixelRatioF(), window.devicePixelRatioF());
+                QImage scene((sceneRect.size() * dpr).toSize(), QImage::Format_ARGB32_Premultiplied);
+                QVERIFY(!scene.isNull());
+                scene.setDevicePixelRatio(dpr);
+                scene.fill(QColor("#edf0f4"));
+                QPainter painter(&scene);
+                painter.drawImage(hostRect.translated(-sceneRect.topLeft()), hostImage);
+                painter.drawImage(targetRect.translated(-sceneRect.topLeft()), targetImage);
+                painter.end();
+                QVERIFY(scene.save(path));
+                QVERIFY(sceneRect.contains(hostRect) && sceneRect.contains(targetRect));
+                qInfo().noquote() << "Full host" << hostRect << "with transient" << targetRect
+                                  << "in" << sceneRect;
+            }
             addImage(title, path);
         }
 
@@ -144,6 +204,7 @@ namespace {
         };
 
         QDir m_output;
+        QWidget *m_host = nullptr;
         QList<Entry> m_entries;
     };
 } // namespace
@@ -174,6 +235,7 @@ void ApplicationGuiTests::captureUiGallery() {
     if (QTest::currentTestFailed())
         return;
     auto &window = *host.window;
+    gallery.setHost(window);
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
     auto *editor = bottom->clipEditorView();
@@ -208,6 +270,11 @@ void ApplicationGuiTests::captureUiGallery() {
 
     QVERIFY(window.setEditorPanelVisibility(true, false));
     gallery.take(window, QStringLiteral("Track editor"));
+    auto *projectTitle = window.findChild<TitleBarComboBox *>();
+    QVERIFY(projectTitle && projectTitle->popupWidget());
+    projectTitle->showPopup();
+    gallery.take(*projectTitle->popupWidget(), QStringLiteral("Project popup with full main window"));
+    projectTitle->hidePopup();
     for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
         auto *action = window.findChild<QAction *>(name);
         QVERIFY(action);
@@ -239,6 +306,12 @@ void ApplicationGuiTests::captureUiGallery() {
     gallery.take(*detached, QStringLiteral("Detached mixer"));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     gallery.take(*detached, QStringLiteral("Detached piano roll and parameters"));
+    {
+        QuantizeDialog quantize(detached);
+        gallery.show(quantize, QStringLiteral("Detached editor - quantize notes"));
+        SearchDialog search(singingClip, detached);
+        gallery.show(search, QStringLiteral("Detached editor - search lyrics"));
+    }
     detached->close();
     QVERIFY(!detached->isVisible());
     QVERIFY(window.setEditorPanelVisibility(true, true));
