@@ -221,6 +221,7 @@ namespace {
                 const Entry *entry;
                 QRect image;
                 QRect caption;
+                int row;
             };
 
             struct Section {
@@ -248,16 +249,18 @@ namespace {
                     y += headingHeight + headingGap;
                     int x = margin;
                     int rowImageHeight = 0;
-                    int rowCaptionHeight = 0;
+                    int row = 0;
                     qsizetype rowStart = 0;
                     const auto finishRow = [&] {
+                        int bottom = y;
                         for (qsizetype i = rowStart; i < section.images.size(); ++i) {
                             auto &placement = section.images[i];
                             placement.image.moveTop(
                                 y + (rowImageHeight - placement.image.height()) / 2);
-                            placement.caption.moveTop(y + rowImageHeight + captionGap);
+                            placement.caption.moveTop(placement.image.bottom() + 1 + captionGap);
+                            bottom = qMax(bottom, placement.caption.bottom() + 1);
                         }
-                        y += rowImageHeight + captionGap + rowCaptionHeight;
+                        y = bottom;
                     };
                     for (const auto *entry : entries) {
                         const int itemWidth = qMax(minimumCaptionWidth, entry->image.width());
@@ -266,7 +269,7 @@ namespace {
                             y += rowGap;
                             x = margin;
                             rowImageHeight = 0;
-                            rowCaptionHeight = 0;
+                            ++row;
                             rowStart = section.images.size();
                         }
                         const int captionHeight =
@@ -278,9 +281,9 @@ namespace {
                         const int imageX = x + (itemWidth - entry->image.width()) / 2;
                         section.images.append({entry, QRect(QPoint(imageX, y), entry->image.size()),
                                                QRect(x, y + entry->image.height() + captionGap,
-                                                     itemWidth, captionHeight)});
+                                                     itemWidth, captionHeight),
+                                               row});
                         rowImageHeight = qMax(rowImageHeight, entry->image.height());
-                        rowCaptionHeight = qMax(rowCaptionHeight, captionHeight);
                         x += itemWidth + columnGap;
                     }
                     finishRow();
@@ -346,7 +349,8 @@ namespace {
                         {"sourceSize",
                          QJsonArray{entry.sourceSize.width(), entry.sourceSize.height()}},
                         {"imageRect",     rectJson(placement.image)                     },
-                        {"captionRect",   rectJson(placement.caption)                   }
+                        {"captionRect",   rectJson(placement.caption)                   },
+                        {"row",           placement.row                                 }
                     });
                 }
                 sectionReports.append(QJsonObject{
@@ -502,14 +506,14 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
             int rowImageHeight = pixels.height();
             for (const auto &peerValue : images) {
                 const auto peer = peerValue.toObject();
-                if (rect(peer.value("captionRect")).top() != caption.top())
+                if (peer.value("row").toInt() != image.value("row").toInt())
                     continue;
                 const auto peerPixels = rect(peer.value("imageRect"));
                 rowTop = qMin(rowTop, peerPixels.top());
                 rowImageHeight = qMax(rowImageHeight, peerPixels.height());
             }
             QCOMPARE(pixels.top(), rowTop + (rowImageHeight - pixels.height()) / 2);
-            QCOMPARE(caption.top(), rowTop + rowImageHeight + 12);
+            QCOMPARE(caption.top(), pixels.bottom() + 1 + 12);
             QVERIFY(pixels.width() <= 1168);
             QVERIFY(pixels.height() <= 850);
             const auto bounds = pixels.united(caption);
@@ -528,7 +532,7 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     for (int i = 1; i < workspace.size(); ++i) {
         const auto previous = rect(workspace[i - 1].toObject().value("captionRect"));
         const auto current = rect(workspace[i].toObject().value("captionRect"));
-        if (current.top() == previous.top()) {
+        if (workspace[i].toObject().value("row") == workspace[i - 1].toObject().value("row")) {
             QCOMPARE(current.left(), previous.right() + 1 + 48);
         } else {
             wrapped = true;
