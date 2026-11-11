@@ -73,21 +73,21 @@ def verify(directory, theme=None):
             assert Path(item["file"]).parent == module_directory, "Screenshot is not classified"
             assert png_size(directory / item["file"]) == item["sourceSize"]
             image, caption = item["imageRect"], item["captionRect"]
-            rows[caption[1]].append(image)
+            rows[item["row"]].append(image)
             content_right = max(content_right, image[0] + image[2], caption[0] + caption[2])
             assert contains(canvas, image) and contains(canvas, caption)
             assert image[1] >= heading[1] + heading[3], item["caption"]
-            assert caption[1] >= image[1] + image[3], item["caption"]
+            assert caption[1] == image[1] + image[3] + 12, "Caption is detached from its image"
             bounds = [caption[0], image[1], caption[2], caption[1] + caption[3] - image[1]]
             assert not any(intersects(bounds, other) for other in occupied), item["caption"]
             occupied.append(bounds)
             previous_bottom = max(previous_bottom, caption[1] + caption[3])
             methods[item["captureMethod"]] += 1
         assert section["images"]
-        for caption_top, images in rows.items():
+        assert set(rows) == set(range(len(rows))), "Row indices are not contiguous"
+        for images in rows.values():
             row_top = min(image[1] for image in images)
             row_height = max(image[3] for image in images)
-            assert caption_top == row_top + row_height + 12, "Captions do not align below the row"
             for image in images:
                 assert image[1] == row_top + (row_height - image[3]) // 2, "Image is not vertically centered"
     assert report["size"][0] == content_right + 64, "Canvas includes unused right padding"
