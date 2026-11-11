@@ -444,3 +444,102 @@ void GuiComponentTests::shortcutTextUsesIndependentThemeColors() {
 
     menu->hide();
 }
+
+void GuiComponentTests::submenuShortcutKeepsThemeColorAndGap_data() {
+    QTest::addColumn<QString>("themeId");
+    QTest::newRow("dark") << QStringLiteral("lite-dark");
+    QTest::newRow("light") << QStringLiteral("lite-light");
+}
+
+void GuiComponentTests::submenuShortcutKeepsThemeColorAndGap() {
+    QFETCH(QString, themeId);
+    const auto theme = ThemeLoader::load(themeId);
+    QVERIFY2(theme.has_value(), qPrintable(ThemeLoader::lastError()));
+
+    const QColor primary = theme->semanticColors.value(QStringLiteral("text.primary"));
+    const QColor secondary = theme->semanticColors.value(QStringLiteral("text.secondary"));
+    QVERIFY(primary.isValid());
+    QVERIFY(secondary.isValid());
+
+    // Earlier menu cases may still own the popup grab under offscreen; release
+    // it before asking QStyleSheetStyle to polish a fresh menu.
+    if (auto *popup = QApplication::activePopupWidget())
+        popup->hide();
+    QApplication::processEvents();
+
+    QWidget root;
+    root.setStyleSheet(theme->styleSheet);
+    TwoLevelComboBox comboBox(&root);
+    auto *menu = comboBox.mainMenu();
+
+    menu->addAction(QStringLiteral("Copy"));
+    auto *plainShortcut = menu->addAction(QStringLiteral("Save"));
+    plainShortcut->setShortcut(QKeySequence(QStringLiteral("Ctrl+S")));
+    plainShortcut->setShortcutVisibleInContextMenu(true);
+    auto *subAction = menu->addAction(QStringLiteral("Recent"));
+    subAction->setMenu(new QMenu(menu));
+    subAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+R")));
+    subAction->setShortcutVisibleInContextMenu(true);
+    QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
+
+    root.show();
+    QApplication::processEvents();
+    menu->popup(root.mapToGlobal(QPoint(10, 10)));
+    QTRY_VERIFY(menu->isVisible());
+    QApplication::processEvents();
+    QVERIFY2(menu->shortcutTextColor().isValid(),
+             qPrintable(QStringLiteral("%1: theme qproperty was not applied").arg(themeId)));
+
+    QPixmap pixmap(menu->size());
+    pixmap.fill(Qt::transparent);
+    menu->render(&pixmap);
+    const QImage image = pixmap.toImage();
+    const QRect item = menu->actionGeometry(subAction);
+    // Offscreen clamps a popup to the virtual screen; never sample pixels past
+    // the rendered pixmap, otherwise QImage returns black and the ink test
+    // measures an imaginary chevron.
+    QVERIFY2(item.right() < image.width(),
+             qPrintable(QStringLiteral("%1: popup clipped to %2 but item ends at %3")
+                            .arg(themeId)
+                            .arg(image.width())
+                            .arg(item.right())));
+    const QRgb background = dominantColor(image, item.adjusted(2, 2, -2, -2));
+    const int chevronLeft = item.right() - kArrowRightInset - kArrowWidth;
+    const int top = item.top() + 2;
+    const int bottom = item.bottom() - 2;
+
+    // Codex finding: clearSlot(arrowSlot) used to erase the right-hand part of
+    // a submenu row's shortcut while that row skipped the themed repaint, so
+    // the remaining text was left in the label's primary colour.
+    const int lastShortcutInk =
+        rightmostInkColumn(image, item.left(), chevronLeft - 1, top, bottom, background);
+    QVERIFY2(lastShortcutInk > item.left(),
+             qPrintable(QStringLiteral("%1: shortcut text was erased").arg(themeId)));
+    const QRect inkArea(qMax(item.left(), lastShortcutInk - 40), top, 41,
+                        bottom - top + 1);
+    const QColor shortcutInk = strongestInk(image, inkArea, background);
+    QVERIFY2(colorDistance(shortcutInk, secondary) < colorDistance(shortcutInk, primary),
+             qPrintable(QStringLiteral("%1: ink %2 != %3 | menu %4x%5 item %6..%7 last %8 chevron %9 bg %10")
+                            .arg(themeId, shortcutInk.name(), secondary.name())
+                            .arg(menu->width())
+                            .arg(menu->height())
+                            .arg(item.left())
+                            .arg(item.right())
+                            .arg(lastShortcutInk)
+                            .arg(chevronLeft)
+                            .arg(QColor::fromRgb(background).name())));
+
+    const int gap = chevronLeft - lastShortcutInk - 1;
+    QVERIFY2(gap >= kRequiredGap,
+             qPrintable(QStringLiteral("%1: shortcut ends only %2px before the chevron (need %3)")
+                            .arg(themeId)
+                            .arg(gap)
+                            .arg(kRequiredGap)));
+
+    // The chevron must survive the erase-before-draw re-ordering.
+    QVERIFY2(rightmostInkColumn(image, chevronLeft, item.right() - kArrowRightInset, top,
+                                bottom, background) >= chevronLeft,
+             qPrintable(QStringLiteral("%1: chevron was erased").arg(themeId)));
+
+    menu->hide();
+}
