@@ -3,6 +3,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include <lite/GUI/Utils/WindowFrameUtils.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -43,7 +44,8 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
 
     const bool nativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
     const auto mode = nativeFrame ? QStringLiteral("native-frame") : QStringLiteral("frameless");
-    const auto basePath = QDir(directory).filePath(QStringLiteral("title-bar-%1").arg(mode));
+    const auto basePath =
+        QDir(directory).filePath(QStringLiteral("modules/01-workspace/title-bar-%1").arg(mode));
     QDir().mkpath(QFileInfo(basePath).absolutePath());
 
     qInfo("Chrome capture armed: %s.png in %d ms", qPrintable(basePath), delay);
@@ -55,21 +57,22 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
         const auto titleBarRect =
             titleBar ? QRect(titleBar->mapTo(&window, QPoint()), titleBar->size()) : QRect();
         QJsonObject geometry{
-            {QStringLiteral("mode"),             mode                                 },
-            {QStringLiteral("platform"),         QGuiApplication::platformName()      },
-            {QStringLiteral("devicePixelRatio"), window.devicePixelRatioF()           },
-            {QStringLiteral("fullScreen"),       window.isFullScreen()                },
-            {QStringLiteral("maximized"),        window.isMaximized()                 },
-            {QStringLiteral("widgetRect"),       rectJson(window.rect())              },
-            {QStringLiteral("contentsRect"),     rectJson(window.contentsRect())      },
-            {QStringLiteral("contentsMargins"),  marginsJson(window.contentsMargins())},
+            {QStringLiteral("mode"),             mode                                      },
+            {QStringLiteral("themeId"),          ThemeManager::instance()->currentThemeId()},
+            {QStringLiteral("platform"),         QGuiApplication::platformName()           },
+            {QStringLiteral("devicePixelRatio"), window.devicePixelRatioF()                },
+            {QStringLiteral("fullScreen"),       window.isFullScreen()                     },
+            {QStringLiteral("maximized"),        window.isMaximized()                      },
+            {QStringLiteral("widgetRect"),       rectJson(window.rect())                   },
+            {QStringLiteral("contentsRect"),     rectJson(window.contentsRect())           },
+            {QStringLiteral("contentsMargins"),  marginsJson(window.contentsMargins())     },
             {QStringLiteral("respectsSafeArea"),
-             window.testAttribute(Qt::WA_ContentsMarginsRespectsSafeArea)             },
+             window.testAttribute(Qt::WA_ContentsMarginsRespectsSafeArea)                  },
             {QStringLiteral("safeAreaMargins"),
-             marginsJson(handle ? handle->safeAreaMargins() : QMargins())             },
+             marginsJson(handle ? handle->safeAreaMargins() : QMargins())                  },
             {QStringLiteral("frameMargins"),
-             marginsJson(handle ? handle->frameMargins() : QMargins())                },
-            {QStringLiteral("titleBarRect"),     rectJson(titleBarRect)               }
+             marginsJson(handle ? handle->frameMargins() : QMargins())                     },
+            {QStringLiteral("titleBarRect"),     rectJson(titleBarRect)                    }
         };
         const auto imagePath = basePath + QStringLiteral(".png");
         QString captureMethod;

@@ -20,11 +20,12 @@ public:
     // Screenshot harness only, called on the GUI thread. macOS 14.4+ first uses
     // own-process ScreenCaptureKit window capture (native corners and shadows).
     // AppKit frame caching is a fallback, not a system-compositor screenshot.
-    // Other platforms capture only the Qt client area. captureMethod identifies
-    // the actual backend: screencapturekit-window, appkit-frame-fallback,
-    // qt-client-fallback, or failed. No screen-recording permission is requested.
+    // Windows/X11 can opt into isolated desktop pixel capture, including native
+    // decorations actually supplied by the runner's compositor. Otherwise only
+    // the Qt client area is captured. captureMethod reports the actual backend
+    // or fallback. No screen-recording permission is requested.
     [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
-                                                 QString *captureMethod = nullptr);
+                                                  QString *captureMethod = nullptr);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
