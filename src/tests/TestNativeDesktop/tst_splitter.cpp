@@ -120,8 +120,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     auto *mainTitle = window.findChild<MainTitleBar *>();
     QVERIFY(mainTitle);
     if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
-        // Only the main window reuses native traffic lights. Detached panels still
-        // have custom buttons, exercised below on every platform.
+        // macOS keeps its native traffic lights in both editor windows.
         QVERIFY(mainTitle->sections().trafficLightArea);
         QVERIFY(!mainTitle->sections().systemButtons);
         QVERIFY(mainTitle->trafficLightArea() && mainTitle->trafficLightArea()->isVisible());
@@ -158,10 +157,28 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     detached->activateWindow();
     QTRY_VERIFY(detached->isActiveWindow());
     auto *chrome = detached->titleBar();
-    QVERIFY(chrome->maximizeButton() && chrome->minimizeButton() && chrome->closeButton());
-    exerciseButtons(*detached, chrome->minimizeButton(), chrome->maximizeButton());
-    if (QTest::currentTestFailed())
-        return;
+    if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
+        QVERIFY(chrome->sections().trafficLightArea);
+        QVERIFY(!chrome->sections().systemButtons);
+        QVERIFY(chrome->trafficLightArea() && chrome->trafficLightArea()->isVisible());
+        QVERIFY(!chrome->minimizeButton() && !chrome->maximizeButton() && !chrome->closeButton());
+        QTRY_COMPARE(chrome->geometry().top(), 0);
+    } else {
+        QVERIFY(chrome->maximizeButton() && chrome->minimizeButton() && chrome->closeButton());
+        exerciseButtons(*detached, chrome->minimizeButton(), chrome->maximizeButton());
+        if (QTest::currentTestFailed())
+            return;
+    }
+    const auto closeDetached = [](DetachedPanelWindow &host) {
+        if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
+            // AppKit buttons are not QWidgets. Exercise the close-event path
+            // they use rather than looking for a custom Qt close button.
+            host.close();
+        } else {
+            QVERIFY(host.titleBar()->closeButton());
+            QTest::mouseClick(host.titleBar()->closeButton(), Qt::LeftButton);
+        }
+    };
     QVERIFY(window.setEditorPanelVisibility(true, false));
     QTRY_VERIFY(!bottom->isVisible());
     QVERIFY(appStatus->bottomPanelCollapsed);
@@ -180,7 +197,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     const auto detachedGeometry = detached->geometry();
-    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    closeDetached(*detached);
     QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
     QCOMPARE(detached->contentWidget(), nullptr);
     QCOMPARE(bottom->parentWidget(), splitter);
@@ -193,9 +210,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     detached = window.findChild<DetachedPanelWindow *>();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     QTRY_COMPARE(detached->geometry(), detachedGeometry);
-    chrome = detached->titleBar();
-    QVERIFY(chrome->closeButton());
-    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    closeDetached(*detached);
     QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
