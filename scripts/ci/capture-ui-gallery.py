@@ -26,7 +26,7 @@ def run(command, log, env, cwd, timeout=300):
 
 @contextmanager
 def linux_desktop(theme, diagnostics, env):
-    """Use a real WM and compositor inside the workflow's disposable Xvfb server."""
+    """Use native Openbox frames inside the workflow's disposable Xvfb server."""
     with tempfile.TemporaryDirectory(prefix="ui-desktop-") as temporary, ExitStack() as stack:
         config = Path(temporary) / "openbox.xml"
         decoration = "Onyx" if theme == "dark" else "Clearlooks"
@@ -39,7 +39,6 @@ def linux_desktop(theme, diagnostics, env):
         try:
             for name, command in (
                 ("openbox", ["openbox", "--config-file", str(config)]),
-                ("picom", ["picom", "--config", "/dev/null", "--backend", "xrender", "--shadow"]),
             ):
                 log = stack.enter_context((diagnostics / f"{name}.log").open("w"))
                 processes.append(subprocess.Popen(command, env=env, stdout=log,
@@ -97,6 +96,8 @@ def capture(build, output, qt):
     base_env = runtime_environment(build, qt)
     report = {"platform": platform_id, "system": platform.platform(), "themes": [],
               "complete": False}
+    if system == "Linux":
+        report["desktop"] = "Xvfb with Openbox; no compositor or system shadows"
     manifest = root / "capture.json"
     try:
         for theme in ("light", "dark"):

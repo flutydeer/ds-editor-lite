@@ -72,7 +72,8 @@ def verify(directory, theme=None):
             previous_bottom = max(previous_bottom, caption[1] + caption[3])
             methods[item["captureMethod"]] += 1
         assert section["images"] and max(rows.values()) <= 2
-    allowed = {"screencapturekit-window", "windows-desktop-window", "x11-desktop-window",
+    allowed = {"screencapturekit-window", "windows-desktop-window", "windows-printwindow-frame",
+               "x11-window-without-compositor",
                "appkit-frame-fallback", "qt-client-fallback",
                "qt-widget-content"}
     assert methods.keys() <= allowed, methods
@@ -81,6 +82,10 @@ def verify(directory, theme=None):
     print(f"Verified {sum(methods.values())} screenshots in {len(expected_modules)} UI modules")
     for method, count in sorted(methods.items()):
         print(f"  {method}: {count}")
+    if methods["x11-window-without-compositor"]:
+        print("X11 captures include native Openbox frames; this desktop has no compositor shadows")
+    if methods["windows-printwindow-frame"]:
+        print("PrintWindow captures include Windows frames, without DWM compositor shadow guarantees")
     fallback_count = methods["appkit-frame-fallback"] + methods["qt-client-fallback"]
     if fallback_count:
         print(f"::warning::{fallback_count} windows used a fallback without system shadow/corner guarantees")
