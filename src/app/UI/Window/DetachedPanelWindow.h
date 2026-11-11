@@ -42,6 +42,7 @@ signals:
     void reattachRequested();
 
 protected:
+    bool event(QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
 private:

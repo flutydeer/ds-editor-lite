@@ -16,7 +16,7 @@ macOS 由平台持有菜单栏。`QMenuBarPrivate::init()` 一旦拿到 `platfor
 | --- | --- |
 | `appIconInset` | 无边框窗口在左端留出应用图标/拖拽位 |
 | `mainMenu` | 菜单栏画在本窗口内 |
-| `trafficLightArea` | 主窗口在 macOS 无边框模式下的红绿灯槽位 |
+| `trafficLightArea` | macOS 无边框窗口的原生红绿灯槽位 |
 | `projectSelector` | 项目名下拉 |
 | `documentActions` | 保存等文档操作按钮 |
 | `playback` | 播放控制 |
@@ -60,7 +60,7 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 对话框走同一套：`DialogTitleBar` 的 `trafficLightArea` 参数打开时只留红绿灯槽位，不再创建自绘关闭按钮。
 
-独立面板使用 `MainTitleBar` 的缩减布局。无边框分离窗口的红绿灯定位仍待后续处理。
+独立面板使用 `MainTitleBar` 的缩减布局，直接复用主窗口的平台计划，只去掉项目名和文档操作。macOS 无边框分离窗口也使用同一套 74 像素红绿灯槽位、QWK 定位和 full-size content 补偿，并关闭 Qt 的安全区自动留白。移除自绘三键后，原有弹性空间让播放工具自然靠右，不增加占位。原生红色关闭按钮仍经 `closeEvent()` 请求重新嵌回主窗口，不销毁编辑状态。
 
 ## 双击标题栏
 
@@ -77,6 +77,7 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 `TestApplicationGui` 的 `tst_title_bar_layout.cpp` 覆盖以下内容。
 
 - `forMainWindow()` 在 Windows 和 macOS 上的无边框及原生边框布局和间距。
+- 分离窗口在各平台、两种边框模式下复用主窗口的系统按钮计划，macOS 无边框没有顶部空白和自绘三键，播放工具靠右。重复分离与关闭重新嵌回后，编辑上下文保持不变。
 - 有菜单段时两条分隔线，且首段是菜单控件。
 - 摘掉菜单段后只剩一条分隔线，首段是项目名下拉，下拉左侧没有任何分隔线。
 - 切回原计划后分段与分隔线数量完全复现。

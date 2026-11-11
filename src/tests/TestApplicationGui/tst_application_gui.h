@@ -194,7 +194,9 @@ private slots:
     void openingZeroLengthSingingClipPreservesTheNextProjectViewport();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
+    void detachedBottomPanelReattachesWithItsEditingContext_data();
     void detachedBottomPanelReattachesWithItsEditingContext();
+    void detachedPanelUsesReducedMainTitleBar_data();
     void detachedPanelUsesReducedMainTitleBar();
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();

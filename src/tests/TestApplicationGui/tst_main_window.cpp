@@ -31,6 +31,7 @@
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
+#include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
@@ -88,6 +89,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QWheelEvent>
+#include <QWindow>
 #include <QtTest/QTest>
 
 #include <cmath>
@@ -2206,8 +2208,15 @@ void ApplicationGuiTests::mixedFileDropRejectsAtomicallyAndAllowsTheNextImport()
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext_data() {
+    QTest::addColumn<bool>("useNativeFrame");
+    QTest::newRow("native-frame") << true;
+    QTest::newRow("frameless") << false;
+}
+
 void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
-    MainWindowFixture host;
+    QFETCH(bool, useNativeFrame);
+    MainWindowFixture host(MainWindowFixture::MenuPlacement::InWindow, useNativeFrame);
     host.show();
     if (QTest::currentTestFailed())
         return;
@@ -2259,13 +2268,38 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     QVERIFY(bottom->clipEditorView()->hasActiveSingingClip());
     QCOMPARE(appStatus->activeClipId.get(), singingClip->id());
     QCOMPARE(bottom->clipEditorView()->viewState().editMode, EditorViewGlobal::DrawPitch);
+
+    // Reopening the same detached window must retain the editing state. A
+    // native close request (including the macOS red button) must dock it back.
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(window.findChild<DetachedPanelWindow *>(), detached);
+    QVERIFY(detached->isVisible());
+    QSignalSpy reattach(detached, &DetachedPanelWindow::reattachRequested);
+    detached->close();
+    QCOMPARE(reattach.count(), 1);
+    QVERIFY(!detached->isVisible());
+    QCOMPARE(detached->contentWidget(), nullptr);
+    QCOMPARE(bottom->parentWidget(), splitter);
+    QTRY_COMPARE(splitter->sizes(), sizes);
+    QVERIFY(bottom->clipEditorView()->hasActiveSingingClip());
+    QCOMPARE(appStatus->activeClipId.get(), singingClip->id());
+    QCOMPARE(bottom->clipEditorView()->viewState().editMode, EditorViewGlobal::DrawPitch);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar_data() {
+    QTest::addColumn<bool>("useNativeFrame");
+    QTest::newRow("native-frame") << true;
+    QTest::newRow("frameless") << false;
+}
+
 void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
+    QFETCH(bool, useNativeFrame);
     const auto mainPlan = TitleBarSections::forMainWindow(false, ChromePlatform::Windows);
-    const auto detachedPlan = TitleBarSections::forDetachedPanel(false);
+    const auto detachedPlan = TitleBarSections::forDetachedPanel(false, ChromePlatform::Windows);
     QVERIFY(mainPlan.appIconInset && mainPlan.systemButtons);
     QVERIFY(mainPlan.mainMenu && mainPlan.projectSelector && mainPlan.documentActions &&
             mainPlan.playback);
@@ -2274,7 +2308,8 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QVERIFY(!detachedPlan.projectSelector && !detachedPlan.documentActions);
     QCOMPARE(detachedPlan.leftMargin, mainPlan.leftMargin);
 
-    TestSupport::MainWindowFixture host;
+    TestSupport::MainWindowFixture host(MainWindowFixture::MenuPlacement::PlatformDefault,
+                                       useNativeFrame);
     host.show();
     if (QTest::currentTestFailed())
         return;
@@ -2297,6 +2332,28 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QVERIFY(chrome->menuView() && chrome->playbackView());
     QVERIFY(!chrome->titleComboBox());
     QVERIFY(!chrome->actionButtonsView());
+    const auto expected = TitleBarSections::forDetachedPanel(useNativeFrame);
+    QCOMPARE(chrome->trafficLightArea() != nullptr, expected.trafficLightArea);
+    QCOMPARE(chrome->minimizeButton() != nullptr, expected.systemButtons);
+    QCOMPARE(chrome->maximizeButton() != nullptr, expected.systemButtons);
+    QCOMPARE(chrome->closeButton() != nullptr, expected.systemButtons);
+    if (!expected.systemButtons) {
+        // Removing the custom buttons leaves the existing stretch to align
+        // transport controls at the right edge, with the usual six-pixel gap.
+        QTRY_COMPARE(chrome->playbackView()->geometry().right(), chrome->width() - 7);
+    }
+#ifdef Q_OS_MAC
+    QCOMPARE(detached->windowFlags().testFlag(Qt::ExpandedClientAreaHint), !useNativeFrame);
+    QCOMPARE(detached->windowFlags().testFlag(Qt::NoTitleBarBackgroundHint), !useNativeFrame);
+    QCOMPARE(detached->testAttribute(Qt::WA_ContentsMarginsRespectsSafeArea), useNativeFrame);
+    if (!useNativeFrame) {
+        QTRY_COMPARE(detached->contentsMargins().top(), 0);
+        QTRY_COMPARE(chrome->geometry().top(), 0);
+        QVERIFY(detached->windowHandle());
+        QTRY_COMPARE(detached->windowHandle()->frameMargins().top(), 0);
+        QCOMPARE(chrome->trafficLightArea()->size(), QSize(74, 40));
+    }
+#endif
 
     // Window management lives in the chrome now; the panel toolbar has no
     // system buttons of its own.

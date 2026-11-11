@@ -48,14 +48,13 @@ struct TitleBarSections {
 
     // The detached panel keeps the menu, the transport and the window chrome,
     // but has no document identity or document actions of its own.
-    [[nodiscard]] static TitleBarSections forDetachedPanel(const bool useNativeFrame) {
-        return {.appIconInset = !useNativeFrame,
-                .mainMenu = true,
-                .projectSelector = false,
-                .documentActions = false,
-                .playback = true,
-                .systemButtons = !useNativeFrame,
-                .leftMargin = 6};
+    [[nodiscard]] static TitleBarSections
+        forDetachedPanel(const bool useNativeFrame,
+                         const ChromePlatform platform = currentPlatform()) {
+        auto sections = forMainWindow(useNativeFrame, platform);
+        sections.projectSelector = false;
+        sections.documentActions = false;
+        return sections;
     }
 };
 
