@@ -74,6 +74,7 @@
 #include <QStringList>
 
 #include <numbers>
+#include <utility>
 
 namespace {
     // Keep the real task widget at a reproducible progress point during capture.
@@ -675,6 +676,31 @@ void ApplicationGuiTests::captureUiGallery() {
     QCOMPARE(singingClip->params.breathiness.curves(Param::Original).size(), 1);
     QCOMPARE(singingClip->params.breathiness.curves(Param::Edited).size(), 2);
 
+    Automation::CurveDraftDto generatedPitch;
+    Automation::CurveDraftDto drawnPitch;
+    drawnPitch.localStart = 240;
+    for (int tick = 0; tick < 3840; tick += generatedPitch.step) {
+        const double phase = 2 * std::numbers::pi * tick / 1440.0;
+        generatedPitch.values.append(static_cast<int>(6000 + 80 * std::sin(phase)));
+        if (tick >= 240 && tick < 1200)
+            drawnPitch.values.append(static_cast<int>(6120 + 110 * std::sin(phase * 1.7)));
+    }
+    Automation::CurveDraftDto pitchAnchors;
+    pitchAnchors.type = Automation::CurveDraftDto::Type::Anchor;
+    pitchAnchors.nodes = {
+        {1440, 5980, AnchorNode::Linear },
+        {1980, 6250, AnchorNode::Hermite},
+        {2520, 6070, AnchorNode::Hermite},
+        {3060, 6400, AnchorNode::None   },
+        {3600, 5900, AnchorNode::Linear }
+    };
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Pitch,
+                                                  Param::Original, {generatedPitch}));
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), clipId, ParamInfo::Pitch,
+                                                  Param::Edited, {drawnPitch, pitchAnchors}));
+    QCOMPARE(singingClip->params.pitch.curves(Param::Original).size(), 1);
+    QCOMPARE(singingClip->params.pitch.curves(Param::Edited).size(), 2);
+
     QVERIFY(window.setEditorPanelVisibility(true, false));
     for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
         auto *action = window.findChild<QAction *>(name);
@@ -708,9 +734,25 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(window.centerPianoRollAt(1440, 60));
     gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
     QVERIFY(window.setEditorPanelVisibility(false, true));
-    gallery.take(*bottom, Module::Notes, QStringLiteral("Piano roll and parameters"),
-                 Gallery::Capture::WidgetContent);
-    QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
+    const std::pair<EditorViewGlobal::PianoRollEditMode, const char *> pianoModes[] = {
+        {EditorViewGlobal::Select,          "Piano roll - select"         },
+        {EditorViewGlobal::IntervalSelect,  "Piano roll - interval select"},
+        {EditorViewGlobal::DrawNote,        "Piano roll - draw notes"     },
+        {EditorViewGlobal::EraseNote,       "Piano roll - erase notes"    },
+        {EditorViewGlobal::SplitNote,       "Piano roll - split notes"    },
+        {EditorViewGlobal::DrawPitch,       "Pitch - draw"                },
+        {EditorViewGlobal::EditPitchAnchor, "Pitch - anchor"              },
+        {EditorViewGlobal::ErasePitch,      "Pitch - erase"               },
+        {EditorViewGlobal::TracePitch,      "Pitch - trace"               },
+        {EditorViewGlobal::ModulatePitch,   "Pitch - modulate"            },
+    };
+    for (const auto &[mode, caption] : pianoModes) {
+        QVERIFY(editor->setEditMode(mode));
+        QCOMPARE(editor->viewState().editMode, mode);
+        gallery.take(*bottom, Module::Notes, QString::fromLatin1(caption),
+                     Gallery::Capture::WidgetContent);
+    }
+    QVERIFY(editor->setEditMode(EditorViewGlobal::Select));
     auto *parameters = editor->findChild<ParamEditorView *>();
     QVERIFY(parameters);
     auto *parameterPrompt = parameters->findChild<QWidget *>("speakerMixEmptyState");
@@ -718,8 +760,20 @@ void ApplicationGuiTests::captureUiGallery() {
     QTRY_VERIFY(!parameterPrompt->isVisible());
     parameters->graphicsView()->setForegroundBaseCurveVisible(true);
     parameters->graphicsView()->setBackgroundBaseCurveVisible(true);
-    gallery.take(*parameters, Module::Notes, QStringLiteral("Parameter curves"),
-                 Gallery::Capture::WidgetContent);
+    const std::pair<EditorViewGlobal::ParameterEditMode, const char *> parameterModes[] = {
+        {EditorViewGlobal::ParameterEditMode::Draw,   "Parameters - draw"  },
+        {EditorViewGlobal::ParameterEditMode::Erase,  "Parameters - erase" },
+        {EditorViewGlobal::ParameterEditMode::Trace,  "Parameters - trace" },
+        {EditorViewGlobal::ParameterEditMode::Shape,  "Parameters - shape" },
+        {EditorViewGlobal::ParameterEditMode::Scale,  "Parameters - scale" },
+        {EditorViewGlobal::ParameterEditMode::Anchor, "Parameters - anchor"},
+    };
+    for (const auto &[mode, caption] : parameterModes) {
+        QVERIFY(editor->setParameterEditMode(mode));
+        QCOMPARE(editor->parameterViewState().editMode, mode);
+        gallery.take(*parameters, Module::Notes, QString::fromLatin1(caption),
+                     Gallery::Capture::WidgetContent);
+    }
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
