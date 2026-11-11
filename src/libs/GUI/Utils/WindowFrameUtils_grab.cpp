@@ -161,8 +161,7 @@ namespace {
 #  endif
 
 #  if defined(LITE_HAS_X11_CAPTURE)
-    QPixmap captureX11WithoutCompositor(QWidget *widget, const QRect &captureRect,
-                                        QString &reason) {
+    QPixmap captureX11WithoutCompositor(QWidget *widget, QRect captureRect, QString &reason) {
         // This deliberately captures the real Openbox frame without shadows.
         // Do not read redirected root contents or retain an overlay fallback.
         if (QGuiApplication::screens().size() != 1 ||
@@ -206,24 +205,55 @@ namespace {
             reason = QStringLiteral("X11 frame capture requires a desktop without a compositor");
             return {};
         }
-        const auto scale = widget->screen()->devicePixelRatio();
-        XWindowAttributes root{};
-        if (!attributes(display, info.root, &root) ||
-            root.width != qRound(widget->screen()->geometry().width() * scale) ||
-            root.height != qRound(widget->screen()->geometry().height() * scale) ||
-            info.width != qRound(widget->width() * scale) ||
-            info.height != qRound(widget->height() * scale)) {
-            reason = QStringLiteral("X11 target/screen dimensions do not match Qt scaling");
+        QPointer<QWidget> target(widget);
+        const auto nativeId = widget->internalWinId();
+        const auto rootId = info.root;
+        QRect previousClient(widget->mapToGlobal(QPoint()), widget->size());
+        widget->raise();
+        int stableObservations = 0;
+        // Openbox may finalize decorations or reposition a newly raised dialog.
+        // Track its real geometry instead of rejecting that first adjustment.
+        // Require two stable intervals, with a total wait bounded to 750 ms.
+        for (int attempt = 0; attempt < 3 && stableObservations < 2; ++attempt) {
+            QEventLoop settle;
+            QTimer::singleShot(250, &settle, &QEventLoop::quit);
+            settle.exec(QEventLoop::ExcludeUserInputEvents);
+            if (!target || !target->isVisible() || target->isMinimized() ||
+                target->internalWinId() != nativeId) {
+                reason = QStringLiteral("X11 capture target disappeared or changed native window");
+                return {};
+            }
+            const auto currentFrame = target->frameGeometry();
+            const QRect currentClient(target->mapToGlobal(QPoint()), target->size());
+            if (currentFrame == captureRect && currentClient == previousClient)
+                ++stableObservations;
+            else
+                stableObservations = 0;
+            captureRect = currentFrame;
+            previousClient = currentClient;
+        }
+        if (stableObservations < 2) {
+            reason = QStringLiteral("X11 capture target geometry did not stabilize within 750 ms");
             return {};
         }
-
-        QPointer<QWidget> target(widget);
-        widget->raise();
-        QEventLoop settle;
-        QTimer::singleShot(250, &settle, &QEventLoop::quit);
-        settle.exec(QEventLoop::ExcludeUserInputEvents);
-        if (!target || !target->isVisible() || target->frameGeometry() != captureRect) {
-            reason = QStringLiteral("target disappeared or moved during X11 capture setup");
+        auto *screen = target->screen();
+        if (!screen || QGuiApplication::screens().size() != 1 ||
+            screen->geometry().topLeft() != QPoint(0, 0) || captureRect.isEmpty() ||
+            !screen->geometry().contains(captureRect)) {
+            reason = QStringLiteral("stable X11 frame is outside the supported single screen");
+            return {};
+        }
+        // Re-query after stabilization: the original native dimensions may have
+        // changed while the WM applied its final frame and client geometry.
+        const auto scale = screen->devicePixelRatio();
+        XWindowAttributes root{};
+        if (!attributes(display, static_cast<Window>(nativeId), &info) || info.root != rootId ||
+            !attributes(display, rootId, &root) ||
+            root.width != qRound(screen->geometry().width() * scale) ||
+            root.height != qRound(screen->geometry().height() * scale) ||
+            info.width != qRound(target->width() * scale) ||
+            info.height != qRound(target->height() * scale)) {
+            reason = QStringLiteral("stable X11 target/screen dimensions do not match Qt scaling");
             return {};
         }
         // Probe the target client, not WM-owned decorations, for occlusion.
