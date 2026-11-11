@@ -75,6 +75,7 @@
 
 #include <numbers>
 #include <utility>
+#include <algorithm>
 
 namespace {
     // Keep the real task widget at a reproducible progress point during capture.
@@ -731,9 +732,25 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(editor->setRegionVisibility(true, true));
     QVERIFY(editor->setParameterForeground(ParamInfo::Breathiness));
     QVERIFY(editor->setParameterBackground(ParamInfo::Tension));
-    QVERIFY(window.centerPianoRollAt(1440, 60));
+    auto *piano = editor->findChild<PianoRollGraphicsView *>();
+    QVERIFY(piano);
+    const auto framePitchCurves = [&] {
+        // Settle panel resizing before centering. Otherwise a small desktop can
+        // leave the upper pitch anchors outside the resized piano viewport.
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+        QTest::qWait(100);
+        if (!window.centerPianoRollAt(1440, 61.5) || !editor->setPitchViewport(61.5, 1.0))
+            return false;
+        const auto span = piano->topKeyIndex() - piano->bottomKeyIndex();
+        if (span < 8.0 && !editor->setPitchViewport(61.5, std::max(0.1, span / 8.0)))
+            return false;
+        qInfo() << "Gallery pitch viewport:" << piano->bottomKeyIndex() << piano->topKeyIndex();
+        return piano->bottomKeyIndex() <= 58.5 && piano->topKeyIndex() >= 64.5;
+    };
+    QVERIFY(framePitchCurves());
     gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
     QVERIFY(window.setEditorPanelVisibility(false, true));
+    QVERIFY(framePitchCurves());
     const std::pair<EditorViewGlobal::PianoRollEditMode, const char *> pianoModes[] = {
         {EditorViewGlobal::Select,          "Piano roll - select"         },
         {EditorViewGlobal::IntervalSelect,  "Piano roll - interval select"},
@@ -787,6 +804,7 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(detached && detached->isVisible());
     gallery.take(*detached, Module::Mixing, QStringLiteral("Detached mix console"));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QVERIFY(framePitchCurves());
     gallery.take(*detached, Module::Notes, QStringLiteral("Detached piano roll and parameters"));
     {
         QuantizeDialog quantize(detached);
