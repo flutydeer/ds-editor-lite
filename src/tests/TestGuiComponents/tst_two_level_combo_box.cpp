@@ -2,6 +2,7 @@
 
 #include "UI/Controls/TwoLevelComboBox.h"
 
+#include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 
 #include <QtTest/QTest>
@@ -59,6 +60,31 @@ namespace {
                 return x;
         }
         return -1;
+    }
+
+    int colorDistance(const QColor &a, const QColor &b) {
+        return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) +
+               qAbs(a.blue() - b.blue());
+    }
+
+    // The purest text pixel in an area. Antialiasing blends the text colour into
+    // the background, so the pixel furthest from the background is the best
+    // approximation of the pen actually used.
+    QColor strongestInk(const QImage &image, const QRect &area, QRgb background) {
+        const QColor bg(background);
+        int bestDistance = -1;
+        QRgb bestPixel = background;
+        for (int y = area.top(); y <= area.bottom(); ++y) {
+            for (int x = area.left(); x <= area.right(); ++x) {
+                const QRgb pixel = image.pixelColor(x, y).rgb();
+                const int distance = colorDistance(QColor::fromRgb(pixel), bg);
+                if (distance > bestDistance) {
+                    bestDistance = distance;
+                    bestPixel = pixel;
+                }
+            }
+        }
+        return QColor::fromRgb(bestPixel);
     }
 
     // Distance from the item's right edge to the last ink pixel of its shortcut
@@ -330,6 +356,91 @@ void GuiComponentTests::submenuArrowSpaceKeepsShortcutColumnAligned() {
              qPrintable(QStringLiteral("%1: shortcut column sits %2 px from the right edge")
                             .arg(themeId)
                             .arg(offsetWithSubMenu)));
+
+    menu->hide();
+}
+
+void GuiComponentTests::shortcutTextUsesIndependentThemeColors_data() {
+    QTest::addColumn<QString>("themeId");
+    QTest::newRow("dark") << QStringLiteral("lite-dark");
+    QTest::newRow("light") << QStringLiteral("lite-light");
+}
+
+void GuiComponentTests::shortcutTextUsesIndependentThemeColors() {
+    QFETCH(QString, themeId);
+    const auto theme = ThemeLoader::load(themeId);
+    QVERIFY2(theme.has_value(), qPrintable(ThemeLoader::lastError()));
+
+    const QColor primary = theme->semanticColors.value(QStringLiteral("text.primary"));
+    const QColor secondary = theme->semanticColors.value(QStringLiteral("text.secondary"));
+    QVERIFY(primary.isValid());
+    QVERIFY(secondary.isValid());
+    QVERIFY2(colorDistance(primary, secondary) > 12, "theme tokens are too close to tell apart");
+
+    QWidget root;
+    root.setStyleSheet(theme->styleSheet);
+    TwoLevelComboBox comboBox(&root);
+    auto *menu = comboBox.mainMenu();
+
+    auto *labelAction = menu->addAction(QStringLiteral("Save"));
+    auto *shortcutAction = menu->addAction(QStringLiteral("Open"));
+    shortcutAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+O")));
+    shortcutAction->setShortcutVisibleInContextMenu(true);
+
+    root.show();
+    QApplication::processEvents();
+    menu->popup(root.mapToGlobal(QPoint(10, 10)));
+    QTRY_VERIFY(menu->isVisible());
+    QApplication::processEvents();
+
+    // Qt has no ::shortcut subcontrol, so the colours arrive as Menu qproperties.
+    // Theme tokens are floats but QSS serialises them as 8-bit hex, so allow the
+    // one-step-per-channel quantisation instead of comparing exactly.
+    QVERIFY2(colorDistance(menu->shortcutTextColor(), secondary) <= 3,
+             qPrintable(QStringLiteral("%1: shortcutTextColor %2 != %3")
+                            .arg(themeId, menu->shortcutTextColor().name(), secondary.name())));
+    QVERIFY2(colorDistance(menu->shortcutSelectedTextColor(), primary) <= 3,
+             qPrintable(QStringLiteral("%1: shortcutSelectedTextColor %2 != %3")
+                            .arg(themeId, menu->shortcutSelectedTextColor().name(),
+                                 primary.name())));
+
+    auto render = [&menu] {
+        QPixmap pixmap(menu->size());
+        pixmap.fill(Qt::transparent);
+        menu->render(&pixmap);
+        return pixmap.toImage();
+    };
+
+    const QRect labelItem = menu->actionGeometry(labelAction);
+    const QRect shortcutItem = menu->actionGeometry(shortcutAction);
+    const QRect labelArea(labelItem.left() + 12, labelItem.top() + 2, 110,
+                          labelItem.height() - 4);
+    const QRect shortcutArea(shortcutItem.right() - 100, shortcutItem.top() + 2, 96,
+                             shortcutItem.height() - 4);
+
+    QImage image = render();
+    const QRgb labelBg = dominantColor(image, labelItem.adjusted(2, 2, -2, -2));
+    const QRgb shortcutBg = dominantColor(image, shortcutItem.adjusted(2, 2, -2, -2));
+    const QColor labelInk = strongestInk(image, labelArea, labelBg);
+    const QColor shortcutInk = strongestInk(image, shortcutArea, shortcutBg);
+
+    QVERIFY2(colorDistance(labelInk, primary) < colorDistance(labelInk, secondary),
+             qPrintable(QStringLiteral("%1: label ink %2 is not text.primary %3")
+                            .arg(themeId, labelInk.name(), primary.name())));
+    QVERIFY2(colorDistance(shortcutInk, secondary) < colorDistance(shortcutInk, primary),
+             qPrintable(QStringLiteral("%1: shortcut ink %2 is not text.secondary %3")
+                            .arg(themeId, shortcutInk.name(), secondary.name())));
+
+    // A selected row brings the shortcut back to full strength.
+    menu->setActiveAction(shortcutAction);
+    menu->update();
+    QApplication::processEvents();
+    image = render();
+    const QRgb selectedBg = dominantColor(image, shortcutItem.adjusted(2, 2, -2, -2));
+    const QColor selectedInk = strongestInk(image, shortcutArea, selectedBg);
+    QVERIFY2(colorDistance(selectedInk, primary) < colorDistance(selectedInk, secondary),
+             qPrintable(QStringLiteral("%1: selected shortcut ink %2 is not text.primary %3")
+                            .arg(themeId, selectedInk.name(), primary.name())));
 
     menu->hide();
 }

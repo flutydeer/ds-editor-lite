@@ -32,6 +32,8 @@ private slots:
     void submenuArrowSpaceTracksActionChanges();
     void submenuArrowSpaceKeepsShortcutColumnAligned_data();
     void submenuArrowSpaceKeepsShortcutColumnAligned();
+    void shortcutTextUsesIndependentThemeColors_data();
+    void shortcutTextUsesIndependentThemeColors();
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();

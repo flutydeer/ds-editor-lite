@@ -609,6 +609,15 @@ QMenu::item {
     min-width: 96px
 }
 
+/* Qt paints the label and the shortcut text with the same pen and offers no
+   ::shortcut subcontrol. Menu repaints the shortcut with its own colours so the
+   theme can keep it one step dimmer in the default state and restore full
+   strength on selection. Leaving a value unset keeps Qt's native rendering. */
+Menu {
+    qproperty-shortcutTextColor: ${text.secondary};
+    qproperty-shortcutSelectedTextColor: ${text.primary};
+}
+
 QMenu[stats=checkable]::item,
 QMenu[stats=icon]::item {
     padding-left: 12px;

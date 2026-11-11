@@ -55,6 +55,22 @@ Menu *Menu::fromLineEdit(QLineEdit *editor, QWidget *parent) {
     return menu;
 }
 
+QColor Menu::shortcutTextColor() const {
+    return m_shortcutTextColor;
+}
+
+void Menu::setShortcutTextColor(const QColor &color) {
+    m_shortcutTextColor = color;
+}
+
+QColor Menu::shortcutSelectedTextColor() const {
+    return m_shortcutSelectedTextColor;
+}
+
+void Menu::setShortcutSelectedTextColor(const QColor &color) {
+    m_shortcutSelectedTextColor = color;
+}
+
 void Menu::initUi() {
 #ifdef Q_OS_WIN
     if (SystemUtils::isWindows11()) {
@@ -118,6 +134,10 @@ void Menu::paintEvent(QPaintEvent *event) {
     const QSize indicatorSize(16, 16);
     const QSize arrowSize(14, 14);
     const qreal dpr = devicePixelRatioF();
+    // Qt paints the label and the shortcut text with the same pen, and Qt style
+    // sheets have no ::shortcut subcontrol. When the theme supplies its own
+    // shortcut colours, repaint that text ourselves after the base pass.
+    const bool customShortcutColor = m_shortcutTextColor.isValid();
 
     for (const auto action : actions()) {
         if (!action || action->isSeparator() || !event->rect().intersects(actionGeometry(action)))
@@ -141,6 +161,13 @@ void Menu::paintEvent(QPaintEvent *event) {
             cleanOption.checkType = QStyleOptionMenuItem::NotCheckable;
             cleanOption.checked = false;
             cleanOption.icon = {};
+            if (customShortcutColor) {
+                // Do not repaint the shortcut here. Its own pass below uses the
+                // theme colour instead of the item's label colour.
+                const int tab = cleanOption.text.indexOf(QLatin1Char('\t'));
+                if (tab >= 0)
+                    cleanOption.text.truncate(tab);
+            }
 
             painter.save();
             painter.setClipRect(slot);
@@ -178,6 +205,44 @@ void Menu::paintEvent(QPaintEvent *event) {
             const auto pixmap = IconUtils::renderTintedSvgPixmap(
                 QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"), arrowSize, color, dpr);
             painter.drawPixmap(arrowRect.topLeft(), pixmap);
+        }
+
+        // Submenu rows normally carry no shortcut. Skip them so the custom
+        // chevron drawn above is never cleared by the shortcut repaint.
+        if (customShortcutColor && !action->menu()) {
+            const int tab = option.text.indexOf(QLatin1Char('\t'));
+            if (tab >= 0) {
+                // Keep the padding values in sync with QMenu::item in controls.qss.
+                // QStyleSheetStyle right-aligns shortcut text to contentsRect().right(),
+                // which is item.right() minus padding-right.
+                const int paddingRight = property("submenuArrowSpace").toBool() ? 36 : 6;
+                const QString shortcutText = option.text.mid(tab + 1);
+                const int textWidth = option.fontMetrics.horizontalAdvance(shortcutText);
+                const int textLeft = option.rect.right() - paddingRight - textWidth + 1;
+                const QRect textRect(textLeft, option.rect.top(), textWidth + 2,
+                                     option.rect.height());
+                const QRect eraseRect(textLeft - 2, option.rect.top(), textWidth + 6,
+                                      option.rect.height());
+                clearSlot(eraseRect);
+
+                QColor shortcutColor = m_shortcutTextColor;
+                if (!(option.state & QStyle::State_Enabled))
+                    shortcutColor = color;
+                else if ((option.state & QStyle::State_Selected) &&
+                         m_shortcutSelectedTextColor.isValid())
+                    shortcutColor = m_shortcutSelectedTextColor;
+
+                int textFlags = Qt::AlignLeft | Qt::AlignVCenter | Qt::TextShowMnemonic |
+                                Qt::TextDontClip | Qt::TextSingleLine;
+                if (!style()->styleHint(QStyle::SH_UnderlineShortcut, &option, this))
+                    textFlags |= Qt::TextHideMnemonic;
+
+                painter.save();
+                painter.setFont(option.font);
+                painter.setPen(shortcutColor);
+                painter.drawText(textRect, textFlags, shortcutText);
+                painter.restore();
+            }
         }
     }
 }
