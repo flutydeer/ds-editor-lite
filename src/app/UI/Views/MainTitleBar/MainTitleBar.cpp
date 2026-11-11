@@ -15,6 +15,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QStyle>
 #include <QVariantAnimation>
 
@@ -23,11 +24,22 @@
 #define ChromeRestore  QStringLiteral(u"\ue923")
 #define ChromeClose    QStringLiteral(u"\ue8bb")
 
+namespace {
+    constexpr int kTitleBarHeight = 40;
+    constexpr int kTrafficLightAreaWidth = 74;
+}
+
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
                            const TitleBarSections &sections, const TitleBarRole role)
-    : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections) {
+    : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections),
+      m_layout(new QHBoxLayout(this)) {
     setAttribute(Qt::WA_StyledBackground);
 
+    if (sections.trafficLightArea) {
+        // QWindowKit centres the native buttons within this placeholder.
+        m_trafficLightArea = new QWidget(this);
+        m_trafficLightArea->setFixedSize(kTrafficLightAreaWidth, kTitleBarHeight);
+    }
     if (sections.playback)
         m_playbackView = new PlaybackView(this, role);
     if (sections.projectSelector)
@@ -41,8 +53,10 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
     if (sections.systemButtons)
         createSystemButtons();
 
+    if (m_menuView)
+        m_menuView->setInWindowMenu(m_sections.mainMenu);
     buildSections();
-    setFixedHeight(40);
+    setFixedHeight(kTitleBarHeight);
 
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
@@ -102,37 +116,51 @@ void MainTitleBar::createSystemButtons() {
     connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
 }
 
-void MainTitleBar::addLeadingDivider() {
-    // Only adjacent leading sections are separated. A reduced plan therefore
-    // never leaves a divider as the first visible element of the title bar.
-    if (m_leadingSectionCount > 0)
-        m_layout->addWidget(new DividerLine(Qt::Vertical));
-    ++m_leadingSectionCount;
+void MainTitleBar::setInWindowMenu(const bool inWindow) {
+    if (!m_menuView || m_sections.mainMenu == inWindow)
+        return;
+    m_sections.mainMenu = inWindow;
+    m_menuView->setInWindowMenu(inWindow);
+
+    while (auto *item = m_layout->takeAt(0))
+        delete item;
+    qDeleteAll(m_dividers);
+    m_dividers.clear();
+    buildSections();
+    updateGeometry();
+}
+
+const TitleBarSections &MainTitleBar::sections() const {
+    return m_sections;
+}
+
+QList<DividerLine *> MainTitleBar::dividers() const {
+    return m_dividers;
 }
 
 void MainTitleBar::buildSections() {
-    m_layout = new QHBoxLayout;
-    m_leadingSectionCount = 0;
-
-    if (m_sections.appIconInset) {
+    if (m_trafficLightArea) {
+        m_layout->addWidget(m_trafficLightArea);
+    } else if (m_sections.appIconInset) {
         // TODO: app icon
         m_layout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     }
-    if (m_sections.mainMenu && m_menuView) {
-        addLeadingDivider();
-        auto *menuBarContainer = new QHBoxLayout;
-        menuBarContainer->addWidget(m_menuView);
-        menuBarContainer->setContentsMargins({});
-        m_layout->addLayout(menuBarContainer);
-    }
-    if (m_sections.projectSelector && m_titleComboBox) {
-        addLeadingDivider();
-        m_layout->addWidget(m_titleComboBox);
-    }
-    if (m_sections.documentActions && m_actionButtonsView) {
-        addLeadingDivider();
-        m_layout->addWidget(m_actionButtonsView);
-    }
+    bool hasLeadingSection = false;
+    const auto addLeadingSection = [&](QWidget *section) {
+        if (hasLeadingSection) {
+            auto *divider = new DividerLine(Qt::Vertical);
+            m_dividers.append(divider);
+            m_layout->addWidget(divider);
+        }
+        m_layout->addWidget(section);
+        hasLeadingSection = true;
+    };
+    if (m_sections.mainMenu && m_menuView)
+        addLeadingSection(m_menuView);
+    if (m_titleComboBox)
+        addLeadingSection(m_titleComboBox);
+    if (m_actionButtonsView)
+        addLeadingSection(m_actionButtonsView);
 
     m_layout->addStretch();
     if (m_playbackView)
@@ -145,7 +173,6 @@ void MainTitleBar::buildSections() {
     }
     m_layout->setSpacing(0);
     m_layout->setContentsMargins(m_sections.leftMargin, 0, 0, 0);
-    setLayout(m_layout);
 }
 
 void MainTitleBar::rebuildSystemButtonIcons() {
@@ -181,6 +208,10 @@ void MainTitleBar::rebuildSystemButtonIcons() {
 
 MainMenuView *MainTitleBar::menuView() const {
     return m_menuView;
+}
+
+QWidget *MainTitleBar::trafficLightArea() const {
+    return m_trafficLightArea;
 }
 
 ActionButtonsView *MainTitleBar::actionButtonsView() const {
@@ -259,6 +290,15 @@ void MainTitleBar::afterSetAnimationEnabled(bool enabled) {
 void MainTitleBar::afterSetTimeScale(double scale) {
     Q_UNUSED(scale)
     updateAnimationSettings();
+}
+
+void MainTitleBar::mouseDoubleClickEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && !childAt(event->position().toPoint())) {
+        emit doubleClicked();
+        event->accept();
+        return;
+    }
+    QWidget::mouseDoubleClickEvent(event);
 }
 
 void MainTitleBar::setActiveStyle(bool active) {

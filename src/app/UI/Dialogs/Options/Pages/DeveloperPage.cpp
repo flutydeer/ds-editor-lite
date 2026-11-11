@@ -75,6 +75,7 @@ bool DeveloperPage::applyOptions() {
     settings.showClipDebugInfo = m_swShowClipDebugInfo->value();
     settings.logTouchEvents = m_swLogTouchEvents->value();
     settings.enablePanelDetach = m_swEnablePanelDetach->value();
+    settings.hideMainMenuInWindow = m_swHideMainMenuInWindow->value();
     settings.editorRenderBackend =
         m_cbxEditorRenderBackend->currentData().toInt() ==
                 static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental)
@@ -93,6 +94,7 @@ bool DeveloperPage::applyOptions() {
     restoreSwitch(m_swShowClipDebugInfo, previous.showClipDebugInfo);
     restoreSwitch(m_swLogTouchEvents, previous.logTouchEvents);
     restoreSwitch(m_swEnablePanelDetach, previous.enablePanelDetach);
+    restoreSwitch(m_swHideMainMenuInWindow, previous.hideMainMenuInWindow);
     const auto backend =
         previous.editorRenderBackend == Automation::EditorRenderBackend::RhiExperimental
             ? DeveloperOption::EditorRenderBackend::RhiExperimental
@@ -124,6 +126,10 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
+    m_swHideMainMenuInWindow = new SwitchButton(option->hideMainMenuInWindow);
+    m_swHideMainMenuInWindow->setObjectName("developerHideMainMenuInWindow");
+    connect(m_swHideMainMenuInWindow, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
     m_cbxEditorRenderBackend = new ComboBox;
     m_cbxEditorRenderBackend->addItem(
@@ -186,6 +192,11 @@ QWidget *DeveloperPage::createContentWidget() {
         tr("Enable panel detach"),
         tr("Show the detach button on panel title bars to separate panels into standalone windows"),
         m_swEnablePanelDetach);
+    experimentalCard->addItem(
+        tr("Hide the main menu bar in the window"),
+        tr("Drop the menu bar section from the title bar to preview the macOS chrome, where the "
+           "menu lives in the system menu bar"),
+        m_swHideMainMenuInWindow);
     experimentalCard->addItem(tr("Editor rendering backend"),
                               tr("Applies to the track editor and piano roll after restart"),
                               m_cbxEditorRenderBackend);

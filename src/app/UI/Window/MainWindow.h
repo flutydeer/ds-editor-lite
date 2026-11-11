@@ -96,6 +96,7 @@ private:
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
     void updateShutdownBlockReason();
+    [[nodiscard]] bool mainMenuInWindow() const;
 
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;

@@ -7,6 +7,7 @@
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -116,10 +117,21 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     window.show();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
-    exerciseButtons(window, window.findChild<QWidget *>("MinimizeButton"),
-                    window.findChild<QWidget *>("MaximizeButton"));
-    if (QTest::currentTestFailed())
-        return;
+    auto *mainTitle = window.findChild<MainTitleBar *>();
+    QVERIFY(mainTitle);
+    if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
+        // macOS keeps its native traffic lights in both editor windows.
+        QVERIFY(mainTitle->sections().trafficLightArea);
+        QVERIFY(!mainTitle->sections().systemButtons);
+        QVERIFY(mainTitle->trafficLightArea() && mainTitle->trafficLightArea()->isVisible());
+        QVERIFY(!mainTitle->minimizeButton() && !mainTitle->maximizeButton() &&
+                !mainTitle->closeButton());
+    } else {
+        exerciseButtons(window, window.findChild<QWidget *>("MinimizeButton"),
+                        window.findChild<QWidget *>("MaximizeButton"));
+        if (QTest::currentTestFailed())
+            return;
+    }
     QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
@@ -145,10 +157,28 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     detached->activateWindow();
     QTRY_VERIFY(detached->isActiveWindow());
     auto *chrome = detached->titleBar();
-    QVERIFY(chrome->maximizeButton() && chrome->minimizeButton() && chrome->closeButton());
-    exerciseButtons(*detached, chrome->minimizeButton(), chrome->maximizeButton());
-    if (QTest::currentTestFailed())
-        return;
+    if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
+        QVERIFY(chrome->sections().trafficLightArea);
+        QVERIFY(!chrome->sections().systemButtons);
+        QVERIFY(chrome->trafficLightArea() && chrome->trafficLightArea()->isVisible());
+        QVERIFY(!chrome->minimizeButton() && !chrome->maximizeButton() && !chrome->closeButton());
+        QTRY_COMPARE(chrome->geometry().top(), 0);
+    } else {
+        QVERIFY(chrome->maximizeButton() && chrome->minimizeButton() && chrome->closeButton());
+        exerciseButtons(*detached, chrome->minimizeButton(), chrome->maximizeButton());
+        if (QTest::currentTestFailed())
+            return;
+    }
+    const auto closeDetached = [](DetachedPanelWindow &host) {
+        if (TitleBarSections::currentPlatform() == ChromePlatform::MacOS) {
+            // AppKit buttons are not QWidgets. Exercise the close-event path
+            // they use rather than looking for a custom Qt close button.
+            host.close();
+        } else {
+            QVERIFY(host.titleBar()->closeButton());
+            QTest::mouseClick(host.titleBar()->closeButton(), Qt::LeftButton);
+        }
+    };
     QVERIFY(window.setEditorPanelVisibility(true, false));
     QTRY_VERIFY(!bottom->isVisible());
     QVERIFY(appStatus->bottomPanelCollapsed);
@@ -167,7 +197,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     const auto detachedGeometry = detached->geometry();
-    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    closeDetached(*detached);
     QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
     QCOMPARE(detached->contentWidget(), nullptr);
     QCOMPARE(bottom->parentWidget(), splitter);
@@ -180,9 +210,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     detached = window.findChild<DetachedPanelWindow *>();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     QTRY_COMPARE(detached->geometry(), detachedGeometry);
-    chrome = detached->titleBar();
-    QVERIFY(chrome->closeButton());
-    QTest::mouseClick(chrome->closeButton(), Qt::LeftButton);
+    closeDetached(*detached);
     QTRY_VERIFY(!detached->isVisible() && bottom->isVisible());
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
@@ -213,8 +241,7 @@ void NativeDesktopTests::mainWindowSplitterDragRestoresPanelSizes() {
     QSignalSpy moved(splitter, &QSplitter::splitterMoved);
     const auto dragTo = [&](int y) {
         const auto press = handle->rect().center();
-        const auto global =
-            splitter->mapToGlobal(QPoint(splitter->width() / 2, y + press.y()));
+        const auto global = splitter->mapToGlobal(QPoint(splitter->width() / 2, y + press.y()));
         QTest::mousePress(handle, Qt::LeftButton, Qt::NoModifier, press);
         QMouseEvent move(QEvent::MouseMove, QPointF(handle->mapFromGlobal(global)), QPointF(global),
                          Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
