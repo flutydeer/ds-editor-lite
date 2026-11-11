@@ -39,6 +39,7 @@
 #include "UI/Window/TaskWindow.h"
 
 #include <lite/GUI/Utils/WindowFrameUtils.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -59,6 +60,9 @@
 #include <QTabWidget>
 #include <QTimer>
 #include <QTemporaryDir>
+#include <QLayout>
+#include <QRegularExpression>
+#include <QStringList>
 
 #include <cmath>
 #include <numbers>
@@ -104,6 +108,17 @@ namespace {
         Q_UNREACHABLE();
     }
 
+    QString moduleId(const Module module) {
+        static const QStringList ids{"01-workspace", "02-tracks",   "03-notes",
+                                     "04-lyrics",    "05-mixing",   "06-audio",
+                                     "07-packages",  "08-settings", "09-diagnostics"};
+        return ids.at(static_cast<int>(module));
+    }
+
+    QString captureTheme() {
+        return qEnvironmentVariable("LITE_CAPTURE_THEME", "light");
+    }
+
     QJsonArray rectJson(const QRect &rect) {
         return {rect.x(), rect.y(), rect.width(), rect.height()};
     }
@@ -116,7 +131,8 @@ namespace {
         }
 
         void addReference(const Module module, const QString &title, const QString &name) {
-            QFile report(m_output.filePath(QFileInfo(name).completeBaseName() + ".json"));
+            const QFileInfo sourceInfo(m_output.filePath(name));
+            QFile report(sourceInfo.dir().filePath(sourceInfo.completeBaseName() + ".json"));
             QString method = QStringLiteral("reference-image");
             if (report.open(QIODevice::ReadOnly)) {
                 method = QJsonDocument::fromJson(report.readAll())
@@ -124,18 +140,38 @@ namespace {
                              .value(QStringLiteral("captureMethod"))
                              .toString(method);
             }
-            addImage(module, title, m_output.filePath(name), method);
+            const auto moduleDirectory = QStringLiteral("modules/%1").arg(moduleId(module));
+            if (QDir::cleanPath(sourceInfo.absolutePath()) ==
+                QDir::cleanPath(QDir(m_output.filePath(moduleDirectory)).absolutePath())) {
+                addImage(module, title, sourceInfo.filePath(), method);
+                return;
+            }
+            const auto path = imagePath(module, title);
+            QVERIFY(m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))));
+            // References belong beside the module's other original captures too.
+            QFile source(m_output.filePath(name));
+            QVERIFY(source.open(QIODevice::ReadOnly));
+            QFile destination(path);
+            QVERIFY(destination.open(QIODevice::WriteOnly));
+            const auto bytes = source.readAll();
+            QCOMPARE(destination.write(bytes), bytes.size());
+            destination.close();
+            addImage(module, title, path, method);
         }
 
         void take(QWidget &widget, const Module module, const QString &title,
                   const Capture capture = Capture::NativeWindow) {
             QVERIFY2(QTest::qWaitForWindowExposed(widget.window()), qPrintable(title));
             QTRY_VERIFY(widget.isVisible());
-            QTest::qWait(150);
-            QVERIFY(m_output.mkpath(QStringLiteral("gallery")));
-            const auto number =
-                QStringLiteral("%1").arg(m_entries.size() + 1, 2, 10, QLatin1Char('0'));
-            const auto path = m_output.filePath(QStringLiteral("gallery/%1.png").arg(number));
+            // Tab/preview switches can resize a native window. Complete Qt layout
+            // and repaint before allowing the compositor to capture its next frame.
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+            if (widget.layout())
+                widget.layout()->activate();
+            widget.repaint();
+            QTest::qWait(300);
+            QVERIFY(m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))));
+            const auto path = imagePath(module, title);
             QString method;
             if (capture == Capture::WidgetContent) {
                 // Custom editor panels and popups do not need a repeated host window.
@@ -221,10 +257,11 @@ namespace {
             }
             QImage sheet(sheetWidth, y - sectionGap + margin, QImage::Format_RGB32);
             QVERIFY(!sheet.isNull());
-            sheet.fill(QColor("#f1f3f6"));
+            const bool dark = captureTheme() == QStringLiteral("dark");
+            sheet.fill(QColor(dark ? "#171b22" : "#f1f3f6"));
             QPainter painter(&sheet);
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
-            painter.setPen(QColor("#182433"));
+            painter.setPen(QColor(dark ? "#e6eaf0" : "#182433"));
             QFont headingFont = painter.font();
             headingFont.setPixelSize(40);
             headingFont.setBold(true);
@@ -256,25 +293,26 @@ namespace {
                     });
                 }
                 sectionReports.append(QJsonObject{
-                    {"title", moduleTitle(section.module)},
-                    {"file", QStringLiteral("gallery/modules/%1.png")
-                                 .arg(sectionReports.size() + 1, 2, 10, QLatin1Char('0'))},
-                    {"headingRect", rectJson(section.heading)},
-                    {"images", imageReports}
+                    {"id",          moduleId(section.module)                                             },
+                    {"title",       moduleTitle(section.module)                                          },
+                    {"file",        QStringLiteral("modules/%1/review.png").arg(moduleId(section.module))},
+                    {"headingRect", rectJson(section.heading)                                            },
+                    {"images",      imageReports                                                         }
                 });
             }
             painter.end();
             QVERIFY(sheet.save(m_output.filePath(QStringLiteral("ui-review.png"))));
-            QVERIFY(m_output.mkpath(QStringLiteral("gallery/modules")));
             for (qsizetype i = 0; i < sections.size(); ++i) {
                 const auto path = m_output.filePath(
-                    QStringLiteral("gallery/modules/%1.png").arg(i + 1, 2, 10, QLatin1Char('0')));
+                    QStringLiteral("modules/%1/review.png").arg(moduleId(sections.at(i).module)));
                 QVERIFY(sheet.copy(sections.at(i).bounds).save(path));
             }
             const QJsonObject report{
-                {"complete", !QTest::currentTestFailed()              },
-                {"size",     QJsonArray{sheet.width(), sheet.height()}},
-                {"sections", sectionReports                           }
+                {"complete", !QTest::currentTestFailed()               },
+                {"theme",    captureTheme()                            },
+                {"themeId",  ThemeManager::instance()->currentThemeId()},
+                {"size",     QJsonArray{sheet.width(), sheet.height()} },
+                {"sections", sectionReports                            }
             };
             QFile manifest(m_output.filePath(QStringLiteral("ui-review.json")));
             QVERIFY(manifest.open(QIODevice::WriteOnly));
@@ -286,6 +324,21 @@ namespace {
         }
 
     private:
+        QString imagePath(const Module module, const QString &title) const {
+            auto slug = title.toLower();
+            slug.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), "-");
+            slug.remove(QRegularExpression(QStringLiteral("^-|-$")));
+            int number = 1;
+            for (const auto &entry : m_entries) {
+                if (entry.module == module)
+                    ++number;
+            }
+            return m_output.filePath(QStringLiteral("modules/%1/%2-%3.png")
+                                         .arg(moduleId(module))
+                                         .arg(number, 2, 10, QLatin1Char('0'))
+                                         .arg(slug));
+        }
+
         void addImage(const Module module, const QString &title, const QString &path,
                       const QString &captureMethod) {
             QImage image(path);
@@ -322,9 +375,17 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     tall.fill(Qt::gray);
     QVERIFY(wide.save(output.filePath("wide.png")));
     QVERIFY(tall.save(output.filePath("tall.png")));
+    QVERIFY(QDir(output.path()).mkpath("modules/02-tracks"));
+    const auto moduleReference = QStringLiteral("modules/02-tracks/existing.png");
+    QVERIFY(wide.save(output.filePath(moduleReference)));
+    QFile provenance(output.filePath("modules/02-tracks/existing.json"));
+    QVERIFY(provenance.open(QIODevice::WriteOnly));
+    const QByteArray provenanceJson = R"({"captureMethod":"qt-client-fallback"})";
+    QCOMPARE(provenance.write(provenanceJson), provenanceJson.size());
+    provenance.close();
     Gallery gallery(output.path());
     gallery.addReference(Module::Workspace, QStringLiteral("Wide workspace"), "wide.png");
-    gallery.addReference(Module::Tracks, QStringLiteral("Track editor"), "wide.png");
+    gallery.addReference(Module::Tracks, QStringLiteral("Track editor"), moduleReference);
     gallery.addReference(Module::Workspace, QStringLiteral("Portrait workspace"), "tall.png");
     gallery.addReference(Module::Workspace, QStringLiteral("Third workspace"), "wide.png");
     gallery.writeSheet();
@@ -334,10 +395,16 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     QVERIFY(file.open(QIODevice::ReadOnly));
     const auto report = QJsonDocument::fromJson(file.readAll()).object();
     QVERIFY(report.value("complete").toBool());
+    QCOMPARE(report.value("theme").toString(), captureTheme());
     const auto sections = report.value("sections").toArray();
     QCOMPARE(sections.size(), 2);
     QCOMPARE(sections[0].toObject().value("title").toString(), moduleTitle(Module::Workspace));
     QCOMPARE(sections[1].toObject().value("title").toString(), moduleTitle(Module::Tracks));
+    QCOMPARE(sections[0].toObject().value("id").toString(), moduleId(Module::Workspace));
+    const auto trackReference = sections[1].toObject().value("images").toArray()[0].toObject();
+    QCOMPARE(trackReference.value("file").toString(), moduleReference);
+    QCOMPARE(trackReference.value("captureMethod").toString(),
+             QStringLiteral("qt-client-fallback"));
     const auto rect = [](const QJsonValue &value) {
         const auto a = value.toArray();
         return QRect(a[0].toInt(), a[1].toInt(), a[2].toInt(), a[3].toInt());
@@ -353,6 +420,10 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
         QList<QRect> occupied;
         for (const auto &imageValue : images) {
             const auto image = imageValue.toObject();
+            const auto path = image.value("file").toString();
+            QVERIFY(
+                path.startsWith(QStringLiteral("modules/%1/").arg(section.value("id").toString())));
+            QVERIFY(!QImage(output.filePath(path)).isNull());
             const auto pixels = rect(image.value("imageRect"));
             const auto caption = rect(image.value("captionRect"));
             QVERIFY(pixels.top() > heading.bottom());
@@ -373,21 +444,25 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
     QVERIFY(rect(workspace[2].toObject().value("imageRect")).top() >
             rect(workspace[1].toObject().value("captionRect")).bottom());
     QVERIFY(!QImage(output.filePath("ui-review.png")).isNull());
-    QVERIFY(!QImage(output.filePath("gallery/modules/01.png")).isNull());
+    QVERIFY(!QImage(output.filePath("modules/01-workspace/review.png")).isNull());
+    QCOMPARE(QImage(output.filePath("ui-review.png")).pixelColor(0, 0),
+             QColor(captureTheme() == "dark" ? "#171b22" : "#f1f3f6"));
 }
 
 void ApplicationGuiTests::captureUiGallery() {
     const auto output = qEnvironmentVariable("LITE_UI_GALLERY");
     if (output.isEmpty())
         QSKIP("Set LITE_UI_GALLERY to generate the UI review artifact");
-    QVERIFY(QDir(output).mkpath(QStringLiteral("gallery")));
+    QVERIFY(QDir().mkpath(output));
     Gallery gallery(output);
     const auto compose = qScopeGuard([&] { gallery.writeSheet(); });
-    if (QFileInfo::exists(QDir(output).filePath(QStringLiteral("title-bar-native-frame.png")))) {
+    const auto nativeReference = QStringLiteral("modules/01-workspace/title-bar-native-frame.png");
+    const auto framelessReference = QStringLiteral("modules/01-workspace/title-bar-frameless.png");
+    if (QFileInfo::exists(QDir(output).filePath(nativeReference))) {
         gallery.addReference(Module::Workspace, QStringLiteral("Main window - system frame"),
-                             QStringLiteral("title-bar-native-frame.png"));
+                             nativeReference);
         gallery.addReference(Module::Workspace, QStringLiteral("Main window - frameless"),
-                             QStringLiteral("title-bar-frameless.png"));
+                             framelessReference);
     }
 
     TestSupport::MainWindowFixture host(
@@ -440,6 +515,13 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(audioClip);
 
     QVERIFY(window.setEditorPanelVisibility(true, false));
+    for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
+        auto *action = window.findChild<QAction *>(name);
+        QVERIFY(action);
+        if (action->isChecked())
+            action->trigger();
+        QVERIFY(!action->isChecked());
+    }
     gallery.take(*trackEditor, Module::Tracks, QStringLiteral("Track arrangement"),
                  Gallery::Capture::WidgetContent);
     auto *projectTitle = window.findChild<TitleBarComboBox *>();
@@ -465,11 +547,6 @@ void ApplicationGuiTests::captureUiGallery() {
     QVERIFY(window.setEditorPanelVisibility(false, true));
     gallery.take(*bottom, Module::Notes, QStringLiteral("Piano roll and parameters"),
                  Gallery::Capture::WidgetContent);
-    const auto foreground = editor->parameterViewState().foreground;
-    QVERIFY(editor->setParameterForeground(ParamInfo::SpeakerMix));
-    gallery.take(*bottom, Module::Mixing, QStringLiteral("Dynamic speaker mix"),
-                 Gallery::Capture::WidgetContent);
-    QVERIFY(editor->setParameterForeground(foreground));
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
                  Gallery::Capture::WidgetContent);
@@ -497,7 +574,7 @@ void ApplicationGuiTests::captureUiGallery() {
     LogWindow log(&window);
     gallery.show(log, Module::Diagnostics, QStringLiteral("Log viewer"));
     TaskWindow tasks(&window);
-    gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list"));
+    gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list - empty"));
 
     // Use the real modal wrapper, then step through its sidebar before dismissing it.
     QTimer::singleShot(0, &window, [&] {
@@ -559,6 +636,8 @@ void ApplicationGuiTests::captureUiGallery() {
          QStringLiteral("Extract pitch - source selection"));
     ResourceCheckDialog resources(&window);
     resources.addPage(new AudioResourcePage({}, {audioClip->id()}));
+    resources.finalizePages();
+    resources.resize(1100, 600);
     gallery.show(resources, Module::Packages, QStringLiteral("Audio resource check"));
 
     show(EditTempoDialog(480, 120.0, &window), Module::Tracks, QStringLiteral("Edit tempo"));
@@ -577,22 +656,31 @@ void ApplicationGuiTests::captureUiGallery() {
                            {TestSupport::fixtureLanguage()}, &window);
         lyrics.show();
         lyrics.activateWindow();
+        lyrics.resize(960, 640);
         gallery.take(lyrics, Module::Lyrics, QStringLiteral("Fill lyrics"));
+        bool previewToggled = false;
         for (auto *button : lyrics.findChildren<QAbstractButton *>()) {
             if (button->text() == QStringLiteral("Lyric Prev") ||
                 button->text() == QStringLiteral("Fold Preview")) {
                 button->click();
+                lyrics.resize(960, 640);
                 gallery.take(lyrics, Module::Lyrics,
                              QStringLiteral("Fill lyrics - preview toggled"));
+                previewToggled = true;
                 break;
             }
         }
+        QVERIFY(previewToggled);
         auto *tabs = lyrics.findChild<QTabWidget *>();
         QVERIFY(tabs && tabs->count() > 1);
         for (int i = 1; i < tabs->count(); ++i) {
             tabs->setCurrentIndex(i);
+            lyrics.resize(960, 640);
             gallery.take(lyrics, Module::Lyrics,
-                         QStringLiteral("Fill lyrics - %1").arg(tabs->tabText(i)));
+                         QStringLiteral("Fill lyrics - %1%2")
+                             .arg(tabs->tabText(i), tabs->tabText(i) == QStringLiteral("Help")
+                                                        ? QStringLiteral(" (empty placeholder)")
+                                                        : QString()));
         }
     }
     const SingerInfo singer(
@@ -600,6 +688,30 @@ void ApplicationGuiTests::captureUiGallery() {
         QStringLiteral("Demo voice"),
         {SpeakerInfo(QStringLiteral("bright"), QStringLiteral("Bright")),
          SpeakerInfo(QStringLiteral("warm"), QStringLiteral("Warm"))});
+    // Use the same two-speaker data as the dynamic-mix interaction tests rather
+    // than capturing an unavailable-state placeholder under an editor caption.
+    const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
+    const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
+    SpeakerMixModel::SpeakerMixData mix;
+    mix.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+    mix.sources = {{bright}, {warm}};
+    mix.fixedWeights = {0.5};
+    mix.dynamicKeyframes = {
+        {0,   {0.5} },
+        {480, {0.25}},
+        {960, {0.75}}
+    };
+    QVERIFY(runtime.parameters().applyClipSpeakerMix(
+        commandContext(), Automation::ClipId(singingClip->id()), singer, bright, mix));
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QVERIFY(window.setEditorPanelVisibility(false, true));
+    editor->onActiveClipChanged(singingClip->id());
+    QVERIFY(editor->setParameterForeground(ParamInfo::SpeakerMix));
+    auto *mixEmpty = editor->findChild<QWidget *>("speakerMixEmptyState");
+    QVERIFY(mixEmpty);
+    QTRY_VERIFY(!mixEmpty->isVisible());
+    gallery.take(*bottom, Module::Mixing, QStringLiteral("Dynamic speaker mix"),
+                 Gallery::Capture::WidgetContent);
     show(SpeakerMixDialog(singer, {}, &window), Module::Mixing, QStringLiteral("Speaker mix"));
 
     MessageDialog message(QStringLiteral("Save changes?"),

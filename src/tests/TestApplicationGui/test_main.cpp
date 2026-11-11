@@ -66,6 +66,13 @@ void ApplicationGuiTests::initTestCase() {
     options->inference()->executionProvider = QStringLiteral("CPU");
     options->inference()->cacheDirectory = dataRoot.filePath(QStringLiteral("cache"));
     options->appearance()->animationEnabled = false;
+    // Only the opt-in capture process changes the fixture's theme. Ordinary tests
+    // keep their existing defaults and the fixture already owns isolated settings.
+    const auto captureTheme = qEnvironmentVariable("LITE_CAPTURE_THEME");
+    if (!qEnvironmentVariableIsEmpty("LITE_UI_GALLERY")) {
+        QVERIFY(captureTheme == QStringLiteral("light") || captureTheme == QStringLiteral("dark"));
+        options->appearance()->themeId = captureTheme;
+    }
     context = std::make_unique<AppContext>(std::move(options), AppHostMode::Gui);
     // Close the fixture-owned stream so playback failure is independent of host devices.
     if (auto *device = AudioSystem::outputSystem()->context()->device()) {
@@ -75,7 +82,10 @@ void ApplicationGuiTests::initTestCase() {
         QVERIFY(!device->isStarted());
     }
     QVERIFY(QApplication::activeModalWidget() == nullptr);
-    QVERIFY2(ThemeManager::instance()->initialize(ThemeIds::defaultThemeId()),
+    const auto initialTheme = qEnvironmentVariableIsEmpty("LITE_UI_GALLERY")
+                                  ? ThemeIds::defaultThemeId()
+                                  : ThemeIds::themeIdForPreference(captureTheme);
+    QVERIFY2(ThemeManager::instance()->initialize(initialTheme),
              qPrintable(ThemeLoader::lastError()));
     packageManager->initialize(context->m_appOptions->general()->packageSearchPaths);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
