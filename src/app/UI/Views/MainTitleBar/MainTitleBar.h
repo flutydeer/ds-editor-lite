@@ -4,11 +4,13 @@
 #include "TitleBarSections.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 
+#include <QList>
 #include <QWidget>
 
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
 class QHBoxLayout;
+class DividerLine;
 class TitleBarComboBox;
 class ActionButtonsView;
 class PlaybackView;
@@ -26,7 +28,12 @@ public:
                           const TitleBarSections &sections,
                           TitleBarRole role = TitleBarRole::Primary);
 
+    void setInWindowMenu(bool inWindow);
+    [[nodiscard]] const TitleBarSections &sections() const;
+    [[nodiscard]] QList<DividerLine *> dividers() const;
+
     [[nodiscard]] MainMenuView *menuView() const;
+    [[nodiscard]] QWidget *trafficLightArea() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
     [[nodiscard]] PlaybackView *playbackView() const;
     [[nodiscard]] SystemWindowButton *minimizeButton() const;
@@ -46,15 +53,16 @@ signals:
     void minimizeTriggered();
     void maximizeTriggered(bool max = false);
     void closeTriggered();
+    void doubleClicked();
 
 protected:
     void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void buildSections();
-    void addLeadingDivider();
     void createSystemButtons();
     void setActiveStyle(bool active);
     void updateAnimationSettings();
@@ -64,8 +72,9 @@ private:
     QWidget *m_window;
     MainMenuView *m_menuView;
     TitleBarSections m_sections;
-    QHBoxLayout *m_layout = nullptr;
-    int m_leadingSectionCount = 0;
+    QHBoxLayout *m_layout;
+    QList<DividerLine *> m_dividers;
+    QWidget *m_trafficLightArea = nullptr;
     ActionButtonsView *m_actionButtonsView = nullptr;
     PlaybackView *m_playbackView = nullptr;
     SystemWindowButton *m_btnMin = nullptr;

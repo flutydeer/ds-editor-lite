@@ -83,9 +83,14 @@ void ApplicationGuiTests::mainMenuOverflowsFromRightToLeft() {
     QCOMPARE(allTitles.size(), 4);
     QVERIFY(!probe.overflowAction->icon().isNull());
     QVERIFY(!probe.overflowAction->toolTip().isEmpty());
-    // The button is a normal QAction, so its mnemonic opens the overflow menu
-    // without any shortcut interception.
+    // Keep the mnemonic marker even where Qt's platform policy disables Alt
+    // mnemonics. A normal QAction follows that policy without interception.
+    QVERIFY(probe.overflowAction->text().contains(QLatin1Char('&')));
+#ifdef Q_OS_MACOS
+    QVERIFY(QKeySequence::mnemonic(probe.overflowAction->text()).isEmpty());
+#else
     QVERIFY(!QKeySequence::mnemonic(probe.overflowAction->text()).isEmpty());
+#endif
 
     // Qt's private extension widget must never take over. If our measurement
     // drifts, this is the assertion that catches it.
@@ -140,8 +145,7 @@ void ApplicationGuiTests::mainMenuOverflowsFromRightToLeft() {
                                       .arg(r.height());
                 }
             }
-            QVERIFY2(!nativeExtension || nativeExtension->isHidden(),
-                     qPrintable(diagnostic));
+            QVERIFY2(!nativeExtension || nativeExtension->isHidden(), qPrintable(diagnostic));
 
             // The button is laid out as an ordinary action, so the gap before
             // it equals the gap between any two normal menu items. Leftover
@@ -267,13 +271,13 @@ void ApplicationGuiTests::mainMenuFitsAtSizeHintWithNativeMetrics() {
         int pixelMetric(PixelMetric metric, const QStyleOption *option = nullptr,
                         const QWidget *widget = nullptr) const override {
             switch (metric) {
-            case PM_MenuBarItemSpacing:
-            case PM_MenuBarHMargin:
-                return 0;
-            case PM_MenuBarPanelWidth:
-                return 2;
-            default:
-                return QProxyStyle::pixelMetric(metric, option, widget);
+                case PM_MenuBarItemSpacing:
+                case PM_MenuBarHMargin:
+                    return 0;
+                case PM_MenuBarPanelWidth:
+                    return 2;
+                default:
+                    return QProxyStyle::pixelMetric(metric, option, widget);
             }
         }
     };

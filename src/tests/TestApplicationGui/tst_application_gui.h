@@ -64,6 +64,7 @@ private slots:
     void draggingExistingNoteCommitsOrCancels();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
+    void activeClipMoveRebindsThePianoTrackColor_data();
     void activeClipMoveRebindsThePianoTrackColor();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
@@ -168,6 +169,13 @@ private slots:
     void mainMenuOverflowRestoresWithoutHysteresis();
     void mainMenuOverflowRecalculatesAfterTitleChange();
     void mainMenuFitsAtSizeHintWithNativeMetrics();
+    void titleBarLayoutPlanFollowsPlatformChrome();
+    void dialogTitleBarFollowsFrameMode_data();
+    void dialogTitleBarFollowsFrameMode();
+    void titleBarLayoutFollowsThePlatformMenuBar();
+    void titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow();
+    void hiddenMenuBarKeepsEveryTopLevelMenuInline();
+    void titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
@@ -185,7 +193,9 @@ private slots:
     void openingZeroLengthSingingClipPreservesTheNextProjectViewport();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
+    void detachedBottomPanelReattachesWithItsEditingContext_data();
     void detachedBottomPanelReattachesWithItsEditingContext();
+    void detachedPanelUsesReducedMainTitleBar_data();
     void detachedPanelUsesReducedMainTitleBar();
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();

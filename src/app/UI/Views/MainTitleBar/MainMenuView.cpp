@@ -140,13 +140,39 @@ bool MainMenuView::isOverflowing() const {
     return d->m_overflowAction && actions().contains(d->m_overflowAction.data());
 }
 
+bool MainMenuView::isInWindowMenu() const {
+    Q_D(const MainMenuView);
+    return d->m_inWindowMenu && !isNativeMenuBar();
+}
+
+void MainMenuView::setInWindowMenu(const bool inWindow) {
+    Q_D(MainMenuView);
+    if (d->m_inWindowMenu == inWindow)
+        return;
+    d->m_inWindowMenu = inWindow;
+    // QMenuBar::setVisible ignores show requests for a native menu bar and lets
+    // hide requests through, so letting Qt keep the native widget's state is
+    // the only safe option here.
+    if (!isNativeMenuBar())
+        setVisible(inWindow);
+    updateGeometry();
+    d->updateOverflow();
+}
+
 QSize MainMenuView::sizeHint() const {
     Q_D(const MainMenuView);
+    // Outside the window the overflow split does not apply: the platform
+    // measures the menu bar itself, and a native QMenuBar reports an empty
+    // hint. Claiming the full inline width would push the title bar layout.
+    if (!isInWindowMenu())
+        return QMenuBar::sizeHint();
     return {d->fullInlineWidth(), QMenuBar::sizeHint().height()};
 }
 
 QSize MainMenuView::minimumSizeHint() const {
     Q_D(const MainMenuView);
+    if (!isInWindowMenu())
+        return QMenuBar::minimumSizeHint();
     return {d->minimumInlineWidth(), QMenuBar::sizeHint().height()};
 }
 
@@ -1104,7 +1130,20 @@ void MainMenuViewPrivate::updateOverflow() {
     if (m_updatingOverflow || !m_overflowAction || !m_overflowMenu ||
         m_topLevelMenus.isEmpty())
         return;
-    m_updatingOverflow = true;
+
+    // A menu bar owned by the platform, or hidden by the title bar, has no
+    // width budget of its own. Keep every top-level menu on the bar: on macOS
+    // removeAction() reaches QMenuBar::actionEvent, which removes that menu
+    // from the platform menu bar, so collapsing here would empty the system
+    // menu bar instead of shrinking anything on screen.
+    if (!q->isInWindowMenu()) {
+        if (m_keepCount == m_topLevelMenus.size())
+            return;
+        m_updatingOverflow = true;
+        syncOverflowActions(m_topLevelMenus.size());
+        m_updatingOverflow = false;
+        return;
+    }
 
     const auto *style = q->style();
     const int fw = style->pixelMetric(QStyle::PM_MenuBarPanelWidth, nullptr, q);
@@ -1141,6 +1180,11 @@ void MainMenuViewPrivate::updateOverflow() {
                 break;
         }
     }
+    // Rebuilding both lists removes and re-adds every menu action, and each of
+    // those reaches the platform menu bar. Only do it when the split moved.
+    if (keepCount == m_keepCount)
+        return;
+    m_updatingOverflow = true;
     syncOverflowActions(keepCount);
     m_updatingOverflow = false;
 }
@@ -1162,6 +1206,7 @@ void MainMenuViewPrivate::syncOverflowActions(int keepCount) {
         q->addAction(m_overflowAction.data());
     for (int i = keepCount; i < m_topLevelMenus.size(); ++i)
         m_overflowMenu->addAction(m_topLevelMenus.at(i).data());
+    m_keepCount = keepCount;
 }
 
 void MainMenuViewPrivate::setMenuIcon(QAction *action, const QString &path, const QSize &size) {

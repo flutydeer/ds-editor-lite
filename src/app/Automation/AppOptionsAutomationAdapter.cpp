@@ -135,6 +135,7 @@ namespace Automation {
                 .showClipDebugInfo = value->showClipDebugInfo,
                 .logTouchEvents = value->logTouchEvents,
                 .enablePanelDetach = value->enablePanelDetach,
+                .hideMainMenuInWindow = value->hideMainMenuInWindow,
                 .editorRenderBackend = value->editorRenderBackend ==
                                                DeveloperOption::EditorRenderBackend::RhiExperimental
                                            ? EditorRenderBackend::RhiExperimental
@@ -150,6 +151,7 @@ namespace Automation {
             target->showClipDebugInfo = value.showClipDebugInfo;
             target->logTouchEvents = value.logTouchEvents;
             target->enablePanelDetach = value.enablePanelDetach;
+            target->hideMainMenuInWindow = value.hideMainMenuInWindow;
             target->editorRenderBackend =
                 value.editorRenderBackend == EditorRenderBackend::RhiExperimental
                     ? DeveloperOption::EditorRenderBackend::RhiExperimental

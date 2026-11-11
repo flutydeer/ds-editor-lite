@@ -609,17 +609,28 @@ QMenu::item {
     min-width: 96px
 }
 
+/* Qt paints the label and the shortcut text with the same pen and offers no
+   ::shortcut subcontrol. Menu repaints the shortcut with its own colours so the
+   theme can keep it one step dimmer in the default state and restore full
+   strength on selection. Leaving a value unset keeps Qt's native rendering. */
+Menu {
+    qproperty-shortcutTextColor: ${text.secondary};
+    qproperty-shortcutSelectedTextColor: ${text.primary};
+}
+
 QMenu[stats=checkable]::item,
 QMenu[stats=icon]::item {
     padding-left: 12px;
 }
 
 /* QStyleSheetStyle::sizeFromContents(CT_MenuItem) does not reserve any width
-   for ::right-arrow (QWindowsStyle does), so long labels run under the arrow.
-   Menus carrying submenus opt in via Menu::hasSubMenu: 14px arrow + 6px right
-   inset + 12px text gap, plus 4px slack. Padding also widens the menu because
-   QStyleSheetStyle::boxSize() includes it in the item size. */
-QMenu[hasSubMenu="true"]::item {
+   for ::right-arrow (QWindowsStyle does), so long submenu labels run under the
+   arrow. Reserve 14px arrow + 6px inset + 12px gap + 4px slack. The padding
+   widens the menu via boxSize() and stops the text via contentsRect().
+   Menu::submenuArrowSpace excludes menus with a shortcut column, because
+   CE_MenuItem right-aligns shortcut text to contentsRect().right() and that
+   padding would shift the whole column left. */
+QMenu[submenuArrowSpace="true"]::item {
     padding-right: 36px;
 }
 

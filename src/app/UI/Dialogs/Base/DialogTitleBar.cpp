@@ -15,37 +15,53 @@
 
 #define ChromeClose QStringLiteral(u"\ue8bb")
 
-DialogTitleBar::DialogTitleBar(QWidget *parent)
+namespace {
+    // Same leading slot as the main title bar; QWindowKit centres the three
+    // traffic lights inside it.
+    constexpr int kTrafficLightAreaWidth = 74;
+} // namespace
+
+DialogTitleBar::DialogTitleBar(QWidget *parent, const bool trafficLightArea)
     : QWidget(parent), m_window(parent ? parent->window() : nullptr) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_lbTitle = new QLabel;
     m_lbTitle->setObjectName("DialogTitleBarLabel");
 
-    int systemButtonWidth = 48;
-
-    m_btnClose = new SystemWindowButton;
-    m_btnClose->setCloseStyle(true);
-    m_btnClose->setObjectName("CloseButton");
-    m_btnClose->setFixedSize(systemButtonWidth, 32);
-
-    if (SystemUtils::isWindows()) {
-        auto fontFamily =
-            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-        auto font = QFont(fontFamily);
-        font.setPointSizeF(7.2);
-        m_btnClose->setText(ChromeClose);
-        m_btnClose->setFont(font);
+    auto mainLayout = new QHBoxLayout;
+    if (trafficLightArea) {
+        m_trafficLightArea = new QWidget(this);
+        m_trafficLightArea->setFixedWidth(kTrafficLightAreaWidth);
+        m_trafficLightArea->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+        mainLayout->addWidget(m_trafficLightArea);
     } else {
-        rebuildCloseButtonIcon();
+        mainLayout->addSpacing(16);
+    }
+    mainLayout->addWidget(m_lbTitle, 1);
+
+    if (!trafficLightArea) {
+        int systemButtonWidth = 48;
+
+        m_btnClose = new SystemWindowButton;
+        m_btnClose->setCloseStyle(true);
+        m_btnClose->setObjectName("CloseButton");
+        m_btnClose->setFixedSize(systemButtonWidth, 32);
+
+        if (SystemUtils::isWindows()) {
+            auto fontFamily =
+                QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+            auto font = QFont(fontFamily);
+            font.setPointSizeF(7.2);
+            m_btnClose->setText(ChromeClose);
+            m_btnClose->setFont(font);
+        } else {
+            rebuildCloseButtonIcon();
+        }
+
+        connect(m_btnClose, &SystemWindowButton::clicked, this, &DialogTitleBar::closeTriggered);
+        mainLayout->addWidget(m_btnClose);
     }
 
-    connect(m_btnClose, &SystemWindowButton::clicked, this, &DialogTitleBar::closeTriggered);
-
-    auto mainLayout = new QHBoxLayout;
-    mainLayout->addSpacing(16);
-    mainLayout->addWidget(m_lbTitle, 1);
-    mainLayout->addWidget(m_btnClose);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -92,6 +108,10 @@ void DialogTitleBar::rebuildCloseButtonIcon() {
 
 SystemWindowButton *DialogTitleBar::closeButton() const {
     return m_btnClose;
+}
+
+QWidget *DialogTitleBar::trafficLightArea() const {
+    return m_trafficLightArea;
 }
 
 SystemWindowButton *DialogTitleBar::systemButtonAt(const QPointF &windowPos) const {

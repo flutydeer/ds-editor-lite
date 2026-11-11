@@ -1,6 +1,10 @@
 #ifndef TITLEBARSECTIONS_H
 #define TITLEBARSECTIONS_H
 
+#include <QtGlobal>
+
+enum class ChromePlatform { Windows, MacOS, Other };
+
 // The window chrome is shared by the main window and the detached panel window.
 // A plan describes which sections a particular window shows; MainTitleBar lays
 // them out in a fixed order and only inserts a divider between two adjacent
@@ -11,6 +15,7 @@ struct TitleBarSections {
     // frameless window. Native frames already provide that area.
     bool appIconInset = false;
     bool mainMenu = true;
+    bool trafficLightArea = false;
     bool projectSelector = false;
     bool documentActions = false;
     bool playback = true;
@@ -19,26 +24,37 @@ struct TitleBarSections {
 
     [[nodiscard]] bool operator==(const TitleBarSections &) const = default;
 
-    [[nodiscard]] static TitleBarSections forMainWindow(const bool useNativeFrame) {
-        return {.appIconInset = !useNativeFrame,
-                .mainMenu = true,
+    [[nodiscard]] static constexpr ChromePlatform currentPlatform() {
+#ifdef Q_OS_MAC
+        return ChromePlatform::MacOS;
+#elif defined(Q_OS_WIN)
+        return ChromePlatform::Windows;
+#else
+        return ChromePlatform::Other;
+#endif
+    }
+
+    [[nodiscard]] static TitleBarSections
+        forMainWindow(const bool useNativeFrame, const ChromePlatform platform = currentPlatform()) {
+        const bool trafficLightArea = !useNativeFrame && platform == ChromePlatform::MacOS;
+        const bool customChrome = !useNativeFrame && !trafficLightArea;
+        return {.appIconInset = customChrome,
+                .trafficLightArea = trafficLightArea,
                 .projectSelector = true,
                 .documentActions = true,
-                .playback = true,
-                .systemButtons = !useNativeFrame,
-                .leftMargin = 6};
+                .systemButtons = customChrome,
+                .leftMargin = trafficLightArea ? 0 : 6};
     }
 
     // The detached panel keeps the menu, the transport and the window chrome,
     // but has no document identity or document actions of its own.
-    [[nodiscard]] static TitleBarSections forDetachedPanel(const bool useNativeFrame) {
-        return {.appIconInset = !useNativeFrame,
-                .mainMenu = true,
-                .projectSelector = false,
-                .documentActions = false,
-                .playback = true,
-                .systemButtons = !useNativeFrame,
-                .leftMargin = 6};
+    [[nodiscard]] static TitleBarSections
+        forDetachedPanel(const bool useNativeFrame,
+                         const ChromePlatform platform = currentPlatform()) {
+        auto sections = forMainWindow(useNativeFrame, platform);
+        sections.projectSelector = false;
+        sections.documentActions = false;
+        return sections;
     }
 };
 

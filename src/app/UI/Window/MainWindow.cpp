@@ -70,33 +70,69 @@ MainWindow::MainWindow() {
     setAcceptDrops(true);
 
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
+#ifdef Q_OS_MAC
+    if (!m_useNativeFrame) {
+        // Expand the native client area, then opt out of QWidget's automatic
+        // safe-area padding. Cocoa still reports the native title bar as unsafe
+        // in a full-size content view. Otherwise QMainWindow's layout reserves
+        // that row again, above our title bar and its traffic-light area.
+        setWindowFlag(Qt::ExpandedClientAreaHint, true);
+        setWindowFlag(Qt::NoTitleBarBackgroundHint, true);
+        setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
+    }
+#endif
     auto useNativeFrame = m_useNativeFrame;
     setProperty(EditorShortcutUtils::kEditorWindowProperty, true);
     m_mainMenu = new MainMenuView(this);
-    m_titleBar = new MainTitleBar(m_mainMenu, this,
-                                  TitleBarSections::forMainWindow(useNativeFrame));
+    auto sections = TitleBarSections::forMainWindow(useNativeFrame);
+    sections.mainMenu = mainMenuInWindow();
+    m_titleBar = new MainTitleBar(m_mainMenu, this, sections);
 
     if (!useNativeFrame) {
         auto agent = new QWK::WidgetWindowAgent(this);
         agent->setup(this);
         agent->setTitleBar(m_titleBar);
-        agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
-        agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
-        agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+        // Custom buttons exist only on platforms that have no native ones left.
+        if (m_titleBar->minimizeButton()) {
+            agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
+            agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
+            agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+
+            connect(m_titleBar, &MainTitleBar::minimizeTriggered, this,
+                    &MainMenuView::showMinimized);
+            connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [this](bool max) {
+                if (max)
+                    showMaximized();
+                else
+                    showNormal();
+                emulateLeaveEvent(m_titleBar->maximizeButton());
+            });
+            connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+        }
+#ifdef Q_OS_MAC
+        // macOS keeps its traffic lights and only repositions them. The area has
+        // to be set after setTitleBar(), which clears it on macOS.
+        agent->setSystemButtonArea(m_titleBar->trafficLightArea());
+        // Keep the AppKit title hidden as well as its background transparent.
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
+#endif
         agent->setHitTestVisible(m_titleBar->menuView());
         agent->setHitTestVisible(m_titleBar->actionButtonsView());
         agent->setHitTestVisible(m_titleBar->playbackView());
         agent->setHitTestVisible(m_titleBar->titleComboBox());
-
-        connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
-        connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
-            if (max)
-                showMaximized();
-            else
+    } else {
+        // With a native frame there is no window agent to turn a double click on
+        // the title bar into a zoom, and the platform's own title bar is a
+        // separate strip above this row. The custom title bar handles it itself,
+        // so double clicking anywhere on the title bar behaves the same.
+        connect(m_titleBar, &MainTitleBar::doubleClicked, this, [this] {
+            if (isFullScreen())
+                return;
+            if (isMaximized())
                 showNormal();
-            emulateLeaveEvent(m_titleBar->maximizeButton());
+            else
+                showMaximized();
         });
-        connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
     }
 
     // Connect file popup actions
@@ -160,8 +196,10 @@ MainWindow::MainWindow() {
                     updateDiagnosticFilter();
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updatePanelDetachEnabled();
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All) {
                     updateLogWindowVisible();
+                    m_titleBar->setInWindowMenu(mainMenuInWindow());
+                }
             });
     updateDiagnosticFilter();
     updateLogWindowVisible();
@@ -268,6 +306,10 @@ void MainWindow::updatePanelDetachEnabled() {
     m_bottomPanelView->titleBar()->setDetachButtonVisible(enabled);
 }
 
+bool MainWindow::mainMenuInWindow() const {
+    return !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
+}
+
 void MainWindow::updateWindowTitle() {
     const auto document = documentWorkflowController->documentSnapshot();
     if (!document)
@@ -287,6 +329,14 @@ bool MainWindow::event(QEvent *event) {
     if (event->type() == QEvent::WinIdChange) {
         if (auto *window = windowHandle())
             window->installEventFilter(this);
+    } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
+        // Show arrives before AppKit attaches the NSWindow to the NSView, so the
+        // first merge attempt can find [nsview window] nil and return without
+        // doing anything. Repeat it from the event loop and on the first
+        // activation, both of which happen once the window is really on screen.
+        QTimer::singleShot(0, this, [this] { WindowFrameUtils::mergeTitleBarIntoContent(this); });
+    } else if (event->type() == QEvent::WindowActivate && !m_useNativeFrame) {
+        WindowFrameUtils::mergeTitleBarIntoContent(this);
     }
     return QMainWindow::event(event);
 }
