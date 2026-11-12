@@ -118,6 +118,12 @@ namespace Automation {
         AutomationResult<MutationResult>
             setClipProperties(const CommandContext &context, const ClipPropertiesDto &properties,
                               std::optional<TrackId> targetTrackId = std::nullopt);
+        // Applies every entry inside one command, so a multi-clip gesture edits all of them in a
+        // single history entry. Track assignment is not part of this batch: use moveClips() when a
+        // clip also changes track.
+        AutomationResult<MutationResult>
+            setClipsProperties(const CommandContext &context,
+                               const QList<ClipPropertiesDto> &properties);
         AutomationResult<MutationResult> patchClipProperties(const CommandContext &context,
                                                              const ClipPropertiesPatchDto &patch);
         AutomationResult<MutationResult> renameClip(const CommandContext &context, ClipId clipId,
