@@ -83,6 +83,7 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
+#include <exception>
 
 namespace {
     // Keep the real task widget at a reproducible progress point during capture.
@@ -987,24 +988,34 @@ void ApplicationGuiTests::captureUiGallery() try {
     }
 
     // Use the real modal wrapper, then step through its sidebar before dismissing it.
+    std::exception_ptr settingsCaptureFailure;
     QTimer::singleShot(0, &window, [&] {
-        auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-        QVERIFY(dialog);
-        const auto dismiss = qScopeGuard([&] { dialog->reject(); });
-        auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
-        QVERIFY(sidebar && sidebar->count() > 0);
-        for (int page = 0; page < sidebar->count(); ++page) {
-            sidebar->setCurrentRow(page);
-            gallery.take(*dialog, Module::Settings,
-                         QStringLiteral("%1").arg(sidebar->item(page)->text()));
+        try {
+            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            const auto dismiss = qScopeGuard([&] { dialog->reject(); });
+            auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
+            QVERIFY(sidebar && sidebar->count() > 0);
+            for (int page = 0; page < sidebar->count(); ++page) {
+                sidebar->setCurrentRow(page);
+                gallery.take(*dialog, Module::Settings,
+                             QStringLiteral("%1").arg(sidebar->item(page)->text()));
+            }
+            sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
+            auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
+            QVERIFY(toolset && toolset->isEnabled());
+            toolset->click();
+            gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
+        } catch (...) {
+            // Never let a capture exception escape through Qt's event dispatcher.
+            settingsCaptureFailure = std::current_exception();
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                dialog->reject();
         }
-        sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
-        auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
-        QVERIFY(toolset && toolset->isEnabled());
-        toolset->click();
-        gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
     });
     window.openAppOptions(AppOptionsGlobal::General);
+    if (settingsCaptureFailure)
+        std::rethrow_exception(settingsCaptureFailure);
     if (QTest::currentTestFailed())
         return;
 
