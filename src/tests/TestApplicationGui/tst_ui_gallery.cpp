@@ -1040,6 +1040,8 @@ void ApplicationGuiTests::captureUiGallery() try {
     Audio::Internal::AudioExportProgressDialog exportProgress(&exporter, &window);
     emit exporter.progressChanged(0.45, -1);
     gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - progress"));
+    exportProgress.showSuccess({QStringLiteral("project.wav")});
+    gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - completed"));
 
     const QList<MidiImportTrackInfo> midiTracks{
         {.name = "Lead",
@@ -1181,10 +1183,18 @@ void ApplicationGuiTests::captureUiGallery() try {
 
     MessageDialog message(QStringLiteral("Save changes?"),
                           QStringLiteral("The current project has unsaved changes."), &window);
-    message.addAccentButton(QStringLiteral("Save"), 0);
-    message.addButton(QStringLiteral("Discard"), 1);
-    message.addButton(QStringLiteral("Cancel"), 2);
+    message.addAccentButton(QStringLiteral("Save"), 0, QDialogButtonBox::AcceptRole);
+    message.addButton(QStringLiteral("Discard"), 1, QDialogButtonBox::DestructiveRole);
+    message.addButton(QStringLiteral("Cancel"), 2, QDialogButtonBox::RejectRole);
     gallery.show(message, Module::Workspace, QStringLiteral("Unsaved project confirmation"));
+    MessageDialog cleanup(QStringLiteral("Clean Up Cache"),
+                          QStringLiteral("This will delete 3 cache files not used by the current "
+                                         "project. Files used by undo history and current playback "
+                                         "will be kept."),
+                          &window);
+    cleanup.addButton(QStringLiteral("Cancel"), 0, QDialogButtonBox::RejectRole);
+    cleanup.addAccentButton(QStringLiteral("Clean Up"), 1, QDialogButtonBox::AcceptRole);
+    gallery.show(cleanup, Module::Settings, QStringLiteral("Clean up cache confirmation"));
     TaskDialog task(nullptr, true, true, &window);
     task.setTitle(QStringLiteral("Processing project"));
     task.setMessage(QStringLiteral("Preparing audio resources"));
