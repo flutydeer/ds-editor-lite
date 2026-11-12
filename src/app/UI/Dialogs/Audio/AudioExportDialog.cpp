@@ -29,6 +29,7 @@
 #include <QTimer>
 
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/PlatformDialogButtonBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Toast.h>
@@ -282,10 +283,12 @@ namespace Audio::Internal {
         buttonLayout->addWidget(m_warningButton);
         auto exportButton = new QPushButton(tr("Export"));
         exportButton->setDefault(true);
-        buttonLayout->addWidget(exportButton);
+        auto commitButtons = new PlatformDialogButtonBox;
+        commitButtons->addButton(exportButton, QDialogButtonBox::AcceptRole);
         auto cancelButton = new QPushButton(tr("Cancel"));
         cancelButton->setObjectName(QStringLiteral("audioExportCancel"));
-        buttonLayout->addWidget(cancelButton);
+        commitButtons->addButton(cancelButton, QDialogButtonBox::RejectRole);
+        buttonLayout->addWidget(commitButtons);
         mainLayout->addLayout(buttonLayout);
 
         resize(600, 800);
@@ -760,8 +763,8 @@ namespace Audio::Internal {
             AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"), this);
         constexpr int continueButtonId = 0;
         constexpr int cancelButtonId = 1;
-        dialog.addAccentButton(tr("Continue"), continueButtonId);
-        dialog.addButton(tr("Cancel"), cancelButtonId);
+        dialog.addAccentButton(tr("Continue"), continueButtonId, QDialogButtonBox::AcceptRole);
+        dialog.addButton(tr("Cancel"), cancelButtonId, QDialogButtonBox::RejectRole);
         if (canIgnored)
             dialog.addCheckBox(tr("Don't ask again"));
         if (dialog.exec() == continueButtonId) {

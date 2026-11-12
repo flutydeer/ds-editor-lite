@@ -64,9 +64,9 @@ namespace Audio::Internal {
         m_closeButton->setEnabled(false);
         m_cancelButton = new Button(tr("Cancel"), this);
         m_cancelButton->setDefault(true);
-        buttonBar()->addButton(m_openFolderButton);
-        buttonBar()->addButton(m_closeButton);
-        buttonBar()->addButton(m_cancelButton);
+        buttonBar()->addButton(m_openFolderButton, QDialogButtonBox::ActionRole);
+        buttonBar()->addButton(m_closeButton, QDialogButtonBox::RejectRole);
+        buttonBar()->addButton(m_cancelButton, QDialogButtonBox::RejectRole);
 
         connect(m_warningButton, &QAbstractButton::toggled, m_warningList, &QWidget::setVisible);
         connect(m_cancelButton, &QAbstractButton::clicked, this,

@@ -33,9 +33,11 @@ bool MessageDialog::isCheckBoxChecked() const {
     return m_checkBox && m_checkBox->isChecked();
 }
 
-void MessageDialog::addButton(const QString &text, int buttonId) {
+void MessageDialog::addButton(const QString &text, int buttonId, QDialogButtonBox::ButtonRole role) {
     auto *button = new Button(text, this);
-    buttonBar()->addButton(button);
+    if (buttons.isEmpty())
+        button->setDefault(true);
+    buttonBar()->addButton(button, role);
 
     buttons[buttonId] = button;
 
@@ -43,9 +45,12 @@ void MessageDialog::addButton(const QString &text, int buttonId) {
             [this, buttonId] { handleButtonClicked(buttonId); });
 }
 
-void MessageDialog::addAccentButton(const QString &text, int buttonId) {
+void MessageDialog::addAccentButton(const QString &text, int buttonId,
+                                  QDialogButtonBox::ButtonRole role) {
     auto *button = new AccentButton(text, this);
-    buttonBar()->addButton(button);
+    if (buttons.isEmpty())
+        button->setDefault(true);
+    buttonBar()->addButton(button, role);
 
     buttons[buttonId] = button;
 

@@ -23,6 +23,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_main_menu_overflow.cpp
     tst_title_bar_layout.cpp
     tst_ui_gallery.cpp
+    tst_dialog_button_layout.cpp
     tst_resources.cpp
     tst_main_window.cpp
     tst_log_window.cpp
