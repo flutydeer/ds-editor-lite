@@ -1185,6 +1185,14 @@ void ApplicationGuiTests::captureUiGallery() try {
     message.addButton(QStringLiteral("Discard"), 1);
     message.addButton(QStringLiteral("Cancel"), 2);
     gallery.show(message, Module::Workspace, QStringLiteral("Unsaved project confirmation"));
+    MessageDialog cleanup(QStringLiteral("Clean Up Cache"),
+                          QStringLiteral("This will delete 3 cache files not used by the current "
+                                         "project. Files used by undo history and current playback "
+                                         "will be kept."),
+                          &window);
+    cleanup.addButton(QStringLiteral("Cancel"), 0);
+    cleanup.addAccentButton(QStringLiteral("Clean Up"), 1);
+    gallery.show(cleanup, Module::Settings, QStringLiteral("Clean up cache confirmation"));
     TaskDialog task(nullptr, true, true, &window);
     task.setTitle(QStringLiteral("Processing project"));
     task.setMessage(QStringLiteral("Preparing audio resources"));
