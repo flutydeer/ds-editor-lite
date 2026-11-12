@@ -2,11 +2,13 @@
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
-#include "AudioClipDragState.h"
+#include "ClipSelectionDrag.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
+#include <QSet>
 #include <QUrl>
 
 #include <optional>
@@ -60,8 +62,6 @@ private slots:
     void onNewSingingClip() const;
 
 private:
-    enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
-
     bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -70,6 +70,7 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
     // --- EditorTouchTarget ---
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
@@ -84,13 +85,24 @@ private:
     void updateClipDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
     AbstractClipView *findClipById(int id) const;
-    bool updateClipSelection(AbstractClipView *clipItem, bool toggle) const;
+    bool updateClipSelection(AbstractClipView *clipItem, Qt::KeyboardModifiers modifiers);
     void applyClipSelection(const QList<int> &selected) const;
     void clearSelections() const;
     void resetActiveClips() const;
     void resetEditState();
     void syncClipSelectionToAppStatus() const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
+    // Visual order: track by track, clips inside a track by start. Shared by Shift range selection
+    // and by the drag snapshots so both agree on what "between these two clips" means.
+    [[nodiscard]] QList<int> orderedClipIds() const;
+    void captureSelectionStates(QList<ClipSelectionDrag::ClipState> &states) const;
+    void applyDragPlacements(const QList<ClipSelectionDrag::Placement> &placements) const;
+    void restoreDragOriginals(const QSet<int> &skip = {}) const;
+    [[nodiscard]] int tickAtSceneX(double sceneX) const;
+    [[nodiscard]] int nudgeStep() const;
+    void nudgeSelection(int deltaTicks, int deltaTracks) const;
+    void previewAnchorTrackColor(int trackIndex) const;
+    void restoreAnchorTrackColor() const;
 
     // --- External file drag-and-drop (Phase 1) ---
     // Resolves the drop slot at the given viewport position, hitting either a
@@ -121,18 +133,13 @@ private:
     QColor m_dropHighlightColor{0xA9, 0xC4, 0xFF, 0x50};
     QColor m_dropIndicatorColor{200, 200, 200};
 
-    MouseMoveBehavior m_mouseMoveBehavior = None;
-    QPointF m_mouseDownPos;
-    int m_mouseDownStart = 0;
-    int m_mouseDownClipStart = 0;
-    int m_mouseDownLength = 0;
-    int m_mouseDownClipLen = 0;
+    // Clip selection and the gesture in flight. The whole selection moves and trims as one block,
+    // so the view keeps no per-clip drag state of its own: the planner owns it.
+    EditorSelectionUtils::OrderedSelectionModel m_selectionModel;
+    ClipSelectionDrag::Session m_dragSession;
+    int m_dragAnchorId = -1;
+    int m_dragTrackIndex = -1;
     bool m_movedBeforeMouseUp = false;
-    int m_mouseDownTrackIndex = -1;
-    int m_mouseDownColorIndex = 0;
-    bool m_tempQuantizeOff = false;
-    std::optional<AudioClipDragState> m_audioDragState;
-    AbstractClipView *m_currentEditingClip = nullptr;
     QList<AbstractClipView *> m_pastePreviewClipViews;
     QGraphicsPathItem *m_splitPreviewItem = nullptr;
 

@@ -1,7 +1,5 @@
 #include "TracksGraphicsView.h"
 
-#include "AudioClipDragState.h"
-#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
@@ -50,6 +48,8 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
+    // Arrow keys nudge the clip selection, so the canvas has to keep the keyboard after a click.
+    setFocusPolicy(Qt::StrongFocus);
     // Accept external file drags (Phase 1 drop slot resolution)
     viewport()->setAcceptDrops(true);
 
@@ -148,20 +148,24 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
 
     if (const auto item = itemAt(event->pos())) {
         if (const auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
-            qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";
-            const auto toggle =
-                event->button() == Qt::LeftButton && event->modifiers() == Qt::ControlModifier;
-            const auto selected = updateClipSelection(clipItem, toggle);
             if (event->button() != Qt::LeftButton) {
-                m_mouseMoveBehavior = None;
+                updateClipSelection(clipItem, event->modifiers());
                 setCursor(Qt::ArrowCursor);
-            } else if (selected) {
-                prepareForMovingOrResizingClip(event, clipItem);
+            } else {
+                // Arrow-key nudging needs the canvas to own the keyboard, the same way the RHI
+                // arrangement takes focus on press.
+                setFocus(Qt::MouseFocusReason);
+                if (updateClipSelection(clipItem, event->modifiers()))
+                    prepareForMovingOrResizingClip(event, clipItem);
             }
         } else {
+            m_selectionModel.cancelPress();
             clearSelections();
             TimeGraphicsView::mousePressEvent(event);
         }
+    } else {
+        m_selectionModel.cancelPress();
+        TimeGraphicsView::mousePressEvent(event);
     }
     syncClipSelectionToAppStatus();
     event->ignore();
@@ -179,89 +183,21 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
 void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
                                           const Qt::KeyboardModifiers modifiers) {
-    if (m_mouseMoveBehavior == None || !m_currentEditingClip)
+    if (!m_dragSession.active())
         return;
 
-    m_tempQuantizeOff = modifiers == Qt::AltModifier;
+    const auto scenePos = mapToScene(viewportPos);
+    // A pointer above or below the lanes keeps the last row it was over, so the block stops at the
+    // track range instead of jumping to the opposite end.
+    const auto trackIndex = m_scene->trackIndexAt(scenePos.y());
+    if (trackIndex >= 0)
+        m_dragTrackIndex = trackIndex;
+    if (!m_dragSession.update(tickAtSceneX(scenePos.x()), m_dragTrackIndex,
+                              modifiers == Qt::AltModifier))
+        return;
 
-    const auto curPos = mapToScene(viewportPos);
-    const auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
-                    TracksEditorGlobal::pixelsPerQuarterNote * AppGlobal::ticksPerQuarterNote;
-
-    int start;
-    int left;
-    int clipLen;
-    const int delta = qRound(dx);
-    const auto &timeline = appModel->timeline();
-    const auto snapStepFor = [this](const int value) { return snapStep(m_tempQuantizeOff, value); };
-    const auto snap = [&timeline, &snapStepFor](const int value) {
-        return TimelineSnapUtils::snapNearest(value, snapStepFor(value), timeline);
-    };
-    const auto originalLeft = m_mouseDownStart + m_mouseDownClipStart;
-    const auto originalRight = originalLeft + m_mouseDownClipLen;
-    if (m_mouseMoveBehavior == Move) {
-        m_movedBeforeMouseUp = true;
-        if (m_audioDragState) {
-            const double cursorTick = (curPos.x() - m_scene->leftMarginPx()) / scaleX() /
-                                      TracksEditorGlobal::pixelsPerQuarterNote *
-                                      AppGlobal::ticksPerQuarterNote;
-            const int desiredLeft = m_audioDragState->visibleStartForCursor(cursorTick, timeline);
-            // Never allow the visible left edge to go past tick 0 (a negative
-            // clip pos is rejected by opendspx).
-            left = snap(std::max(0, desiredLeft));
-            Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            m_audioDragState->moveTo(left, properties, timeline);
-            m_currentEditingClip->loadCommonProperties(properties);
-        } else {
-            left = snap(std::max(0, originalLeft + delta));
-            start = left - m_mouseDownClipStart;
-            m_currentEditingClip->setStart(start);
-        }
-        const auto targetTrackIndex = m_scene->trackIndexAt(curPos.y());
-        if (targetTrackIndex >= 0) {
-            m_currentEditingClip->setTrackIndex(targetTrackIndex);
-            const auto colorIndex = appModel->tracks().at(targetTrackIndex)->colorIndex();
-            m_currentEditingClip->setColorIndex(colorIndex);
-            editorViewController->previewActiveClipTrackColor(colorIndex);
-        }
-    } else if (m_mouseMoveBehavior == ResizeLeft) {
-        m_movedBeforeMouseUp = true;
-        const auto requestedLeft = originalLeft + delta;
-        const auto minimumLength = snapStepFor(requestedLeft);
-        left = snap(requestedLeft);
-        if (m_audioDragState) {
-            Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            if (!m_audioDragState->resizeLeftTo(left, originalRight, minimumLength, properties,
-                                                timeline))
-                return;
-            m_currentEditingClip->loadCommonProperties(properties);
-            return;
-        }
-        Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (!ClipResizeUtils::updateLeftEdge(properties, left, minimumLength))
-            return;
-        m_currentEditingClip->loadCommonProperties(properties);
-    } else if (m_mouseMoveBehavior == ResizeRight) {
-        m_movedBeforeMouseUp = true;
-        const auto requestedRight = originalRight + delta;
-        const auto minimumLength = snapStepFor(requestedRight);
-        const auto right = snap(requestedRight);
-        if (m_audioDragState) {
-            Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            if (!m_audioDragState->resizeRightTo(right, originalLeft, minimumLength, properties,
-                                                 timeline))
-                return;
-            m_currentEditingClip->loadCommonProperties(properties);
-            return;
-        }
-        clipLen = right - originalLeft;
-        Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (ClipResizeUtils::updateRightEdge(properties, clipLen, minimumLength,
-                                             m_currentEditingClip->canResizeLength(),
-                                             m_currentEditingClip->contentLength())) {
-            m_currentEditingClip->loadCommonProperties(properties);
-        }
-    }
+    applyDragPlacements(m_dragSession.placements());
+    m_movedBeforeMouseUp = m_dragSession.moved();
 }
 
 void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
@@ -275,10 +211,11 @@ void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
         return;
     }
 
-    if (m_mouseMoveBehavior != None && m_currentEditingClip) {
+    if (m_dragSession.active()) {
         // Extend the scene temporarily when dragging against the right edge so
-        // the clip can travel past the current project tail.
-        if (m_mouseMoveBehavior == Move || m_mouseMoveBehavior == ResizeRight) {
+        // the block can travel past the current project tail.
+        if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move ||
+            m_dragSession.gesture() == ClipSelectionDrag::Gesture::ResizeRight) {
             const auto hBar = horizontalScrollBar();
             if (hBar->value() >= hBar->maximum()) {
                 const auto visibleTickSpan = qRound(endTick() - startTick());
@@ -293,9 +230,21 @@ void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
 }
 
 void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
-    if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp && !cancelRequested)
+    const auto dragActive = m_dragSession.active();
+    const auto committed = dragActive && m_movedBeforeMouseUp && !cancelRequested;
+    if (committed)
         commitAction();
     else {
+        if (event->button() == Qt::LeftButton && !cancelRequested) {
+            // A plain click on a clip that was already part of the selection collapses it to that
+            // clip, matching how notes and parameter anchors behave.
+            const auto collapsed =
+                m_selectionModel.release(selectedClipsId(), dragActive && m_movedBeforeMouseUp);
+            if (collapsed != selectedClipsId())
+                applyClipSelection(collapsed);
+        } else {
+            m_selectionModel.cancelPress();
+        }
         editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
         resetEditState();
     }
@@ -525,38 +474,44 @@ void TracksGraphicsView::updateDropOverlayGeometry() {
 
 void TracksGraphicsView::discardAction() {
     cancelRequested = true;
-    if (m_currentEditingClip && m_movedBeforeMouseUp) {
-        auto properties = Clip::ClipCommonProperties(*m_currentEditingClip);
-        properties.start = m_mouseDownStart;
-        properties.clipStart = m_mouseDownClipStart;
-        properties.length = m_mouseDownLength;
-        properties.clipLen = m_mouseDownClipLen;
-        m_currentEditingClip->loadCommonProperties(properties);
-        m_currentEditingClip->setTrackIndex(m_mouseDownTrackIndex);
-        m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
-        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
-    }
+    restoreAnchorTrackColor();
+    restoreDragOriginals();
     editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     resetEditState();
 }
 
 void TracksGraphicsView::commitAction() {
-    if (m_currentEditingClip && m_movedBeforeMouseUp) {
-        Clip::ClipCommonProperties args(*m_currentEditingClip);
-        if (m_audioDragState)
-            m_audioDragState->writeTruth(args);
-        const int newTrackIndex = m_currentEditingClip->trackIndex();
-        trackController->onClipPropertyChanged(args, newTrackIndex);
+    if (m_dragSession.active() && m_movedBeforeMouseUp) {
+        const auto placements = m_dragSession.placements();
+        QList<ClipGeometryEdit> edits;
+        edits.reserve(placements.size());
+        QSet<int> committedIds;
+        for (const auto &placement : placements) {
+            edits.append({placement.clipId, placement.trackIndex, placement.properties});
+            committedIds.insert(placement.clipId);
+        }
+        // A clip the planner dropped (its target was illegal) still shows a preview, so put it
+        // back before the command runs; the model signal only refreshes the clips that did change.
+        restoreDragOriginals(committedIds);
+        if (!edits.isEmpty()) {
+            if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move)
+                trackController->onMoveClips(edits);
+            else
+                trackController->onResizeClips(edits);
+        }
+        // The committed track colour stays on the bottom panel: the active clip now lives there.
+    } else {
+        restoreAnchorTrackColor();
     }
     editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     resetEditState();
 }
 
 void TracksGraphicsView::resetEditState() {
-    m_mouseMoveBehavior = None;
     m_movedBeforeMouseUp = false;
-    m_audioDragState.reset();
-    m_currentEditingClip = nullptr;
+    m_dragSession.reset();
+    m_dragAnchorId = -1;
+    m_dragTrackIndex = -1;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     disarmEdgeAutoScroll();
     // Drop the temporary drag extension; the scene falls back to the latest
@@ -686,44 +641,29 @@ void TracksGraphicsView::syncClipSelectionToAppStatus() const {
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
     const auto scenePos = mapToScene(event->pos());
-
     const auto rPos = clipItem->mapFromScene(scenePos);
-    const auto rx = rPos.x();
-    const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, clipItem->rect().width(),
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(rPos.x(), clipItem->rect().width(),
                                                           EditorPointer::resizeTolerance());
-    if (edge == EditorResizeUtils::HorizontalEdge::Left) {
-        m_mouseMoveBehavior = ResizeLeft;
-        applyClipSelection({clipItem->id()});
-    } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
-        m_mouseMoveBehavior = ResizeRight;
-        applyClipSelection({clipItem->id()});
-    } else {
-        m_mouseMoveBehavior = Move;
-    }
 
-    m_currentEditingClip = clipItem;
-    m_mouseDownPos = scenePos;
-    m_mouseDownStart = m_currentEditingClip->start();
-    m_mouseDownClipStart = m_currentEditingClip->clipStart();
-    m_mouseDownLength = m_currentEditingClip->length();
-    m_mouseDownClipLen = m_currentEditingClip->clipLen();
-    m_mouseDownTrackIndex = m_currentEditingClip->trackIndex();
-    m_mouseDownColorIndex = m_currentEditingClip->colorIndex();
+    auto gesture = ClipSelectionDrag::Gesture::Move;
+    if (edge == EditorResizeUtils::HorizontalEdge::Left)
+        gesture = ClipSelectionDrag::Gesture::ResizeLeft;
+    else if (edge == EditorResizeUtils::HorizontalEdge::Right)
+        gesture = ClipSelectionDrag::Gesture::ResizeRight;
+
+    m_dragAnchorId = clipItem->id();
+    QList<ClipSelectionDrag::ClipState> states;
+    captureSelectionStates(states);
+    const auto pointerTrackIndex = m_scene->trackIndexAt(scenePos.y());
+    m_dragTrackIndex = pointerTrackIndex;
+
+    ClipSelectionDrag::Session::Environment environment;
+    environment.trackCount = static_cast<int>(appModel->tracks().size());
+    environment.timeline = &appModel->timeline();
+    environment.gridStepAt = [this](const int tick) { return snapStep(false, tick); };
+    m_dragSession.begin(gesture, m_dragAnchorId, states, environment,
+                        static_cast<double>(tickAtSceneX(scenePos.x())), pointerTrackIndex);
     m_movedBeforeMouseUp = false;
-
-    m_audioDragState.reset();
-    if (clipItem->clipType() == IClip::Audio) {
-        const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipItem->id()));
-        if (audioClip && audioClip->hasRealTimeAnchor()) {
-            const auto &timeline = appModel->timeline();
-            const double grabTick = (scenePos.x() - m_scene->leftMarginPx()) / scaleX() /
-                                    TracksEditorGlobal::pixelsPerQuarterNote *
-                                    AppGlobal::ticksPerQuarterNote;
-            m_audioDragState = AudioClipDragState::begin(
-                audioClip->trimStartMs(), audioClip->playLengthMs(), audioClip->materialLengthMs(),
-                m_mouseDownStart + m_mouseDownClipStart, grabTick, timeline);
-        }
-    }
 
     QList<int> clipIds;
     for (const auto clip : selectedClipItems())
@@ -734,9 +674,143 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
 
     // Moving allows both axes (track change); resizing is horizontal only
-    armEdgeAutoScroll(m_mouseMoveBehavior == Move ? (Qt::Horizontal | Qt::Vertical)
-                                                  : Qt::Orientations(Qt::Horizontal),
+    armEdgeAutoScroll(gesture == ClipSelectionDrag::Gesture::Move
+                          ? (Qt::Horizontal | Qt::Vertical)
+                          : Qt::Orientations(Qt::Horizontal),
                       event->pos());
+}
+
+QList<int> TracksGraphicsView::orderedClipIds() const {
+    QList<int> ids;
+    for (const auto *track : appModel->tracks())
+        for (const auto *clip : track->clips())
+            ids.append(clip->id());
+    return ids;
+}
+
+void TracksGraphicsView::captureSelectionStates(QList<ClipSelectionDrag::ClipState> &states) const {
+    const auto &tracks = appModel->tracks();
+    for (const auto *track : tracks) {
+        const auto trackIndex = static_cast<int>(tracks.indexOf(track));
+        for (const auto *clip : track->clips()) {
+            auto *item = findClipById(clip->id());
+            if (!item || !item->isSelected())
+                continue;
+
+            ClipSelectionDrag::ClipState state;
+            state.clipId = clip->id();
+            state.trackIndex = trackIndex;
+            state.properties = Clip::ClipCommonProperties(*clip);
+            state.lengthResizable = item->canResizeLength();
+            state.contentLength = item->contentLength();
+            if (const auto *audio = qobject_cast<const AudioClip *>(clip);
+                audio && audio->hasRealTimeAnchor()) {
+                // The planner re-projects the millisecond truth, so it has to carry it.
+                state.realTimeAnchored = true;
+                state.properties.trimStartMs = audio->trimStartMs();
+                state.properties.playLengthMs = audio->playLengthMs();
+                state.properties.materialLengthMs = audio->materialLengthMs();
+            }
+            states.append(state);
+        }
+    }
+}
+
+void TracksGraphicsView::applyDragPlacements(
+    const QList<ClipSelectionDrag::Placement> &placements) const {
+    const auto &tracks = appModel->tracks();
+    QSet<int> applied;
+    for (const auto &placement : placements) {
+        auto *item = findClipById(placement.clipId);
+        if (!item)
+            continue;
+        item->loadCommonProperties(placement.properties);
+        applied.insert(placement.clipId);
+        if (placement.trackIndex < 0 || placement.trackIndex >= tracks.size())
+            continue;
+        item->setTrackIndex(placement.trackIndex);
+        item->setColorIndex(tracks.at(placement.trackIndex)->colorIndex());
+    }
+    // The planner drops a clip whose target would be illegal. It still has to lose the preview a
+    // previous move left on it.
+    restoreDragOriginals(applied);
+    for (const auto &placement : placements) {
+        if (placement.clipId != m_dragAnchorId)
+            continue;
+        previewAnchorTrackColor(placement.trackIndex);
+        break;
+    }
+}
+
+void TracksGraphicsView::restoreDragOriginals(const QSet<int> &skip) const {
+    const auto &tracks = appModel->tracks();
+    for (const auto &original : m_dragSession.originals()) {
+        if (skip.contains(original.clipId))
+            continue;
+        auto *item = findClipById(original.clipId);
+        if (!item)
+            continue;
+        item->loadCommonProperties(original.properties);
+        item->setTrackIndex(original.trackIndex);
+        if (original.trackIndex >= 0 && original.trackIndex < tracks.size())
+            item->setColorIndex(tracks.at(original.trackIndex)->colorIndex());
+    }
+}
+
+void TracksGraphicsView::previewAnchorTrackColor(const int trackIndex) const {
+    if (trackIndex < 0 || trackIndex >= appModel->tracks().size())
+        return;
+    editorViewController->previewActiveClipTrackColor(
+        appModel->tracks().at(trackIndex)->colorIndex());
+}
+
+void TracksGraphicsView::restoreAnchorTrackColor() const {
+    for (const auto &original : m_dragSession.originals()) {
+        if (original.clipId != m_dragAnchorId)
+            continue;
+        previewAnchorTrackColor(original.trackIndex);
+        return;
+    }
+}
+
+int TracksGraphicsView::tickAtSceneX(const double sceneX) const {
+    return qRound((sceneX - m_scene->leftMarginPx()) / scaleX() /
+                  TracksEditorGlobal::pixelsPerQuarterNote * AppGlobal::ticksPerQuarterNote);
+}
+
+int TracksGraphicsView::nudgeStep() const {
+    const auto ids = selectedClipsId();
+    auto tick = 0;
+    if (!ids.isEmpty()) {
+        if (const auto *clip = appModel->findClipById(ids.constFirst()))
+            tick = clip->start() + clip->clipStart();
+    }
+    return snapStep(false, tick);
+}
+
+void TracksGraphicsView::nudgeSelection(const int deltaTicks, const int deltaTracks) const {
+    if (deltaTicks == 0 && deltaTracks == 0)
+        return;
+    trackController->nudgeSelectedClips(deltaTicks, deltaTracks);
+}
+
+void TracksGraphicsView::keyPressEvent(QKeyEvent *event) {
+    const auto step = event->modifiers() == Qt::AltModifier ? 1 : nudgeStep();
+    switch (event->key()) {
+        case Qt::Key_Left:
+        case Qt::Key_Right:
+            nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
+            event->accept();
+            return;
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+            nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
+            event->accept();
+            return;
+        default:
+            break;
+    }
+    TimeGraphicsView::keyPressEvent(event);
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
@@ -747,11 +821,12 @@ AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
     return nullptr;
 }
 
-bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem, const bool toggle) const {
-    const auto selected =
-        EditorSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
-    applyClipSelection(selected);
-    if (!selected.contains(clipItem->id()))
+bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem,
+                                             const Qt::KeyboardModifiers modifiers) {
+    const auto result =
+        m_selectionModel.press(selectedClipsId(), orderedClipIds(), clipItem->id(), modifiers);
+    applyClipSelection(result.selection);
+    if (!result.targetSelected)
         return false;
     trackController->setActiveClip(clipItem->id());
     return true;

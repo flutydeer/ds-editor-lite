@@ -31,6 +31,7 @@
 #include <QScrollBar>
 #include <QtTest/QTest>
 
+#include <algorithm>
 #include <tuple>
 
 void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data() {
@@ -611,4 +612,435 @@ void ApplicationGuiTests::activeClipMoveRebindsThePianoTrackColor() {
     QCOMPARE(keyboardImage(), movedKeyboard);
     QVERIFY(runtime.history().redo(commandContext()));
     QCOMPARE(keyboardImage(), recoloredKeyboard);
+}
+
+namespace {
+
+    QList<int> canonicalClipIds(const QList<int> &ids) {
+        auto result = ids;
+        std::sort(result.begin(), result.end());
+        return result;
+    }
+
+    void appendEmptyTrack(Automation::CoreRuntime &runtime,
+                          const Automation::CommandContext &context, const QString &name) {
+        Automation::TrackDraftDto draft;
+        draft.name = name;
+        draft.defaultLanguage = QStringLiteral("eng");
+        runtime.project().insertTrack(context, appModel->tracks().size(), draft);
+    }
+
+    void sendLeftDrag(QWidget *target, const QPoint &from, const QPoint &to,
+                      Qt::KeyboardModifiers modifiers) {
+        QTest::mousePress(target, Qt::LeftButton, Qt::NoModifier, from);
+        QMouseEvent move(QEvent::MouseMove, QPointF(to), QPointF(target->mapToGlobal(to)),
+                         Qt::NoButton, Qt::LeftButton, modifiers);
+        QApplication::sendEvent(target, &move);
+        QTest::mouseRelease(target, Qt::LeftButton, modifiers, to);
+    }
+
+}
+
+void ApplicationGuiTests::trackClipGroupDragCommitsAtomically_data() {
+    QTest::addColumn<bool>("audioAnchor");
+    QTest::newRow("singing-block") << false;
+    QTest::newRow("audio-anchor") << true;
+}
+
+void ApplicationGuiTests::trackClipGroupDragCommitsAtomically() {
+    QFETCH(bool, audioAnchor);
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+        const auto finished = QTest::qWaitFor([] { return taskManager->tasks().isEmpty(); }, 10000);
+        QTest::qVerify(finished, "audio tasks finished", "release the clip block fixture", __FILE__,
+                       __LINE__);
+    });
+
+    Automation::TrackDraftDto firstTrack;
+    firstTrack.name = QStringLiteral("Block source");
+    firstTrack.defaultLanguage = QStringLiteral("eng");
+    Automation::ClipDraftDto firstClipDraft;
+    firstClipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    firstClipDraft.defaultLanguage = QStringLiteral("eng");
+    firstClipDraft.properties.name = QStringLiteral("Block A");
+    firstClipDraft.properties.start = 480;
+    firstClipDraft.properties.length = 1920;
+    firstClipDraft.properties.clipLen = 1920;
+    firstTrack.clips.append(firstClipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, firstTrack));
+
+    Automation::TrackDraftDto secondTrack;
+    secondTrack.name = QStringLiteral("Block anchor");
+    secondTrack.defaultLanguage = QStringLiteral("eng");
+    Automation::ClipDraftDto anchorDraft;
+    anchorDraft.defaultLanguage = QStringLiteral("eng");
+    anchorDraft.properties.name = QStringLiteral("Block B");
+    anchorDraft.properties.start = 960;
+    anchorDraft.properties.length = 1920;
+    anchorDraft.properties.clipLen = 1920;
+    if (audioAnchor) {
+        anchorDraft.type = Automation::ClipDraftDto::Type::Audio;
+        anchorDraft.audioPath = directory.filePath(QStringLiteral("block.wav"));
+        QVERIFY(
+            TestSupport::writeWave(anchorDraft.audioPath, QVector<float>(40000, 0.1f), 1, 8000));
+        anchorDraft.hasRealTimeAnchor = true;
+        anchorDraft.properties.start = 0;
+        anchorDraft.properties.clipStart = 960;
+        anchorDraft.properties.length = 3840;
+        anchorDraft.properties.trimStartMs = 500;
+        anchorDraft.properties.playLengthMs = 2000;
+        anchorDraft.properties.materialLengthMs = 5000;
+    } else {
+        anchorDraft.type = Automation::ClipDraftDto::Type::Singing;
+    }
+    secondTrack.clips.append(anchorDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 1, secondTrack));
+    appendEmptyTrack(runtime, commandContext(), QStringLiteral("Block target"));
+    QCOMPARE(appModel->tracks().size(), 3);
+
+    auto *blockClip = *appModel->tracks().at(0)->clips().begin();
+    auto *anchorClip = *appModel->tracks().at(1)->clips().begin();
+    QVERIFY(blockClip && anchorClip);
+    const auto blockClipId = blockClip->id();
+    const auto anchorClipId = anchorClip->id();
+    if (audioAnchor) {
+        const auto *audio = qobject_cast<const AudioClip *>(anchorClip);
+        QVERIFY(audio && audio->hasRealTimeAnchor());
+        QTRY_VERIFY(audio->audioInfo().frames > 0);
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+    }
+
+    editor.resize(1200, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto originalBlockStart = blockClip->start() + blockClip->clipStart();
+    const auto originalAnchorStart = anchorClip->start() + anchorClip->clipStart();
+    constexpr int originalBlockTrack = 0;
+    constexpr int originalAnchorTrack = 1;
+
+    auto *blockItem = editor.findClipItemById(blockClipId);
+    auto *anchorItem = editor.findClipItemById(anchorClipId);
+    QVERIFY(blockItem && anchorItem);
+    const auto pointFor = [canvas](const AbstractClipView *item) {
+        return canvas->mapFromScene(item->sceneBoundingRect().center());
+    };
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(blockItem)));
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(anchorItem)));
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, pointFor(blockItem));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier,
+                      pointFor(anchorItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+             canonicalClipIds({blockClipId, anchorClipId}));
+
+    constexpr int moveTicks = 480;
+    const auto rowPitch = TracksEditorGlobal::trackHeight * canvas->scaleY();
+    const auto tickDelta = canvas->sceneXForTick(moveTicks) - canvas->sceneXForTick(0);
+    const auto from = canvas->mapFromScene(anchorItem->sceneBoundingRect().center());
+    const auto to = canvas->mapFromScene(anchorItem->sceneBoundingRect().center() +
+                                         QPointF(tickDelta, rowPitch));
+    QCOMPARE(canvas->itemAt(from), static_cast<QGraphicsItem *>(anchorItem));
+
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    // Pressing a clip that belongs to the block must keep the block, not collapse it.
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+             canonicalClipIds({blockClipId, anchorClipId}));
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    {
+        QMouseEvent move(QEvent::MouseMove, QPointF(to),
+                         QPointF(canvas->viewport()->mapToGlobal(to)), Qt::NoButton, Qt::LeftButton,
+                         Qt::AltModifier);
+        QApplication::sendEvent(canvas->viewport(), &move);
+    }
+    QCOMPARE(blockItem->start() + blockItem->clipStart(), originalBlockStart + moveTicks);
+    QCOMPARE(anchorItem->start() + anchorItem->clipStart(), originalAnchorStart + moveTicks);
+    QCOMPARE(blockItem->trackIndex(), originalBlockTrack + 1);
+    QCOMPARE(anchorItem->trackIndex(), originalAnchorTrack + 1);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::AltModifier, to);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(blockClip->start() + blockClip->clipStart(), originalBlockStart + moveTicks);
+    QCOMPARE(anchorClip->start() + anchorClip->clipStart(), originalAnchorStart + moveTicks);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    if (audioAnchor) {
+        const auto *audio = qobject_cast<const AudioClip *>(anchorClip);
+        QVERIFY(audio);
+        QCOMPARE(audio->trimStartMs(), 500.0);
+        QCOMPARE(audio->playLengthMs(), 2000.0);
+        QCOMPARE(audio->materialLengthMs(), 5000.0);
+    }
+    QVERIFY(historyManager->canUndo());
+    blockItem = editor.findClipItemById(blockClipId);
+    anchorItem = editor.findClipItemById(anchorClipId);
+    QVERIFY(blockItem && anchorItem);
+    QCOMPARE(blockItem->start(), blockClip->start());
+    QCOMPARE(anchorItem->start(), anchorClip->start());
+    QCOMPARE(blockItem->trackIndex(), originalBlockTrack + 1);
+    QCOMPARE(anchorItem->trackIndex(), originalAnchorTrack + 1);
+
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(blockClip->start() + blockClip->clipStart(), originalBlockStart);
+    QCOMPARE(anchorClip->start() + anchorClip->clipStart(), originalAnchorStart);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(historyManager->canRedo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(blockClip->start() + blockClip->clipStart(), originalBlockStart + moveTicks);
+    QCOMPARE(anchorClip->start() + anchorClip->clipStart(), originalAnchorStart + moveTicks);
+}
+
+void ApplicationGuiTests::trackClipGroupTrimCommitsAtomically_data() {
+    QTest::addColumn<int>("edge");
+    QTest::newRow("right-edge") << 1;
+    QTest::newRow("left-edge") << -1;
+}
+
+void ApplicationGuiTests::trackClipGroupTrimCommitsAtomically() {
+    QFETCH(int, edge);
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+
+    Automation::TrackDraftDto firstTrack;
+    firstTrack.name = QStringLiteral("Trim source");
+    firstTrack.defaultLanguage = QStringLiteral("eng");
+    Automation::ClipDraftDto firstClipDraft;
+    firstClipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    firstClipDraft.defaultLanguage = QStringLiteral("eng");
+    firstClipDraft.properties.start = 960;
+    firstClipDraft.properties.length = 4800;
+    firstClipDraft.properties.clipStart = 480;
+    firstClipDraft.properties.clipLen = 1920;
+    firstTrack.clips.append(firstClipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, firstTrack));
+
+    Automation::TrackDraftDto secondTrack;
+    secondTrack.name = QStringLiteral("Trim peer");
+    secondTrack.defaultLanguage = QStringLiteral("eng");
+    Automation::ClipDraftDto secondClipDraft;
+    secondClipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    secondClipDraft.defaultLanguage = QStringLiteral("eng");
+    secondClipDraft.properties.start = 1440;
+    secondClipDraft.properties.length = 4800;
+    secondClipDraft.properties.clipStart = 480;
+    secondClipDraft.properties.clipLen = 1920;
+    secondTrack.clips.append(secondClipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 1, secondTrack));
+
+    auto *firstClip = *appModel->tracks().at(0)->clips().begin();
+    auto *secondClip = *appModel->tracks().at(1)->clips().begin();
+    QVERIFY(firstClip && secondClip);
+    const auto firstClipId = firstClip->id();
+    const auto secondClipId = secondClip->id();
+    const auto originalFirstLen = firstClip->clipLen();
+    const auto originalSecondLen = secondClip->clipLen();
+
+    editor.resize(1200, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+
+    auto *firstItem = editor.findClipItemById(firstClipId);
+    auto *secondItem = editor.findClipItemById(secondClipId);
+    QVERIFY(firstItem && secondItem);
+    const auto pointFor = [canvas](const AbstractClipView *item) {
+        return canvas->mapFromScene(item->sceneBoundingRect().center());
+    };
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, pointFor(firstItem));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier,
+                      pointFor(secondItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+             canonicalClipIds({firstClipId, secondClipId}));
+
+    constexpr int trimTicks = 240;
+    const auto tickDelta = canvas->sceneXForTick(trimTicks) - canvas->sceneXForTick(0);
+    const auto edgeScene = QPointF(edge > 0 ? secondItem->sceneBoundingRect().right() - 2
+                                            : secondItem->sceneBoundingRect().left() + 2,
+                                   secondItem->sceneBoundingRect().center().y());
+    const auto from = canvas->mapFromScene(edgeScene);
+    const auto to = canvas->mapFromScene(edgeScene + QPointF(edge * tickDelta, 0));
+    QVERIFY(canvas->viewport()->rect().contains(from));
+
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    // The edge press must keep the block: trimming one clip trims the whole selection.
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+             canonicalClipIds({firstClipId, secondClipId}));
+    {
+        QMouseEvent move(QEvent::MouseMove, QPointF(to),
+                         QPointF(canvas->viewport()->mapToGlobal(to)), Qt::NoButton, Qt::LeftButton,
+                         Qt::AltModifier);
+        QApplication::sendEvent(canvas->viewport(), &move);
+    }
+    QCOMPARE(secondItem->clipLen(), originalSecondLen + trimTicks);
+    QCOMPARE(firstItem->clipLen(), originalFirstLen + trimTicks);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::AltModifier, to);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(firstClip->clipLen(), originalFirstLen + trimTicks);
+    QCOMPARE(secondClip->clipLen(), originalSecondLen + trimTicks);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(historyManager->canUndo());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(firstClip->clipLen(), originalFirstLen);
+    QCOMPARE(secondClip->clipLen(), originalSecondLen);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::trackClipSelectionModifiersAndNudge_data() {
+    QTest::addColumn<bool>("rangeSelect");
+    QTest::newRow("shift-range") << true;
+    QTest::newRow("ctrl-toggle") << false;
+}
+
+void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
+    QFETCH(bool, rangeSelect);
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Nudge track");
+    trackDraft.defaultLanguage = QStringLiteral("eng");
+    for (int index = 0; index < 3; ++index) {
+        Automation::ClipDraftDto clipDraft;
+        clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+        clipDraft.defaultLanguage = QStringLiteral("eng");
+        clipDraft.properties.name = QStringLiteral("Nudge %1").arg(index);
+        clipDraft.properties.start = 480 + index * 1920;
+        clipDraft.properties.length = 960;
+        clipDraft.properties.clipLen = 960;
+        trackDraft.clips.append(clipDraft);
+    }
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    appendEmptyTrack(runtime, commandContext(), QStringLiteral("Nudge target"));
+    QCOMPARE(appModel->tracks().size(), 2);
+
+    QList<Clip *> clips;
+    for (auto *clip : appModel->tracks().at(0)->clips())
+        clips.append(clip);
+    QCOMPARE(clips.size(), 3);
+    const auto firstId = clips.at(0)->id();
+    const auto lastId = clips.at(2)->id();
+
+    editor.resize(1400, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
+    QVERIFY(canvas->setViewportScale(1.5, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+
+    auto *firstItem = editor.findClipItemById(firstId);
+    auto *lastItem = editor.findClipItemById(lastId);
+    QVERIFY(firstItem && lastItem);
+    const auto pointFor = [canvas](const AbstractClipView *item) {
+        return canvas->mapFromScene(item->sceneBoundingRect().center());
+    };
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointFor(firstItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({firstId}));
+    const auto modifier = rangeSelect ? Qt::ShiftModifier : Qt::ControlModifier;
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, modifier, pointFor(lastItem));
+    const auto expectedSelection =
+        rangeSelect ? QList<int>{firstId, clips.at(1)->id(), lastId} : QList<int>{firstId, lastId};
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds(expectedSelection));
+
+    const auto visibleStartOf = [](const Clip *clip) { return clip->start() + clip->clipStart(); };
+    const auto originalStarts = [&] {
+        QList<int> starts;
+        for (const auto clipId : expectedSelection)
+            starts.append(visibleStartOf(appModel->findClipById(clipId)));
+        return starts;
+    }();
+
+    // Arrow keys move the whole selection by one WYSIWYG grid step.
+    canvas->setFocus();
+    const auto step = canvas->snapStep(false, originalStarts.constFirst());
+    QVERIFY(step > 1);
+    auto baseline = runtime.documentVersion();
+    QTest::keyClick(canvas, Qt::Key_Right);
+    QCOMPARE(runtime.documentVersion().revision, baseline.revision + 1);
+    for (qsizetype index = 0; index < expectedSelection.size(); ++index) {
+        QCOMPARE(visibleStartOf(appModel->findClipById(expectedSelection.at(index))),
+                 originalStarts.at(index) + step);
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    for (qsizetype index = 0; index < expectedSelection.size(); ++index) {
+        QCOMPARE(visibleStartOf(appModel->findClipById(expectedSelection.at(index))),
+                 originalStarts.at(index));
+    }
+
+    // Arrow keys also move the block down one track.
+    canvas->setFocus();
+    baseline = runtime.documentVersion();
+    QTest::keyClick(canvas, Qt::Key_Down);
+    QCOMPARE(runtime.documentVersion().revision, baseline.revision + 1);
+    for (const auto clipId : expectedSelection) {
+        Track *track = nullptr;
+        QVERIFY(appModel->findClipById(clipId, track));
+        QCOMPARE(static_cast<int>(appModel->tracks().indexOf(track)), 1);
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    for (const auto clipId : expectedSelection) {
+        Track *track = nullptr;
+        QVERIFY(appModel->findClipById(clipId, track));
+        QCOMPARE(static_cast<int>(appModel->tracks().indexOf(track)), 0);
+    }
+
+    // A plain click on a clip that belongs to the selection collapses it to that clip.
+    baseline = runtime.documentVersion();
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointFor(lastItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({lastId}));
+    QCOMPARE(runtime.documentVersion(), baseline);
 }

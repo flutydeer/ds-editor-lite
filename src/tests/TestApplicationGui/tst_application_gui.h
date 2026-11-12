@@ -68,6 +68,12 @@ private slots:
     void activeClipMoveRebindsThePianoTrackColor();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void trackClipGroupDragCommitsAtomically_data();
+    void trackClipGroupDragCommitsAtomically();
+    void trackClipGroupTrimCommitsAtomically_data();
+    void trackClipGroupTrimCommitsAtomically();
+    void trackClipSelectionModifiersAndNudge_data();
+    void trackClipSelectionModifiersAndNudge();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
