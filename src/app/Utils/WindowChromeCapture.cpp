@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QWidget>
 #include <QFile>
+#include <QSaveFile>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -46,10 +47,14 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
     const auto mode = nativeFrame ? QStringLiteral("native-frame") : QStringLiteral("frameless");
     const auto basePath =
         QDir(directory).filePath(QStringLiteral("modules/01-workspace/title-bar-%1").arg(mode));
-    QDir().mkpath(QFileInfo(basePath).absolutePath());
 
     qInfo("Chrome capture armed: %s.png in %d ms", qPrintable(basePath), delay);
     QTimer::singleShot(delay, &window, [&window, basePath, mode, nativeFrame] {
+        if (!QDir().mkpath(QFileInfo(basePath).absolutePath())) {
+            qCritical("Cannot create chrome capture directory: %s", qPrintable(basePath));
+            QCoreApplication::exit(2);
+            return;
+        }
         // Observe the production window without merging or relaying it out here.
         // In particular, the native-frame reference must keep its native title bar.
         const auto *handle = window.windowHandle();
@@ -78,20 +83,19 @@ void WindowChromeCapture::armIfRequested(QWidget &window) {
         QString captureMethod;
         const bool captured =
             WindowFrameUtils::captureWindowChrome(&window, imagePath, &captureMethod);
+        if (!captured) {
+            qCritical("Chrome capture failed: %s", qPrintable(imagePath));
+            QCoreApplication::exit(2);
+            return;
+        }
         geometry.insert(QStringLiteral("captureMethod"), captureMethod);
         const auto json = QJsonDocument(geometry).toJson();
         qInfo().noquote() << "Chrome Qt geometry:"
                           << QJsonDocument(geometry).toJson(QJsonDocument::Compact);
-        QFile report(basePath + QStringLiteral(".json"));
-        if (!report.open(QIODevice::WriteOnly) || report.write(json) != json.size()) {
+        QSaveFile report(basePath + QStringLiteral(".json"));
+        if (!report.open(QIODevice::WriteOnly) || report.write(json) != json.size() ||
+            !report.commit()) {
             qCritical("Chrome geometry report failed: %s", qPrintable(report.fileName()));
-            QCoreApplication::exit(2);
-            return;
-        }
-        report.close();
-
-        if (!captured) {
-            qCritical("Chrome capture failed: %s", qPrintable(imagePath));
             QCoreApplication::exit(2);
             return;
         }

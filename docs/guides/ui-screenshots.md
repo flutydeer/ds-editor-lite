@@ -59,4 +59,4 @@ xvfb-run -a -s '-screen 0 2560x1600x24' python scripts/ci/capture-ui-gallery.py 
 python scripts/ci/verify-ui-gallery.py build/ui-screenshots/macos/light --theme light
 ```
 
-验证覆盖实际 PNG、52 张原图、9 个模块、主题、分类归档、独占行标题、居中流式布局、图注位置和图块不重叠。仍需目检真实产物，确认系统效果、状态及文字可读性。macOS 无边框主窗的 contentsRect、titleBarRect 和 frameMargins 顶边为 0，系统截图中的透明像素或真实阴影不属于额外布局留白。
+截图、文件写入或合成失败时立即终止本次捕获，进程返回失败；不会继续截图或用不完整内容生成成功清单。分类与合成只处理本次实际添加的截图，不维护预期张数、图注清单或分类顺序断言。通用验证只检查实际产物的 PNG、主题、分类归档、独占行标题、居中流式布局、图注位置和图块不重叠；新增、移除、改名或调整截图顺序不需要同步修改验证器。仍需目检真实产物，确认系统效果、状态及文字可读性。macOS 无边框主窗的 contentsRect、titleBarRect 和 frameMargins 顶边为 0，系统截图中的透明像素或真实阴影不属于额外布局留白。

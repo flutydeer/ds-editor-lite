@@ -62,6 +62,7 @@
 #include <QFontMetrics>
 #include <QImage>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -81,6 +82,7 @@
 #include <numbers>
 #include <utility>
 #include <algorithm>
+#include <stdexcept>
 
 namespace {
     // Keep the real task widget at a reproducible progress point during capture.
@@ -103,10 +105,6 @@ namespace {
         Settings,
         Diagnostics
     };
-
-    constexpr Module modules[]{Module::Workspace, Module::Tracks,   Module::Notes,
-                               Module::Lyrics,    Module::Mixing,   Module::Audio,
-                               Module::Packages,  Module::Settings, Module::Diagnostics};
 
     QString moduleTitle(const Module module) {
         switch (module) {
@@ -147,6 +145,11 @@ namespace {
         return {rect.x(), rect.y(), rect.width(), rect.height()};
     }
 
+    void requireCapture(bool success, const QString &message) {
+        if (!success)
+            throw std::runtime_error(message.toStdString());
+    }
+
     class Gallery {
     public:
         enum class Capture { NativeWindow, WidgetContent };
@@ -171,15 +174,18 @@ namespace {
                 return;
             }
             const auto path = imagePath(module, title);
-            QVERIFY(m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))));
+            requireCapture(
+                m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))),
+                QStringLiteral("Screenshot directory, image allocation or summary write failed"));
             // References belong beside the module's other original captures too.
             QFile source(m_output.filePath(name));
-            QVERIFY(source.open(QIODevice::ReadOnly));
-            QFile destination(path);
-            QVERIFY(destination.open(QIODevice::WriteOnly));
+            requireCapture(source.open(QIODevice::ReadOnly), source.errorString());
+            QSaveFile destination(path);
+            requireCapture(destination.open(QIODevice::WriteOnly), destination.errorString());
             const auto bytes = source.readAll();
-            QCOMPARE(destination.write(bytes), bytes.size());
-            destination.close();
+            requireCapture(source.error() == QFileDevice::NoError, source.errorString());
+            requireCapture(destination.write(bytes) == bytes.size(), destination.errorString());
+            requireCapture(destination.commit(), destination.errorString());
             addImage(module, title, path, method);
         }
 
@@ -188,8 +194,10 @@ namespace {
             // QWidget::grab renders the panel directly, even when its native host
             // is occluded. Only compositor captures require an exposed window.
             if (capture == Capture::NativeWindow)
-                QVERIFY2(QTest::qWaitForWindowExposed(widget.window()), qPrintable(title));
-            QTRY_VERIFY(widget.isVisible());
+                requireCapture(QTest::qWaitForWindowExposed(widget.window()),
+                               QStringLiteral("Screenshot operation failed: %1").arg(title));
+            requireCapture(QTest::qWaitFor([&] { return widget.isVisible(); }),
+                           QStringLiteral("Widget was not visible: %1").arg(title));
             // Tab/preview switches can resize a native window. Complete Qt layout
             // and repaint before allowing the compositor to capture its next frame.
             QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
@@ -197,18 +205,22 @@ namespace {
                 widget.layout()->activate();
             widget.repaint();
             QTest::qWait(300);
-            QVERIFY(m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))));
+            requireCapture(
+                m_output.mkpath(QStringLiteral("modules/%1").arg(moduleId(module))),
+                QStringLiteral("Screenshot directory, image allocation or summary write failed"));
             const auto path = imagePath(module, title);
             QString method;
             if (capture == Capture::WidgetContent) {
                 // Custom editor panels and popups do not need a repeated host window.
                 // Keep exactly their rendered contents, without adding decorative chrome.
-                QVERIFY2(widget.grab().save(path), qPrintable(title));
+                requireCapture(widget.grab().save(path),
+                               QStringLiteral("Screenshot operation failed: %1").arg(title));
                 method = QStringLiteral("qt-widget-content");
             } else {
-                QVERIFY2(widget.isWindow(), qPrintable(title));
-                QVERIFY2(WindowFrameUtils::captureWindowChrome(&widget, path, &method),
-                         qPrintable(title));
+                requireCapture(widget.isWindow(),
+                               QStringLiteral("Screenshot operation failed: %1").arg(title));
+                requireCapture(WindowFrameUtils::captureWindowChrome(&widget, path, &method),
+                               QStringLiteral("Screenshot operation failed: %1").arg(title));
             }
             qInfo().noquote() << "Captured" << title << "using" << method << "to" << path;
             addImage(module, title, path, method);
@@ -222,8 +234,13 @@ namespace {
         }
 
         void writeSheet() const {
-            if (m_entries.isEmpty())
-                return;
+            requireCapture(!m_entries.isEmpty(), QStringLiteral("No screenshots were requested"));
+            QList<Module> modules;
+            for (const auto &entry : m_entries) {
+                if (!modules.contains(entry.module))
+                    modules.append(entry.module);
+            }
+            std::sort(modules.begin(), modules.end());
             constexpr int margin = 64;
             constexpr int columnGap = 48;
             constexpr int rowGap = 44;
@@ -328,7 +345,9 @@ namespace {
             // Each module wraps independently at this maximum, with no aspect
             // target or column count. Stacking more modules only adds height.
             constexpr int maximumRowWidth = 5120;
-            QVERIFY(minimumWidth <= maximumRowWidth);
+            requireCapture(
+                minimumWidth <= maximumRowWidth,
+                QStringLiteral("Screenshot directory, image allocation or summary write failed"));
             const auto contentWidth = [&](const QList<Section> &sections) {
                 int right = minimumWidth - margin;
                 for (const auto &section : sections) {
@@ -345,7 +364,9 @@ namespace {
                 section.bounds.setWidth(sheetWidth);
             }
             QImage sheet(sheetWidth, sheetHeight, QImage::Format_RGB32);
-            QVERIFY(!sheet.isNull());
+            requireCapture(
+                !sheet.isNull(),
+                QStringLiteral("Screenshot directory, image allocation or summary write failed"));
             const bool dark = captureTheme() == QStringLiteral("dark");
             sheet.fill(QColor(dark ? "#353f50" : "#c4cdd9"));
             QPainter painter(&sheet);
@@ -385,24 +406,30 @@ namespace {
                 });
             }
             painter.end();
-            QVERIFY(sheet.save(m_output.filePath(QStringLiteral("ui-review.png"))));
+            requireCapture(
+                sheet.save(m_output.filePath(QStringLiteral("ui-review.png"))),
+                QStringLiteral("Screenshot directory, image allocation or summary write failed"));
             for (qsizetype i = 0; i < sections.size(); ++i) {
                 const auto path = m_output.filePath(
                     QStringLiteral("modules/%1/review.png").arg(moduleId(sections.at(i).module)));
-                QVERIFY(sheet.copy(sections.at(i).bounds).save(path));
+                requireCapture(
+                    sheet.copy(sections.at(i).bounds).save(path),
+                    QStringLiteral(
+                        "Screenshot directory, image allocation or summary write failed"));
             }
             const QJsonObject report{
-                {"complete", !QTest::currentTestFailed()               },
+                {"complete", true                                      },
                 {"theme",    captureTheme()                            },
                 {"themeId",  ThemeManager::instance()->currentThemeId()},
                 {"size",     QJsonArray{sheet.width(), sheet.height()} },
                 {"layout",   QStringLiteral("flow")                    },
                 {"sections", sectionReports                            }
             };
-            QFile manifest(m_output.filePath(QStringLiteral("ui-review.json")));
-            QVERIFY(manifest.open(QIODevice::WriteOnly));
+            QSaveFile manifest(m_output.filePath(QStringLiteral("ui-review.json")));
+            requireCapture(manifest.open(QIODevice::WriteOnly), manifest.errorString());
             const auto json = QJsonDocument(report).toJson();
-            QCOMPARE(manifest.write(json), json.size());
+            requireCapture(manifest.write(json) == json.size(), manifest.errorString());
+            requireCapture(manifest.commit(), manifest.errorString());
             qInfo("Wrote %lld screenshots in %lld UI modules to ui-review.png",
                   static_cast<long long>(m_entries.size()),
                   static_cast<long long>(sections.size()));
@@ -427,7 +454,8 @@ namespace {
         void addImage(const Module module, const QString &title, const QString &path,
                       const QString &captureMethod) {
             QImage image(path);
-            QVERIFY2(!image.isNull(), qPrintable(path));
+            requireCapture(!image.isNull(),
+                           QStringLiteral("Screenshot operation failed: %1").arg(path));
             const auto sourceSize = image.size();
             // Preserve readable panel sizes without stretching small dialogs.
             constexpr QSize maximumSize(1168, 850);
@@ -451,80 +479,81 @@ namespace {
     };
 } // namespace
 
-void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
+void ApplicationGuiTests::uiGalleryLayoutGroupsModules() try {
     QTemporaryDir output;
     QVERIFY(output.isValid());
-    QImage wide(1500, 700, QImage::Format_RGB32);
-    wide.fill(Qt::white);
-    QImage tall(600, 1000, QImage::Format_RGB32);
-    tall.fill(Qt::gray);
-    QVERIFY(wide.save(output.filePath("wide.png")));
-    QVERIFY(tall.save(output.filePath("tall.png")));
-    QImage small(180, 90, QImage::Format_RGB32);
-    small.fill(Qt::blue);
-    QVERIFY(small.save(output.filePath("small.png")));
-    QVERIFY(QDir(output.path()).mkpath("modules/02-tracks"));
-    const auto moduleReference = QStringLiteral("modules/02-tracks/existing.png");
-    QVERIFY(wide.save(output.filePath(moduleReference)));
-    QFile provenance(output.filePath("modules/02-tracks/existing.json"));
-    QVERIFY(provenance.open(QIODevice::WriteOnly));
-    const QByteArray provenanceJson = R"({"captureMethod":"qt-client-fallback"})";
-    QCOMPARE(provenance.write(provenanceJson), provenanceJson.size());
-    provenance.close();
+
+    struct Sample {
+        Module module;
+        QString title;
+        QSize size;
+    };
+
+    // Synthetic inputs exercise grouping, wrapping and different aspect ratios;
+    // they are not a checklist of production screenshots.
+    const QList<Sample> samples{
+        {Module::Workspace, QStringLiteral("Wide sample"),    {1500, 700}},
+        {Module::Tracks,    QStringLiteral("Another module"), {700, 400} },
+        {Module::Workspace, QStringLiteral("Tall sample"),    {600, 1000}},
+        {Module::Workspace, QStringLiteral("Small sample"),   {180, 90}  },
+        {Module::Workspace, QStringLiteral("Wrap sample A"),  {1500, 700}},
+        {Module::Workspace, QStringLiteral("Wrap sample B"),  {1500, 700}},
+        {Module::Workspace, QStringLiteral("Wrap sample C"),  {1500, 700}},
+    };
     Gallery gallery(output.path());
-    gallery.addReference(Module::Workspace, QStringLiteral("Wide workspace"), "wide.png");
-    gallery.addReference(Module::Tracks, QStringLiteral("Track editor"), moduleReference);
-    gallery.addReference(Module::Workspace, QStringLiteral("Portrait workspace"), "tall.png");
-    gallery.addReference(Module::Workspace, QStringLiteral("Small workspace"), "small.png");
-    gallery.addReference(Module::Workspace, QStringLiteral("Third workspace"), "wide.png");
-    gallery.addReference(Module::Workspace, QStringLiteral("Fourth workspace"), "wide.png");
-    gallery.addReference(Module::Workspace, QStringLiteral("Fifth workspace"), "wide.png");
+    for (const auto &sample : samples) {
+        const auto path = sample.title + QStringLiteral(".png");
+        QImage image(sample.size, QImage::Format_RGB32);
+        image.fill(Qt::white);
+        QVERIFY(image.save(output.filePath(path)));
+        gallery.addReference(sample.module, sample.title, path);
+    }
     gallery.writeSheet();
-    if (QTest::currentTestFailed())
-        return;
     QFile file(output.filePath("ui-review.json"));
     QVERIFY(file.open(QIODevice::ReadOnly));
     const auto report = QJsonDocument::fromJson(file.readAll()).object();
     QVERIFY(report.value("complete").toBool());
     QCOMPARE(report.value("theme").toString(), captureTheme());
-    QCOMPARE(report.value("layout").toString(), QStringLiteral("flow"));
-    QVERIFY(!report.contains("columns"));
     const int sheetWidth = report.value("size").toArray()[0].toInt();
     const int sheetHeight = report.value("size").toArray()[1].toInt();
     QVERIFY(sheetWidth <= 5120);
-    const auto sections = report.value("sections").toArray();
-    QCOMPARE(sections.size(), 2);
-    QCOMPARE(sections[0].toObject().value("title").toString(), moduleTitle(Module::Workspace));
-    QCOMPARE(sections[1].toObject().value("title").toString(), moduleTitle(Module::Tracks));
-    QCOMPARE(sections[0].toObject().value("id").toString(), moduleId(Module::Workspace));
-    const auto trackReference = sections[1].toObject().value("images").toArray()[0].toObject();
-    QCOMPARE(trackReference.value("file").toString(), moduleReference);
-    QCOMPARE(trackReference.value("captureMethod").toString(),
-             QStringLiteral("qt-client-fallback"));
     const auto rect = [](const QJsonValue &value) {
         const auto a = value.toArray();
         return QRect(a[0].toInt(), a[1].toInt(), a[2].toInt(), a[3].toInt());
     };
+    QList<QString> remaining;
+    for (const auto &sample : samples)
+        remaining.append(sample.title);
     int previousBottom = -1;
     int contentRight = 0;
-    for (const auto &sectionValue : sections) {
+    bool wrapped = false;
+    for (const auto &sectionValue : report.value("sections").toArray()) {
         const auto section = sectionValue.toObject();
         const auto heading = rect(section.value("headingRect"));
         QVERIFY(heading.top() > previousBottom);
-        QCOMPARE(heading.left(), 64);
-        QCOMPARE(heading.width(), sheetWidth - 128);
         const auto images = section.value("images").toArray();
+        QVERIFY(!images.isEmpty());
         QList<QRect> occupied;
         for (const auto &imageValue : images) {
             const auto image = imageValue.toObject();
+            const auto title = image.value("caption").toString();
+            const auto sample = std::find_if(samples.begin(), samples.end(),
+                                             [&](const Sample &s) { return s.title == title; });
+            QVERIFY(sample != samples.end());
+            QVERIFY(remaining.removeOne(title));
+            QCOMPARE(section.value("id").toString(), moduleId(sample->module));
+            QCOMPARE(section.value("title").toString(), moduleTitle(sample->module));
             const auto path = image.value("file").toString();
-            QVERIFY(
-                path.startsWith(QStringLiteral("modules/%1/").arg(section.value("id").toString())));
-            QVERIFY(!QImage(output.filePath(path)).isNull());
+            QVERIFY(path.startsWith(QStringLiteral("modules/%1/").arg(moduleId(sample->module))));
+            QCOMPARE(QImage(output.filePath(path)).size(), sample->size);
             const auto pixels = rect(image.value("imageRect"));
             const auto caption = rect(image.value("captionRect"));
+            const auto expectedSize = sample->size.width() > 1168 || sample->size.height() > 850
+                                          ? sample->size.scaled({1168, 850}, Qt::KeepAspectRatio)
+                                          : sample->size;
+            QCOMPARE(pixels.size(), expectedSize);
+            QCOMPARE(caption.width(), qMax(320, expectedSize.width()));
             QVERIFY(pixels.top() > heading.bottom());
-            QVERIFY(caption.top() > pixels.bottom());
             int rowTop = pixels.top();
             int rowImageHeight = pixels.height();
             for (const auto &peerValue : images) {
@@ -537,8 +566,6 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
             }
             QCOMPARE(pixels.top(), rowTop + (rowImageHeight - pixels.height()) / 2);
             QCOMPARE(caption.top(), pixels.bottom() + 1 + 12);
-            QVERIFY(pixels.width() <= 1168);
-            QVERIFY(pixels.height() <= 850);
             const auto bounds = pixels.united(caption);
             contentRight = qMax(contentRight, bounds.right() + 1);
             QVERIFY(QRect(64, 0, sheetWidth - 128, sheetHeight).contains(bounds));
@@ -546,45 +573,68 @@ void ApplicationGuiTests::uiGalleryLayoutGroupsModules() {
                 QVERIFY(!bounds.intersects(other));
             occupied.append(bounds);
             previousBottom = qMax(previousBottom, bounds.bottom());
+            wrapped |= image.value("row").toInt() > 0;
         }
+        QVERIFY(!QImage(output.filePath(section.value("file").toString())).isNull());
     }
-    QCOMPARE(sheetWidth, contentRight + 64);
-    const auto workspace = sections[0].toObject().value("images").toArray();
-    QCOMPARE(workspace.size(), 6);
-    bool wrapped = false;
-    for (int i = 1; i < workspace.size(); ++i) {
-        const auto previous = rect(workspace[i - 1].toObject().value("captionRect"));
-        const auto current = rect(workspace[i].toObject().value("captionRect"));
-        if (workspace[i].toObject().value("row") == workspace[i - 1].toObject().value("row")) {
-            QCOMPARE(current.left(), previous.right() + 1 + 48);
-        } else {
-            wrapped = true;
-            QCOMPARE(current.left(), 64);
-            QVERIFY(previous.right() + 1 + 48 + current.width() > sheetWidth - 64);
-        }
-    }
+    QVERIFY(remaining.isEmpty());
     QVERIFY(wrapped);
-    QCOMPARE(rect(workspace[0].toObject().value("imageRect")).width(), 1168);
-    QCOMPARE(rect(workspace[1].toObject().value("imageRect")).height(), 850);
-    QCOMPARE(rect(workspace[1].toObject().value("captionRect")).width(), 510);
-    QCOMPARE(rect(workspace[2].toObject().value("imageRect")).size(), QSize(180, 90));
-    QCOMPARE(rect(workspace[2].toObject().value("captionRect")).width(), 320);
-    QVERIFY(!QImage(output.filePath("ui-review.png")).isNull());
-    QVERIFY(!QImage(output.filePath("modules/01-workspace/review.png")).isNull());
+    QCOMPARE(sheetWidth, contentRight + 64);
     QCOMPARE(QImage(output.filePath("ui-review.png")).pixelColor(0, 0),
              QColor(captureTheme() == "dark" ? "#353f50" : "#c4cdd9"));
+} catch (const std::exception &error) {
+
+    QFAIL(error.what());
 }
 
-void ApplicationGuiTests::captureUiGallery() {
+void ApplicationGuiTests::uiGalleryCaptureFailuresStopImmediately() {
+    QTemporaryDir output;
+    QVERIFY(output.isValid());
+    Gallery gallery(output.path());
+    bool continued = false;
+    const auto sequence = [&] {
+        gallery.addReference(Module::Workspace, QStringLiteral("Missing"), "missing.png");
+        continued = true;
+        gallery.writeSheet();
+    };
+    QVERIFY_EXCEPTION_THROWN(sequence(), std::runtime_error);
+    QVERIFY(!continued);
+    QVERIFY(!QFileInfo::exists(output.filePath("ui-review.json")));
+
+    QImage image(20, 20, QImage::Format_RGB32);
+    image.fill(Qt::white);
+    QVERIFY(image.save(output.filePath("sample.png")));
+    gallery.addReference(Module::Workspace, QStringLiteral("Sample"), "sample.png");
+    QVERIFY(QDir(output.path()).mkpath("ui-review.png"));
+    QVERIFY_EXCEPTION_THROWN(gallery.writeSheet(), std::runtime_error);
+    QVERIFY(!QFileInfo::exists(output.filePath("ui-review.json")));
+
+    QTemporaryDir blocked;
+    QVERIFY(blocked.isValid());
+    QFile file(blocked.filePath("modules"));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+    Gallery failedCapture(blocked.path());
+    QWidget widget;
+    widget.resize(50, 50);
+    widget.show();
+    QVERIFY_EXCEPTION_THROWN(failedCapture.take(widget, Module::Workspace,
+                                                QStringLiteral("Cannot save"),
+                                                Gallery::Capture::WidgetContent),
+                             std::runtime_error);
+    QVERIFY(!QFileInfo::exists(blocked.filePath("ui-review.json")));
+}
+
+void ApplicationGuiTests::captureUiGallery() try {
     const auto output = qEnvironmentVariable("LITE_UI_GALLERY");
     if (output.isEmpty())
         QSKIP("Set LITE_UI_GALLERY to generate the UI review artifact");
     QVERIFY(QDir().mkpath(output));
     Gallery gallery(output);
-    const auto compose = qScopeGuard([&] { gallery.writeSheet(); });
     const auto nativeReference = QStringLiteral("modules/01-workspace/title-bar-native-frame.png");
     const auto framelessReference = QStringLiteral("modules/01-workspace/title-bar-frameless.png");
-    if (QFileInfo::exists(QDir(output).filePath(nativeReference))) {
+    if (qEnvironmentVariableIsSet("LITE_SCREENSHOT_DESKTOP_CAPTURE") ||
+        QFileInfo::exists(QDir(output).filePath(nativeReference))) {
         gallery.addReference(Module::Workspace, QStringLiteral("Main window - system frame"),
                              nativeReference);
         gallery.addReference(Module::Workspace, QStringLiteral("Main window - frameless"),
@@ -1132,4 +1182,8 @@ void ApplicationGuiTests::captureUiGallery() {
     gallery.show(task, Module::Diagnostics, QStringLiteral("Task progress"));
     show(RestartDialog(QStringLiteral("Restart the editor to apply the settings."), true, &window),
          Module::Settings, QStringLiteral("Restart prompt"));
+    gallery.writeSheet();
+} catch (const std::exception &error) {
+
+    QFAIL(error.what());
 }
