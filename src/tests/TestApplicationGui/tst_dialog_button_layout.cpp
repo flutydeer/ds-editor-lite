@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/MainWindowFixture.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -43,6 +44,10 @@ void ApplicationGuiTests::dialogButtonRolesFollowPlatformLayout() {
     ok->setDefault(true);
     dialog.show();
     QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+    // The first display must already use the policy, without a theme change
+    // accidentally repairing the button box's cached initial layout.
+    QCOMPARE(box->style()->styleHint(QStyle::SH_DialogButtonLayout, nullptr, box), policy);
+    QTRY_COMPARE(ok->geometry().center().x() > cancel->geometry().center().x(), acceptOnRight);
     for (const auto &theme : {QStringLiteral("lite-light"), QStringLiteral("lite-dark")}) {
         QVERIFY(ThemeManager::instance()->applyThemePreference(theme));
         QCOMPARE(box->style()->styleHint(QStyle::SH_DialogButtonLayout, nullptr, box), policy);
@@ -69,7 +74,12 @@ void ApplicationGuiTests::dialogButtonRolesFollowPlatformLayout() {
 }
 
 void ApplicationGuiTests::dialogButtonResetPreservesOwnershipAndCallbacks() {
-    Dialog dialog;
+    TestSupport::MainWindowFixture host(
+        TestSupport::MainWindowFixture::MenuPlacement::PlatformDefault, false);
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    Dialog dialog(host.window.get());
     auto *ok = new AccentButton(QStringLiteral("Save"));
     auto *discard = new Button(QStringLiteral("Don't save"));
     auto *cancel = new Button(QStringLiteral("Cancel"));
@@ -84,6 +94,10 @@ void ApplicationGuiTests::dialogButtonResetPreservesOwnershipAndCallbacks() {
     auto *box = dialog.buttonBar()->buttonBox();
     QCOMPARE(box->buttons().size(), 3);
     QCOMPARE(box->buttonRole(discard), QDialogButtonBox::DestructiveRole);
+    QVERIFY(ok->isDefault());
+    const bool acceptOnRight =
+        PlatformDialogButtonBox::platformLayout() != QDialogButtonBox::WinLayout;
+    QTRY_COMPARE(ok->geometry().center().x() > cancel->geometry().center().x(), acceptOnRight);
     QCOMPARE(box->buttonRole(cancel), QDialogButtonBox::RejectRole);
     dialog.setPositiveButton(ok);
     QVERIFY(guardedOk);
@@ -115,8 +129,7 @@ void ApplicationGuiTests::messageDialogRolesPreserveResultAndDefault() {
         // A production box receives its policy once, in its constructor.
         // Polish before replacing that policy so Qt also relayouts this test box.
         box->ensurePolished();
-        box->setStyleSheet(
-            QStringLiteral("QDialogButtonBox { button-layout: %1; }").arg(policy));
+        box->setStyleSheet(QStringLiteral("QDialogButtonBox { button-layout: %1; }").arg(policy));
     };
     MessageDialog dialog(QStringLiteral("Confirm"), QStringLiteral("Message"));
     applyPolicy(dialog);

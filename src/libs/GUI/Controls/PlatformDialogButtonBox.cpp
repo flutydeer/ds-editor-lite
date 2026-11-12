@@ -10,6 +10,10 @@ PlatformDialogButtonBox::PlatformDialogButtonBox(const ButtonLayout buttonLayout
     : QDialogButtonBox(parent) {
     // Scope the override to this widget. Application/theme stylesheets still
     // control the existing Button and AccentButton instances added by callers.
+    // A frameless dialog may already have polished its ancestors while creating
+    // the native window. Polish this new box before installing its stylesheet
+    // so Qt refreshes the cached role layout on the first display too.
+    ensurePolished();
     setStyleSheet(QStringLiteral("QDialogButtonBox { button-layout: %1; }")
                       .arg(static_cast<int>(buttonLayout)));
     setCenterButtons(false);
