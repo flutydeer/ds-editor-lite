@@ -2,7 +2,7 @@
 #define TRACKSRHIWIDGET_H
 
 #include "AudioWaveformSampler.h"
-#include "AudioClipDragState.h"
+#include "ClipSelectionDrag.h"
 #include "Global/AppGlobal.h"
 #include "Interface/EditorViewState.h"
 #include "Model/AppStatus/EditorPreview.h"
@@ -11,6 +11,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/EditorTouchTarget.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
@@ -18,6 +19,7 @@
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
+#include <QHash>
 #include <QTimer>
 #include <QUrl>
 
@@ -176,12 +178,6 @@ private:
         AudioWaveformSampler::Result waveform;
     };
 
-    struct DragPreview {
-        int clipId = -1;
-        int trackIndex = -1;
-        Clip::ClipCommonProperties properties;
-    };
-
     void rebuildSnapshot();
     void rebuildModelConnections();
     void appendGrid(EditorRhiFrameData &frame, double dpr) const;
@@ -210,8 +206,8 @@ private:
     void commitDrag();
     void discardDrag();
     void finishDragSession(EditSessionEndReason reason);
-    bool updateClipSelection(const ClipSnapshot &clip, bool toggle) const;
-    void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
+    bool updateClipSelection(const ClipSnapshot &clip, Qt::KeyboardModifiers modifiers);
+    void syncSelection(const QList<int> &ids, int preferredTrack = -1);
     void updateCursor(const QPointF &position);
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
@@ -224,6 +220,16 @@ private:
     void disarmDragAutoScroll();
     void updateDragAutoScrollState(const QPointF &pointerPosition);
     void onDragAutoScrollFrame(double dtMs);
+
+    // --- Clip selection gestures ---
+    [[nodiscard]] QList<int> orderedClipIds() const;
+    void captureSelectionStates(QList<ClipSelectionDrag::ClipState> &states) const;
+    void applyDragPlacements(const QList<ClipSelectionDrag::Placement> &placements);
+    void clearDragPlacements();
+    void previewAnchorTrackColor(int trackIndex) const;
+    void restoreAnchorTrackColor() const;
+    [[nodiscard]] int nudgeStep() const;
+    void nudgeSelection(int deltaTicks, int deltaTracks) const;
 
     // --- External file drag-and-drop (Phase 1) ---
     // Resolves the drop slot at the given viewport position, hitting either a
@@ -289,14 +295,15 @@ private:
     int m_baseSceneLength = 0;
     int m_sceneLengthExtension = 0;
     DragMode m_dragMode = DragMode::None;
-    QPointF m_mouseDownScene;
     QPointF m_rubberBandStart;
     QPointF m_rubberBandEnd;
-    std::optional<DragPreview> m_dragPreview;
-    std::optional<AudioClipDragState> m_audioDragState;
-    Clip::ClipCommonProperties m_mouseDownProperties;
-    int m_mouseDownTrackIndex = -1;
-    int m_mouseDownColorIndex = -1;
+    // Clip selection and the gesture in flight. The drag math and the per-clip targets live in the
+    // shared planner, so this backend only owns the preview map and the commit plumbing.
+    EditorSelectionUtils::OrderedSelectionModel m_selectionModel;
+    ClipSelectionDrag::Session m_dragSession;
+    QHash<int, ClipSelectionDrag::Placement> m_placements;
+    int m_dragAnchorId = -1;
+    int m_dragTrackIndex = -1;
     bool m_dragMoved = false;
     quint64 m_dragSessionId = 0;
 

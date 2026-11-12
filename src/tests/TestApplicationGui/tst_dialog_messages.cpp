@@ -29,8 +29,8 @@ void ApplicationGuiTests::dialogMessagesWrap() {
     QFETCH(QString, message);
     QFETCH(int, dialogWidth);
     MessageDialog dialog(QStringLiteral("Clear cache"), message);
-    dialog.addButton(QStringLiteral("Cancel"), 0);
-    dialog.addAccentButton(QStringLiteral("OK"), 1);
+    dialog.addButton(QStringLiteral("Cancel"), 0, QDialogButtonBox::RejectRole);
+    dialog.addAccentButton(QStringLiteral("OK"), 1, QDialogButtonBox::AcceptRole);
     auto *checkBox = dialog.addCheckBox(QStringLiteral("Remember my choice"));
     QVERIFY(checkBox);
     if (dialogWidth)

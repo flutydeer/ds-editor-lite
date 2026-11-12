@@ -1,6 +1,7 @@
 #ifndef WINDOWFRAMEUTILS_H
 #define WINDOWFRAMEUTILS_H
 
+#include <QString>
 #include <QtGlobal>
 
 class QWidget;
@@ -16,6 +17,18 @@ public:
     // so a custom title bar can reclaim that row and the traffic lights can be
     // moved inside it. Idempotent, safe to call on every show.
     static void mergeTitleBarIntoContent(QWidget *widget);
+    // Screenshot harness only, called on the GUI thread. macOS 14.4+ first uses
+    // own-process ScreenCaptureKit window capture (native corners and shadows).
+    // AppKit frame caching is a fallback, not a system-compositor screenshot.
+    // Windows/X11 can opt into isolated desktop pixel capture, including native
+    // decorations actually supplied by the runner. Windows can also render the
+    // nonclient frame with PrintWindow and combine it with an unscaled QWidget
+    // client grab (windows-printwindow-frame-qt-client) when desktop capture is
+    // unavailable. This mixed-source image does not guarantee DWM effects. The
+    // final fallback is Qt client content. captureMethod reports the source.
+    // No screen-recording permission is requested.
+    [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
+                                                  QString *captureMethod = nullptr);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)

@@ -23,6 +23,7 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
+#include "Utils/WindowChromeCapture.h"
 #include <lite/ProductMetadata.h>
 
 #include <QApplication>
@@ -194,6 +195,13 @@ int main(int argc, char *argv[]) {
     {
         // AppOptions must be constructed (and the UI language applied) before AppContext.
         auto options = std::make_unique<AppOptions>();
+        // The CI screenshot harness forces the frame mode for its own run only.
+        // It never persists, so a capture run cannot change a user's settings.
+        if (!qEnvironmentVariable("LITE_CHROME_CAPTURE").trimmed().isEmpty()) {
+            const auto forcedFrame = qEnvironmentVariable("LITE_FORCE_NATIVE_FRAME").trimmed();
+            if (!forcedFrame.isEmpty())
+                options->appearance()->nativeFrameOverride = forcedFrame == QStringLiteral("1");
+        }
         UiLanguageManager uiLanguageManager;
         uiLanguageManager.setPreference(options->general()->uiLanguage);
 
@@ -311,6 +319,7 @@ int main(int argc, char *argv[]) {
                 coordinator.enableAdmission();
                 logStage(QStringLiteral("event_loop_ready"));
             });
+            WindowChromeCapture::armIfRequested(w);
 
             const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
             qInfo() << "App launched in" << time << "ms";

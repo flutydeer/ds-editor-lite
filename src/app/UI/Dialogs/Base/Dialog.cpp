@@ -13,6 +13,7 @@
 #include "Model/AppOptions/AppOptions.h"
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/PlatformDialogButtonBox.h>
 #include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/WindowFrameUtils.h>
@@ -63,7 +64,8 @@ DialogButtonBar::DialogButtonBar(QWidget *parent) : QWidget(parent) {
     m_mainLayout = new QHBoxLayout;
     m_mainLayout->setSpacing(12);
     m_mainLayout->setContentsMargins({12, 12, 12, 12});
-    m_mainLayout->addStretch(1);
+    m_buttonBox = new PlatformDialogButtonBox(this);
+    m_mainLayout->addWidget(m_buttonBox);
 
     setLayout(m_mainLayout);
     setContentsMargins({});
@@ -74,14 +76,21 @@ DialogButtonBar::~DialogButtonBar() {
     delete m_mainLayout;
 }
 
-void DialogButtonBar::addButton(Button *button) const {
-    m_mainLayout->addWidget(button);
+void DialogButtonBar::addButton(Button *button, QDialogButtonBox::ButtonRole role) const {
+    m_buttonBox->addButton(button, role);
 }
 
-void DialogButtonBar::reset() const {
-    for (const auto child : m_mainLayout->children())
-        if (const auto button = dynamic_cast<Button *>(child))
-            m_mainLayout->removeWidget(button);
+void DialogButtonBar::reset() {
+    // clear() deletes the buttons. They are retained by Dialog and reinserted.
+    for (auto *button : m_buttonBox->buttons()) {
+        m_buttonBox->removeButton(button);
+        button->setParent(this);
+        button->hide();
+    }
+}
+
+QDialogButtonBox *DialogButtonBar::buttonBox() const {
+    return m_buttonBox;
 }
 
 Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
@@ -102,7 +111,7 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
-    const auto useNativeFrame = appOptions->appearance()->useNativeFrame;
+    const auto useNativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
     if (!useNativeFrame) {
 #ifdef Q_OS_MAC
         // Match the main window before the agent creates the native window.
@@ -140,7 +149,9 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
 
 Dialog::~Dialog() {
     ThemeManager::instance()->removeWindow(this);
-    delete m_buttonBar;
+    // Let QWidget tear down the button bar after QDialog clears focus. Deleting
+    // it here can send an auto-default button's focus event into a partially
+    // destroyed child tree.
 }
 
 bool Dialog::event(QEvent *event) {
@@ -200,18 +211,21 @@ void Dialog::setMessage(const QString &msg) const {
     m_header->setMessage(msg);
 }
 
-void Dialog::setPositiveButton(Button *button) {
+void Dialog::setPositiveButton(Button *button, QDialogButtonBox::ButtonRole role) {
     m_positiveButton = button;
+    m_positiveRole = role;
     setButton();
 }
 
-void Dialog::setNegativeButton(Button *button) {
+void Dialog::setNegativeButton(Button *button, QDialogButtonBox::ButtonRole role) {
     m_negativeButton = button;
+    m_negativeRole = role;
     setButton();
 }
 
-void Dialog::setNeutralButton(Button *button) {
+void Dialog::setNeutralButton(Button *button, QDialogButtonBox::ButtonRole role) {
     m_neutralButton = button;
+    m_neutralRole = role;
     setButton();
 }
 
@@ -252,13 +266,18 @@ void Dialog::setButton() {
     m_buttonBar->reset();
 
     if (m_positiveButton) {
-        m_buttonBar->addButton(m_positiveButton);
+        m_buttonBar->addButton(m_positiveButton, m_positiveRole);
+        m_positiveButton->show();
         m_positiveButton->setDefault(true);
     }
 
-    if (m_negativeButton)
-        m_buttonBar->addButton(m_negativeButton);
+    if (m_negativeButton) {
+        m_buttonBar->addButton(m_negativeButton, m_negativeRole);
+        m_negativeButton->show();
+    }
 
-    if (m_neutralButton)
-        m_buttonBar->addButton(m_neutralButton);
+    if (m_neutralButton) {
+        m_buttonBar->addButton(m_neutralButton, m_neutralRole);
+        m_neutralButton->show();
+    }
 }

@@ -2,6 +2,7 @@
 
 #include <QtTest/QTest>
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
+#include "UI/Views/TrackEditor/ClipSelectionDrag.h"
 #include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include <lite/ProjectModel/Utils/NotePasteUtils.h>
 #include <lite/ProjectModel/Utils/SingingClipRangeUtils.h>
@@ -328,4 +329,217 @@ void EditorInteractionTests::audioResizeAcrossOppositeEdge() {
                                        gridStep, properties, fixture.timeline);
     QVERIFY(accepted);
     QCOMPARE(properties.clipLen, gridStep);
+}
+
+namespace {
+
+    ClipSelectionDrag::ClipState groupClipState(int clipId, int trackIndex, int start,
+                                                int clipStart, int clipLen) {
+        ClipSelectionDrag::ClipState state;
+        state.clipId = clipId;
+        state.trackIndex = trackIndex;
+        state.properties.id = clipId;
+        state.properties.start = start;
+        state.properties.clipStart = clipStart;
+        state.properties.clipLen = clipLen;
+        state.properties.length = start + clipStart + clipLen;
+        return state;
+    }
+
+    ClipSelectionDrag::Session::Environment groupEnvironment(const Timeline &timeline,
+                                                             int trackCount) {
+        ClipSelectionDrag::Session::Environment environment;
+        environment.trackCount = trackCount;
+        environment.timeline = &timeline;
+        environment.gridStepAt = [](int) { return 120; };
+        return environment;
+    }
+
+    const ClipSelectionDrag::Placement *
+        groupPlacement(const QList<ClipSelectionDrag::Placement> &placements, int clipId) {
+        for (const auto &placement : placements) {
+            if (placement.clipId == clipId)
+                return &placement;
+        }
+        return nullptr;
+    }
+
+    int groupVisibleStart(const ClipSelectionDrag::Placement &placement) {
+        return placement.properties.start + placement.properties.clipStart;
+    }
+
+}
+
+void EditorInteractionTests::clipSelectionGroupMove() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 4);
+    const QList<ClipSelectionDrag::ClipState> clips{
+        groupClipState(1, 0, 480, 0, 960),
+        groupClipState(2, 1, 480, 480, 960),
+        groupClipState(3, 2, 2400, 0, 480),
+    };
+    ClipSelectionDrag::Session session;
+    session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 960.0, 0);
+    QVERIFY(session.active());
+    QVERIFY(!session.moved());
+    QVERIFY(session.update(1200.0, 1, false));
+    QVERIFY(session.moved());
+
+    const auto &placements = session.placements();
+    QCOMPARE(placements.size(), 3);
+    const auto *first = groupPlacement(placements, 1);
+    const auto *second = groupPlacement(placements, 2);
+    const auto *third = groupPlacement(placements, 3);
+    QVERIFY(first && second && third);
+    QVERIFY2((groupVisibleStart(*first) == 720 && first->trackIndex == 1),
+             "the pressed clip must follow the snapped pointer delta and the track delta");
+    QVERIFY2((groupVisibleStart(*second) == 1200 && second->properties.start == 720 &&
+              second->trackIndex == 2),
+             "a trimmed clip must keep its clip start while the block moves");
+    QVERIFY2((groupVisibleStart(*third) == 2640 && third->trackIndex == 3),
+             "clips far from the pointer must take the same block delta");
+
+    // A pointer that is not on the grid keeps the snapped target instead of drifting with it.
+    QVERIFY(session.update(1230.0, 1, false));
+    QVERIFY2((groupVisibleStart(*groupPlacement(session.placements(), 1)) == 720),
+             "a sub-step pointer move must not move the block off the grid");
+}
+
+void EditorInteractionTests::clipSelectionGroupMoveClamps() {
+    const Timeline timeline;
+
+    {
+        const auto environment = groupEnvironment(timeline, 2);
+        const QList<ClipSelectionDrag::ClipState> clips{
+            groupClipState(1, 0, 120, 0, 480),
+            groupClipState(2, 0, 960, 0, 480),
+        };
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 120.0, 0);
+        QVERIFY(session.update(-480.0, 0, false));
+        QVERIFY2((groupVisibleStart(*groupPlacement(session.placements(), 1)) == 0 &&
+                  groupVisibleStart(*groupPlacement(session.placements(), 2)) == 840),
+                 "the block must stop at tick 0 without changing its internal spacing");
+        QVERIFY(session.update(-9600.0, 0, false));
+        QVERIFY2((groupVisibleStart(*groupPlacement(session.placements(), 1)) == 0 &&
+                  groupVisibleStart(*groupPlacement(session.placements(), 2)) == 840),
+                 "dragging further past the start must keep the clamped block");
+    }
+
+    {
+        const auto environment = groupEnvironment(timeline, 2);
+        const QList<ClipSelectionDrag::ClipState> clips{
+            groupClipState(1, 0, 0, 0, 480),
+            groupClipState(2, 1, 960, 0, 480),
+        };
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 0.0, 0);
+        QVERIFY(session.update(0.0, 9, false));
+        QVERIFY2((groupPlacement(session.placements(), 1)->trackIndex == 0 &&
+                  groupPlacement(session.placements(), 2)->trackIndex == 1),
+                 "a block that already touches the last track must not move down");
+        QVERIFY(session.update(0.0, -9, false));
+        QVERIFY2((groupPlacement(session.placements(), 1)->trackIndex == 0 &&
+                  groupPlacement(session.placements(), 2)->trackIndex == 1),
+                 "a block that already touches the first track must not move up");
+    }
+}
+
+void EditorInteractionTests::clipSelectionGroupTrim() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 3);
+    auto first = groupClipState(1, 0, 0, 480, 960);
+    first.lengthResizable = true;
+    first.contentLength = 4800;
+    auto second = groupClipState(2, 1, 1440, 480, 960);
+    second.lengthResizable = true;
+    second.contentLength = 4800;
+    const QList<ClipSelectionDrag::ClipState> clips{first, second};
+
+    {
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::ResizeRight, 1, clips, environment, 1440.0, 0);
+        QVERIFY(session.update(1680.0, 0, false));
+        const auto *left = groupPlacement(session.placements(), 1);
+        const auto *right = groupPlacement(session.placements(), 2);
+        QVERIFY(left && right);
+        QVERIFY2((left->properties.clipLen == 1200 && groupVisibleStart(*left) == 480),
+                 "the dragged edge must follow the pointer while the left edge stays put");
+        QVERIFY2((right->properties.clipLen == 1200 && groupVisibleStart(*right) == 1920),
+                 "the rest of the selection must take the same right-edge delta");
+    }
+
+    {
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::ResizeLeft, 1, clips, environment, 480.0, 0);
+        QVERIFY(session.update(240.0, 0, false));
+        const auto *left = groupPlacement(session.placements(), 1);
+        const auto *right = groupPlacement(session.placements(), 2);
+        QVERIFY(left && right);
+        QVERIFY2((left->properties.clipStart == 240 && left->properties.clipLen == 1200),
+                 "the dragged left edge must extend into the trimmed material");
+        QVERIFY2((right->properties.clipStart == 240 && right->properties.clipLen == 1200),
+                 "the rest of the selection must take the same left-edge delta");
+    }
+}
+
+void EditorInteractionTests::clipSelectionGroupTrimClampsPerClip() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 3);
+    auto nearStart = groupClipState(1, 0, 0, 480, 960);
+    nearStart.lengthResizable = true;
+    nearStart.contentLength = 4800;
+    // Already at the timeline start: extending left is impossible for this one only.
+    auto atStart = groupClipState(2, 1, 0, 0, 480);
+    atStart.lengthResizable = true;
+    atStart.contentLength = 480;
+    const QList<ClipSelectionDrag::ClipState> clips{nearStart, atStart};
+
+    ClipSelectionDrag::Session session;
+    session.begin(ClipSelectionDrag::Gesture::ResizeLeft, 1, clips, environment, 480.0, 0);
+    QVERIFY(session.update(-240.0, 0, false));
+    const auto *moved = groupPlacement(session.placements(), 1);
+    const auto *clamped = groupPlacement(session.placements(), 2);
+    QVERIFY(moved && clamped);
+    QVERIFY2((moved->properties.clipStart == 0 && groupVisibleStart(*moved) == 0),
+             "a clip with trimmed material may still be extended left");
+    QVERIFY2((clamped->properties.clipStart == 0 && clamped->properties.clipLen == 480 &&
+              groupVisibleStart(*clamped) == 0),
+             "a clip already at tick 0 must clamp on its own instead of blocking the batch");
+}
+
+void EditorInteractionTests::clipSelectionRealTimeAnchorKeepsTruth() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 2);
+    constexpr double trimStartMs = 500.0;
+    constexpr double playLengthMs = 2500.0;
+    constexpr double materialLengthMs = 5000.0;
+    constexpr int visibleStartTick = 4800;
+
+    const auto caches = AudioClip::deriveTickCaches(trimStartMs, playLengthMs, materialLengthMs,
+                                                    visibleStartTick, timeline);
+    ClipSelectionDrag::ClipState audio;
+    audio.clipId = 7;
+    audio.trackIndex = 0;
+    audio.realTimeAnchored = true;
+    audio.properties.id = 7;
+    audio.properties.start = caches.start;
+    audio.properties.clipStart = caches.clipStart;
+    audio.properties.clipLen = caches.clipLen;
+    audio.properties.length = caches.length;
+    audio.properties.trimStartMs = trimStartMs;
+    audio.properties.playLengthMs = playLengthMs;
+    audio.properties.materialLengthMs = materialLengthMs;
+
+    ClipSelectionDrag::Session session;
+    session.begin(ClipSelectionDrag::Gesture::Move, 7, {audio}, environment,
+                  static_cast<double>(visibleStartTick), 0);
+    QVERIFY(session.update(visibleStartTick + 960.0, 0, false));
+    const auto *placement = groupPlacement(session.placements(), 7);
+    QVERIFY(placement);
+    QCOMPARE(groupVisibleStart(*placement), visibleStartTick + 960);
+    QVERIFY2((closeTo(placement->properties.trimStartMs, trimStartMs) &&
+              closeTo(placement->properties.playLengthMs, playLengthMs) &&
+              closeTo(placement->properties.materialLengthMs, materialLengthMs)),
+             "moving a realtime-anchored clip must preserve its millisecond window");
 }

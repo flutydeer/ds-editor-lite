@@ -2,7 +2,6 @@ name: Tests
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
@@ -61,7 +60,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
-            automake libtool libltdl-dev python3-venv xvfb xauth \
+            automake libtool libltdl-dev python3-venv xvfb xauth openbox \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
@@ -168,6 +167,31 @@ jobs:
             --txt build/test-results/coverage/lines.txt \
             --print-summary 2>&1 | tee build/test-results/coverage.log
           cat build/test-results/coverage/files.csv
+      # Capture is separate from CTest, uses fresh processes for both themes, and
+      # only runs after this platform's full test suite has passed.
+      - name: Capture UI screenshots
+        id: screenshots
+        timeout-minutes: 15
+        run: |
+          python scripts/ci/test-verify-ui-gallery.py
+          build_dir=build/Tests
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            build_dir=build/Coverage
+            xvfb-run -a -s '-screen 0 2560x1600x24' \
+              python scripts/ci/capture-ui-gallery.py --build-dir "$build_dir" \
+                --output "$PWD/build/ui-screenshots"
+          else
+            python scripts/ci/capture-ui-gallery.py --build-dir "$build_dir" \
+              --output "$PWD/build/ui-screenshots"
+          fi
+      - name: Upload UI screenshot package
+        if: always() && steps.screenshots.outcome != 'skipped'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.triplet }}-ui-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/ui-screenshots
+          if-no-files-found: warn
+          retention-days: 14
       - name: macOS crash diagnostics
         if: always() && runner.os == 'macOS'
         continue-on-error: true

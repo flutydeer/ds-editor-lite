@@ -1,6 +1,5 @@
 #include "TracksRhiWidget.h"
 
-#include "AudioClipDragState.h"
 #include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "SingingClipPreviewLayout.h"
 #include "Controller/AudioDecodingController.h"
@@ -166,6 +165,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::clipSelectionChanged, this, &TracksRhiWidget::scheduleSnapshot);
+    // Anything outside the canvas can replace or clear the selection (delete, cut, undo, select all),
+    // so the range anchor follows the platform selection instead of remembering a clip that is gone.
+    connect(appStatus, &AppStatus::clipSelectionChanged, this,
+            [this](const QList<int> &selected) { m_selectionModel.synchronize(selected); });
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
@@ -467,18 +470,22 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     const auto *hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {
         if (hit) {
-            updateClipSelection(*hit, false);
+            // A right press only decides what the menu acts on: plain semantics, so a group that
+            // already contains the clip survives and the menu can edit all of it.
+            updateClipSelection(*hit, Qt::NoModifier);
             scheduleSnapshot();
         } else {
+            m_selectionModel.cancelPress();
             syncSelection({});
         }
         EditorRhiWidget::mousePressEvent(event);
         return;
     }
     if (hit) {
-        if (updateClipSelection(*hit, event->modifiers() == Qt::ControlModifier))
+        if (updateClipSelection(*hit, event->modifiers()))
             beginClipDrag(*hit, event);
     } else {
+        m_selectionModel.cancelPress();
         syncSelection({});
         m_dragMode = DragMode::RectSelect;
         m_rubberBandStart = m_viewport.viewportToScene(event->position());
@@ -507,6 +514,7 @@ void TracksRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (m_dragMode == DragMode::RectSelect) {
             m_dragMode = DragMode::None;
+            m_selectionModel.cancelPress();
         } else if (m_dragMode != DragMode::None) {
             commitDrag();
         }
@@ -680,7 +688,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     context.snappedTick = TimelineSnapUtils::snapDown(context.rawTick, snapStep(context.rawTick),
                                                       appModel->timeline());
     if (const auto *hit = hitTest(event->pos())) {
-        updateClipSelection(*hit, false);
+        updateClipSelection(*hit, Qt::NoModifier);
         context.trackIndex = hit->trackIndex;
         context.clipId = hit->id;
         context.selectedClipIds = appStatus->selectedClips.get();
@@ -890,6 +898,24 @@ void TracksRhiWidget::keyPressEvent(QKeyEvent *event) {
         discardDrag();
         event->accept();
         return;
+    }
+    const auto hasSelection = !appStatus->selectedClips.get().isEmpty();
+    const auto step = event->modifiers() == Qt::AltModifier ? 1 : nudgeStep();
+    if (hasSelection) {
+        switch (event->key()) {
+            case Qt::Key_Left:
+            case Qt::Key_Right:
+                nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
+                event->accept();
+                return;
+            case Qt::Key_Up:
+            case Qt::Key_Down:
+                nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
+                event->accept();
+                return;
+            default:
+                break;
+        }
     }
     EditorRhiWidget::keyPressEvent(event);
 }
@@ -1243,9 +1269,8 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
                                                                  const int trackIndex,
                                                                  const double dpr) const {
     const auto props = previewOrModelProperties(clip);
-    const auto displayTrack = m_dragPreview && m_dragPreview->clipId == clip->id()
-                                  ? m_dragPreview->trackIndex
-                                  : trackIndex;
+    const auto placement = m_placements.constFind(clip->id());
+    const auto displayTrack = placement != m_placements.cend() ? placement->trackIndex : trackIndex;
     ClipSnapshot result;
     result.id = clip->id();
     result.trackIndex = displayTrack;
@@ -1445,29 +1470,31 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     const auto tolerance = EditorPointer::resizeTolerance() * devicePixelRatioF();
     const auto edge =
         EditorResizeUtils::horizontalEdgeAt(relativeX, clip.modelPhysicalRect.width(), tolerance);
-    if (edge == EditorResizeUtils::HorizontalEdge::Left)
+    auto gesture = ClipSelectionDrag::Gesture::Move;
+    if (edge == EditorResizeUtils::HorizontalEdge::Left) {
+        gesture = ClipSelectionDrag::Gesture::ResizeLeft;
         m_dragMode = DragMode::ResizeLeft;
-    else if (edge == EditorResizeUtils::HorizontalEdge::Right)
+    } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
+        gesture = ClipSelectionDrag::Gesture::ResizeRight;
         m_dragMode = DragMode::ResizeRight;
-    else
+    } else {
         m_dragMode = DragMode::Move;
-    if (m_dragMode == DragMode::ResizeLeft || m_dragMode == DragMode::ResizeRight)
-        syncSelection({clip.id}, clip.trackIndex);
-    m_mouseDownScene = m_viewport.viewportToScene(event->position());
-    m_mouseDownProperties = Clip::ClipCommonProperties(*modelClip);
-    m_mouseDownTrackIndex = appModel->tracks().indexOf(track);
-    m_mouseDownColorIndex = track->colorIndex();
-    m_dragPreview = DragPreview{clip.id, m_mouseDownTrackIndex, m_mouseDownProperties};
-    m_audioDragState.reset();
-    if (const auto *audioClip = qobject_cast<const AudioClip *>(modelClip);
-        audioClip && audioClip->hasRealTimeAnchor()) {
-        const auto &timeline = appModel->timeline();
-        m_audioDragState = AudioClipDragState::begin(
-            audioClip->trimStartMs(), audioClip->playLengthMs(), audioClip->materialLengthMs(),
-            m_mouseDownProperties.start + m_mouseDownProperties.clipStart,
-            m_viewport.sceneXToTick(m_mouseDownScene.x()), timeline);
     }
+
+    m_dragAnchorId = clip.id;
+    m_dragTrackIndex = appModel->tracks().indexOf(track);
+    QList<ClipSelectionDrag::ClipState> states;
+    captureSelectionStates(states);
+    ClipSelectionDrag::Session::Environment environment;
+    environment.trackCount = static_cast<int>(appModel->tracks().size());
+    environment.timeline = &appModel->timeline();
+    environment.gridStepAt = [this](const int tick) { return snapStep(tick); };
+    const auto pressScene = m_viewport.viewportToScene(event->position());
+    m_dragSession.begin(gesture, m_dragAnchorId, states, environment,
+                        m_viewport.sceneXToTick(pressScene.x()), m_dragTrackIndex);
     m_dragMoved = false;
+    clearDragPlacements();
+
     auto clipIds = appStatus->selectedClips.get();
     if (clipIds.isEmpty())
         clipIds.append(clip.id);
@@ -1477,110 +1504,153 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
 }
 
 void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModifiers modifiers) {
-    if (!m_dragPreview)
+    if (!m_dragSession.active())
         return;
-    auto properties = m_mouseDownProperties;
     const auto scene = m_viewport.viewportToScene(position);
-    const auto deltaTicks =
-        qRound(m_viewport.sceneXToTick(scene.x()) - m_viewport.sceneXToTick(m_mouseDownScene.x()));
-    const auto snapStepFor = [this, modifiers](const int value) {
-        return modifiers == Qt::AltModifier ? 1 : snapStep(value);
-    };
-    const auto snap = [this, &snapStepFor](const int value) {
-        return TimelineSnapUtils::snapNearest(value, snapStepFor(value), appModel->timeline());
-    };
-    const auto originalLeft = m_mouseDownProperties.start + m_mouseDownProperties.clipStart;
-    const auto originalRight = originalLeft + m_mouseDownProperties.clipLen;
-    auto updateAccepted = true;
-    if (m_dragMode == DragMode::Move) {
-        if (m_audioDragState) {
-            const auto desiredLeft = m_audioDragState->visibleStartForCursor(
-                m_viewport.sceneXToTick(scene.x()), appModel->timeline());
-            m_audioDragState->moveTo(snap(std::max(0, desiredLeft)), properties,
-                                     appModel->timeline());
-        } else {
-            // Never allow the visible left edge to go past tick 0 (a negative
-            // clip pos is rejected by opendspx).
-            const auto left = snap(std::max(0, originalLeft + deltaTicks));
-            properties.start = left - properties.clipStart;
-        }
-        const auto track = trackIndexAt(position);
-        if (track >= 0) {
-            m_dragPreview->trackIndex = track;
-            editorViewController->previewActiveClipTrackColor(
-                appModel->tracks().at(track)->colorIndex());
-        }
-    } else if (m_dragMode == DragMode::ResizeLeft) {
-        const auto requestedLeft = originalLeft + deltaTicks;
-        const auto minimumLength = snapStepFor(requestedLeft);
-        const auto left = snap(requestedLeft);
-        if (m_audioDragState) {
-            updateAccepted = m_audioDragState->resizeLeftTo(left, originalRight, minimumLength,
-                                                            properties, appModel->timeline());
-        } else {
-            updateAccepted = ClipResizeUtils::updateLeftEdge(properties, left, minimumLength);
-        }
-    } else if (m_dragMode == DragMode::ResizeRight) {
-        const auto requestedRight = originalRight + deltaTicks;
-        const auto minimumLength = snapStepFor(requestedRight);
-        const auto right = snap(requestedRight);
-        if (m_audioDragState) {
-            updateAccepted = m_audioDragState->resizeRightTo(right, originalLeft, minimumLength,
-                                                             properties, appModel->timeline());
-        } else if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
-            const auto *singing = qobject_cast<const SingingClip *>(clip);
-            auto contentLength = properties.length;
-            if (singing) {
-                contentLength = ClipResizeUtils::furthestContentEnd(
-                    singing->notes().begin(), singing->notes().end(), AppGlobal::ticksPerWholeNote,
-                    [](const Note *note) { return note->localStart() + note->length(); });
-            }
-            updateAccepted = ClipResizeUtils::updateRightEdge(
-                properties, right - originalLeft, minimumLength, singing != nullptr, contentLength);
-        } else
-            updateAccepted = false;
-    }
-    if (!updateAccepted)
+    // A pointer above or below the lanes keeps the last row it was over, so the block stops at the
+    // track range instead of jumping to the opposite end.
+    const auto trackIndex = trackIndexAt(position);
+    if (trackIndex >= 0)
+        m_dragTrackIndex = trackIndex;
+    if (!m_dragSession.update(m_viewport.sceneXToTick(scene.x()), m_dragTrackIndex,
+                              modifiers == Qt::AltModifier))
         return;
-    m_dragPreview->properties = properties;
-    m_dragMoved = true;
+    applyDragPlacements(m_dragSession.placements());
+    m_dragMoved = m_dragSession.moved();
     scheduleSnapshot();
 }
 
+QList<int> TracksRhiWidget::orderedClipIds() const {
+    QList<int> ids;
+    for (const auto *track : appModel->tracks())
+        for (const auto *clip : track->clips())
+            ids.append(clip->id());
+    return ids;
+}
+
+void TracksRhiWidget::captureSelectionStates(QList<ClipSelectionDrag::ClipState> &states) const {
+    const auto &tracks = appModel->tracks();
+    for (const auto *track : tracks) {
+        const auto trackIndex = static_cast<int>(tracks.indexOf(track));
+        for (const auto *clip : track->clips()) {
+            if (!appStatus->selectedClips.get().contains(clip->id()))
+                continue;
+
+            ClipSelectionDrag::ClipState state;
+            state.clipId = clip->id();
+            state.trackIndex = trackIndex;
+            state.properties = Clip::ClipCommonProperties(*clip);
+            if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
+                state.lengthResizable = true;
+                state.contentLength = ClipResizeUtils::furthestContentEnd(
+                    singing->notes().begin(), singing->notes().end(), AppGlobal::ticksPerWholeNote,
+                    [](const Note *note) { return note->localStart() + note->length(); });
+            }
+            if (const auto *audio = qobject_cast<const AudioClip *>(clip);
+                audio && audio->hasRealTimeAnchor()) {
+                // The planner re-projects the millisecond truth, so it has to carry it.
+                state.realTimeAnchored = true;
+                state.properties.trimStartMs = audio->trimStartMs();
+                state.properties.playLengthMs = audio->playLengthMs();
+                state.properties.materialLengthMs = audio->materialLengthMs();
+            }
+            states.append(state);
+        }
+    }
+}
+
+void TracksRhiWidget::applyDragPlacements(const QList<ClipSelectionDrag::Placement> &placements) {
+    m_placements.clear();
+    for (const auto &placement : placements)
+        m_placements.insert(placement.clipId, placement);
+    for (const auto &placement : placements) {
+        if (placement.clipId != m_dragAnchorId)
+            continue;
+        previewAnchorTrackColor(placement.trackIndex);
+        break;
+    }
+}
+
+void TracksRhiWidget::clearDragPlacements() {
+    m_placements.clear();
+}
+
+void TracksRhiWidget::previewAnchorTrackColor(const int trackIndex) const {
+    if (trackIndex < 0 || trackIndex >= appModel->tracks().size())
+        return;
+    editorViewController->previewActiveClipTrackColor(
+        appModel->tracks().at(trackIndex)->colorIndex());
+}
+
+void TracksRhiWidget::restoreAnchorTrackColor() const {
+    for (const auto &original : m_dragSession.originals()) {
+        if (original.clipId != m_dragAnchorId)
+            continue;
+        previewAnchorTrackColor(original.trackIndex);
+        return;
+    }
+}
+
+int TracksRhiWidget::nudgeStep() const {
+    const auto &selected = appStatus->selectedClips.get();
+    auto tick = 0;
+    if (!selected.isEmpty()) {
+        if (const auto *clip = appModel->findClipById(selected.constFirst()))
+            tick = clip->start() + clip->clipStart();
+    }
+    return snapStep(tick);
+}
+
+void TracksRhiWidget::nudgeSelection(const int deltaTicks, const int deltaTracks) const {
+    if (deltaTicks == 0 && deltaTracks == 0)
+        return;
+    trackController->nudgeSelectedClips(deltaTicks, deltaTracks);
+}
+
 void TracksRhiWidget::commitDrag() {
-    const auto committed = m_dragPreview && m_dragMoved;
+    const auto committed = m_dragSession.active() && m_dragMoved;
     if (committed) {
-        auto properties = m_dragPreview->properties;
-        if (m_audioDragState)
-            m_audioDragState->writeTruth(properties);
-        else if (const auto audio =
-                     qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
-            AudioClip::preserveUnchangedTruth(properties, m_mouseDownProperties);
-        trackController->onClipPropertyChanged(properties, m_dragPreview->trackIndex);
-    } else if (m_mouseDownColorIndex >= 0) {
-        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
+        const auto placements = m_dragSession.placements();
+        QList<ClipGeometryEdit> edits;
+        edits.reserve(placements.size());
+        for (const auto &placement : placements)
+            edits.append({placement.clipId, placement.trackIndex, placement.properties});
+        if (!edits.isEmpty()) {
+            if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move)
+                trackController->onMoveClips(edits);
+            else
+                trackController->onResizeClips(edits);
+        }
+        // The committed track colour stays on the bottom panel: the active clip now lives there.
+    } else {
+        restoreAnchorTrackColor();
     }
     finishDragSession(committed ? EditSessionEndReason::Commit : EditSessionEndReason::Discard);
-    m_dragPreview.reset();
-    m_audioDragState.reset();
+    // A plain click on a clip that was already part of the selection collapses it to that clip,
+    // matching how notes and parameter anchors behave.
+    const auto collapsed = m_selectionModel.release(appStatus->selectedClips.get(), committed);
+    if (collapsed != appStatus->selectedClips.get())
+        syncSelection(collapsed);
+    clearDragPlacements();
+    m_dragSession.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
-    m_mouseDownTrackIndex = -1;
-    m_mouseDownColorIndex = -1;
+    m_dragAnchorId = -1;
+    m_dragTrackIndex = -1;
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
 }
 
 void TracksRhiWidget::discardDrag() {
-    if (m_mouseDownColorIndex >= 0)
-        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
+    restoreAnchorTrackColor();
     finishDragSession(EditSessionEndReason::Discard);
-    m_dragPreview.reset();
-    m_audioDragState.reset();
+    m_selectionModel.cancelPress();
+    clearDragPlacements();
+    m_dragSession.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
-    m_mouseDownTrackIndex = -1;
-    m_mouseDownColorIndex = -1;
+    m_dragAnchorId = -1;
+    m_dragTrackIndex = -1;
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
     scheduleSnapshot();
@@ -1596,19 +1666,24 @@ void TracksRhiWidget::finishDragSession(const EditSessionEndReason reason) {
         appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
-bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool toggle) const {
-    const auto selected =
-        EditorSelectionUtils::selectionForPress(appStatus->selectedClips.get(), clip.id, toggle);
-    const auto targetSelected = selected.contains(clip.id);
-    syncSelection(selected, targetSelected ? clip.trackIndex : -1);
+bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip,
+                                          const Qt::KeyboardModifiers modifiers) {
+    const auto result = m_selectionModel.press(appStatus->selectedClips.get(), orderedClipIds(),
+                                               clip.id, modifiers);
+    const auto targetSelected = result.targetSelected;
+    syncSelection(result.selection, targetSelected ? clip.trackIndex : -1);
     if (!targetSelected)
         return false;
     trackController->setActiveClip(clip.id);
     return true;
 }
 
-void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) const {
+void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) {
     trackController->setSelectedClips(ids);
+    // Keep the range anchor in step with the platform selection. Clearing the selection through the
+    // blank canvas has to drop the anchor too, otherwise a later Shift click ranges from a clip
+    // that is not selected any more.
+    m_selectionModel.synchronize(ids);
     auto trackIndex = preferredTrack;
     if (trackIndex < 0 && !ids.isEmpty()) {
         Track *track = nullptr;
@@ -1670,8 +1745,9 @@ void TracksRhiWidget::updateAutoPageTurnAvailability() {
 }
 
 Clip::ClipCommonProperties TracksRhiWidget::previewOrModelProperties(const Clip *clip) const {
-    if (m_dragPreview && m_dragPreview->clipId == clip->id())
-        return m_dragPreview->properties;
+    const auto placement = m_placements.constFind(clip->id());
+    if (placement != m_placements.cend())
+        return placement->properties;
     return Clip::ClipCommonProperties(*clip);
 }
 

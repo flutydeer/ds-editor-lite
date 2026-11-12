@@ -94,40 +94,73 @@ void ClipActions::removeClips(const QList<Clip *> &clips, const QList<Track *> &
     setFocusTransition({focus, focus});
 }
 
+void ClipActions::editClips(const QList<ClipPropertyEdit> &edits) {
+    if (edits.isEmpty())
+        return;
+
+    // The name describes what the whole batch did, so a gesture that mixes clip types still shows
+    // one honest entry in the undo menu. The focus transition is merged for the same reason: undo
+    // has to reveal every clip the batch touched, not just the last one.
+    bool allSinging = true;
+    bool allAudio = true;
+    bool allCrossTrack = true;
+    for (const auto &edit : edits) {
+        const auto type = edit.clip->clipType();
+        allSinging = allSinging && type == IClip::Singing;
+        allAudio = allAudio && type == IClip::Audio;
+        allCrossTrack = allCrossTrack && edit.newTrack != edit.oldTrack;
+    }
+    if (allSinging)
+        setTranslatableName("ClipActions",
+                            QT_TRANSLATE_NOOP("ClipActions", "Edit singing clip(s)"));
+    else if (allAudio)
+        setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Edit audio clip(s)"));
+    else if (allCrossTrack)
+        setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Move clip to track"));
+    else
+        setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Edit clip(s)"));
+
+    QList<HistoryFocus> before;
+    QList<HistoryFocus> after;
+    before.reserve(edits.size());
+    after.reserve(edits.size());
+    for (const auto &edit : edits) {
+        if (edit.newTrack != edit.oldTrack) {
+            addAction(MoveClipToTrackAction::build(edit.oldArgs, edit.newArgs, edit.clip,
+                                                   edit.oldTrack, edit.newTrack));
+        } else if (edit.clip->clipType() == Clip::Audio) {
+            addAction(EditClipCommonPropertiesAction::build(
+                edit.oldArgs, edit.newArgs, static_cast<AudioClip *>(edit.clip), edit.oldTrack));
+        } else {
+            addAction(EditSingingClipPropertiesAction::build(
+                edit.oldArgs, edit.newArgs, static_cast<SingingClip *>(edit.clip), edit.oldTrack));
+        }
+        before.append(clipFocus(edit.oldArgs, edit.oldTrack));
+        after.append(clipFocus(edit.newArgs, edit.newTrack));
+    }
+    setFocusTransition({mergeFocus(before), mergeFocus(after)});
+}
+
 void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                             const QList<Clip::ClipCommonProperties> &newArgs,
                                             const QList<SingingClip *> &clips,
                                             const QList<Track *> &tracks) {
-    setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Edit singing clip(s)"));
-    int i = 0;
-    QList<HistoryFocus> before;
-    QList<HistoryFocus> after;
-    for (const auto clip : clips) {
-        addAction(EditSingingClipPropertiesAction::build(oldArgs[i], newArgs[i], clip, tracks[i]));
-        before.append(clipFocus(oldArgs[i], tracks[i]));
-        after.append(clipFocus(newArgs[i], tracks[i]));
-        i++;
-    }
-    setFocusTransition({mergeFocus(before), mergeFocus(after)});
+    QList<ClipPropertyEdit> edits;
+    edits.reserve(clips.size());
+    for (qsizetype i = 0; i < clips.size(); ++i)
+        edits.append({oldArgs[i], newArgs[i], clips[i], tracks[i], tracks[i]});
+    editClips(edits);
 }
 
 void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                           const QList<Clip::ClipCommonProperties> &newArgs,
                                           const QList<AudioClip *> &clips,
                                           const QList<Track *> &tracks) {
-    setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Edit audio clip(s)"));
-    int i = 0;
-    for (const auto clip : clips) {
-        addAction(EditClipCommonPropertiesAction::build(oldArgs[i], newArgs[i], clip, tracks[i]));
-        i++;
-    }
-    QList<HistoryFocus> before;
-    QList<HistoryFocus> after;
-    for (int j = 0; j < clips.count(); j++) {
-        before.append(clipFocus(oldArgs[j], tracks[j]));
-        after.append(clipFocus(newArgs[j], tracks[j]));
-    }
-    setFocusTransition({mergeFocus(before), mergeFocus(after)});
+    QList<ClipPropertyEdit> edits;
+    edits.reserve(clips.size());
+    for (qsizetype i = 0; i < clips.size(); ++i)
+        edits.append({oldArgs[i], newArgs[i], clips[i], tracks[i], tracks[i]});
+    editClips(edits);
 }
 
 void ClipActions::splitClip(const Clip::ClipCommonProperties &oldArgs,
@@ -162,7 +195,7 @@ void ClipActions::relocateAudioClip(AudioClip *clip, const QString &newPath,
 void ClipActions::moveClipToTrack(const Clip::ClipCommonProperties &oldArgs,
                                   const Clip::ClipCommonProperties &newArgs, Clip *clip,
                                   Track *oldTrack, Track *newTrack) {
-    setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Move clip to track"));
-    addAction(MoveClipToTrackAction::build(oldArgs, newArgs, clip, oldTrack, newTrack));
-    setFocusTransition({clipFocus(oldArgs, oldTrack), clipFocus(newArgs, newTrack)});
+    editClips({
+        {oldArgs, newArgs, clip, oldTrack, newTrack}
+    });
 }

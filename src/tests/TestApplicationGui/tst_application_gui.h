@@ -32,6 +32,12 @@ private slots:
     void init();
     void dialogMessagesWrap_data();
     void dialogMessagesWrap();
+    void dialogButtonRolesFollowPlatformLayout_data();
+    void dialogButtonRolesFollowPlatformLayout();
+    void dialogButtonResetPreservesOwnershipAndCallbacks();
+    void messageDialogRolesPreserveResultAndDefault_data();
+    void messageDialogRolesPreserveResultAndDefault();
+    void dialogButtonBoxDoesNotCloseProgressOnCancel();
     void copyPasteUsesTheActiveClipAndPlaybackPosition();
     void cutCopiesThenRemovesSelectionAsOneUndoStep();
     void wholeClipClipboardUsesSelectedTrackAndPreservesCurves();
@@ -70,6 +76,13 @@ private slots:
     void activeClipMoveRebindsThePianoTrackColor();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish_data();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void trackClipGroupDragCommitsAtomically_data();
+    void trackClipGroupDragCommitsAtomically();
+    void trackClipGroupTrimCommitsAtomically_data();
+    void trackClipGroupTrimCommitsAtomically();
+    void trackClipSelectionModifiersAndNudge_data();
+    void trackClipSelectionModifiersAndNudge();
+    void trackClipRangeAnchorClearsWithTheSelection();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
@@ -183,6 +196,9 @@ private slots:
     void titleBarResizeWalkKeepsTheMenuBarWhole();
     void hiddenMenuBarKeepsEveryTopLevelMenuInline();
     void titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow();
+    void uiGalleryLayoutGroupsModules();
+    void uiGalleryCaptureFailuresStopImmediately();
+    void captureUiGallery();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
@@ -207,6 +223,7 @@ private slots:
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();
     void detachedMenuSaveActionsReachDocumentWorkflow();
+    void detachedMenuOptionsUseStandaloneDialog_data();
     void detachedMenuOptionsUseStandaloneDialog();
     void standaloneOptionsDialogBlocksBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
