@@ -366,8 +366,8 @@ void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
                                 "reset:\n%2\n\nReset them?")
                                  .arg(QString::number(spilloverCount), spilloverNames.join('\n')),
                              parent);
-        dialog.addAccentButton(tr("Reset"), resetButtonId);
-        dialog.addButton(tr("Cancel"), cancelButtonId);
+        dialog.addAccentButton(tr("Reset"), resetButtonId, QDialogButtonBox::DestructiveRole);
+        dialog.addButton(tr("Cancel"), cancelButtonId, QDialogButtonBox::RejectRole);
         if (dialog.exec() != resetButtonId)
             return;
     }

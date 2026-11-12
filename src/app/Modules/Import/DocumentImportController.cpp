@@ -362,7 +362,7 @@ void DocumentImportController::showMessageDialog(const QString &title,
     dlg->setTitle(title);
     dlg->setMessage(message);
     const auto btnClose = new Button(tr("Close"), dlg);
-    dlg->setPositiveButton(btnClose);
+    dlg->setPositiveButton(btnClose, QDialogButtonBox::RejectRole);
     connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
     dlg->exec();
 }

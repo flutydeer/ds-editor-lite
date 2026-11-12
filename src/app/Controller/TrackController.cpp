@@ -374,7 +374,7 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
 
         const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
-        dlg->setPositiveButton(btnClose);
+        dlg->setPositiveButton(btnClose, QDialogButtonBox::RejectRole);
         dlg->show();
 
         delete task;

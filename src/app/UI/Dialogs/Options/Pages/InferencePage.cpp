@@ -197,8 +197,8 @@ void InferencePage::confirmCleanCache() {
                              "Files used by undo history and current playback will be kept.")
                               .arg(deletableCount),
                           this);
-    dlg->addButton(tr("Cancel"), 0);
-    dlg->addAccentButton(tr("Clean Up"), 1);
+    dlg->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
+    dlg->addAccentButton(tr("Clean Up"), 1, QDialogButtonBox::DestructiveRole);
     if (dlg->exec() != 1)
         return;
 

@@ -17,8 +17,8 @@ public:
     explicit MessageDialog(const QString &title = "", const QString &message = "",
                            QWidget *parent = nullptr);
 
-    void addButton(const QString &text, int buttonId);
-    void addAccentButton(const QString &text, int buttonId);
+    void addButton(const QString &text, int buttonId, QDialogButtonBox::ButtonRole role);
+    void addAccentButton(const QString &text, int buttonId, QDialogButtonBox::ButtonRole role);
 
     // Adds an unchecked checkbox below the message. Returns nullptr if a checkbox
     // was already added. Read the state back via isCheckBoxChecked() after exec().

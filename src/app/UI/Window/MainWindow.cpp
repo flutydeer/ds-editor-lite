@@ -379,14 +379,14 @@ SaveDecision MainWindow::askDocumentSaveDecision() {
         decision = SaveDecision::Discard;
         dialog.accept();
     });
-    dialog.setNegativeButton(btnDoNotSave);
+    dialog.setNegativeButton(btnDoNotSave, QDialogButtonBox::DestructiveRole);
 
     auto btnCancel = new Button(tr("Cancel"));
     connect(btnCancel, &Button::clicked, &dialog, [&] {
         decision = SaveDecision::Cancel;
         dialog.reject();
     });
-    dialog.setNeutralButton(btnCancel);
+    dialog.setNeutralButton(btnCancel, QDialogButtonBox::RejectRole);
     dialog.exec();
     return decision;
 }
@@ -400,8 +400,8 @@ bool MainWindow::confirmOpenWithoutPackageMetadata() {
     MessageDialog dialog(tr("Package scan failed"),
                          tr("Singer package metadata is not available. Open the project anyway?"));
     dialog.setTitle(tr("Package scan failed"));
-    dialog.addAccentButton(tr("Open Anyway"), 1);
-    dialog.addButton(tr("Cancel"), 0);
+    dialog.addAccentButton(tr("Open Anyway"), 1, QDialogButtonBox::AcceptRole);
+    dialog.addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
     return dialog.exec() == 1;
 }
 
@@ -410,7 +410,7 @@ void MainWindow::showDocumentWorkflowError(const ProjectOperationError &error) {
     dialog.setWindowTitle(tr("Error"));
     dialog.setTitle(error.title);
     dialog.setMessage(error.message);
-    dialog.addAccentButton(tr("OK"), 1);
+    dialog.addAccentButton(tr("OK"), 1, QDialogButtonBox::AcceptRole);
     dialog.exec();
 }
 

@@ -30,6 +30,11 @@ public:
 private slots:
     void initTestCase();
     void init();
+    void dialogButtonRolesFollowPlatformLayout_data();
+    void dialogButtonRolesFollowPlatformLayout();
+    void dialogButtonResetPreservesOwnershipAndCallbacks();
+    void messageDialogRolesPreserveResultAndDefault();
+    void dialogButtonBoxDoesNotCloseProgressOnCancel();
     void copyPasteUsesTheActiveClipAndPlaybackPosition();
     void cutCopiesThenRemovesSelectionAsOneUndoStep();
     void wholeClipClipboardUsesSelectedTrackAndPreservesCurves();

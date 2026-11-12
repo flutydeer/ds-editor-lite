@@ -23,7 +23,7 @@ ResourceCheckDialog::ResourceCheckDialog(QWidget *parent) : Dialog(parent) {
 
     const auto btnClose = new AccentButton(tr("Close"));
     connect(btnClose, &Button::clicked, this, &Dialog::accept);
-    setPositiveButton(btnClose);
+    setPositiveButton(btnClose, QDialogButtonBox::RejectRole);
 }
 
 void ResourceCheckDialog::addPage(IResourceCheckPage *page) {

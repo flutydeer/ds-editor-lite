@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QPointer>
+#include <QDialogButtonBox>
 
 namespace QWK {
     class WidgetWindowAgent;
@@ -13,6 +14,7 @@ class QVBoxLayout;
 class QHBoxLayout;
 class Button;
 class DialogTitleBar;
+class PlatformDialogButtonBox;
 
 class DialogHeader : public QWidget {
 public:
@@ -34,11 +36,13 @@ class DialogButtonBar : public QWidget {
 public:
     explicit DialogButtonBar(QWidget *parent = nullptr);
     ~DialogButtonBar() override;
-    void addButton(Button *button) const;
-    void reset() const;
+    void addButton(Button *button, QDialogButtonBox::ButtonRole role) const;
+    void reset();
+    [[nodiscard]] QDialogButtonBox *buttonBox() const;
 
 private:
     QHBoxLayout *m_mainLayout;
+    PlatformDialogButtonBox *m_buttonBox;
 };
 
 class Dialog : public QDialog {
@@ -50,9 +54,12 @@ public:
 
     void setTitle(const QString &title) const;
     void setMessage(const QString &msg) const;
-    void setPositiveButton(Button *button);
-    void setNegativeButton(Button *button);
-    void setNeutralButton(Button *button);
+    void setPositiveButton(Button *button,
+                           QDialogButtonBox::ButtonRole role = QDialogButtonBox::AcceptRole);
+    void setNegativeButton(Button *button,
+                           QDialogButtonBox::ButtonRole role = QDialogButtonBox::RejectRole);
+    void setNeutralButton(Button *button,
+                          QDialogButtonBox::ButtonRole role = QDialogButtonBox::ActionRole);
 
     QWidget *body() const;
     DialogButtonBar *buttonBar() const;
@@ -79,6 +86,9 @@ private:
     Button *m_positiveButton = nullptr;
     Button *m_negativeButton = nullptr;
     Button *m_neutralButton = nullptr;
+    QDialogButtonBox::ButtonRole m_positiveRole = QDialogButtonBox::AcceptRole;
+    QDialogButtonBox::ButtonRole m_negativeRole = QDialogButtonBox::RejectRole;
+    QDialogButtonBox::ButtonRole m_neutralRole = QDialogButtonBox::ActionRole;
 
     void createButtonBar();
     void setButton();

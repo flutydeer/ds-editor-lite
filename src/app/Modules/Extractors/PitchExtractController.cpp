@@ -20,7 +20,7 @@ namespace {
         dialog.setModal(true);
         const auto close = new AccentButton(PitchExtractController::tr("Close"));
         QObject::connect(close, &Button::clicked, &dialog, &Dialog::accept);
-        dialog.setPositiveButton(close);
+        dialog.setPositiveButton(close, QDialogButtonBox::RejectRole);
         dialog.exec();
     }
 }
