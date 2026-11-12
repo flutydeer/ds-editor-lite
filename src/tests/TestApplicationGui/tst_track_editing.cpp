@@ -1044,3 +1044,77 @@ void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
     QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({lastId}));
     QCOMPARE(runtime.documentVersion(), baseline);
 }
+
+void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Anchor track");
+    trackDraft.defaultLanguage = QStringLiteral("eng");
+    for (int index = 0; index < 3; ++index) {
+        Automation::ClipDraftDto clipDraft;
+        clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+        clipDraft.defaultLanguage = QStringLiteral("eng");
+        clipDraft.properties.name = QStringLiteral("Anchor %1").arg(index);
+        clipDraft.properties.start = 480 + index * 1920;
+        clipDraft.properties.length = 960;
+        clipDraft.properties.clipLen = 960;
+        trackDraft.clips.append(clipDraft);
+    }
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    appendEmptyTrack(runtime, commandContext(), QStringLiteral("Anchor target"));
+
+    QList<Clip *> clips;
+    for (auto *clip : appModel->tracks().at(0)->clips())
+        clips.append(clip);
+    QCOMPARE(clips.size(), 3);
+    const auto firstId = clips.at(0)->id();
+    const auto lastId = clips.at(2)->id();
+
+    editor.resize(1400, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
+    QVERIFY(canvas->setViewportScale(1.5, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+
+    auto *firstItem = editor.findClipItemById(firstId);
+    auto *lastItem = editor.findClipItemById(lastId);
+    QVERIFY(firstItem && lastItem);
+    const auto pointFor = [canvas](const AbstractClipView *item) {
+        return canvas->mapFromScene(item->sceneBoundingRect().center());
+    };
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointFor(firstItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({firstId}));
+
+    // Clicking the empty lane below the clips clears the selection. The range anchor has to go with
+    // it, so a Shift click afterwards selects one clip instead of ranging from the old one.
+    const auto blank = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(480), TracksEditorGlobal::trackHeight * 1.5));
+    QVERIFY(canvas->viewport()->rect().contains(blank));
+    QVERIFY(!dynamic_cast<AbstractClipView *>(canvas->itemAt(blank)));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, blank);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ShiftModifier, pointFor(lastItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({lastId}));
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}

@@ -1370,11 +1370,12 @@ void NativeDesktopTests::rhiClipGroupDragCommitsAtomically() {
     QCOMPARE(firstDelta, secondDelta);
     // The synthetic pointer position is quantized to whole pixels, so the applied delta may differ
     // from the requested one by a couple of pixels' worth of ticks.
-    const auto tolerance = static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
-    QVERIFY2(qAbs(firstDelta - 480) <= tolerance,
-             qPrintable(QStringLiteral("block moved %1 ticks (tolerance %2)")
-                            .arg(firstDelta)
-                            .arg(tolerance)));
+    const auto tolerance =
+        static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
+    QVERIFY2(
+        qAbs(firstDelta - 480) <= tolerance,
+        qPrintable(
+            QStringLiteral("block moved %1 ticks (tolerance %2)").arg(firstDelta).arg(tolerance)));
     int firstTrackIndex = -1;
     int secondTrackIndex = -1;
     QVERIFY(model.findClipById(fixture.clipId, firstTrackIndex));
@@ -1449,7 +1450,8 @@ void NativeDesktopTests::rhiClipGroupTrimAndNudgeCommitAtomically() {
     QVERIFY(!editSessionManager->hasActiveTransaction());
     // The synthetic pointer position is quantized to whole pixels, so the applied delta may differ
     // from the requested one by a couple of pixels' worth of ticks.
-    const auto tolerance = static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
+    const auto tolerance =
+        static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
     const auto firstTrim = firstClip->clipLen() - originalFirstLen;
     const auto secondTrim = secondClip->clipLen() - originalSecondLen;
     QCOMPARE(firstTrim, secondTrim);
@@ -1479,5 +1481,58 @@ void NativeDesktopTests::rhiClipGroupTrimAndNudgeCommitAtomically() {
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart);
     QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void NativeDesktopTests::rhiClipRangeAnchorClearsWithTheSelection() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    Automation::ClipDraftDto secondDraft;
+    secondDraft.properties.name = QStringLiteral("Anchor peer");
+    secondDraft.properties.start = 2400;
+    secondDraft.properties.length = 1920;
+    secondDraft.properties.clipLen = 960;
+    secondDraft.defaultLanguage = QStringLiteral("eng");
+    QVERIFY(fixture.runtime().project().insertClips(
+        fixture.command(), {
+                               {Automation::TrackId(fixture.firstTrackId), secondDraft}
+    }));
+    auto &model = *fixture.application.context->m_appModel;
+    QList<Clip *> trackClips;
+    for (auto *clip : model.tracks().at(0)->clips())
+        trackClips.append(clip);
+    QCOMPARE(trackClips.size(), 2);
+    Clip *secondClip = nullptr;
+    for (auto *clip : trackClips) {
+        if (clip->id() != fixture.clipId)
+            secondClip = clip;
+    }
+    QVERIFY(secondClip);
+    const auto secondClipId = secondClip->id();
+    historyManager->reset();
+
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(canvas.isActiveWindow());
+    QVERIFY(failed.isEmpty());
+    const auto before = fixture.runtime().documentVersion();
+
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+
+    // Clicking the empty lane clears the selection, and the range anchor has to go with it.
+    const auto blank = fixture.point(480, 1);
+    QVERIFY(canvas.rect().contains(blank));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, blank);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ShiftModifier, fixture.point(2400 + 480, 0));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{secondClipId});
+    QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

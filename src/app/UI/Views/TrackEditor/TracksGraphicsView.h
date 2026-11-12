@@ -50,7 +50,7 @@ public:
     [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
 
 public slots:
-    void setClipSelection(const QList<int> &selected) const;
+    void setClipSelection(const QList<int> &selected);
 
 signals:
     void contextMenuRequested(const TrackEditorMenuContext &context);

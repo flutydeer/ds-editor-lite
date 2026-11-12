@@ -893,20 +893,23 @@ void TracksRhiWidget::keyPressEvent(QKeyEvent *event) {
         event->accept();
         return;
     }
+    const auto hasSelection = !appStatus->selectedClips.get().isEmpty();
     const auto step = event->modifiers() == Qt::AltModifier ? 1 : nudgeStep();
-    switch (event->key()) {
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-            nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
-            event->accept();
-            return;
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-            nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
-            event->accept();
-            return;
-        default:
-            break;
+    if (hasSelection) {
+        switch (event->key()) {
+            case Qt::Key_Left:
+            case Qt::Key_Right:
+                nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
+                event->accept();
+                return;
+            case Qt::Key_Up:
+            case Qt::Key_Down:
+                nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
+                event->accept();
+                return;
+            default:
+                break;
+        }
     }
     EditorRhiWidget::keyPressEvent(event);
 }
@@ -1669,8 +1672,12 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip,
     return true;
 }
 
-void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) const {
+void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) {
     trackController->setSelectedClips(ids);
+    // Keep the range anchor in step with the platform selection. Clearing the selection through the
+    // blank canvas has to drop the anchor too, otherwise a later Shift click ranges from a clip
+    // that is not selected any more.
+    m_selectionModel.synchronize(ids);
     auto trackIndex = preferredTrack;
     if (trackIndex < 0 && !ids.isEmpty()) {
         Track *track = nullptr;

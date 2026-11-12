@@ -72,6 +72,7 @@ private slots:
     void rhiClipGroupDragCommitsAtomically_data();
     void rhiClipGroupDragCommitsAtomically();
     void rhiClipGroupTrimAndNudgeCommitAtomically();
+    void rhiClipRangeAnchorClearsWithTheSelection();
     void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel_data();
     void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel();
     void rhiClipResizeCommitsOrCancels_data();

@@ -103,8 +103,12 @@ void TracksGraphicsView::setClipSelectedBorderColor(const QColor &color) {
             clip->update();
 }
 
-void TracksGraphicsView::setClipSelection(const QList<int> &selected) const {
+void TracksGraphicsView::setClipSelection(const QList<int> &selected) {
     applyClipSelection(selected);
+    // Keep the range anchor in step with the platform selection. Clearing the selection through the
+    // blank canvas has to drop the anchor too, otherwise a later Shift click ranges from a clip
+    // that is not selected any more.
+    m_selectionModel.synchronize(selected);
 }
 
 int TracksGraphicsView::snapStep(const bool snapOff, const int atTick) const {
@@ -795,21 +799,25 @@ void TracksGraphicsView::nudgeSelection(const int deltaTicks, const int deltaTra
 }
 
 void TracksGraphicsView::keyPressEvent(QKeyEvent *event) {
+    const auto hasSelection = !selectedClipsId().isEmpty();
     const auto step = event->modifiers() == Qt::AltModifier ? 1 : nudgeStep();
-    switch (event->key()) {
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-            nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
-            event->accept();
-            return;
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-            nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
-            event->accept();
-            return;
-        default:
-            break;
+    if (hasSelection) {
+        switch (event->key()) {
+            case Qt::Key_Left:
+            case Qt::Key_Right:
+                nudgeSelection(event->key() == Qt::Key_Left ? -step : step, 0);
+                event->accept();
+                return;
+            case Qt::Key_Up:
+            case Qt::Key_Down:
+                nudgeSelection(0, event->key() == Qt::Key_Up ? -1 : 1);
+                event->accept();
+                return;
+            default:
+                break;
+        }
     }
+    // Nothing to nudge means the arrows still belong to the inherited scrolling behaviour.
     TimeGraphicsView::keyPressEvent(event);
 }
 

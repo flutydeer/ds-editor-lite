@@ -207,7 +207,7 @@ private:
     void discardDrag();
     void finishDragSession(EditSessionEndReason reason);
     bool updateClipSelection(const ClipSnapshot &clip, Qt::KeyboardModifiers modifiers);
-    void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
+    void syncSelection(const QList<int> &ids, int preferredTrack = -1);
     void updateCursor(const QPointF &position);
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
