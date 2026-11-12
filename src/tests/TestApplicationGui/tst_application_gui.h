@@ -30,6 +30,8 @@ public:
 private slots:
     void initTestCase();
     void init();
+    void dialogMessagesWrap_data();
+    void dialogMessagesWrap();
     void copyPasteUsesTheActiveClipAndPlaybackPosition();
     void cutCopiesThenRemovesSelectionAsOneUndoStep();
     void wholeClipClipboardUsesSelectedTrackAndPreservesCurves();

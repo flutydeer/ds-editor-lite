@@ -2,6 +2,7 @@ project(TestApplicationGui)
 
 lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp
+    tst_dialog_messages.cpp
     tst_application_gui.h
     tst_piano_roll.cpp
     tst_ghost_notes.cpp
