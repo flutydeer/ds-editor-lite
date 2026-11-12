@@ -1115,6 +1115,22 @@ void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
 
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ShiftModifier, pointFor(lastItem));
     QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({lastId}));
+
+    // A right press keeps the group whatever modifiers come with it: the menu decides what to act
+    // on, so Ctrl must not toggle the clip away and Shift must not rebuild the range.
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, pointFor(firstItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+             canonicalClipIds({firstId, lastId}));
+    auto *secondItem = editor.findClipItemById(clips.at(1)->id());
+    QVERIFY(secondItem);
+    for (const auto modifier : {Qt::ControlModifier, Qt::ShiftModifier}) {
+        QTest::mouseClick(canvas->viewport(), Qt::RightButton, modifier, pointFor(firstItem));
+        QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()),
+                 canonicalClipIds({firstId, lastId}));
+    }
+    QTest::mouseClick(canvas->viewport(), Qt::RightButton, Qt::ControlModifier,
+                      pointFor(secondItem));
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({clips.at(1)->id()}));
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

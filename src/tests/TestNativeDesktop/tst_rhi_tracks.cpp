@@ -1533,6 +1533,17 @@ void NativeDesktopTests::rhiClipRangeAnchorClearsWithTheSelection() {
 
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ShiftModifier, fixture.point(2400 + 480, 0));
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{secondClipId});
+
+    // A right press keeps the group whatever modifiers come with it: the menu decides what to act
+    // on, so Ctrl must not toggle the clip away.
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ControlModifier, fixture.point(960, 0));
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    for (const auto modifier : {Qt::ControlModifier, Qt::ShiftModifier}) {
+        QTest::mouseClick(&canvas, Qt::RightButton, modifier, fixture.point(960, 0));
+        QCOMPARE(appStatus->selectedClips.get().size(), 2);
+        QVERIFY(appStatus->selectedClips.get().contains(fixture.clipId));
+        QVERIFY(appStatus->selectedClips.get().contains(secondClipId));
+    }
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

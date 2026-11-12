@@ -153,7 +153,10 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (const auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             if (event->button() != Qt::LeftButton) {
-                updateClipSelection(clipItem, event->modifiers());
+                // A right press only decides what the menu acts on: plain semantics, so a group that
+                // already contains the clip survives and the menu can edit all of it. Forwarding
+                // the modifiers would toggle the clip off (Ctrl) or rebuild the range (Shift).
+                updateClipSelection(clipItem, Qt::NoModifier);
                 setCursor(Qt::ArrowCursor);
             } else {
                 // Arrow-key nudging needs the canvas to own the keyboard, the same way the RHI

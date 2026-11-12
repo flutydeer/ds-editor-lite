@@ -165,6 +165,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::clipSelectionChanged, this, &TracksRhiWidget::scheduleSnapshot);
+    // Anything outside the canvas can replace or clear the selection (delete, cut, undo, select all),
+    // so the range anchor follows the platform selection instead of remembering a clip that is gone.
+    connect(appStatus, &AppStatus::clipSelectionChanged, this,
+            [this](const QList<int> &selected) { m_selectionModel.synchronize(selected); });
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
@@ -466,7 +470,9 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     const auto *hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {
         if (hit) {
-            updateClipSelection(*hit, event->modifiers());
+            // A right press only decides what the menu acts on: plain semantics, so a group that
+            // already contains the clip survives and the menu can edit all of it.
+            updateClipSelection(*hit, Qt::NoModifier);
             scheduleSnapshot();
         } else {
             m_selectionModel.cancelPress();
