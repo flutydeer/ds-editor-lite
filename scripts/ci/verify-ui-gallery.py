@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""Check the screenshot gallery's real files, layout and capture provenance."""
+
+import collections
+import argparse
+import json
+from pathlib import Path
+import struct
+
+
+def png_size(path):
+    with path.open("rb") as image:
+        header = image.read(24)
+    assert header[:8] == b"\x89PNG\r\n\x1a\n", f"Not a PNG: {path}"
+    return list(struct.unpack(">II", header[16:24]))
+
+
+def contains(outer, inner):
+    x, y, width, height = inner
+    ox, oy, ow, oh = outer
+    return x >= ox and y >= oy and x + width <= ox + ow and y + height <= oy + oh
+
+
+def intersects(a, b):
+    return (a[0] < b[0] + b[2] and b[0] < a[0] + a[2]
+            and a[1] < b[1] + b[3] and b[1] < a[1] + a[3])
+
+
+def verify(directory, theme=None):
+    report = json.loads((directory / "ui-review.json").read_text(encoding="utf-8"))
+    assert report["complete"], "Gallery capture did not finish successfully"
+    assert report["layout"] == "flow", "Wrong gallery layout"
+    assert report["size"][0] <= 5120, "Gallery exceeds its maximum row width"
+    if theme:
+        assert report["theme"] == theme, "Wrong gallery theme"
+        assert report["themeId"] == f"lite-{theme}", "Wrong application theme"
+    assert png_size(directory / "ui-review.png") == report["size"]
+    canvas = [0, 0, *report["size"]]
+    methods = collections.Counter()
+    previous_bottom = -1
+    content_right = 0
+    for section in report["sections"]:
+        module_directory = Path("modules") / section["id"]
+        assert Path(section["file"]) == module_directory / "review.png"
+        heading = section["headingRect"]
+        assert contains(canvas, heading)
+        assert heading[1] > previous_bottom, section["title"]
+        assert heading[0] == 64 and heading[2] == report["size"][0] - 128
+        assert png_size(directory / section["file"])[0] == report["size"][0]
+        occupied = []
+        rows = collections.defaultdict(list)
+        for item in section["images"]:
+            assert item["caption"].strip()
+            assert Path(item["file"]).parent == module_directory, "Screenshot is not classified"
+            assert png_size(directory / item["file"]) == item["sourceSize"]
+            image, caption = item["imageRect"], item["captionRect"]
+            rows[item["row"]].append(image)
+            content_right = max(content_right, image[0] + image[2], caption[0] + caption[2])
+            assert contains(canvas, image) and contains(canvas, caption)
+            assert image[1] >= heading[1] + heading[3], item["caption"]
+            assert caption[1] == image[1] + image[3] + 12, "Caption is detached from its image"
+            bounds = [caption[0], image[1], caption[2], caption[1] + caption[3] - image[1]]
+            assert not any(intersects(bounds, other) for other in occupied), item["caption"]
+            occupied.append(bounds)
+            previous_bottom = max(previous_bottom, caption[1] + caption[3])
+            assert item["captureMethod"].strip(), "Capture provenance is missing"
+            methods[item["captureMethod"]] += 1
+        assert section["images"]
+        assert set(rows) == set(range(len(rows))), "Row indices are not contiguous"
+        for images in rows.values():
+            row_top = min(image[1] for image in images)
+            row_height = max(image[3] for image in images)
+            for image in images:
+                assert image[1] == row_top + (row_height - image[3]) // 2, "Image is not vertically centered"
+    assert report["size"][0] == content_right + 64, "Canvas includes unused right padding"
+    print(f"Verified {sum(methods.values())} screenshots in {len(report['sections'])} UI modules")
+    for method, count in sorted(methods.items()):
+        print(f"  {method}: {count}")
+    if methods["x11-window-without-compositor"]:
+        print("X11 captures include native Openbox frames; this desktop has no compositor shadows")
+    if methods["windows-printwindow-frame-qt-client"]:
+        print("PrintWindow frames use complete Qt client pixels; DWM compositor shadows are not guaranteed")
+    fallback_count = methods["appkit-frame-fallback"] + methods["qt-client-fallback"]
+    if fallback_count:
+        print(f"::warning::{fallback_count} windows used a fallback without system shadow/corner guarantees")
+    return report
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    parser.add_argument("--theme", choices=("light", "dark"))
+    args = parser.parse_args()
+    verify(args.directory, args.theme)

@@ -23,6 +23,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_adaptive_clip_toolbar.cpp
     tst_main_menu_overflow.cpp
     tst_title_bar_layout.cpp
+    tst_ui_gallery.cpp
     tst_resources.cpp
     tst_main_window.cpp
     tst_log_window.cpp
@@ -58,7 +59,7 @@ if(APPLE)
 endif()
 if(APPLE)
     # Exercise menu and touch focus restoration through the macOS window system.
-    lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 300)
+    lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 600)
 else()
-    lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 300)
+    lite_register_test(${PROJECT_NAME} CATEGORY gui GUI TIMEOUT 600)
 endif()
