@@ -1232,3 +1232,252 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     QVERIFY(failed.isEmpty());
 }
+
+void NativeDesktopTests::rhiClipGroupDragCommitsAtomically_data() {
+    QTest::addColumn<bool>("useTouch");
+    QTest::newRow("mouse") << false;
+    QTest::newRow("touch") << true;
+}
+
+void NativeDesktopTests::rhiClipGroupDragCommitsAtomically() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, useTouch);
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    // A second clip on the second row, plus a free third row for the block to travel into.
+    Automation::ClipDraftDto secondDraft;
+    secondDraft.properties.name = QStringLiteral("Movable peer");
+    secondDraft.properties.start = 960;
+    secondDraft.properties.length = 1920;
+    secondDraft.properties.clipLen = 960;
+    secondDraft.defaultLanguage = QStringLiteral("eng");
+    Automation::NoteDraftDto note;
+    note.localStart = 120;
+    note.length = 480;
+    note.keyIndex = 62;
+    note.lyric = QStringLiteral("lo");
+    note.language = QStringLiteral("eng");
+    secondDraft.notes = {note};
+    QVERIFY(fixture.runtime().project().insertClips(
+        fixture.command(), {
+                               {Automation::TrackId(fixture.secondTrackId), secondDraft}
+    }));
+    Automation::TrackDraftDto third;
+    third.name = QStringLiteral("Spare");
+    QVERIFY(fixture.runtime().project().insertTracks(fixture.command(), 2, {third}));
+    auto &model = *fixture.application.context->m_appModel;
+    QCOMPARE(model.tracks().size(), 3);
+    auto *firstClip = model.findClipById(fixture.clipId);
+    auto *secondClip = *model.tracks().at(1)->clips().begin();
+    QVERIFY(firstClip && secondClip);
+    const auto secondClipId = secondClip->id();
+    historyManager->reset();
+
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(canvas.isActiveWindow());
+    QVERIFY(failed.isEmpty());
+    const auto before = fixture.runtime().documentVersion();
+    const auto originalFirstStart = firstClip->start() + firstClip->clipStart();
+    const auto originalSecondStart = secondClip->start() + secondClip->clipStart();
+
+    auto *device = QTest::createTouchDevice();
+    auto touch = QTest::touchEvent(&canvas, device, false);
+    bool touchPressed = false;
+    QPoint lastTouchPoint;
+    const auto releaseTouch = qScopeGuard([&] {
+        if (!touchPressed)
+            return;
+        QTouchEvent cancel(QEvent::TouchCancel, device);
+        QApplication::sendEvent(&canvas, &cancel);
+        touch.release(0, lastTouchPoint).commit();
+    });
+
+    const auto pressPointer = [&](const QPoint &point) {
+        lastTouchPoint = point;
+        if (useTouch) {
+            touch.press(0, point).commit();
+            touchPressed = true;
+        } else {
+            QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, point);
+        }
+    };
+    const auto movePointer = [&](const QPoint &point) {
+        lastTouchPoint = point;
+        if (useTouch) {
+            touch.move(0, point).commit();
+        } else {
+            moveWithButton(canvas, point, Qt::AltModifier);
+        }
+    };
+    const auto liftPointer = [&](const QPoint &point) {
+        lastTouchPoint = point;
+        if (useTouch) {
+            touch.release(0, point).commit();
+            touchPressed = false;
+        } else {
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::AltModifier, point);
+        }
+    };
+
+    const auto firstPoint = fixture.point(960, 0);
+    // The peer spans [960, 1920], so its centre is the only safe place to grab the body: both
+    // edges belong to the resize handles.
+    const auto secondPoint = fixture.point(1440, 1);
+    const auto target = fixture.point(1920, 2);
+    QVERIFY(canvas.rect().contains(firstPoint));
+    QVERIFY(canvas.rect().contains(secondPoint));
+    QVERIFY(canvas.rect().contains(target));
+
+    if (useTouch) {
+        // A finger has no modifier keys, so the block is built through the selection API; the press
+        // on a selected clip must keep it, which is the behaviour under test.
+        appStatus->selectedClips = QList<int>{fixture.clipId, secondClipId};
+        // The canvas decides what a finger grabbed from its snapshots, so they have to catch up
+        // with the selection before the press arrives.
+        const auto selectedFrame = frames.size();
+        canvas.update();
+        QTRY_VERIFY(frames.size() > selectedFrame);
+    } else {
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, firstPoint);
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ControlModifier, secondPoint);
+    }
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    QVERIFY(appStatus->selectedClips.get().contains(fixture.clipId));
+    QVERIFY(appStatus->selectedClips.get().contains(secondClipId));
+
+    const auto previewFrame = frames.size();
+    pressPointer(secondPoint);
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    movePointer(target);
+    // A finger press is held back until the finger travels, so the edit transaction is only open
+    // once the stream has become a synthetic drag.
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QTRY_VERIFY(frames.size() > previewFrame);
+    QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart);
+    QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    liftPointer(target);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    const auto firstDelta = firstClip->start() + firstClip->clipStart() - originalFirstStart;
+    const auto secondDelta = secondClip->start() + secondClip->clipStart() - originalSecondStart;
+    QCOMPARE(firstDelta, secondDelta);
+    // The synthetic pointer position is quantized to whole pixels, so the applied delta may differ
+    // from the requested one by a couple of pixels' worth of ticks.
+    const auto tolerance = static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
+    QVERIFY2(qAbs(firstDelta - 480) <= tolerance,
+             qPrintable(QStringLiteral("block moved %1 ticks (tolerance %2)")
+                            .arg(firstDelta)
+                            .arg(tolerance)));
+    int firstTrackIndex = -1;
+    int secondTrackIndex = -1;
+    QVERIFY(model.findClipById(fixture.clipId, firstTrackIndex));
+    QVERIFY(model.findClipById(secondClipId, secondTrackIndex));
+    QCOMPARE(firstTrackIndex, 1);
+    QCOMPARE(secondTrackIndex, 2);
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QVERIFY(historyManager->canUndo());
+
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart);
+    QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(historyManager->canRedo());
+    QVERIFY(fixture.runtime().history().redo(fixture.command()));
+    QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart + firstDelta);
+    QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart + firstDelta);
+}
+
+void NativeDesktopTests::rhiClipGroupTrimAndNudgeCommitAtomically() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    Automation::ClipDraftDto secondDraft;
+    secondDraft.properties.name = QStringLiteral("Trim peer");
+    secondDraft.properties.start = 1920;
+    secondDraft.properties.length = 1920;
+    secondDraft.properties.clipLen = 960;
+    secondDraft.defaultLanguage = QStringLiteral("eng");
+    QVERIFY(fixture.runtime().project().insertClips(
+        fixture.command(), {
+                               {Automation::TrackId(fixture.secondTrackId), secondDraft}
+    }));
+    auto &model = *fixture.application.context->m_appModel;
+    auto *firstClip = model.findClipById(fixture.clipId);
+    auto *secondClip = *model.tracks().at(1)->clips().begin();
+    QVERIFY(firstClip && secondClip);
+    const auto secondClipId = secondClip->id();
+    const auto originalFirstLen = firstClip->clipLen();
+    const auto originalSecondLen = secondClip->clipLen();
+    historyManager->reset();
+
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(canvas.isActiveWindow());
+    QVERIFY(failed.isEmpty());
+    const auto before = fixture.runtime().documentVersion();
+
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ControlModifier, fixture.point(2400, 1));
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+
+    // Drag the right edge of the peer: the whole block is trimmed by the same delta. The peer
+    // spans [1920, 2880], so its right edge is the only handle to grab here.
+    const auto rightEdge = fixture.point(1920 + 960, 1);
+    const auto edge = rightEdge - QPoint(1, 0);
+    const auto target = fixture.point(1920 + 960 + 240, 1);
+    QVERIFY(canvas.rect().contains(edge));
+    QVERIFY(canvas.rect().contains(target));
+    const auto previewFrame = frames.size();
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, edge);
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    moveWithButton(canvas, target, Qt::AltModifier);
+    QTRY_VERIFY(frames.size() > previewFrame);
+    QCOMPARE(secondClip->clipLen(), originalSecondLen);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::AltModifier, target);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    // The synthetic pointer position is quantized to whole pixels, so the applied delta may differ
+    // from the requested one by a couple of pixels' worth of ticks.
+    const auto tolerance = static_cast<int>(std::ceil((canvas.endTick() - canvas.startTick()) / canvas.width())) * 2;
+    const auto firstTrim = firstClip->clipLen() - originalFirstLen;
+    const auto secondTrim = secondClip->clipLen() - originalSecondLen;
+    QCOMPARE(firstTrim, secondTrim);
+    QVERIFY2(qAbs(firstTrim - 240) <= tolerance,
+             qPrintable(QStringLiteral("block trimmed by %1 ticks (tolerance %2)")
+                            .arg(firstTrim)
+                            .arg(tolerance)));
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(firstClip->clipLen(), originalFirstLen);
+    QCOMPARE(secondClip->clipLen(), originalSecondLen);
+
+    // Arrow keys nudge the same block by one WYSIWYG grid step.
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ControlModifier, fixture.point(2400, 1));
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    const auto originalFirstStart = firstClip->start() + firstClip->clipStart();
+    const auto originalSecondStart = secondClip->start() + secondClip->clipStart();
+    const auto step = canvas.snapStep(originalFirstStart);
+    QVERIFY(step > 1);
+    canvas.setFocus();
+    const auto beforeNudge = fixture.runtime().documentVersion();
+    QTest::keyClick(&canvas, Qt::Key_Right);
+    QCOMPARE(fixture.runtime().documentVersion().revision, beforeNudge.revision + 1);
+    QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart + step);
+    QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart + step);
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(firstClip->start() + firstClip->clipStart(), originalFirstStart);
+    QCOMPARE(secondClip->start() + secondClip->clipStart(), originalSecondStart);
+    QVERIFY(!historyManager->canUndo());
+}
