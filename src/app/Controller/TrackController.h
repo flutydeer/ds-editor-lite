@@ -21,6 +21,14 @@ namespace talcs {
     class AbstractAudioFormatIO;
 }
 
+// Final geometry of one clip after an arrangement gesture. `trackIndex` is the target row, or -1 to
+// keep the clip on the track it currently belongs to.
+struct ClipGeometryEdit {
+    int clipId = -1;
+    int trackIndex = -1;
+    Clip::ClipCommonProperties properties;
+};
+
 class TrackController final : public QObject {
     Q_OBJECT
 
@@ -59,6 +67,14 @@ public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);
     static void onRemoveClips(const QList<int> &clipsId);
+    // Commits one arrangement gesture over the whole selection as a single history entry. Both
+    // entry points ignore clips that disappeared between the gesture and the commit, and skip the
+    // command entirely when nothing is left to edit.
+    static void onMoveClips(const QList<ClipGeometryEdit> &edits);
+    static void onResizeClips(const QList<ClipGeometryEdit> &edits);
+    // Moves the current clip selection by whole steps and clamps it so no clip leaves the timeline
+    // or the track range. Both deltas are in ticks and track rows.
+    static void nudgeSelectedClips(int deltaTicks, int deltaTracks);
     static SingingClip *onNewSingingClip(int trackIndex, int tick);
     static void copySelectedClips();
     static void cutSelectedClips();

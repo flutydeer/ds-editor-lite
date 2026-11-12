@@ -94,3 +94,7 @@ handleSingingClipInserted:
 - `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp`（垂直拖拽 + 颜色同步）
 - `src/app/UI/Views/TrackEditor/TrackEditorView.cpp`（视图缓存/复用 + 信号重连）
 - `src/app/Modules/Inference/InferController.cpp`（移动 vs 删除区分）
+
+## 多选移动
+
+多选整体移动复用同一条 `MoveClipToTrackAction`：`TrackController::onMoveClips` 把整块的目标几何交给 `ProjectAutomationFacade::moveClips`，后者对每个跨轨的剪辑仍走 `MoveClipToTrackAction`，所以「移动 vs 删除」的推理管线判定不变。手势本身由 `ClipSelectionDrag` 规划，详见 [clip-multi-selection-design.md](clip-multi-selection-design.md)。

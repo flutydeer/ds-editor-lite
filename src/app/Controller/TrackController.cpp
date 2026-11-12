@@ -32,6 +32,9 @@
 #include <QJsonDocument>
 #include <QMimeData>
 
+#include <algorithm>
+#include <limits>
+
 namespace {
     Automation::CoreRuntime *automationRuntime() {
         return AppContext::instance<Automation::CoreRuntime>();
@@ -252,8 +255,8 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
     std::optional<Automation::TrackId> targetTrackId;
     if (newTrackIndex >= 0 && newTrackIndex < appModel->tracks().size())
         targetTrackId = Automation::TrackId(appModel->tracks().at(newTrackIndex)->id());
-    (void)runtime->project().setClipProperties(
-        commandContext(*runtime), clipPropertiesDto(args), targetTrackId);
+    (void) runtime->project().setClipProperties(commandContext(*runtime), clipPropertiesDto(args),
+                                                targetTrackId);
 }
 
 void TrackController::onRemoveClips(const QList<int> &clipsId) {
@@ -267,6 +270,113 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
     const auto result = runtime->project().removeClips(commandContext(*runtime), ids);
     if (result && result.get().changed && clipsId.contains(appStatus->activeClipId.get()))
         setActiveClip(-1);
+}
+
+void TrackController::onMoveClips(const QList<ClipGeometryEdit> &edits) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    QList<Automation::ClipMoveDto> moves;
+    moves.reserve(edits.size());
+    for (const auto &edit : edits) {
+        // The gesture may outlive a clip (an import finishing, an undo from elsewhere), so every
+        // entry is re-resolved instead of trusted.
+        Track *clipTrack = nullptr;
+        if (!appModel->findClipById(edit.clipId, clipTrack) || !clipTrack)
+            continue;
+        const auto trackIndex = edit.trackIndex >= 0
+                                    ? edit.trackIndex
+                                    : static_cast<int>(appModel->tracks().indexOf(clipTrack));
+        if (trackIndex < 0 || trackIndex >= appModel->tracks().size())
+            continue;
+        moves.append({Automation::ClipId(edit.clipId),
+                      Automation::TrackId(appModel->tracks().at(trackIndex)->id()),
+                      edit.properties.start + edit.properties.clipStart});
+    }
+    if (moves.isEmpty())
+        return;
+    (void) runtime->project().moveClips(commandContext(*runtime), moves);
+}
+
+void TrackController::onResizeClips(const QList<ClipGeometryEdit> &edits) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    QList<Automation::ClipPropertiesDto> batch;
+    batch.reserve(edits.size());
+    for (const auto &edit : edits) {
+        if (!appModel->findClipById(edit.clipId))
+            continue;
+        auto properties = edit.properties;
+        properties.id = edit.clipId;
+        batch.append(clipPropertiesDto(properties));
+    }
+    if (batch.isEmpty())
+        return;
+    (void) runtime->project().setClipsProperties(commandContext(*runtime), batch);
+}
+
+void TrackController::nudgeSelectedClips(const int deltaTicks, const int deltaTracks) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    const auto &tracks = appModel->tracks();
+    if (tracks.isEmpty())
+        return;
+
+    struct Pending {
+        int clipId;
+        int trackIndex;
+        int visibleStart;
+    };
+
+    QList<Pending> pending;
+    int minimumVisibleStart = 0;
+    int minimumTrackIndex = 0;
+    int maximumTrackIndex = 0;
+    for (const auto id : appStatus->selectedClips.get()) {
+        Track *track = nullptr;
+        const auto *clip = appModel->findClipById(id, track);
+        if (!clip || !track)
+            continue;
+        const auto trackIndex = static_cast<int>(tracks.indexOf(track));
+        if (trackIndex < 0)
+            continue;
+        const auto visibleStart = clip->start() + clip->clipStart();
+        if (pending.isEmpty()) {
+            minimumVisibleStart = visibleStart;
+            minimumTrackIndex = trackIndex;
+            maximumTrackIndex = trackIndex;
+        } else {
+            minimumVisibleStart = std::min(minimumVisibleStart, visibleStart);
+            minimumTrackIndex = std::min(minimumTrackIndex, trackIndex);
+            maximumTrackIndex = std::max(maximumTrackIndex, trackIndex);
+        }
+        pending.append({id, trackIndex, visibleStart});
+    }
+    if (pending.isEmpty())
+        return;
+
+    // The whole selection moves as one block: clamp once, then apply the same delta everywhere.
+    const auto appliedTicks = std::max(deltaTicks, -minimumVisibleStart);
+    const auto appliedTracks = std::clamp(deltaTracks, -minimumTrackIndex,
+                                          static_cast<int>(tracks.size()) - 1 - maximumTrackIndex);
+    if (appliedTicks == 0 && appliedTracks == 0)
+        return;
+
+    QList<Automation::ClipMoveDto> moves;
+    moves.reserve(pending.size());
+    for (const auto &item : pending) {
+        const auto trackIndex = item.trackIndex + appliedTracks;
+        if (trackIndex < 0 || trackIndex >= tracks.size())
+            continue;
+        moves.append({Automation::ClipId(item.clipId),
+                      Automation::TrackId(tracks.at(trackIndex)->id()),
+                      item.visibleStart + appliedTicks});
+    }
+    if (moves.isEmpty())
+        return;
+    (void) runtime->project().moveClips(commandContext(*runtime), moves);
 }
 
 SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int tick) {

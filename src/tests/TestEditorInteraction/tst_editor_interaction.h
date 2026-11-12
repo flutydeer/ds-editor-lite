@@ -81,6 +81,11 @@ private slots:
     void audioRightTrimStopsAtMaterialBoundary();
     void audioResizeAcrossOppositeEdge_data();
     void audioResizeAcrossOppositeEdge();
+    void clipSelectionGroupMove();
+    void clipSelectionGroupMoveClamps();
+    void clipSelectionGroupTrim();
+    void clipSelectionGroupTrimClampsPerClip();
+    void clipSelectionRealTimeAnchorKeepsTruth();
     void sceneAttachment();
     void overlayStartupAndZoom();
     void rhiScrollbars();

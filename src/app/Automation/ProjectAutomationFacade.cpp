@@ -981,21 +981,12 @@ namespace Automation {
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
 
                 auto actions = std::make_unique<ClipActions>();
-                for (const auto &item : prepared) {
-                    if (item.target != item.resolved.track) {
-                        actions->moveClipToTrack(item.previous, item.next, item.resolved.clip,
-                                                 item.resolved.track, item.target);
-                    } else if (item.resolved.clip->clipType() == Clip::Audio) {
-                        actions->editAudioClipProperties(
-                            {item.previous}, {item.next},
-                            {static_cast<AudioClip *>(item.resolved.clip)}, {item.resolved.track});
-                    } else {
-                        actions->editSingingClipProperties(
-                            {item.previous}, {item.next},
-                            {static_cast<SingingClip *>(item.resolved.clip)},
-                            {item.resolved.track});
-                    }
-                }
+                QList<ClipPropertyEdit> edits;
+                edits.reserve(prepared.size());
+                for (const auto &item : prepared)
+                    edits.append({item.previous, item.next, item.resolved.clip, item.resolved.track,
+                                  item.target});
+                actions->editClips(edits);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1267,6 +1258,63 @@ namespace Automation {
                                                        {static_cast<SingingClip *>(clip)},
                                                        {resolved.get().track});
                 }
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        ProjectAutomationFacade::setClipsProperties(const CommandContext &context,
+                                                    const QList<ClipPropertiesDto> &properties) {
+        // One dispatch for the whole batch: a gesture that edits several clips has to stay a single
+        // history entry, so it cannot be a loop over the single-clip command above.
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::clips::set_properties, context,
+            [this, properties](DocumentSession &session, const bool validateOnly) {
+                auto ordered = properties;
+                std::sort(ordered.begin(), ordered.end(),
+                          [](const ClipPropertiesDto &left, const ClipPropertiesDto &right) {
+                              return left.id.value() < right.id.value();
+                          });
+                const bool hasDuplicate = std::adjacent_find(ordered.cbegin(), ordered.cend(),
+                                                             [](const ClipPropertiesDto &left,
+                                                                const ClipPropertiesDto &right) {
+                                                                 return left.id == right.id;
+                                                             }) != ordered.cend();
+                if (hasDuplicate) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("properties"), QStringLiteral("Clip IDs must be unique")));
+                }
+
+                QList<ClipPropertyEdit> edits;
+                QList<ObjectRef> affected;
+                edits.reserve(ordered.size());
+                affected.reserve(ordered.size());
+                bool changed = false;
+                for (const auto &entry : ordered) {
+                    if (!validClipProperties(entry)) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("properties"),
+                            QStringLiteral("Clip geometry or gain is invalid")));
+                    }
+                    auto resolved = m_objects.clip(session, entry.id);
+                    if (!resolved)
+                        return AutomationResult<MutationResult>(resolved.getError());
+                    auto *clip = resolved.get().clip;
+                    auto *track = resolved.get().track;
+                    const Clip::ClipCommonProperties previous(*clip);
+                    changed = changed || !clipPropertiesEqual(previous, entry);
+                    affected.append({ObjectKind::Clip, entry.id.value()});
+                    edits.append({previous, toModelProperties(entry), clip, track, track});
+                }
+
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed || edits.isEmpty())
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+
+                auto actions = std::make_unique<ClipActions>();
+                actions->editClips(edits);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
