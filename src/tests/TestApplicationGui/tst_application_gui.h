@@ -33,6 +33,7 @@ private slots:
     void dialogButtonRolesFollowPlatformLayout_data();
     void dialogButtonRolesFollowPlatformLayout();
     void dialogButtonResetPreservesOwnershipAndCallbacks();
+    void messageDialogRolesPreserveResultAndDefault_data();
     void messageDialogRolesPreserveResultAndDefault();
     void dialogButtonBoxDoesNotCloseProgressOnCancel();
     void copyPasteUsesTheActiveClipAndPlaybackPosition();

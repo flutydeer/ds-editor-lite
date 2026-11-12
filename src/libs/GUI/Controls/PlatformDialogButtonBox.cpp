@@ -20,6 +20,10 @@ PlatformDialogButtonBox::PlatformDialogButtonBox(const ButtonLayout buttonLayout
 QDialogButtonBox::ButtonLayout PlatformDialogButtonBox::platformLayout() {
 #ifdef Q_OS_MAC
     return MacLayout;
+#elif defined(Q_OS_LINUX)
+    // Use GNOME's cancel-before-affirmative convention rather than inheriting
+    // the Windows drawing style installed by AppEnvironment.
+    return GnomeLayout;
 #else
     return WinLayout;
 #endif

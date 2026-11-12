@@ -198,7 +198,7 @@ void InferencePage::confirmCleanCache() {
                               .arg(deletableCount),
                           this);
     dlg->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
-    dlg->addAccentButton(tr("Clean Up"), 1, QDialogButtonBox::DestructiveRole);
+    dlg->addAccentButton(tr("Clean Up"), 1, QDialogButtonBox::AcceptRole);
     if (dlg->exec() != 1)
         return;
 

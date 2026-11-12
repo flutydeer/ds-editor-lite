@@ -50,6 +50,19 @@ void ApplicationGuiTests::dialogButtonRolesFollowPlatformLayout() {
         QCOMPARE(box->buttonRole(ok), QDialogButtonBox::AcceptRole);
         QVERIFY(ok->isDefault());
     }
+    auto *discard = new Button(QStringLiteral("Don't save"));
+    box->addButton(discard, QDialogButtonBox::DestructiveRole);
+    QTRY_VERIFY(discard->geometry().center().x() < cancel->geometry().center().x());
+    QTRY_COMPARE(ok->geometry().center().x() > discard->geometry().center().x(), acceptOnRight);
+    box->removeButton(ok);
+    delete ok;
+    box->removeButton(discard);
+    delete discard;
+    auto *openFolder = new AccentButton(QStringLiteral("Open Folder"));
+    box->addButton(openFolder, QDialogButtonBox::ActionRole);
+    openFolder->setDefault(true);
+    QTRY_VERIFY(openFolder->geometry().center().x() < cancel->geometry().center().x());
+    QVERIFY(openFolder->isDefault());
     PlatformDialogButtonBox native;
     QCOMPARE(native.style()->styleHint(QStyle::SH_DialogButtonLayout, nullptr, &native),
              int(PlatformDialogButtonBox::platformLayout()));
@@ -90,8 +103,23 @@ void ApplicationGuiTests::dialogButtonResetPreservesOwnershipAndCallbacks() {
     QVERIFY(!dialog.isVisible());
 }
 
+void ApplicationGuiTests::messageDialogRolesPreserveResultAndDefault_data() {
+    dialogButtonRolesFollowPlatformLayout_data();
+}
+
 void ApplicationGuiTests::messageDialogRolesPreserveResultAndDefault() {
+    QFETCH(int, policy);
+    QFETCH(bool, acceptOnRight);
+    const auto applyPolicy = [policy](MessageDialog &dialog) {
+        auto *box = dialog.buttonBar()->buttonBox();
+        // A production box receives its policy once, in its constructor.
+        // Polish before replacing that policy so Qt also relayouts this test box.
+        box->ensurePolished();
+        box->setStyleSheet(
+            QStringLiteral("QDialogButtonBox { button-layout: %1; }").arg(policy));
+    };
     MessageDialog dialog(QStringLiteral("Confirm"), QStringLiteral("Message"));
+    applyPolicy(dialog);
     dialog.addButton(QStringLiteral("Cancel"), 42, QDialogButtonBox::RejectRole);
     dialog.addAccentButton(QStringLiteral("Proceed"), 7, QDialogButtonBox::AcceptRole);
     auto *box = dialog.buttonBar()->buttonBox();
@@ -108,15 +136,18 @@ void ApplicationGuiTests::messageDialogRolesPreserveResultAndDefault() {
     dialog.show();
     QVERIFY(QTest::qWaitForWindowExposed(&dialog));
     QVERIFY(cancel->isDefault()); // Preserve the original first-added default.
+    QTRY_COMPARE(proceed->geometry().center().x() > cancel->geometry().center().x(), acceptOnRight);
     QTimer::singleShot(0, proceed, &Button::click);
     QCOMPARE(dialog.exec(), 7); // IDs are independent of layout positions and roles.
 
     MessageDialog escaped;
+    applyPolicy(escaped);
     escaped.addAccentButton(QStringLiteral("OK"), 7, QDialogButtonBox::AcceptRole);
     QTimer::singleShot(0, &escaped, [&] { QTest::keyClick(&escaped, Qt::Key_Escape); });
     QCOMPARE(escaped.exec(), -1);
 
     MessageDialog keyboard;
+    applyPolicy(keyboard);
     keyboard.addButton(QStringLiteral("Cancel"), 42, QDialogButtonBox::RejectRole);
     keyboard.addAccentButton(QStringLiteral("Proceed"), 7, QDialogButtonBox::AcceptRole);
     QTimer::singleShot(0, &keyboard, [&] { QTest::keyClick(&keyboard, Qt::Key_Return); });

@@ -374,7 +374,7 @@ void ParamEditorView::onStopDynamicMix() {
         tr("This will delete all dynamic mix keyframes and return this clip to fixed mix."), this);
     dialog.setTitle(tr("Stop using dynamic speaker mix?"));
     dialog.addAccentButton(tr("停止使用动态混合"), stopDynamicMixButtonId,
-                           QDialogButtonBox::DestructiveRole);
+                           QDialogButtonBox::AcceptRole);
     dialog.addButton(tr("取消"), keepDynamicMixButtonId, QDialogButtonBox::RejectRole);
     if (dialog.exec() != stopDynamicMixButtonId) {
         return;
