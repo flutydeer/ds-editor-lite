@@ -19,6 +19,8 @@
 #include <QStyle>
 #include <QVariantAnimation>
 
+#include <functional>
+
 #define ChromeMinimize QStringLiteral(u"\ue921")
 #define ChromeMaximize QStringLiteral(u"\ue922")
 #define ChromeRestore  QStringLiteral(u"\ue923")
@@ -27,13 +29,35 @@
 namespace {
     constexpr int kTitleBarHeight = 40;
     constexpr int kTrafficLightAreaWidth = 74;
+
+    // QApplication delivers a resize to the layout before the widget, so the
+    // width budget of the selector has to be refreshed here, right before the
+    // space is distributed. Doing it from resizeEvent() would leave the first
+    // layout pass with the previous budget: the menu bar would be squeezed for
+    // one frame and a menu would flicker in and out of the overflow list while
+    // the window is dragged. See docs/design/main-title-bar-sections.md.
+    class TitleBarLayout final : public QHBoxLayout {
+    public:
+        using QHBoxLayout::QHBoxLayout;
+
+        void setGeometry(const QRect &rect) override {
+            if (m_beforeSetGeometry)
+                m_beforeSetGeometry();
+            QHBoxLayout::setGeometry(rect);
+        }
+
+        std::function<void()> m_beforeSetGeometry;
+    };
 }
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
                            const TitleBarSections &sections, const TitleBarRole role)
     : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections),
-      m_layout(new QHBoxLayout(this)) {
+      m_layout(new TitleBarLayout(this)) {
     setAttribute(Qt::WA_StyledBackground);
+    static_cast<TitleBarLayout *>(m_layout)->m_beforeSetGeometry = [this] {
+        updateSectionWidths();
+    };
 
     if (sections.trafficLightArea) {
         // QWindowKit centres the native buttons within this placeholder.
@@ -242,6 +266,44 @@ void MainTitleBar::setTitle(const QString &title) const {
     if (!m_titleComboBox)
         return;
     m_titleComboBox->setTitle(title);
+    updateSectionWidths();
+}
+
+void MainTitleBar::updateSectionWidths() const {
+    if (!m_titleComboBox || !m_layout)
+        return;
+
+    // What the rest of the bar asks for at its preferred size. The item hint is
+    // what the layout itself consumes: it folds in the widget's minimum size,
+    // which matters for fixed-size sections such as the system buttons. The
+    // menu bar reports its whole inline set here, never its current overflow
+    // split, so this stays stable while the bar resizes.
+    int demand = m_layout->contentsMargins().left() + m_layout->contentsMargins().right();
+    for (int i = 0; i < m_layout->count(); ++i) {
+        const auto *item = m_layout->itemAt(i);
+        if (!item)
+            continue;
+        const auto *widget = item->widget();
+        if (widget == m_titleComboBox)
+            continue;
+        if (widget && widget->isHidden())
+            continue;
+        demand += item->sizeHint().width();
+    }
+
+    // The selector is the section that yields first. Qt hands out the shortfall
+    // of a cramped layout equally to every shrinkable item, so without a budget
+    // the selector and the menu bar would give way together. Capping the
+    // selector at what the rest of the bar leaves over keeps the menu bar whole
+    // until the selector is down to its minimum width, and only then does the
+    // layout start collapsing trailing menus. Capping a maximum, never a
+    // minimum, keeps the bar's own minimum width, and therefore the window's,
+    // unchanged.
+    const int room = width() - demand;
+    const int limit =
+        qBound(m_titleComboBox->minimumWidth(), room, m_titleComboBox->sizeHint().width());
+    if (m_titleComboBox->maximumWidth() != limit)
+        m_titleComboBox->setMaximumWidth(limit);
 }
 
 SystemWindowButton *MainTitleBar::systemButtonAt(const QPointF &windowPos) const {

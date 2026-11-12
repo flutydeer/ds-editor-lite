@@ -194,6 +194,180 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
     QVERIFY(firstSection(*titleBar) == menu);
 }
 
+void ApplicationGuiTests::titleBarComboBoxCapsAndSqueezesTheProjectTitle() {
+    // The selector lives in a standalone host here: the main window cannot be
+    // narrowed far enough to squeeze a section of its title bar.
+    QWidget host;
+    auto *layout = new QHBoxLayout(&host);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    auto *combo = new TitleBarComboBox(&host);
+    layout->addWidget(combo);
+    layout->addStretch();
+
+    // Qt falls back to three dots when the font cannot render the single
+    // ellipsis glyph, and the offscreen test font cannot.
+    const auto isElided = [](const QString &visibleTitle) {
+        return visibleTitle.endsWith(QChar(0x2026)) || visibleTitle.endsWith(QStringLiteral("..."));
+    };
+
+    host.resize(600, 40);
+    host.show();
+    settleLayout();
+
+    // A title that needs less than the cap is shown complete at its own width.
+    const auto shortTitle = QStringLiteral("Demo project");
+    combo->setTitle(shortTitle);
+    settleLayout();
+    QCOMPARE(combo->width(), combo->sizeHint().width());
+    QVERIFY(combo->width() < combo->maximumWidth());
+    QCOMPARE(combo->visibleTitle(), shortTitle);
+
+    // A long project name stops growing at the cap, and the selector no longer
+    // pins the layout to its own text width.
+    const auto longTitle = QString(120, QChar(u'W'));
+    combo->setTitle(longTitle);
+    QCOMPARE(combo->maximumWidth(), 360);
+    QCOMPARE(combo->minimumWidth(), 80);
+    QCOMPARE(combo->sizeHint().width(), combo->maximumWidth());
+    // The visible text elides, so the complete name stays in the tooltip.
+    QCOMPARE(combo->toolTip(), longTitle);
+    settleLayout();
+    QCOMPARE(combo->width(), combo->maximumWidth());
+    QVERIFY(isElided(combo->visibleTitle()));
+    QVERIFY(combo->visibleTitle().size() < longTitle.size());
+
+    // A narrow bar squeezes the selector instead of overflowing, down to the
+    // minimum the layout is allowed to use, and the visible text shrinks with it.
+    host.resize(200, 40);
+    settleLayout();
+    QVERIFY(combo->width() < combo->maximumWidth());
+    QVERIFY(combo->width() >= combo->minimumWidth());
+    const auto squeezedTitle = combo->visibleTitle();
+    QVERIFY(isElided(squeezedTitle));
+    QVERIFY(squeezedTitle.size() < longTitle.size());
+    // The elided text fits what the left padding and the arrow leave over.
+    QVERIFY(QFontMetrics(combo->font()).horizontalAdvance(squeezedTitle) <= combo->width() - 40);
+
+    // The smallest allowed width still leaves room for a few characters and the
+    // ellipsis, so the selector never turns into an empty pill.
+    host.resize(combo->minimumWidth(), 40);
+    settleLayout();
+    QCOMPARE(combo->width(), combo->minimumWidth());
+    QVERIFY(isElided(combo->visibleTitle()));
+    QVERIFY(!combo->visibleTitle().isEmpty());
+    QVERIFY(QFontMetrics(combo->font()).horizontalAdvance(combo->visibleTitle()) <=
+            combo->minimumWidth() - 40);
+}
+
+void ApplicationGuiTests::titleBarSelectorYieldsBeforeTheMenuBar_data() {
+    QTest::addColumn<bool>("nativeFrame");
+    QTest::newRow("native-frame") << true;
+    QTest::newRow("frameless") << false;
+}
+
+void ApplicationGuiTests::titleBarSelectorYieldsBeforeTheMenuBar() {
+    QFETCH(bool, nativeFrame);
+    TestSupport::MainWindowFixture fixture(TestSupport::MainWindowFixture::MenuPlacement::InWindow,
+                                           nativeFrame);
+    fixture.show();
+    auto *titleBar = fixture.window->findChild<MainTitleBar *>();
+    auto *menu = fixture.window->findChild<MainMenuView *>();
+    QVERIFY(titleBar && menu);
+    auto *combo = titleBar->titleComboBox();
+    QVERIFY(combo);
+
+    // A title wide enough to ask for the whole selector cap.
+    combo->setTitle(QString(120, QChar(u'W')));
+    settleLayout();
+
+    // The bar can be exactly as wide as its own floor plus the width the menu
+    // bar can give up. At that point the menu bar is still complete and every
+    // pixel of the squeeze came out of the selector.
+    const auto barFloor = titleBar->minimumSizeHint().width();
+    const auto menuCapacity = menu->sizeHint().width() - menu->minimumSizeHint().width();
+    QVERIFY(menuCapacity > 0);
+    const auto wholeMenuWidth =
+        qMax(fixture.window->minimumSizeHint().width(), barFloor + menuCapacity + 40);
+    fixture.window->resize(wholeMenuWidth, fixture.window->height());
+    settleLayout();
+    QVERIFY(!menu->isOverflowing());
+    QVERIFY(menu->overflowedMenuActions().isEmpty());
+    QVERIFY(combo->width() < combo->sizeHint().width());
+    QVERIFY(combo->width() > combo->minimumWidth());
+
+    // The narrowest the window allows: the menu bar starts collapsing, and by
+    // then the selector is already at its minimum. This is the priority rule:
+    // the selector always gives way before the menu bar does.
+    fixture.window->resize(fixture.window->minimumSizeHint().width(), fixture.window->height());
+    settleLayout();
+    QVERIFY(combo->width() >= combo->minimumWidth());
+    if (menu->isOverflowing())
+        QCOMPARE(combo->width(), combo->minimumWidth());
+}
+
+void ApplicationGuiTests::titleBarResizeWalkKeepsTheMenuBarWhole_data() {
+    QTest::addColumn<bool>("nativeFrame");
+    QTest::newRow("native-frame") << true;
+    QTest::newRow("frameless") << false;
+}
+
+void ApplicationGuiTests::titleBarResizeWalkKeepsTheMenuBarWhole() {
+    QFETCH(bool, nativeFrame);
+    TestSupport::MainWindowFixture fixture(TestSupport::MainWindowFixture::MenuPlacement::InWindow,
+                                           nativeFrame);
+    fixture.show();
+    auto *titleBar = fixture.window->findChild<MainTitleBar *>();
+    auto *menu = fixture.window->findChild<MainMenuView *>();
+    QVERIFY(titleBar && menu);
+    auto *combo = titleBar->titleComboBox();
+    QVERIFY(combo);
+
+    // Every width the menu bar is handed while the bar narrows. The selector
+    // must absorb the whole squeeze, so the menu bar may never be handed less
+    // than its full inline width in this range, not even for one intermediate
+    // layout pass. A single-pass budget keeps it from flickering in and out of
+    // the overflow menu while the window is dragged.
+    class WidthRecorder final : public QObject {
+    public:
+        explicit WidthRecorder(MainMenuView *menuBar) : m_menuBar(menuBar) {}
+        bool eventFilter(QObject *watched, QEvent *event) override {
+            Q_UNUSED(watched)
+            if (event->type() == QEvent::Resize &&
+                m_menuBar->width() < m_menuBar->sizeHint().width())
+                ++squeezedPasses;
+            return false;
+        }
+        MainMenuView *m_menuBar;
+        int squeezedPasses = 0;
+    } recorder(menu);
+    menu->installEventFilter(&recorder);
+
+    combo->setTitle(QString(120, QChar(u'W')));
+    settleLayout();
+
+    const auto barFloor = titleBar->minimumSizeHint().width();
+    const auto menuCapacity = menu->sizeHint().width() - menu->minimumSizeHint().width();
+    const auto start = qMax(fixture.window->minimumSizeHint().width(),
+                            barFloor + menuCapacity + 90);
+    fixture.window->resize(start, fixture.window->height());
+    settleLayout();
+    QVERIFY(!menu->isOverflowing());
+
+    // Walk the window narrower one pixel at a time, staying well above the
+    // point where the selector reaches its own minimum.
+    for (int step = 1; step <= 60; ++step) {
+        fixture.window->resize(start - step, fixture.window->height());
+        settleLayout();
+        if (combo->width() <= combo->minimumWidth() + 20)
+            break;
+    }
+    menu->removeEventFilter(&recorder);
+
+    QCOMPARE(recorder.squeezedPasses, 0);
+    QVERIFY(!menu->isOverflowing());
+}
+
 void ApplicationGuiTests::hiddenMenuBarKeepsEveryTopLevelMenuInline() {
     TestSupport::MainWindowFixture fixture;
     fixture.show();

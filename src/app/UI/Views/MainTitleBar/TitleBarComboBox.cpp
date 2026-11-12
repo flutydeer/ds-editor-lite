@@ -13,12 +13,25 @@
 namespace {
 
     constexpr int kComboHeight = 28;
-    constexpr int kMinComboWidth = 84;
-    constexpr int kMaxComboWidth = 480;
+    // The selector shows the project identity, but it is only one section of
+    // the title bar. Its preferred width follows the title inside this range,
+    // MainTitleBar caps it so it gives way before the menu bar has to collapse
+    // any menu, and the text elides instead of running under the arrow.
+    constexpr int kMinComboWidth = 80;
+    constexpr int kMaxComboWidth = 360;
     constexpr int kTextLeftPadding = 12;
     constexpr int kTextArrowSpacing = 12;
     constexpr int kArrowAreaWidth = 28;
     constexpr int kArrowIconSize = 16;
+
+    // Left padding plus the arrow area on the right, measured the same way
+    // paintEvent() lays the text out.
+    int preferredWidthForText(const QFontMetrics &metrics, const QString &text) {
+        const int textWidth = metrics.horizontalAdvance(text) + kTextLeftPadding +
+                              kTextArrowSpacing + kArrowIconSize +
+                              (kArrowAreaWidth - kArrowIconSize) / 2;
+        return qBound(kMinComboWidth, textWidth, kMaxComboWidth);
+    }
 
 }
 
@@ -27,6 +40,10 @@ TitleBarComboBox::TitleBarComboBox(QWidget *parent) : QToolButton(parent) {
     setFixedHeight(kComboHeight);
     setMinimumWidth(kMinComboWidth);
     setMaximumWidth(kMaxComboWidth);
+    // A tool button is Fixed by default, which pins it to sizeHint. Preferred
+    // lets the title bar layout shrink the selector when the window is narrow,
+    // with minimumSizeHint as the floor.
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     setFocusPolicy(Qt::NoFocus);
     setToolButtonStyle(Qt::ToolButtonTextOnly);
     setAutoRaise(true);
@@ -38,13 +55,13 @@ TitleBarComboBox::TitleBarComboBox(QWidget *parent) : QToolButton(parent) {
 TitleBarComboBox::~TitleBarComboBox() = default;
 
 void TitleBarComboBox::setTitle(const QString &title) {
+    if (m_title == title)
+        return;
     m_title = title;
     setText(title);
+    // The visible text is elided once the bar squeezes the selector, so the
+    // tooltip is the place that always carries the complete project name.
     setToolTip(title);
-    const int titleWidth = fontMetrics().horizontalAdvance(title) + kTextLeftPadding +
-                           kTextArrowSpacing + kArrowIconSize +
-                           (kArrowAreaWidth - kArrowIconSize) / 2;
-    setMinimumWidth(qBound(kMinComboWidth, titleWidth, kMaxComboWidth));
     updateGeometry();
     update();
 }
@@ -53,11 +70,16 @@ FilePopupWidget *TitleBarComboBox::popupWidget() const {
     return m_popup;
 }
 
+QString TitleBarComboBox::visibleTitle() const {
+    const int textWidth = width() - kTextLeftPadding - kArrowAreaWidth;
+    if (textWidth <= 0)
+        return {};
+    return fontMetrics().elidedText(m_title, Qt::ElideRight, textWidth);
+}
+
 QSize TitleBarComboBox::sizeHint() const {
     const auto text = m_title.isEmpty() ? QStringLiteral(" ") : m_title;
-    const int width = fontMetrics().horizontalAdvance(text) + kTextLeftPadding + kTextArrowSpacing +
-                      kArrowIconSize + (kArrowAreaWidth - kArrowIconSize) / 2;
-    return {qBound(kMinComboWidth, width, kMaxComboWidth), kComboHeight};
+    return {preferredWidthForText(fontMetrics(), text), kComboHeight};
 }
 
 QSize TitleBarComboBox::minimumSizeHint() const {
@@ -99,7 +121,11 @@ void TitleBarComboBox::paintEvent(QPaintEvent *event) {
     QRect textRect = option.rect;
     textRect.adjust(kTextLeftPadding, 0, -kArrowAreaWidth, 0);
     painter.setPen(textColor);
-    painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, m_title);
+    // The selector has a fixed maximum and can be squeezed, so a long title
+    // must never paint into the arrow area. Elide it and let the tooltip carry
+    // the full name.
+    if (textRect.width() > 0)
+        painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, visibleTitle());
 
     const QRect arrowRect(width() - kArrowAreaWidth, 0, kArrowAreaWidth, height());
     const QSize iconSize(16, 16);

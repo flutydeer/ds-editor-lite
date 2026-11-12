@@ -20,7 +20,7 @@ Qt 内建的 `QMenuBarExtension` 会把放不下的 `menuAction` 平铺进一个
 
 安全余量必须同时计入 `sizeHint()` 和 `minimumSizeHint()`。只从可用宽度里扣而不加进尺寸提示，会让标题栏按 `sizeHint()` 给足宽度时，划分判定反而认为最后一个菜单放不下。这个错误在 Windows 原生样式下必现，因为 `PM_MenuBarHMargin` 与 `PM_MenuBarItemSpacing` 都是 0，没有多余的间距可以抵消。离屏 fusion 的 6 像素项间距会把它完全掩盖，所以回归用例必须显式模拟零间距。
 
-`sizeHint()` 取四个菜单全部内联的宽度加安全余量，`minimumSizeHint()` 取首个菜单加三点按钮加安全余量的宽度。两者都从完整菜单集计算，不随当前划分变化，外层标题栏布局不会在阈值附近震荡。尺寸策略是 `Preferred, Fixed`，让标题栏优先压缩菜单栏。宽度低于 `minimumSizeHint()` 时连三点按钮都放不下，Qt 会启用它自己的扩展按钮，真实布局达不到这个宽度。
+`sizeHint()` 取四个菜单全部内联的宽度加安全余量，`minimumSizeHint()` 取首个菜单加三点按钮加安全余量的宽度。两者都从完整菜单集计算，不随当前划分变化，外层标题栏布局不会在阈值附近震荡。尺寸策略是 `Preferred, Fixed`，允许标题栏压缩菜单栏；压缩顺序由标题栏的宽度预算决定，项目名下拉先让位，见 `main-title-bar-sections.md`。宽度低于 `minimumSizeHint()` 时连三点按钮都放不下，Qt 会启用它自己的扩展按钮，真实布局达不到这个宽度。
 
 ## 刷新时机与所有权
 

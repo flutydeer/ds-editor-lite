@@ -174,6 +174,11 @@ private slots:
     void dialogTitleBarFollowsFrameMode();
     void titleBarLayoutFollowsThePlatformMenuBar();
     void titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWindow();
+    void titleBarComboBoxCapsAndSqueezesTheProjectTitle();
+    void titleBarSelectorYieldsBeforeTheMenuBar_data();
+    void titleBarSelectorYieldsBeforeTheMenuBar();
+    void titleBarResizeWalkKeepsTheMenuBarWhole_data();
+    void titleBarResizeWalkKeepsTheMenuBarWhole();
     void hiddenMenuBarKeepsEveryTopLevelMenuInline();
     void titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
