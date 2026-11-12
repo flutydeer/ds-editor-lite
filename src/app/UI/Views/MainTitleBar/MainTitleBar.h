@@ -63,6 +63,9 @@ protected:
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void buildSections();
+    // Caps the project selector at what the rest of the bar leaves over, so it
+    // gives way before the menu bar has to collapse any menu.
+    void updateSectionWidths() const;
     void createSystemButtons();
     void setActiveStyle(bool active);
     void updateAnimationSettings();

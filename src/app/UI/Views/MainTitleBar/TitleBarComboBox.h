@@ -14,6 +14,9 @@ public:
     ~TitleBarComboBox() override;
 
     void setTitle(const QString &title);
+    // The title as it is painted at the current width: complete while the
+    // selector has room for it, elided from the right once it is squeezed.
+    [[nodiscard]] QString visibleTitle() const;
     [[nodiscard]] FilePopupWidget *popupWidget() const;
     [[nodiscard]] QSize sizeHint() const override;
     [[nodiscard]] QSize minimumSizeHint() const override;

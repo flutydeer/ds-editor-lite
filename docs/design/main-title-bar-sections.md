@@ -68,6 +68,30 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 `MainTitleBar` 现在自己上报这个手势：`mouseDoubleClickEvent()` 只在落点没有子控件时发 `doubleClicked()`，因为忽略鼠标事件的子控件会把按下事件冒泡上来。`MainWindow` 只在系统边框模式下连接它（无边框时 QWK 自己的 `MouseButtonDblClick` 分支已经在 `isInTitleBarDraggableArea()` 里处理，两处都连会导致来回切换两次），行为是最大化与还原互切，全屏时忽略。
 
+## 宽度预算与压缩顺序
+
+前导簇里有两段可以变窄：项目名下拉与主菜单。项目名下拉的首选宽度跟随工程名，钳在 80 到 360 之间。菜单栏的首选宽度是四个菜单全部内联的宽度，放不下时由 `MainMenuView` 自己把末尾菜单收进三点菜单，见 `adaptive-main-menu-bar.md`。
+
+Qt 的布局引擎没有压缩优先级。空间不足时 `qGeomCalc()` 把超支均摊给每个可压缩项（`qlayoutengine.cpp` 的 `space < cHint` 分支，注释写明 "take space equally from each"），两个 `Preferred` 控件因此同比例变窄。表现是窗口窄一点，末尾菜单就跟着收起一个，而不是等项目名先被压到底。
+
+### 契约
+
+项目名先让完，菜单栏在项目名到达最小宽度之前保持完整。实现只做一件事：布局分配空间之前，把项目名的最大宽度设成 `width - 其余各段的首选宽度之和`，菜单栏的首选宽度按完整内联集计算。这样布局的总需求恰好等于可用宽度，超支为零，菜单栏不需要收起任何菜单。窗口继续变窄时项目名先触底，剩下的差值才轮到菜单栏。
+
+上限钳在 `[80, 360]`。只改 `maximumWidth`，不改 `minimumWidth`：布局的最小尺寸决定窗口的最小宽度，抬高它会把窗口卡在更宽的下限上，反而让菜单永远收不起来。
+
+### 两个容易踩的点
+
+**量宽度要用布局项，不要用控件。** `QWidgetItem::sizeHint()` 是控件的 `sizeHint()` 先 `expandedTo(minimumSize())`，固定尺寸的段只能这样量到真实占位。系统按钮 `setFixedSize(48, 40)`，按文字量出来的 `sizeHint()` 只有 19，三个按钮就少算 87 像素。少算的部分会变成真实超支，再次被均摊给菜单栏，现象与完全不做优先级时一样。原生边框没有系统按钮，所以只有无边框外观会暴露这个错误。
+
+**预算要在布局分配空间之前刷新。** `QApplication::notify()` 处理 `Resize` 时先调用 `layout->widgetEvent()`，布局的 `doResize()` 跑完才轮到控件自己的 `resizeEvent()`。把预算更新放在 `resizeEvent()` 里就永远晚一趟：第一趟用上一像素的预算，菜单栏拿到比完整内联少 1 到 N 像素的空间；菜单的容纳判定只有 4 像素安全余量，于是刚好排满的那段宽度里，每一像素都会让末尾菜单跌进三点菜单、下一趟再恢复，拖动时表现为帮助菜单来回闪。
+
+标题栏因此使用一个 `QHBoxLayout` 子类 `TitleBarLayout`，在 `setGeometry()` 里、`QHBoxLayout::setGeometry()` 之前刷新预算。每次改变只有一趟布局，没有中间态，也不再需要 `resizeEvent()` 或 `LayoutRequest` 钩子。
+
+### 省略号
+
+压缩后文字必须截断，不能画到箭头下面。`TitleBarComboBox::paintEvent()` 用 `QFontMetrics::elidedText(m_title, Qt::ElideRight, textWidth)` 绘制，可用宽度是控件宽度减去左内边距与箭头区。完整工程名保留在 tooltip 里，`visibleTitle()` 返回当前实际绘制的文本，回归用例据此断言省略行为。最小宽度 80 时文字区约 40 像素，仍能看到几个字符加省略号，不会变成空胶囊。
+
 ## 与自适应溢出的关系
 
 `MainTitleBar::setInWindowMenu()` 将菜单位置同步给 `MainMenuView`。在原生菜单栏上，`removeAction()` 会通过 `QMenuBar::actionEvent` 调用 `QPlatformMenuBar::removeMenu()`，从系统菜单栏里摘掉菜单。该状态下的划分恒为“全部内联”，`sizeHint()` 使用 `QMenuBar` 自身的提示。详见 `adaptive-main-menu-bar.md`。
@@ -83,3 +107,6 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 - 切回原计划后分段与分隔线数量完全复现。
 - 菜单栏离开窗口后划分保持全部内联，`overflowedMenuActions()` 为空。
 - 双击标题栏空白处最大化，再次双击还原；落点在子控件上时不触发。
+- 项目名下拉的首选宽度跟随标题并在 360 处封顶，可被压缩到 80，超长标题绘制省略号且 tooltip 保留全名。
+- 菜单栏仍能完整容纳的宽度上，压缩全部由项目名承担；窗口最小宽度上项目名先到底，两种边框模式都覆盖。
+- 逐像素缩窄 60 步，记录菜单栏收到的每一次宽度，断言项目名到底之前菜单栏任何一趟都没有拿到小于完整内联宽度的空间。预算更新晚一趟时这个用例会记录到 61 次违约，是拖动闪烁的直接回归。
