@@ -38,6 +38,12 @@ if(WIN32)
     target_link_libraries(GUI PRIVATE dwmapi)
 endif()
 
+if(APPLE)
+    # Optional at runtime: older macOS versions use the AppKit frame fallback.
+    target_link_libraries(GUI PRIVATE "-framework AppKit" "-framework CoreGraphics"
+        "-weak_framework ScreenCaptureKit")
+endif()
+
 # Export the shared lite build-include root so linking lite::GUI puts the
 # generated <lite/GUI/*.h> forwarding headers on the consumer's path.
 target_include_directories(GUI PUBLIC

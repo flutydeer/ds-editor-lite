@@ -181,6 +181,9 @@ private slots:
     void titleBarResizeWalkKeepsTheMenuBarWhole();
     void hiddenMenuBarKeepsEveryTopLevelMenuInline();
     void titleBarDoubleClickOnTheEmptyBackgroundZoomsTheWindow();
+    void uiGalleryLayoutGroupsModules();
+    void uiGalleryCaptureFailuresStopImmediately();
+    void captureUiGallery();
     void pianoEditControlsFollowTheVisibleSelectionAndUndo();
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
