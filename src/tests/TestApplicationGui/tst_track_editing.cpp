@@ -21,6 +21,7 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Tasking/TaskManager.h>
@@ -1475,5 +1476,85 @@ void ApplicationGuiTests::trackClipTitleEndsOnTrackInsert() {
     QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
     QVERIFY(overlay->isEditing());
     trackController->onMoveTrack(1, 0);
+    QTRY_VERIFY(!overlay->isEditing());
+}
+
+void ApplicationGuiTests::trackClipTitleSurvivesUnrelatedClipUpdates() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+
+    Automation::TrackDraftDto trackDraft;
+    Automation::ClipDraftDto editedDraft;
+    editedDraft.type = Automation::ClipDraftDto::Type::Singing;
+    editedDraft.properties.name = QStringLiteral("Edited phrase");
+    editedDraft.properties.start = 480;
+    editedDraft.properties.length = 1920;
+    editedDraft.properties.clipLen = 1920;
+    trackDraft.clips.append(editedDraft);
+
+    Automation::ClipDraftDto otherDraft;
+    otherDraft.type = Automation::ClipDraftDto::Type::Singing;
+    otherDraft.properties.name = QStringLiteral("Other phrase");
+    otherDraft.properties.start = 2880;
+    otherDraft.properties.length = 1920;
+    otherDraft.properties.clipLen = 1920;
+    trackDraft.clips.append(otherDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+
+    int editedId = -1;
+    int otherId = -1;
+    for (const auto *clip : context->m_appModel->tracks().first()->clips()) {
+        if (clip->name() == QStringLiteral("Edited phrase"))
+            editedId = clip->id();
+        else if (clip->name() == QStringLiteral("Other phrase"))
+            otherId = clip->id();
+    }
+    QVERIFY(editedId >= 0);
+    QVERIFY(otherId >= 0);
+
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    editor.resize(1400, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->isVisible());
+    QVERIFY(canvas->setViewportScale(1.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+
+    auto *item = editor.findClipItemById(editedId);
+    QVERIFY(item);
+    const auto titlePoint = canvas->mapFromScene(item->mapToScene(item->titleBandRect().center()));
+    QVERIFY(canvas->viewport()->rect().contains(titlePoint));
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    auto *lineEdit = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+    auto *overlay = canvas->viewport()->findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay && overlay->isEditing());
+    QTest::keyClicks(lineEdit, QStringLiteral("Still typing"));
+
+    // Another clip updating under the open editor - an audio decode finishing,
+    // for example - must not commit the name the user is still typing.
+    const auto *otherClip = context->m_appModel->findClipById(otherId);
+    QVERIFY(otherClip);
+    auto otherProperties = Clip::ClipCommonProperties(*otherClip);
+    otherProperties.name = QStringLiteral("Other phrase updated");
+    trackController->onClipPropertyChanged(otherProperties);
+    QCOMPARE(context->m_appModel->findClipById(otherId)->name(),
+             QStringLiteral("Other phrase updated"));
+    QVERIFY(overlay->isEditing());
+    QCOMPARE(context->m_appModel->findClipById(editedId)->name(),
+             QStringLiteral("Edited phrase"));
+
+    // The rename itself still commits, once, on Enter.
+    QTest::keyClick(lineEdit, Qt::Key_Return);
+    QTRY_COMPARE(context->m_appModel->findClipById(editedId)->name(),
+                 QStringLiteral("Still typing"));
     QTRY_VERIFY(!overlay->isEditing());
 }

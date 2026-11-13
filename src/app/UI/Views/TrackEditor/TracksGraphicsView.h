@@ -49,6 +49,9 @@ public:
     void showTrackSplitPreview(const TrackSplitPreviewData &data) override;
     void clearTrackSplitPreview() override;
     [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
+    // Id of the clip whose title is being renamed inline, or -1 when none is.
+    // Lets the host end the session only when that very clip changes.
+    [[nodiscard]] int titleEditingClipId() const;
 
 public slots:
     void setClipSelection(const QList<int> &selected);

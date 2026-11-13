@@ -1020,8 +1020,11 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
         return;
     }
     // The clip may have moved under an open rename, so commit before the item
-    // is repainted at its new place.
-    finishClipTitleEditing();
+    // is repainted at its new place. Only the edited clip counts: another clip
+    // updating under the open editor, an audio decode finishing for example,
+    // must not commit the name the user is still typing.
+    if (m_graphicsView->titleEditingClipId() == clip->id())
+        finishClipTitleEditing();
     const auto item = findClipItemById(clip->id());
     item->setName(clip->name());
     item->setStart(clip->start());

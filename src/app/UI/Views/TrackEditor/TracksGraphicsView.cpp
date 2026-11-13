@@ -144,6 +144,10 @@ void TracksGraphicsView::cancelClipTitleEditing() {
         m_titleEditor->cancel();
 }
 
+int TracksGraphicsView::titleEditingClipId() const {
+    return m_titleEditor ? m_titleEditor->editingClipId() : -1;
+}
+
 QRect TracksGraphicsView::titleBandViewportRect(const AbstractClipView *clipItem) const {
     if (!clipItem)
         return {};

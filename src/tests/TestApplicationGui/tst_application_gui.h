@@ -284,6 +284,7 @@ private slots:
     void trackAudioRelinkKeepsClipIdentityAndCanBeCanceled();
     void trackClipTitleRenamesInline();
     void trackClipTitleEndsOnTrackInsert();
+    void trackClipTitleSurvivesUnrelatedClipUpdates();
     void adaptiveClipToolbarApplicabilityAndPriorities_data();
     void adaptiveClipToolbarApplicabilityAndPriorities();
     void adaptiveClipToolbarNameMigrationKeepsTargetAndUndo_data();
