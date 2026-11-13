@@ -296,6 +296,9 @@ private:
     // Shared inline rename session for clip titles (see ClipTitleInlineEdit).
     ClipTitleInlineEdit *m_titleEditor = nullptr;
     int m_titleEditingClipId = -1;
+    // Viewport offset when the title editor was anchored. Used to tell a real
+    // content move from a host resize, which must keep the editor.
+    QPointF m_titleEditOffset;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;

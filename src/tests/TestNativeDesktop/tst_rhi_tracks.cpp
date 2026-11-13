@@ -1610,7 +1610,27 @@ void NativeDesktopTests::rhiTrackClipTitleRenamesInline() {
     QCOMPARE(fixture.clip()->name(), originalName);
     QCOMPARE(fixture.runtime().documentVersion(), before);
 
+    // A pure host resize keeps the session alive: Windows resizes the foreground
+    // window to make room for the touch keyboard, and that must not close the
+    // rename before anything can be typed.
+    QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    lineEdit = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+    const auto hostSize = fixture.host->size();
+    fixture.host->resize(hostSize.width(), hostSize.height() - 60);
+    QCoreApplication::processEvents();
+    QVERIFY(overlay->isEditing());
+    QTest::keyClicks(lineEdit, QStringLiteral("Resized phrase"));
+    QTest::keyClick(lineEdit, Qt::Key_Return);
+    QTRY_COMPARE(fixture.clip()->name(), QStringLiteral("Resized phrase"));
+    historyManager->undo();
+    QTRY_COMPARE(fixture.clip()->name(), originalName);
+    fixture.host->resize(hostSize);
+    QCoreApplication::processEvents();
+
     // Enter commits exactly one undoable rename.
+    const auto beforeEnter = fixture.runtime().documentVersion();
     QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
     QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
@@ -1618,7 +1638,7 @@ void NativeDesktopTests::rhiTrackClipTitleRenamesInline() {
     QTest::keyClicks(lineEdit, QStringLiteral("Renamed phrase"));
     QTest::keyClick(lineEdit, Qt::Key_Return);
     QTRY_COMPARE(fixture.clip()->name(), QStringLiteral("Renamed phrase"));
-    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QCOMPARE(fixture.runtime().documentVersion().revision, beforeEnter.revision + 1);
     QTRY_VERIFY(!overlay->isEditing());
     QVERIFY(historyManager->canUndo());
     historyManager->undo();

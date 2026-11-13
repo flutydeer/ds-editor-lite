@@ -1242,7 +1242,27 @@ void ApplicationGuiTests::trackClipTitleRenamesInline() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 
+    // A pure host resize keeps the session alive: Windows resizes the foreground
+    // window to make room for the touch keyboard, and that must not close the
+    // rename before anything can be typed.
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    lineEdit = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+    const auto editorSize = editor.size();
+    editor.resize(editorSize.width(), editorSize.height() - 60);
+    QCoreApplication::processEvents();
+    QVERIFY(overlay->isEditing());
+    QTest::keyClicks(lineEdit, QStringLiteral("Resized phrase"));
+    QTest::keyClick(lineEdit, Qt::Key_Return);
+    QTRY_COMPARE(clipName(), QStringLiteral("Resized phrase"));
+    historyManager->undo();
+    QTRY_COMPARE(clipName(), clipDraft.properties.name);
+    editor.resize(editorSize);
+    QCoreApplication::processEvents();
+
     // Enter commits exactly one undoable rename, like the toolbar does.
+    const auto beforeEnter = runtime.documentVersion();
     QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
     QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
     QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
@@ -1250,7 +1270,7 @@ void ApplicationGuiTests::trackClipTitleRenamesInline() {
     QTest::keyClicks(lineEdit, QStringLiteral("Edited phrase"));
     QTest::keyClick(lineEdit, Qt::Key_Return);
     QTRY_COMPARE(clipName(), QStringLiteral("Edited phrase"));
-    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(runtime.documentVersion().revision, beforeEnter.revision + 1);
     QVERIFY(historyManager->canUndo());
     historyManager->undo();
     QTRY_COMPARE(clipName(), clipDraft.properties.name);

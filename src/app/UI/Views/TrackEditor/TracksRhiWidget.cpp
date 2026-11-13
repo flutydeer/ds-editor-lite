@@ -125,11 +125,20 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         m_titleEditingClipId = -1;
         scheduleSnapshot();
     });
-    // Every external event that moves the target ends the session.
-    connect(&m_viewport, &EditorViewportController::viewportChanged, this,
+    // Every external event that moves the target ends the session. Zoom always
+    // does, because the band scales with the content. A plain host resize does
+    // not: the viewport controller keeps the offset across one, and Windows
+    // resizes the foreground window to make room for the touch keyboard, so
+    // only an offset that actually moved may close the editor.
+    connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::finishClipTitleEditing);
-    connect(this, &TracksRhiWidget::sizeChanged, this,
-            &TracksRhiWidget::finishClipTitleEditing);
+    connect(&m_viewport, &EditorViewportController::viewportChanged, this, [this] {
+        if (m_titleEditor && m_titleEditor->isEditing() &&
+            m_viewport.offset() != m_titleEditOffset) {
+            finishClipTitleEditing();
+        }
+        m_titleEditOffset = m_viewport.offset();
+    });
 
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
@@ -1526,6 +1535,9 @@ void TracksRhiWidget::beginClipTitleEdit(const ClipSnapshot &clip) {
     // the painted title off the frame that lands under the editor.
     m_titleEditingClipId = clip.id;
     scheduleSnapshot();
+    // Remember the offset the band was anchored at, so a later viewport change
+    // can tell a moved content from a mere host resize.
+    m_titleEditOffset = m_viewport.offset();
     m_titleEditor->begin(clip.id, band, modelClip->name(), font());
 }
 

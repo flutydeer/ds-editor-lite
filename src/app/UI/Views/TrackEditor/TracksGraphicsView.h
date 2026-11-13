@@ -144,6 +144,9 @@ private:
     TrackEditorBackgroundView *m_snapGrid = nullptr;
     // Shared inline rename session for clip titles (see ClipTitleInlineEdit).
     ClipTitleInlineEdit *m_titleEditor = nullptr;
+    // Scene origin of the viewport when the title editor was anchored. Used to
+    // tell a real content move from a host resize, which must keep the editor.
+    QPointF m_titleEditSceneOrigin;
     // Applied to the snap grid when it is attached via setSnapGrid
     QColor m_selectedTrackColor = {0x31, 0x35, 0x3F};
     // External drop overlay colors (theme-injected via QSS)

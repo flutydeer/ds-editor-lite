@@ -67,13 +67,19 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
             clipItem->setTitleEditing(false);
     });
     // Every external event that moves the target ends the session, the same
-    // contract the track header rename follows.
+    // contract the track header rename follows. A plain host resize does not:
+    // the view keeps its scroll position, and Windows resizes the foreground
+    // window to make room for the touch keyboard, so only content that actually
+    // moved may close the editor.
     connect(this, &TimeGraphicsView::scaleChanged, this,
             &TracksGraphicsView::finishClipTitleEditing);
-    connect(this, &TimeGraphicsView::visibleRectChanged, this,
-            &TracksGraphicsView::finishClipTitleEditing);
-    connect(this, &TimeGraphicsView::sizeChanged, this,
-            &TracksGraphicsView::finishClipTitleEditing);
+    connect(this, &TimeGraphicsView::visibleRectChanged, this, [this](const QRectF &rect) {
+        if (m_titleEditor && m_titleEditor->isEditing() &&
+            rect.topLeft() != m_titleEditSceneOrigin) {
+            finishClipTitleEditing();
+        }
+        m_titleEditSceneOrigin = rect.topLeft();
+    });
 
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
@@ -157,6 +163,9 @@ void TracksGraphicsView::beginClipTitleEdit(AbstractClipView *clipItem) {
     // retarget inside the session commits the previous clip, and that emit
     // clears this flag on the clip it came from.
     clipItem->setTitleEditing(true);
+    // Remember the scene origin the band was anchored at, so a later viewport
+    // change can tell a moved content from a mere host resize.
+    m_titleEditSceneOrigin = logicalVisibleRect().topLeft();
     m_titleEditor->begin(clipItem->id(), QRectF(anchor), clipItem->name(), font());
 }
 
