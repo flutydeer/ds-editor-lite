@@ -1380,3 +1380,62 @@ void ApplicationGuiTests::trackClipTitleRenamesInline() {
     QVERIFY(replacementTracks && replacementTracks->clips().count() > 0);
     QCOMPARE((*replacementTracks->clips().begin())->name(), QStringLiteral("Replacement"));
 }
+
+void ApplicationGuiTests::trackClipTitleEndsOnTrackInsert() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+
+    Automation::TrackDraftDto trackDraft;
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    clipDraft.properties.name = QStringLiteral("Original phrase");
+    clipDraft.properties.start = 480;
+    clipDraft.properties.length = 1920;
+    clipDraft.properties.clipLen = 1920;
+    trackDraft.clips.append(clipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+
+    const auto clipId = (*context->m_appModel->tracks().first()->clips().begin())->id();
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    editor.resize(1400, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
+    QVERIFY(canvas->setViewportScale(1.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+
+    auto *item = editor.findClipItemById(clipId);
+    QVERIFY(item);
+    const auto titlePoint = canvas->mapFromScene(item->mapToScene(item->titleBandRect().center()));
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    auto *lineEdit = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+    auto *overlay = canvas->viewport()->findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay && overlay->isEditing());
+    QTest::keyClicks(lineEdit, QStringLiteral("Stale phrase"));
+
+    // Inserting a track above moves the clip to another row, so the anchor the
+    // editor was opened on no longer belongs to it: the session has to end.
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, Automation::TrackDraftDto{}));
+    QTRY_VERIFY(!overlay->isEditing());
+
+    // Reordering does the same thing without inserting anything.
+    const auto movedPoint =
+        canvas->mapFromScene(item->mapToScene(item->titleBandRect().center()));
+    QVERIFY(canvas->viewport()->rect().contains(movedPoint));
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, movedPoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, movedPoint);
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    QVERIFY(overlay->isEditing());
+    trackController->onMoveTrack(1, 0);
+    QTRY_VERIFY(!overlay->isEditing());
+}

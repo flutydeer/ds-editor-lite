@@ -49,8 +49,7 @@ public:
 
     // Width of the editor for `text`. Pure, so the sizing rule can be checked
     // without opening a session.
-    [[nodiscard]] static int editorWidthFor(const QString &text, const QFont &font,
-                                            int bandWidth);
+    [[nodiscard]] static int editorWidthFor(const QString &text, const QFont &font, int bandWidth);
 
     // Touch streams that begin on the editor belong to it, not to the canvas:
     // the canvas touch controller forwards them here, in viewport coordinates.

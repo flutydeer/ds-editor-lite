@@ -669,6 +669,9 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     if (from == to || from < 0 || from >= count || to < 0 || to >= count)
         return;
 
+    // Reordering moves clips between rows exactly like an insertion does.
+    finishClipTitleEditing();
+
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);
 
@@ -790,6 +793,9 @@ TrackViewModel *TrackEditorView::ViewModel::findTrack(const Track *dsTrack) {
 }
 
 void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex) {
+    // Inserting at or above the edited clip shifts it to another row, so the
+    // anchor the rename was opened on no longer belongs to it: commit first.
+    finishClipTitleEditing();
     // Preserve selection by logical track while row indexes shift.
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);

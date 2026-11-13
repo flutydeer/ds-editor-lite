@@ -64,11 +64,12 @@ void ClipTitleInlineEdit::begin(const int clipId, const QRectF &titleRect, const
 int ClipTitleInlineEdit::editorWidthFor(const QString &text, const QFont &font,
                                         const int bandWidth) {
     const QFontMetricsF metrics(font);
-    const auto textWidth = static_cast<int>(std::ceil(metrics.horizontalAdvance(text))) + kTextPadding;
+    const auto textWidth =
+        static_cast<int>(std::ceil(metrics.horizontalAdvance(text))) + kTextPadding;
     // Never wider than the band the name belongs to, unless that band is too
     // narrow to type in at all - then the minimum wins and the field spills.
-    const auto upperBound = std::max(
-        minimumEditorWidth, std::min(maximumEditorWidth, std::max(0, bandWidth)));
+    const auto upperBound =
+        std::max(minimumEditorWidth, std::min(maximumEditorWidth, std::max(0, bandWidth)));
     return std::clamp(std::max(textWidth, 0), minimumEditorWidth, upperBound);
 }
 
