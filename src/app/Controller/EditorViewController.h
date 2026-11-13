@@ -65,6 +65,10 @@ public:
     void clearPanelWindows();
     [[nodiscard]] bool hasSeparatedPanelWindows() const;
     void activateWindowPanel(QWidget *window);
+    // Brings the window hosting the given panel to the front: restores it from
+    // minimized (keeping maximized/fullscreen state) and activates it. A panel
+    // docked in the already-active window is a no-op.
+    void bringPanelWindowToFront(AppGlobal::PanelType panel);
 
     void setActivePanel(AppGlobal::PanelType panel);
     void setActiveRegion(EditorViewGlobal::Region region);

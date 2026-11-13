@@ -375,6 +375,29 @@ void EditorViewController::activateWindowPanel(QWidget *window) {
     applyActiveContext(*type, target);
 }
 
+void EditorViewController::bringPanelWindowToFront(const AppGlobal::PanelType panel) {
+    for (const auto &binding : std::as_const(m_panelWindows)) {
+        if (!binding.panel || binding.panel->panelType() != panel)
+            continue;
+        auto *window = binding.window.data();
+        if (!window)
+            return;
+        if (window->isMinimized()) {
+            // Restore the state the window had before minimizing. A plain
+            // showNormal() would also drop maximized or fullscreen.
+            if (window->isFullScreen())
+                window->showFullScreen();
+            else if (window->isMaximized())
+                window->showMaximized();
+            else
+                window->showNormal();
+        }
+        window->raise();
+        window->activateWindow();
+        return;
+    }
+}
+
 void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
     setActiveContext(panel, EditorInteraction::defaultTargetForPanel(panel));
 }

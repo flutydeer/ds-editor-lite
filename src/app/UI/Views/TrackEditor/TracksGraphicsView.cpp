@@ -270,6 +270,9 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
+            // The editor may live in a detached window that is minimized or
+            // behind the arrangement. Opening a clip should reveal and focus it.
+            editorViewController->bringPanelWindowToFront(AppGlobal::ClipEditor);
             double tick = playbackController->position();
             double keyIndex = 60;
             // 音符绘制区内双击：钢琴卷帘居中到双击落点（tick + keyIndex）

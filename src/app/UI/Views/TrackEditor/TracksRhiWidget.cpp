@@ -654,6 +654,9 @@ void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto *hit = hitTest(event->position())) {
         trackController->setActiveClip(hit->id);
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
+        // The editor may live in a detached window that is minimized or behind
+        // the arrangement. Opening a clip should reveal and focus that window.
+        editorViewController->bringPanelWindowToFront(AppGlobal::ClipEditor);
         double targetTick = playbackController->position();
         double targetKey = 60.0;
         if (hit->type == IClip::Singing && !hit->notes.isEmpty()) {

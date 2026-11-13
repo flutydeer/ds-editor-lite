@@ -2046,6 +2046,67 @@ void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::clipDoubleClickRestoresAndActivatesTheDetachedEditor() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto *bottom = window.findChild<BottomPanelView *>();
+    auto *tracks = window.findChild<TracksGraphicsView *>();
+    QVERIFY(bottom && tracks);
+    bottom->clipEditorView()->onActiveClipChanged(singingClip->id());
+    QTRY_VERIFY(bottom->clipEditorView()->hasActiveSingingClip());
+    QVERIFY(window.setTrackPanelScale(1.5, 1.0));
+    QVERIFY(window.centerTrackPanelAt(1920, 0));
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QCoreApplication::processEvents();
+
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.detachedPanelWindow();
+    QVERIFY(detached && detached->isVisible());
+
+    AbstractClipView *clipItem = nullptr;
+    for (auto *item : tracks->scene()->items()) {
+        auto *candidate = dynamic_cast<AbstractClipView *>(item);
+        if (candidate && candidate->id() == singingClip->id())
+            clipItem = candidate;
+    }
+    QVERIFY(clipItem);
+    const auto visible = tracks->mapFromScene(clipItem->sceneBoundingRect())
+                             .boundingRect()
+                             .intersected(tracks->viewport()->rect());
+    QVERIFY(!visible.isEmpty());
+
+    // A minimized editor window must come back and take focus from the
+    // arrangement that received the double click.
+    detached->showMinimized();
+    QTRY_VERIFY(detached->isMinimized());
+    window.raise();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QTest::mouseDClick(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTest::mouseRelease(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTRY_VERIFY(!detached->isMinimized());
+    QTRY_VERIFY(detached->isVisible());
+    QTRY_VERIFY(detached->isActiveWindow());
+
+    // A visible editor window behind the arrangement must be activated too.
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QTest::mouseDClick(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTest::mouseRelease(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTRY_VERIFY(detached->isActiveWindow());
+}
+
 void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
