@@ -80,6 +80,7 @@ private slots:
     void trackClipGroupTrimCommitsAtomically();
     void trackClipSelectionModifiersAndNudge_data();
     void trackClipSelectionModifiersAndNudge();
+    void trackClipRangeAnchorClearsWithTheSelection_data();
     void trackClipRangeAnchorClearsWithTheSelection();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
