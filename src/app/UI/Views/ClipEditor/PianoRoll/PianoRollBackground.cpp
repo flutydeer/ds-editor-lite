@@ -1,6 +1,6 @@
 #include "PianoRollBackground.h"
 
-#include "PianoPaintUtils.h"
+#include "UI/Controls/PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QPainter>

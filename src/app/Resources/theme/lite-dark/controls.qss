@@ -1263,6 +1263,15 @@ QScrollArea#automationToolsetListScroll {
     padding: 0px;
 }
 
+/* The MIDI page's preview keyboard scrolls inside the card and owns the only
+   padding-less band in the page: the keys have to sit flush against the card
+   body, so neither the global 6px padding nor a frame may apply. */
+QScrollArea#midiPreviewKeyboardScroll {
+    background: transparent;
+    border: none;
+    padding: 0px;
+}
+
 /* QScrollArea::setWidget() turns on autoFillBackground for the content widget,
    so it needs the same transparent rule as the option pages' own content
    widget: otherwise the gaps between the cards show the palette base colour. */

@@ -246,10 +246,13 @@ private slots:
     void movingLyricsBackwardUsesTheSelectedWordRange_data();
     void movingLyricsBackwardUsesTheSelectedWordRange();
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
+    void horizontalPreviewKeyboardMapsKeysAndReleasesOnHide();
+    void midiInputNoteMonitorTracksHeldNotes();
     void pianoAuxiliaryViewsNavigateWithoutChangingTheDocument();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip_data();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
+    void previewKeyboardNotesReachTheSettingsMixer();
     void audioPageInputsPersistWithoutPlayback();
     void audioDeviceChoicesApplyThroughThePage_data();
     void audioDeviceChoicesApplyThroughThePage();

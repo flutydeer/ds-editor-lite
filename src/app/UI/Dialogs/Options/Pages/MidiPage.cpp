@@ -4,11 +4,12 @@
 
 #include <QDebug>
 #include <QBoxLayout>
-#include <QLabel>
 #include <QMessageBox>
-#include <QPushButton>
+#include <QScrollBar>
 #include <QEvent>
 #include <QSignalBlocker>
+
+#include "UI/Controls/HorizontalPianoKeyboardView.h"
 
 #include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsCore/MixerAudioSource.h>
@@ -17,6 +18,7 @@
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 #include "Utils/Decibellinearizer.h"
+#include <lite/GUI/Controls/CardView.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
@@ -29,8 +31,8 @@
 #include <Modules/Audio/AudioSystem.h>
 
 #include <Modules/Audio/subsystem/MidiSystem.h>
-#include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
+#include <Modules/Audio/utils/MidiInputNoteMonitor.h>
 #include <Modules/Audio/utils/SettingPagesSynthHelper.h>
 
 QWidget *MidiPage::createContentWidget() {
@@ -122,13 +124,6 @@ QWidget *MidiPage::createContentWidget() {
     m_adjustByProjectSwitch = new SwitchButton;
     m_adjustByProjectSwitch->setObjectName("midiAdjustByProject");
 
-    m_synthesizerTestButton = new QPushButton(tr("&Preview"));
-    m_synthesizerTestButton->setObjectName("midiPreview");
-    m_synthesizerTestButton->setCheckable(true);
-    m_flushButton = new QPushButton(tr("&Interrupt All Notes"));
-    m_flushButton->setToolTip(
-        tr("Interrupt all notes that are currently played by the synthesizer"));
-
     m_synthesizerCard = new OptionListCard(tr("Synthesizer"));
     m_generatorItem = m_synthesizerCard->addItem(tr("&Generator"), m_generatorComboBox);
     m_amplitudeItem =
@@ -143,9 +138,56 @@ QWidget *MidiPage::createContentWidget() {
     m_frequencyItem = m_synthesizerCard->addItem(tr("&Frequency of A"), m_frequencyOfASpinBox);
     m_adjustByProjectItem =
         m_synthesizerCard->addItem(tr("Adjust by project cent shift"), m_adjustByProjectSwitch);
-    m_controlItem =
-        m_synthesizerCard->addItem(tr("Control"), {m_synthesizerTestButton, m_flushButton});
     mainLayout->addWidget(m_synthesizerCard);
+
+    // Preview keyboard. The key bed has a fixed natural size, so the card only
+    // scrolls when the window is too narrow for it. The bar is the plain widget
+    // one: an overlay bar would be painted over the keys.
+    m_previewKeyboard = new HorizontalPianoKeyboardView;
+    m_previewKeyboard->setObjectName("midiPreviewKeyboard");
+    m_keyboardScroll = new QScrollArea;
+    m_keyboardScroll->setObjectName("midiPreviewKeyboardScroll");
+    m_keyboardScroll->setFrameShape(QFrame::NoFrame);
+    m_keyboardScroll->setWidgetResizable(false);
+    m_keyboardScroll->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+    m_keyboardScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_keyboardScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_keyboardScroll->setFocusPolicy(Qt::NoFocus);
+    m_keyboardScroll->setWidget(m_previewKeyboard);
+
+    // Reserve the bar's band only while it can actually scroll, so the card
+    // stays tight at the default window size.
+    const auto syncKeyboardScrollHeight = [this] {
+        const auto *bar = m_keyboardScroll->horizontalScrollBar();
+        const auto barHeight = bar->maximum() > bar->minimum() ? bar->sizeHint().height() : 0;
+        m_keyboardScroll->setFixedHeight(m_previewKeyboard->height() + barHeight);
+    };
+    syncKeyboardScrollHeight();
+    connect(m_keyboardScroll->horizontalScrollBar(), &QScrollBar::rangeChanged, this,
+            [syncKeyboardScrollHeight](int, int) { syncKeyboardScrollHeight(); });
+
+    m_keyboardCard = new OptionsCard;
+    m_keyboardCard->setTitle(tr("Keyboard"));
+    const auto keyboardLayout = new QVBoxLayout;
+    keyboardLayout->setContentsMargins(10, 5, 10, 5);
+    keyboardLayout->setSpacing(0);
+    keyboardLayout->addWidget(m_keyboardScroll);
+    m_keyboardCard->card()->setLayout(keyboardLayout);
+    mainLayout->addWidget(m_keyboardCard);
+
+    connect(m_previewKeyboard, &HorizontalPianoKeyboardView::noteOn, this,
+            [this](const int key) { m_synthHelper->noteOn(key); });
+    connect(m_previewKeyboard, &HorizontalPianoKeyboardView::noteOff, this,
+            [this](const int key) { m_synthHelper->noteOff(key); });
+
+    // Mirror an attached MIDI keyboard. The device reports on its own thread, so
+    // these connections are queued and land on the GUI thread.
+    connect(m_noteMonitor, &MidiInputNoteMonitor::notePressed, m_previewKeyboard,
+            [this](const int key) { m_previewKeyboard->setHeldKey(key, true); });
+    connect(m_noteMonitor, &MidiInputNoteMonitor::noteReleased, m_previewKeyboard,
+            [this](const int key) { m_previewKeyboard->setHeldKey(key, false); });
+    connect(m_noteMonitor, &MidiInputNoteMonitor::allNotesReleased, m_previewKeyboard,
+            [this] { m_previewKeyboard->clearHeldKeys(); });
 
     mainLayout->addStretch();
     widget->setLayout(mainLayout);
@@ -193,7 +235,7 @@ QWidget *MidiPage::createContentWidget() {
     m_synthHelper->initialize(m_generatorComboBox, m_amplitudeSlider, m_amplitudeSpinBox,
                               m_attackSlider, m_attackSpinBox, m_decaySlider, m_decaySpinBox,
                               m_decayRatioSlider, m_decayRatioSpinBox, m_releaseSlider,
-                              m_releaseSpinBox, m_synthesizerTestButton);
+                              m_releaseSpinBox);
 
     connect(m_frequencyOfASpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](const double value) {
@@ -202,6 +244,7 @@ QWidget *MidiPage::createContentWidget() {
                     m_synthHelper->m_cachedFrequencyOfA = value;
                 m_synthHelper->m_mutex.unlock();
                 m_synthHelper->m_testSynthesizer.flush();
+                m_synthHelper->flushPreviewNotes();
             });
     connect(m_adjustByProjectSwitch, &SwitchButton::toggled, this, [this](const bool checked) {
         m_synthHelper->m_mutex.lock();
@@ -214,6 +257,7 @@ QWidget *MidiPage::createContentWidget() {
         }
         m_synthHelper->m_mutex.unlock();
         m_synthHelper->m_testSynthesizer.flush();
+        m_synthHelper->flushPreviewNotes();
     });
 
     m_synthHelper->m_cachedFrequencyOfA = ms->frequencyOfA();
@@ -225,24 +269,15 @@ QWidget *MidiPage::createContentWidget() {
         m_frequencyOfASpinBox->setValue(m_synthHelper->m_cachedFrequencyOfA);
     }
 
-    connect(m_synthesizerTestButton, &QAbstractButton::clicked, this, [this](const bool checked) {
-        if (checked) {
-            if (!AudioSystem::outputSystem()->isReady()) {
-                m_synthesizerTestButton->setChecked(false);
-                return;
-            }
-        }
-        m_synthHelper->toggleTestState(checked);
-    });
-    connect(
-        m_synthHelper, &SettingPageSynthHelper::testFinished, this,
-        [this] { m_synthesizerTestButton->setChecked(false); }, Qt::QueuedConnection);
-    connect(m_flushButton, &QAbstractButton::clicked, this,
-            [] { AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush(); });
     return widget;
 }
 
 MidiPage::MidiPage(QWidget *parent) : IOptionPage(parent) {
+    // One monitor per page: the content widget (and the keyboard with it) is
+    // rebuilt on a language change, while the monitor has to keep watching the
+    // MIDI input for the new one.
+    m_noteMonitor = new MidiInputNoteMonitor(this);
+    m_noteMonitor->attachTo(AudioSystem::midiSystem()->integrator());
     initializePage();
 }
 
@@ -282,7 +317,8 @@ void MidiPage::retranslateUi() {
     m_releaseItem->setTitle(tr("&Release (ms)"));
     m_frequencyItem->setTitle(tr("&Frequency of A"));
     m_adjustByProjectItem->setTitle(tr("Adjust by project cent shift"));
-    m_controlItem->setTitle(tr("Control"));
+
+    m_keyboardCard->setTitle(tr("Keyboard"));
 
     const auto generator = m_generatorComboBox->currentData();
     const QSignalBlocker blocker(m_generatorComboBox);
@@ -292,9 +328,4 @@ void MidiPage::retranslateUi() {
     m_generatorComboBox->addItem(tr("Triangle Wave"), talcs::NoteSynthesizer::Triangle);
     m_generatorComboBox->addItem(tr("Sawtooth wave"), talcs::NoteSynthesizer::Sawtooth);
     m_generatorComboBox->setCurrentIndex(m_generatorComboBox->findData(generator));
-
-    m_synthesizerTestButton->setText(tr("&Preview"));
-    m_flushButton->setText(tr("&Interrupt All Notes"));
-    m_flushButton->setToolTip(
-        tr("Interrupt all notes that are currently played by the synthesizer"));
 }

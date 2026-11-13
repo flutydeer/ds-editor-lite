@@ -23,6 +23,18 @@
 
 #include <cmath>
 
+namespace {
+    bool isSilent(const talcs::AudioBuffer &buffer) {
+        for (int channel = 0; channel < buffer.channelCount(); ++channel) {
+            for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample) {
+                if (buffer.constSampleAt(channel, sample) != 0.0f)
+                    return false;
+            }
+        }
+        return true;
+    }
+}
+
 void ApplicationGuiTests::settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates() {
     auto *output = AudioSystem::outputSystem()->context();
     QVERIFY(!output->device() || !output->device()->isStarted());
@@ -121,6 +133,84 @@ void ApplicationGuiTests::settingsSynthPreviewKeepsEnvelopeDurationsAcrossSample
                     QCOMPARE(buffer.constSampleAt(channel, sample), 0.0f);
             }
         }
+    }
+    QCOMPARE(mixer->sources(), originalSources);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::previewKeyboardNotesReachTheSettingsMixer() {
+    auto *output = AudioSystem::outputSystem()->context();
+    QVERIFY(!output->device() || !output->device()->isStarted());
+    auto *mixer = output->preMixer();
+    const bool wasOpen = mixer->isOpen();
+    const auto previousBufferSize = mixer->bufferSize();
+    const auto previousSampleRate = mixer->sampleRate();
+    const auto restoreOutput = qScopeGuard([&] {
+        bool restored = true;
+        if (wasOpen)
+            restored = mixer->open(previousBufferSize, previousSampleRate);
+        else
+            mixer->close();
+        QVERIFY2(restored, "The fixture must restore the original output mixer configuration");
+    });
+    constexpr qint64 blockSize = 256;
+    QVERIFY(mixer->open(blockSize, 48000));
+    const auto originalSources = mixer->sources();
+    const auto before = context->m_coreRuntime->documentVersion();
+    QComboBox generator;
+    generator.addItems({"Sine", "Square", "Triangle", "Sawtooth"});
+    SVS::SeekBar amplitudeSlider;
+    SVS::ExpressionDoubleSpinBox amplitude;
+    amplitude.setRange(-96, 12);
+    SVS::SeekBar attackSlider;
+    SVS::ExpressionSpinBox attack;
+    SVS::SeekBar decaySlider;
+    SVS::ExpressionSpinBox decay;
+    SVS::SeekBar sustainSlider;
+    SVS::ExpressionDoubleSpinBox sustain;
+    sustain.setRange(0, 1);
+    sustainSlider.setRange(0, 1);
+    SVS::SeekBar releaseSlider;
+    SVS::ExpressionSpinBox release;
+    QPushButton preview;
+    {
+        SettingPageSynthHelper helper;
+        helper.m_cachedGenerator = talcs::NoteSynthesizer::Sine;
+        helper.m_cachedAmplitude = 0;
+        helper.m_cachedAttackMsec = 5;
+        helper.m_cachedDecayMsec = 10;
+        helper.m_cachedDecayRatio = 0.5;
+        helper.m_cachedReleaseMsec = 10;
+        helper.initialize(&generator, &amplitudeSlider, &amplitude, &attackSlider, &attack,
+                          &decaySlider, &decay, &sustainSlider, &sustain, &releaseSlider, &release,
+                          &preview);
+        talcs::AudioBuffer buffer(2, blockSize);
+        const auto stopOnFailure = qScopeGuard([&] {
+            helper.flushPreviewNotes();
+            helper.m_testMixer.read(&buffer);
+            helper.m_testMixer.read(&buffer);
+        });
+        QCOMPARE(helper.m_testMixer.read(&buffer), blockSize);
+        QVERIFY(isSilent(buffer));
+
+        // A key press has to sound through the same mixer that carries the
+        // amplitude setting, without touching the preview score state.
+        QVERIFY(helper.isTestFinished);
+        helper.noteOn(60);
+        bool hasSignal = false;
+        for (auto block = 0; block < 8 && !hasSignal; ++block) {
+            QCOMPARE(helper.m_testMixer.read(&buffer), blockSize);
+            hasSignal = !isSilent(buffer);
+        }
+        QVERIFY(hasSignal);
+        QVERIFY(helper.isTestFinished);
+        helper.noteOff(60);
+        // The configured release is 10 ms, so a handful of blocks has to bring
+        // the synthesizer back to silence without any flush.
+        for (auto block = 0; block < 8; ++block)
+            QCOMPARE(helper.m_testMixer.read(&buffer), blockSize);
+        QVERIFY(isSilent(buffer));
     }
     QCOMPARE(mixer->sources(), originalSources);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);

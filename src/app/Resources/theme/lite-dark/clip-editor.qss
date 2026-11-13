@@ -174,7 +174,8 @@ ClipEditorToolBarView QPushButton#btnAutoPageTurn[autoPageTurnAvailable="false"]
 }
 
 /* PianoKeyboardView */
-PianoKeyboardView {
+PianoKeyboardView,
+HorizontalPianoKeyboardView {
     qproperty-whiteKeyColor: ${piano.key.white};
     qproperty-blackKeyColor: ${piano.key.black};
     qproperty-dividerColor: ${piano.key.divider};

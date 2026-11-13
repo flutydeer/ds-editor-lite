@@ -1,74 +1,30 @@
 #ifndef PIANOKEYBOARDVIEW_H
 #define PIANOKEYBOARDVIEW_H
 
-#include <QWidget>
-#include <QEnterEvent>
-#include <QMouseEvent>
+#include "UI/Controls/PianoKeyboardBase.h"
 
-namespace talcs {
-    class MidiMessageIntegrator;
-}
-
-class PianoKeyboardView : public QWidget {
+/// Vertical key column of the piano roll: the key bed follows the canvas key
+/// range, and clicking or dragging a key plays notes through the MIDI system.
+class PianoKeyboardView : public PianoKeyboardBase {
     Q_OBJECT
-    Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
-    Q_PROPERTY(QColor blackKeyColor READ blackKeyColor WRITE setBlackKeyColor)
-    Q_PROPERTY(QColor dividerColor READ dividerColor WRITE setDividerColor)
 
 public:
-    enum KeyboardStyle { Uniform, Classic };
-
     explicit PianoKeyboardView(QWidget *parent = nullptr);
-    void setHoveredKeyIndex(int keyIndex);
-    void setTrackColorIndex(int index);
 
-public slots:
-    void setKeyRange(double top, double bottom);
-    void refreshThemeColors();
-
-signals:
-    void wheelScroll(QWheelEvent *event);
+protected:
+    int keyAtPosition(const QPointF &pos) const override;
+    void paintKeyboard(QPainter &painter) const override;
+    void playNoteOn(int key) override;
+    void playNoteOff(int key) override;
 
 private:
-    QColor whiteKeyColor() const;
-    void setWhiteKeyColor(const QColor &whiteKeyColor);
-    QColor blackKeyColor() const;
-    void setBlackKeyColor(const QColor &blackKeyColor);
-    QColor dividerColor() const;
-    void setDividerColor(const QColor &dividerColor);
-
-    void paintEvent(QPaintEvent *event) override;
-    void wheelEvent(QWheelEvent *e) override;
-    void enterEvent(QEnterEvent *event) override;
-    void leaveEvent(QEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void hideEvent(QHideEvent *event) override;
-    void drawUniformKeyboard(QPainter &painter) const;
-    void drawClassicKeyboard(QPainter &painter);
-    void drawHoverOverlay(QPainter &painter) const;
-    void drawKeyOverlay(QPainter &painter, int keyIndex, int alpha) const;
-    int sceneYToKeyIndex(double y) const;
-    int posToKeyIndex(double x, double y) const;
-    void sendNoteOn(int keyIndex);
-    void sendNoteOff(int keyIndex);
-    void releaseCurrentNote();
-
-    double m_top = 0;
-    double m_bottom = 127;
-    KeyboardStyle m_style = Classic;
-
-    const double penWidth = 1;
-    QColor m_whiteKeyColor = {218, 219, 224};
-    QColor m_blackKeyColor = {59, 63, 71};
-    QColor m_dividerColor = {170, 172, 181};
-    QColor m_primaryColor = {155, 186, 255};
-    int m_trackColorIndex = 0;
-    int m_hoveredKeyIndex = -1;
-    int m_pressedKeyIndex = -1;
+    [[nodiscard]] double pixelsPerBlackKey() const;
+    [[nodiscard]] double pixelsPerWhiteKey() const;
+    [[nodiscard]] double blackKeyY(double key) const;
+    [[nodiscard]] double closestBlackKeyY(double key) const;
+    [[nodiscard]] double whiteKeyY(double key) const;
+    void drawWhiteKeyOverlay(QPainter &painter, int keyIndex, int alpha) const;
+    void drawBlackKeyOverlay(QPainter &painter, int keyIndex, int alpha) const;
 };
-
-
 
 #endif // PIANOKEYBOARDVIEW_H
