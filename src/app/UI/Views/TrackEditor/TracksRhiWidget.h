@@ -39,6 +39,7 @@ class EditorPenController;
 class EditorRhiScrollBarController;
 class EditorTouchController;
 class EditorWheelController;
+class ClipTitleInlineEdit;
 enum class EditSessionEndReason;
 class QResizeEvent;
 class QShowEvent;
@@ -90,6 +91,10 @@ public:
     void clearTrackSplitPreview() override;
     // WYSIWYG snap step at `tick` for the current zoom level.
     [[nodiscard]] int snapStep(int tick) const;
+    // Commit an open inline clip title rename. No-op when nothing is renamed.
+    void finishClipTitleEditing();
+    // Drop an open rename without writing the model.
+    void cancelClipTitleEditing();
 
 public slots:
     void setSceneLength(int tick);
@@ -144,6 +149,11 @@ protected:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+    // An open inline rename owns the touches that land on it.
+    [[nodiscard]] bool touchRelayTextBegin(const QPointF &viewportPosition) override;
+    void touchRelayTextMove(const QPointF &viewportPosition) override;
+    void touchRelayTextEnd(const QPointF &viewportPosition) override;
+    void touchRelayTextCancel() override;
 
     // --- EditorPenTarget ---
     // The arrangement canvas has no tool of its own and nothing an eraser could
@@ -167,6 +177,9 @@ private:
         QRectF modelPhysicalRect;
         QRectF paintPhysicalRect;
         QString title;
+        // An open inline rename hides the painted title: the overlay is the
+        // only place the old name shows.
+        bool titleEditing = false;
         bool selected = false;
         bool active = false;
         bool pastePreview = false;
@@ -197,6 +210,10 @@ private:
                                                                    const ClipSnapshot &clip,
                                                                    double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
+    // The band that carries the clip title, in viewport coordinates. Empty when
+    // the clip is too short to draw its title as its own strip.
+    [[nodiscard]] QRectF titleBandViewportRect(const ClipSnapshot &clip) const;
+    void beginClipTitleEdit(const ClipSnapshot &clip);
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int snapTick(int tick) const;
@@ -276,6 +293,9 @@ private:
     QPointF m_lastPointerPosition;
     EditorGlyphAtlas m_glyphAtlas;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
+    // Shared inline rename session for clip titles (see ClipTitleInlineEdit).
+    ClipTitleInlineEdit *m_titleEditor = nullptr;
+    int m_titleEditingClipId = -1;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;

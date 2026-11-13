@@ -26,6 +26,7 @@
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 #include "UI/Views/Common/AudioLoadHint.h"
+#include "UI/Views/Common/ClipTitleInlineEdit.h"
 
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -114,6 +115,21 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 m_viewport.scrollBy({offset.x() - m_viewport.horizontalOffset(),
                                      offset.y() - m_viewport.verticalOffset()});
             });
+
+    // Inline clip title rename. The session commits itself; the canvas only
+    // keeps the snapshot's painted title in step with it.
+    m_titleEditor = new ClipTitleInlineEdit(this, this);
+    connect(m_titleEditor, &ClipTitleInlineEdit::sessionFinished, this, [this](const int clipId) {
+        if (m_titleEditingClipId != clipId)
+            return;
+        m_titleEditingClipId = -1;
+        scheduleSnapshot();
+    });
+    // Every external event that moves the target ends the session.
+    connect(&m_viewport, &EditorViewportController::viewportChanged, this,
+            &TracksRhiWidget::finishClipTitleEditing);
+    connect(this, &TracksRhiWidget::sizeChanged, this,
+            &TracksRhiWidget::finishClipTitleEditing);
 
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
@@ -575,6 +591,25 @@ void TracksRhiWidget::cancelTouchPointerInteraction() {
     scheduleSnapshot();
 }
 
+bool TracksRhiWidget::touchRelayTextBegin(const QPointF &viewportPosition) {
+    return m_titleEditor && m_titleEditor->relayTouchBegin(viewportPosition);
+}
+
+void TracksRhiWidget::touchRelayTextMove(const QPointF &viewportPosition) {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchMove(viewportPosition);
+}
+
+void TracksRhiWidget::touchRelayTextEnd(const QPointF &viewportPosition) {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchEnd(viewportPosition);
+}
+
+void TracksRhiWidget::touchRelayTextCancel() {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchCancel();
+}
+
 void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
     m_rubberBandEnd = m_viewport.viewportToScene(position);
     const auto dpr = devicePixelRatioF();
@@ -652,6 +687,14 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
 
 void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto *hit = hitTest(event->position())) {
+        // The title band renames the clip in place, the body keeps opening it
+        // in the clip editor.
+        if (event->button() == Qt::LeftButton && !hit->pastePreview &&
+            titleBandViewportRect(*hit).contains(event->position())) {
+            beginClipTitleEdit(*hit);
+            event->accept();
+            return;
+        }
         trackController->setActiveClip(hit->id);
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
         double targetTick = playbackController->position();
@@ -986,6 +1029,11 @@ void TracksRhiWidget::rebuildModelConnections() {
             connect(clip, &Clip::propertyChanged, this, [this, clip] {
                 if (const auto sampler = m_audioWaveformSamplers.value(clip->id()))
                     sampler->invalidate();
+                // A property write moves or repaints the target, which ends an
+                // open rename. The commit path has already closed the session,
+                // so this only fires for changes coming from elsewhere.
+                if (clip->id() == m_titleEditingClipId)
+                    finishClipTitleEditing();
                 scheduleSnapshot();
             });
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
@@ -1095,9 +1143,12 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     const auto &paintRect = clip.paintPhysicalRect;
     const auto radius = EditorItemGeometry::adaptiveCornerRadius(
         paintRect, EditorItemGeometry::clipCornerRadius * dpr);
-    const auto titleHeight = 20.0 * dpr;
+    const auto titleHeight = EditorItemGeometry::clipTitleHeight * dpr;
     const auto preview = clipPreviewRect(clip, dpr);
-    const auto hasPreview = preview.height() >= 32.0 * dpr;
+    // The title owns its own strip only while the body below it is tall enough
+    // for a preview. The test runs on logical units so both backends share it.
+    const auto hasPreview =
+        EditorItemGeometry::clipHasTitleStrip(EditorItemGeometry::scaledRect(paintRect, 1.0 / dpr));
     const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
     EditorRhiGeometry::appendRoundedRect(frame.solidVertices, paintRect, radius, bodyColor);
     if (hasPreview) {
@@ -1125,7 +1176,9 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     const auto titleWidth =
         rawRight - std::max(rawLeft, visibleLeft) - EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
     constexpr double iconWidth = 4.0;
-    if (metrics.horizontalAdvance(clip.title) * dpr + iconWidth * dpr <= titleWidth &&
+    // An open inline rename is the only place the name shows.
+    if (!clip.titleEditing &&
+        metrics.horizontalAdvance(clip.title) * dpr + iconWidth * dpr <= titleWidth &&
         metrics.height() * dpr <= titleHeight) {
         const auto textTop =
             hasPreview ? paintRect.top()
@@ -1284,6 +1337,7 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
     result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
+    result.titleEditing = clip->id() == m_titleEditingClipId;
     if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
         result.loadState = audioDecodingController->loadState(audio);
     }
@@ -1317,9 +1371,9 @@ QRectF TracksRhiWidget::clipModelPhysicalRect(const Clip::ClipCommonProperties &
 }
 
 QRectF TracksRhiWidget::clipPreviewRect(const ClipSnapshot &clip, const double dpr) {
-    constexpr double titleHeight = 20.0;
-    return {clip.paintPhysicalRect.left(), clip.paintPhysicalRect.top() + titleHeight * dpr,
-            clip.paintPhysicalRect.width(), clip.paintPhysicalRect.height() - titleHeight * dpr};
+    const auto titleHeight = EditorItemGeometry::clipTitleHeight * dpr;
+    return {clip.paintPhysicalRect.left(), clip.paintPhysicalRect.top() + titleHeight,
+            clip.paintPhysicalRect.width(), clip.paintPhysicalRect.height() - titleHeight};
 }
 
 AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformSampler &sampler,
@@ -1442,6 +1496,47 @@ int TracksRhiWidget::trackIndexAt(const QPointF &viewportPosition) const {
     const auto unit = m_viewport.sceneYToUnit(m_viewport.viewportToScene(viewportPosition).y());
     const auto index = static_cast<int>(std::floor(unit));
     return index >= 0 && index < appModel->tracks().size() ? index : -1;
+}
+
+QRectF TracksRhiWidget::titleBandViewportRect(const ClipSnapshot &clip) const {
+    const auto dpr = devicePixelRatioF();
+    if (dpr <= 0.0)
+        return {};
+    // Paint geometry is physical; the title band is expressed in logical units
+    // so both backends read the same constants.
+    const auto logicalPaintRect = EditorItemGeometry::scaledRect(clip.paintPhysicalRect, 1.0 / dpr);
+    if (!EditorItemGeometry::clipHasTitleStrip(logicalPaintRect))
+        return {};
+    const auto band = EditorItemGeometry::clipTitleBand(logicalPaintRect);
+    if (band.isEmpty())
+        return {};
+    return band.translated(-m_viewport.offset());
+}
+
+void TracksRhiWidget::beginClipTitleEdit(const ClipSnapshot &clip) {
+    if (!m_titleEditor || clip.id < 0 || clip.pastePreview)
+        return;
+    const auto band = titleBandViewportRect(clip);
+    if (band.isEmpty())
+        return;
+    const auto *modelClip = appModel->findClipById(clip.id);
+    if (!modelClip)
+        return;
+    // The snapshot reads the id, so marking it before the session opens keeps
+    // the painted title off the frame that lands under the editor.
+    m_titleEditingClipId = clip.id;
+    scheduleSnapshot();
+    m_titleEditor->begin(clip.id, band, modelClip->name(), font());
+}
+
+void TracksRhiWidget::finishClipTitleEditing() {
+    if (m_titleEditor)
+        m_titleEditor->submit();
+}
+
+void TracksRhiWidget::cancelClipTitleEditing() {
+    if (m_titleEditor)
+        m_titleEditor->cancel();
 }
 
 int TracksRhiWidget::tickAt(const QPointF &viewportPosition) const {

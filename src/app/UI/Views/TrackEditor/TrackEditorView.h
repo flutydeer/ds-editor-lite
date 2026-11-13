@@ -74,6 +74,10 @@ private:
     void populateLegacyClipItems();
     void handleExternalDrop(const TrackDropSlot &slot, const QList<QUrl> &urls);
     [[nodiscard]] double activeScaleY() const;
+    // Inline clip title rename, delegated to whichever backend is live. The
+    // finish flavour writes the model, the cancel one only closes the editor.
+    void finishClipTitleEditing() const;
+    void cancelClipTitleEditing() const;
 
     TrackListView *m_trackListView = nullptr;
     TracksGraphicsView *m_graphicsView = nullptr;

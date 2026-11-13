@@ -18,6 +18,10 @@ public:
         Default,
         TrackName,
         ClipName,
+        // The clip title drawn on the arrangement canvas. Its own role because
+        // the field has to line its text up with the title it covers, which is
+        // inset differently from the clip editor toolbar.
+        ClipTitle,
         Lyric,
         Pronunciation,
         Tempo,

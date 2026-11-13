@@ -176,10 +176,37 @@ void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &ar
     updateRectAndPos();
 }
 
+QRectF AbstractClipView::titleBandRect() const {
+    const auto paintRect = EditorItemGeometry::clipPaintRect(rect());
+    if (!EditorItemGeometry::clipHasTitleStrip(paintRect))
+        return {};
+    return EditorItemGeometry::clipTitleBand(paintRect);
+}
+
+bool AbstractClipView::acceptsTitleRename(const QPointF &itemPos) const {
+    // A paste preview carries no model id, so renaming it could not commit.
+    if (id() < 0)
+        return false;
+    return titleBandRect().contains(itemPos);
+}
+
+void AbstractClipView::setTitleEditing(const bool editing) {
+    Q_D(AbstractClipView);
+    if (d->m_titleEditing == editing)
+        return;
+    d->m_titleEditing = editing;
+    update();
+}
+
+bool AbstractClipView::isTitleEditing() const {
+    Q_D(const AbstractClipView);
+    return d->m_titleEditing;
+}
+
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
     auto result = EditorItemGeometry::clipPaintRect(q->rect());
-    result.setTop(result.top() + titleHeight);
+    result.setTop(result.top() + EditorItemGeometry::clipTitleHeight);
     return result;
 }
 
@@ -233,12 +260,15 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
                               : rectRight - rectLeft - 2 * (textPadding + penWidth);
     auto titleRectHeight = paddedRect.height() - 2 * textPadding;
 
-    auto previewRectHeight = d->previewRect().height();
+    // The title only owns its own strip while the body below it is tall
+    // enough for a preview; shorter clips centre the title over the whole body.
+    const auto hasTitleStrip = EditorItemGeometry::clipHasTitleStrip(paddedRect);
+    constexpr double titleHeight = EditorItemGeometry::clipTitleHeight;
 
     // Draw Background
     QPen pen;
     pen.setWidthF(penWidth);
-    if (previewRectHeight >= 32) {
+    if (hasTitleStrip) {
         painter->setBrush(colorPrimaryTransparent);
     } else
         painter->setBrush(isSelected() ? colorPrimaryLighter : colorPrimary);
@@ -253,17 +283,17 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     }
 
     // Draw title
-    if (previewRectHeight >= 32) {
+    if (hasTitleStrip) {
         QPainterPath titleBackgroundPath;
-        titleBackgroundPath.moveTo(paddedRect.left(), d->titleHeight);
-        titleBackgroundPath.lineTo(paddedRect.right(), d->titleHeight);
+        titleBackgroundPath.moveTo(paddedRect.left(), titleHeight);
+        titleBackgroundPath.lineTo(paddedRect.right(), titleHeight);
         titleBackgroundPath.lineTo(paddedRect.right(), paddedRect.top() + radius);
         titleBackgroundPath.arcTo(paddedRect.right() - 2 * radius, paddedRect.top(), 2 * radius,
                                   2 * radius, 0, 90);
         titleBackgroundPath.lineTo(paddedRect.left() + radius, paddedRect.top());
         titleBackgroundPath.arcTo(paddedRect.left(), paddedRect.top(), 2 * radius, 2 * radius, 90,
                                   90);
-        titleBackgroundPath.lineTo(paddedRect.left(), d->titleHeight);
+        titleBackgroundPath.lineTo(paddedRect.left(), titleHeight);
         painter->setPen(Qt::NoPen);
         painter->setBrush(isSelected() ? colorPrimaryLighter : colorPrimary);
         painter->drawPath(titleBackgroundPath);
@@ -288,15 +318,19 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     pen.setColor(colorForeground);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    if (textWidth + iconWidth <= titleRectWidth && textHeight <= d->titleHeight) {
-        if (d->previewRect().height() < 32) {
+    // An open inline rename is the only place the name shows: painting it
+    // underneath the editor would either duplicate it or shine through the
+    // gaps the editor does not cover.
+    if (!d->m_titleEditing && textWidth + iconWidth <= titleRectWidth &&
+        textHeight <= titleHeight) {
+        if (!hasTitleStrip) {
             painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
         } else {
             painter->drawText(textRect, text());
         }
     }
 
-    if (previewRectHeight >= 32) {
+    if (hasTitleStrip) {
         painter->setClipRect(d->previewRect());
         drawPreviewArea(painter, d->previewRect(),
                         isSelected() ? colorPrimaryLighter : colorPrimary);

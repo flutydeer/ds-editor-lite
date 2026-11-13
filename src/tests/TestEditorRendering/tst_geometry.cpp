@@ -27,6 +27,40 @@ namespace {
     }
 }
 
+// The title band is shared by both arrangement backends: the legacy item, the
+// RHI glyph layout and the inline rename all read these numbers.
+void EditorRenderingTests::clipTitleBandGeometry() {
+    using namespace EditorItemGeometry;
+
+    // A full-height clip keeps a band of exactly the title height at its top.
+    const QRectF tall(4.0, 8.0, 300.0, 69.6);
+    QVERIFY(clipHasTitleStrip(tall));
+    QCOMPARE(clipTitleBand(tall), QRectF(4.0, 8.0, 300.0, clipTitleHeight));
+
+    // Exactly at the threshold the title is still drawn as its own strip.
+    const QRectF threshold(4.0, 8.0, 120.0, clipTitleHeight + clipTitleStripMinPreviewHeight);
+    QVERIFY(clipHasTitleStrip(threshold));
+    // One logical pixel shorter and the title is centred over the whole body,
+    // which is when the body keeps the ordinary clip gestures.
+    auto shortClip = threshold;
+    shortClip.setHeight(shortClip.height() - 1.0);
+    QVERIFY(!clipHasTitleStrip(shortClip));
+
+    // Degenerate rects have nothing to target.
+    QVERIFY(clipTitleBand({}).isEmpty());
+    QVERIFY(!clipHasTitleStrip({}));
+    QVERIFY(clipTitleBand(QRectF(0.0, 0.0, 10.0, 0.0)).isEmpty());
+    // A band never grows past the rect it belongs to.
+    const QRectF flat(0.0, 0.0, 10.0, 8.0);
+    QCOMPARE(clipTitleBand(flat).height(), flat.height());
+    QVERIFY(!clipHasTitleStrip(flat));
+
+    // Physical and logical units meet through scaledRect, which QRectF itself
+    // cannot express (it has no division operator).
+    QCOMPARE(scaledRect(QRectF(10.0, 20.0, 100.0, 50.0), 0.5), QRectF(5.0, 10.0, 50.0, 25.0));
+    QVERIFY(scaledRect(tall, 0.0).isEmpty());
+}
+
 void EditorRenderingTests::minimumItemGeometry() {
     const QRectF clipRect(0.0, 0.0, 10.0, 10.0);
     const QRectF ordinaryNoteModelRect(2.0, 3.0, 10.0, 8.0);
