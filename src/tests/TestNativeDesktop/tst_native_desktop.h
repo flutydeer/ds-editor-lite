@@ -62,6 +62,7 @@ private slots:
     void rhiTouchpadPinchLocksTheAxisWithoutEditing();
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();
     void rhiTrackClipTitleRenamesInline();
+    void rhiTrackClipTitleSurvivesDocumentReplacement();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();

@@ -1666,3 +1666,57 @@ void NativeDesktopTests::rhiTrackClipTitleRenamesInline() {
     QTRY_VERIFY(!overlay->isEditing());
     QVERIFY(!fixture.application.context->m_appModel->findClipById(fixture.clipId));
 }
+
+void NativeDesktopTests::rhiTrackClipTitleSurvivesDocumentReplacement() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    // The clip snapshots are rebuilt on a zero timer; hit testing needs them.
+    QCoreApplication::processEvents();
+
+    const auto titleBandPoint = [&] {
+        auto point = fixture.point(960, 0);
+        point.setY(point.y() - qRound(TracksEditorGlobal::trackHeight * canvas.scaleY() * 0.5) +
+                   qRound(EditorItemGeometry::clipTitleHeight * 0.5));
+        return point;
+    };
+
+    // Open a rename and type into it, then replace the whole document.
+    QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
+    QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+    auto *lineEdit = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+    auto *overlay = canvas.findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay && overlay->isEditing());
+    QTest::keyClicks(lineEdit, QStringLiteral("Stale phrase"));
+
+    const auto staleClipId = fixture.clipId;
+    auto replacement = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::TrackDraftDto replacementTrack;
+    Automation::ClipDraftDto replacementClip;
+    replacementClip.type = Automation::ClipDraftDto::Type::Singing;
+    replacementClip.properties.name = QStringLiteral("Replacement");
+    replacementClip.properties.start = 0;
+    replacementClip.properties.length = 480;
+    replacementClip.properties.clipLen = 480;
+    replacementTrack.clips.append(replacementClip);
+    replacement.tracks = {replacementTrack};
+    // The RHI canvas reacts to modelChanged before the editor view does, and its
+    // viewport update unconditionally emits viewportChanged, so the session is
+    // asked to submit while the new document is already installed.
+    QVERIFY(fixture.runtime().documents().commitNewDocument(fixture.command(), replacement));
+
+    QTRY_VERIFY(!overlay->isEditing());
+    const auto *tracks = fixture.application.context->m_appModel->tracks().first();
+    QVERIFY(tracks && tracks->clips().count() > 0);
+    const auto *replacementModelClip = *tracks->clips().begin();
+    // Ids come from a process-wide monotonic generator that a document swap
+    // never resets, so the old id cannot resolve a clip of the new generation.
+    // Should that invariant ever change, this assertion is the tripwire: the
+    // stale write would then need the session to reject a different clip
+    // object, not just a missing id.
+    QVERIFY(replacementModelClip->id() != staleClipId);
+    QCOMPARE(replacementModelClip->name(), QStringLiteral("Replacement"));
+}
