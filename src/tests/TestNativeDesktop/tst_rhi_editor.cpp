@@ -752,7 +752,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
     const auto reattach = qScopeGuard([&] {
-        if (auto *detached = window.findChild<DetachedPanelWindow *>();
+        if (auto *detached = window.detachedPanelWindow();
             detached && detached->isVisible())
             detached->close();
     });
@@ -761,7 +761,7 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     const auto beforeDetach = runtime.documentVersion();
     const auto beforeDetachFrame = pianoFrames.size();
     QTest::mouseClick(detachButton, Qt::LeftButton);
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     TestSupport::placeWindowOnScreen(*detached, {1000, 650});
     detached->raise();

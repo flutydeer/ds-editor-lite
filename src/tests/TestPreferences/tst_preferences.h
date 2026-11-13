@@ -25,4 +25,6 @@ private slots:
     void uiLanguageNumberFormattingPreservesDecimalSeparator();
     void uiLanguagePreferencePersistence();
     void uiLanguageEquivalentPreferenceDoesNotNotify();
+    void windowOptionRoundTrip();
+    void windowOptionRejectsDamagedGeometry();
 };

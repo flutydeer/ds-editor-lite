@@ -953,7 +953,7 @@ void ApplicationGuiTests::captureUiGallery() try {
                  Gallery::Capture::WidgetContent);
 
     emit bottom->detachRequested();
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
     gallery.take(*detached, Module::Mixing, QStringLiteral("Detached mix console"));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));

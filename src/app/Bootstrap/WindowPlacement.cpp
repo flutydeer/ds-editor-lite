@@ -51,12 +51,12 @@ WindowPlacement::~WindowPlacement() {
     m_window.removeEventFilter(this);
 }
 
-void WindowPlacement::restoreOrPlace(const QByteArray &geometry) {
+void WindowPlacement::restoreOrPlace(const QByteArray &geometry, const QSize &preferredSize) {
     const bool restored = !geometry.isEmpty() && m_window.restoreGeometry(geometry);
     m_window.setWindowState(m_window.windowState() & ~Qt::WindowMinimized);
 
     if (!restored)
-        placeDefault();
+        placeDefault(preferredSize);
     ensureVisible();
     scheduleCorrection();
 }
@@ -145,21 +145,24 @@ void WindowPlacement::ensureVisible() {
         m_window.setWindowState(m_window.windowState() | Qt::WindowMaximized);
 }
 
-void WindowPlacement::placeDefault() {
+void WindowPlacement::placeDefault(const QSize &preferredSize) {
     auto *screen = QApplication::screenAt(QCursor::pos());
     if (!screen)
         screen = QApplication::primaryScreen();
 
     const auto available = availableGeometry(screen);
     if (!available.isValid()) {
-        m_window.resize(compactDefaultSize);
+        m_window.resize(preferredSize.isEmpty() ? compactDefaultSize : preferredSize);
         return;
     }
 
-    const auto preferred = available.width() > largeDefaultSize.width() &&
-                                   available.height() > largeDefaultSize.height()
-                               ? largeDefaultSize
-                               : compactDefaultSize;
+    auto preferred = compactDefaultSize;
+    if (!preferredSize.isEmpty()) {
+        preferred = preferredSize;
+    } else if (available.width() > largeDefaultSize.width() &&
+               available.height() > largeDefaultSize.height()) {
+        preferred = largeDefaultSize;
+    }
     const auto size = preferred.boundedTo(available.size());
     const auto topLeft = available.topLeft() + QPoint((available.width() - size.width()) / 2,
                                                       (available.height() - size.height()) / 2);

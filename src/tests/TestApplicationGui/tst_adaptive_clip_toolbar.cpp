@@ -275,7 +275,7 @@ void ApplicationGuiTests::adaptiveClipToolbarKeepsSizesInTitleBarAndDetachedPane
     auto *detach = bottom->findChild<QAbstractButton *>(QStringLiteral("btnPanelDetach"));
     QVERIFY(detach && detach->isVisible() && detach->isEnabled());
     QTest::mouseClick(detach, Qt::LeftButton);
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     QCOMPARE(detached->contentWidget(), bottom.data());
     detached->activateWindow();

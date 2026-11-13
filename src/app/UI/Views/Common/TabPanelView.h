@@ -18,6 +18,9 @@ public:
     void registerPage(TabPanelPage *page);
     [[nodiscard]] bool hasPage(const QString &pageId) const;
     [[nodiscard]] QString currentPageId() const;
+    // The translated display name of the current page. Used by the detached
+    // window title so the taskbar entry can be told apart from the main window.
+    [[nodiscard]] QString currentPageName() const;
     [[nodiscard]] AppGlobal::PanelType currentPagePanelType() const;
     bool setCurrentPageId(const QString &pageId);
 

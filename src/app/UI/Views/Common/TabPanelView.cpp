@@ -77,6 +77,12 @@ QString TabPanelView::currentPageId() const {
     return m_pages.at(m_currentIndex)->tabId();
 }
 
+QString TabPanelView::currentPageName() const {
+    if (m_currentIndex < 0 || m_currentIndex >= m_pages.size())
+        return {};
+    return m_pages.at(m_currentIndex)->tabName();
+}
+
 AppGlobal::PanelType TabPanelView::currentPagePanelType() const {
     if (m_currentIndex < 0 || m_currentIndex >= m_pages.size())
         return AppGlobal::Generic;

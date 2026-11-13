@@ -60,7 +60,7 @@ Windows 三键则是判断写成了“是否无边框”：`systemButtons` 只�
 
 对话框走同一套：`DialogTitleBar` 的 `trafficLightArea` 参数打开时只留红绿灯槽位，不再创建自绘关闭按钮。
 
-独立面板使用 `MainTitleBar` 的缩减布局，直接复用主窗口的平台计划，只去掉项目名和文档操作。macOS 无边框分离窗口也使用同一套 74 像素红绿灯槽位、QWK 定位和 full-size content 补偿，并关闭 Qt 的安全区自动留白。移除自绘三键后，原有弹性空间让播放工具自然靠右，不增加占位。原生红色关闭按钮仍经 `closeEvent()` 请求重新嵌回主窗口，不销毁编辑状态。
+独立面板使用 `MainTitleBar` 的缩减布局，直接复用主窗口的平台计划，只去掉项目名和文档操作。分离窗口是没有 QWidget parent 的独立顶层窗口，由主窗口显式持有，窗口模型见 `detached-panel-window.md`。macOS 无边框分离窗口也使用同一套 74 像素红绿灯槽位、QWK 定位和 full-size content 补偿，并关闭 Qt 的安全区自动留白。移除自绘三键后，原有弹性空间让播放工具自然靠右，不增加占位。原生红色关闭按钮仍经 `closeEvent()` 请求重新嵌回主窗口，不销毁编辑状态。
 
 ## 双击标题栏
 

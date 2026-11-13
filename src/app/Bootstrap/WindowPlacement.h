@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QRect>
 #include <QSet>
+#include <QSize>
 #include <QTimer>
 
 class QEvent;
@@ -16,7 +17,10 @@ public:
     explicit WindowPlacement(QWidget &window);
     ~WindowPlacement() override;
 
-    void restoreOrPlace(const QByteArray &geometry);
+    // Restores geometry when available, otherwise places the window on the
+    // screen under the cursor. preferredSize overrides the built-in default
+    // window size for the "no saved geometry" case.
+    void restoreOrPlace(const QByteArray &geometry, const QSize &preferredSize = {});
     [[nodiscard]] QByteArray saveGeometry() const;
 
 protected:
@@ -27,7 +31,7 @@ private:
     void syncScreens();
     void scheduleCorrection();
     void ensureVisible();
-    void placeDefault();
+    void placeDefault(const QSize &preferredSize);
     [[nodiscard]] QRect placementGeometry() const;
     [[nodiscard]] QScreen *screenForGeometry(const QRect &geometry) const;
     [[nodiscard]] static QRect constrainedGeometry(const QRect &geometry,

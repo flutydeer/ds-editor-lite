@@ -11,9 +11,13 @@
 #include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QCloseEvent>
+#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QMouseEvent>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWindow>
 #include <QWKWidgets/widgetwindowagent.h>
 
 namespace {
@@ -25,7 +29,7 @@ namespace {
 } // namespace
 
 DetachedPanelWindow::DetachedPanelWindow(MainWindow *mainWindow, const bool useNativeFrame)
-    : Window(mainWindow, Qt::Window), m_mainWindow(mainWindow),
+    : Window(nullptr, Qt::Window), m_mainWindow(mainWindow),
       m_useNativeFrame(useNativeFrame) {
 #ifdef Q_OS_MAC
     if (!m_useNativeFrame) {
@@ -38,9 +42,10 @@ DetachedPanelWindow::DetachedPanelWindow(MainWindow *mainWindow, const bool useN
 #endif
     setAttribute(Qt::WA_StyledBackground);
     setProperty(EditorShortcutUtils::kEditorWindowProperty, true);
-    setWindowTitle(mainWindow ? mainWindow->windowTitle() : QString());
+    refreshWindowTitle();
     if (mainWindow) {
-        connect(mainWindow, &QWidget::windowTitleChanged, this, &QWidget::setWindowTitle);
+        connect(mainWindow, &QWidget::windowTitleChanged, this,
+                [this] { refreshWindowTitle(); });
     }
 
     buildChrome(mainWindow, useNativeFrame);
@@ -140,8 +145,29 @@ MainMenuView *DetachedPanelWindow::menuView() const {
     return m_menuView;
 }
 
+void DetachedPanelWindow::setTitleSuffix(const QString &suffix) {
+    if (m_titleSuffix == suffix)
+        return;
+    m_titleSuffix = suffix;
+    refreshWindowTitle();
+}
+
+void DetachedPanelWindow::refreshWindowTitle() {
+    auto base = m_mainWindow ? m_mainWindow->windowTitle() : QString();
+    if (base.isEmpty())
+        base = QGuiApplication::applicationDisplayName();
+    // The em dash is a separator between two user-visible names, not prose.
+    setWindowTitle(m_titleSuffix.isEmpty() ? base
+                                           : QStringLiteral("%1 — %2").arg(base, m_titleSuffix));
+}
+
 bool DetachedPanelWindow::event(QEvent *event) {
-    if (event->type() == QEvent::Show && !m_useNativeFrame) {
+    // Keep the right-edge workaround filter attached to the platform window.
+    // Re-installing is idempotent and covers a recreated native window.
+    if (event->type() == QEvent::WinIdChange) {
+        if (auto *window = windowHandle())
+            window->installEventFilter(this);
+    } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
         // As in MainWindow, AppKit may attach the NSWindow after Show. Repeat
         // the idempotent merge once it is on screen, including re-detach flows.
         QTimer::singleShot(0, this, [this] { WindowFrameUtils::mergeTitleBarIntoContent(this); });
@@ -151,9 +177,41 @@ bool DetachedPanelWindow::event(QEvent *event) {
     return Window::event(event);
 }
 
+bool DetachedPanelWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == windowHandle()) {
+        switch (event->type()) {
+            case QEvent::MouseMove:
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick: {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                const QPointF pos = mouseEvent->position();
+                // Same right-edge gap workaround as MainWindow::eventFilter; see
+                // docs/design/title-bar-edge-deadzone-fix-design.md. With an
+                // independent window the maximized close button now reaches the
+                // screen edge, so the panel needs the same compensation.
+                if (pos.x() >= width() - 1.0 && m_titleBar->systemButtonAt(pos)) {
+                    const QPointF fixedPos(width() - 1.5, pos.y());
+                    QMouseEvent fixed(mouseEvent->type(), fixedPos, fixedPos,
+                                      mouseEvent->globalPosition(), mouseEvent->button(),
+                                      mouseEvent->buttons(), mouseEvent->modifiers(),
+                                      mouseEvent->source(), mouseEvent->pointingDevice());
+                    fixed.setTimestamp(mouseEvent->timestamp());
+                    QCoreApplication::sendEvent(watched, &fixed);
+                    return true;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return Window::eventFilter(watched, event);
+}
+
 void DetachedPanelWindow::closeEvent(QCloseEvent *event) {
-    // The panel is a singleton child of the main window. Closing this window
-    // means docking it back, not destroying the editing state.
+    // The panel content is a singleton owned by the main window. Closing this
+    // window means docking it back, not destroying the editing state.
     event->ignore();
     emit reattachRequested();
 }

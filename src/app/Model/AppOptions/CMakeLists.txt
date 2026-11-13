@@ -3,6 +3,7 @@ add_library(EditorPreferencesCore STATIC
     Options/GeneralOption.cpp
     Options/InferenceOption.cpp
     Options/AppearanceOption.cpp
+    Options/WindowOption.cpp
     ../../Automation/Mcp/McpClientConfiguration.cpp
     ../../Utils/ApplicationLocale.cpp
     ../../Utils/UiLanguageManager.cpp

@@ -29,6 +29,7 @@ private slots:
     void mainWindowSplitterDragRestoresPanelSizes();
     void closingMainWindowWaitsForBackgroundTasks_data();
     void closingMainWindowWaitsForBackgroundTasks();
+    void detachedPanelDiesWithItsMainWindow();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();

@@ -3,6 +3,7 @@
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
@@ -75,7 +76,7 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
 
     PendingExitTask pending;
@@ -157,4 +158,33 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     QTRY_VERIFY(!window.isVisible() && !progress->isVisible());
     QCOMPARE(qApp->property("restart").toBool(), restart);
     QVERIFY(taskManager->tasks().isEmpty());
+}
+
+void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("Detached windows require a native window backend");
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const auto detachEnabled = appOptions->developer()->enablePanelDetach;
+    const auto restoreOptions =
+        qScopeGuard([&] { appOptions->developer()->enablePanelDetach = detachEnabled; });
+    appOptions->developer()->enablePanelDetach = true;
+
+    auto window = std::make_unique<MainWindow>();
+    TestSupport::placeWindowOnScreen(*window, {1100, 800});
+    window->show();
+    window->activateWindow();
+    QTRY_VERIFY(window->isActiveWindow());
+    auto *bottom = window->findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detach && detach->isVisible());
+    QTest::mouseClick(detach, Qt::LeftButton);
+    QPointer<DetachedPanelWindow> detached = window->detachedPanelWindow();
+    QVERIFY(detached && detached->isVisible());
+
+    // The window has no QWidget parent, so the main window must destroy it
+    // explicitly instead of relying on the QObject tree.
+    window.reset();
+    QVERIFY(detached.isNull());
 }

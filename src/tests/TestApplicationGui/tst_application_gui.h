@@ -218,6 +218,8 @@ private slots:
     void detachedBottomPanelReattachesWithItsEditingContext();
     void detachedPanelUsesReducedMainTitleBar_data();
     void detachedPanelUsesReducedMainTitleBar();
+    void detachedPanelIsAnIndependentTopLevelWindow();
+    void detachedPanelRestoresSavedGeometry();
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();
     void detachedMenuSaveActionsReachDocumentWorkflow();
