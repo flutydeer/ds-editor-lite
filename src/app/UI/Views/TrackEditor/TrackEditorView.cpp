@@ -383,6 +383,8 @@ void TrackEditorView::connectRhiBackend() {
 void TrackEditorView::fallbackToLegacy() {
     if (!m_rhiView || m_graphicsView)
         return;
+    // The model is still intact here, so an open rename can keep its text.
+    finishClipTitleEditing();
     const auto state = m_rhiView->viewState();
     auto *failedView = m_rhiView;
     m_rhiView = nullptr;
@@ -421,6 +423,20 @@ void TrackEditorView::populateLegacyClipItems() {
 
 double TrackEditorView::activeScaleY() const {
     return m_rhiView ? m_rhiView->scaleY() : m_graphicsView->scaleY();
+}
+
+void TrackEditorView::finishClipTitleEditing() const {
+    if (m_rhiView)
+        m_rhiView->finishClipTitleEditing();
+    else if (m_graphicsView)
+        m_graphicsView->finishClipTitleEditing();
+}
+
+void TrackEditorView::cancelClipTitleEditing() const {
+    if (m_rhiView)
+        m_rhiView->cancelClipTitleEditing();
+    else if (m_graphicsView)
+        m_graphicsView->cancelClipTitleEditing();
 }
 
 void TrackEditorView::handleExternalDrop(const TrackDropSlot &slot, const QList<QUrl> &urls) {
@@ -622,6 +638,9 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated
 }
 
 void TrackEditorView::onModelChanged() {
+    // The document generation is being replaced, so clip ids may be reused:
+    // an open rename must be dropped rather than written into a new clip.
+    cancelClipTitleEditing();
     for (auto i = m_viewModel.tracks.count() - 1; i >= 0; i--) {
         const auto track = m_viewModel.tracks.at(i)->dsTrack;
         onTrackRemoved(track, i);
@@ -649,6 +668,9 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     const auto count = m_viewModel.tracks.size();
     if (from == to || from < 0 || from >= count || to < 0 || to >= count)
         return;
+
+    // Reordering moves clips between rows exactly like an insertion does.
+    finishClipTitleEditing();
 
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);
@@ -682,6 +704,11 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
 
 void TrackEditorView::onClipChanged(const Track::ClipChangeType type, Clip *clip,
                                     const Track *dsTrack) {
+    // Removing a clip changes what the canvas is looking at. Submitting is the
+    // right answer for an unrelated clip, and for the removed one the commit
+    // re-resolves the target, finds nothing and just closes the session.
+    if (type == Track::Removed)
+        finishClipTitleEditing();
     if (m_rhiView) {
         m_rhiView->scheduleSnapshot();
         return;
@@ -766,6 +793,9 @@ TrackViewModel *TrackEditorView::ViewModel::findTrack(const Track *dsTrack) {
 }
 
 void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex) {
+    // Inserting at or above the edited clip shifts it to another row, so the
+    // anchor the rename was opened on no longer belongs to it: commit first.
+    finishClipTitleEditing();
     // Preserve selection by logical track while row indexes shift.
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);
@@ -989,6 +1019,12 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
             m_rhiView->scheduleSnapshot();
         return;
     }
+    // The clip may have moved under an open rename, so commit before the item
+    // is repainted at its new place. Only the edited clip counts: another clip
+    // updating under the open editor, an audio decode finishing for example,
+    // must not commit the name the user is still typing.
+    if (m_graphicsView->titleEditingClipId() == clip->id())
+        finishClipTitleEditing();
     const auto item = findClipItemById(clip->id());
     item->setName(clip->name());
     item->setStart(clip->start());
@@ -1009,6 +1045,9 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
 }
 
 void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index) {
+    // A removed track takes its clips with it, and the per-clip removal signal
+    // never fires for them: close any rename in flight first.
+    finishClipTitleEditing();
     // Ignore QListWidget's transient current-row changes while rows are being removed.
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);

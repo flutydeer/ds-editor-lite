@@ -13,6 +13,7 @@
 
 #include <optional>
 
+class ClipTitleInlineEdit;
 class Menu;
 class AbstractClipView;
 class QGraphicsLineItem;
@@ -48,9 +49,18 @@ public:
     void showTrackSplitPreview(const TrackSplitPreviewData &data) override;
     void clearTrackSplitPreview() override;
     [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
+    // Id of the clip whose title is being renamed inline, or -1 when none is.
+    // Lets the host end the session only when that very clip changes.
+    [[nodiscard]] int titleEditingClipId() const;
 
 public slots:
     void setClipSelection(const QList<int> &selected);
+    // Commit an open inline clip title rename, as every external event that
+    // moves the target does. No-op when nothing is being renamed.
+    void finishClipTitleEditing();
+    // Drop an open rename without writing the model. Used when the target is
+    // already gone or the document generation is being replaced.
+    void cancelClipTitleEditing();
 
 signals:
     void contextMenuRequested(const TrackEditorMenuContext &context);
@@ -75,6 +85,11 @@ private:
     // --- EditorTouchTarget ---
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+    // An open inline rename owns the touches that land on it.
+    [[nodiscard]] bool touchRelayTextBegin(const QPointF &viewportPosition) override;
+    void touchRelayTextMove(const QPointF &viewportPosition) override;
+    void touchRelayTextEnd(const QPointF &viewportPosition) override;
+    void touchRelayTextCancel() override;
 
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
@@ -91,6 +106,9 @@ private:
     void resetActiveClips() const;
     void resetEditState();
     void syncClipSelectionToAppStatus() const;
+    // Start the inline rename for a clip whose title band was double clicked.
+    void beginClipTitleEdit(AbstractClipView *clipItem);
+    [[nodiscard]] QRect titleBandViewportRect(const AbstractClipView *clipItem) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
     // Visual order: track by track, clips inside a track by start. Shared by Shift range selection
     // and by the drag snapshots so both agree on what "between these two clips" means.
@@ -127,6 +145,11 @@ private:
     int m_trackIndex = -1;
     int m_tick = 0;
     TrackEditorBackgroundView *m_snapGrid = nullptr;
+    // Shared inline rename session for clip titles (see ClipTitleInlineEdit).
+    ClipTitleInlineEdit *m_titleEditor = nullptr;
+    // Scene origin of the viewport when the title editor was anchored. Used to
+    // tell a real content move from a host resize, which must keep the editor.
+    QPointF m_titleEditSceneOrigin;
     // Applied to the snap grid when it is attached via setSnapGrid
     QColor m_selectedTrackColor = {0x31, 0x35, 0x3F};
     // External drop overlay colors (theme-injected via QSS)

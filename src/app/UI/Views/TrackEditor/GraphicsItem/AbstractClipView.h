@@ -49,6 +49,17 @@ public:
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
+    // The band that carries the name, in item coordinates. Empty when the clip
+    // is too short to draw the title as its own strip, which is exactly when it
+    // does not own any double click.
+    [[nodiscard]] QRectF titleBandRect() const;
+    // Whether a point in item coordinates may start the inline title rename.
+    [[nodiscard]] bool acceptsTitleRename(const QPointF &itemPos) const;
+    // While a rename is open the item stops painting the title: the overlay is
+    // the only place the old name shows.
+    void setTitleEditing(bool editing);
+    [[nodiscard]] bool isTitleEditing() const;
+
 signals:
     void removeTriggered(int id);
 

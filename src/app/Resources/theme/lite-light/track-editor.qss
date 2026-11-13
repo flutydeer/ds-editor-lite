@@ -232,3 +232,14 @@ TracksRhiWidget {
 TrackAppendSlotView {
     qproperty-lineColor: ${border.subtle};
 }
+
+/* Inline clip title rename on the arrangement canvas. The padding matches the
+   inset the title text is painted at, so the text does not jump on double
+   click. */
+QLineEdit#inlineEditLineEdit[editRole="ClipTitle"] {
+    background: ${surface.sunken};
+    border: none;
+    border-bottom: 1px solid ${border.focus};
+    border-radius: 2px;
+    padding: 0px 4px;
+}

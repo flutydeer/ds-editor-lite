@@ -33,8 +33,9 @@ public:
 
     int m_trackIndex = 0;
     int m_colorIndex = 0;
-
-    int titleHeight = 20;
+    // The inline title rename owns the title text while it is open: the item
+    // stops painting it so the overlay is the only place the old name shows.
+    bool m_titleEditing = false;
 
     [[nodiscard]] QRectF previewRect() const;
 

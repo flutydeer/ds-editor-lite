@@ -2,6 +2,7 @@
 
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
+#include "UI/Views/Common/ClipTitleInlineEdit.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
@@ -58,6 +59,28 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
         updateDropOverlayGeometry();
     });
 
+    // Inline clip title rename. The session commits itself; the canvas only
+    // keeps the item's painting in step with it.
+    m_titleEditor = new ClipTitleInlineEdit(viewport(), this);
+    connect(m_titleEditor, &ClipTitleInlineEdit::sessionFinished, this, [this](const int clipId) {
+        if (const auto clipItem = findClipById(clipId))
+            clipItem->setTitleEditing(false);
+    });
+    // Every external event that moves the target ends the session, the same
+    // contract the track header rename follows. A plain host resize does not:
+    // the view keeps its scroll position, and Windows resizes the foreground
+    // window to make room for the touch keyboard, so only content that actually
+    // moved may close the editor.
+    connect(this, &TimeGraphicsView::scaleChanged, this,
+            &TracksGraphicsView::finishClipTitleEditing);
+    connect(this, &TimeGraphicsView::visibleRectChanged, this, [this](const QRectF &rect) {
+        if (m_titleEditor && m_titleEditor->isEditing() &&
+            rect.topLeft() != m_titleEditSceneOrigin) {
+            finishClipTitleEditing();
+        }
+        m_titleEditSceneOrigin = rect.topLeft();
+    });
+
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
             resetActiveClips();
@@ -109,6 +132,45 @@ void TracksGraphicsView::setClipSelection(const QList<int> &selected) {
     // blank canvas has to drop the anchor too, otherwise a later Shift click ranges from a clip
     // that is not selected any more.
     m_selectionModel.synchronize(selected);
+}
+
+void TracksGraphicsView::finishClipTitleEditing() {
+    if (m_titleEditor)
+        m_titleEditor->submit();
+}
+
+void TracksGraphicsView::cancelClipTitleEditing() {
+    if (m_titleEditor)
+        m_titleEditor->cancel();
+}
+
+int TracksGraphicsView::titleEditingClipId() const {
+    return m_titleEditor ? m_titleEditor->editingClipId() : -1;
+}
+
+QRect TracksGraphicsView::titleBandViewportRect(const AbstractClipView *clipItem) const {
+    if (!clipItem)
+        return {};
+    const auto band = clipItem->titleBandRect();
+    if (band.isEmpty())
+        return {};
+    return mapFromScene(clipItem->mapToScene(band)).boundingRect();
+}
+
+void TracksGraphicsView::beginClipTitleEdit(AbstractClipView *clipItem) {
+    if (!clipItem || !m_titleEditor)
+        return;
+    const auto anchor = titleBandViewportRect(clipItem);
+    if (anchor.isEmpty())
+        return;
+    // The item stops painting its title for as long as the editor is open. A
+    // retarget inside the session commits the previous clip, and that emit
+    // clears this flag on the clip it came from.
+    clipItem->setTitleEditing(true);
+    // Remember the scene origin the band was anchored at, so a later viewport
+    // change can tell a moved content from a mere host resize.
+    m_titleEditSceneOrigin = logicalVisibleRect().topLeft();
+    m_titleEditor->begin(clipItem->id(), QRectF(anchor), clipItem->name(), font());
 }
 
 int TracksGraphicsView::snapStep(const bool snapOff, const int atTick) const {
@@ -269,6 +331,14 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     const auto tick = m_scene->tickAt(scenePos.x());
     if (const auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
+            // The title band renames the clip in place, the body keeps opening
+            // it in the clip editor.
+            if (event->button() == Qt::LeftButton &&
+                clipItem->acceptsTitleRename(clipItem->mapFromScene(scenePos))) {
+                beginClipTitleEdit(clipItem);
+                event->accept();
+                return;
+            }
             editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
             double tick = playbackController->position();
             double keyIndex = 60;
@@ -300,6 +370,25 @@ EditorTouchTarget::BlankDragAction TracksGraphicsView::touchBlankDragAction() co
 void TracksGraphicsView::cancelTouchPointerInteraction() {
     discardAction();
     TimeGraphicsView::cancelTouchPointerInteraction();
+}
+
+bool TracksGraphicsView::touchRelayTextBegin(const QPointF &viewportPosition) {
+    return m_titleEditor && m_titleEditor->relayTouchBegin(viewportPosition);
+}
+
+void TracksGraphicsView::touchRelayTextMove(const QPointF &viewportPosition) {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchMove(viewportPosition);
+}
+
+void TracksGraphicsView::touchRelayTextEnd(const QPointF &viewportPosition) {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchEnd(viewportPosition);
+}
+
+void TracksGraphicsView::touchRelayTextCancel() {
+    if (m_titleEditor)
+        m_titleEditor->relayTouchCancel();
 }
 
 void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {

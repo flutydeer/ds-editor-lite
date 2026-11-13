@@ -17,6 +17,7 @@ private slots:
     void blendColorsRemainDistinct();
     void currentFramePagesAreNotEvicted();
     void minimumItemGeometry();
+    void clipTitleBandGeometry();
     void triangleClipping();
     void roundedStrokeClipping();
     void hairlineDeduplication();
