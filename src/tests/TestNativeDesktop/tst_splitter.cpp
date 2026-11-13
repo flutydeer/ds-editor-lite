@@ -23,6 +23,11 @@
 #include <QScopeGuard>
 #include <QSplitterHandle>
 #include <QSignalSpy>
+#include <QWindow>
+
+#ifdef Q_OS_WIN
+#  include <Windows.h>
+#endif
 
 namespace {
     class ResizeProbe final : public QWidget {
@@ -139,7 +144,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QVERIFY(splitter);
     QCoreApplication::processEvents();
     const auto reattach = qScopeGuard([&] {
-        if (auto *detached = window.findChild<DetachedPanelWindow *>();
+        if (auto *detached = window.detachedPanelWindow();
             detached && detached->isVisible())
             detached->close();
     });
@@ -151,8 +156,19 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
+    // The panel must be nobody's owned window, otherwise Windows drops the
+    // taskbar entry and keeps it unconditionally above the main window.
+    QCOMPARE(detached->parentWidget(), nullptr);
+    QVERIFY(detached->windowHandle());
+    QCOMPARE(detached->windowHandle()->transientParent(), nullptr);
+#ifdef Q_OS_WIN
+    const auto detachedHandle = reinterpret_cast<HWND>(detached->winId());
+    QVERIFY(detachedHandle);
+    QVERIFY(GetWindow(detachedHandle, GW_OWNER) == nullptr);
+    QVERIFY((GetWindowLongPtrW(detachedHandle, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) == 0);
+#endif
     TestSupport::placeWindowOnScreen(*detached, {960, 400});
     detached->activateWindow();
     QTRY_VERIFY(detached->isActiveWindow());
@@ -207,7 +223,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
-    detached = window.findChild<DetachedPanelWindow *>();
+    detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     QTRY_COMPARE(detached->geometry(), detachedGeometry);
     closeDetached(*detached);

@@ -6,6 +6,7 @@
 #endif
 
 #include "Bootstrap/ShutdownMonitor.h"
+#include "Bootstrap/WindowPlacement.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -221,6 +222,10 @@ MainWindow::MainWindow() {
     m_bottomPanelView = new BottomPanelView(this);
     connect(m_bottomPanelView, &BottomPanelView::detachRequested, this,
             &MainWindow::detachBottomPanel);
+    connect(m_bottomPanelView, &BottomPanelView::currentPageChanged, this, [this] {
+        if (m_detachedWindow)
+            m_detachedWindow->setTitleSuffix(m_bottomPanelView->currentPageName());
+    });
     updatePanelDetachEnabled();
 
     m_splitter = new SilentSplitter;
@@ -262,10 +267,14 @@ MainWindow::MainWindow() {
 }
 
 MainWindow::~MainWindow() {
-    // The detached window is a child window, so it would otherwise destroy the
-    // panel together with itself. Dock the panel back before tearing down.
+    // The detached window has no QWidget parent, so nothing destroys it
+    // implicitly. Dock the panel back first, then tear the window down before
+    // its placement (which filters the window) and before the panel itself is
+    // reclaimed by the QObject tree.
     if (m_bottomPanelDetached)
         attachBottomPanel();
+    m_detachedPlacement.reset();
+    m_detachedWindow.reset();
 #ifdef Q_OS_WIN
     ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
 #endif
@@ -306,6 +315,10 @@ void MainWindow::updatePanelDetachEnabled() {
     m_bottomPanelView->titleBar()->setDetachButtonVisible(enabled);
 }
 
+DetachedPanelWindow *MainWindow::detachedPanelWindow() const {
+    return m_detachedWindow.get();
+}
+
 bool MainWindow::mainMenuInWindow() const {
     return !m_mainMenu->isNativeMenuBar() && !appOptions->developer()->hideMainMenuInWindow;
 }
@@ -343,8 +356,15 @@ bool MainWindow::event(QEvent *event) {
 
 void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange)
+    if (event->type() == QEvent::LanguageChange) {
         updateWindowTitle();
+        // Panel pages retranslate in their own LanguageChange handler, which may
+        // run after this one. Refresh the taskbar title once they are done.
+        QTimer::singleShot(0, this, [this] {
+            if (m_detachedWindow)
+                m_detachedWindow->setTitleSuffix(m_bottomPanelView->currentPageName());
+        });
+    }
 }
 
 void MainWindow::openAppOptions(const AppOptionsGlobal::Option option,
@@ -800,51 +820,47 @@ void MainWindow::detachBottomPanel() {
     m_detachSplitterState = m_splitter->saveState();
 
     // The chrome window is created lazily and kept across detach/attach cycles,
-    // just like the log window. Keeping it alive also means a close request can
-    // never delete the object that emitted it.
+    // just like the log window. It is a true top-level window without a QWidget
+    // parent, so MainWindow owns it explicitly. Keeping it alive also means a
+    // close request can never delete the object that emitted it.
     if (!m_detachedWindow) {
-        m_detachedWindow = new DetachedPanelWindow(this, m_useNativeFrame);
-        connect(m_detachedWindow, &DetachedPanelWindow::reattachRequested, this,
+        m_detachedWindow = std::make_unique<DetachedPanelWindow>(this, m_useNativeFrame);
+        connect(m_detachedWindow.get(), &DetachedPanelWindow::reattachRequested, this,
                 &MainWindow::attachBottomPanel);
 
-        if (m_detachedWindowGeometry.isValid()) {
-            m_detachedWindow->setGeometry(m_detachedWindowGeometry);
-        } else {
-            int panelHeight = m_bottomPanelView->height();
-            int panelWidth = 960;
-            m_detachedWindow->resize(panelWidth, panelHeight);
-
-            auto scr = QApplication::screenAt(QCursor::pos());
-            if (!scr)
-                scr = QApplication::primaryScreen();
-            if (scr) {
-                auto availableRect = scr->availableGeometry();
-                int x = availableRect.x() + (availableRect.width() - panelWidth) / 2;
-                int y = availableRect.y() + (availableRect.height() - panelHeight) / 2;
-                m_detachedWindow->move(x, y);
-            }
-        }
+        m_detachedPlacement = std::make_unique<WindowPlacement>(*m_detachedWindow);
+        m_detachedPlacement->restoreOrPlace(
+            appOptions->window()->detachedPanelGeometry(),
+            QSize(960, qMax(m_bottomPanelView->height(), 480)));
     }
     m_detachedWindow->setContent(m_bottomPanelView);
     m_bottomPanelView->titleBar()->setDetached(true);
+    m_detachedWindow->setTitleSuffix(m_bottomPanelView->currentPageName());
     m_detachedWindow->show();
 
     // From here on the active panel belongs to whichever editor window is
     // active. The controller owns that mapping and listens for WindowActivate.
     editorViewController->setPanelWindow(m_trackEditorView, this);
-    editorViewController->setPanelWindow(m_bottomPanelView, m_detachedWindow);
-    editorViewController->activateWindowPanel(m_detachedWindow);
+    editorViewController->setPanelWindow(m_bottomPanelView, m_detachedWindow.get());
+    editorViewController->activateWindowPanel(m_detachedWindow.get());
 
     m_bottomPanelView->installEventFilter(this);
 }
 
 void MainWindow::attachBottomPanel() {
-    if (!m_bottomPanelDetached)
+    if (!m_bottomPanelDetached || !m_detachedWindow)
         return;
 
     editorViewController->clearPanelWindows();
     m_bottomPanelDetached = false;
-    m_detachedWindowGeometry = m_detachedWindow->geometry();
+
+    // The window object survives for the next detach, so remember where the user
+    // left it. A failure here must not block docking the panel back.
+    if (m_detachedPlacement) {
+        appOptions->window()->setDetachedPanelGeometry(m_detachedPlacement->saveGeometry());
+        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
+            qWarning("Failed to save the detached panel placement");
+    }
 
     m_bottomPanelView->removeEventFilter(this);
     m_bottomPanelView->titleBar()->setDetached(false);

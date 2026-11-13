@@ -175,6 +175,7 @@ private slots:
     void pitchSourceSelectionReturnsOnlyAcceptedAudio_data();
     void pitchSourceSelectionReturnsOnlyAcceptedAudio();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void clipDoubleClickRestoresAndActivatesTheDetachedEditor();
     void closingTheMainWindowReleasesTheDefaultDialogParent();
     void cancelingMainWindowClosePreservesTheEditableDocument_data();
     void cancelingMainWindowClosePreservesTheEditableDocument();
@@ -221,6 +222,8 @@ private slots:
     void detachedBottomPanelReattachesWithItsEditingContext();
     void detachedPanelUsesReducedMainTitleBar_data();
     void detachedPanelUsesReducedMainTitleBar();
+    void detachedPanelIsAnIndependentTopLevelWindow();
+    void detachedPanelRestoresSavedGeometry();
     void detachedPanelWindowIsRegisteredForFrameEffects();
     void detachButtonUsesRegularFluentIcon();
     void detachedMenuSaveActionsReachDocumentWorkflow();

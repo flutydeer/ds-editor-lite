@@ -2046,6 +2046,67 @@ void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::clipDoubleClickRestoresAndActivatesTheDetachedEditor() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto *bottom = window.findChild<BottomPanelView *>();
+    auto *tracks = window.findChild<TracksGraphicsView *>();
+    QVERIFY(bottom && tracks);
+    bottom->clipEditorView()->onActiveClipChanged(singingClip->id());
+    QTRY_VERIFY(bottom->clipEditorView()->hasActiveSingingClip());
+    QVERIFY(window.setTrackPanelScale(1.5, 1.0));
+    QVERIFY(window.centerTrackPanelAt(1920, 0));
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QCoreApplication::processEvents();
+
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.detachedPanelWindow();
+    QVERIFY(detached && detached->isVisible());
+
+    AbstractClipView *clipItem = nullptr;
+    for (auto *item : tracks->scene()->items()) {
+        auto *candidate = dynamic_cast<AbstractClipView *>(item);
+        if (candidate && candidate->id() == singingClip->id())
+            clipItem = candidate;
+    }
+    QVERIFY(clipItem);
+    const auto visible = tracks->mapFromScene(clipItem->sceneBoundingRect())
+                             .boundingRect()
+                             .intersected(tracks->viewport()->rect());
+    QVERIFY(!visible.isEmpty());
+
+    // A minimized editor window must come back and take focus from the
+    // arrangement that received the double click.
+    detached->showMinimized();
+    QTRY_VERIFY(detached->isMinimized());
+    window.raise();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QTest::mouseDClick(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTest::mouseRelease(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTRY_VERIFY(!detached->isMinimized());
+    QTRY_VERIFY(detached->isVisible());
+    QTRY_VERIFY(detached->isActiveWindow());
+
+    // A visible editor window behind the arrangement must be activated too.
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QTest::mouseDClick(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTest::mouseRelease(tracks->viewport(), Qt::LeftButton, Qt::NoModifier, visible.center());
+    QTRY_VERIFY(detached->isActiveWindow());
+}
+
 void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -2239,7 +2300,7 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isWindow() && detached->isVisible());
     QCOMPARE(detached->contentWidget(), bottom);
     QCOMPARE(splitter->indexOf(bottom), -1);
@@ -2274,7 +2335,7 @@ void ApplicationGuiTests::detachedBottomPanelReattachesWithItsEditingContext() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(window.findChild<DetachedPanelWindow *>(), detached);
+    QCOMPARE(window.detachedPanelWindow(), detached);
     QVERIFY(detached->isVisible());
     QSignalSpy reattach(detached, &DetachedPanelWindow::reattachRequested);
     detached->close();
@@ -2324,7 +2385,7 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
     QCOMPARE(detached->contentWidget(), bottom);
     auto *chrome = detached->titleBar();
@@ -2376,6 +2437,84 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QCOMPARE(bottomMargin, 6);
 }
 
+void ApplicationGuiTests::detachedPanelIsAnIndependentTopLevelWindow() {
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = window.detachedPanelWindow();
+    QVERIFY(detached && detached->isVisible());
+
+    // A parented top-level window is still a secondary window: Qt gives it to
+    // the platform as an owned window, which loses the taskbar entry and the
+    // normal z-order. These invariants are what keep that regression out.
+    QCOMPARE(detached->parentWidget(), nullptr);
+    QVERIFY(detached->isWindow());
+    QVERIFY(!window.findChild<DetachedPanelWindow *>());
+    QVERIFY(QApplication::topLevelWidgets().contains(detached));
+    QVERIFY(detached->windowHandle());
+    QCOMPARE(detached->windowHandle()->transientParent(), nullptr);
+    QVERIFY(!detached->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+
+    const auto expectedTitle = [&] {
+        return window.windowTitle() + QStringLiteral(" — ") + bottom->currentPageName();
+    };
+    QCOMPARE(detached->windowTitle(), expectedTitle());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
+    QCOMPARE(bottom->currentPageId(), QStringLiteral("MixConsole"));
+    QCOMPARE(detached->windowTitle(), expectedTitle());
+}
+
+void ApplicationGuiTests::detachedPanelRestoresSavedGeometry() {
+    const auto previousGeometry = appOptions->window()->detachedPanelGeometry();
+    const auto restoreGeometry = qScopeGuard([&] {
+        appOptions->window()->setDetachedPanelGeometry(previousGeometry);
+        appOptions->saveAndNotify(AppOptionsGlobal::Window);
+    });
+
+    QSize expectedSize;
+    {
+        MainWindowFixture first;
+        first.show();
+        if (QTest::currentTestFailed())
+            return;
+        auto *bottom = first.window->findChild<BottomPanelView *>();
+        QVERIFY(bottom);
+        clickPanelButton(*bottom, "btnPanelDetach");
+        if (QTest::currentTestFailed())
+            return;
+        auto *detached = first.window->detachedPanelWindow();
+        QVERIFY(detached && detached->isVisible());
+        detached->setGeometry(QRect(QPoint(80, 80), QSize(1000, 480)));
+        QCoreApplication::processEvents();
+        expectedSize = detached->size();
+        QVERIFY(expectedSize.isValid());
+        detached->close();
+        QTRY_VERIFY(!detached->isVisible());
+    }
+    if (QTest::currentTestFailed())
+        return;
+
+    MainWindowFixture second;
+    second.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto *bottom = second.window->findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    clickPanelButton(*bottom, "btnPanelDetach");
+    if (QTest::currentTestFailed())
+        return;
+    auto *detached = second.window->detachedPanelWindow();
+    QVERIFY(detached && detached->isVisible());
+    QTRY_COMPARE(detached->size(), expectedSize);
+}
+
 void ApplicationGuiTests::detachedPanelWindowIsRegisteredForFrameEffects() {
     // MainWindowFixture uses a native frame, which is the mode where the DWM
     // border is drawn by the system instead of by QWindowKit.
@@ -2389,7 +2528,7 @@ void ApplicationGuiTests::detachedPanelWindowIsRegisteredForFrameEffects() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
 
     // ThemeManager marks every frame-registered window on Show, right after
@@ -2427,7 +2566,7 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
     auto *secondaryMenu = detached->menuView();
     QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
@@ -2470,7 +2609,7 @@ void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
     clickPanelButton(*bottom, "btnPanelDetach");
     if (QTest::currentTestFailed())
         return;
-    auto *detached = window.findChild<DetachedPanelWindow *>();
+    auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
     auto *menu = detached->menuView();
     QVERIFY(menu);

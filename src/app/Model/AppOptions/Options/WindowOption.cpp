@@ -1,28 +1,36 @@
 #include "WindowOption.h"
 
-void WindowOption::load(const QJsonObject &object) {
-    m_mainWindowGeometry.clear();
-
-    const auto value = object.value(m_mainWindowGeometryKey);
+QByteArray WindowOption::decodeGeometry(const QJsonObject &object, const QString &key) {
+    const auto value = object.value(key);
     if (!value.isString())
-        return;
+        return {};
 
     const auto encoded = value.toString().toLatin1();
     if (encoded.isEmpty() || encoded.size() % 4 != 0)
-        return;
+        return {};
 
     const auto decoded = QByteArray::fromBase64(encoded);
     if (decoded.isEmpty() || decoded.toBase64() != encoded)
-        return;
+        return {};
 
-    m_mainWindowGeometry = decoded;
+    return decoded;
+}
+
+void WindowOption::encodeGeometry(QJsonObject &object, const QString &key,
+                                  const QByteArray &geometry) {
+    if (!geometry.isEmpty())
+        object.insert(key, QString::fromLatin1(geometry.toBase64()));
+}
+
+void WindowOption::load(const QJsonObject &object) {
+    m_mainWindowGeometry = decodeGeometry(object, m_mainWindowGeometryKey);
+    m_detachedPanelGeometry = decodeGeometry(object, m_detachedPanelGeometryKey);
 }
 
 void WindowOption::save(QJsonObject &object) {
     object = {};
-    if (!m_mainWindowGeometry.isEmpty())
-        object.insert(m_mainWindowGeometryKey,
-                      QString::fromLatin1(m_mainWindowGeometry.toBase64()));
+    encodeGeometry(object, m_mainWindowGeometryKey, m_mainWindowGeometry);
+    encodeGeometry(object, m_detachedPanelGeometryKey, m_detachedPanelGeometry);
 }
 
 const QByteArray &WindowOption::mainWindowGeometry() const {
@@ -31,4 +39,12 @@ const QByteArray &WindowOption::mainWindowGeometry() const {
 
 void WindowOption::setMainWindowGeometry(QByteArray geometry) {
     m_mainWindowGeometry = std::move(geometry);
+}
+
+const QByteArray &WindowOption::detachedPanelGeometry() const {
+    return m_detachedPanelGeometry;
+}
+
+void WindowOption::setDetachedPanelGeometry(QByteArray geometry) {
+    m_detachedPanelGeometry = std::move(geometry);
 }

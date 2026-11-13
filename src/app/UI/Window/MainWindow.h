@@ -5,6 +5,8 @@
 #include <QMainWindow>
 #include <QTimer>
 
+#include <memory>
+
 #include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
 #include "Interface/IEditorView.h"
@@ -16,6 +18,7 @@ class QSplitter;
 class MainTitleBar;
 class MainMenuView;
 class DetachedPanelWindow;
+class WindowPlacement;
 class TaskDialog;
 class LogWindow;
 class TrackEditorView;
@@ -60,6 +63,9 @@ public:
     void updateDiagnosticFilter();
     void updateLogWindowVisible();
     void updatePanelDetachEnabled();
+    // The detached editor panel is lazily created and reused across detach
+    // cycles. It has no QWidget parent, so this is the only way to reach it.
+    [[nodiscard]] DetachedPanelWindow *detachedPanelWindow() const;
     QWidget *documentWorkflowParentWidget() override;
     SaveDecision askDocumentSaveDecision() override;
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
@@ -116,8 +122,10 @@ private:
     bool m_bottomPanelDetached = false;
     bool m_useNativeFrame = false;
     QByteArray m_detachSplitterState;
-    QRect m_detachedWindowGeometry;
-    DetachedPanelWindow *m_detachedWindow = nullptr;
+    // The window outlives every detach/attach cycle. The placement must be
+    // destroyed before the window it filters, hence the declaration order.
+    std::unique_ptr<DetachedPanelWindow> m_detachedWindow;
+    std::unique_ptr<WindowPlacement> m_detachedPlacement;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
 };

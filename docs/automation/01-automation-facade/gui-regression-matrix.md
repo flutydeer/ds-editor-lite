@@ -446,7 +446,8 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   Restart Later 后再 Restart Now。在 RHI 下重复轨道/片段选择、拖动、缩放、
   钢琴卷帘画音符和参数曲线观察，随后恢复 `Legacy (QGraphicsView)` 并重启。
 - **可观察断言**：主题、字体和动画即时反映，diagnostic 开关不仅持久，还在操作后产生预期
-  性能诊断输出。Log window、debug overlay 和 detach 按钮随开关出现/消失。Restart Later 不
+  性能诊断输出。Log window、debug overlay 和 detach 按钮随开关出现/消失。分离窗口出现在
+  任务栏，可独立最小化/还原/分屏，点击主窗口后不再固定置顶。Restart Later 不
   替换进程，也不提前改变 native frame 或 backend。Restart Now 后两者分别真实生效。RHI 与
   Legacy 的核心编辑结果一致，无空白帧、输入偏移或持续闪烁，窗口几何跨正常重启恢复。
 - **恢复/清理**：关闭 Log window 和 diagnostic output，重新附着 panel，恢复主题、字体、
