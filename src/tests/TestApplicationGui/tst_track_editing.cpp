@@ -931,12 +931,16 @@ void ApplicationGuiTests::trackClipGroupTrimCommitsAtomically() {
 
 void ApplicationGuiTests::trackClipSelectionModifiersAndNudge_data() {
     QTest::addColumn<bool>("rangeSelect");
-    QTest::newRow("shift-range") << true;
-    QTest::newRow("ctrl-toggle") << false;
+    QTest::addColumn<int>("editorWidth");
+    for (const auto width : {800, 1400}) {
+        QTest::newRow(qPrintable(QStringLiteral("shift-range-%1").arg(width))) << true << width;
+        QTest::newRow(qPrintable(QStringLiteral("ctrl-toggle-%1").arg(width))) << false << width;
+    }
 }
 
 void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
     QFETCH(bool, rangeSelect);
+    QFETCH(int, editorWidth);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -975,13 +979,21 @@ void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
     const auto firstId = clips.at(0)->id();
     const auto lastId = clips.at(2)->id();
 
-    editor.resize(1400, 560);
+    editor.resize(editorWidth, 560);
     canvas->setAnimationEnabled(false);
     editor.show();
     editor.activateWindow();
     canvas->setFocus();
-    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
-    QVERIFY(canvas->setViewportScale(1.5, 1.0));
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->isVisible());
+    // Native window systems may constrain the requested window size to the screen.
+    // Fit the fixture's clips to the actual canvas instead of requiring a desktop width.
+    constexpr int visibleTicks = 5760;
+    const auto availableWidth = canvas->viewport()->width() -
+                                TracksEditorGlobal::trackViewLeftMargin - 20;
+    QVERIFY(availableWidth > 0);
+    const auto scale = availableWidth * static_cast<double>(AppGlobal::ticksPerQuarterNote) /
+                       (visibleTicks * TracksEditorGlobal::pixelsPerQuarterNote);
+    QVERIFY(canvas->setViewportScale(std::min(1.5, scale), 1.0));
     canvas->setViewportStartTick(0);
     QCoreApplication::processEvents();
     historyManager->reset();
@@ -992,6 +1004,8 @@ void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
     const auto pointFor = [canvas](const AbstractClipView *item) {
         return canvas->mapFromScene(item->sceneBoundingRect().center());
     };
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(firstItem)));
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(lastItem)));
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointFor(firstItem));
     QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({firstId}));
     const auto modifier = rangeSelect ? Qt::ShiftModifier : Qt::ControlModifier;
@@ -1049,7 +1063,14 @@ void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
     QCOMPARE(runtime.documentVersion(), baseline);
 }
 
+void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection_data() {
+    QTest::addColumn<int>("editorWidth");
+    QTest::newRow("compact") << 800;
+    QTest::newRow("wide") << 1400;
+}
+
 void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
+    QFETCH(int, editorWidth);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -1087,13 +1108,21 @@ void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
     const auto firstId = clips.at(0)->id();
     const auto lastId = clips.at(2)->id();
 
-    editor.resize(1400, 560);
+    editor.resize(editorWidth, 560);
     canvas->setAnimationEnabled(false);
     editor.show();
     editor.activateWindow();
     canvas->setFocus();
-    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
-    QVERIFY(canvas->setViewportScale(1.5, 1.0));
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->isVisible());
+    // Native window systems may constrain the requested window size to the screen.
+    // Fit the fixture's clips to the actual canvas instead of requiring a desktop width.
+    constexpr int visibleTicks = 5760;
+    const auto availableWidth = canvas->viewport()->width() -
+                                TracksEditorGlobal::trackViewLeftMargin - 20;
+    QVERIFY(availableWidth > 0);
+    const auto scale = availableWidth * static_cast<double>(AppGlobal::ticksPerQuarterNote) /
+                       (visibleTicks * TracksEditorGlobal::pixelsPerQuarterNote);
+    QVERIFY(canvas->setViewportScale(std::min(1.5, scale), 1.0));
     canvas->setViewportStartTick(0);
     QCoreApplication::processEvents();
     historyManager->reset();
@@ -1105,6 +1134,8 @@ void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
     const auto pointFor = [canvas](const AbstractClipView *item) {
         return canvas->mapFromScene(item->sceneBoundingRect().center());
     };
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(firstItem)));
+    QVERIFY(canvas->viewport()->rect().contains(pointFor(lastItem)));
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointFor(firstItem));
     QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({firstId}));
 

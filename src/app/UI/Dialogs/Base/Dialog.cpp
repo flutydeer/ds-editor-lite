@@ -23,9 +23,13 @@ QPointer<QWidget> Dialog::m_globalParent;
 DialogHeader::DialogHeader(QWidget *parent) : QWidget(parent) {
     m_lbTitle = new QLabel;
     m_lbTitle->setObjectName("DialogTitleLabel");
+    m_lbTitle->setWordWrap(true);
     m_lbTitle->setVisible(false);
 
     m_lbMessage = new QLabel;
+    m_lbMessage->setObjectName("DialogMessageLabel");
+    // Let the layout use height-for-width instead of clipping a single long line.
+    m_lbMessage->setWordWrap(true);
     m_lbMessage->setVisible(false);
 
     m_mainLayout = new QVBoxLayout;

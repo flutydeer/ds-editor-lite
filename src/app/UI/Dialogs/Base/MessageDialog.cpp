@@ -20,6 +20,17 @@ MessageDialog::MessageDialog(const QString &title, const QString &message, QWidg
     setMessage(message);
 }
 
+void MessageDialog::showEvent(QShowEvent *event) {
+    Dialog::showEvent(event);
+    // QWidget's initial size hint can use a different width than the final window
+    // (for example when constrained by a narrow screen or an explicit width).
+    // Recompute the wrapped text height at the actual width before it is painted.
+    layout()->activate();
+    const int requiredHeight = layout()->totalHeightForWidth(width());
+    if (requiredHeight > height())
+        resize(width(), requiredHeight);
+}
+
 QCheckBox *MessageDialog::addCheckBox(const QString &text) {
     if (m_checkBox)
         return nullptr;

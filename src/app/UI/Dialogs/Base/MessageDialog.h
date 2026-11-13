@@ -28,6 +28,9 @@ public:
 
     int exec() override;
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private slots:
     void handleButtonClicked(int buttonId);
 

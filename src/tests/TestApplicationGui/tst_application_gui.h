@@ -30,6 +30,8 @@ public:
 private slots:
     void initTestCase();
     void init();
+    void dialogMessagesWrap_data();
+    void dialogMessagesWrap();
     void dialogButtonRolesFollowPlatformLayout_data();
     void dialogButtonRolesFollowPlatformLayout();
     void dialogButtonResetPreservesOwnershipAndCallbacks();
@@ -80,6 +82,7 @@ private slots:
     void trackClipGroupTrimCommitsAtomically();
     void trackClipSelectionModifiersAndNudge_data();
     void trackClipSelectionModifiersAndNudge();
+    void trackClipRangeAnchorClearsWithTheSelection_data();
     void trackClipRangeAnchorClearsWithTheSelection();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
