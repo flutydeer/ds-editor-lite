@@ -1200,7 +1200,10 @@ void ApplicationGuiTests::trackClipTitleRenamesInline() {
     editor.show();
     editor.activateWindow();
     canvas->setFocus();
-    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
+    // Native window systems may constrain the requested window size to the
+    // screen, so the click points are checked against the real canvas below
+    // instead of requiring a desktop width.
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->isVisible());
     QVERIFY(canvas->setViewportScale(1.0, 1.0));
     canvas->setViewportStartTick(0);
     QCoreApplication::processEvents();
@@ -1437,7 +1440,10 @@ void ApplicationGuiTests::trackClipTitleEndsOnTrackInsert() {
     editor.show();
     editor.activateWindow();
     canvas->setFocus();
-    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 800);
+    // Native window systems may constrain the requested window size to the
+    // screen, so the click point is checked against the real canvas instead of
+    // requiring a desktop width.
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->isVisible());
     QVERIFY(canvas->setViewportScale(1.0, 1.0));
     canvas->setViewportStartTick(0);
     QCoreApplication::processEvents();
@@ -1446,6 +1452,7 @@ void ApplicationGuiTests::trackClipTitleEndsOnTrackInsert() {
     auto *item = editor.findClipItemById(clipId);
     QVERIFY(item);
     const auto titlePoint = canvas->mapFromScene(item->mapToScene(item->titleBandRect().center()));
+    QVERIFY(canvas->viewport()->rect().contains(titlePoint));
     QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
     QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, titlePoint);
     QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
