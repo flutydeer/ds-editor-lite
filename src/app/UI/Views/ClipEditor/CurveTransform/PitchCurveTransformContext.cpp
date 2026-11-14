@@ -5,8 +5,11 @@
 #include "Modules/Inference/Utils/BasePitchCurve.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
+
+#include <algorithm>
 
 void CurveTransform::PitchContext::rebuild(SingingClip *clip) {
     if (!clip) {
@@ -80,7 +83,9 @@ std::optional<double> CurveTransform::PitchContext::baselineAtTick(const int loc
             continue;
         const auto globalTick = m_clip->start() + localTick;
         const auto seconds = (appModel->tickToMs(globalTick) - piece.originMs) / 1000.0;
-        return piece.curve->SemitoneValueAt(seconds) * 100.0;
+        const auto normalized =
+            std::clamp(piece.curve->SemitoneValueAt(seconds) / 128.0, 0.0, 1.0);
+        return normalized * ParamProperties::NormalizedMaximum;
     }
     return std::nullopt;
 }

@@ -3,11 +3,13 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDataStream>
 #include <QFileInfo>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -85,15 +87,14 @@ namespace Automation {
                 curve.localStart = static_cast<int>(localStart);
                 curve.values.reserve(segment.values.size());
                 for (const auto value : segment.values) {
-                    const auto scaled = value * 100.0;
-                    if (!std::isfinite(scaled) ||
-                        scaled < static_cast<double>(std::numeric_limits<int>::min()) ||
-                        scaled > static_cast<double>(std::numeric_limits<int>::max())) {
+                    const auto normalized = value / 128.0;
+                    if (!std::isfinite(normalized)) {
                         return AutomationError::invalidArgument(
                             QStringLiteral("result.segments[%1].values").arg(segmentIndex),
                             QStringLiteral("Pitch extraction returned an invalid value"));
                     }
-                    curve.values.append(static_cast<int>(scaled));
+                    curve.values.append(static_cast<int>(std::lround(
+                        std::clamp(normalized, 0.0, 1.0) * ParamProperties::NormalizedMaximum)));
                 }
                 curves.append(std::move(curve));
             }
