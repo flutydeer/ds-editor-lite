@@ -24,6 +24,7 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <TalcsCore/MixerAudioSource.h>
+#include <TalcsCore/AudioBuffer.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDriverManager.h>
@@ -49,6 +50,7 @@
 #include <QTimer>
 
 #include <cmath>
+#include <algorithm>
 #include <memory>
 
 using TestSupport::openOptionsPage;
@@ -740,4 +742,60 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
     QVERIFY(!AudioSystem::outputSystem()->isReady());
+}
+
+void ApplicationGuiTests::midiPageInterruptsNotesWithoutNoteOff() {
+    QVERIFY(!AudioSystem::outputSystem()->isReady());
+    auto *midi = AudioSystem::midiSystem();
+    auto *input = midi->integrator();
+    auto *synth = midi->synthesizer()->noteSynthesizer();
+    const auto originalConfig = synth->config();
+    const auto restore = qScopeGuard([&] {
+        input->close();
+        synth->setConfig(originalConfig);
+    });
+    QVERIFY(input->open(512, 48000));
+    synth->setAttackTime(1);
+    synth->setDecayRatio(1.0);
+    synth->setReleaseTime(240);
+    talcs::AudioBuffer buffer(2, 512);
+    const auto renderPeak = [&] {
+        input->read(&buffer);
+        float peak = 0;
+        for (qint64 i = 0; i < buffer.sampleCount(); ++i)
+            peak = std::max(peak, std::abs(buffer.constSampleAt(0, i)));
+        return peak;
+    };
+
+    AppOptionsDialog panel;
+    openOptionsPage(panel, AppOptionsGlobal::Midi);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = panel.findChild<MidiPage *>();
+    QVERIFY(page);
+    auto *interrupt = page->findChild<QPushButton *>("midiInterruptAllNotes");
+    QVERIFY(interrupt);
+    auto *keyboard = page->findChild<HorizontalPianoKeyboardView *>();
+    QVERIFY(keyboard);
+    page->ensureWidgetVisible(interrupt);
+
+    // Consume the note-on through the same integrator as external MIDI input,
+    // but deliberately omit its note-off. No audio device or wall clock is needed.
+    input->messageCallback(talcs::MidiMessage::noteOn(1, 60, 0.8f));
+    QTRY_VERIFY(keyboard->isKeyHeld(60));
+    QVERIFY(renderPeak() > 0.1f);
+    QVERIFY(renderPeak() > 0.1f);
+    QTest::mouseClick(interrupt, Qt::LeftButton);
+    QVERIFY(!keyboard->isKeyHeld(60));
+    renderPeak(); // Drain the release envelope.
+    QVERIFY(renderPeak() < 1e-6f);
+
+    // Repeated recovery is harmless and does not disable subsequent playback.
+    QTest::mouseClick(interrupt, Qt::LeftButton);
+    QVERIFY(renderPeak() < 1e-6f);
+    input->messageCallback(talcs::MidiMessage::noteOn(1, 64, 0.8f));
+    QVERIFY(renderPeak() > 0.1f);
+    QTest::mouseClick(interrupt, Qt::LeftButton);
+    renderPeak();
+    QVERIFY(renderPeak() < 1e-6f);
 }

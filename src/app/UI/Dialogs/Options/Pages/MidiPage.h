@@ -3,6 +3,7 @@
 
 #include "IOptionPage.h"
 
+class QPushButton;
 class ComboBox;
 class HorizontalPianoKeyboardView;
 class MidiInputNoteMonitor;
@@ -34,6 +35,8 @@ private:
 
     SettingPageSynthHelper *m_synthHelper = nullptr;
     MidiInputNoteMonitor *m_noteMonitor = nullptr;
+    QPushButton *m_flushButton = nullptr;
+    OptionsCardItem *m_controlItem = nullptr;
     ComboBox *m_deviceComboBox = nullptr;
     ComboBox *m_generatorComboBox = nullptr;
     SVS::SeekBar *m_amplitudeSlider = nullptr;

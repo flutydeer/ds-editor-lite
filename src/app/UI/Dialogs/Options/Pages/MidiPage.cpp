@@ -8,6 +8,7 @@
 #include <QScrollBar>
 #include <QEvent>
 #include <QSignalBlocker>
+#include <QPushButton>
 
 #include "UI/Controls/HorizontalPianoKeyboardView.h"
 
@@ -138,6 +139,15 @@ QWidget *MidiPage::createContentWidget() {
     m_frequencyItem = m_synthesizerCard->addItem(tr("&Frequency of A"), m_frequencyOfASpinBox);
     m_adjustByProjectItem =
         m_synthesizerCard->addItem(tr("Adjust by project cent shift"), m_adjustByProjectSwitch);
+    m_flushButton = new QPushButton(tr("&Interrupt All Notes"));
+    m_flushButton->setObjectName("midiInterruptAllNotes");
+    m_flushButton->setToolTip(
+        tr("Interrupt all notes that are currently played by the synthesizer"));
+    m_controlItem = m_synthesizerCard->addItem(tr("Control"), m_flushButton);
+    connect(m_flushButton, &QPushButton::clicked, this, [this] {
+        AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush();
+        m_previewKeyboard->clearHeldKeys();
+    });
     mainLayout->addWidget(m_synthesizerCard);
 
     // Preview keyboard. The key bed has a fixed natural size, so the card only
@@ -319,6 +329,10 @@ void MidiPage::retranslateUi() {
     m_adjustByProjectItem->setTitle(tr("Adjust by project cent shift"));
 
     m_keyboardCard->setTitle(tr("Keyboard"));
+    m_controlItem->setTitle(tr("Control"));
+    m_flushButton->setText(tr("&Interrupt All Notes"));
+    m_flushButton->setToolTip(
+        tr("Interrupt all notes that are currently played by the synthesizer"));
 
     const auto generator = m_generatorComboBox->currentData();
     const QSignalBlocker blocker(m_generatorComboBox);

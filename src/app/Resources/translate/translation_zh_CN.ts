@@ -4543,6 +4543,18 @@ error: %2</source>
 <context>
     <name>MidiPage</name>
     <message>
+        <source>&amp;Interrupt All Notes</source>
+        <translation>中断所有音符(&amp;I)</translation>
+    </message>
+    <message>
+        <source>Interrupt all notes that are currently played by the synthesizer</source>
+        <translation>中断合成器当前正在播放的所有音符</translation>
+    </message>
+    <message>
+        <source>Control</source>
+        <translation>控制</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="44"/>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="291"/>
         <source>MIDI Input</source>
