@@ -96,6 +96,16 @@ vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./ins
 
 Tests are gated behind `-DLITE_BUILD_TESTS=ON` (enabled by default in the `debug` preset). They live in `src/tests/`.
 
+#### Testing principles
+
+Tests protect observable behavior and explicit contracts. Before adding a test, identify the functional failure it would catch. Normal extensions or refactors should not require changing tests whose contracts remain intact.
+
+- Assert meaningful outcomes rather than freezing component inventories, incidental counts or ordering, private helper names, internal field layouts, or exact call sequences, unless they are part of a required contract.
+- Test supported behavior directly, not merely the absence of obsolete fields or implementations. Do not derive expected results from the implementation under test, copy its algorithm, or mock away meaningful behavior and only verify arranged calls.
+- Cover shared rules in the layer that owns them. Consumer tests should verify integration and consumer-specific behavior instead of duplicating the same cases.
+- Add cases for credible failure modes and explicitly supported boundaries, not unreachable states, exhaustive combinations, or exotic inputs solely to raise coverage. Retain real regression coverage and name it after the behavior protected, not conversations, patches, or debugging history.
+- Keep ordinary tests offline and deterministic. Integration tests requiring externally supplied models or other real resources should be opt-in and use supplied resources rather than downloading them on each run. Coordinate asynchronous work with explicit synchronization and bounded, event-aware waits rather than fixed sleeps.
+
 ### Windows installer
 
 - `cmake/ProductMetadata.cmake` is the single source of truth for the product name, version, publisher, copyright, URL, executable name, and installer AppId. Do not duplicate these values in C++, PowerShell, or Inno Setup templates.
@@ -141,6 +151,24 @@ docs/           # Chinese-language dev docs (design/ = 已完成的设计契约,
 - C++20 standard, MSVC on Windows.
 - `SortIncludes: Never` - do not reorder `#include` directives.
 
+## Implementation principles
+
+Reuse existing behavior and logic first. When direct reuse is not suitable, consider extending or refactoring the existing implementation before introducing another one. Do not invent replacement behavior or maintain parallel implementations unless necessary and supported by a clear rationale.
+
+## Comments and documentation
+
+Write for readers who have no knowledge of the conversation or implementation process. Describe the current behavior as a coherent whole. Favor stable purposes, contracts, and constraints over changing implementation inventories, without discarding concrete details readers need.
+
+- Keep conversation context, review replies, debugging notes, obsolete workarounds, and task-specific validation logs out of code comments and product documentation. Put detailed change history in PR descriptions or a dedicated changelog when needed.
+- Integrate changes into the relevant existing explanation. Rewrite or remove outdated passages instead of appending isolated notes about the latest change. Keep examples, parameter descriptions, and resource instructions consistent with the implementation.
+- Keep comments short and focused on non-obvious reasoning, invariants, constraints, or tradeoffs. Avoid lengthy explanations, restating the code, narrating edits, or comparing against an obsolete implementation.
+- All code comments must use ASCII characters unless a special quotation requires preserving non-ASCII text. Use ASCII punctuation such as `->`, `-`, and `'`.
+- Keep user documentation focused on usage, supported behavior, prerequisites, and meaningful limitations. Include internal details only when they help the intended reader understand or use the system.
+- Use concise, factual language. Avoid promotional claims, exaggerated guarantees, and assertions of complete support or equivalence that the implementation does not establish.
+- In overview prose and cross-module descriptions, avoid inventories of current callers, backends, or dependencies. Keep changing facts in their authoritative source and link to package metadata, workflow definitions, or the relevant reference rather than repeating dependency lists, CI matrices, test inventories, or release numbers. Prefer version-independent examples.
+- Preserve accurate comments explaining nearby code, including index ranges, data shapes, algorithm steps, and local helper relationships. These can be maintained with the code they describe. Do not generalize or delete them solely because implementation details may change. Retain concrete API/resource requirements, protocol versions, and measurements where readers need them.
+- Preserve required attribution and licensing notices, along with explanations of constraints that still apply. Cleanup should remove noise without discarding useful technical context.
+
 ## Writing style
 
 - 中文里不要用分号断句。该断就用句号，该并列就用逗号或顿号。
@@ -148,7 +176,7 @@ docs/           # Chinese-language dev docs (design/ = 已完成的设计契约,
 
 ## Git commits
 
-- Commit messages follow Conventional Commits (`feat(editor): ...`, `fix(automation): ...`): a single English title line, no body. Details go into `docs/`.
+- Commit messages must be concise and contain exactly one English line, with no body or footer. Use Conventional Commits in the format `<type>(<scope>): <description>` (e.g. `feat(editor): ...`, `fix(automation): ...`).
 - Never add AI attribution lines to commit messages (e.g. `Co-Authored-By`, `Claude-Session`).
 
 ## CodeGraph MCP
