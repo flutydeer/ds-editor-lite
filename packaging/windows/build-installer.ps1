@@ -287,13 +287,15 @@ function Assert-SafeStageDirectory {
     }
 }
 
-function Find-Vcpkg {
-    $candidate = Join-Path $RepoRoot "vcpkg\vcpkg.exe"
+function Find-VcpkgWorkspace {
+    # vcpkg-workspace.cmake comes from https://github.com/stdware/dev-scripts and is ignored by git
+    $candidate = Join-Path $RepoRoot "scripts\vcpkg-workspace.cmake"
     if (Test-Path -LiteralPath $candidate -PathType Leaf) {
         return $candidate
     }
 
-    throw "vcpkg.exe was not found at $candidate. Bootstrap the local vcpkg checkout first."
+    throw ("vcpkg-workspace.cmake was not found at $candidate. Download it from " +
+        "https://raw.githubusercontent.com/stdware/dev-scripts/main/scripts/vcpkg-workspace.cmake first.")
 }
 
 function Initialize-Signing {
@@ -352,9 +354,9 @@ $TemplatePath = Join-Path $ScriptDir "DsEditorLite.iss.in"
 $GeneratedScriptPath = Join-Path $WorkDir "DsEditorLite.iss"
 
 if ($CheckPrerequisites) {
-    $vcpkg = Find-Vcpkg
+    $vcpkgWorkspace = Find-VcpkgWorkspace
     Write-Host "Packaging prerequisites are available." -ForegroundColor Green
-    Write-Host "vcpkg: $vcpkg"
+    Write-Host "vcpkg-workspace: $vcpkgWorkspace"
     Write-Host "Inno Setup: $ResolvedInnoSetupPath"
     Write-Host "VC++ Redistributable: $ResolvedVcRedistPath"
     exit 0
@@ -364,17 +366,16 @@ if (-not $NoBuild) {
     $flavor = if ($EnableCuda) { "CUDA" } else { "DML" }
     if (-not $SkipVcpkgInstall) {
         Invoke-Step "Install vcpkg dependencies for $flavor package" {
-            $vcpkg = Find-Vcpkg
-            $vcpkgArgs = @(
+            # The script checks out vcpkg and the overlays into deps and passes QT_DIR to vcpkg
+            $workspaceArgs = @(
+                "-P", (Find-VcpkgWorkspace),
                 "install",
-                "--x-manifest-root=$RepoRoot\scripts\vcpkg-manifest",
-                "--x-install-root=$RepoRoot\vcpkg\installed",
-                "--triplet=x64-windows"
+                "--triplet", "x64-windows"
             )
             if ($EnableCuda) {
-                $vcpkgArgs += "--x-feature=cuda12"
+                $workspaceArgs += @("--", "--x-feature=cuda12")
             }
-            Invoke-Process $vcpkg $vcpkgArgs
+            Invoke-Process "cmake" $workspaceArgs
         }
     }
 
