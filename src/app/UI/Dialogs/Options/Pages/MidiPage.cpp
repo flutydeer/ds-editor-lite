@@ -145,8 +145,8 @@ QWidget *MidiPage::createContentWidget() {
         tr("Interrupt all notes that are currently played by the synthesizer"));
     m_controlItem = m_synthesizerCard->addItem(tr("Control"), m_flushButton);
     connect(m_flushButton, &QPushButton::clicked, this, [this] {
-        AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush();
-        m_previewKeyboard->clearHeldKeys();
+        AudioSystem::midiSystem()->interruptAllNotes();
+        m_noteMonitor->resetHeldNotes();
     });
     mainLayout->addWidget(m_synthesizerCard);
 
@@ -190,8 +190,8 @@ QWidget *MidiPage::createContentWidget() {
     connect(m_previewKeyboard, &HorizontalPianoKeyboardView::noteOff, this,
             [this](const int key) { m_synthHelper->noteOff(key); });
 
-    // Mirror an attached MIDI keyboard. The device reports on its own thread, so
-    // these connections are queued and land on the GUI thread.
+    // Mirror external MIDI input. The monitor discards note updates queued before
+    // a manual reset.
     connect(m_noteMonitor, &MidiInputNoteMonitor::notePressed, m_previewKeyboard,
             [this](const int key) { m_previewKeyboard->setHeldKey(key, true); });
     connect(m_noteMonitor, &MidiInputNoteMonitor::noteReleased, m_previewKeyboard,

@@ -52,6 +52,11 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <thread>
+
+#include <QSemaphore>
+
+#include "Modules/Audio/utils/MidiSynthesizerIntegrator.h"
 
 using TestSupport::openOptionsPage;
 
@@ -779,6 +784,21 @@ void ApplicationGuiTests::midiPageInterruptsNotesWithoutNoteOff() {
     QVERIFY(keyboard);
     page->ensureWidgetVisible(interrupt);
 
+    // Pending input must not restart voices after recovery.
+    input->messageCallback(talcs::MidiMessage::noteOn(1, 67, 0.8f));
+    QTest::mouseClick(interrupt, Qt::LeftButton);
+    const auto queuedPeak = renderPeak();
+    QVERIFY2(queuedPeak < 1e-6f, qPrintable(QString::number(queuedPeak)));
+
+    std::jthread midiInput([&] {
+        input->messageCallback(talcs::MidiMessage::noteOn(1, 69, 0.8f));
+    });
+    midiInput.join();
+    interrupt->click();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QVERIFY(!keyboard->isKeyHeld(69));
+    QVERIFY(renderPeak() < 1e-6f);
+
     // Consume the note-on through the same integrator as external MIDI input,
     // but deliberately omit its note-off. No audio device or wall clock is needed.
     input->messageCallback(talcs::MidiMessage::noteOn(1, 60, 0.8f));
@@ -798,4 +818,85 @@ void ApplicationGuiTests::midiPageInterruptsNotesWithoutNoteOff() {
     QTest::mouseClick(interrupt, Qt::LeftButton);
     renderPeak();
     QVERIFY(renderPeak() < 1e-6f);
+}
+
+void ApplicationGuiTests::midiStreamResetWaitsForInFlightNotes_data() {
+    QTest::addColumn<bool>("closeStream");
+    QTest::newRow("interrupt") << false;
+    QTest::newRow("close-and-reopen") << true;
+}
+
+void ApplicationGuiTests::midiStreamResetWaitsForInFlightNotes() {
+    QFETCH(bool, closeStream);
+    class PausedSynthesizer : public talcs::MidiNoteSynthesizer {
+    public:
+        QSemaphore entered;
+        QSemaphore resume;
+        bool timedOut = false;
+
+    protected:
+        qint64 processReading(const talcs::AudioSourceReadData &readData,
+                              const QList<talcs::IntegratedMidiMessage> &messages) override {
+            if (m_pauseNextRead) {
+                m_pauseNextRead = false;
+                entered.release();
+                timedOut = !resume.tryAcquire(1, 5000);
+            }
+            return talcs::MidiNoteSynthesizer::processReading(readData, messages);
+        }
+
+    private:
+        bool m_pauseNextRead = true;
+    } synthesizer;
+    MidiSynthesizerIntegrator input(&synthesizer);
+    auto *notes = synthesizer.noteSynthesizer();
+    notes->setAttackTime(1);
+    notes->setDecayRatio(1.0);
+    notes->setReleaseTime(240);
+    QVERIFY(input.open(512, 48000));
+    talcs::AudioBuffer buffer(2, 512);
+    const auto renderPeak = [&] {
+        input.read(&buffer);
+        float peak = 0;
+        for (qint64 i = 0; i < buffer.sampleCount(); ++i)
+            peak = std::max(peak, std::abs(buffer.constSampleAt(0, i)));
+        return peak;
+    };
+
+    input.messageCallback(talcs::MidiMessage::noteOn(1, 60, 0.8f));
+    std::jthread reader([&] { input.read(&buffer); });
+    const auto resumeReader = qScopeGuard([&] { synthesizer.resume.release(); });
+    QVERIFY(synthesizer.entered.tryAcquire(1, 5000));
+    QSemaphore resetStarted;
+    QSemaphore resetFinished;
+    std::jthread resetter([&] {
+        resetStarted.release();
+        if (closeStream)
+            input.close();
+        else
+            input.interruptAllNotes();
+        resetFinished.release();
+    });
+    QVERIFY(resetStarted.tryAcquire(1, 5000));
+    // The batch has left the queue but has not reached the note synthesizer yet.
+    const bool resetBeforeRenderFinished = resetFinished.tryAcquire(1, 100);
+    synthesizer.resume.release();
+    reader.join();
+    resetter.join();
+    QVERIFY(!synthesizer.timedOut);
+    QVERIFY(!resetBeforeRenderFinished);
+    if (closeStream)
+        QVERIFY(input.open(512, 48000));
+    renderPeak();
+    QVERIFY(renderPeak() < 1e-6f);
+
+    std::jthread producer([&] {
+        input.messageCallback(talcs::MidiMessage::noteOn(1, 64, 0.8f));
+    });
+    producer.join();
+    QVERIFY(renderPeak() > 0.1f);
+    input.interruptAllNotes();
+    renderPeak();
+    QVERIFY(renderPeak() < 1e-6f);
+    input.close();
 }

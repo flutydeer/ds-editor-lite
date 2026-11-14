@@ -12,6 +12,7 @@
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
+#include <Modules/Audio/utils/MidiSynthesizerIntegrator.h>
 
 #include <Model/AppOptions/AppOptions.h>
 
@@ -39,9 +40,8 @@ static qint64 msecToSample(const int msec, double sampleRate = {}) {
 }
 
 MidiSystem::MidiSystem(QObject *parent) : QObject(parent) {
-    m_integrator = std::make_unique<talcs::MidiMessageIntegrator>();
     m_synthesizer = new talcs::MidiNoteSynthesizer;
-    m_integrator->setStream(m_synthesizer, true);
+    m_integrator = std::make_unique<MidiSynthesizerIntegrator>(m_synthesizer, true);
     m_synthesizerMixer = std::make_unique<talcs::MixerAudioSource>();
     m_synthesizerMixer->addSource(m_integrator.get());
 }
@@ -139,6 +139,10 @@ talcs::MidiMessageIntegrator *MidiSystem::integrator() const {
 
 talcs::MidiNoteSynthesizer *MidiSystem::synthesizer() const {
     return m_synthesizer;
+}
+
+void MidiSystem::interruptAllNotes() const {
+    m_integrator->interruptAllNotes();
 }
 
 void MidiSystem::setGenerator(int g) const {

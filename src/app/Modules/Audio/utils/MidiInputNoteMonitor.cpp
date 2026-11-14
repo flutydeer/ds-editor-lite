@@ -15,20 +15,31 @@ void MidiInputNoteMonitor::attachTo(talcs::MidiMessageListener *source) {
         return;
     if (m_source)
         m_source->removeFilter(this);
+    resetHeldNotes();
     m_source = source;
     if (m_source)
         m_source->addFilter(this);
 }
 
+void MidiInputNoteMonitor::resetHeldNotes() {
+    m_notificationGeneration.fetchAndAddOrdered(1);
+    emit allNotesReleased();
+}
+
 bool MidiInputNoteMonitor::processMessage(const talcs::MidiMessage &message) {
-    // Note on first: a note on with velocity zero is the running status form of
-    // a note off, which isNoteOff() also reports.
-    if (message.isNoteOn())
-        emit notePressed(message.getNoteNumber());
-    else if (message.isNoteOff())
-        emit noteReleased(message.getNoteNumber());
-    else if (message.isAllNotesOff() || message.isAllSoundOff())
-        emit allNotesReleased();
+    const auto generation = m_notificationGeneration.loadAcquire();
+    QMetaObject::invokeMethod(this, [this, message, generation] {
+        if (generation != m_notificationGeneration.loadAcquire())
+            return;
+        // Note on first: a note on with velocity zero is the running status form of
+        // a note off, which isNoteOff() also reports.
+        if (message.isNoteOn())
+            emit notePressed(message.getNoteNumber());
+        else if (message.isNoteOff())
+            emit noteReleased(message.getNoteNumber());
+        else if (message.isAllNotesOff() || message.isAllSoundOff())
+            emit allNotesReleased();
+    }, Qt::AutoConnection);
     return false;
 }
 

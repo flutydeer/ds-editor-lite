@@ -209,7 +209,6 @@ void SettingPageSynthHelper::initialize(
     // The preview keyboard is MIDI-driven and gets a synthesizer of its own.
     // Sharing the test mixer inherits the amplitude gain and the premixer
     // membership, so preview notes sound exactly like the preview score.
-    m_previewMidiIntegrator.setStream(&m_previewMidiSynthesizer, false);
     m_testMixer.addSource(&m_previewMidiIntegrator);
     AudioSystem::outputSystem()->context()->preMixer()->addSource(&m_testMixer);
     m_testSynthesizer.setGenerator(
@@ -296,10 +295,7 @@ void SettingPageSynthHelper::noteOff(const int key) {
 }
 
 void SettingPageSynthHelper::flushPreviewNotes() {
-    // The queue only holds messages that are not in the audio thread yet, the
-    // sounding voices live in the synthesizer.
-    m_previewMidiIntegrator.flush();
-    m_previewMidiSynthesizer.noteSynthesizer()->flush(true);
+    m_previewMidiIntegrator.interruptAllNotes(true);
 }
 
 void SettingPageSynthHelper::syncPreviewConfig() {

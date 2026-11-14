@@ -5,7 +5,7 @@
 
 #include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsMidi/MidiMessageIntegrator.h>
+#include "MidiSynthesizerIntegrator.h"
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 namespace SVS {
@@ -47,7 +47,7 @@ public:
     // NoteSynthesizer because MidiNoteSynthesizer takes over the detector of the
     // synthesizer it wraps, which would silence the preview score above.
     talcs::MidiNoteSynthesizer m_previewMidiSynthesizer;
-    talcs::MidiMessageIntegrator m_previewMidiIntegrator;
+    MidiSynthesizerIntegrator m_previewMidiIntegrator{&m_previewMidiSynthesizer};
 
     QMutex m_mutex;
     double m_currentPosition = 0;

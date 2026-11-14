@@ -259,6 +259,8 @@ private slots:
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void midiPageInterruptsNotesWithoutNoteOff();
+    void midiStreamResetWaitsForInFlightNotes_data();
+    void midiStreamResetWaitsForInFlightNotes();
     void trackHeaderInputsCommitAndUndo();
     void trackHeaderLaneMenuTogglesBothLanes();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();

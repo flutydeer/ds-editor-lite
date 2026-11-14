@@ -15,6 +15,8 @@ namespace talcs {
     class MidiNoteSynthesizer;
 }
 
+class MidiSynthesizerIntegrator;
+
 class MidiSystem : public QObject {
     Q_OBJECT
 public:
@@ -27,6 +29,7 @@ public:
     bool setDevice(int deviceIndex);
     talcs::MidiMessageIntegrator *integrator() const;
     talcs::MidiNoteSynthesizer *synthesizer() const;
+    void interruptAllNotes() const;
 
     void setGenerator(int g) const;
     int generator() const;
@@ -47,7 +50,7 @@ public:
 
 private:
     std::unique_ptr<talcs::MidiInputDevice> m_device;
-    std::unique_ptr<talcs::MidiMessageIntegrator> m_integrator;
+    std::unique_ptr<MidiSynthesizerIntegrator> m_integrator;
     talcs::MidiNoteSynthesizer *m_synthesizer;
     std::unique_ptr<talcs::MixerAudioSource> m_synthesizerMixer;
 
