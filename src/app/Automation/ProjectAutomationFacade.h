@@ -55,6 +55,14 @@ namespace Automation {
         int start = 0;
     };
 
+    // A clip's new visible start, for the moves whose destination track the
+    // same command creates. `start` follows the ClipMoveDto convention and is
+    // the visible start (properties.start + properties.clipStart).
+    struct ClipStartDto {
+        ClipId id;
+        int start = 0;
+    };
+
     struct ClipDuplicateDestinationDto {
         std::optional<TrackId> targetTrackId;
         int targetStart = 0;
@@ -109,6 +117,14 @@ namespace Automation {
                            const ClipDuplicateDestinationDto &destination);
         AutomationResult<MutationResult> moveClips(const CommandContext &context,
                                                    const QList<ClipMoveDto> &moves);
+        // One history entry: appends `newTrack` at the project tail and applies
+        // every move in the same command, so a gesture that spills one row past
+        // the last track commits atomically. `ontoExistingTracks` keeps the
+        // clips that still land on real tracks in that same entry.
+        AutomationResult<MutationResult>
+            moveClipsWithNewTrack(const CommandContext &context, const TrackDraftDto &newTrack,
+                                  const QList<ClipStartDto> &intoNewTrack,
+                                  const QList<ClipMoveDto> &ontoExistingTracks);
         AutomationResult<MutationResult> resizeClipLeft(const CommandContext &context,
                                                         ClipId clipId, int start);
         AutomationResult<MutationResult> resizeClipRight(const CommandContext &context,

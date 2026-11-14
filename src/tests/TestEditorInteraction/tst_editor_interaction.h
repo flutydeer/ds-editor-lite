@@ -83,6 +83,7 @@ private slots:
     void audioResizeAcrossOppositeEdge();
     void clipSelectionGroupMove();
     void clipSelectionGroupMoveClamps();
+    void clipSelectionGroupMoveReachesAppendRow();
     void clipSelectionGroupTrim();
     void clipSelectionGroupTrimClampsPerClip();
     void clipSelectionRealTimeAnchorKeepsTruth();

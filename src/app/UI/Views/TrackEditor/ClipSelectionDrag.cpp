@@ -120,8 +120,8 @@ namespace ClipSelectionDrag {
             reset();
             return;
         }
-        const auto trackCount = std::max(0, m_environment.trackCount);
-        if (trackCount <= 0) {
+        const auto rowCount = std::max(0, m_environment.rowCount);
+        if (rowCount <= 0) {
             m_placements.clear();
             return;
         }
@@ -152,7 +152,7 @@ namespace ClipSelectionDrag {
         applied = std::max(applied, -minimumVisibleStart);
 
         const auto lowestTrackDelta = -minimumTrackIndex;
-        const auto highestTrackDelta = trackCount - 1 - maximumTrackIndex;
+        const auto highestTrackDelta = rowCount - 1 - maximumTrackIndex;
         const auto appliedTracks = highestTrackDelta < lowestTrackDelta
                                        ? 0
                                        : std::clamp(rawTracks, lowestTrackDelta, highestTrackDelta);
@@ -175,7 +175,7 @@ namespace ClipSelectionDrag {
             }
             if (!validGeometry(placement.properties))
                 continue;
-            if (placement.trackIndex < 0 || placement.trackIndex >= trackCount)
+            if (placement.trackIndex < 0 || placement.trackIndex >= rowCount)
                 continue;
             m_placements.append(placement);
         }

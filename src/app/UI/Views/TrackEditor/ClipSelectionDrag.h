@@ -46,7 +46,10 @@ namespace ClipSelectionDrag {
     class Session final {
     public:
         struct Environment {
-            int trackCount = 0;
+            // Rows the gesture may target, including the virtual append row when
+            // the caller allows a drop past the last track. A backend that only
+            // wants real tracks passes the track count.
+            int rowCount = 0;
             const Timeline *timeline = nullptr;
             // Grid step, in ticks, at the requested tick. Mirrors the view's WYSIWYG grid.
             std::function<int(int)> gridStepAt;

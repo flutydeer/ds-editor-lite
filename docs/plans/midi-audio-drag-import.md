@@ -1,5 +1,5 @@
 # MIDI 与音频拖放导入分阶段实施方案
-> 状态：🔵 进行中（Phase 1–4 已实现并提交：虚拟追加槽、文件分类器、批量 MIDI 解析、混合队列/统一历史；Phase 5 测试回归未完成；落点偏移 Open Question 待讨论，2026-08-06 暂缓决策）
+> 状态：🔵 进行中（Phase 1–4 已实现并提交：虚拟追加槽、文件分类器、批量 MIDI 解析、混合队列/统一历史；Phase 5 部分完成：追加槽相关路径已有 legacy/RHI 测试，其余回归项仍待补；落点偏移 Open Question 待讨论，2026-08-06 暂缓决策）
 
 ## Summary
 
@@ -12,6 +12,8 @@
 - 画布外拖放：在工程末尾新建轨道；音频从当前播放位置开始。
 - MIDI 保留源 tick；音频使用统一的落点 tick。
 - 批次内成功内容形成一个历史项，失败文件跳过并汇总提示。
+
+追加槽本身的能力在后续一次改动中扩展为「在此新建轨道」的一等入口（双击、剪辑拖放、以及追加槽下方空白一律视为追加槽），完整契约见 [track-append-slot-design.md](../design/track-append-slot-design.md)。
 
 ## Phase 1：虚拟追加槽与拖放落点基础
 
@@ -140,19 +142,27 @@ Phase 4 已实现并提交，包含以下关键文件：
 - 文件菜单导入 MIDI 没有落点，因此全部在工程末尾新建轨道。
 - 落在虚拟追加槽时 MIDI 和音频全部新建轨道，但仍使用画布横坐标提供的音频 tick。
 
-## Phase 5：测试、回归与 GUI 验证 ⬜
+## Phase 5：测试、回归与 GUI 验证 🔵
 
-### 当前状态（2026-08-06 复核）
+### 当前状态（2026-11-14 复核）
 
-Phase 5 尚未实施。无专用测试文件覆盖 batch import / drag drop 路径。
+追加槽相关的拖放路径已经有测试覆盖，其余回归项仍待补。
+
+已覆盖：
+
+- 追加槽落点：`TestApplicationGui` 的 `droppingAudioFilesCommitsOneBatchToTheSelectedTracks`（legacy）与 `TestNativeDesktop` 的 `rhiTrackFileDropImportsAtTheChosenSlot`（RHI），都带 `existing-track`、`append-after-existing-track`、`below-the-append-slot` 三个数据行。
+- 拖放预览的副作用边界：同一用例断言拖拽/预览期间模型快照与文档版本不变。
+- 一次撤销恢复新建轨道与剪辑：`historyManager->undo()` 后轨道数与剪辑位置复原。
+
+仍待补：
 
 - 文件分类：大小写扩展名、远程 URL、目录、未知格式、工程与资源混拖。
-- 虚拟追加槽：零轨道、未填满、填满、超出视口、纵向缩放和自动滚动。
+- 虚拟追加槽：零轨道、填满、超出视口、纵向缩放和自动滚动。
 - 连续分轨：多 MIDI、多音频、混合顺序、MIDI 内多轨、现有轨道不足。
 - 轨道属性：写入已有轨道不改变轨道配置，新建轨道名称和语言正确。
 - 时间位置：MIDI 原 tick、画布音频吸附 tick、画布外播放 tick。
 - 失败处理：损坏 MIDI、损坏音频、目标轨道删除、部分取消、全部失败。
-- 历史：一次撤销/重做完整恢复剪辑、新建轨道以及原曲速和拍号。
+- 历史：一次撤销/重做完整恢复原曲速和拍号。
 - Legacy/RHI 对相同坐标产生一致的 `TrackDropSlot`。
 
 ### Verification

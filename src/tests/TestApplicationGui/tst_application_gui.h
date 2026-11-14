@@ -84,6 +84,8 @@ private slots:
     void trackClipSelectionModifiersAndNudge();
     void trackClipRangeAnchorClearsWithTheSelection_data();
     void trackClipRangeAnchorClearsWithTheSelection();
+    void trackClipDropOnAppendRowCreatesTrack();
+    void trackAppendRowDoubleClickCreatesTrack();
     void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
@@ -263,6 +265,7 @@ private slots:
     void midiPortIdentitySurvivesReenumeration();
     void midiSourceStopSilencesTheNotesOfThatSource();
     void trackHeaderInputsCommitAndUndo();
+    void trackAppendSlotRemainsTheLastRow();
     void trackHeaderLaneMenuTogglesBothLanes();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();

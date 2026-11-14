@@ -1558,3 +1558,142 @@ void ApplicationGuiTests::trackClipTitleSurvivesUnrelatedClipUpdates() {
                  QStringLiteral("Still typing"));
     QTRY_VERIFY(!overlay->isEditing());
 }
+
+void ApplicationGuiTests::trackClipDropOnAppendRowCreatesTrack() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Source");
+    trackDraft.defaultLanguage = QStringLiteral("eng");
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    clipDraft.properties.name = QStringLiteral("Phrase");
+    clipDraft.properties.start = 480;
+    clipDraft.properties.length = 1920;
+    clipDraft.properties.clipLen = 1920;
+    clipDraft.defaultLanguage = QStringLiteral("eng");
+    Automation::NoteDraftDto noteDraft;
+    noteDraft.localStart = 120;
+    noteDraft.length = 480;
+    noteDraft.keyIndex = 60;
+    noteDraft.lyric = QStringLiteral("la");
+    noteDraft.language = QStringLiteral("eng");
+    clipDraft.notes = {noteDraft};
+    trackDraft.clips = {clipDraft};
+
+    // The view has to exist first: it builds its rows and clip items from the
+    // model signals, not from a snapshot taken in the constructor.
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    editor.resize(1200, 500);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    const auto *source = context->m_appModel->tracks().first();
+    const auto clipId = (*source->clips().begin())->id();
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    canvas->setVerticalBarValue(0);
+    QCoreApplication::processEvents();
+
+    auto *item = editor.findClipItemById(clipId);
+    QVERIFY(item);
+    const auto clipCenter = item->sceneBoundingRect().center();
+    const auto press = canvas->mapFromScene(clipCenter);
+    // One row below the only real track: the virtual append row.
+    const auto release =
+        canvas->mapFromScene(QPointF(clipCenter.x(), TracksEditorGlobal::trackHeight * 1.5));
+    QVERIFY(canvas->viewport()->rect().contains(press));
+    QVERIFY(canvas->viewport()->rect().contains(release));
+
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto modelBefore = TestSupport::projectSnapshot(*context->m_appModel);
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            canvas->discardAction();
+            QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    // The track only exists after the release: the drag itself writes nothing.
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBefore);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+
+    QCOMPARE(context->m_appModel->tracks().size(), 2);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto *created = context->m_appModel->tracks().last();
+    QVERIFY(created != source);
+    QCOMPARE(created->name(), TrackController::tr("New Track"));
+    QCOMPARE(created->clips().count(), 1);
+    QCOMPARE((*created->clips().begin())->id(), clipId);
+    // The voice configuration follows the source track so the clip keeps its context.
+    QCOMPARE(created->defaultLanguage(), source->defaultLanguage());
+    QCOMPARE(source->clips().count(), 0);
+    QCOMPARE(source->name(), QStringLiteral("Source"));
+
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    QCOMPARE(source->clips().count(), 1);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBefore);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(context->m_appModel->tracks().size(), 2);
+    QCOMPARE((*context->m_appModel->tracks().last()->clips().begin())->id(), clipId);
+}
+
+void ApplicationGuiTests::trackAppendRowDoubleClickCreatesTrack() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    editor.resize(1200, 500);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Lead");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    QVERIFY(canvas->setViewportScale(1.0, 1.0));
+    canvas->setViewportStartTick(0);
+    canvas->setVerticalBarValue(0);
+    QCoreApplication::processEvents();
+
+    const auto appendRowPoint = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(960), TracksEditorGlobal::trackHeight * 1.5));
+    QVERIFY(canvas->viewport()->rect().contains(appendRowPoint));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, appendRowPoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, appendRowPoint);
+    QCOMPARE(context->m_appModel->tracks().size(), 2);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(context->m_appModel->tracks().last()->name(), TrackController::tr("New Track"));
+    // A double click on a real track keeps creating a singing clip there.
+    const auto trackRowPoint = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(960), TracksEditorGlobal::trackHeight * 0.5));
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, trackRowPoint);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, trackRowPoint);
+    QCOMPARE(context->m_appModel->tracks().size(), 2);
+    QCOMPARE(context->m_appModel->tracks().first()->clips().count(), 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    QVERIFY(!historyManager->canUndo());
+}

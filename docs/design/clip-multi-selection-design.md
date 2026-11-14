@@ -75,7 +75,7 @@ HistoryManager::record            // 一步撤销
 
 ### 单步撤销的两条命令
 
-- **移动**：`TrackController::onMoveClips(QList<ClipGeometryEdit>)` → `ProjectAutomationFacade::moveClips`（既有批量命令）。跨轨移动仍然走 `MoveClipToTrackAction`，因此「移动 vs 删除」的推理管线判定（`InferController` 用 `findClipById` 区分）完全不变。
+- **移动**：`TrackController::onMoveClips(QList<ClipGeometryEdit>)` → `ProjectAutomationFacade::moveClips`（既有批量命令）。跨轨移动仍然走 `MoveClipToTrackAction`，因此「移动 vs 删除」的推理管线判定（`InferController` 用 `findClipById` 区分）完全不变。落点允许越过最后一条轨道一格：落在底部虚拟追加槽时改走 `ProjectAutomationFacade::moveClipsWithNewTrack`，在同一个历史项里建轨并搬入，见 [track-append-slot-design.md](track-append-slot-design.md)。
 - **裁边与其它几何编辑**：新增 `ProjectAutomationFacade::setClipsProperties(context, QList<ClipPropertiesDto>)`。它先整体校验再提交，一次 dispatch 产生一条 `ActionSequence`。派发沿用 `OperationIds::clips::set_properties`，不新增 operation id、不改公共工具契约与 `docs/automation` 矩阵。
 - **键盘微移**：`TrackController::nudgeSelectedClips(deltaTicks, deltaTracks)` 自己按选择集算钳制后的 delta，组装 `ClipMoveDto` 后复用 `moveClips`。两个后端的按键处理因此只有一行调用。
 

@@ -7,6 +7,7 @@
 #include "UI/Controls/LevelMeterManager.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
+#include "UI/Views/TrackEditor/TrackAppendSlotView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TrackListHeaderView.h"
 #include "UI/Views/TrackEditor/TrackListView.h"
@@ -628,4 +629,41 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
         QCOMPARE(runtime.documentVersion(), before);
         QVERIFY(!historyManager->canUndo());
     }
+}
+
+void ApplicationGuiTests::trackAppendSlotRemainsTheLastRow() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearDialogParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+    editor.resize(1100, 500);
+    editor.show();
+    QTRY_VERIFY(editor.isVisible());
+    Automation::TrackDraftDto draft;
+    draft.name = QStringLiteral("Lead");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
+
+    auto *list = editor.findChild<TrackListView *>();
+    QVERIFY(list);
+    const auto assertAppendRowLast = [list] {
+        // The placeholder row is permanent, always last and never a track.
+        QCOMPARE(list->count(), list->trackCount() + 1);
+        const auto *slot =
+            qobject_cast<TrackAppendSlotView *>(list->itemWidget(list->item(list->trackCount())));
+        QVERIFY(slot);
+        QVERIFY(slot->isVisible());
+    };
+    QCOMPARE(list->trackCount(), 1);
+    assertAppendRowLast();
+
+    // Inserting above the end keeps the placeholder in place.
+    draft.name = QStringLiteral("Harmony");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
+    QTRY_COMPARE(list->trackCount(), 2);
+    assertAppendRowLast();
+
+    QVERIFY(runtime.history().undo(commandContext()));
+    QTRY_COMPARE(list->trackCount(), 1);
+    assertAppendRowLast();
 }

@@ -276,7 +276,10 @@ void TrackController::onMoveClips(const QList<ClipGeometryEdit> &edits) {
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
+    const auto trackCount = static_cast<int>(appModel->tracks().size());
     QList<Automation::ClipMoveDto> moves;
+    QList<Automation::ClipStartDto> intoNewTrack;
+    Track *newTrackSource = nullptr;
     moves.reserve(edits.size());
     for (const auto &edit : edits) {
         // The gesture may outlive a clip (an import finishing, an undo from elsewhere), so every
@@ -287,15 +290,41 @@ void TrackController::onMoveClips(const QList<ClipGeometryEdit> &edits) {
         const auto trackIndex = edit.trackIndex >= 0
                                     ? edit.trackIndex
                                     : static_cast<int>(appModel->tracks().indexOf(clipTrack));
-        if (trackIndex < 0 || trackIndex >= appModel->tracks().size())
+        if (trackIndex < 0 || trackIndex > trackCount)
             continue;
+        if (trackIndex == trackCount) {
+            // The virtual append row: the drop went past the last track, so the
+            // command creates that track. One extra row is the whole budget.
+            intoNewTrack.append({Automation::ClipId(edit.clipId),
+                                 edit.properties.start + edit.properties.clipStart});
+            if (!newTrackSource)
+                newTrackSource = clipTrack;
+            continue;
+        }
         moves.append({Automation::ClipId(edit.clipId),
                       Automation::TrackId(appModel->tracks().at(trackIndex)->id()),
                       edit.properties.start + edit.properties.clipStart});
     }
-    if (moves.isEmpty())
+    const auto context = commandContext(*runtime);
+    if (intoNewTrack.isEmpty()) {
+        if (moves.isEmpty())
+            return;
+        (void) runtime->project().moveClips(context, moves);
         return;
-    (void) runtime->project().moveClips(commandContext(*runtime), moves);
+    }
+    // The created track continues the voice configuration of the track the
+    // clips are leaving, so their inference pipelines survive the move.
+    // Everything that describes a fresh track (name, mix, colour) starts over.
+    auto draft = Automation::trackDraftDto(*newTrackSource);
+    draft.clips.clear();
+    draft.name = tr("New Track");
+    draft.colorIndex = 0;
+    draft.resolveColorIndex = true;
+    draft.gain = 0.0;
+    draft.pan = 0.0;
+    draft.mute = false;
+    draft.solo = false;
+    (void) runtime->project().moveClipsWithNewTrack(context, draft, intoNewTrack, moves);
 }
 
 void TrackController::onResizeClips(const QList<ClipGeometryEdit> &edits) {

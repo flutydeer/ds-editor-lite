@@ -774,14 +774,14 @@
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="82"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1261"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1270"/>
         <location filename="../../UI/Views/Common/AudioLoadHint.cpp" line="98"/>
         <source>File missing</source>
         <translation>文件缺失</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="83"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1262"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1271"/>
         <location filename="../../UI/Views/Common/AudioLoadHint.cpp" line="96"/>
         <source>Loading...</source>
         <translation>正在加载...</translation>
@@ -4693,6 +4693,14 @@ type: %L1</source>
     </message>
 </context>
 <context>
+    <name>MoveClipsWithNewTrackActions</name>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Clip/MoveClipsWithNewTrackActions.cpp" line="10"/>
+        <source>Move clip(s) to new track</source>
+        <translation>移动剪辑到新轨道</translation>
+    </message>
+</context>
+<context>
     <name>NoteActions</name>
     <message>
         <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="90"/>
@@ -6387,27 +6395,28 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2622"/>
         <location filename="../../Controller/TrackController.cpp" line="95"/>
+        <location filename="../../Controller/TrackController.cpp" line="320"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
     <message>
         <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2712"/>
-        <location filename="../../Controller/TrackController.cpp" line="393"/>
+        <location filename="../../Controller/TrackController.cpp" line="422"/>
         <source>New Singing Clip</source>
         <translation>新歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="480"/>
+        <location filename="../../Controller/TrackController.cpp" line="509"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="481"/>
+        <location filename="../../Controller/TrackController.cpp" line="510"/>
         <source>Failed to open audio file:</source>
         <translation>无法打开音频文件：</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="485"/>
+        <location filename="../../Controller/TrackController.cpp" line="514"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -6523,8 +6532,8 @@ All current mix settings will be lost.</source>
 <context>
     <name>TracksRhiWidget</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1363"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1455"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1376"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1468"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>
