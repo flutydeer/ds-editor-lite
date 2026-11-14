@@ -206,6 +206,11 @@ void SettingPageSynthHelper::initialize(
 
     m_testSynthesizer.setDetector(this);
     m_testMixer.addSource(&m_testSynthesizer);
+    // The preview keyboard is MIDI-driven and gets a synthesizer of its own.
+    // Sharing the test mixer inherits the amplitude gain and the premixer
+    // membership, so preview notes sound exactly like the preview score.
+    m_previewMidiIntegrator.setStream(&m_previewMidiSynthesizer, false);
+    m_testMixer.addSource(&m_previewMidiIntegrator);
     AudioSystem::outputSystem()->context()->preMixer()->addSource(&m_testMixer);
     m_testSynthesizer.setGenerator(
         static_cast<talcs::NoteSynthesizer::Generator>(m_cachedGenerator));
@@ -218,8 +223,10 @@ void SettingPageSynthHelper::initialize(
     m_testSynthesizer.setReleaseTime(
         AudioHelpers::msecToSample(m_cachedReleaseMsec, m_testSynthesizer.sampleRate()));
 
-    connect(this, &SettingPageSynthHelper::testFinished, previewButton,
-            [=] { previewButton->setToolTip(easterEggHelper.selectTooltip()); });
+    if (previewButton) {
+        connect(this, &SettingPageSynthHelper::testFinished, previewButton,
+                [=] { previewButton->setToolTip(easterEggHelper.selectTooltip()); });
+    }
 }
 
 void SettingPageSynthHelper::detectInterval(const qint64 intervalLength) {
@@ -277,4 +284,29 @@ void SettingPageSynthHelper::toggleTestState(const bool enabled) {
     } else {
         m_currentScoreIndex = -2;
     }
+}
+
+void SettingPageSynthHelper::noteOn(const int key) {
+    syncPreviewConfig();
+    m_previewMidiIntegrator.messageCallback(talcs::MidiMessage::noteOn(1, key, 0.8f));
+}
+
+void SettingPageSynthHelper::noteOff(const int key) {
+    m_previewMidiIntegrator.messageCallback(talcs::MidiMessage::noteOff(1, key));
+}
+
+void SettingPageSynthHelper::flushPreviewNotes() {
+    // The queue only holds messages that are not in the audio thread yet, the
+    // sounding voices live in the synthesizer.
+    m_previewMidiIntegrator.flush();
+    m_previewMidiSynthesizer.noteSynthesizer()->flush(true);
+}
+
+void SettingPageSynthHelper::syncPreviewConfig() {
+    // Copy per press instead of mirroring every control: the score synthesizer is
+    // already kept in sync by the page's widgets, sample-rate changes included.
+    m_previewMidiSynthesizer.noteSynthesizer()->setConfig(m_testSynthesizer.config());
+    m_previewMidiSynthesizer.setFrequencyOfA(qFuzzyIsNull(m_cachedFrequencyOfA)
+                                                 ? 440.0
+                                                 : m_cachedFrequencyOfA);
 }

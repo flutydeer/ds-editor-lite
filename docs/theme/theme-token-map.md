@@ -212,9 +212,9 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `editor.transform.handleFill` | 变换百分比手柄填充 |
 | `editor.transform.handleBorder` | 变换百分比手柄描边 |
 | `editor.transform.handleText` | 变换手柄百分比文字 |
-| `piano.key.white` | 左侧钢琴白键 |
-| `piano.key.black` | 左侧钢琴黑键 |
-| `piano.key.divider` | 钢琴键分隔线 |
+| `piano.key.white` | 钢琴白键（卷帘左栏竖排键盘与 MIDI 页试听键盘） |
+| `piano.key.black` | 钢琴黑键（同上） |
+| `piano.key.divider` | 钢琴键分隔线（同上） |
 | `piano.roll.blackRow` | 钢琴卷帘黑键行背景 |
 | `piano.roll.octaveDivider` | 钢琴卷帘八度分隔线 |
 | `piano.roll.noteSelectedBorder` | 选中音符边框 |

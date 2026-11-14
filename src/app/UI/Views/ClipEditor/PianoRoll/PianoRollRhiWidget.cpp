@@ -9,7 +9,7 @@
 #include "NoteErrorToolTipController.h"
 #include "NoteLyricPresentation.h"
 #include "NoteLyricToolTipController.h"
-#include "PianoPaintUtils.h"
+#include "UI/Controls/PianoPaintUtils.h"
 #include "PianoRollCoord.h"
 #include "PitchDisplayStrategy.h"
 #include "PianoRollGraphicsViewHelper.h"

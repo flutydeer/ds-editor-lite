@@ -4,9 +4,11 @@
 #include "IOptionPage.h"
 
 class ComboBox;
+class HorizontalPianoKeyboardView;
+class MidiInputNoteMonitor;
 class OptionListCard;
+class OptionsCard;
 class OptionsCardItem;
-class QPushButton;
 class SettingPageSynthHelper;
 class SwitchButton;
 
@@ -31,6 +33,7 @@ private:
     void retranslateUi();
 
     SettingPageSynthHelper *m_synthHelper = nullptr;
+    MidiInputNoteMonitor *m_noteMonitor = nullptr;
     ComboBox *m_deviceComboBox = nullptr;
     ComboBox *m_generatorComboBox = nullptr;
     SVS::SeekBar *m_amplitudeSlider = nullptr;
@@ -45,10 +48,11 @@ private:
     SVS::ExpressionSpinBox *m_releaseSpinBox = nullptr;
     SVS::ExpressionDoubleSpinBox *m_frequencyOfASpinBox = nullptr;
     SwitchButton *m_adjustByProjectSwitch = nullptr;
-    QPushButton *m_synthesizerTestButton = nullptr;
-    QPushButton *m_flushButton = nullptr;
     OptionListCard *m_inputCard = nullptr;
     OptionListCard *m_synthesizerCard = nullptr;
+    OptionsCard *m_keyboardCard = nullptr;
+    QScrollArea *m_keyboardScroll = nullptr;
+    HorizontalPianoKeyboardView *m_previewKeyboard = nullptr;
     OptionsCardItem *m_deviceItem = nullptr;
     OptionsCardItem *m_generatorItem = nullptr;
     OptionsCardItem *m_amplitudeItem = nullptr;
@@ -58,9 +62,9 @@ private:
     OptionsCardItem *m_releaseItem = nullptr;
     OptionsCardItem *m_frequencyItem = nullptr;
     OptionsCardItem *m_adjustByProjectItem = nullptr;
-    OptionsCardItem *m_controlItem = nullptr;
 };
 
 
 
 #endif // MIDIPAGE_H
+

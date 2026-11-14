@@ -9,10 +9,12 @@
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
+#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
 #include "Modules/Audio/utils/SettingPagesSynthHelper.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Options/Pages/AudioPage.h"
 #include "UI/Dialogs/Options/Pages/MidiPage.h"
+#include "UI/Controls/HorizontalPianoKeyboardView.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
@@ -25,6 +27,8 @@
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDriverManager.h>
+#include <TalcsMidi/MidiMessage.h>
+#include <TalcsMidi/MidiMessageListener.h>
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 #include <QApplication>
@@ -35,6 +39,7 @@
 #include <QLocale>
 #include <QPushButton>
 #include <QScopeGuard>
+#include <QScrollArea>
 #include <QSignalSpy>
 #include <QFile>
 #include <QDir>
@@ -49,6 +54,40 @@
 using TestSupport::openOptionsPage;
 
 namespace {
+    struct PreviewNoteEvent {
+        int key;
+        bool on;
+        bool operator==(const PreviewNoteEvent &) const = default;
+    };
+
+    /// Collects the notes the settings page's live preview chain receives. The
+    /// chain is page-local, so every message comes from the keyboard under test.
+    class PreviewNoteReceipt final : public talcs::MidiMessageListener {
+    public:
+        explicit PreviewNoteReceipt(talcs::MidiMessageIntegrator &integrator)
+            : m_integrator(integrator) {
+            m_integrator.flush();
+            m_integrator.addFilter(this);
+        }
+
+        ~PreviewNoteReceipt() override {
+            m_integrator.removeFilter(this);
+            m_integrator.flush();
+        }
+
+        QList<PreviewNoteEvent> events;
+
+    protected:
+        bool processMessage(const talcs::MidiMessage &message) override {
+            if (message.isNoteOnOrOff())
+                events.append({message.getNoteNumber(), message.isNoteOn()});
+            return false;
+        }
+
+    private:
+        talcs::MidiMessageIntegrator &m_integrator;
+    };
+
     class FixtureAudioDevice final : public talcs::AudioDevice {
     public:
         FixtureAudioDevice(talcs::AudioDriver *driver, const QString &name) : AudioDevice(driver) {
@@ -587,10 +626,9 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
         auto *release = page->findChild<SVS::ExpressionSpinBox *>("midiRelease");
         auto *frequency = page->findChild<SVS::ExpressionDoubleSpinBox *>("midiFrequencyOfA");
         auto *adjust = page->findChild<SwitchButton *>("midiAdjustByProject");
-        auto *preview = page->findChild<QPushButton *>("midiPreview");
         auto *helper = page->findChild<SettingPageSynthHelper *>();
         QVERIFY(generator && amplitude && attack && decay && ratio && release && frequency &&
-                adjust && preview && helper);
+                adjust && helper);
         chooseValue(*page, generator, talcs::NoteSynthesizer::Sine);
         enterNumber(*page, amplitude, QLocale().toString(-12.0));
         enterNumber(*page, attack, QStringLiteral("15"));
@@ -615,16 +653,49 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
         QCOMPARE(frequency->value(), 442.0);
         QVERIFY(std::abs(helper->m_testMixer.gain() - 0.25118864f) < 1e-6f);
         QCOMPARE(helper->m_testSynthesizer.decayRatio(), 0.35);
+
+        // The page's keyboard is a C2-C6 bed of fixed 20px white keys, wired to
+        // the live preview chain rather than the persisted MIDI system.
+        auto *keyboard = page->findChild<HorizontalPianoKeyboardView *>();
+        auto *keyboardScroll = page->findChild<QScrollArea *>("midiPreviewKeyboardScroll");
+        QVERIFY(keyboard);
+        QVERIFY(keyboardScroll);
+        QVERIFY(keyboardScroll->isAncestorOf(keyboard));
+        QCOMPARE(keyboard->sizeHint(), QSize(580, 64));
+        page->ensureWidgetVisible(keyboard);
+        QCoreApplication::processEvents();
+        PreviewNoteReceipt receipt(helper->m_previewMidiIntegrator);
+        // C4 is white key 14 of the bed.
+        QTest::mouseClick(keyboard, Qt::LeftButton, Qt::NoModifier, QPoint(14 * 20 + 10, 48));
+        QCOMPARE(receipt.events, (QList<PreviewNoteEvent>{
+                                     {60, true },
+                                     {60, false}
+        }));
+        // The press syncs the unsaved control values into the live chain.
+        const auto previewConfig = helper->m_previewMidiSynthesizer.noteSynthesizer()->config();
+        const auto scoreConfig = helper->m_testSynthesizer.config();
+        QCOMPARE(previewConfig.attackTime(), scoreConfig.attackTime());
+        QCOMPARE(previewConfig.decayTime(), scoreConfig.decayTime());
+        QCOMPARE(previewConfig.releaseTime(), scoreConfig.releaseTime());
+        QCOMPARE(previewConfig.decayRatio(), scoreConfig.decayRatio());
+        QCOMPARE(helper->m_previewMidiSynthesizer.frequencyOfA(), 442.0);
+
+        // The page mirrors an attached MIDI keyboard. The monitor watches the
+        // MIDI system's integrator, which is what the input device feeds.
+        QVERIFY(page->findChild<MidiInputNoteMonitor *>());
+        auto *midiIntegrator = AudioSystem::midiSystem()->integrator();
+        QVERIFY(midiIntegrator);
+        midiIntegrator->messageCallback(talcs::MidiMessage::noteOn(1, 64, 0.8f));
+        QTRY_VERIFY(keyboard->isKeyHeld(64));
+        midiIntegrator->messageCallback(talcs::MidiMessage::allNotesOff(1));
+        QTRY_VERIFY(!keyboard->isKeyHeld(64));
+
         const auto unchanged = runtime.settings().getSettings();
         QVERIFY(unchanged);
         QCOMPARE(unchanged.get().audio.midiSynthesizerGenerator,
                  original.get().audio.midiSynthesizerGenerator);
         QCOMPARE(unchanged.get().audio.midiSynthesizerAttackMilliseconds,
                  original.get().audio.midiSynthesizerAttackMilliseconds);
-        page->ensureWidgetVisible(preview);
-        QTest::mouseClick(preview, Qt::LeftButton);
-        QVERIFY(!preview->isChecked());
-        QVERIFY(helper->isTestFinished.loadAcquire());
         panel.close();
     }
     QCOMPARE(midi->generator(), int(talcs::NoteSynthesizer::Sine));
