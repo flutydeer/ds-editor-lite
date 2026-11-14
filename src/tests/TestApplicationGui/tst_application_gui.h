@@ -266,6 +266,7 @@ private slots:
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
     void timelineLaneInputsEditAndRemoveMarkers_data();
     void timelineLaneInputsEditAndRemoveMarkers();
+    void tempoDialogReportsTheBarBeatTickPosition();
     void playbackTextInputsValidateCommitAndCancel();
     void loopControlsCommitAndUndoTheSelectedRange_data();
     void loopControlsCommitAndUndoTheSelectedRange();

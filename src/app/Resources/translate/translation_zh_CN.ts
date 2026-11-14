@@ -2290,15 +2290,10 @@ errors: %1</source>
 <context>
     <name>EditTempoDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="11"/>
         <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="12"/>
+        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="13"/>
         <source>Tempo</source>
         <translation>曲速</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="13"/>
-        <source>Tick %1</source>
-        <translation>刻度 %1</translation>
     </message>
 </context>
 <context>
@@ -4555,109 +4550,109 @@ error: %2</source>
         <translation>控制</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="44"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="291"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="45"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="306"/>
         <source>MIDI Input</source>
         <translation>MIDI 输入</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="45"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="292"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="46"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="307"/>
         <source>&amp;Device</source>
         <translation>设备(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="50"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="311"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="51"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="326"/>
         <source>Sine wave</source>
         <translation>正弦波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="51"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="312"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="52"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="327"/>
         <source>Square wave</source>
         <translation>方波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="52"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="313"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="53"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="328"/>
         <source>Triangle Wave</source>
         <translation>三角波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="53"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="314"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="54"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="329"/>
         <source>Sawtooth wave</source>
         <translation>锯齿波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="126"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="296"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="127"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="311"/>
         <source>Synthesizer</source>
         <translation>合成器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="127"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="297"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="128"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="312"/>
         <source>&amp;Generator</source>
         <translation>生成器(&amp;G)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="129"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="298"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="130"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="313"/>
         <source>&amp;Amplitude (dB)</source>
         <translation>振幅(&amp;A)（dB）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="131"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="299"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="132"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="314"/>
         <source>A&amp;ttack (ms)</source>
         <translation>起音(&amp;t)（ms）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="132"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="300"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="133"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="315"/>
         <source>D&amp;ecay (ms)</source>
         <translation>衰减(&amp;e)（毫秒）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="134"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="301"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="135"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="316"/>
         <source>Decay rati&amp;o</source>
         <translation>衰减比(&amp;o)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="136"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="302"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="137"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="317"/>
         <source>&amp;Release (ms)</source>
         <translation>释音(&amp;R)（ms）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="137"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="303"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="138"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="318"/>
         <source>&amp;Frequency of A</source>
         <translation>A 的频率(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="139"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="304"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="140"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="319"/>
         <source>Adjust by project cent shift</source>
         <translation>按工程音分偏移调整</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="169"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="306"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="170"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="321"/>
         <source>Keyboard</source>
         <translation>键盘</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="190"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="294"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="200"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="309"/>
         <source>(Not working)</source>
         <translation>（不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="205"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="215"/>
         <source>Cannot open MIDI device %1</source>
         <translation>无法打开 MIDI 设备 %1</translation>
     </message>
