@@ -17,6 +17,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QContextMenuEvent>
+#include <QLabel>
 #include <QMenu>
 #include <QPointer>
 #include <QScopeGuard>
@@ -82,6 +83,10 @@ void ApplicationGuiTests::timelineLaneInputsEditAndRemoveMarkers() {
                 QCOMPARE(denominator->currentData().toInt(), 8);
             } else {
                 QVERIFY(qobject_cast<EditTempoDialog *>(dialog.data()));
+                // The header reports the point's musical position, not its raw tick.
+                auto *message = dialog->findChild<QLabel *>(QStringLiteral("DialogMessageLabel"));
+                QVERIFY(message);
+                QCOMPARE(message->text(), QStringLiteral("003:01:000"));
                 auto *tempo = dialog->findChild<SVS::ExpressionDoubleSpinBox *>("spinTempo");
                 QVERIFY(tempo);
                 QTest::mouseClick(tempo, Qt::LeftButton);
@@ -190,4 +195,21 @@ void ApplicationGuiTests::timelineLaneInputsEditAndRemoveMarkers() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(TestSupport::projectSnapshot(*model), original);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::tempoDialogReportsTheBarBeatTickPosition() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.timeline().setTimeSignature(commandContext(), 0, 4, 4));
+    QVERIFY(runtime.timeline().setTimeSignature(commandContext(), 1, 3, 4));
+    const auto messageOf = [](const int tick) {
+        const EditTempoDialog dialog(tick, 120.0);
+        const auto *message = dialog.findChild<QLabel *>(QStringLiteral("DialogMessageLabel"));
+        return message ? message->text() : QString();
+    };
+    // The anchor point reads 1-based, exactly like the transport timecode.
+    QCOMPARE(messageOf(0), QStringLiteral("001:01:000"));
+    // Bar 0 is 4/4 (1920 ticks) and bar 1 is 3/4 (1440 ticks), so this tick lands
+    // on the second bar of the 3/4 section. A fixed 4/4 conversion would print
+    // "003:01:096" here.
+    QCOMPARE(messageOf(3936), QStringLiteral("003:02:096"));
 }

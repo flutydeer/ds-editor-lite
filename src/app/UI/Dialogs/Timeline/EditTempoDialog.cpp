@@ -3,6 +3,7 @@
 #include "UI/Views/Common/TempoEditWidget.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QVBoxLayout>
 
@@ -10,7 +11,9 @@ EditTempoDialog::EditTempoDialog(const int tick, const double tempo, QWidget *pa
     : OKCancelDialog(parent) {
     setWindowTitle(tr("Tempo"));
     setTitle(tr("Tempo"));
-    setMessage(tr("Tick %1").arg(tick));
+    // Show the point the way the transport timecode does; the bar length comes
+    // from whichever time signature governs this tick, not from a fixed 4/4.
+    setMessage(appModel->getBarBeatTickTime(tick));
 
     m_editWidget = new TempoEditWidget;
     m_editWidget->setTempo(tempo);
