@@ -19,7 +19,7 @@ description: 在 Windows Sandbox 里运行 DS Editor Lite 的原生 GUI 测试�
 
 原生 GUI 测试会创建真实窗口、抢焦点、合成鼠标与触摸事件。在宿主直接运行会打断用户正在做的事，也可能把快捷键送进别的程序。Sandbox 有独立桌面和输入队列，宿主只看到沙盒窗口本身，所以默认先用沙盒。
 
-沙盒不可用（功能未安装、hypervisor 未启动、没有 `wsb.exe`、构建路径在 C: 盘）时允许直接回退到当前桌面，不需要事先告知，不需要等待确认，也不等待用户空闲。回退模式会真的弹出窗口并可能抢焦点，全托管任务要接受这一点。
+沙盒不可用（功能未安装、hypervisor 未启动、没有 `wsb.exe`、构建路径在 UNC 共享上）时允许直接回退到当前桌面，不需要事先告知，不需要等待确认，也不等待用户空闲。回退模式会真的弹出窗口并可能抢焦点，全托管任务要接受这一点。
 
 ## 前置条件
 
@@ -27,7 +27,7 @@ description: 在 Windows Sandbox 里运行 DS Editor Lite 的原生 GUI 测试�
 2. `wsb.exe` 存在，位置为 `%LOCALAPPDATA%\Microsoft\WindowsApps\wsb.exe`。
 3. 构建产物存在：`build\<preset>\out\bin\TestNativeDesktop.exe`，同目录下有 `plugins` 和 `configs`。仓库的 `debug` 与 `tests` preset 都带测试，但 build preset 只编 `DsEditorLite` 与 `DsConnectorLite`，必须先构建 `lite_tests`。`release` preset 关闭了 `LITE_BUILD_TESTS`，不会产出测试二进制，需要自己配置一个带测试的构建再用 `-BinSource` 指定。
 4. 夹具声库存在：`build\<preset>\src\tests\resources\ci-fixture@1.0.0`。
-5. 沙盒路径要求仓库位于非 C: 盘。测试二进制在编译时把构建目录的绝对路径写进了配置查找，客体需要用 `subst` 复刻该路径，C: 是系统盘无法替换。回退到当前桌面时该路径本来就存在，没有这条限制。
+5. 构建路径必须使用本地盘符，不能是 UNC 共享。测试二进制在编译时把构建目录的绝对路径写进了配置查找。C: 构建在客体中直接创建同名目录并复制 `configs`，其他盘符先用 `subst` 映射到客体工作目录，再复刻该路径。不会替换客体 C: 系统盘或覆盖已有的其他盘符。
 
 只读检查宿主是否就绪：
 
@@ -143,9 +143,12 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 
 ```powershell
 .\.agents\skills\windows-sandbox-gui-tests\tests\Test-HostGuiTrialEnvironment.ps1
+.\.agents\skills\windows-sandbox-gui-tests\tests\Test-SandboxConfigPaths.ps1
 ```
 
 不需要构建产物、Qt 或沙盒。测试用假的 CIM 查询与进程启动替身调用真实宿主运行器，验证子进程启动时的环境设置，以及正常完成、进程启动失败、汇总文件写入失败后的环境恢复。覆盖原值存在、未定义和空字符串，包括 Windows PowerShell 5.1 可以继承但无法用 `Env:` setter 恢复的空值。测试证据保存在 `build\SandboxGuiTrial\environment-regression-*`，这不能代替真实 GUI 测试。
+
+路径回归只从 AST 提取生产脚本的盘符判断语句和客体配置准备函数，以记录型替身拦截目录创建、复制与 `subst`。覆盖 C:/c: 直接配置复制、其他盘符映射、UNC 拒绝与回退判断，以及盘符占用、映射失败。不会运行完整客体入口、创建真实映射或启动 GUI。
 
 ## 结果判读
 
