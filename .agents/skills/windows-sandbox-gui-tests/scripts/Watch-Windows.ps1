@@ -109,6 +109,7 @@ $screenshots = 0
 $screenshotErrors = 0
 $lastScreenshotUtc = [DateTime]::MinValue
 $startedUtc = (Get-Date).ToUniversalTime()
+$watchStartLocal = (Get-Date).AddSeconds(-2)
 $errorText = $null
 
 try {
@@ -126,16 +127,20 @@ try {
             $parts = $row -split "`t", 7
             $windowPid = [int]$parts[0]
             if (-not $processCache.ContainsKey($windowPid)) {
-                $name = ''
+                $name = '<exited>'
+                $startTime = [datetime]::MinValue
                 try {
-                    $name = (Get-Process -Id $windowPid -ErrorAction Stop).ProcessName
-                } catch {
-                    $name = '<exited>'
-                }
-                $processCache[$windowPid] = $name
+                    $process = Get-Process -Id $windowPid -ErrorAction Stop
+                    $name = $process.ProcessName
+                    try { $startTime = $process.StartTime } catch { $startTime = [datetime]::MinValue }
+                } catch { }
+                $processCache[$windowPid] = [pscustomobject]@{ Name = $name; StartTime = $startTime }
             }
-            $processName = $processCache[$windowPid]
-            $isOurs = $processName -like 'TestNativeDesktop*'
+            $processInfo = $processCache[$windowPid]
+            $processName = $processInfo.Name
+            # Only processes started for this run count. A leftover test executable
+            # from an earlier run must not supply the window evidence.
+            $isOurs = ($processName -like 'TestNativeDesktop*') -and ($processInfo.StartTime -ge $watchStartLocal)
             if ($isOurs) {
                 $ourCount++
                 if (-not $seenWindows.ContainsKey($parts[1])) {
@@ -189,6 +194,7 @@ try {
     $writer.Dispose()
     [ordered]@{
         startedUtc = $startedUtc.ToString('o')
+        scopeStartLocal = $watchStartLocal.ToString('o')
         finishedUtc = (Get-Date).ToUniversalTime().ToString('o')
         sampleIntervalMs = $SampleIntervalMs
         screenshotIntervalMs = $ScreenshotIntervalMs

@@ -124,13 +124,20 @@ function Get-GuiTrialRuntimeSearchPaths {
             $debugRoot = Join-Path $redistVersion.FullName 'debug_nonredist\x64'
             foreach ($crtDirectory in @(Get-ChildItem -LiteralPath $debugRoot -Directory -ErrorAction SilentlyContinue |
                 Where-Object { $_.Name -like 'Microsoft.VC*.DebugCRT' })) {
-                $crtCandidates.Add([pscustomobject]@{ Version = $parsedVersion; Path = $crtDirectory.FullName })
+                $crtCandidates.Add([pscustomobject]@{ Version = $parsedVersion; Order = 0; Path = $crtDirectory.FullName })
+            }
+            # Release CRT from the same redistributable covers third-party DLLs that
+            # import msvcp140_2.dll and similar release-only runtimes.
+            $releaseRoot = Join-Path $redistVersion.FullName 'x64'
+            foreach ($crtDirectory in @(Get-ChildItem -LiteralPath $releaseRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like 'Microsoft.VC*.CRT' })) {
+                $crtCandidates.Add([pscustomobject]@{ Version = $parsedVersion; Order = 1; Path = $crtDirectory.FullName })
             }
         }
     }
     # Newest first: MSVC runtimes are backward compatible within a major version, and
     # ordering by version keeps the pick deterministic when several are installed.
-    foreach ($candidate in @($crtCandidates | Sort-Object -Property Version -Descending)) {
+    foreach ($candidate in @($crtCandidates | Sort-Object -Property @{Expression={$_.Version}; Descending=$true}, @{Expression={$_.Order}; Descending=$false})) {
         $paths.Add($candidate.Path)
     }
     foreach ($installPath in $installs) {

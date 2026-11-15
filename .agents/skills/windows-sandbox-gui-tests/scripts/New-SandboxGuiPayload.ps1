@@ -180,7 +180,7 @@ $binDestination = Join-Path $payload 'bin'
 $runtimeFilesCopied = @()
 $missingRuntimeFiles = @()
 foreach ($runtimeName in @(
-    'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2d.dll', 'msvcp140d.dll', 'msvcp140_1d.dll',
+    'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'msvcp140_2d.dll', 'msvcp140d.dll', 'msvcp140_1d.dll',
     'vcruntime140.dll', 'vcruntime140_1.dll', 'vcruntime140_1d.dll', 'vcruntime140d.dll',
     'ucrtbased.dll', 'Qt6Testd.dll', 'Qt6Test.dll')) {
     $target = Join-Path $binDestination $runtimeName
