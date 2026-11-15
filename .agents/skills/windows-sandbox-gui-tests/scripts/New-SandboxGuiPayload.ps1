@@ -83,12 +83,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $VoicebankSource 'desc.json'))) {
     throw "Missing the fixture voicebank at $VoicebankSource."
 }
 
-# The guest recreates the build-time config path with subst, so a C: build can never
-# be staged. Point the caller at the host fallback instead of producing a payload
-# that fails at run time.
-$binSourceDrive = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource)).TrimEnd('\')
-if ($binSourceDrive -eq 'C:') {
-    throw 'The build output is on C:, so Windows Sandbox cannot recreate the embedded config path. Run Invoke-HostGuiTrial.ps1 on this machine instead.'
+# The guest recreates the build-time config path with subst, so only a real drive
+# letter other than C: can work. Point the caller at the host fallback instead of
+# producing a payload that fails at run time.
+$binSourceRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource))
+if ($binSourceRoot -notmatch '^[A-Za-z]:\\' -or $binSourceRoot.TrimEnd('\') -eq 'C:') {
+    throw 'The build output must live on a non-system drive letter so Windows Sandbox can recreate the embedded config path. Run Invoke-HostGuiTrial.ps1 on this machine instead.'
 }
 
 $cases = @()

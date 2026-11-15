@@ -271,7 +271,8 @@ $clock.Stop()
         $midiProbeResult = Join-Path $workRoot 'midi-probe-result.json'
         Remove-Item -LiteralPath $midiProbeResult -ErrorAction SilentlyContinue
         $midiProbe = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $midiProbeScript, '-ResultPath', $midiProbeResult) `
+            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', ('"' + $midiProbeScript + '"'), '-ResultPath', ('"' + $midiProbeResult + '"')) `
             -PassThru -WindowStyle Hidden
         $midiProbeExited = $midiProbe.WaitForExit(20000)
         if (-not $midiProbeExited) {
@@ -323,8 +324,10 @@ namespace SandboxTrial {
         $watchStopFile = Join-Path $workRoot 'window-watch.stop'
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
         $watcher = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $watcherScript,
-                '-OutputDirectory', $watchDirectory, '-StopFile', $watchStopFile) `
+            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', ('"' + $watcherScript + '"'),
+                '-OutputDirectory', ('"' + $watchDirectory + '"'),
+                '-StopFile', ('"' + $watchStopFile + '"')) `
             -PassThru -WindowStyle Hidden
     }
 

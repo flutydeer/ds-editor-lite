@@ -106,8 +106,9 @@ $sandboxCli = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wsb.exe'
 $sandboxCliReady = Test-Path -LiteralPath $sandboxCli
 # The guest can only recreate the embedded config path on a substitutable drive.
 # A build under C: cannot run in the sandbox at all, so the fallback must stay open.
-$binSourceDrive = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource)).TrimEnd('\')
-$sandboxDriveSupported = ($binSourceDrive -ne 'C:')
+$binSourceRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource))
+# Only a real drive letter can be substed inside the guest. UNC shares and C: cannot.
+$sandboxDriveSupported = ($binSourceRoot -match '^[A-Za-z]:\\') -and ($binSourceRoot.TrimEnd('\') -ne 'C:')
 # The fallback is only allowed when the sandbox path is genuinely unusable, which
 # includes a missing wsb.exe and a build path the guest cannot recreate.
 $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and
@@ -252,8 +253,10 @@ try {
         $watchStopFile = Join-Path ([IO.Path]::GetTempPath()) ('sandbox-gui-watch-' + $runId + '.stop')
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
         $watcher = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $watcherScript,
-                '-OutputDirectory', $watchDirectory, '-StopFile', $watchStopFile, '-AllowHostDesktop') `
+            -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', ('"' + $watcherScript + '"'),
+                '-OutputDirectory', ('"' + $watchDirectory + '"'),
+                '-StopFile', ('"' + $watchStopFile + '"'), '-AllowHostDesktop') `
             -PassThru -WindowStyle Hidden
     }
 
