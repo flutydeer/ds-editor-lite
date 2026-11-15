@@ -102,19 +102,29 @@ function Get-GuiTrialRuntimeSearchPaths {
         $paths.Add($qtBin)
     }
 
-    foreach ($installPath in @(Get-VisualStudioInstallPaths)) {
+    $installs = @(Get-VisualStudioInstallPaths)
+    $crtCandidates = New-Object System.Collections.Generic.List[object]
+    foreach ($installPath in $installs) {
         $redistRoot = Join-Path $installPath 'VC\Redist\MSVC'
-        if (Test-Path -LiteralPath $redistRoot) {
-            foreach ($redistVersion in @(Get-ChildItem -LiteralPath $redistRoot -Directory -ErrorAction SilentlyContinue)) {
-                # The toolset name changes with the Visual Studio generation, so match
-                # Microsoft.VC*.DebugCRT instead of hard-coding one toolset.
-                $debugRoot = Join-Path $redistVersion.FullName 'debug_nonredist\x64'
-                foreach ($crtDirectory in @(Get-ChildItem -LiteralPath $debugRoot -Directory -ErrorAction SilentlyContinue |
-                    Where-Object { $_.Name -like 'Microsoft.VC*.DebugCRT' })) {
-                    $paths.Add($crtDirectory.FullName)
-                }
+        if (-not (Test-Path -LiteralPath $redistRoot)) { continue }
+        foreach ($redistVersion in @(Get-ChildItem -LiteralPath $redistRoot -Directory -ErrorAction SilentlyContinue)) {
+            $parsedVersion = [version]'0.0.0'
+            try { $parsedVersion = [version]$redistVersion.Name } catch { }
+            # The toolset name changes with the Visual Studio generation, so match
+            # Microsoft.VC*.DebugCRT instead of hard-coding one toolset.
+            $debugRoot = Join-Path $redistVersion.FullName 'debug_nonredist\x64'
+            foreach ($crtDirectory in @(Get-ChildItem -LiteralPath $debugRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like 'Microsoft.VC*.DebugCRT' })) {
+                $crtCandidates.Add([pscustomobject]@{ Version = $parsedVersion; Path = $crtDirectory.FullName })
             }
         }
+    }
+    # Newest first: MSVC runtimes are backward compatible within a major version, and
+    # ordering by version keeps the pick deterministic when several are installed.
+    foreach ($candidate in @($crtCandidates | Sort-Object -Property Version -Descending)) {
+        $paths.Add($candidate.Path)
+    }
+    foreach ($installPath in $installs) {
         $ideDirectory = Join-Path $installPath 'Common7\IDE'
         if (Test-Path -LiteralPath $ideDirectory) { $paths.Add($ideDirectory) }
     }

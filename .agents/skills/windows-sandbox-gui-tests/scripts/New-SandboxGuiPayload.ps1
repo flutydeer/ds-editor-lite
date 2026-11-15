@@ -100,6 +100,11 @@ if ($Selectors.Count -eq 1 -and [string]::IsNullOrEmpty($Selectors[0])) {
     $index = 0
     foreach ($selector in $Selectors) {
         if ([string]::IsNullOrWhiteSpace($selector)) { continue }
+        # Selectors are passed through cmd.exe, so reject characters that quoting
+        # cannot contain safely.
+        if ($selector -match '["\r\n]') {
+            throw "Selector contains unsupported characters: $selector"
+        }
         $index++
         $safeId = $selector -replace '[^A-Za-z0-9._-]', '-'
         $cases += [ordered]@{

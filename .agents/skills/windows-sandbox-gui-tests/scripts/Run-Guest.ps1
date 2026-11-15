@@ -359,7 +359,7 @@ namespace SandboxTrial {
         if ([string]::IsNullOrEmpty($selector)) {
             $commandLine = '""{0}" -v1 -o "{1},junitxml" -o -,txt 1>"{2}" 2>"{3}""' -f $exe, $xmlPath, $stdout, $stderr
         } else {
-            $commandLine = '""{0}" {1} -v1 -o "{2},junitxml" -o -,txt 1>"{3}" 2>"{4}""' -f $exe, $selector, $xmlPath, $stdout, $stderr
+            $commandLine = '""{0}" "{1}" -v1 -o "{2},junitxml" -o -,txt 1>"{3}" 2>"{4}""' -f $exe, $selector, $xmlPath, $stdout, $stderr
         }
         $activeProcess = Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" `
             -ArgumentList ('/d /s /c ' + $commandLine) -WorkingDirectory $exeDirectory -PassThru -NoNewWindow
