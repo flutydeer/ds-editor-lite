@@ -10,7 +10,9 @@
     starts. Nothing here executes the product or the test binary.
 
 .PARAMETER Preset
-    CMake preset whose build output is staged (debug or release).
+    CMake preset whose build output is staged. Only debug and tests produce the test
+    binary. The release preset disables LITE_BUILD_TESTS, so it needs an explicit
+    -BinSource from a build that enabled the tests.
 
 .PARAMETER OutputRoot
     Trial directory. Must live under the repository build directory.
@@ -71,7 +73,7 @@ $results = Join-Path $OutputRoot 'results'
 $exeName = 'TestNativeDesktop.exe'
 $exePath = Join-Path $BinSource $exeName
 if (-not (Test-Path -LiteralPath $exePath)) {
-    throw "Missing $exeName under $BinSource. Build the debug preset with tests enabled first."
+    throw "Missing $exeName under $BinSource. Build the lite_tests target first. The repository's release preset disables LITE_BUILD_TESTS, so it never produces this binary."
 }
 if (-not (Test-Path -LiteralPath (Join-Path $BinSource 'plugins'))) {
     throw "Missing the Qt plugin directory under $BinSource."
@@ -177,12 +179,22 @@ foreach ($scriptName in 'Run-Guest.ps1', 'Watch-Windows.ps1') {
 $searchDirectories = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot)
 
 $binDestination = Join-Path $payload 'bin'
+$requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
+if (-not $requiredQtTest) {
+    throw 'Cannot tell whether the build is Debug or Release: neither Qt6Cored.dll nor Qt6Core.dll is next to the test executable.'
+}
+
+# Only the runtimes of the build flavor are mandatory. The other flavor is staged
+# when present, because third-party DLLs in the same directory may import it too.
+$isDebugBuild = ($requiredQtTest -eq 'Qt6Testd.dll')
+$debugRuntime = @('msvcp140d.dll', 'msvcp140_1d.dll', 'msvcp140_2d.dll', 'vcruntime140d.dll', 'vcruntime140_1d.dll', 'ucrtbased.dll')
+$releaseRuntime = @('msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+$requiredRuntime = if ($isDebugBuild) { $debugRuntime } else { $releaseRuntime }
+$optionalRuntime = if ($isDebugBuild) { $releaseRuntime } else { $debugRuntime }
+
 $runtimeFilesCopied = @()
-$missingRuntimeFiles = @()
-foreach ($runtimeName in @(
-    'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'msvcp140_2d.dll', 'msvcp140d.dll', 'msvcp140_1d.dll',
-    'vcruntime140.dll', 'vcruntime140_1.dll', 'vcruntime140_1d.dll', 'vcruntime140d.dll',
-    'ucrtbased.dll', 'Qt6Testd.dll', 'Qt6Test.dll')) {
+$missingRequiredRuntime = @()
+foreach ($runtimeName in @($requiredRuntime) + @($optionalRuntime) + @('Qt6Testd.dll', 'Qt6Test.dll')) {
     $target = Join-Path $binDestination $runtimeName
     if (Test-Path -LiteralPath $target) { continue }
     $found = $null
@@ -191,22 +203,18 @@ foreach ($runtimeName in @(
         if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
     }
     if ($null -eq $found) {
-        $missingRuntimeFiles += $runtimeName
+        if ($requiredRuntime -contains $runtimeName) { $missingRequiredRuntime += $runtimeName }
         continue
     }
     Copy-Item -LiteralPath $found -Destination $target
     $runtimeFilesCopied += $runtimeName
 }
-$requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
-if (-not $requiredQtTest) {
-    throw 'Cannot tell whether the build is Debug or Release: neither Qt6Cored.dll nor Qt6Core.dll is next to the test executable.'
-}
 if (-not (Test-Path -LiteralPath (Join-Path $binDestination $requiredQtTest))) {
     throw "$requiredQtTest was not found for the Qt version used by the build. Pass -QtRoot pointing at the matching Qt installation."
 }
-$requiredMissing = @($missingRuntimeFiles | Where-Object { $_ -notin @('Qt6Testd.dll', 'Qt6Test.dll') })
-if ($requiredMissing.Count -gt 0) {
-    throw ('Missing required runtime DLLs: ' + ($requiredMissing -join ', ') + '. Install the Visual Studio debug CRT and the Windows SDK.')
+if ($missingRequiredRuntime.Count -gt 0) {
+    $flavorName = if ($isDebugBuild) { 'debug' } else { 'release' }
+    throw ('Missing required ' + $flavorName + ' runtime DLLs: ' + ($missingRequiredRuntime -join ', ') + '. Install the Visual Studio CRT redistributable and the Windows SDK.')
 }
 
 $plan = [ordered]@{

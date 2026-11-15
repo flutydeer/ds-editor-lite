@@ -25,7 +25,7 @@ description: 在 Windows Sandbox 里运行 DS Editor Lite 的原生 GUI 测试�
 
 1. Windows Sandbox 已启用。`Containers-DisposableClientVM` 的 `InstallState` 为 1，且 `HypervisorPresent` 为 True。
 2. `wsb.exe` 存在，位置为 `%LOCALAPPDATA%\Microsoft\WindowsApps\wsb.exe`。
-3. 构建产物存在：`build\<preset>\out\bin\TestNativeDesktop.exe`，同目录下有 `plugins` 和 `configs`。
+3. 构建产物存在：`build\<preset>\out\bin\TestNativeDesktop.exe`，同目录下有 `plugins` 和 `configs`。仓库的 `debug` 与 `tests` preset 都带测试，但 build preset 只编 `DsEditorLite` 与 `DsConnectorLite`，必须先构建 `lite_tests`。`release` preset 关闭了 `LITE_BUILD_TESTS`，不会产出测试二进制，需要自己配置一个带测试的构建再用 `-BinSource` 指定。
 4. 夹具声库存在：`build\<preset>\src\tests\resources\ci-fixture@1.0.0`。
 5. 沙盒路径要求仓库位于非 C: 盘。测试二进制在编译时把构建目录的绝对路径写进了配置查找，客体需要用 `subst` 复刻该路径，C: 是系统盘无法替换。回退到当前桌面时该路径本来就存在，没有这条限制。
 
