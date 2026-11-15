@@ -132,30 +132,6 @@ function Stop-OwnedTest {
     }
 }
 
-function Mount-GuestConfigDrive {
-    param([string]$DriveSpec, [string]$DriveRoot)
-    & "$env:SystemRoot\System32\subst.exe" $DriveSpec $DriveRoot
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the guest-only $DriveSpec drive." }
-}
-
-function Initialize-GuestConfigPath {
-    param([string]$EmbeddedPath, [string]$ConfigSource, [string]$WorkRoot)
-    $driveMatch = [regex]::Match($EmbeddedPath, '^([A-Za-z]):\\(.+)$')
-    if (-not $driveMatch.Success) { throw "plan.json has an unusable embeddedConfigPath: $EmbeddedPath" }
-    $driveLetter = $driveMatch.Groups[1].Value.ToUpperInvariant()
-    $driveSpec = $driveLetter + ':'
-    if ($driveLetter -ne 'C') {
-        if (Test-Path -LiteralPath ($driveSpec + '\')) { throw "Guest already has drive $driveSpec. Refusing to overwrite it." }
-        $driveRoot = Join-Path $WorkRoot ('drive' + $driveLetter)
-        New-Item -ItemType Directory -Path $driveRoot | Out-Null
-        Mount-GuestConfigDrive -DriveSpec $driveSpec -DriveRoot $driveRoot
-    }
-    # C: is already the guest system drive, so only the embedded directory is needed.
-    $compiledParent = $driveSpec + '\' + $driveMatch.Groups[2].Value
-    New-Item -ItemType Directory -Path $compiledParent -Force | Out-Null
-    Copy-Item -LiteralPath $ConfigSource -Destination $compiledParent -Recurse
-}
-
 try {
     Start-Transcript -LiteralPath (Join-Path $runRoot 'runner.log') | Out-Null
     $transcriptStarted = $true
@@ -213,7 +189,8 @@ try {
 
     # The existing test binary embeds the absolute build path for its config tree.
     # Recreate only that path inside this disposable guest.
-    Initialize-GuestConfigPath -EmbeddedPath ([string]$plan.embeddedConfigPath) `
+    . (Join-Path $inputRoot 'SandboxConfigPaths.ps1')
+    Initialize-SandboxConfigPath -EmbeddedPath ([string]$plan.embeddedConfigPath) `
         -ConfigSource (Join-Path $inputRoot $plan.configSource) -WorkRoot $workRoot
 
     $env:PATH = "$exeDirectory;$env:SystemRoot\System32;$env:SystemRoot"
@@ -342,13 +319,14 @@ namespace SandboxTrial {
         $watchStopFile = Join-Path $workRoot 'window-watch.stop'
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
         $watchScopeStart = (Get-Date).AddSeconds(-1).ToString('o')
-        $watcher = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        . (Join-Path $inputRoot 'WindowObserverLifecycle.ps1')
+        Start-WindowObserver -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-File', ('"' + $watcherScript + '"'),
                 '-OutputDirectory', ('"' + $watchDirectory + '"'),
                 '-StopFile', ('"' + $watchStopFile + '"'),
                 '-ScopeStartLocal', ('"' + $watchScopeStart + '"')) `
-            -PassThru -WindowStyle Hidden
+            -Process ([ref]$watcher)
     }
 
     $summary.overall = 'Running'

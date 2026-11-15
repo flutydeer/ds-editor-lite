@@ -144,11 +144,14 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 ```powershell
 .\.agents\skills\windows-sandbox-gui-tests\tests\Test-HostGuiTrialEnvironment.ps1
 .\.agents\skills\windows-sandbox-gui-tests\tests\Test-SandboxConfigPaths.ps1
+.\.agents\skills\windows-sandbox-gui-tests\tests\Test-WindowObserverReadiness.ps1
 ```
 
 不需要构建产物、Qt 或沙盒。测试用假的 CIM 查询与进程启动替身调用真实宿主运行器，验证子进程启动时的环境设置，以及正常完成、进程启动失败、汇总文件写入失败后的环境恢复。覆盖原值存在、未定义和空字符串，包括 Windows PowerShell 5.1 可以继承但无法用 `Env:` setter 恢复的空值。测试证据保存在 `build\SandboxGuiTrial\environment-regression-*`，这不能代替真实 GUI 测试。
 
-路径回归只从 AST 提取生产脚本的盘符判断语句和客体配置准备函数，以记录型替身拦截目录创建、复制与 `subst`。覆盖 C:/c: 直接配置复制、其他盘符映射、UNC 拒绝与回退判断，以及盘符占用、映射失败。不会运行完整客体入口、创建真实映射或启动 GUI。
+路径回归直接导入生产配置路径策略，通过隔离目录验证真实文件复制后的配置布局，只替换盘符访问与映射操作。覆盖 C:/c: 直接配置复制、其他盘符映射、UNC 和相对路径拒绝，以及盘符占用、映射失败与已有配置保护。不会运行完整客体入口或创建真实映射。
+
+观察器回归使用只交换就绪事件的控制台子进程，验证收到信号前不会开始后续工作，以及启动失败和等待超时的处理。不会启动真实窗口观察器或 GUI。
 
 ## 结果判读
 
@@ -197,7 +200,7 @@ Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的
 
 ### 一秒一次采样会漏掉短命窗口
 
-编辑类用例的测试体常常不到一秒，窗口只存在几百毫秒。观察器默认 150 毫秒采样并按新句柄触发截图，调低采样间隔会直接漏证据。
+运行器等待观察器完成初始化并确认就绪后才启动测试。就绪等待超时或观察器提前退出时，本轮以脚本异常结束，不启动测试用例。观察器默认每 150 毫秒采样并按新句柄触发截图，增大间隔可能漏掉短命窗口，即使使用默认间隔也不能保证捕获生命周期短于采样间隔的窗口。
 
 ### 关闭沙盒前截图可能没同步完
 
@@ -209,9 +212,9 @@ Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的
 
 ### 整套运行里个别时序用例可能失败
 
-沙盒里的窗口尺寸与帧时序和开发机不同，自动滚动、拖拽到边缘选择一类用例最容易受影响。实测整套运行时 `rhiTrackMenuPasteAndSelectionUseTheFullEditor(selection-scrolls-to-an-offscreen-clip)` 会报 `Edge selection stalled`，同一轮其余 87 个用例通过。
+沙盒里的窗口尺寸与帧时序可能和开发机不同。遇到自动滚动、边缘选择等时序相关失败时，用 `-Selectors` 单跑失败用例，再用相同 payload 重跑整套，对照 JUnit、控制台日志和窗口证据定位差异。
 
-先不要直接判定产品回归。用 `-Selectors` 单跑该用例复核，再用原始试验包重跑整套对照。两者结果一致时按环境敏感处理，并在报告里写明现象与复现方式。
+报告中记录复现条件与证据。单跑通过不能替代整套结果，也不能仅凭运行环境排除产品回归。
 
 ### 多个沙盒实例
 

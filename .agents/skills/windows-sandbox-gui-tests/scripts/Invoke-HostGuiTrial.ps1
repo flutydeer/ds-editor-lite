@@ -76,6 +76,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $VoicebankSource 'desc.json'))) { th
 # The build output does not contain the Qt Test module or the debug CRT, so the host
 # run needs those directories on PATH just like the sandbox payload carries the files.
 . (Join-Path $PSScriptRoot 'Resolve-GuiTrialRuntimePaths.ps1')
+. (Join-Path $PSScriptRoot 'SandboxConfigPaths.ps1')
 $runtimeSearchPaths = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot -RepoRoot $repo)
 $requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
 if (-not $requiredQtTest) {
@@ -112,8 +113,7 @@ $sandboxCli = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wsb.exe'
 $sandboxCliReady = Test-Path -LiteralPath $sandboxCli
 # The guest creates C: config paths directly and uses subst for other local drives.
 # Only UNC sources require fallback on account of the embedded config path.
-$binSourceRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource))
-$sandboxDriveSupported = ($binSourceRoot -match '^[A-Za-z]:\\')
+$sandboxDriveSupported = Test-SandboxConfigPathSupported -Path ([IO.Path]::GetFullPath($BinSource))
 # The fallback is only allowed when the sandbox path is genuinely unusable, which
 # includes a missing wsb.exe and a build path the guest cannot recreate.
 $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and
@@ -302,13 +302,14 @@ try {
         $watchStopFile = Join-Path ([IO.Path]::GetTempPath()) ('sandbox-gui-watch-' + $runId + '.stop')
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
         $watchScopeStart = (Get-Date).AddSeconds(-1).ToString('o')
-        $watcher = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        . (Join-Path $PSScriptRoot 'WindowObserverLifecycle.ps1')
+        Start-WindowObserver -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-File', ('"' + $watcherScript + '"'),
                 '-OutputDirectory', ('"' + $watchDirectory + '"'),
                 '-StopFile', ('"' + $watchStopFile + '"'),
                 '-ScopeStartLocal', ('"' + $watchScopeStart + '"'), '-AllowHostDesktop') `
-            -PassThru -WindowStyle Hidden
+            -Process ([ref]$watcher)
     }
 
     Save-Summary

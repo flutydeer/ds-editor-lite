@@ -9,7 +9,8 @@ param(
     [int]$ScreenshotIntervalMs = 8000,
     [int]$MaxScreenshots = 30,
     [switch]$AllowHostDesktop,
-    [string]$ScopeStartLocal
+    [string]$ScopeStartLocal,
+    [Parameter(Mandatory = $true)][string]$ReadyEventName
 )
 $ErrorActionPreference = 'Stop'
 
@@ -17,6 +18,8 @@ if (-not $AllowHostDesktop -and
     -not ($OutputDirectory.StartsWith('C:\SandboxTrialResults\', [StringComparison]::OrdinalIgnoreCase))) {
     throw 'The window observer writes only to the dedicated results mapping.'
 }
+
+. (Join-Path $PSScriptRoot 'WindowObserverLifecycle.ps1')
 
 # Capture the scope before Add-Type and assembly loading, which can take seconds on a
 # cold start. The runner passes its own timestamp so tests launched later are counted.
@@ -118,14 +121,17 @@ $screenshotErrors = 0
 $lastScreenshotUtc = [DateTime]::MinValue
 $startedUtc = (Get-Date).ToUniversalTime()
 $errorText = $null
+$readySignaled = $false
 
 try {
     while (-not (Test-Path -LiteralPath $StopFile)) {
         $sampleUtc = (Get-Date).ToUniversalTime()
         $ourCount = 0
         $captureNow = $false
+        $sampleSucceeded = $false
         try {
             $rows = [TrialWindowSampler]::Sample()
+            $sampleSucceeded = $true
         } catch {
             $errorText = $_.Exception.Message
             $rows = @()
@@ -195,6 +201,10 @@ try {
             }
         }
 
+        if (-not $readySignaled -and $sampleSucceeded) {
+            Send-WindowObserverReady -ReadyEventName $ReadyEventName
+            $readySignaled = $true
+        }
         Start-Sleep -Milliseconds $SampleIntervalMs
     }
 } finally {

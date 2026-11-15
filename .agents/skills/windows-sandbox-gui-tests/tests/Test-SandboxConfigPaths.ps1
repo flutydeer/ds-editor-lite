@@ -1,164 +1,162 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Test drive policy and guest config placement without starting a guest or touching its paths.
+    Exercise the public config-path contract with isolated drives and real file copies.
 #>
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
-$scripts = Join-Path $PSScriptRoot '..\scripts'
+. (Join-Path $PSScriptRoot '..\scripts\SandboxConfigPaths.ps1')
 
-function Read-TestAst {
-    param([string]$Name)
-    $tokens = $null; $errors = $null
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $scripts $Name), [ref]$tokens, [ref]$errors)
-    if ($errors.Count -gt 0) { throw "Cannot parse $Name`: $errors" }
-    return $ast
-}
-function Get-TestAssignment {
-    param($Ast, [string]$Name)
-    $matches = @($Ast.FindAll({
-        param($node)
-        $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
-            $node.Left -is [System.Management.Automation.Language.VariableExpressionAst] -and
-            $node.Left.VariablePath.UserPath -eq $Name
-    }, $true))
-    if ($matches.Count -ne 1) { throw "Expected exactly one assignment to $Name." }
-    return $matches[0].Extent.Text
-}
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) ('ds-editor-config-paths-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $testRoot | Out-Null
+$results = [pscustomobject]@{ Passed = 0; Failures = @() }
 
-# Execute only these bounded production policy statements, never a complete entry point.
-$payloadAst = Read-TestAst 'New-SandboxGuiPayload.ps1'
-$driveGuards = @($payloadAst.FindAll({
-    param($node)
-    $node -is [System.Management.Automation.Language.IfStatementAst] -and
-        $node.Clauses[0].Item1.Extent.Text -match '\$binSourceRoot\b'
-}, $true))
-if ($driveGuards.Count -ne 1) { throw 'Expected exactly one payload drive guard.' }
-$payloadPolicy = [scriptblock]::Create((Get-TestAssignment $payloadAst 'binSourceRoot') + "`n" + $driveGuards[0].Extent.Text)
-$hostAst = Read-TestAst 'Invoke-HostGuiTrial.ps1'
-$hostPolicy = [scriptblock]::Create((Get-TestAssignment $hostAst 'binSourceRoot') + "`n" +
-    (Get-TestAssignment $hostAst 'sandboxDriveSupported') + "`n" + (Get-TestAssignment $hostAst 'sandboxReady') + "`n" + '$sandboxReady')
-$guestAst = Read-TestAst 'Run-Guest.ps1'
-$configFunctions = @($guestAst.FindAll({
-    param($node)
-    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Initialize-GuestConfigPath'
-}, $true))
-if ($configFunctions.Count -ne 1) { throw 'Expected exactly one guest config function.' }
-# All side-effect commands in the extracted function must use recording mocks below.
-$allowedCommands = @('Test-Path', 'New-Item', 'Mount-GuestConfigDrive', 'Copy-Item', 'Join-Path', 'Out-Null')
-foreach ($command in $configFunctions[0].FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true)) {
-    if ($allowedCommands -notcontains $command.GetCommandName()) { throw 'Unexpected command in guest config helper.' }
+function Assert-True {
+    param([bool]$Condition, [string]$Message)
+    if (-not $Condition) { throw $Message }
 }
-. ([scriptblock]::Create($configFunctions[0].Extent.Text))
-
-$record = [pscustomobject]@{ Directories = @(); Copies = @(); Mounts = @(); DriveExists = $false; MountFails = $false; CopyFails = $false }
-function New-Item {
-    param([string]$ItemType, [string]$Path, [switch]$Force)
-    if ($ItemType -ne 'Directory') { throw 'Only directory creation is expected.' }
-    $record.Directories += $Path
-}
-function Copy-Item {
-    param([string]$LiteralPath, [string]$Destination, [switch]$Recurse)
-    if (-not $Recurse) { throw 'Config directory must be copied recursively.' }
-    $record.Copies += [pscustomobject]@{ Source = $LiteralPath; Destination = $Destination }
-    if ($record.CopyFails) { throw 'Injected config copy failure.' }
-}
-function Test-Path {
-    param([string]$LiteralPath)
-    if ($LiteralPath -notmatch '^[A-Za-z]:\\$') { throw "Unexpected existence probe: $LiteralPath" }
-    return $record.DriveExists
-}
-function Mount-GuestConfigDrive {
-    param([string]$DriveSpec, [string]$DriveRoot)
-    $record.Mounts += [pscustomobject]@{ DriveSpec = $DriveSpec; DriveRoot = $DriveRoot }
-    if ($record.MountFails) { throw 'Injected subst failure.' }
-}
-function Assert-Equal {
-    param($Actual, $Expected, [string]$Message)
-    if ($Actual -cne $Expected) { throw "$Message`: expected '$Expected', got '$Actual'." }
+function Assert-FileText {
+    param([string]$Path, [string]$Expected)
+    Assert-True (Test-Path -LiteralPath $Path -PathType Leaf) "Missing expected config file: $Path"
+    Assert-True ([IO.File]::ReadAllText($Path) -ceq $Expected) "Unexpected file contents: $Path"
 }
 function Assert-Rejected {
-    param([scriptblock]$Action, [string]$ExpectedMessage)
+    param([scriptblock]$Action, [string]$MessagePattern = '.')
     $caught = $null
     try { & $Action } catch { $caught = $_ }
-    if ($null -eq $caught -or $caught.ToString() -notmatch $ExpectedMessage) { throw "Expected rejection matching $ExpectedMessage." }
+    Assert-True ($null -ne $caught) 'The operation unexpectedly succeeded.'
+    Assert-True ($caught.Exception.Message -match $MessagePattern) "Unexpected failure: $caught"
 }
-$failures = @(); $passed = 0
 function Invoke-TestCase {
     param([string]$Name, [scriptblock]$Action)
-    try { & $Action; $script:passed++; Write-Host "PASS $Name" }
-    catch { $script:failures += "$Name`: $_" }
+    try {
+        & $Action
+        $results.Passed++
+        Write-Host "PASS $Name"
+    } catch {
+        $results.Failures += "$Name`: $_"
+        Write-Host "FAIL $Name`: $_"
+    }
 }
+function New-TestFixture {
+    $root = Join-Path $testRoot ([guid]::NewGuid().ToString('N'))
+    $source = Join-Path $root 'input\configs'
+    $work = Join-Path $root 'work'
+    $systemDrive = Join-Path $root 'system drive'
+    foreach ($directory in $source, (Join-Path $source 'nested'), $work, $systemDrive) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+    [IO.File]::WriteAllText((Join-Path $source 'marker.json'), '{"setting":"from payload"}')
+    [IO.File]::WriteAllText((Join-Path $source 'nested\child.ini'), 'nested=true')
+    $state = [pscustomobject]@{
+        Roots = @{ 'C:' = $systemDrive; 'D:' = (Join-Path $root 'unmounted drive') }
+        MountFails = $false
+    }
+    $resolve = {
+        param($DriveSpec)
+        return $state.Roots[$DriveSpec]
+    }.GetNewClosure()
+    # Only drive access is substituted. Directory creation and copying remain real.
+    $mount = {
+        param($DriveSpec, $DriveRoot)
+        if ($DriveSpec -eq 'C:') { throw 'The system drive must never be remapped.' }
+        if ($state.MountFails) { throw 'Injected drive mapping failure.' }
+        $state.Roots[$DriveSpec] = $DriveRoot
+    }.GetNewClosure()
+    return [pscustomobject]@{
+        Root = $root
+        Source = $source
+        Work = $work
+        SystemDrive = $systemDrive
+        State = $state
+        Resolve = $resolve
+        Mount = $mount
+    }
+}
+function Invoke-FixtureInitialization {
+    param($Fixture, [string]$EmbeddedPath)
+    Initialize-SandboxConfigPath -EmbeddedPath $EmbeddedPath -ConfigSource $Fixture.Source `
+        -WorkRoot $Fixture.Work -ResolveDriveRoot $Fixture.Resolve -MountDrive $Fixture.Mount
+}
+function Assert-ConfigLayout {
+    param([string]$Parent)
+    Assert-FileText (Join-Path $Parent 'configs\marker.json') '{"setting":"from payload"}'
+    Assert-FileText (Join-Path $Parent 'configs\nested\child.ini') 'nested=true'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Parent 'marker.json'))) 'Configs must not be flattened into the bin directory.'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Parent 'configs\configs'))) 'Configs must not acquire an extra container level.'
+}
+
 foreach ($drive in 'C', 'c', 'D') {
-    Invoke-TestCase "Payload accepts $drive drive" {
-        $BinSource = $drive + ':\projects\editor with spaces\build\out\bin'
-        & $payloadPolicy
-    }
-    Invoke-TestCase "Host refuses fallback for sandbox-ready $drive drive" {
-        $BinSource = $drive + ':\projects\editor with spaces\build\out\bin'
-        $sandboxFeature = [pscustomobject]@{ InstallState = 1 }
-        $computer = [pscustomobject]@{ HypervisorPresent = $true }
-        $sandboxCliReady = $true
-        Assert-Equal (& $hostPolicy) $true 'Sandbox readiness'
-        $sandboxCliReady = $false
-        Assert-Equal (& $hostPolicy) $false 'Missing CLI still permits fallback'
-    }
-    Invoke-TestCase "Guest config placement on $drive drive" {
-        $record.Directories = @(); $record.Copies = @(); $record.Mounts = @()
-        $record.DriveExists = $true; $record.MountFails = $false
-        if ($drive -eq 'D') { $record.DriveExists = $false }
-        $embedded = $drive + ':\projects\editor with spaces\build\out\bin'
-        $source = 'C:\SandboxTrialInput\bin\configs'
-        Initialize-GuestConfigPath -EmbeddedPath $embedded -ConfigSource $source -WorkRoot 'C:\SandboxTrialWork'
-        Assert-Equal $record.Copies.Count 1 'Config copy count'
-        Assert-Equal $record.Copies[0].Source $source 'Copied source'
-        Assert-Equal $record.Copies[0].Destination ($drive.ToUpperInvariant() + ':\projects\editor with spaces\build\out\bin') 'Config parent destination'
-        if ($drive -eq 'D') {
-            Assert-Equal $record.Mounts.Count 1 'Non-system drive mount count'
-            Assert-Equal $record.Mounts[0].DriveSpec 'D:' 'Mounted drive'
-            Assert-Equal $record.Mounts[0].DriveRoot 'C:\SandboxTrialWork\driveD' 'Private mount root'
-            Assert-Equal $record.Directories.Count 2 'Mount root and config parent created'
-        } else {
-            Assert-Equal $record.Mounts.Count 0 'C drive must not use subst'
-            Assert-Equal $record.Directories.Count 1 'Only config parent created'
-        }
-        Assert-Equal $record.Directories[-1] $record.Copies[0].Destination 'Config parent created before copy'
+    Invoke-TestCase "Local $drive drive supports an embedded path containing spaces" {
+        $fixture = New-TestFixture
+        $path = $drive + ':\projects\editor with spaces\build\out\bin'
+        Assert-True (Test-SandboxConfigPathSupported -Path $path) 'Local drive paths must remain Sandbox eligible.'
+        Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath $path
+        $accessibleDrive = $fixture.State.Roots[($drive.ToUpperInvariant() + ':')]
+        Assert-ConfigLayout (Join-Path $accessibleDrive 'projects\editor with spaces\build\out\bin')
+        Assert-FileText (Join-Path $fixture.Source 'marker.json') '{"setting":"from payload"}'
     }
 }
-Invoke-TestCase 'Payload rejects UNC source' {
-    $BinSource = '\\server\share\bin'
-    Assert-Rejected { & $payloadPolicy } 'drive letter'
-}
-Invoke-TestCase 'Host still permits fallback for UNC source' {
-    $BinSource = '\\server\share\bin'
-    $sandboxFeature = [pscustomobject]@{ InstallState = 1 }
-    $computer = [pscustomobject]@{ HypervisorPresent = $true }
-    $sandboxCliReady = $true
-    Assert-Equal (& $hostPolicy) $false 'Unsupported source drive'
-}
-foreach ($invalidPath in '\\server\share\bin', 'relative\bin') {
-    Invoke-TestCase "Guest rejects $invalidPath" {
-        Assert-Rejected { Initialize-GuestConfigPath -EmbeddedPath $invalidPath } 'unusable embeddedConfigPath'
+
+foreach ($path in '\\server\share\project\bin', 'relative\project\bin', 'C:project\bin', '\project\bin') {
+    Invoke-TestCase "Non-local or relative path is rejected: $path" {
+        $fixture = New-TestFixture
+        Assert-True (-not (Test-SandboxConfigPathSupported -Path $path)) 'Unsupported paths must not select the Sandbox route.'
+        Assert-Rejected { Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath $path }
+        Assert-True (@(Get-ChildItem -LiteralPath $fixture.SystemDrive -Force).Count -eq 0) 'A rejected path changed the system-drive fixture.'
+        Assert-True (@(Get-ChildItem -LiteralPath $fixture.Work -Force).Count -eq 0) 'A rejected path changed the work fixture.'
     }
 }
-Invoke-TestCase 'Guest refuses occupied non-system drive' {
-    $record.DriveExists = $true; $record.Directories = @(); $record.Copies = @(); $record.Mounts = @()
-    Assert-Rejected { Initialize-GuestConfigPath -EmbeddedPath 'D:\project\bin' } 'already has drive D:'
-    Assert-Equal $record.Directories.Count 0 'No directory creation on occupied drive'
-    Assert-Equal $record.Copies.Count 0 'No config copy on occupied drive'
-    Assert-Equal $record.Mounts.Count 0 'No mount on occupied drive'
+
+Invoke-TestCase 'Existing bin parent keeps unrelated contents while receiving configs' {
+    $fixture = New-TestFixture
+    $parent = Join-Path $fixture.SystemDrive 'project\bin'
+    New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $parent 'unrelated.txt'), 'keep this file')
+    Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath 'C:\project\bin'
+    Assert-ConfigLayout $parent
+    Assert-FileText (Join-Path $parent 'unrelated.txt') 'keep this file'
 }
-Invoke-TestCase 'Guest does not copy configs after subst failure' {
-    $record.DriveExists = $false; $record.MountFails = $true; $record.Copies = @()
-    Assert-Rejected { Initialize-GuestConfigPath -EmbeddedPath 'D:\project\bin' -WorkRoot 'C:\SandboxTrialWork' } 'Injected subst failure'
-    Assert-Equal $record.Copies.Count 0 'No copy after failed drive mount'
+Invoke-TestCase 'Existing configs are rejected without merging or overwriting' {
+    $fixture = New-TestFixture
+    $parent = Join-Path $fixture.SystemDrive 'project\bin'
+    New-Item -ItemType Directory -Path (Join-Path $parent 'configs') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $parent 'configs\marker.json'), 'existing config')
+    Assert-Rejected { Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath 'C:\project\bin' }
+    Assert-FileText (Join-Path $parent 'configs\marker.json') 'existing config'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $parent 'configs\nested'))) 'A refused destination must not receive partial config contents.'
 }
-Invoke-TestCase 'Guest propagates config copy failure on C drive' {
-    $record.CopyFails = $true; $record.Mounts = @()
-    Assert-Rejected { Initialize-GuestConfigPath -EmbeddedPath 'C:\project\bin' -ConfigSource 'C:\SandboxTrialInput\bin\configs' } 'Injected config copy failure'
-    Assert-Equal $record.Mounts.Count 0 'No C drive mount even on copy failure'
+Invoke-TestCase 'An occupied non-system drive is preserved without preparing files' {
+    $fixture = New-TestFixture
+    $occupied = $fixture.State.Roots['D:']
+    New-Item -ItemType Directory -Path $occupied | Out-Null
+    [IO.File]::WriteAllText((Join-Path $occupied 'keep.txt'), 'existing drive')
+    Assert-Rejected { Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath 'D:\project\bin' }
+    Assert-FileText (Join-Path $occupied 'keep.txt') 'existing drive'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $occupied 'project'))) 'An occupied drive received config directories.'
+    Assert-True (@(Get-ChildItem -LiteralPath $fixture.Work -Force).Count -eq 0) 'An occupied drive caused work-directory changes.'
 }
-if ($failures.Count -gt 0) { throw ($failures -join "`n") }
-Write-Host "Sandbox config path regression: $passed passed, 0 failed. No guest, drive mapping or GUI was started."
+Invoke-TestCase 'A mapping error propagates before configs are copied' {
+    $fixture = New-TestFixture
+    $fixture.State.MountFails = $true
+    Assert-Rejected { Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath 'D:\project\bin' } 'Injected drive mapping failure'
+    Assert-True (@(Get-ChildItem -LiteralPath $fixture.Work -Recurse -Filter 'marker.json').Count -eq 0) 'Config files were copied after a failed mount.'
+    Assert-FileText (Join-Path $fixture.Source 'marker.json') '{"setting":"from payload"}'
+}
+Invoke-TestCase 'A real copy error propagates instead of reporting successful preparation' {
+    $fixture = New-TestFixture
+    $marker = Join-Path $fixture.Source 'marker.json'
+    $locked = [IO.File]::Open($marker, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try {
+        Assert-Rejected { Invoke-FixtureInitialization -Fixture $fixture -EmbeddedPath 'C:\project\bin' }
+    } finally {
+        $locked.Dispose()
+    }
+    Assert-FileText $marker '{"setting":"from payload"}'
+}
+
+Write-Host "Fixture evidence: $testRoot"
+if ($results.Failures.Count -gt 0) { throw ($results.Failures -join "`n") }
+Write-Host "Sandbox config path regression: $($results.Passed) passed, 0 failed. No Sandbox, GUI, real drive mapping or guest entry point was started."

@@ -55,6 +55,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
+. (Join-Path $PSScriptRoot 'SandboxConfigPaths.ps1')
 
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
 if (-not (Test-Path -LiteralPath (Join-Path $repo 'AGENTS.md'))) {
@@ -90,10 +91,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $VoicebankSource 'desc.json'))) {
     throw "Missing the fixture voicebank at $VoicebankSource."
 }
 
-# The guest creates C: config paths directly and uses subst for other drive letters.
-# UNC paths cannot be recreated by either mechanism.
-$binSourceRoot = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource))
-if ($binSourceRoot -notmatch '^[A-Za-z]:\\') {
+$binSourcePath = [IO.Path]::GetFullPath($BinSource)
+if (-not (Test-SandboxConfigPathSupported -Path $binSourcePath)) {
     throw 'The build output must live on a local drive letter so Windows Sandbox can recreate the embedded config path. Run Invoke-HostGuiTrial.ps1 on this machine instead.'
 }
 
@@ -175,7 +174,7 @@ Write-Host "Staging $BinSource"
 $skippedFiles = Copy-Tree -Source $BinSource -Destination (Join-Path $payload 'bin') -KeepOnlyExecutable $exeName
 Write-Host "Staging $VoicebankSource"
 $skippedFiles += Copy-Tree -Source $VoicebankSource -Destination (Join-Path $payload 'voicebank')
-foreach ($scriptName in 'Run-Guest.ps1', 'Watch-Windows.ps1') {
+foreach ($scriptName in 'Run-Guest.ps1', 'Watch-Windows.ps1', 'SandboxConfigPaths.ps1', 'WindowObserverLifecycle.ps1') {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $scriptName) -Destination (Join-Path $payload $scriptName)
 }
 
@@ -239,7 +238,7 @@ $plan = [ordered]@{
     preset = $Preset
     executable = 'bin/TestNativeDesktop.exe'
     workingDirectory = 'bin'
-    embeddedConfigPath = [IO.Path]::GetFullPath($BinSource).TrimEnd('\')
+    embeddedConfigPath = $binSourcePath.TrimEnd('\')
     configSource = 'bin/configs'
     voicebankRoot = 'voicebank'
     environment = [ordered]@{
