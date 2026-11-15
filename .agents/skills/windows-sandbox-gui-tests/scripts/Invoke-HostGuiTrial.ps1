@@ -102,10 +102,14 @@ $computer = Get-CimInstance Win32_ComputerSystem
 $sandboxFeature = Get-CimInstance Win32_OptionalFeature -Filter "Name='Containers-DisposableClientVM'" -ErrorAction SilentlyContinue
 $sandboxCli = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wsb.exe'
 $sandboxCliReady = Test-Path -LiteralPath $sandboxCli
+# The guest can only recreate the embedded config path on a substitutable drive.
+# A build under C: cannot run in the sandbox at all, so the fallback must stay open.
+$binSourceDrive = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($BinSource)).TrimEnd('\')
+$sandboxDriveSupported = ($binSourceDrive -ne 'C:')
 # The fallback is only allowed when the sandbox path is genuinely unusable, which
-# includes a missing wsb.exe even if the feature and hypervisor are present.
+# includes a missing wsb.exe and a build path the guest cannot recreate.
 $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and
-    [bool]$computer.HypervisorPresent -and $sandboxCliReady)
+    [bool]$computer.HypervisorPresent -and $sandboxCliReady -and $sandboxDriveSupported)
 
 $requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
 if ($NoWindowObserver) { $requireWindowEvidence = $false }
@@ -114,6 +118,7 @@ if ($NoWindowObserver) { $requireWindowEvidence = $false }
     Mode = 'HostDesktop'
     SandboxReady = $sandboxReady
     SandboxCliPresent = $sandboxCliReady
+    SandboxDriveSupported = $sandboxDriveSupported
     Executable = $exe
     Voicebank = $VoicebankSource
     QtTestModule = $qtTestModule
