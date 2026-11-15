@@ -73,11 +73,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $VoicebankSource 'desc.json'))) { th
 # run needs those directories on PATH just like the sandbox payload carries the files.
 . (Join-Path $PSScriptRoot 'Resolve-GuiTrialRuntimePaths.ps1')
 $runtimeSearchPaths = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot)
-$qtTestModule = @('Qt6Testd.dll', 'Qt6Test.dll') |
-    ForEach-Object { Find-GuiTrialRuntimeFile -Name $_ -SearchPaths $runtimeSearchPaths } |
-    Where-Object { $_ } | Select-Object -First 1
+$requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
+if (-not $requiredQtTest) {
+    throw 'Cannot tell whether the build is Debug or Release: neither Qt6Cored.dll nor Qt6Core.dll is next to the test executable.'
+}
+$qtTestModule = Find-GuiTrialRuntimeFile -Name $requiredQtTest -SearchPaths $runtimeSearchPaths
 if (-not $qtTestModule) {
-    throw 'Qt6Test.dll was not found on this machine. Pass -QtRoot so the Qt installation can be searched.'
+    throw "$requiredQtTest was not found on this machine. Pass -QtRoot so the Qt installation can be searched."
 }
 
 $cases = @()
@@ -268,6 +270,9 @@ try {
     foreach ($case in $cases) {
         $caseId = [string]$case.id
         $selector = [string]$case.selector
+        if ($selector -match '["%\r\n]') {
+            throw "Selector contains unsupported characters: $selector"
+        }
         $caseTimeout = [int]$case.timeoutSeconds
         $xmlPath = Join-Path $runRoot ($caseId + '.junit.xml')
         $stdout = Join-Path $runRoot ($caseId + '.stdout.txt')

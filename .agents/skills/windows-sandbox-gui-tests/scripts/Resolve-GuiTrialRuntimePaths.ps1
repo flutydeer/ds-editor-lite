@@ -18,6 +18,15 @@ function Get-QtCoreLibraryName {
     return $null
 }
 
+function Get-QtTestModuleName {
+    param([string]$BinSource)
+    # The Qt Test module must match the build flavor imported by the executable.
+    $coreName = Get-QtCoreLibraryName -BinSource $BinSource
+    if ($coreName -eq 'Qt6Cored.dll') { return 'Qt6Testd.dll' }
+    if ($coreName -eq 'Qt6Core.dll') { return 'Qt6Test.dll' }
+    return $null
+}
+
 function Get-QtRuntimeBinDirectories {
     [CmdletBinding()]
     param(

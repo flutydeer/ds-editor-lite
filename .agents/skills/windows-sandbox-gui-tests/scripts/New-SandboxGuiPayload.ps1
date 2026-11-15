@@ -102,7 +102,7 @@ if ($Selectors.Count -eq 1 -and [string]::IsNullOrEmpty($Selectors[0])) {
         if ([string]::IsNullOrWhiteSpace($selector)) { continue }
         # Selectors are passed through cmd.exe, so reject characters that quoting
         # cannot contain safely.
-        if ($selector -match '["\r\n]') {
+        if ($selector -match '["%\r\n]') {
             throw "Selector contains unsupported characters: $selector"
         }
         $index++
@@ -197,10 +197,12 @@ foreach ($runtimeName in @(
     Copy-Item -LiteralPath $found -Destination $target
     $runtimeFilesCopied += $runtimeName
 }
-$qtTestPresent = (Test-Path -LiteralPath (Join-Path $binDestination 'Qt6Testd.dll')) -or
-    (Test-Path -LiteralPath (Join-Path $binDestination 'Qt6Test.dll'))
-if (-not $qtTestPresent) {
-    throw 'Qt6Test.dll was not found for the Qt version used by the build. Pass -QtRoot pointing at the matching Qt installation.'
+$requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
+if (-not $requiredQtTest) {
+    throw 'Cannot tell whether the build is Debug or Release: neither Qt6Cored.dll nor Qt6Core.dll is next to the test executable.'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $binDestination $requiredQtTest))) {
+    throw "$requiredQtTest was not found for the Qt version used by the build. Pass -QtRoot pointing at the matching Qt installation."
 }
 $requiredMissing = @($missingRuntimeFiles | Where-Object { $_ -notin @('Qt6Testd.dll', 'Qt6Test.dll') })
 if ($requiredMissing.Count -gt 0) {

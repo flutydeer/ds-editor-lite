@@ -336,6 +336,9 @@ namespace SandboxTrial {
     foreach ($case in $runCases) {
         $caseId = [string]$case.id
         $selector = [string]$case.selector
+        if ($selector -match '["%\r\n]') {
+            throw "Selector contains unsupported characters: $selector"
+        }
         $timeoutSeconds = [int]$case.timeoutSeconds
         if ($timeoutSeconds -le 0) { $timeoutSeconds = 180 }
         $xmlPath = Join-Path $runRoot ($caseId + '.junit.xml')
