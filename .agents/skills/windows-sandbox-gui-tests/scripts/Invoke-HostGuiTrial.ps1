@@ -102,6 +102,9 @@ $computer = Get-CimInstance Win32_ComputerSystem
 $sandboxFeature = Get-CimInstance Win32_OptionalFeature -Filter "Name='Containers-DisposableClientVM'" -ErrorAction SilentlyContinue
 $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and [bool]$computer.HypervisorPresent)
 
+$requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
+if ($NoWindowObserver) { $requireWindowEvidence = $false }
+
 [pscustomobject]@{
     Mode = 'HostDesktop'
     SandboxReady = $sandboxReady
@@ -117,8 +120,7 @@ if (-not $AllowHostGui) {
     exit 0
 }
 if ($sandboxReady) {
-    Write-Host 'Windows Sandbox is available. Prefer Start-SandboxGuiTrial.ps1 -Launch.'
-    Write-Host 'Continuing on the current desktop because -AllowHostGui was passed.'
+    throw 'Windows Sandbox is available. Use Start-SandboxGuiTrial.ps1 -Launch instead of running GUI tests on the desktop.'
 }
 Write-Host ''
 Write-Host 'GUI windows will open on this desktop and may take focus.'
@@ -296,17 +298,45 @@ try {
         Write-Host "$($caseId): $($record.status)"
     }
 
+    $windowSummary = $null
+    if ($null -ne $watcher) {
+        try {
+            Set-Content -LiteralPath $watchStopFile -Value 'stop' -Encoding ASCII
+            if (-not $watcher.WaitForExit(15000)) {
+                Stop-Process -Id $watcher.Id -Force -ErrorAction SilentlyContinue
+            }
+            $watchSummaryPath = Join-Path $watchDirectory 'windows-summary.json'
+            if (Test-Path -LiteralPath $watchSummaryPath) {
+                $windowSummary = Get-Content -LiteralPath $watchSummaryPath -Raw | ConvertFrom-Json
+                $summary['windowObservation'] = $windowSummary
+            }
+        } catch {
+            $summary['windowObservationError'] = $_.Exception.Message
+        }
+        $watcher = $null
+    }
+    $windowEvidenceOk = $true
+    if ($requireWindowEvidence) {
+        if ($null -eq $windowSummary) { $windowEvidenceOk = $false }
+        elseif ([int]$windowSummary.testWindowSamples -le 0) { $windowEvidenceOk = $false }
+    }
+    $summary['windowEvidenceRequired'] = $requireWindowEvidence
+    $summary['windowEvidenceSatisfied'] = $windowEvidenceOk
+
     $unexpected = @($summary.cases | Where-Object { $_.status -notin @('Passed', 'PassedWithSkips', 'Skipped-Unverified') })
     $withSkips = @($summary.cases | Where-Object { $_.status -in @('PassedWithSkips', 'Skipped-Unverified') })
-    if ($unexpected.Count -eq 0 -and $withSkips.Count -eq 0) {
-        $summary.overall = 'AllSelectedCasesPassed'
-        $scriptExitCode = 0
-    } elseif ($unexpected.Count -eq 0) {
+    if ($unexpected.Count -gt 0) {
+        $summary.overall = 'Failed'
+        $scriptExitCode = 1
+    } elseif (-not $windowEvidenceOk) {
+        $summary.overall = 'WindowEvidenceMissing'
+        $scriptExitCode = 6
+    } elseif ($withSkips.Count -gt 0) {
         $summary.overall = 'Incomplete-SkippedCoverage'
         $scriptExitCode = 3
     } else {
-        $summary.overall = 'Failed'
-        $scriptExitCode = 1
+        $summary.overall = 'AllSelectedCasesPassed'
+        $scriptExitCode = 0
     }
 } catch {
     $summary.overall = 'PreparationOrRunnerFailed'

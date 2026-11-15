@@ -28,6 +28,10 @@ $plan = Get-Content -LiteralPath (Join-Path $inputRoot 'plan.json') -Raw | Conve
 if ([string]::IsNullOrWhiteSpace([string]$plan.executable)) { throw 'plan.json has no executable.' }
 $runCases = @($plan.cases)
 if ($runCases.Count -eq 0) { throw 'plan.json has no cases.' }
+$requireWindowEvidence = $false
+if ($plan.PSObject.Properties.Name -contains 'requireWindowEvidence') {
+    $requireWindowEvidence = [bool]$plan.requireWindowEvidence
+}
 
 $runId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
 $runRoot = Join-Path $resultsRoot $runId
@@ -44,6 +48,7 @@ $summary = [ordered]@{
         preset = [string]$plan.preset
         executable = [string]$plan.executable
         embeddedConfigPath = [string]$plan.embeddedConfigPath
+        requireWindowEvidence = $requireWindowEvidence
         cases = @($runCases | ForEach-Object {
             [ordered]@{ id = [string]$_.id; selector = [string]$_.selector; timeoutSeconds = [int]$_.timeoutSeconds }
         })
@@ -382,17 +387,48 @@ namespace SandboxTrial {
         Write-Host "$($caseId): $($record.status)"
     }
 
+    # Stop the passive observer before deciding the result. A missing window record
+    # means the GUI evidence this workflow exists to collect is absent, so a run that
+    # requires it must not report success.
+    $windowSummary = $null
+    if ($null -ne $watcher) {
+        try {
+            Set-Content -LiteralPath $watchStopFile -Value 'stop' -Encoding ASCII
+            if (-not $watcher.WaitForExit(15000)) {
+                Stop-Process -Id $watcher.Id -Force -ErrorAction SilentlyContinue
+            }
+            $watchSummaryPath = Join-Path $watchDirectory 'windows-summary.json'
+            if (Test-Path -LiteralPath $watchSummaryPath) {
+                $windowSummary = Get-Content -LiteralPath $watchSummaryPath -Raw | ConvertFrom-Json
+                $summary['windowObservation'] = $windowSummary
+            }
+        } catch {
+            $summary['windowObservationError'] = $_.Exception.Message
+        }
+        $watcher = $null
+    }
+    $windowEvidenceOk = $true
+    if ($requireWindowEvidence) {
+        if ($null -eq $windowSummary) { $windowEvidenceOk = $false }
+        elseif ([int]$windowSummary.testWindowSamples -le 0) { $windowEvidenceOk = $false }
+    }
+    $summary['windowEvidenceRequired'] = $requireWindowEvidence
+    $summary['windowEvidenceSatisfied'] = $windowEvidenceOk
+
     $unexpected = @($summary.cases | Where-Object { $_.status -notin @('Passed', 'PassedWithSkips', 'Skipped-Unverified') })
     $withSkips = @($summary.cases | Where-Object { $_.status -in @('PassedWithSkips', 'Skipped-Unverified') })
-    if ($unexpected.Count -eq 0 -and $withSkips.Count -eq 0) {
-        $summary.overall = 'AllSelectedCasesPassed-IsolationStillRequiresObservation'
-        $scriptExitCode = 0
-    } elseif ($unexpected.Count -eq 0) {
+    if ($unexpected.Count -gt 0) {
+        $summary.overall = 'Failed'
+        $scriptExitCode = 1
+    } elseif (-not $windowEvidenceOk) {
+        $summary.overall = 'WindowEvidenceMissing'
+        $scriptExitCode = 6
+    } elseif ($withSkips.Count -gt 0) {
         $summary.overall = 'Incomplete-SkippedCoverage'
         $scriptExitCode = 3
     } else {
-        $summary.overall = 'Failed'
-        $scriptExitCode = 1
+        $summary.overall = 'AllSelectedCasesPassed-IsolationStillRequiresObservation'
+        $scriptExitCode = 0
     }
 } catch {
     if ($summary.overall -eq 'Preparing' -or $summary.overall -eq 'Running') {

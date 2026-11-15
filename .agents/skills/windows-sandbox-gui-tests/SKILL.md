@@ -119,7 +119,7 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 
 ## 回退：在当前离线桌面运行
 
-只在沙盒不可用时使用。脚本默认只做检查，必须显式传 `-AllowHostGui` 才会启动 GUI。
+只在沙盒不可用时使用。脚本默认只做检查，必须显式传 `-AllowHostGui` 才会启动 GUI。沙盒可用时脚本直接拒绝执行，传了 `-AllowHostGui` 也不会绕开沙盒优先。
 
 ```powershell
 .\.agents\skills\windows-sandbox-gui-tests\scripts\Invoke-HostGuiTrial.ps1
@@ -134,6 +134,7 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 - 结果写到 `build\SandboxGuiTrial\host-results\<runId>\`，文件结构与沙盒结果一致
 - 窗口观察器加 `-AllowHostDesktop`，截图内容是当前桌面
 - 超时只结束自己启动的进程树
+- 实际执行前会再次确认沙盒仍不可用，可用则报错退出
 
 先跑不带 `-AllowHostGui` 的检查模式确认路径、声库和用例列表，再在用户知情后执行。
 
@@ -152,8 +153,11 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 | `TimedOut` | 超过外层超时，已结束该用例进程树 |
 | `CrashOrLoaderError` | 退出码为负数或高位为 1，通常是崩溃或加载器错误 |
 | `RequestedCaseNotExecutedExactlyOnce` | JUnit 里没有恰好出现一次指定用例 |
+| `WindowEvidenceMissing` | 计划要求窗口证据，但观察器没有产出或没有记录到测试窗口，退出码 6 |
 
-退出码约定：0 全通过，1 有失败，2 准备或脚本异常，3 有跳过，4 客体 MIDI 枚举仍不可用。
+退出码约定：0 全通过，1 有失败，2 准备或脚本异常，3 有跳过，4 客体 MIDI 枚举仍不可用，6 缺少窗口证据。
+
+整套运行默认要求窗口证据，观察器没有记录到测试窗口时整轮判为 `WindowEvidenceMissing`。单用例模式默认不要求，因为部分用例本身不渲染窗口，需要强制时在 `plan.json` 里把 `requireWindowEvidence` 改成 `true`。
 
 QtTest 6.11 的 JUnit 名称规则：数据行写作 `function(tag)`，非数据用例可能是 `function` 或 `function()`。整套运行时 `summary.json` 里的 `executedTestcaseCount` 不含 `initTestCase` 与 `cleanupTestCase`。
 

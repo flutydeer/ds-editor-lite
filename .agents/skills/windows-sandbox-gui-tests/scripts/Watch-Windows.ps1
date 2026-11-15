@@ -163,7 +163,8 @@ try {
 
         if ($ourCount -gt 0 -and $screenshots -lt $MaxScreenshots -and ($captureNow -or ($sampleUtc - $lastScreenshotUtc).TotalMilliseconds -ge $ScreenshotIntervalMs)) {
             $lastScreenshotUtc = $sampleUtc
-            $shotPath = Join-Path $shotDirectory ('shot-' + $sampleUtc.ToString('yyyyMMddTHHmmssZ') + '.png')
+            $shotPath = Join-Path $shotDirectory ('shot-' + $sampleUtc.ToString('yyyyMMddTHHmmssfffZ') + '-' +
+                $screenshots.ToString('D3') + '.png')
             try {
                 $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
                 $bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)

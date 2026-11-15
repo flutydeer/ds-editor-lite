@@ -5,6 +5,58 @@
 # sandbox payload builder copies them into the payload, and the host fallback prepends
 # these directories to PATH. Both call Get-GuiTrialRuntimeSearchPaths so the two paths
 # stay in sync.
+#
+# A machine can have several Qt installations under C:\Qt. Taking the first Qt bin that
+# contains Qt6Testd.dll can pair it with a Qt6Core from another version, so the Qt bin
+# is selected by matching the Qt6Core[d].dll file version already beside the test exe.
+
+function Get-QtCoreLibraryName {
+    param([string]$BinSource)
+    foreach ($name in 'Qt6Cored.dll', 'Qt6Core.dll') {
+        if (Test-Path -LiteralPath (Join-Path $BinSource $name)) { return $name }
+    }
+    return $null
+}
+
+function Get-QtRuntimeBinDirectories {
+    [CmdletBinding()]
+    param(
+        [string]$BinSource,
+        [string]$QtRoot
+    )
+    $candidates = New-Object System.Collections.Generic.List[string]
+    if ($QtRoot) {
+        $qtBin = Join-Path $QtRoot 'bin'
+        if (Test-Path -LiteralPath $qtBin) { $candidates.Add($qtBin) }
+    } else {
+        foreach ($candidate in @(Get-ChildItem 'C:\Qt' -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ChildItem $_.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue } |
+            ForEach-Object { Join-Path $_.FullName 'bin' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Sort-Object)) {
+            $candidates.Add($candidate)
+        }
+    }
+
+    $coreName = Get-QtCoreLibraryName -BinSource $BinSource
+    if (-not $coreName) {
+        foreach ($candidate in $candidates) { Write-Output $candidate }
+        return
+    }
+
+    $sourceCore = Join-Path $BinSource $coreName
+    $sourceVersion = (Get-Item -LiteralPath $sourceCore).VersionInfo.FileVersion
+    foreach ($candidate in $candidates) {
+        $candidateCore = Join-Path $candidate $coreName
+        if (-not (Test-Path -LiteralPath $candidateCore)) { continue }
+        if (-not $sourceVersion) {
+            Write-Output $candidate
+            continue
+        }
+        $candidateVersion = (Get-Item -LiteralPath $candidateCore).VersionInfo.FileVersion
+        if ($candidateVersion -eq $sourceVersion) { Write-Output $candidate }
+    }
+}
 
 function Get-GuiTrialRuntimeSearchPaths {
     [CmdletBinding()]
@@ -14,16 +66,8 @@ function Get-GuiTrialRuntimeSearchPaths {
     )
     $paths = New-Object System.Collections.Generic.List[string]
     if ($BinSource) { $paths.Add([IO.Path]::GetFullPath($BinSource).TrimEnd('\')) }
-
-    if ($QtRoot) {
-        $paths.Add((Join-Path $QtRoot 'bin'))
-    } else {
-        foreach ($qtBin in @(Get-ChildItem 'C:\Qt' -Directory -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ChildItem $_.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue } |
-            ForEach-Object { Join-Path $_.FullName 'bin' } |
-            Where-Object { Test-Path -LiteralPath $_ })) {
-            $paths.Add($qtBin)
-        }
+    foreach ($qtBin in @(Get-QtRuntimeBinDirectories -BinSource $BinSource -QtRoot $QtRoot)) {
+        $paths.Add($qtBin)
     }
 
     foreach ($vsRoot in @('C:\Program Files\Microsoft Visual Studio', 'C:\Program Files (x86)\Microsoft Visual Studio')) {

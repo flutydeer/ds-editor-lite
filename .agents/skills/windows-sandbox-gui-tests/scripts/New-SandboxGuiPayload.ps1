@@ -187,7 +187,7 @@ foreach ($runtimeName in @(
 $qtTestPresent = (Test-Path -LiteralPath (Join-Path $binDestination 'Qt6Testd.dll')) -or
     (Test-Path -LiteralPath (Join-Path $binDestination 'Qt6Test.dll'))
 if (-not $qtTestPresent) {
-    throw 'Qt6Test.dll was not found. Pass -QtRoot so the Qt installation can be searched.'
+    throw 'Qt6Test.dll was not found for the Qt version used by the build. Pass -QtRoot pointing at the matching Qt installation.'
 }
 $requiredMissing = @($missingRuntimeFiles | Where-Object { $_ -notin @('Qt6Testd.dll', 'Qt6Test.dll') })
 if ($requiredMissing.Count -gt 0) {
@@ -210,6 +210,10 @@ $plan = [ordered]@{
     }
     midiWorkaround = $true
     windowObserver = $true
+    # The whole suite is known to open real windows, so a run without window evidence
+    # is a failure. A single selector may legitimately render offscreen, so it is not
+    # required unless plan.json is edited by hand.
+    requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
     cases = $cases
 }
 $plan | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $payload 'plan.json') -Encoding UTF8
