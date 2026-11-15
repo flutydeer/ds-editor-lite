@@ -1,0 +1,24 @@
+<Configuration>
+  <VGpu>Enable</VGpu>
+  <MemoryInMB>{{MEMORY_MB}}</MemoryInMB>
+  <Networking>Disable</Networking>
+  <ClipboardRedirection>Disable</ClipboardRedirection>
+  <AudioInput>Disable</AudioInput>
+  <VideoInput>Disable</VideoInput>
+  <PrinterRedirection>Disable</PrinterRedirection>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>{{PAYLOAD}}</HostFolder>
+      <SandboxFolder>C:\SandboxTrialInput</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>{{RESULTS}}</HostFolder>
+      <SandboxFolder>C:\SandboxTrialResults</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File C:\SandboxTrialInput\Run-Guest.ps1</Command>
+  </LogonCommand>
+</Configuration>

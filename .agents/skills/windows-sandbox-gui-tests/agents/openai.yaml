@@ -1,0 +1,4 @@
+interface:
+  display_name: "Windows Sandbox GUI 测试"
+  short_description: "优先在沙盒里跑原生 GUI 用例，必要时回退到当前桌面"
+  default_prompt: "使用 $windows-sandbox-gui-tests 运行当前构建的原生 GUI 测试用例，优先使用 Windows Sandbox。"
