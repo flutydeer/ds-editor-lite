@@ -76,7 +76,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $VoicebankSource 'desc.json'))) { th
 # The build output does not contain the Qt Test module or the debug CRT, so the host
 # run needs those directories on PATH just like the sandbox payload carries the files.
 . (Join-Path $PSScriptRoot 'Resolve-GuiTrialRuntimePaths.ps1')
-$runtimeSearchPaths = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot)
+$runtimeSearchPaths = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot -RepoRoot $repo)
 $requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
 if (-not $requiredQtTest) {
     throw 'Cannot tell whether the build is Debug or Release: neither Qt6Cored.dll nor Qt6Core.dll is next to the test executable.'

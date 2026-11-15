@@ -27,6 +27,124 @@ function Get-QtTestModuleName {
     return $null
 }
 
+function Get-GuiTrialVcpkgRuntimeDirectories {
+    param(
+        [string]$BinSource,
+        [string]$RepoRoot
+    )
+    # CTest prepends these directories to PATH; the sandbox payload and the host PATH
+    # must include them too, or dynamic vcpkg dependencies fail at load time.
+    $dirs = New-Object System.Collections.Generic.List[string]
+    $installed = $null
+    $triplet = 'x64-windows'
+    $presetDirectory = Split-Path -Path (Split-Path -Path $BinSource -Parent) -Parent
+    $cachePath = Join-Path $presetDirectory 'CMakeCache.txt'
+    if (Test-Path -LiteralPath $cachePath) {
+        foreach ($line in Get-Content -LiteralPath $cachePath) {
+            if ($line -match '^VCPKG_INSTALLED_DIR:PATH=(.+)$') {
+                $installed = ([string]$Matches[1]).Replace('/', '\').Trim()
+            } elseif ($line -match '^VCPKG_TARGET_TRIPLET:STRING=(.+)$') {
+                $triplet = ([string]$Matches[1]).Trim()
+            }
+        }
+    }
+    if (-not $installed -and $RepoRoot) { $installed = Join-Path $RepoRoot 'vcpkg\installed' }
+    if (-not $installed) { return $dirs.ToArray() }
+    foreach ($candidate in @(
+        (Join-Path $installed (Join-Path $triplet 'bin')),
+        (Join-Path $installed (Join-Path $triplet 'debug\bin')))) {
+        if (Test-Path -LiteralPath $candidate) { $dirs.Add($candidate) }
+    }
+    return $dirs.ToArray()
+}
+
+function Get-PeImportNames {
+    param([string]$Path)
+    $names = New-Object System.Collections.Generic.List[string]
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    try {
+        $reader = New-Object IO.BinaryReader($stream)
+        if ($stream.Length -lt 0x40) { return $names.ToArray() }
+        $stream.Position = 0x3C
+        $peOffset = [int]$reader.ReadInt32()
+        if ($peOffset -le 0 -or ($peOffset + 24) -ge $stream.Length) { return $names.ToArray() }
+        $stream.Position = $peOffset
+        if ($reader.ReadUInt32() -ne 0x00004550) { return $names.ToArray() }
+        $stream.Position = $peOffset + 4
+        [void]$reader.ReadUInt16()
+        $sectionCount = [int]$reader.ReadUInt16()
+        [void]$reader.ReadUInt32()
+        [void]$reader.ReadUInt32()
+        [void]$reader.ReadUInt32()
+        $optionalSize = [int]$reader.ReadUInt16()
+        [void]$reader.ReadUInt16()
+
+        $optionalOffset = $peOffset + 24
+        $stream.Position = $optionalOffset
+        $magic = $reader.ReadUInt16()
+        if ($magic -eq 0x20B) { $directoryOffset = $optionalOffset + 112 }
+        elseif ($magic -eq 0x10B) { $directoryOffset = $optionalOffset + 96 }
+        else { return $names.ToArray() }
+
+        $stream.Position = $directoryOffset + 8
+        $importRva = [int]$reader.ReadUInt32()
+        [void]$reader.ReadUInt32()
+        if ($importRva -le 0) { return $names.ToArray() }
+
+        $sections = @()
+        $sectionOffset = $optionalOffset + $optionalSize
+        for ($index = 0; $index -lt $sectionCount; $index++) {
+            $stream.Position = $sectionOffset + ($index * 40)
+            [void]$reader.ReadBytes(8)
+            $virtualSize = [int]$reader.ReadUInt32()
+            $virtualAddress = [int]$reader.ReadUInt32()
+            $rawSize = [int]$reader.ReadUInt32()
+            $rawPointer = [int]$reader.ReadUInt32()
+            $sections += [pscustomobject]@{
+                VirtualSize = $virtualSize; VirtualAddress = $virtualAddress
+                RawSize = $rawSize; RawPointer = $rawPointer
+            }
+        }
+        $toOffset = {
+            param([int]$rva)
+            foreach ($section in $sections) {
+                $size = [Math]::Max($section.VirtualSize, $section.RawSize)
+                if ($rva -ge $section.VirtualAddress -and $rva -lt ($section.VirtualAddress + $size)) {
+                    return $section.RawPointer + ($rva - $section.VirtualAddress)
+                }
+            }
+            return -1
+        }
+
+        $descriptorOffset = & $toOffset $importRva
+        if ($descriptorOffset -lt 0) { return $names.ToArray() }
+        for ($descriptor = 0; $descriptor -lt 512; $descriptor++) {
+            $stream.Position = $descriptorOffset + ($descriptor * 20)
+            [void]$reader.ReadUInt32()
+            [void]$reader.ReadUInt32()
+            [void]$reader.ReadUInt32()
+            $nameRva = [int]$reader.ReadUInt32()
+            [void]$reader.ReadUInt32()
+            if ($nameRva -le 0) { break }
+            $nameOffset = & $toOffset $nameRva
+            if ($nameOffset -lt 0) { continue }
+            $stream.Position = $nameOffset
+            $bytes = New-Object System.Collections.Generic.List[byte]
+            while ($stream.Position -lt $stream.Length) {
+                $current = $reader.ReadByte()
+                if ($current -eq 0) { break }
+                $bytes.Add($current)
+            }
+            if ($bytes.Count -gt 0 -and $bytes.Count -lt 260) {
+                $names.Add([Text.Encoding]::ASCII.GetString($bytes.ToArray()))
+            }
+        }
+    } finally {
+        $stream.Dispose()
+    }
+    return $names.ToArray()
+}
+
 function Get-QtRuntimeBinDirectories {
     [CmdletBinding()]
     param(
@@ -103,10 +221,14 @@ function Get-GuiTrialRuntimeSearchPaths {
     [CmdletBinding()]
     param(
         [string]$BinSource,
-        [string]$QtRoot
+        [string]$QtRoot,
+        [string]$RepoRoot
     )
     $paths = New-Object System.Collections.Generic.List[string]
     if ($BinSource) { $paths.Add([IO.Path]::GetFullPath($BinSource).TrimEnd('\')) }
+    foreach ($vcpkgDirectory in @(Get-GuiTrialVcpkgRuntimeDirectories -BinSource $BinSource -RepoRoot $RepoRoot)) {
+        $paths.Add($vcpkgDirectory)
+    }
     foreach ($qtBin in @(Get-QtRuntimeBinDirectories -BinSource $BinSource -QtRoot $QtRoot)) {
         $paths.Add($qtBin)
     }
@@ -157,6 +279,49 @@ function Get-GuiTrialRuntimeSearchPaths {
     }
 
     return $paths.ToArray()
+}
+
+function Copy-GuiTrialRuntimeClosure {
+    [CmdletBinding()]
+    param(
+        [string]$StagedDirectory,
+        [string[]]$SearchDirectories,
+        [string]$SystemDirectory
+    )
+    # Walk the PE import graph so dynamically linked vcpkg dependencies are staged too.
+    $copied = New-Object System.Collections.Generic.List[string]
+    $missing = New-Object System.Collections.Generic.List[string]
+    $queue = New-Object System.Collections.Generic.Queue[string]
+    $visited = @{}
+    foreach ($pattern in '*.exe', '*.dll') {
+        foreach ($file in @(Get-ChildItem -LiteralPath $StagedDirectory -Filter $pattern -File -ErrorAction SilentlyContinue)) {
+            $queue.Enqueue($file.FullName)
+        }
+    }
+    while ($queue.Count -gt 0) {
+        $file = $queue.Dequeue()
+        if ($visited.ContainsKey($file)) { continue }
+        $visited[$file] = $true
+        foreach ($name in @(Get-PeImportNames -Path $file)) {
+            if ($name -match '^(api|ext)-ms-') { continue }
+            $staged = Join-Path $StagedDirectory $name
+            if (Test-Path -LiteralPath $staged) { $queue.Enqueue($staged); continue }
+            if (Test-Path -LiteralPath (Join-Path $SystemDirectory $name)) { continue }
+            $found = $null
+            foreach ($directory in $SearchDirectories) {
+                $candidate = Join-Path $directory $name
+                if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
+            }
+            if ($null -eq $found) { $missing.Add($name); continue }
+            Copy-Item -LiteralPath $found -Destination $staged
+            $copied.Add($name)
+            $queue.Enqueue($staged)
+        }
+    }
+    return [pscustomobject]@{
+        Copied = @($copied | Sort-Object -Unique)
+        Missing = @($missing | Sort-Object -Unique)
+    }
 }
 
 function Find-GuiTrialRuntimeFile {

@@ -184,7 +184,7 @@ foreach ($scriptName in 'Run-Guest.ps1', 'Watch-Windows.ps1') {
 # runtime files the test binary needs from the Qt install and the Visual Studio CRT
 # redistributables so the guest never fails with STATUS_DLL_NOT_FOUND (0xC0000135).
 . (Join-Path $PSScriptRoot 'Resolve-GuiTrialRuntimePaths.ps1')
-$searchDirectories = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot)
+$searchDirectories = @(Get-GuiTrialRuntimeSearchPaths -BinSource $BinSource -QtRoot $QtRoot -RepoRoot $repo)
 
 $binDestination = Join-Path $payload 'bin'
 $requiredQtTest = Get-QtTestModuleName -BinSource $BinSource
@@ -202,7 +202,7 @@ $optionalRuntime = if ($isDebugBuild) { $releaseRuntime } else { $debugRuntime }
 
 $runtimeFilesCopied = @()
 $missingRequiredRuntime = @()
-foreach ($runtimeName in @($requiredRuntime) + @($optionalRuntime) + @('Qt6Testd.dll', 'Qt6Test.dll')) {
+foreach ($runtimeName in @($requiredRuntime) + @($optionalRuntime) + @($requiredQtTest)) {
     $target = Join-Path $binDestination $runtimeName
     if (Test-Path -LiteralPath $target) { continue }
     $found = $null
@@ -223,6 +223,15 @@ if (-not (Test-Path -LiteralPath (Join-Path $binDestination $requiredQtTest))) {
 if ($missingRequiredRuntime.Count -gt 0) {
     $flavorName = if ($isDebugBuild) { 'debug' } else { 'release' }
     throw ('Missing required ' + $flavorName + ' runtime DLLs: ' + ($missingRequiredRuntime -join ', ') + '. Install the Visual Studio CRT redistributable and the Windows SDK.')
+}
+
+# The fixed list only covers Qt Test and the CRT. Stage the rest of the loader
+# closure, including dynamically linked vcpkg dependencies such as rtmidi.
+$closure = Copy-GuiTrialRuntimeClosure -StagedDirectory $binDestination `
+    -SearchDirectories $searchDirectories -SystemDirectory (Join-Path $env:SystemRoot 'System32')
+$runtimeFilesCopied = @($runtimeFilesCopied) + @($closure.Copied)
+if ($closure.Missing.Count -gt 0) {
+    throw ('Missing runtime dependencies: ' + ($closure.Missing -join ', ') + '. Install the vcpkg dependencies and build the test target.')
 }
 
 $plan = [ordered]@{

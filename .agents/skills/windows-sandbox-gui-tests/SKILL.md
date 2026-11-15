@@ -215,7 +215,7 @@ Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的
 | 停在 `Audio::MidiSystem` | MIDI 规避没有生效，检查 `summary.json` 的 `midiEnumeration` |
 | 用例全部超时 | 先看 `<case>.stdout.txt` 最后一行停在哪一步 |
 | `EnvironmentBlocked-MidiEnumerationUnavailable` | 客体仍阻塞在 `midiInGetNumDevs`，本轮没有启动任何测试 |
-| 退出码 `0xC0000135`，180 毫秒就结束 | payload 缺少 Qt Test 模块或调试 CRT。重新生成 payload，确认 `RuntimeFilesCopied` 为 13 |
+| 退出码 `0xC0000135`，180 毫秒就结束 | payload 缺少运行库。重新生成 payload，确认 `RuntimeFilesCopied` 包含 Qt Test 与当前构建变体的 CRT |
 | 没有沙盒功能或 hypervisor 未运行 | 直接静默回退，用 `Invoke-HostGuiTrial.ps1 -AllowHostGui` 在当前桌面执行，不需要征求同意 |
 | 窗口记录为空 | 用例可能不建窗，或采样间隔过大 |
 
