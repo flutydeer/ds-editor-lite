@@ -50,9 +50,13 @@ function Get-GuiTrialVcpkgRuntimeDirectories {
     }
     if (-not $installed -and $RepoRoot) { $installed = Join-Path $RepoRoot 'vcpkg\installed' }
     if (-not $installed) { return $dirs.ToArray() }
-    foreach ($candidate in @(
-        (Join-Path $installed (Join-Path $triplet 'bin')),
-        (Join-Path $installed (Join-Path $triplet 'debug\bin')))) {
+    # Match the build flavor: a Debug build must resolve debug vcpkg DLLs first, or a
+    # release DLL with the same name can be loaded into the debug CRT process.
+    $releaseBin = Join-Path $installed (Join-Path $triplet 'bin')
+    $debugBin = Join-Path $installed (Join-Path $triplet 'debug\bin')
+    $isDebugBuild = ((Get-QtCoreLibraryName -BinSource $BinSource) -eq 'Qt6Cored.dll')
+    $ordered = if ($isDebugBuild) { @($debugBin, $releaseBin) } else { @($releaseBin, $debugBin) }
+    foreach ($candidate in $ordered) {
         if (Test-Path -LiteralPath $candidate) { $dirs.Add($candidate) }
     }
     return $dirs.ToArray()
