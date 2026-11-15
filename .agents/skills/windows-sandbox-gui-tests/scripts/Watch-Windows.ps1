@@ -8,13 +8,21 @@ param(
     [int]$SampleIntervalMs = 150,
     [int]$ScreenshotIntervalMs = 8000,
     [int]$MaxScreenshots = 30,
-    [switch]$AllowHostDesktop
+    [switch]$AllowHostDesktop,
+    [string]$ScopeStartLocal
 )
 $ErrorActionPreference = 'Stop'
 
 if (-not $AllowHostDesktop -and
     -not ($OutputDirectory.StartsWith('C:\SandboxTrialResults\', [StringComparison]::OrdinalIgnoreCase))) {
     throw 'The window observer writes only to the dedicated results mapping.'
+}
+
+# Capture the scope before Add-Type and assembly loading, which can take seconds on a
+# cold start. The runner passes its own timestamp so tests launched later are counted.
+$watchStartLocal = (Get-Date).AddSeconds(-2)
+if ($ScopeStartLocal) {
+    try { $watchStartLocal = [datetime]::Parse($ScopeStartLocal) } catch { }
 }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -109,7 +117,6 @@ $screenshots = 0
 $screenshotErrors = 0
 $lastScreenshotUtc = [DateTime]::MinValue
 $startedUtc = (Get-Date).ToUniversalTime()
-$watchStartLocal = (Get-Date).AddSeconds(-2)
 $errorText = $null
 
 try {

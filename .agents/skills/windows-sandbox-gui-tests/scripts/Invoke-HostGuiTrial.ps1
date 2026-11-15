@@ -199,9 +199,19 @@ function Update-ResultFromJUnit {
         if (-not $fullSuite) {
             $parts = @($Selector -split ':', 2)
             $function = $parts[0]
-            $expectedNames = @($function, ($function + '()'))
-            if ($parts.Count -eq 2) { $expectedNames = @($function + '(' + $parts[1] + ')') }
-            $requested = @($allCases | Where-Object { $expectedNames -ccontains $_.GetAttribute('name') })
+            # Qt 6.11 JUnit names data rows as function(tag). A selector without a tag
+            # runs every data row of that function, so all of them count as requested.
+            if ($parts.Count -eq 2) {
+                $requested = @($allCases | Where-Object {
+                    $_.GetAttribute('name') -eq ($function + '(' + $parts[1] + ')')
+                })
+            } else {
+                $requested = @($allCases | Where-Object {
+                    $name = $_.GetAttribute('name')
+                    $name -eq $function -or $name -eq ($function + '()') -or
+                        $name.StartsWith($function + '(', [StringComparison]::Ordinal)
+                })
+            }
             $Record['selectedTestcaseCount'] = $requested.Count
         }
         if (-not $Record.timedOut -and $Record.exitCode -eq 0) {
@@ -210,8 +220,9 @@ function Update-ResultFromJUnit {
             elseif ($fullSuite -and $skips -gt 0) { $Record.status = 'PassedWithSkips' }
             elseif ($fullSuite) { $Record.status = 'Passed' }
             elseif ($skips -gt 0) { $Record.status = 'Skipped-Unverified' }
-            elseif ($requested.Count -ne 1 -or $executed.Count -ne 1) { $Record.status = 'RequestedCaseNotExecutedExactlyOnce' }
-            else { $Record.status = 'Passed' }
+            elseif ($requested.Count -lt 1 -or $executed.Count -ne $requested.Count) {
+                $Record.status = 'RequestedCaseNotExecutedExactlyOnce'
+            } else { $Record.status = 'Passed' }
         }
     } catch {
         $Record['junitParseError'] = $_.Exception.Message
@@ -263,11 +274,13 @@ try {
         New-Item -ItemType Directory -Path $watchDirectory -Force | Out-Null
         $watchStopFile = Join-Path ([IO.Path]::GetTempPath()) ('sandbox-gui-watch-' + $runId + '.stop')
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
+        $watchScopeStart = (Get-Date).AddSeconds(-1).ToString('o')
         $watcher = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-File', ('"' + $watcherScript + '"'),
                 '-OutputDirectory', ('"' + $watchDirectory + '"'),
-                '-StopFile', ('"' + $watchStopFile + '"'), '-AllowHostDesktop') `
+                '-StopFile', ('"' + $watchStopFile + '"'),
+                '-ScopeStartLocal', ('"' + $watchScopeStart + '"'), '-AllowHostDesktop') `
             -PassThru -WindowStyle Hidden
     }
 
