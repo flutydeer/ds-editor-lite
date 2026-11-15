@@ -100,7 +100,12 @@ if ($Selectors.Count -eq 1 -and [string]::IsNullOrEmpty($Selectors[0])) {
 
 $computer = Get-CimInstance Win32_ComputerSystem
 $sandboxFeature = Get-CimInstance Win32_OptionalFeature -Filter "Name='Containers-DisposableClientVM'" -ErrorAction SilentlyContinue
-$sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and [bool]$computer.HypervisorPresent)
+$sandboxCli = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wsb.exe'
+$sandboxCliReady = Test-Path -LiteralPath $sandboxCli
+# The fallback is only allowed when the sandbox path is genuinely unusable, which
+# includes a missing wsb.exe even if the feature and hypervisor are present.
+$sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and
+    [bool]$computer.HypervisorPresent -and $sandboxCliReady)
 
 $requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
 if ($NoWindowObserver) { $requireWindowEvidence = $false }
@@ -108,6 +113,7 @@ if ($NoWindowObserver) { $requireWindowEvidence = $false }
 [pscustomobject]@{
     Mode = 'HostDesktop'
     SandboxReady = $sandboxReady
+    SandboxCliPresent = $sandboxCliReady
     Executable = $exe
     Voicebank = $VoicebankSource
     QtTestModule = $qtTestModule

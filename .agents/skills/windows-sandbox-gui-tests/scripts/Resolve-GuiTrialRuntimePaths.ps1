@@ -58,6 +58,38 @@ function Get-QtRuntimeBinDirectories {
     }
 }
 
+function Get-VisualStudioInstallPaths {
+    $installs = New-Object System.Collections.Generic.List[string]
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path -LiteralPath $vswhere) {
+        foreach ($line in @(& $vswhere -all -products * -property installationPath 2>$null)) {
+            $candidate = ([string]$line).Trim()
+            if ($candidate -and (Test-Path -LiteralPath $candidate) -and -not $installs.Contains($candidate)) {
+                $installs.Add($candidate)
+            }
+        }
+    }
+    if ($installs.Count -gt 0) { return $installs.ToArray() }
+
+    # Fallback for machines without vswhere: the layout is <root>\<year>\<edition>,
+    # but a few installs place the edition directory directly under <root>.
+    foreach ($vsRoot in @('C:\Program Files\Microsoft Visual Studio', 'C:\Program Files (x86)\Microsoft Visual Studio')) {
+        if (-not (Test-Path -LiteralPath $vsRoot)) { continue }
+        foreach ($topLevel in @(Get-ChildItem -LiteralPath $vsRoot -Directory -ErrorAction SilentlyContinue)) {
+            $candidates = @($topLevel.FullName) +
+                @(Get-ChildItem -LiteralPath $topLevel.FullName -Directory -ErrorAction SilentlyContinue |
+                    ForEach-Object { $_.FullName })
+            foreach ($candidate in $candidates) {
+                if ((Test-Path -LiteralPath (Join-Path $candidate 'VC\Redist\MSVC')) -or
+                    (Test-Path -LiteralPath (Join-Path $candidate 'Common7\IDE'))) {
+                    if (-not $installs.Contains($candidate)) { $installs.Add($candidate) }
+                }
+            }
+        }
+    }
+    return $installs.ToArray()
+}
+
 function Get-GuiTrialRuntimeSearchPaths {
     [CmdletBinding()]
     param(
@@ -70,19 +102,21 @@ function Get-GuiTrialRuntimeSearchPaths {
         $paths.Add($qtBin)
     }
 
-    foreach ($vsRoot in @('C:\Program Files\Microsoft Visual Studio', 'C:\Program Files (x86)\Microsoft Visual Studio')) {
-        if (-not (Test-Path -LiteralPath $vsRoot)) { continue }
-        foreach ($versionDirectory in @(Get-ChildItem -LiteralPath $vsRoot -Directory -ErrorAction SilentlyContinue)) {
-            $redistRoot = Join-Path $versionDirectory.FullName 'VC\Redist\MSVC'
-            if (Test-Path -LiteralPath $redistRoot) {
-                foreach ($redistVersion in @(Get-ChildItem -LiteralPath $redistRoot -Directory -ErrorAction SilentlyContinue)) {
-                    $debugCrt = Join-Path $redistVersion.FullName 'debug_nonredist\x64\Microsoft.VC145.DebugCRT'
-                    if (Test-Path -LiteralPath $debugCrt) { $paths.Add($debugCrt) }
+    foreach ($installPath in @(Get-VisualStudioInstallPaths)) {
+        $redistRoot = Join-Path $installPath 'VC\Redist\MSVC'
+        if (Test-Path -LiteralPath $redistRoot) {
+            foreach ($redistVersion in @(Get-ChildItem -LiteralPath $redistRoot -Directory -ErrorAction SilentlyContinue)) {
+                # The toolset name changes with the Visual Studio generation, so match
+                # Microsoft.VC*.DebugCRT instead of hard-coding one toolset.
+                $debugRoot = Join-Path $redistVersion.FullName 'debug_nonredist\x64'
+                foreach ($crtDirectory in @(Get-ChildItem -LiteralPath $debugRoot -Directory -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -like 'Microsoft.VC*.DebugCRT' })) {
+                    $paths.Add($crtDirectory.FullName)
                 }
             }
-            $ideDirectory = Join-Path $versionDirectory.FullName 'Common7\IDE'
-            if (Test-Path -LiteralPath $ideDirectory) { $paths.Add($ideDirectory) }
         }
+        $ideDirectory = Join-Path $installPath 'Common7\IDE'
+        if (Test-Path -LiteralPath $ideDirectory) { $paths.Add($ideDirectory) }
     }
 
     $system32 = Join-Path $env:SystemRoot 'System32'
