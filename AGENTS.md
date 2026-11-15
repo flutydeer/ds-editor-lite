@@ -106,6 +106,13 @@ Tests protect observable behavior and explicit contracts. Before adding a test, 
 - Add cases for credible failure modes and explicitly supported boundaries, not unreachable states, exhaustive combinations, or exotic inputs solely to raise coverage. Retain real regression coverage and name it after the behavior protected, not conversations, patches, or debugging history.
 - Keep ordinary tests offline and deterministic. Integration tests requiring externally supplied models or other real resources should be opt-in and use supplied resources rather than downloading them on each run. Coordinate asynchronous work with explicit synchronization and bounded, event-aware waits rather than fixed sleeps.
 
+### GUI tests
+
+- Prefer running GUI tests inside Windows Sandbox. When `Containers-DisposableClientVM` is installed and `HypervisorPresent` is true, use `.agents/skills/windows-sandbox-gui-tests` for payload staging, launch, monitoring, evidence collection, and shutdown.
+- If the sandbox is unavailable, fall back to the current desktop silently. Do not ask for confirmation and do not wait for approval: real windows will open and may take focus, which unattended automation must tolerate.
+- The fallback uses the same skill: `Invoke-HostGuiTrial.ps1 -AllowHostGui` runs the built binary in place and records the same evidence under `build/SandboxGuiTrial/host-results`.
+- End-to-end smoke flows (launch the app, load a voicebank, draw notes, verify synthesis and playback, save DSPX) belong to `gui-smoke-test` and prefer the sandbox for the same reason.
+
 ### Windows installer
 
 - `cmake/ProductMetadata.cmake` is the single source of truth for the product name, version, publisher, copyright, URL, executable name, and installer AppId. Do not duplicate these values in C++, PowerShell, or Inno Setup templates.
