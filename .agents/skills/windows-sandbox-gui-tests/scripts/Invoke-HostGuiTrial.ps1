@@ -115,7 +115,11 @@ $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallStat
     [bool]$computer.HypervisorPresent -and $sandboxCliReady -and $sandboxDriveSupported)
 
 $requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
-if ($NoWindowObserver) { $requireWindowEvidence = $false }
+if ($NoWindowObserver -and $requireWindowEvidence) {
+    # The full suite is documented to open real windows. Without the observer the
+    # run cannot prove that, so refuse instead of reporting an unverified pass.
+    throw 'The full suite requires window evidence. Do not combine -NoWindowObserver with an unfiltered run.'
+}
 
 [pscustomobject]@{
     Mode = 'HostDesktop'
