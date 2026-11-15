@@ -135,8 +135,17 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 - 窗口观察器加 `-AllowHostDesktop`，截图内容是当前桌面
 - 超时只结束自己启动的进程树
 - 实际执行前会再次确认沙盒仍不可用，可用则报错退出
+- 运行期间临时设置 `PATH`、Qt 与 `DSEL_TEST_*` 环境变量，结束或异常时恢复调用方原值，原本未定义的变量仍保持未定义
 
 检查模式只用于排查。正常自动化可以直接执行，不需要先征求用户同意。
+
+## 脚本回归检查（不启动 GUI）
+
+```powershell
+.\.agents\skills\windows-sandbox-gui-tests\tests\Test-HostGuiTrialEnvironment.ps1
+```
+
+不需要构建产物、Qt 或沙盒。测试用假的 CIM 查询与进程启动替身调用真实宿主运行器，验证子进程启动时的环境设置，以及正常完成、进程启动失败、汇总文件写入失败后的环境恢复。覆盖原值存在、未定义和空字符串，包括 Windows PowerShell 5.1 可以继承但无法用 `Env:` setter 恢复的空值。测试证据保存在 `build\SandboxGuiTrial\environment-regression-*`，这不能代替真实 GUI 测试。
 
 ## 结果判读
 

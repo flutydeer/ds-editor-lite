@@ -241,21 +241,49 @@ function Stop-OwnedTest {
     }
 }
 
+$pathEntries = @($BinSource) + @($runtimeSearchPaths) + @($env:SystemRoot)
+$trialEnvironment = @{
+    PATH = (@($pathEntries | Select-Object -Unique) -join ';')
+    QT_QPA_PLATFORM = 'windows'
+    QT_PLUGIN_PATH = Join-Path $BinSource 'plugins'
+    QT_QPA_PLATFORM_PLUGIN_PATH = Join-Path $BinSource 'plugins\platforms'
+    QT_FORCE_STDERR_LOGGING = '1'
+    QT_DEBUG_PLUGINS = '1'
+    QTEST_FUNCTION_TIMEOUT = '300000'
+    DSEL_TEST_PLUGIN_ROOT = Join-Path $BinSource 'plugins'
+    DSEL_TEST_VOICEBANK_ROOT = $VoicebankSource
+    DSEL_TEST_SINGER_ID = 'fixture'
+    DSEL_TEST_LANGUAGE = 'cmn'
+    DSEL_TEST_LYRIC = 'la'
+    DSEL_TEST_GUI_LIFECYCLE = $null
+}
+# Scripts share the caller's process environment. Preserve missing and empty values too.
+$savedEnvironment = @{}
+foreach ($name in $trialEnvironment.Keys) {
+    $item = Get-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+    $savedEnvironment[$name] = if ($null -eq $item) { $null } else { $item.Value }
+}
+# Older PowerShell can inherit empty values but its Env: setter deletes them. Use Win32
+# only for that case, compiling before any overrides so a load failure cannot leak them.
+if ($savedEnvironment.Values -contains '' -and -not ('DsEditorLite.GuiTrialEnvironment' -as [type])) {
+    Add-Type -Namespace DsEditorLite -Name GuiTrialEnvironment -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+private static extern bool SetEnvironmentVariable(string name, string value);
+public static void RestoreEmpty(string name) {
+    if (!SetEnvironmentVariable(name, string.Empty)) {
+        throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+    }
+}
+'@
+}
 try {
-    $pathEntries = @($BinSource) + @($runtimeSearchPaths) + @($env:SystemRoot)
-    $env:PATH = (@($pathEntries | Select-Object -Unique) -join ';')
-    $env:QT_QPA_PLATFORM = 'windows'
-    $env:QT_PLUGIN_PATH = Join-Path $BinSource 'plugins'
-    $env:QT_QPA_PLATFORM_PLUGIN_PATH = Join-Path $BinSource 'plugins\platforms'
-    $env:QT_FORCE_STDERR_LOGGING = '1'
-    $env:QT_DEBUG_PLUGINS = '1'
-    $env:QTEST_FUNCTION_TIMEOUT = '300000'
-    $env:DSEL_TEST_PLUGIN_ROOT = Join-Path $BinSource 'plugins'
-    $env:DSEL_TEST_VOICEBANK_ROOT = $VoicebankSource
-    $env:DSEL_TEST_SINGER_ID = 'fixture'
-    $env:DSEL_TEST_LANGUAGE = 'cmn'
-    $env:DSEL_TEST_LYRIC = 'la'
-    Remove-Item Env:DSEL_TEST_GUI_LIFECYCLE -ErrorAction SilentlyContinue
+    foreach ($name in $trialEnvironment.Keys) {
+        if ($null -eq $trialEnvironment[$name]) {
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+        } else {
+            Set-Item -LiteralPath "Env:$name" -Value $trialEnvironment[$name]
+        }
+    }
 
     [ordered]@{
         timestampUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -389,6 +417,17 @@ try {
         try { Stop-OwnedTest $activeProcess } catch { $summary['cleanupError'] = $_.Exception.Message }
     }
 } finally {
+    # Restore before cleanup/reporting, which may itself throw. Children already inherited
+    # their environment and do not depend on the caller keeping these overrides in place.
+    foreach ($name in $savedEnvironment.Keys) {
+        if ($null -eq $savedEnvironment[$name]) {
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+        } elseif ($savedEnvironment[$name] -ceq '') {
+            [DsEditorLite.GuiTrialEnvironment]::RestoreEmpty($name)
+        } else {
+            Set-Item -LiteralPath "Env:$name" -Value $savedEnvironment[$name]
+        }
+    }
     if ($null -ne $watcher) {
         try {
             Set-Content -LiteralPath $watchStopFile -Value 'stop' -Encoding ASCII
