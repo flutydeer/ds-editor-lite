@@ -29,6 +29,10 @@
 .PARAMETER CaseTimeoutSeconds
     0 keeps the default: 1800 seconds for the full suite, 180 seconds per selector.
 
+.PARAMETER RequireWindowEvidence
+    Require window evidence even for a filtered run. Without it, only an unfiltered
+    full-suite run requires the observer to record a real test window.
+
 .PARAMETER UseHardLinks
     Stage payload files as hard links instead of copies. Only valid on one volume.
 
@@ -44,6 +48,7 @@ param(
     [string]$QtRoot,
     [string[]]$Selectors = @(''),
     [int]$CaseTimeoutSeconds = 0,
+    [switch]$RequireWindowEvidence,
     [switch]$UseHardLinks,
     [switch]$IncludeSymbols,
     [switch]$Force
@@ -117,6 +122,9 @@ if ($Selectors.Count -eq 1 -and [string]::IsNullOrEmpty($Selectors[0])) {
     }
     if ($cases.Count -eq 0) { throw 'No selector was supplied.' }
 }
+
+$windowEvidenceRequired = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
+if ($RequireWindowEvidence) { $windowEvidenceRequired = $true }
 
 if (Test-Path -LiteralPath $payload) {
     if (-not $Force) { throw "Payload already exists at $payload. Pass -Force to rebuild it." }
@@ -236,7 +244,7 @@ $plan = [ordered]@{
     # The whole suite is known to open real windows, so a run without window evidence
     # is a failure. A single selector may legitimately render offscreen, so it is not
     # required unless plan.json is edited by hand.
-    requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
+    requireWindowEvidence = $windowEvidenceRequired
     cases = $cases
 }
 $plan | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $payload 'plan.json') -Encoding UTF8

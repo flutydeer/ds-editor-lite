@@ -157,7 +157,7 @@ Get-Content "build\SandboxGuiTrial\results\<runId>\summary.json" -Raw
 
 退出码约定：0 全通过，1 有失败，2 准备或脚本异常，3 有跳过，4 客体 MIDI 枚举仍不可用，6 缺少窗口证据。
 
-整套运行默认要求窗口证据，观察器没有记录到测试窗口时整轮判为 `WindowEvidenceMissing`。单用例模式默认不要求，因为部分用例本身不渲染窗口，需要强制时在 `plan.json` 里把 `requireWindowEvidence` 改成 `true`。
+整套运行默认要求窗口证据，观察器没有记录到测试窗口时整轮判为 `WindowEvidenceMissing`。单用例模式默认不要求，因为部分用例本身不渲染窗口，需要强制时给 payload 准备传 `-RequireWindowEvidence`，宿主回退同样有 `-RequireWindowEvidence` 开关。
 
 QtTest 6.11 的 JUnit 名称规则：数据行写作 `function(tag)`，非数据用例可能是 `function` 或 `function()`。整套运行时 `summary.json` 里的 `executedTestcaseCount` 不含 `initTestCase` 与 `cleanupTestCase`。
 

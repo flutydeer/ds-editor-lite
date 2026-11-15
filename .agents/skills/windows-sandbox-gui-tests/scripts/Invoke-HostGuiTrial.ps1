@@ -31,7 +31,10 @@
     confirmation, and automation may pass it without prompting anyone.
 
 .PARAMETER NoWindowObserver
-    Skip window sampling and screenshots.
+    Skip window sampling and screenshots. Only valid for filtered runs.
+
+.PARAMETER RequireWindowEvidence
+    Require window evidence even for a filtered run with one or more selectors.
 #>
 [CmdletBinding()]
 param(
@@ -43,7 +46,8 @@ param(
     [string[]]$Selectors = @(''),
     [int]$CaseTimeoutSeconds = 0,
     [switch]$AllowHostGui,
-    [switch]$NoWindowObserver
+    [switch]$NoWindowObserver,
+    [switch]$RequireWindowEvidence
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -116,11 +120,12 @@ $sandboxDriveSupported = ($binSourceRoot -match '^[A-Za-z]:\\') -and ($binSource
 $sandboxReady = ($null -ne $sandboxFeature -and [int]$sandboxFeature.InstallState -eq 1 -and
     [bool]$computer.HypervisorPresent -and $sandboxCliReady -and $sandboxDriveSupported)
 
-$requireWindowEvidence = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
-if ($NoWindowObserver -and $requireWindowEvidence) {
+$windowEvidenceRequired = ($cases.Count -eq 1 -and [string]::IsNullOrEmpty([string]$cases[0].selector))
+if ($RequireWindowEvidence) { $windowEvidenceRequired = $true }
+if ($NoWindowObserver -and $windowEvidenceRequired) {
     # The full suite is documented to open real windows. Without the observer the
     # run cannot prove that, so refuse instead of reporting an unverified pass.
-    throw 'The full suite requires window evidence. Do not combine -NoWindowObserver with an unfiltered run.'
+    throw 'Window evidence is required for this run, so -NoWindowObserver cannot be used.'
 }
 
 [pscustomobject]@{
@@ -341,11 +346,11 @@ try {
         $watcher = $null
     }
     $windowEvidenceOk = $true
-    if ($requireWindowEvidence) {
+    if ($windowEvidenceRequired) {
         if ($null -eq $windowSummary) { $windowEvidenceOk = $false }
         elseif ([int]$windowSummary.testWindowSamples -le 0) { $windowEvidenceOk = $false }
     }
-    $summary['windowEvidenceRequired'] = $requireWindowEvidence
+    $summary['windowEvidenceRequired'] = $windowEvidenceRequired
     $summary['windowEvidenceSatisfied'] = $windowEvidenceOk
 
     $unexpected = @($summary.cases | Where-Object { $_.status -notin @('Passed', 'PassedWithSkips', 'Skipped-Unverified') })
