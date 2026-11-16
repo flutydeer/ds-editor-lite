@@ -350,6 +350,14 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
         AppOptions persistedDefault;
         QCOMPARE(persistedDefault.audio()->obj.value(QStringLiteral("deviceName")).toString(),
                  QString{});
+        const auto driverOnlyApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName});
+        QVERIFY2(driverOnlyApplied,
+                 qPrintable(driverOnlyApplied ? QString{} : driverOnlyApplied.getError().message));
+        AppOptions persistedDriverOnly;
+        QCOMPARE(persistedDriverOnly.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+                 QString{});
         const auto concreteApplied = runtime.settings().updateAudioDevice(
             {.source = Automation::InvocationSource::PublicJsonRpc},
             {.driverName = originalDriverName, .deviceName = originalConfiguredDeviceName});
