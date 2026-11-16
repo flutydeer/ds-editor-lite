@@ -10,6 +10,7 @@ param(
     [int]$MaxScreenshots = 30,
     [switch]$AllowHostDesktop,
     [string]$ScopeStartLocal,
+    [string[]]$ProcessName = @('TestNativeDesktop'),
     [Parameter(Mandatory = $true)][string]$ReadyEventName
 )
 $ErrorActionPreference = 'Stop'
@@ -27,6 +28,11 @@ $watchStartLocal = (Get-Date).AddSeconds(-2)
 if ($ScopeStartLocal) {
     try { $watchStartLocal = [datetime]::Parse($ScopeStartLocal) } catch { }
 }
+
+# The runner passes the entry executable of the planned payload, so a run of another
+# suite still gets its windows counted. Bare names are accepted as well as file names.
+$watchedProcessNames = @($ProcessName |
+        ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_).ToLowerInvariant() })
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $shotDirectory = Join-Path $OutputDirectory 'shots'
@@ -153,7 +159,8 @@ try {
             $processName = $processInfo.Name
             # Only processes started for this run count. A leftover test executable
             # from an earlier run must not supply the window evidence.
-            $isOurs = ($processName -like 'TestNativeDesktop*') -and ($processInfo.StartTime -ge $watchStartLocal)
+            $isOurs = ($watchedProcessNames -contains $processName.ToLowerInvariant()) -and
+                      ($processInfo.StartTime -ge $watchStartLocal)
             if ($isOurs) {
                 $ourCount++
                 if (-not $seenWindows.ContainsKey($parts[1])) {

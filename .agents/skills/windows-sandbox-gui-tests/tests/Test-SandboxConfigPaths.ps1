@@ -100,6 +100,30 @@ foreach ($drive in 'C', 'c', 'D') {
     }
 }
 
+Invoke-TestCase 'Subprocess fixtures land next to the recreated configs' {
+    $fixture = New-TestFixture
+    $staged = Join-Path $fixture.Root 'staged bin'
+    New-Item -ItemType Directory -Path $staged -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $staged 'TestApplicationWorkflows.exe'), 'fixture binary')
+    Initialize-SandboxConfigPath -EmbeddedPath 'C:\projects\editor\build\out\bin' -ConfigSource $fixture.Source `
+        -WorkRoot $fixture.Work -ResolveDriveRoot $fixture.Resolve -MountDrive $fixture.Mount `
+        -FixtureSource $staged -FixtureName 'TestApplicationWorkflows.exe'
+    $parent = Join-Path $fixture.SystemDrive 'projects\editor\build\out\bin'
+    Assert-ConfigLayout $parent
+    # A suite that spawns this binary holds its compiled path, not the payload copy.
+    Assert-FileText (Join-Path $parent 'TestApplicationWorkflows.exe') 'fixture binary'
+}
+Invoke-TestCase 'A fixture missing from the staged payload is rejected' {
+    $fixture = New-TestFixture
+    $staged = Join-Path $fixture.Root 'staged bin'
+    New-Item -ItemType Directory -Path $staged -Force | Out-Null
+    Assert-Rejected {
+        Initialize-SandboxConfigPath -EmbeddedPath 'C:\projects\editor\build\out\bin' -ConfigSource $fixture.Source `
+            -WorkRoot $fixture.Work -ResolveDriveRoot $fixture.Resolve -MountDrive $fixture.Mount `
+            -FixtureSource $staged -FixtureName 'MissingFixture.exe'
+    } 'Missing staged fixture'
+}
+
 foreach ($path in '\\server\share\project\bin', 'relative\project\bin', 'C:project\bin', '\project\bin') {
     Invoke-TestCase "Non-local or relative path is rejected: $path" {
         $fixture = New-TestFixture

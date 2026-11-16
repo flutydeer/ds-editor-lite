@@ -188,10 +188,16 @@ try {
     if (-not (Test-Path -LiteralPath $exe)) { throw "The test executable is missing from the payload copy: $executableRelative" }
 
     # The existing test binary embeds the absolute build path for its config tree.
-    # Recreate only that path inside this disposable guest.
+    # Recreate only that path inside this disposable guest, along with the subprocess
+    # fixtures whose compiled paths the selected suite holds.
     . (Join-Path $inputRoot 'SandboxConfigPaths.ps1')
+    $fixtureExecutables = @()
+    if ($plan.PSObject.Properties.Name -contains 'fixtureExecutables') {
+        $fixtureExecutables = @($plan.fixtureExecutables | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
     Initialize-SandboxConfigPath -EmbeddedPath ([string]$plan.embeddedConfigPath) `
-        -ConfigSource (Join-Path $inputRoot $plan.configSource) -WorkRoot $workRoot
+        -ConfigSource (Join-Path $inputRoot $plan.configSource) -WorkRoot $workRoot `
+        -FixtureSource $exeDirectory -FixtureName $fixtureExecutables
 
     $env:PATH = "$exeDirectory;$env:SystemRoot\System32;$env:SystemRoot"
     $env:QT_QPA_PLATFORM = 'windows'
@@ -319,13 +325,17 @@ namespace SandboxTrial {
         $watchStopFile = Join-Path $workRoot 'window-watch.stop'
         Remove-Item -LiteralPath $watchStopFile -ErrorAction SilentlyContinue
         $watchScopeStart = (Get-Date).AddSeconds(-1).ToString('o')
+        # The observer has to watch the binary this plan actually runs, otherwise a
+        # payload for another suite collects no window evidence at all.
+        $watchedProcessName = [IO.Path]::GetFileNameWithoutExtension($executableRelative)
         . (Join-Path $inputRoot 'WindowObserverLifecycle.ps1')
         Start-WindowObserver -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-File', ('"' + $watcherScript + '"'),
                 '-OutputDirectory', ('"' + $watchDirectory + '"'),
                 '-StopFile', ('"' + $watchStopFile + '"'),
-                '-ScopeStartLocal', ('"' + $watchScopeStart + '"')) `
+                '-ScopeStartLocal', ('"' + $watchScopeStart + '"'),
+                '-ProcessName', ('"' + $watchedProcessName + '"')) `
             -Process ([ref]$watcher)
     }
 

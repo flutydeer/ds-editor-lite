@@ -19,6 +19,8 @@ function Initialize-SandboxConfigPath {
     .DESCRIPTION
         C: uses the existing system drive. Other letters must be unoccupied and are
         mapped to a private directory under WorkRoot. Existing configs are rejected.
+        Fixture names are additionally copied from FixtureSource into the recreated
+        parent, because tests that spawn another test binary hold that compiled path.
         ResolveDriveRoot receives a drive specifier such as C: and returns its
         accessible filesystem root. MountDrive receives the drive specifier and
         backing directory. Their defaults use real guest drives; an isolated caller
@@ -29,6 +31,8 @@ function Initialize-SandboxConfigPath {
         [Parameter(Mandatory = $true)][string]$EmbeddedPath,
         [Parameter(Mandatory = $true)][string]$ConfigSource,
         [Parameter(Mandatory = $true)][string]$WorkRoot,
+        [string]$FixtureSource,
+        [string[]]$FixtureName = @(),
         [scriptblock]$ResolveDriveRoot = { param($DriveSpec) $DriveSpec + '\' },
         [scriptblock]$MountDrive = {
             param($DriveSpec, $DriveRoot)
@@ -67,4 +71,12 @@ function Initialize-SandboxConfigPath {
     # Reusing the parent preserves its other contents; the configs child must be new.
     New-Item -ItemType Directory -Path $compiledParent -Force | Out-Null
     Copy-Item -LiteralPath $ConfigSource -Destination $compiledParent -Recurse
+    foreach ($name in @($FixtureName)) {
+        if ([string]::IsNullOrWhiteSpace($name)) { continue }
+        $fixturePath = Join-Path $FixtureSource $name
+        if (-not (Test-Path -LiteralPath $fixturePath -PathType Leaf)) {
+            throw "Missing staged fixture $name under $FixtureSource."
+        }
+        Copy-Item -LiteralPath $fixturePath -Destination (Join-Path $compiledParent $name)
+    }
 }
