@@ -175,6 +175,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     const auto originalSampleRate = deviceContext->adoptedSampleRate();
     const auto originalDriverName = driver->name();
     const auto originalDeviceName = deviceContext->device()->name();
+    const auto originalConfiguredDeviceName = AudioSettings::deviceName();
     const auto originalPlayheadBehavior = AudioSettings::playheadBehavior();
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto command = [&] {
@@ -189,6 +190,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
             QVERIFY(output->setDevice(originalDeviceName));
         output->setAdoptedBufferSize(originalBufferSize);
         output->setAdoptedSampleRate(originalSampleRate);
+        AudioSettings::setDeviceName(originalConfiguredDeviceName);
         AudioSettings::setPlayheadBehavior(originalPlayheadBehavior);
     });
 
@@ -237,17 +239,19 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
         QVERIFY(deviceContext->device()->isOpen());
         QVERIFY(devices->isEnabled() && testDevice->isEnabled());
         QVERIFY(drivers->findData(QVariant{}) < 0);
+        // The combo shows the default entry when the configured name is empty for that device.
         if (deviceContext->device()->name() != originalDeviceName) {
             select(devices, originalDeviceName);
             if (QTest::currentTestFailed())
                 return;
+            QCOMPARE(AudioSettings::deviceName(), originalDeviceName);
         }
-        QCOMPARE(devices->currentData().toString(), originalDeviceName);
+        QCOMPARE(devices->currentData().toString(), AudioSettings::deviceName());
         AppOptions recovered;
         QCOMPARE(recovered.audio()->obj.value(QStringLiteral("driverName")).toString(),
                  originalDriverName);
         QCOMPARE(recovered.audio()->obj.value(QStringLiteral("deviceName")).toString(),
-                 originalDeviceName);
+                 AudioSettings::deviceName());
         const auto sizes = deviceContext->device()->availableBufferSizes();
         const auto alternative = std::find_if(sizes.cbegin(), sizes.cend(), [&](qint64 size) {
             return size > 0 && size <= 8192 && size != originalBufferSize;
@@ -348,7 +352,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
                  QString{});
         const auto concreteApplied = runtime.settings().updateAudioDevice(
             {.source = Automation::InvocationSource::PublicJsonRpc},
-            {.driverName = originalDriverName, .deviceName = originalDeviceName});
+            {.driverName = originalDriverName, .deviceName = originalConfiguredDeviceName});
         QVERIFY2(concreteApplied,
                  qPrintable(concreteApplied ? QString{} : concreteApplied.getError().message));
     }

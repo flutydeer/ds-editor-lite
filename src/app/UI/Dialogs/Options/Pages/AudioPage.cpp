@@ -284,10 +284,17 @@ void AudioPage::updateDeviceComboBox() {
                                       &AudioPage::updateDeviceComboBox);
     bool currentIndexDetermined = false;
 
+    if (!driver->defaultDevice().isEmpty()) {
+        m_deviceComboBox->addItem(tr("Default device"), QString(""));
+        if (AudioSettings::deviceName().isEmpty()) {
+            currentIndexDetermined = true;
+            m_deviceComboBox->setCurrentIndex(0);
+        }
+    }
     auto deviceList = driver->devices();
     for (int i = 0; i < deviceList.size(); i++) {
         m_deviceComboBox->addItem(deviceList[i], deviceList[i]);
-        if (outputSys->outputContext()->device() &&
+        if (!currentIndexDetermined && outputSys->outputContext()->device() &&
             deviceList[i] == outputSys->outputContext()->device()->name()) {
             currentIndexDetermined = true;
             m_deviceComboBox->setCurrentIndex(m_deviceComboBox->count() - 1);
@@ -314,19 +321,32 @@ void AudioPage::updateDeviceComboBox() {
                     return;
                 const auto newDevName = m_deviceComboBox->itemData(index).toString();
                 if (!outputSys->setDevice(newDevName)) {
+                    // Restore the entry of the device that is still configured.
+                    const auto configuredName = AudioSettings::deviceName();
+                    int revertIndex = -1;
                     for (int i = 0; i < m_deviceComboBox->count(); i++) {
-                        if ((!outputSys->outputContext()->device() &&
-                             m_deviceComboBox->itemData(i).isNull()) ||
-                            (outputSys->outputContext()->device() &&
-                             outputSys->outputContext()->device()->name() ==
-                                 m_deviceComboBox->itemData(i).toString())) {
-                            QSignalBlocker blocker(m_deviceComboBox);
-                            m_deviceComboBox->setCurrentIndex(i);
+                        const auto data = m_deviceComboBox->itemData(i);
+                        if (!data.isNull() && data.toString() == configuredName) {
+                            revertIndex = i;
                             break;
                         }
                     }
-                    QMessageBox::warning(this, {},
-                                         tr("Audio device %1 is not available").arg(newDevName));
+                    const auto *device = outputSys->outputContext()->device();
+                    for (int i = 0; revertIndex < 0 && i < m_deviceComboBox->count(); i++) {
+                        const auto data = m_deviceComboBox->itemData(i);
+                        if (device ? (!data.isNull() && data.toString() == device->name())
+                                   : data.isNull()) {
+                            revertIndex = i;
+                        }
+                    }
+                    if (revertIndex >= 0) {
+                        QSignalBlocker blocker(m_deviceComboBox);
+                        m_deviceComboBox->setCurrentIndex(revertIndex);
+                    }
+                    QMessageBox::warning(
+                        this, {},
+                        tr("Audio device %1 is not available")
+                            .arg(newDevName.isEmpty() ? tr("Default device") : newDevName));
                 } else {
                     if (m_deviceComboBox->itemData(m_deviceComboBox->count() - 1).isNull()) {
                         m_deviceComboBox->removeItem(m_deviceComboBox->count() - 1);
@@ -458,7 +478,10 @@ void AudioPage::retranslateUi() {
             m_driverComboBox->setItemText(i, tr("(Not working)"));
     }
     for (int i = 0; i < m_deviceComboBox->count(); ++i) {
-        if (m_deviceComboBox->itemData(i).isNull()) {
+        if (!m_deviceComboBox->itemData(i).isNull() &&
+            m_deviceComboBox->itemData(i).toString().isEmpty()) {
+            m_deviceComboBox->setItemText(i, tr("Default device"));
+        } else if (m_deviceComboBox->itemData(i).isNull()) {
             const auto device = AudioSystem::outputSystem()->outputContext()->device();
             m_deviceComboBox->setItemText(i, device ? device->name() + tr("(Not working)")
                                                     : tr("(Not working)"));

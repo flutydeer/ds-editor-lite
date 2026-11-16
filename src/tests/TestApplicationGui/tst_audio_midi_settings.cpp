@@ -317,7 +317,22 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
         QCOMPARE(deviceContext->driver(), driver.get());
         QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
         QVERIFY(devices->isEnabled() && buffer->isEnabled() && rate->isEnabled());
-        QCOMPARE(devices->currentData().toString(), QStringLiteral("Output A"));
+        QCOMPARE(devices->currentData().toString(),
+                 defaultDeviceAvailable ? QString{} : QStringLiteral("Output A"));
+        if (defaultDeviceAvailable) {
+            chooseValue(*page, devices, QStringLiteral("Output B"));
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(deviceContext->device()->name(), QStringLiteral("Output B"));
+            QVERIFY(!AudioSettings::deviceName().isEmpty());
+            chooseValue(*page, devices, QString{});
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(deviceContext->device()->name(), QStringLiteral("Output A"));
+            QVERIFY(AudioSettings::deviceName().isEmpty());
+            emit driver->deviceChanged();
+            QTRY_COMPARE(devices->currentData().toString(), QString{});
+        }
         auto *previousOutput = deviceContext->device();
         const auto previousChoice = devices->currentData();
         const auto beforeDevice = runtime.settings().getSettings();
