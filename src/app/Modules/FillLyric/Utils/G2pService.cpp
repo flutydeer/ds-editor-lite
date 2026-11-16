@@ -108,8 +108,9 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // The singer's package version controls G2P routing. If a language's route or
-        // conversion fails, keep the original lyrics for that language.
+        // The singer's package version controls G2P routing. On route or conversion
+        // failure, keep the original lyrics. Retrying with official G2P would bypass
+        // the singer's language route.
         auto &session = SynthrtEngine::instance().session();
         const auto packageId = m_singer.packageId.toStdString();
         const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);

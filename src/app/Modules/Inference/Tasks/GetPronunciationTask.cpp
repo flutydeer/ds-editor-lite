@@ -195,6 +195,8 @@ QList<PronunciationFetchResult>
         // Ensure the G2P language module is loaded before conversion.
         // convertG2p does not auto-initialize models; ensureLanguageReady
         // loads them lazily on first call (cached internally by the session).
+        // Keep the original lyrics for manual editing if either call fails.
+        // Retrying with official G2P would bypass the singer's language route.
         const auto langStd = toUtf8(language);
         auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
         if (!readyExp) {
@@ -208,7 +210,6 @@ QList<PronunciationFetchResult>
 
         auto exp = session.convertG2p(identifier, langStd, inputs);
         if (!exp) {
-            // Keep the original pronunciation so the user can edit it manually.
             qCWarning(logInferPron).nospace()
                 << "G2P conversion failed for lang='" << language
                 << "': " << fromUtf8(exp.error().message()) << ". Keeping original lyric.";
@@ -219,6 +220,8 @@ QList<PronunciationFetchResult>
 
         const auto &outcomes = *exp;
         // A count mismatch makes it unsafe to associate results with their notes.
+        // Keep this check in all builds so debug runs can log the error and preserve
+        // the lyrics. Q_ASSERT would abort before recovery.
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
                 << "convertG2p returned " << outcomes.size() << " outcomes for " << entries.size()

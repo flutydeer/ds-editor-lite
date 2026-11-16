@@ -6,6 +6,7 @@ class QWidget;
 // Suppress the Windows press-and-hold right click for touch-enabled editor windows.
 // Windows queries the window under the pointer with WM_TABLET_QUERYSYSTEMGESTURESTATUS.
 // Reply with TABLET_DISABLE_PRESSANDHOLD so the editor can handle the same contact.
+// SetGestureConfig(GC_ALLGESTURES) leaves press-and-hold active on this WM_POINTER path.
 // Other windows keep their native press-and-hold behavior.
 namespace EditorSystemGestureSuppressor {
 

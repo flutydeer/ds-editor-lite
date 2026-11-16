@@ -342,7 +342,8 @@ function(lite_deploy_application _target)
                 set(_lite_plugins_root "\${CMAKE_INSTALL_PREFIX}/lib/plugins")
             endif()
             # Expand the flavor and symbol directory at configuration time.
-            # install(CODE) runs in a separate scope.
+            # An IN LISTS loop inside install(CODE) would see an unset
+            # SYNTHRT_ONNXDRIVER_FLAVORS and skip symbol installation silently.
             foreach(_flavor IN LISTS SYNTHRT_ONNXDRIVER_FLAVORS)
                 string(TOUPPER "${_flavor}" _flavor_uc)
                 if(NOT DEFINED ONNXRUNTIME_BUILDS_${_flavor_uc}_SYMBOLS_DIR)

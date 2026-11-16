@@ -103,6 +103,7 @@ Write for readers who have no knowledge of the conversation or implementation pr
 - Keep conversation context, review replies, debugging notes, obsolete workarounds, and task-specific validation logs out of code comments, product documentation, and PR descriptions.
 - Integrate changes into the relevant existing explanation. Rewrite or remove outdated passages instead of appending isolated notes about the latest change. Keep examples, parameter descriptions, and resource instructions consistent with the implementation.
 - Keep comments short and focused on non-obvious reasoning, invariants, constraints, or tradeoffs. Avoid lengthy explanations, restating the code, narrating edits, or comparing against an obsolete implementation.
+- Preserve brief warnings about failure modes that still apply. State the trigger and consequence beside the affected code, including platform or API behavior that makes an otherwise plausible change fail.
 - All code comments must use ASCII characters unless a special quotation requires preserving non-ASCII text. Use ASCII punctuation such as `->`, `-`, and `'`.
 - Keep user documentation focused on usage, supported behavior, prerequisites, and meaningful limitations. Include internal details only when they help the intended reader understand or use the system.
 - Use concise, factual language. Avoid promotional claims, exaggerated guarantees, and assertions of complete support or equivalence that the implementation does not establish.

@@ -46,7 +46,8 @@ public:
     void setToneRange(std::optional<std::pair<int, int>> range);
 
     /// True when the capability report lists the speaker in every non-vocoder stage.
-    /// If the report is absent, false means the capability is unknown.
+    /// If the report is absent, false means the capability is unknown. Use the singer's
+    /// full speaker list for validation so missing capability data does not reject a speaker.
     bool mixable() const;
     void setMixable(bool mixable);
 

@@ -318,6 +318,8 @@ namespace {
 
         // Legacy workspace mixes may reference unavailable speakers. Keep the original order
         // until the weights have been remapped, so they still match the surviving speakers.
+        // Dropping sources without remapping their weights makes normalization discard the
+        // saved mix and fall back to a single speaker.
         // A source must resolve to the singer and belong to its mixable list when one is present.
         struct RawSource {
             SpeakerInfo speaker;
