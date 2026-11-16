@@ -268,6 +268,7 @@ private slots:
     void timelineLaneInputsEditAndRemoveMarkers();
     void tempoDialogReportsTheBarBeatTickPosition();
     void timeAxisLaneStepKeepsLabelsApartAcrossTempos();
+    void timeAxisLaneDividesEachTempoSegmentAtItsOwnStep();
     void playbackTextInputsValidateCommitAndCancel();
     void loopControlsCommitAndUndoTheSelectedRange_data();
     void loopControlsCommitAndUndoTheSelectedRange();

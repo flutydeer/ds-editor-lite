@@ -6262,7 +6262,7 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="40"/>
         <source>Min:Sec.Ms</source>
-        <translation>分:秒:毫秒</translation>
+        <translation>分:秒.毫秒</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="41"/>
