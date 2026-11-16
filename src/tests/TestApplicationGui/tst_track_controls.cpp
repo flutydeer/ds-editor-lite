@@ -12,6 +12,7 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Views/TrackEditor/InfoLane/TempoLaneView.h"
+#include "UI/Views/TrackEditor/InfoLane/TimeAxisLaneView.h"
 #include "UI/Views/TrackEditor/InfoLane/TimeSignatureLaneView.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/MixConsole/ChannelView.h"
@@ -360,21 +361,31 @@ void ApplicationGuiTests::trackHeaderLaneMenuTogglesBothLanes() {
 
     auto *tempoAction = header->findChild<QAction *>(QStringLiteral("actionTempoLane"));
     auto *meterAction = header->findChild<QAction *>(QStringLiteral("actionTimeSignatureLane"));
-    QVERIFY(tempoAction && meterAction);
-    QVERIFY(menu->actions().size() == 2);
-    QCOMPARE(menu->actions().at(0), tempoAction);
-    QCOMPARE(menu->actions().at(1), meterAction);
-    QVERIFY(tempoAction->isCheckable() && meterAction->isCheckable());
+    auto *timeAction = header->findChild<QAction *>(QStringLiteral("actionTimeLane"));
+    QVERIFY(tempoAction && meterAction && timeAction);
+    QVERIFY(menu->actions().size() == 3);
+    // The seconds axis comes first: it sits directly below the bar/beat ruler.
+    QCOMPARE(menu->actions().at(0), timeAction);
+    QCOMPARE(menu->actions().at(1), tempoAction);
+    QCOMPARE(menu->actions().at(2), meterAction);
+    QVERIFY(tempoAction->isCheckable() && meterAction->isCheckable() && timeAction->isCheckable());
     QVERIFY(tempoAction->isChecked() && meterAction->isChecked());
+    // The seconds axis is a per-window toggle like the other two lanes: it
+    // starts hidden here and does not share state with the piano roll.
+    QVERIFY(!timeAction->isChecked());
     QVERIFY(header->tempoLaneVisible() && header->timeSignatureLaneVisible());
+    QVERIFY(!header->timeLaneVisible());
 
     auto *tempoLane = editor.findChild<TempoLaneView *>();
     auto *tempoHeader = editor.findChild<QWidget *>(QStringLiteral("tempoLaneHeaderView"));
     auto *meterLane = editor.findChild<TimeSignatureLaneView *>();
     auto *meterHeader = editor.findChild<QWidget *>(QStringLiteral("timeSignatureLaneHeaderView"));
-    QVERIFY(tempoLane && tempoHeader && meterLane && meterHeader);
+    auto *timeLane = editor.findChild<TimeAxisLaneView *>();
+    auto *timeHeader = editor.findChild<QWidget *>(QStringLiteral("timeLaneHeaderView"));
+    QVERIFY(tempoLane && tempoHeader && meterLane && meterHeader && timeLane && timeHeader);
     QVERIFY(tempoLane->isVisible() && tempoHeader->isVisible());
     QVERIFY(meterLane->isVisible() && meterHeader->isVisible());
+    QVERIFY(!timeLane->isVisible() && !timeHeader->isVisible());
 
     tempoAction->trigger();
     QVERIFY(!tempoAction->isChecked() && meterAction->isChecked());
@@ -386,11 +397,24 @@ void ApplicationGuiTests::trackHeaderLaneMenuTogglesBothLanes() {
     QVERIFY(!meterAction->isChecked());
     QVERIFY(!meterLane->isVisible() && !meterHeader->isVisible());
 
+    // The track editor's menu owns only its own window: toggling it here must
+    // not touch the piano roll's appearance option.
+    const auto pianoRollTimeLane = appOptions->appearance()->showTimeLane;
+    timeAction->trigger();
+    QVERIFY(timeAction->isChecked());
+    QVERIFY(timeLane->isVisible() && timeHeader->isVisible());
+    QCOMPARE(appOptions->appearance()->showTimeLane, pianoRollTimeLane);
+    timeAction->trigger();
+    QVERIFY(!timeAction->isChecked());
+    QVERIFY(!timeLane->isVisible() && !timeHeader->isVisible());
+    QCOMPARE(appOptions->appearance()->showTimeLane, pianoRollTimeLane);
+
     tempoAction->trigger();
     meterAction->trigger();
     QVERIFY(tempoAction->isChecked() && meterAction->isChecked());
     QVERIFY(tempoLane->isVisible() && tempoHeader->isVisible());
     QVERIFY(meterLane->isVisible() && meterHeader->isVisible());
+    QVERIFY(!timeLane->isVisible());
 }
 
 void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {

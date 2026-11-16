@@ -805,16 +805,19 @@ void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     const auto backend = appOptions->developer()->editorRenderBackend;
     const auto tempoLaneVisible = appOptions->appearance()->showTempoLane;
     const auto signatureLaneVisible = appOptions->appearance()->showTimeSignatureLane;
+    const auto timeLaneVisible = appOptions->appearance()->showTimeLane;
     const auto restore = qScopeGuard([&] {
         appOptions->developer()->editorRenderBackend = backend;
         appOptions->appearance()->showTempoLane = tempoLaneVisible;
         appOptions->appearance()->showTimeSignatureLane = signatureLaneVisible;
+        appOptions->appearance()->showTimeLane = timeLaneVisible;
         clipController->setClip(nullptr);
     });
     appOptions->developer()->editorRenderBackend =
         DeveloperOption::EditorRenderBackend::RhiExperimental;
     appOptions->appearance()->showTempoLane = true;
     appOptions->appearance()->showTimeSignatureLane = true;
+    appOptions->appearance()->showTimeLane = true;
     PianoRollView editor;
     auto *canvas = editor.findChild<PianoRollRhiWidget *>();
     auto *keyboard = editor.findChild<PianoKeyboardView *>();

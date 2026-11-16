@@ -8,6 +8,7 @@ class PreferencesTests final : public QObject {
 private slots:
     void appearanceNativeFrameOverride_data();
     void appearanceNativeFrameOverride();
+    void appearanceTimecodeFormatAndTimeLane();
     void inferenceSingerSessionCacheSettings();
     void inferencePlaybackLookaheadPersistence();
     void automationOptionDefaults();

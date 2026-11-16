@@ -27,6 +27,14 @@ namespace Automation {
         friend bool operator==(const GeneralSettingsDto &, const GeneralSettingsDto &) = default;
     };
 
+    // Transport timecode rendering; mirrors AppearanceOption::TimecodeFormat
+    // across the facade boundary.
+    enum class TimecodeFormat {
+        BarBeatTick,
+        Time,
+        Both,
+    };
+
     struct AppearanceSettingsDto {
         bool useNativeFrame = false;
         bool animationEnabled = true;
@@ -36,6 +44,9 @@ namespace Automation {
         bool showGhostNotes = true;
         bool showTempoLane = false;
         bool showTimeSignatureLane = false;
+        bool showTimeLane = false;
+        // Appended last so existing designated initializers keep compiling.
+        TimecodeFormat timecodeFormat = TimecodeFormat::BarBeatTick;
 
         friend bool operator==(const AppearanceSettingsDto &,
                                const AppearanceSettingsDto &) = default;

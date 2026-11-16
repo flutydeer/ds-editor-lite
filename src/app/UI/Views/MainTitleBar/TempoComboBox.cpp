@@ -4,17 +4,11 @@
 
 #include <lite/MusicBase/Tempo.h>
 
-#include <QApplication>
-#include <QCursor>
-#include <QGuiApplication>
 #include <QLocale>
-#include <QMouseEvent>
-#include <QStyle>
-#include <QTimer>
 
-TempoComboBox::TempoComboBox(QWidget *parent) : InlineEditLabel(parent) {
+TempoComboBox::TempoComboBox(QWidget *parent) : PopupInlineEditLabel(parent) {
     m_popup = new TempoPopupWidget(this);
-    m_popup->installEventFilter(this);
+    setPopupWidget(m_popup);
 
     connect(m_popup, &TempoPopupWidget::tempoSelected, this, [this](double tempo) {
         if (m_tempo == tempo)
@@ -30,92 +24,17 @@ TempoComboBox::TempoComboBox(QWidget *parent) : InlineEditLabel(parent) {
         m_tempo = tempo;
         emit tempoChanged(tempo);
     });
-
-    m_clickTimer = new QTimer(this);
-    m_clickTimer->setSingleShot(true);
-    connect(m_clickTimer, &QTimer::timeout, this, &TempoComboBox::showPopup);
 }
 
-void TempoComboBox::setTempo(double tempo) {
+void TempoComboBox::setTempo(const double tempo) {
     m_tempo = tempo;
     setText(Tempo::formatValue(tempo));
 }
 
-void TempoComboBox::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::RightButton) {
-        m_clickTimer->stop();
-        if (m_popup->isVisible()) {
-            m_hidingPopupFromCombo = true;
-            hidePopup();
-            m_hidingPopupFromCombo = false;
-        } else {
-            showPopup();
-        }
-        event->accept();
-        return;
-    }
-    if (event->button() != Qt::LeftButton) {
-        InlineEditLabel::mousePressEvent(event);
-        return;
-    }
-
-    if (m_popup->isVisible()) {
-        m_hidingPopupFromCombo = true;
-        hidePopup();
-        m_hidingPopupFromCombo = false;
-    } else {
-        m_clickTimer->start(QApplication::doubleClickInterval());
-    }
-    event->accept();
-}
-
-void TempoComboBox::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (event->button() != Qt::LeftButton) {
-        InlineEditLabel::mouseDoubleClickEvent(event);
-        return;
-    }
-
-    m_clickTimer->stop();
-    hidePopup();
-    InlineEditLabel::mouseDoubleClickEvent(event);
-}
-
-bool TempoComboBox::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == m_popup && (event->type() == QEvent::Hide || event->type() == QEvent::Close)) {
-        if (!m_hidingPopupFromCombo && (QGuiApplication::mouseButtons() & Qt::LeftButton) &&
-            rect().contains(mapFromGlobal(QCursor::pos())))
-            m_ignoreNextShow = true;
-        setPopupVisible(false);
-    }
-    return InlineEditLabel::eventFilter(watched, event);
-}
-
-void TempoComboBox::showPopup() {
-    if (m_ignoreNextShow) {
-        m_ignoreNextShow = false;
-        setPopupVisible(false);
-        return;
-    }
-    if (m_popup->isVisible())
-        return;
-
-    emit popupAboutToShow();
+void TempoComboBox::preparePopup() {
     m_popup->setTempo(m_tempo);
-    setPopupVisible(true);
-    m_popup->showAt(mapToGlobal(QPoint(0, height())));
 }
 
-void TempoComboBox::hidePopup() {
-    if (m_popup->isVisible())
-        m_popup->close();
-    setPopupVisible(false);
-}
-
-void TempoComboBox::setPopupVisible(bool visible) {
-    if (property("popupVisible").toBool() == visible)
-        return;
-    setProperty("popupVisible", visible);
-    style()->unpolish(this);
-    style()->polish(this);
-    update();
+void TempoComboBox::presentPopup(const QPoint &globalPos) {
+    m_popup->showAt(globalPos);
 }

@@ -43,6 +43,7 @@ bool AppearancePage::applyOptions() {
     settings.showGhostNotes = m_swShowGhostNotes->value();
     settings.showTempoLane = m_swShowTempoLane->value();
     settings.showTimeSignatureLane = m_swShowTimeSignatureLane->value();
+    settings.showTimeLane = m_swShowTimeLane->value();
     if (runtime->settings().updateAppearance({}, settings))
         return true;
 
@@ -55,6 +56,7 @@ bool AppearancePage::applyOptions() {
     restoreSwitch(m_swShowGhostNotes, previous.showGhostNotes);
     restoreSwitch(m_swShowTempoLane, previous.showTempoLane);
     restoreSwitch(m_swShowTimeSignatureLane, previous.showTimeSignatureLane);
+    restoreSwitch(m_swShowTimeLane, previous.showTimeLane);
     const QSignalBlocker blocker(m_leAnimationTimeScale);
     m_leAnimationTimeScale->setText(QLocale().toString(previous.animationTimeScale));
     return false;
@@ -175,9 +177,16 @@ QWidget *AppearancePage::createContentWidget() {
     m_swShowTimeSignatureLane = new SwitchButton(option->showTimeSignatureLane);
     connect(m_swShowTimeSignatureLane, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
+    m_swShowTimeLane = new SwitchButton(option->showTimeLane);
+    m_swShowTimeLane->setObjectName(QStringLiteral("appearanceShowTimeLane"));
+    connect(m_swShowTimeLane, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+
     const auto pianoRollCard = new OptionListCard(tr("Piano Roll"));
     pianoRollCard->addItem(tr("Show notes from other tracks"),
                            tr("Displayed as thin bars for reference only"), m_swShowGhostNotes);
+    // Lane switches follow the row order of the piano roll: seconds axis, tempo,
+    // time signature.
+    pianoRollCard->addItem(tr("Show time (s) track"), m_swShowTimeLane);
     pianoRollCard->addItem(tr("Show tempo track"), m_swShowTempoLane);
     pianoRollCard->addItem(tr("Show time signature track"), m_swShowTimeSignatureLane);
 

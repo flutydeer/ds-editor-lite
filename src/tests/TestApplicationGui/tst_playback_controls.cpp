@@ -3,16 +3,21 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/PlaybackController.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "UI/Views/Common/SegmentedTabBar.h"
 #include "UI/Views/Common/TempoEditWidget.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/MainTitleBar/TempoComboBox.h"
 #include "UI/Views/MainTitleBar/TempoPopupWidget.h"
+#include "UI/Views/MainTitleBar/TimeComboBox.h"
+#include "UI/Views/MainTitleBar/TimePopupWidget.h"
 #include "UI/Views/MainTitleBar/TimeSignatureComboBox.h"
 #include "UI/Views/Common/TimeSignaturePopupWidget.h"
 
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 #include <lite/GUI/Controls/TapTempoButton.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/MusicBase/MusicTimeConverter.h>
 #include <lite/MusicBase/Tempo.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
@@ -160,6 +165,111 @@ void ApplicationGuiTests::playbackPopupsEditTheMarkerChosenWhenTheyOpen() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(context->m_appModel->timeline().timeSignatureAt(0).numerator, 4);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::timePopupEditsPositionAndDisplayFormat() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.timeline().setTempo(commandContext(), 0, 120));
+    QVERIFY(runtime.timeline().setTimeSignature(commandContext(), 0, 4, 4));
+    playbackController->setPosition(0);
+
+    auto *appearance = appOptions->appearance();
+    const auto originalFormat = appearance->timecodeFormat;
+    const auto restoreOptions = qScopeGuard([&] {
+        appearance->timecodeFormat = originalFormat;
+        appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+    });
+    appearance->timecodeFormat = AppearanceOption::TimecodeFormat::BarBeatTick;
+    appOptions->notifyOptionsChanged(AppOptionsGlobal::Appearance);
+
+    PlaybackView controls;
+    controls.show();
+    controls.activateWindow();
+    QTRY_VERIFY(controls.isActiveWindow());
+    auto *combo = controls.findChild<TimeComboBox *>(QStringLiteral("elTime"));
+    QVERIFY(combo);
+    const auto &timeline = context->m_appModel->timeline();
+    QCOMPARE(combo->text(), timeline.getBarBeatTickTime(0));
+
+    auto *popup = combo->findChild<TimePopupWidget *>();
+    QVERIFY(popup);
+    const auto closePopup = qScopeGuard([&] { popup->close(); });
+    auto *barBeatEditor = popup->findChild<QLineEdit *>(QStringLiteral("edPosition"));
+    auto *minSecEditor = popup->findChild<QLineEdit *>(QStringLiteral("edPositionTime"));
+    auto *formatBar = popup->findChild<SegmentedTabBar *>();
+    QVERIFY(barBeatEditor && minSecEditor && formatBar);
+    QCOMPARE(formatBar->count(), 3);
+    QCOMPARE(formatBar->currentIndex(), 0);
+
+    historyManager->reset();
+    const auto document = runtime.documentVersion();
+
+    // A single click opens the popup; both fields describe the same playhead.
+    QTest::mouseClick(combo, Qt::LeftButton);
+    QTRY_VERIFY(popup->isVisible());
+    QCOMPARE(barBeatEditor->text(), QStringLiteral("001:01:000"));
+    QCOMPARE(minSecEditor->text(), QStringLiteral("00:00.000"));
+
+    // The seconds field moves the playhead to that instant: 1 s at 120 BPM
+    // is two quarter notes, i.e. tick 960.
+    QTest::mouseClick(minSecEditor, Qt::LeftButton);
+    QTest::keySequence(minSecEditor, QKeySequence::SelectAll);
+    QTest::keyClicks(minSecEditor, QStringLiteral("00:01.000"));
+    QTest::keyClick(minSecEditor, Qt::Key_Return);
+    QTRY_VERIFY(qAbs(playbackController->position() - 960.0) < 1.0);
+    QCOMPARE(minSecEditor->text(), QStringLiteral("00:01.000"));
+    QCOMPARE(barBeatEditor->text(), QStringLiteral("001:03:000"));
+    QCOMPARE(combo->text(), QStringLiteral("001:03:000"));
+
+    // Unparseable input reverts to the current position instead of jumping.
+    QTest::mouseClick(barBeatEditor, Qt::LeftButton);
+    QTest::keySequence(barBeatEditor, QKeySequence::SelectAll);
+    QTest::keyClicks(barBeatEditor, QStringLiteral("nope"));
+    QTest::keyClick(barBeatEditor, Qt::Key_Return);
+    QCOMPARE(barBeatEditor->text(), QStringLiteral("001:03:000"));
+    QVERIFY(qAbs(playbackController->position() - 960.0) < 1.0);
+
+    // The popup keeps following the playhead while it is open.
+    playbackController->setPosition(1920);
+    QTRY_COMPARE(barBeatEditor->text(), QStringLiteral("002:01:000"));
+    QTRY_COMPARE(minSecEditor->text(), QStringLiteral("00:02.000"));
+
+    // Switching the readout reformats the transport field and persists.
+    formatBar->setCurrentIndex(1);
+    QCOMPARE(combo->text(), QStringLiteral("00:02.000"));
+    QCOMPARE(appearance->timecodeFormat, AppearanceOption::TimecodeFormat::Time);
+    QCOMPARE(appearance->value().value(QStringLiteral("timecodeFormat")).toString(),
+             QStringLiteral("time"));
+    formatBar->setCurrentIndex(2);
+    QCOMPARE(combo->text(), QStringLiteral("002:01:000 · 00:02.000"));
+    QCOMPARE(appearance->timecodeFormat, AppearanceOption::TimecodeFormat::Both);
+
+    // Position edits never touch the document.
+    QCOMPARE(runtime.documentVersion(), document);
+    QVERIFY(!historyManager->canUndo());
+
+    // The inline editor accepts the seconds readout on its own, and the
+    // combined readout's musical half stays authoritative.
+    QTest::mouseClick(combo, Qt::LeftButton);
+    QTRY_VERIFY(!popup->isVisible());
+    const auto typeInline = [&](const QString &text) {
+        QTest::mouseDClick(combo, Qt::LeftButton);
+        QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+        auto *input = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+        QTest::keySequence(input, QKeySequence::SelectAll);
+        QApplication::clipboard()->setText(text);
+        QTest::keySequence(input, QKeySequence::Paste);
+        QTest::keyClick(input, Qt::Key_Return);
+    };
+    typeInline(QStringLiteral("00:03.000"));
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(qAbs(playbackController->position() - 2880.0) < 1.0);
+    typeInline(QStringLiteral("003:01:000"));
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(qAbs(playbackController->position() - 3840.0) < 1.0);
+    QCOMPARE(combo->text(), QStringLiteral("003:01:000 · 00:04.000"));
 }
 
 void ApplicationGuiTests::loopControlsCommitAndUndoTheSelectedRange_data() {

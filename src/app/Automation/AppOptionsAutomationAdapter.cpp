@@ -77,6 +77,14 @@ namespace Automation {
                 .showGhostNotes = value->showGhostNotes,
                 .showTempoLane = value->showTempoLane,
                 .showTimeSignatureLane = value->showTimeSignatureLane,
+                .showTimeLane = value->showTimeLane,
+                .timecodeFormat = value->timecodeFormat ==
+                                          AppearanceOption::TimecodeFormat::Time
+                                      ? TimecodeFormat::Time
+                                      : value->timecodeFormat ==
+                                                AppearanceOption::TimecodeFormat::Both
+                                            ? TimecodeFormat::Both
+                                            : TimecodeFormat::BarBeatTick,
             };
         }
 
@@ -90,6 +98,13 @@ namespace Automation {
             target->showGhostNotes = value.showGhostNotes;
             target->showTempoLane = value.showTempoLane;
             target->showTimeSignatureLane = value.showTimeSignatureLane;
+            target->showTimeLane = value.showTimeLane;
+            target->timecodeFormat =
+                value.timecodeFormat == TimecodeFormat::Time
+                    ? AppearanceOption::TimecodeFormat::Time
+                    : value.timecodeFormat == TimecodeFormat::Both
+                        ? AppearanceOption::TimecodeFormat::Both
+                        : AppearanceOption::TimecodeFormat::BarBeatTick;
         }
 
         InferenceSettingsDto captureInference(AppOptions *options) {

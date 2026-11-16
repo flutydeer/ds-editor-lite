@@ -2,17 +2,11 @@
 
 #include "UI/Views/Common/TimeSignaturePopupWidget.h"
 
-#include <QApplication>
-#include <QCursor>
-#include <QGuiApplication>
 #include <QLocale>
-#include <QMouseEvent>
-#include <QStyle>
-#include <QTimer>
 
-TimeSignatureComboBox::TimeSignatureComboBox(QWidget *parent) : InlineEditLabel(parent) {
+TimeSignatureComboBox::TimeSignatureComboBox(QWidget *parent) : PopupInlineEditLabel(parent) {
     m_popup = new TimeSignaturePopupWidget(this);
-    m_popup->installEventFilter(this);
+    setPopupWidget(m_popup);
 
     connect(m_popup, &TimeSignaturePopupWidget::timeSignatureSelected, this,
             [this](int numerator, int denominator) {
@@ -38,94 +32,19 @@ TimeSignatureComboBox::TimeSignatureComboBox(QWidget *parent) : InlineEditLabel(
         m_denominator = denominator;
         emit timeSignatureChanged(numerator, denominator);
     });
-
-    m_clickTimer = new QTimer(this);
-    m_clickTimer->setSingleShot(true);
-    connect(m_clickTimer, &QTimer::timeout, this, &TimeSignatureComboBox::showPopup);
 }
 
-void TimeSignatureComboBox::setTimeSignature(int numerator, int denominator) {
+void TimeSignatureComboBox::setTimeSignature(const int numerator, const int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
     const QLocale locale;
     setText(locale.toString(numerator) + QStringLiteral("/") + locale.toString(denominator));
 }
 
-void TimeSignatureComboBox::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::RightButton) {
-        m_clickTimer->stop();
-        if (m_popup->isVisible()) {
-            m_hidingPopupFromCombo = true;
-            hidePopup();
-            m_hidingPopupFromCombo = false;
-        } else {
-            showPopup();
-        }
-        event->accept();
-        return;
-    }
-    if (event->button() != Qt::LeftButton) {
-        InlineEditLabel::mousePressEvent(event);
-        return;
-    }
-
-    if (m_popup->isVisible()) {
-        m_hidingPopupFromCombo = true;
-        hidePopup();
-        m_hidingPopupFromCombo = false;
-    } else {
-        m_clickTimer->start(QApplication::doubleClickInterval());
-    }
-    event->accept();
-}
-
-void TimeSignatureComboBox::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (event->button() != Qt::LeftButton) {
-        InlineEditLabel::mouseDoubleClickEvent(event);
-        return;
-    }
-
-    m_clickTimer->stop();
-    hidePopup();
-    InlineEditLabel::mouseDoubleClickEvent(event);
-}
-
-bool TimeSignatureComboBox::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == m_popup && (event->type() == QEvent::Hide || event->type() == QEvent::Close)) {
-        if (!m_hidingPopupFromCombo && (QGuiApplication::mouseButtons() & Qt::LeftButton) &&
-            rect().contains(mapFromGlobal(QCursor::pos())))
-            m_ignoreNextShow = true;
-        setPopupVisible(false);
-    }
-    return InlineEditLabel::eventFilter(watched, event);
-}
-
-void TimeSignatureComboBox::showPopup() {
-    if (m_ignoreNextShow) {
-        m_ignoreNextShow = false;
-        setPopupVisible(false);
-        return;
-    }
-    if (m_popup->isVisible())
-        return;
-
-    emit popupAboutToShow();
+void TimeSignatureComboBox::preparePopup() {
     m_popup->setTimeSignature(m_numerator, m_denominator);
-    setPopupVisible(true);
-    m_popup->showAt(mapToGlobal(QPoint(0, height())));
 }
 
-void TimeSignatureComboBox::hidePopup() {
-    if (m_popup->isVisible())
-        m_popup->close();
-    setPopupVisible(false);
-}
-
-void TimeSignatureComboBox::setPopupVisible(bool visible) {
-    if (property("popupVisible").toBool() == visible)
-        return;
-    setProperty("popupVisible", visible);
-    style()->unpolish(this);
-    style()->polish(this);
-    update();
+void TimeSignatureComboBox::presentPopup(const QPoint &globalPos) {
+    m_popup->showAt(globalPos);
 }

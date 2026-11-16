@@ -83,6 +83,14 @@ double InfoLaneView::xToTick(const double x) const {
     return tick < 0 ? 0 : tick;
 }
 
+double InfoLaneView::visibleStartTick() const {
+    return m_startTick;
+}
+
+double InfoLaneView::visibleEndTick() const {
+    return m_endTick;
+}
+
 void InfoLaneView::chipDoubleClicked(const Chip &chip) {
     Q_UNUSED(chip);
 }
@@ -155,20 +163,19 @@ void InfoLaneView::drawSubdivision(QPainter *painter, const int tick, const int 
     painter->drawLine(QLineF(x, 0, x, height()));
 }
 
-void InfoLaneView::paintEvent(QPaintEvent *event) {
-    QWidget::paintEvent(event);
+void InfoLaneView::paintLaneBackground(QPainter *painter) {
+    drawTimeline(painter, m_startTick, m_endTick, rect().width());
+}
 
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+void InfoLaneView::paintLaneContent(QPainter *painter) {
     for (int i = 0; i < m_chips.size(); i++) {
         const auto chipArea = chipRect(i);
         if (chipArea.right() < 0 || chipArea.left() > width())
             continue;
 
         if (i == m_hoveredChip)
-            painter.fillRect(chipArea, m_hoverFillColor);
-        painter.fillRect(QRectF(chipArea.left(), 0, markerWidth, height()), m_markerColor);
+            painter->fillRect(chipArea, m_hoverFillColor);
+        painter->fillRect(QRectF(chipArea.left(), 0, markerWidth, height()), m_markerColor);
 
         const QRectF textArea(chipArea.left() + textLeftPadding, 0,
                               chipArea.width() - textLeftPadding, height());
@@ -176,9 +183,18 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
             continue;
         const auto text =
             fontMetrics().elidedText(m_chips.at(i).text, Qt::ElideRight, qFloor(textArea.width()));
-        painter.setPen(m_textColor);
-        painter.drawText(textArea, Qt::AlignLeft | Qt::AlignVCenter, text);
+        painter->setPen(m_textColor);
+        painter->drawText(textArea, Qt::AlignLeft | Qt::AlignVCenter, text);
     }
+}
+
+void InfoLaneView::paintEvent(QPaintEvent *event) {
+    QWidget::paintEvent(event);
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    paintLaneBackground(&painter);
+    paintLaneContent(&painter);
 
     // Playhead lines on top, continuing the canvas indicators through the lane
     const auto drawPlayheadLine = [&](const double tick, const QColor &color,

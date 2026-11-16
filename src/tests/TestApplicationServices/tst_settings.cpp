@@ -370,9 +370,17 @@ void ApplicationServicesTests::appearanceSettings() {
         [](auto &value) {
             value.animationTimeScale = 1.5;
             value.themeId = QStringLiteral("dark");
+            value.showTimeLane = true;
+            value.timecodeFormat = Automation::TimecodeFormat::Both;
         },
         [](auto &value) { value.animationTimeScale = 0.0; },
         [](auto &value) { value.uiFontFamily = QStringLiteral("Test Font"); });
+    // The transport readout accepts only the three known formats.
+    auto invalidFormat = harness.settings.appearance;
+    invalidFormat.timecodeFormat = static_cast<Automation::TimecodeFormat>(7);
+    const auto rejected = runtime.settings().updateAppearance(applicationContext(), invalidFormat);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
     const auto snapshot = runtime.settings().getSettings();
     QVERIFY(snapshot);
     QVERIFY(snapshot.get() == harness.settings);

@@ -329,3 +329,93 @@ void MusicTimeTests::musicTimelineMusicTimeStrings() {
     parsed = MusicTime::fromString(original.toString(), &parseOk);
     QVERIFY2((parseOk && parsed == original), "toString/fromString round trip");
 }
+
+void MusicTimeTests::musicTimelineMinSecFormatting() {
+    // Compact seconds label for the timeline lane: no leading zero on minutes,
+    // one decimal digit, so the text fits a 28px row.
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(0.0)), (QStringLiteral("0:00.0")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(2600.0)), (QStringLiteral("0:02.6")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(74514.0)), (QStringLiteral("1:14.5")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(5999.0)), (QStringLiteral("0:06.0")));
+    // The fraction rounds to one decimal.
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(460.0)), (QStringLiteral("0:00.5")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(551.0)), (QStringLiteral("0:00.6")));
+    // Rounding past the tenth carries into the seconds, then into the minutes.
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(59999.6)), (QStringLiteral("1:00.0")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(359999.4)), (QStringLiteral("6:00.0")));
+    // Minutes are not padded and not limited to two digits.
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(3600000.0)), (QStringLiteral("60:00.0")));
+    // Negative and non-finite input clamps to zero.
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(-1234.0)), (QStringLiteral("0:00.0")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(std::nan(""))), (QStringLiteral("0:00.0")));
+    // The coarse variant drops the fraction but truncates the same rounded
+    // tenth, so it never disagrees with the fine spelling (1:14, not 1:15).
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(74514.0, false)), (QStringLiteral("1:14")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(59999.6, false)), (QStringLiteral("1:00")));
+    QCOMPARE((MusicTimeConverter::formatSecondsLabel(600000.0, false)), (QStringLiteral("10:00")));
+
+    // The transport keeps the full readout: padded minutes and three
+    // millisecond digits, because it is the precise entry point.
+    QCOMPARE((MusicTimeConverter::formatTimecode(0.0)), (QStringLiteral("00:00.000")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(74514.0)), (QStringLiteral("01:14.514")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(514.4)), (QStringLiteral("00:00.514")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(514.6)), (QStringLiteral("00:00.515")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(59999.6)), (QStringLiteral("01:00.000")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(3600000.0)), (QStringLiteral("60:00.000")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(-1234.0)), (QStringLiteral("00:00.000")));
+    QCOMPARE((MusicTimeConverter::formatTimecode(std::nan(""))), (QStringLiteral("00:00.000")));
+    const auto parseMs = [](const QString &text, double *ms) {
+        return MusicTimeConverter::parseMinSec(QStringView(text), ms);
+    };
+    const auto expectParsed = [&](const QString &text, const double expected) {
+        double ms = -1.0;
+        QVERIFY2((parseMs(text, &ms)), qPrintable(QStringLiteral("parse %1").arg(text)));
+        QVERIFY2((std::abs(ms - expected) <= 1e-9),
+                 qPrintable(QStringLiteral("parse %1 -> %2").arg(text).arg(ms)));
+    };
+    const auto expectRejected = [&](const QString &text) {
+        double ms = 12345.0;
+        QVERIFY2((!parseMs(text, &ms)), qPrintable(QStringLiteral("reject %1").arg(text)));
+        QCOMPARE(ms, 12345.0);
+    };
+
+    // Input keeps up to three fractional digits even though the readout shows
+    // one; whole and fractional seconds are both accepted.
+    expectParsed(QStringLiteral("1:14.514"), 74514.0);
+    expectParsed(QStringLiteral("1:14.5"), 74500.0);
+    expectParsed(QStringLiteral("0:02.6"), 2600.0);
+    expectParsed(QStringLiteral("1:2.5"), 62500.0);
+    expectParsed(QStringLiteral("1:14"), 74000.0);
+    expectParsed(QStringLiteral("74.514"), 74514.0);
+    expectParsed(QStringLiteral("74"), 74000.0);
+    expectParsed(QStringLiteral("0:75.0"), 75000.0);
+    expectParsed(QStringLiteral(" 1:14.5 "), 74500.0);
+    expectParsed(QStringLiteral("1：14.5"), 74500.0);
+    expectRejected(QStringLiteral(""));
+    expectRejected(QStringLiteral("   "));
+    expectRejected(QStringLiteral("-1"));
+    expectRejected(QStringLiteral("1:-2"));
+    expectRejected(QStringLiteral("abc"));
+    expectRejected(QStringLiteral("1:14.5145"));
+    expectRejected(QStringLiteral("1:14."));
+    expectRejected(QStringLiteral("1:2:3"));
+
+    // The lane label parses back to the nearest tenth of a second, the transport
+    // readout to the nearest millisecond, and the tick conversion stays exact
+    // for the parsed value.
+    const Timeline timeline(
+        {
+            {0, 120.0},
+            {3840, 90.0}
+    },
+        {TimeSignature(0, 4, 4)});
+    for (const double ms : {0.0, 250.0, 74514.0, 120000.0, 3599999.0}) {
+        double parsedMs = 0.0;
+        QVERIFY((parseMs(MusicTimeConverter::formatSecondsLabel(ms), &parsedMs)));
+        QVERIFY((expectNear(parsedMs, ms, "lane label stays within one tenth", 50.0)));
+        QVERIFY((parseMs(MusicTimeConverter::formatTimecode(ms), &parsedMs)));
+        QVERIFY((expectNear(parsedMs, ms, "transport readout round trip", 1.0)));
+        QVERIFY((expectNear(timeline.tickToMs(timeline.msToTick(parsedMs)), parsedMs,
+                            "tick conversion round trip", 1e-6)));
+    }
+}

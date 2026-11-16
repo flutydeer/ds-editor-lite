@@ -231,6 +231,26 @@ TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
     font-weight: bold;
 }
 
+/* Time Popup */
+TimePopupWidget {
+    background: ${surface.popup};
+}
+
+TimePopupWidget[dwmBorder="true"] QFrame#timePopupSurface {
+    border: none;
+}
+
+TimePopupWidget QFrame#timePopupSurface {
+    background: ${surface.popup};
+    border: 1px solid ${control.border.default};
+}
+
+TimePopupWidget QLabel#popupTitle,
+TimePopupWidget QLabel#popupSectionTitle {
+    color: ${text.secondary};
+    font-size: 12px;
+}
+
 MainMenuView {
     qproperty-iconColor: ${icon.primary};
     qproperty-iconDisabledColor: ${icon.disabled};

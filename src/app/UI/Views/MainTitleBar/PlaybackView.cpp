@@ -1,19 +1,20 @@
 #include "PlaybackView.h"
 
-#include <lite/MusicBase/MusicTime.h>
-
 #include "MainTitleBarIconPalette.h"
 #include <lite/GUI/Controls/ControlGroup.h>
 #include "Controller/AppController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Utils/IconUtils.h>
+#include "UI/Utils/TimecodeFormatUtils.h"
 #include "Utils/FontManager.h"
 #include "TempoComboBox.h"
+#include "TimeComboBox.h"
 #include "TimeSignatureComboBox.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/BottomPanelView.h"
@@ -167,20 +168,19 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
     connect(m_btnAutoPageTurn, &QPushButton::clicked, this,
             [](const bool checked) { editorViewController->setTrackAutoPageTurn(checked); });
 
-    m_elTime = new InlineEditLabel;
+    m_elTime = new TimeComboBox;
     m_elTime->setObjectName("elTime");
     m_elTime->setEditRole(InlineEditLabel::PlaybackPosition);
     m_elTime->setAlignment(Qt::AlignCenter);
-    m_elTime->setText(toFormattedTickTime(m_tick));
+    m_elTime->setFormat(timecodeFormat());
+    m_elTime->setPosition(m_tick);
     m_elTime->setDisplayFont(musicFont);
     m_elTime->setTextMargins({12, 0, 12, 0});
     m_elTime->setFixedHeight(m_contentHeight);
     m_elTime->setCommitValidator([](const QString &text) {
-        bool ok = false;
-        const auto time = MusicTime::fromString(text, &ok);
-        if (!ok)
-            return false;
-        return appModel->timeline().timeToTick(time) >= 0;
+        int tick = 0;
+        return TimecodeFormatUtils::parsePosition(appModel->timeline(), text,
+                                                  appOptions->appearance()->timecodeFormat, &tick);
     });
 
     connect(m_elTempo, &TempoComboBox::popupAboutToShow, this,
@@ -208,20 +208,9 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
                 }
                 updateTimeSignatureView();
             });
-    connect(m_elTime, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
-        bool ok = false;
-        const auto time = MusicTime::fromString(value, &ok);
-        if (!ok)
-            return;
-        const auto tick = appModel->timeline().timeToTick(time);
-        if (tick < 0)
-            return;
-        if (tick != m_tick) {
-            m_tick = tick;
-            emit setPositionTriggered(tick);
-        }
-        updateTimeView();
-    });
+    connect(m_elTime, &TimeComboBox::positionSubmitted, this,
+            [this](const int tick) { emit setPositionTriggered(tick); });
+    connect(m_elTime, &TimeComboBox::formatChanged, this, &PlaybackView::applyTimecodeFormat);
     connect(m_btnPlay, &QPushButton::clicked, this, [this] {
         emit playTriggered();
         updatePlaybackControlView();
@@ -292,6 +281,13 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
             [this] { updateAutoPageTurnButtonView(); });
     connect(appStatus, &AppStatus::trackAutoPageTurnAvailabilityChanged, this,
             [this] { updateAutoPageTurnButtonView(); });
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](const AppOptionsGlobal::Option option) {
+                if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
+                    return;
+                m_elTime->setFormat(timecodeFormat());
+                updateTimeView();
+            });
     updateAutoPageTurnButtonView();
 }
 
@@ -326,8 +322,18 @@ void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
     updatePlaybackControlView();
 }
 
-QString PlaybackView::toFormattedTickTime(int ticks) const {
-    return appModel->timeline().getBarBeatTickTime(ticks);
+AppearanceOption::TimecodeFormat PlaybackView::timecodeFormat() const {
+    return appOptions->appearance()->timecodeFormat;
+}
+
+void PlaybackView::applyTimecodeFormat(const AppearanceOption::TimecodeFormat format) {
+    auto *option = appOptions->appearance();
+    if (option->timecodeFormat == format)
+        return;
+    option->timecodeFormat = format;
+    // The field already switched to the new readout; persisting is best effort,
+    // a failed write keeps the session's choice until the next save.
+    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
 
 int PlaybackView::playheadTempoTick() const {
@@ -368,7 +374,8 @@ void PlaybackView::updateTimeSignatureView() {
 }
 
 void PlaybackView::updateTimeView() {
-    m_elTime->setText(toFormattedTickTime(m_tick));
+    m_elTime->setPosition(m_tick);
+    m_elTime->setFormat(timecodeFormat());
 }
 
 void PlaybackView::updatePlaybackControlView() {

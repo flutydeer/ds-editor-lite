@@ -19,6 +19,7 @@ class PianoRollContextMenuController;
 class PianoKeyboardView;
 class TempoLaneView;
 class TimeSignatureLaneView;
+class TimeAxisLaneView;
 class InfoLaneHeaderView;
 class DividerLine;
 class QVBoxLayout;
@@ -87,8 +88,10 @@ private:
     PhonemeView *m_phonemeView = nullptr;
     TempoLaneView *m_tempoLane = nullptr;
     TimeSignatureLaneView *m_timeSignatureLane = nullptr;
+    TimeAxisLaneView *m_timeLane = nullptr;
     InfoLaneHeaderView *m_tempoLaneHeader = nullptr;
     InfoLaneHeaderView *m_timeSignatureLaneHeader = nullptr;
+    InfoLaneHeaderView *m_timeLaneHeader = nullptr;
     DividerLine *m_laneBottomDivider = nullptr;
     DividerLine *m_laneBottomDividerLeft = nullptr;
     QLabel *m_lbTip = nullptr;

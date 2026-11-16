@@ -17,6 +17,7 @@ private slots:
     void musicTimelineExtremeValues();
     void musicTimelineBarAnchoredSnapping();
     void musicTimelineMusicTimeStrings();
+    void musicTimelineMinSecFormatting();
     void audioAnchorDegenerateEquivalence();
     void audioAnchorRoundTripIdentity();
     void audioAnchorRealTempoChange();

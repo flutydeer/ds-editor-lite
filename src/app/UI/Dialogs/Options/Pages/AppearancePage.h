@@ -31,6 +31,7 @@ private:
     SwitchButton *m_swShowGhostNotes;
     SwitchButton *m_swShowTempoLane;
     SwitchButton *m_swShowTimeSignatureLane;
+    SwitchButton *m_swShowTimeLane;
     QStringList m_fontFamilies;
 };
 

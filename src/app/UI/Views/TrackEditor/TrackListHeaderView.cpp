@@ -12,6 +12,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPushButton>
+#include <QSignalBlocker>
 
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -32,6 +33,13 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     m_laneMenu = new Menu(this);
     m_laneMenu->setObjectName("laneVisibilityMenu");
 
+    // The seconds axis sits directly under the bar/beat ruler, so it leads the
+    // menu the same way it leads the row order.
+    m_actionTimeLane = m_laneMenu->addAction(tr("Time (s) Track"));
+    m_actionTimeLane->setObjectName("actionTimeLane");
+    m_actionTimeLane->setCheckable(true);
+    m_actionTimeLane->setChecked(false);
+
     m_actionTempoLane = m_laneMenu->addAction(tr("Tempo Track"));
     m_actionTempoLane->setObjectName("actionTempoLane");
     m_actionTempoLane->setCheckable(true);
@@ -46,6 +54,7 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
             &TrackListHeaderView::tempoLaneToggled);
     connect(m_actionTimeSignatureLane, &QAction::toggled, this,
             &TrackListHeaderView::timeSignatureLaneToggled);
+    connect(m_actionTimeLane, &QAction::toggled, this, &TrackListHeaderView::timeLaneToggled);
 
     const auto btnLaneOptions = new ToolButton;
     m_btnLaneOptions = btnLaneOptions;
@@ -76,6 +85,10 @@ bool TrackListHeaderView::timeSignatureLaneVisible() const {
     return m_actionTimeSignatureLane->isChecked();
 }
 
+bool TrackListHeaderView::timeLaneVisible() const {
+    return m_actionTimeLane->isChecked();
+}
+
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
 }
@@ -89,5 +102,6 @@ void TrackListHeaderView::changeEvent(QEvent *event) {
         m_btnLaneOptions->setAccessibleName(laneVisibilityText);
         m_actionTempoLane->setText(tr("Tempo Track"));
         m_actionTimeSignatureLane->setText(tr("Time Signature Track"));
+        m_actionTimeLane->setText(tr("Time (s) Track"));
     }
 }
