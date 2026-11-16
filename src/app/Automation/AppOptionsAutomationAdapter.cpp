@@ -986,10 +986,13 @@ namespace Automation {
 
             auto persistedValue = value;
             const auto effective = captureAudioRuntimeState(output);
+            // An empty device name selects the driver's default device at startup, so it is
+            // persisted verbatim instead of the endpoint it resolves to now.
+            const auto followDefaultDevice = patch.deviceName && value.deviceName.isEmpty();
             const auto deviceSelectionChanged = patch.driverName || patch.deviceName;
             if (deviceSelectionChanged) {
                 persistedValue.driverName = effective.driverName;
-                persistedValue.deviceName = effective.deviceName;
+                persistedValue.deviceName = followDefaultDevice ? QString{} : effective.deviceName;
                 persistedValue.adoptedBufferSize = effective.bufferSize;
                 persistedValue.adoptedSampleRate = effective.sampleRate;
             } else {

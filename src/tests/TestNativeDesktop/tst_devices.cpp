@@ -332,6 +332,26 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
              originalBufferSize);
     QCOMPARE(persisted.audio()->obj.value(QStringLiteral("adoptedSampleRate")).toDouble(),
              originalSampleRate);
+    // An empty device name selects the driver's default endpoint and stays empty when persisted,
+    // so a later startup follows the system default instead of pinning the endpoint.
+    const auto defaultDeviceName = deviceContext->driver()->defaultDevice();
+    if (!defaultDeviceName.isEmpty()) {
+        const auto defaultApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName, .deviceName = QString{}});
+        QVERIFY2(defaultApplied,
+                 qPrintable(defaultApplied ? QString{} : defaultApplied.getError().message));
+        QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
+        QCOMPARE(deviceContext->device()->name(), defaultDeviceName);
+        AppOptions persistedDefault;
+        QCOMPARE(persistedDefault.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+                 QString{});
+        const auto concreteApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName, .deviceName = originalDeviceName});
+        QVERIFY2(concreteApplied,
+                 qPrintable(concreteApplied ? QString{} : concreteApplied.getError().message));
+    }
     QCOMPARE(runtime.documentVersion(), beforeSettings);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
     QCOMPARE(historyManager->nextUndoEntry(), settingsUndo);
