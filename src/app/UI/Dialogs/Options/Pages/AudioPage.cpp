@@ -17,7 +17,6 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
 #include "Utils/Decibellinearizer.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
@@ -179,8 +178,7 @@ QWidget *AudioPage::createContentWidget() {
     connect(m_deviceControlPanelButton, &QPushButton::clicked, this, [] {
         if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
             const auto driverName = device->driver()->name();
-            if (SystemUtils::isWindows() &&
-                (driverName == "winmm" || driverName == "directsound" || driverName == "wasapi")) {
+            if (SystemUtils::isWindows() && driverName.startsWith(QStringLiteral("WASAPI"))) {
                 QDesktopServices::openUrl(QUrl("ms-settings:sound"));
             } else
                 device->openControlPanel();
@@ -223,8 +221,8 @@ void AudioPage::updateDriverComboBox() {
 
     auto driverList = outputSys->outputContext()->driverManager()->drivers();
     for (int i = 0; i < driverList.size(); i++) {
-        m_driverComboBox->addItem(
-            talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(driverList[i]), driverList[i]);
+        const auto *driver = outputSys->outputContext()->driverManager()->driver(driverList[i]);
+        m_driverComboBox->addItem(driver ? driver->displayName() : driverList[i], driverList[i]);
         if (outputSys->outputContext()->driver() &&
             driverList[i] == outputSys->outputContext()->driver()->name())
             m_driverComboBox->setCurrentIndex(i);
@@ -243,10 +241,12 @@ void AudioPage::updateDriverComboBox() {
             if (newDrvName.isEmpty())
                 return;
             if (!outputSys->setDriver(newDrvName)) {
+                const auto *driver =
+                    outputSys->outputContext()->driverManager()->driver(newDrvName);
                 QMessageBox::warning(
                     this, {},
                     tr("Cannot initialize %1 driver")
-                        .arg(talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(newDrvName)));
+                        .arg(driver ? driver->displayName() : newDrvName));
                 if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
                     m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
                 } else {
@@ -284,14 +284,6 @@ void AudioPage::updateDeviceComboBox() {
                                       &AudioPage::updateDeviceComboBox);
     bool currentIndexDetermined = false;
 
-    if (!driver->defaultDevice().isEmpty()) {
-        m_deviceComboBox->addItem(tr("Default device"), QString(""));
-        if (outputSys->outputContext()->device() &&
-            outputSys->outputContext()->device()->name().isEmpty()) {
-            currentIndexDetermined = true;
-            m_deviceComboBox->setCurrentIndex(0);
-        }
-    }
     auto deviceList = driver->devices();
     for (int i = 0; i < deviceList.size(); i++) {
         m_deviceComboBox->addItem(deviceList[i], deviceList[i]);
@@ -333,10 +325,8 @@ void AudioPage::updateDeviceComboBox() {
                             break;
                         }
                     }
-                    QMessageBox::warning(
-                        this, {},
-                        tr("Audio device %1 is not available")
-                            .arg(newDevName.isEmpty() ? tr("Default device") : newDevName));
+                    QMessageBox::warning(this, {},
+                                         tr("Audio device %1 is not available").arg(newDevName));
                 } else {
                     if (m_deviceComboBox->itemData(m_deviceComboBox->count() - 1).isNull()) {
                         m_deviceComboBox->removeItem(m_deviceComboBox->count() - 1);
@@ -468,10 +458,7 @@ void AudioPage::retranslateUi() {
             m_driverComboBox->setItemText(i, tr("(Not working)"));
     }
     for (int i = 0; i < m_deviceComboBox->count(); ++i) {
-        if (!m_deviceComboBox->itemData(i).isNull() &&
-            m_deviceComboBox->itemData(i).toString().isEmpty()) {
-            m_deviceComboBox->setItemText(i, tr("Default device"));
-        } else if (m_deviceComboBox->itemData(i).isNull()) {
+        if (m_deviceComboBox->itemData(i).isNull()) {
             const auto device = AudioSystem::outputSystem()->outputContext()->device();
             m_deviceComboBox->setItemText(i, device ? device->name() + tr("(Not working)")
                                                     : tr("(Not working)"));

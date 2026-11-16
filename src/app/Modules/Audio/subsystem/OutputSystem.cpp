@@ -3,6 +3,10 @@
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioDriver.h>
+#include <TalcsDevice/AudioDriverManager.h>
+#ifdef LITE_HAVE_TALCS_ASIO
+#    include <TalcsAsio/ASIOAudioDriver.h>
+#endif
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSettings.h>
@@ -10,6 +14,9 @@
 OutputSystem::OutputSystem(QObject *parent)
     : AbstractOutputSystem(parent), m_outputContext(new talcs::OutputContext) {
     setContext(m_outputContext.get());
+#ifdef LITE_HAVE_TALCS_ASIO
+    m_outputContext->driverManager()->addAudioDriver(new talcs::ASIOAudioDriver);
+#endif
 }
 
 OutputSystem::~OutputSystem() = default;

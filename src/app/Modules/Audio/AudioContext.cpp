@@ -34,6 +34,7 @@
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
+#include <Modules/Audio/subsystem/DeviceLocker.h>
 #include <Modules/Audio/AudioSettings.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -48,7 +49,7 @@
 #include "UI/Controls/LevelMeterManager.h"
 
 #define DEVICE_LOCKER                                                                              \
-    talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
+    DeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
 class AudioFormatIOObject : public QObject, public talcs::AudioFormatIO {
 public:
@@ -636,6 +637,7 @@ void AudioContext::handleClipRemoved(Track *track, const int id, AudioClip *audi
     const auto trackContext = getContextFromTrack(track);
     trackContext->removeAudioClip(id);
     m_audioClipModelDict.remove(audioClip);
+    m_loadedContentPaths.remove(audioClip);
     m_unloadableAudioClips.remove(audioClip);
 }
 
@@ -657,7 +659,7 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip, const bool fo
 
     const bool shouldReloadSource =
         forceSourceReload || (!m_unloadableAudioClips.contains(audioClip) &&
-                              audioClip->path() != audioClipContext->path());
+                              audioClip->path() != m_loadedContentPaths.value(audioClip));
     if (shouldReloadSource) {
         const QFileInfo audioFile(audioClip->path());
         if (!audioFile.isAbsolute() || !audioFile.isFile()) {
@@ -665,7 +667,8 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip, const bool fo
             audioClipContext->controlMixer()->setSilentFlags(-1);
             return;
         }
-        if (!audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName)) {
+        auto *io = formatManager()->getFormatLoad(audioClip->path(), userData, entryClassName);
+        if (!io) {
             m_unloadableAudioClips.insert(audioClip);
             audioClipContext->controlMixer()->setSilentFlags(-1);
             if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
@@ -676,6 +679,8 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip, const bool fo
                     Automation::audioAssetSnapshotDto(*audioClip), AudioClip::PathStatus::Missing);
             }
         } else {
+            audioClipContext->loadAudio(io);
+            m_loadedContentPaths.insert(audioClip, audioClip->path());
             m_unloadableAudioClips.remove(audioClip);
             audioClipContext->controlMixer()->setSilentFlags(shouldSilenceAudioClip(audioClip) ? -1
                                                                                                : 0);

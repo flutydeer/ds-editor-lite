@@ -5,6 +5,7 @@
 
 #include <QElapsedTimer>
 #include <QSet>
+#include <QString>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -79,6 +80,8 @@ private:
 
     QHash<Track *, talcs::DspxTrackContext *> m_trackModelDict;
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
+    // Path currently loaded into each clip context. talcs no longer stores it.
+    QHash<AudioClip *, QString> m_loadedContentPaths;
     QSet<const AudioClip *> m_unloadableAudioClips;
 
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;

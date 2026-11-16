@@ -33,6 +33,10 @@ find_package(SndFile CONFIG REQUIRED)
 set(_platform_links)
 if(WIN32)
     list(APPEND _platform_links dwmapi.lib icu)
+    if(TARGET talcs::Asio)
+        list(APPEND _platform_links talcs::Asio)
+        set(LITE_HAVE_TALCS_ASIO ON)
+    endif()
 elseif(NOT APPLE)
     find_package(ICU COMPONENTS uc REQUIRED)
     list(APPEND _platform_links ICU::uc)
@@ -65,6 +69,9 @@ target_include_directories(EditorRuntime PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}" "${LITE_BUILD_INCLUDE_DIR}" ${INTERVAL_TREE_INCLUDE_DIRS})
 target_compile_features(EditorRuntime PUBLIC cxx_std_20)
 target_compile_definitions(EditorRuntime PUBLIC QT_MESSAGELOGCONTEXT NOMINMAX ONNXRUNTIME_ENABLE_DML)
+if(LITE_HAVE_TALCS_ASIO)
+    target_compile_definitions(EditorRuntime PUBLIC LITE_HAVE_TALCS_ASIO)
+endif()
 target_link_libraries(EditorRuntime PUBLIC
         Qt6::Core
         Qt6::Widgets

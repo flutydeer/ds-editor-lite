@@ -21,9 +21,10 @@
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
+#include <Modules/Audio/subsystem/DeviceLocker.h>
 
 #define DEVICE_LOCKER                                                                              \
-    talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
+    DeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
 TrackInferenceHandler::TrackInferenceHandler(talcs::DspxTrackContext *trackContext, Track *track)
     : DspxTrackInferenceContext(trackContext), m_track(track), m_trackContext(trackContext) {
