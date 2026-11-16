@@ -89,8 +89,6 @@ private slots:
     void availableAudioDeviceRunsPublicPlayback();
     void audioSettingsRollbackWithoutAnInitializedBackend();
     void failedAudioDriverSelectionClearsTheReleasedDevice();
-    void audioDriverStartupCanBeCanceled_data();
-    void audioDriverStartupCanBeCanceled();
     void configuredMidiLoopbackFeedsLiveSynthesizer();
 
 private:

@@ -151,11 +151,11 @@ void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
         QVERIFY(changed);
         QCOMPARE(frames, qint64{8});
         for (int sample = 0; sample < 8; ++sample)
-            QCOMPARE(buffer.sampleAt(0, sample), 0.25f);
+            QCOMPARE(buffer.sample(0, sample), 0.25f);
         series.setNextReadPosition(128);
         QCOMPARE(series.read({&buffer, 0, 8}), qint64{8});
         for (int sample = 0; sample < 8; ++sample)
-            QCOMPARE(buffer.sampleAt(0, sample), 0.5f);
+            QCOMPARE(buffer.sample(0, sample), 0.5f);
     };
     if (futureSources) {
         talcs::FutureAudioSource first(QtFuture::makeReadyValueFuture(
@@ -882,7 +882,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCoreApplication::processEvents();
     QCOMPARE(transport->position(), qint64{24206});
     QCOMPARE(playbackController->position(), 484.12);
-    QVERIFY(buffer.constSampleAt(0, 128) > 0);
+    QVERIFY(buffer.sample(0, 128) > 0);
 
     transport->acquireBuffering();
     bufferHeld = true;
@@ -891,13 +891,13 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCOMPARE(transport->position(), heldPosition);
     for (int channel = 0; channel < buffer.channelCount(); ++channel)
         for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample)
-            QCOMPARE(buffer.constSampleAt(channel, sample), 0.0f);
+            QCOMPARE(buffer.sample(channel, sample), 0.0f);
     transport->releaseBuffering();
     bufferHeld = false;
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
     QCoreApplication::processEvents();
     QCOMPARE(transport->position(), heldPosition + 256);
-    QVERIFY(buffer.constSampleAt(0, 128) > 0);
+    QVERIFY(buffer.sample(0, 128) > 0);
     QVERIFY(invokePlayback(QStringLiteral("playback.pause")));
     qint64 pausedFrames = 0;
     std::thread callback([&] { pausedFrames = audio->preMixer()->read(&buffer); });
@@ -928,7 +928,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
     QCoreApplication::processEvents();
     QCOMPARE(transport->playbackStatus(), talcs::TransportAudioSource::Playing);
-    QVERIFY(buffer.constSampleAt(0, 128) > 0);
+    QVERIFY(buffer.sample(0, 128) > 0);
     QCOMPARE(runtime().documentVersion(), beforePlayback);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto loopVersion = runtime().documentVersion();

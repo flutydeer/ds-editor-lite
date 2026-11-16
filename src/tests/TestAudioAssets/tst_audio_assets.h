@@ -54,4 +54,5 @@ private slots:
     void loadStateCoversPathResolution();
     void loadStateStaysLoadingAcrossTheResolveHandoff();
     void missingClipKeepsItsHintDuringCascadeRetry();
+    void transportLoopWrapKeepsTheNextBlockAligned();
 };
