@@ -162,17 +162,17 @@ docs/           # Chinese-language dev docs (design/ = 已完成的设计契约,
 
 Reuse existing behavior and logic first. When direct reuse is not suitable, consider extending or refactoring the existing implementation before introducing another one. Do not invent replacement behavior or maintain parallel implementations unless necessary and supported by a clear rationale.
 
-## Comments and documentation
+## Comments, documentation, and PR descriptions
 
-Write for readers who have no knowledge of the conversation or implementation process. Describe the current behavior as a coherent whole. Favor stable purposes, contracts, and constraints over changing implementation inventories, without discarding concrete details readers need.
+Write for readers who have no knowledge of the conversation or implementation process. Describe the current behavior or the changes introduced by the PR as a coherent whole. Keep accounts of the implementation and revision process out of PR descriptions. Favor stable purposes, contracts, and constraints over changing implementation inventories, without discarding concrete details readers need.
 
-- Keep conversation context, review replies, debugging notes, obsolete workarounds, and task-specific validation logs out of code comments and product documentation. Put detailed change history in PR descriptions or a dedicated changelog when needed.
+- Keep conversation context, review replies, debugging notes, obsolete workarounds, and task-specific validation logs out of code comments, product documentation, and PR descriptions.
 - Integrate changes into the relevant existing explanation. Rewrite or remove outdated passages instead of appending isolated notes about the latest change. Keep examples, parameter descriptions, and resource instructions consistent with the implementation.
 - Keep comments short and focused on non-obvious reasoning, invariants, constraints, or tradeoffs. Avoid lengthy explanations, restating the code, narrating edits, or comparing against an obsolete implementation.
 - All code comments must use ASCII characters unless a special quotation requires preserving non-ASCII text. Use ASCII punctuation such as `->`, `-`, and `'`.
 - Keep user documentation focused on usage, supported behavior, prerequisites, and meaningful limitations. Include internal details only when they help the intended reader understand or use the system.
 - Use concise, factual language. Avoid promotional claims, exaggerated guarantees, and assertions of complete support or equivalence that the implementation does not establish.
-- In overview prose and cross-module descriptions, avoid inventories of current callers, backends, or dependencies. Keep changing facts in their authoritative source and link to package metadata, workflow definitions, or the relevant reference rather than repeating dependency lists, CI matrices, test inventories, or release numbers. Prefer version-independent examples.
+- In overview prose and cross-module descriptions, avoid inventories of current callers, backends, or dependencies. Keep changing facts in their authoritative source and link to package metadata, workflow definitions, or the relevant reference rather than repeating dependency lists, CI matrices, test inventories, or release numbers. Prefer version-independent examples. In PR descriptions, prefer references that stay current as commits are added.
 - Preserve accurate comments explaining nearby code, including index ranges, data shapes, algorithm steps, and local helper relationships. These can be maintained with the code they describe. Do not generalize or delete them solely because implementation details may change. Retain concrete API/resource requirements, protocol versions, and measurements where readers need them.
 - Preserve required attribution and licensing notices, along with explanations of constraints that still apply. Cleanup should remove noise without discarding useful technical context.
 
