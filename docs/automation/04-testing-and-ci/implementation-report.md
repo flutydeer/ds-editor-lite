@@ -170,14 +170,10 @@ ProcessFixture 统一数据根、配置、访问根、临时文件和子进程�
 | 库 | 补丁 | 修复的上游行为 |
 |---|---|---|
 | talcs | fix-loop-position.patch | 循环跨块回绕后按剩余读取长度推进位置，避免跳采样 |
-| talcs | fix-buffering-mode-position.patch | 预读切换时清理后台读取并恢复位置，直接读取同步推进位置，保证离线导出起点和后续采样连续 |
-| talcs | fix-clip-series-read-serialization.patch | 片段读取与起点/范围修改使用同一互斥，覆盖普通和 Future 片段源 |
-| talcs | fix-sdl-driver-startup-lifetime.patch | SDL 延迟启动绑定驱动生命周期，停止或销毁后不启动旧线程，不覆盖已发出的停止请求 |
-| talcs | fix-asio-com-lifetime.patch | ASIO 只配对释放成功初始化的 COM，处理失败和重复初始化 |
-| talcs | fix-output-device-release.patch | 释放设备前清空基类公开引用，切换驱动失败不遗留悬空设备 |
+| talcs | fix-clip-series-read-serialization.patch | Future 片段源的起点与范围修改补上与读取路径相同的互斥 |
 | RtMidi | fix-coremidi-exception-specification.patch | 移除 CoreMIDI helper 错误的 throw() 规格，使初始化错误可捕获，并释放失败路径的临时 CFString |
 
-talcs 配方基于 v0.1.0，RtMidi 配方基于 6.0.0。Linux manifest 显式请求 RtMidi 的 ALSA 特性。共享端口或上游纳入等价修复后，须经应用回归验证再移除对应覆盖。SynthrtEngine 和 PackageManager 的变化是应用适配层修改，已知 synthrt 遗留问题见测试报告。
+talcs 配方基于上游 `2ad6028f`（2026-11-14，DiffScope 固定的同一提交），重采样改由 `r8brain-free-src` 6.5 提供，RtMidi 配方基于 6.1.0（talcs 的 MIDI 模块使用其 `rt::midi` 命名空间）。随版本升级移除的上游等价修复包括输出设备悬垂引用、预读模式切换位置、SDL 驱动启动生命周期、ASIO COM 释放和 seek-before-open 守卫。Linux manifest 显式请求 RtMidi 的 ALSA 特性以及 talcs 的 ALSA、PulseAudio 后端。共享端口或上游纳入等价修复后，须经应用回归验证再移除对应覆盖。SynthrtEngine 和 PackageManager 的变化是应用适配层修改，已知 synthrt 遗留问题见测试报告。
 
 ## 5. 构建、部署与 CI 行为
 
