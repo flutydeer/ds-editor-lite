@@ -2,10 +2,12 @@
 
 #include "Utils/FontManager.h"
 
+#include <lite/MusicBase/MusicTime.h>
 #include <lite/MusicBase/MusicTimeConverter.h>
 
 #include <QPainter>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -41,6 +43,35 @@ TimeAxisLaneView::TimeAxisLaneView(QWidget *parent) : InfoLaneView(parent) {
     setObjectName("timeAxisLaneView");
 }
 
+int TimeAxisLaneView::divisionStepMs() const {
+    const auto startTick = visibleStartTick();
+    const auto endTick = visibleEndTick();
+    if (width() <= 0 || endTick <= startTick)
+        return qRound(kStepCandidates.front());
+    // The visible window maps linearly onto the row, so this is the pixels-per-tick
+    // of the mapping the divisions are drawn with. A segment lasting
+    // 60000 / (bpm * ticksPerQuarterNote) milliseconds per tick then occupies
+    // pixelsPerTick * bpm * ticksPerQuarterNote / 60000 pixels per millisecond.
+    const auto pixelsPerTick = width() / (endTick - startTick);
+    const auto ticksPerMs = minimumTempoInView() * MusicTime::ticksPerQuarterNote / 60000.0;
+    return qRound(chooseStep(pixelsPerTick * ticksPerMs));
+}
+
+double TimeAxisLaneView::minimumTempoInView() const {
+    const auto startTick = visibleStartTick();
+    const auto endTick = visibleEndTick();
+    const auto &projectTimeline = timeline();
+    auto minimum = projectTimeline.tempoAt(startTick);
+    for (const auto &tempo : projectTimeline.tempos()) {
+        if (tempo.pos <= startTick)
+            continue;
+        if (tempo.pos >= endTick)
+            break;
+        minimum = std::min(minimum, tempo.value);
+    }
+    return minimum;
+}
+
 void TimeAxisLaneView::paintLaneBackground(QPainter *painter) {
     Q_UNUSED(painter);
 }
@@ -59,9 +90,10 @@ void TimeAxisLaneView::paintLaneContent(QPainter *painter) {
         return;
 
     // Tempo changes make milliseconds-per-pixel vary inside the window, so the
-    // step is chosen from the average density and every division is then mapped
-    // back to its own tick instead of assuming a uniform pixel grid.
-    const auto step = chooseStep(width() / spanMs);
+    // step is chosen for the slowest visible tempo (where labels are closest)
+    // and every division is then mapped back to its own tick instead of assuming
+    // a uniform pixel grid.
+    const auto step = divisionStepMs();
     const auto withTenths = step < 1000;
 
     // Same ruler geometry as the bar/beat ruler: labels near the top, ticks

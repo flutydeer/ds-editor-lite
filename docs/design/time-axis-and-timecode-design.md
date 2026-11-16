@@ -76,7 +76,7 @@
 ## 刻度算法
 
 - 候选步长（ms）：`100/200/500/1000/2000/5000/10000/15000/30000/60000/120000/300000/600000/900000/1800000/3600000`，后一档整除前一档，缩放时只增删线不重排。
-- 选档：可见区平均密度 `width / (endMs - startMs)`，取 `step * 像素每毫秒 >= 64` 的最小档，超出则取最粗档。
+- 选档：按**可见区内最慢的速度**算像素密度，取 `step * 像素每毫秒 >= 64` 的最小档，超出则取最粗档。像素每毫秒 = `(width / tickSpan) * bpm * ticksPerQuarterNote / 60000`，慢速段取值最小。标签在慢速段最先挤在一起，而一个只占少量 tick、却占掉大半毫秒的慢速段会让「整窗平均密度」高估好几倍，所以平均密度不能用来选档（`TestApplicationGui::timeAxisLaneStepKeepsLabelsApartAcrossTempos` 固定这一条）。
 - 定位：可见 tick 窗口先经 `timeline.tickToMs` 求 ms 区间，每个刻度再 `timeline.msToTick` 回到 tick、经 `tickToX` 落到像素——**变速点自动正确**，刻度永远落在该秒值真实对应的位置，而不是按平均速度线性铺。
 - 上限：单行最多 2000 个刻度（防御性边界，正常缩放远达不到）。
 
@@ -108,6 +108,7 @@
 | 选项存取 | `TestPreferences::appearanceTimecodeFormatAndTimeLane`（默认值、三值往返、未知值回落、非 bool 忽略） |
 | 弹层交互 | `TestApplicationGui::timePopupEditsPositionAndDisplayFormat`（单击开层、两框一致、秒值改位置、非法输入回滚、播放头跟随、模式切换落盘、内联编辑两种格式、文档不变） |
 | 轨道窗显隐与顺序 | `TestApplicationGui::trackHeaderLaneMenuTogglesBothLanes`（三个菜单项、秒轨排第一、默认隐藏、勾选只切换本窗口且不动钢琴卷帘选项、取消隐藏） |
+| 变速下的刻度密度 | `TestApplicationGui::timeAxisLaneStepKeepsLabelsApartAcrossTempos`（慢速段占比小但毫秒多时，相邻标签仍不小于 64px） |
 | 设置页 | `TestApplicationGui::appearanceInputsPersistAcrossReopening`（新开关存在且落盘） |
 | 钢琴卷帘三轨 | `TestNativeDesktop::rhiPianoNavigationInputsReachTheActiveViewport`（三轨都可见、滚轮都转发给画布） |
 | 设置自动化 | `TestApplicationServices::appearanceSettings`（新字段往返、越界枚举 `InvalidArgument`） |

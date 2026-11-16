@@ -4,6 +4,7 @@
 #include "Automation/CoreRuntime.h"
 #include "UI/Dialogs/Timeline/EditTempoDialog.h"
 #include "UI/Dialogs/Timeline/EditTimeSignatureDialog.h"
+#include "UI/Views/TrackEditor/InfoLane/TimeAxisLaneView.h"
 #include "UI/Views/TrackEditor/InfoLane/TempoLaneView.h"
 #include "UI/Views/TrackEditor/InfoLane/TimeSignatureLaneView.h"
 
@@ -212,4 +213,33 @@ void ApplicationGuiTests::tempoDialogReportsTheBarBeatTickPosition() {
     // on the second bar of the 3/4 section. A fixed 4/4 conversion would print
     // "003:01:096" here.
     QCOMPARE(messageOf(3936), QStringLiteral("003:02:096"));
+}
+
+void ApplicationGuiTests::timeAxisLaneStepKeepsLabelsApartAcrossTempos() {
+    // One slow bar followed by a faster stretch: the slow region holds a tenth of
+    // the visible ticks but a third of its milliseconds, and that is where the
+    // labels crowd first. Choosing the step from the window-average density picks
+    // 500ms here and leaves 40px between labels in the slow region.
+    Timeline timeline;
+    timeline.setTempos({
+        {0,   60.0 },
+        {480, 240.0}
+    });
+    TimeAxisLaneView lane;
+    lane.setTimeline(timeline);
+    lane.resize(800, 28);
+    lane.setTimeRange(0, 4800);
+
+    const auto step = lane.divisionStepMs();
+    // Pixels per millisecond inside the slow region, derived from the geometry
+    // alone: the visible window maps linearly onto the row width.
+    const auto slowTicks = 480.0;
+    const auto slowMs = timeline.tickToMs(slowTicks) - timeline.tickToMs(0.0);
+    const auto slowPixels = lane.width() * slowTicks / 4800.0;
+    const auto slowPixelsPerMs = slowPixels / slowMs;
+    // 64px is the documented minimum spacing between two labels of this row.
+    QVERIFY2(step * slowPixelsPerMs >= 64.0,
+             qPrintable(QStringLiteral("step %1ms leaves %2px between labels in the slow region")
+                            .arg(step)
+                            .arg(step * slowPixelsPerMs)));
 }
