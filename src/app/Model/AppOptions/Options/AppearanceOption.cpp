@@ -28,6 +28,10 @@ void AppearanceOption::load(const QJsonObject &object) {
         showTempoLane = object.value(showTempoLaneKey).toBool();
     if (object.value(showTimeSignatureLaneKey).isBool())
         showTimeSignatureLane = object.value(showTimeSignatureLaneKey).toBool();
+    if (object.value(showTimeLaneKey).isBool())
+        showTimeLane = object.value(showTimeLaneKey).toBool();
+    timecodeFormat =
+        timecodeFormatFromId(object.value(timecodeFormatKey).toString(), timecodeFormat);
 }
 
 void AppearanceOption::save(QJsonObject &object) {
@@ -39,4 +43,29 @@ void AppearanceOption::save(QJsonObject &object) {
     object.insert(showGhostNotesKey, showGhostNotes);
     object.insert(showTempoLaneKey, showTempoLane);
     object.insert(showTimeSignatureLaneKey, showTimeSignatureLane);
+    object.insert(showTimeLaneKey, showTimeLane);
+    object.insert(timecodeFormatKey, timecodeFormatId(timecodeFormat));
+}
+
+QString AppearanceOption::timecodeFormatId(const TimecodeFormat format) {
+    switch (format) {
+        case TimecodeFormat::Time:
+            return QStringLiteral("time");
+        case TimecodeFormat::Both:
+            return QStringLiteral("both");
+        case TimecodeFormat::BarBeatTick:
+            break;
+    }
+    return QStringLiteral("barBeatTick");
+}
+
+AppearanceOption::TimecodeFormat
+    AppearanceOption::timecodeFormatFromId(const QString &id, const TimecodeFormat fallback) {
+    if (id == QStringLiteral("time"))
+        return TimecodeFormat::Time;
+    if (id == QStringLiteral("both"))
+        return TimecodeFormat::Both;
+    if (id == QStringLiteral("barBeatTick"))
+        return TimecodeFormat::BarBeatTick;
+    return fallback;
 }

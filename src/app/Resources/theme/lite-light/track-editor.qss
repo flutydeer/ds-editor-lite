@@ -6,10 +6,17 @@ TimelineView#tracksTimelineView {
     border-top-right-radius: 6px;
 }
 
+/* Lane rows below the ruler draw their top separator here rather than per class:
+   the lane body and its left title must break the row at the same place, so the
+   two panels can never drift apart. */
+InfoLaneView,
+InfoLaneHeaderView {
+    border-top: 1px solid ${border.subtle};
+}
+
 /* Info lanes below the timeline ruler */
 InfoLaneView {
     background: ${editor.canvasAlternate};
-    border-top: 1px solid ${border.subtle};
     qproperty-textColor: ${text.secondary};
     qproperty-markerColor: ${text.secondary};
     qproperty-hoverFillColor: ${control.fill.hover};
@@ -19,10 +26,21 @@ InfoLaneView {
     qproperty-playheadColor: ${editor.playhead};
     qproperty-lastPlayheadColor: ${editor.lastPlayhead};
 }
+/* Seconds time axis: continues the bar/beat ruler, so it takes the ruler's
+   transparent background and its label/tick palette instead of the info lanes'.
+   This rule must follow the InfoLaneView one to win over it; the row separator
+   is inherited from the shared rule above. */
+TimeAxisLaneView {
+    background: transparent;
+    qproperty-textColor: ${editor.playhead};
+    qproperty-minorTextColor: ${timeline.ruler.beatScale};
+    qproperty-barLineColor: ${timeline.ruler.barTick};
+    qproperty-beatLineColor: ${timeline.ruler.beatTick};
+    qproperty-commonLineColor: ${timeline.ruler.subdivisionTo};
+}
 
 InfoLaneHeaderView {
     background: transparent;
-    border-top: 1px solid ${border.subtle};
 }
 
 InfoLaneHeaderView>QLabel {

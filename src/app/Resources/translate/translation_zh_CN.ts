@@ -91,109 +91,114 @@
 <context>
     <name>AppearancePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="112"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="114"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="113"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="115"/>
         <source>Color theme</source>
         <translation>颜色主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="107"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="109"/>
         <source>Light</source>
         <translation>浅色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="108"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="110"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="79"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="81"/>
         <source>Theme switch failed</source>
         <translation>主题切换失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="150"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="152"/>
         <source>Use native frame</source>
         <translation>使用原生边框</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="150"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="152"/>
         <source>App needs a restart to take effect</source>
         <translation>需要重启以生效</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="168"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="170"/>
         <source>Duration scale</source>
         <translation>时长缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="143"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="145"/>
         <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
         <translation>重启应用后设置会生效。要现在重启吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="106"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="108"/>
         <source>System</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="117"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="119"/>
         <source>Default</source>
         <translation>默认</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="135"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="137"/>
         <source>Font</source>
         <translation>字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="136"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="138"/>
         <source>Interface font</source>
         <translation>界面字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="149"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="151"/>
         <source>Window</source>
         <translation>窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="166"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="168"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="167"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="169"/>
         <source>Enable animations</source>
         <translation>启用动画</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="178"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="184"/>
         <source>Piano Roll</source>
         <translation>钢琴卷帘</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="179"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="185"/>
         <source>Show notes from other tracks</source>
         <translation>显示其他轨道的音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="180"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="186"/>
         <source>Displayed as thin bars for reference only</source>
         <translation>以矮条显示，仅供参考</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="181"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="190"/>
         <source>Show tempo track</source>
         <translation>显示曲速轨</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="182"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="191"/>
         <source>Show time signature track</source>
         <translation>显示拍号轨</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="189"/>
+        <source>Show time (s) track</source>
+        <translation>显示时间(秒)轨</translation>
     </message>
 </context>
 <context>
@@ -5446,22 +5451,28 @@ type: %L1</source>
 <context>
     <name>PianoRollView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="87"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="526"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="94"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="545"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="101"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="527"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="108"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="546"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="106"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="528"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="113"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="547"/>
         <source>Time Sig.</source>
         <translation>拍号</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="118"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="548"/>
+        <source>Time (s)</source>
+        <translation>时间(秒)</translation>
     </message>
 </context>
 <context>
@@ -5508,24 +5519,24 @@ type: %L1</source>
 <context>
     <name>PlaybackView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="391"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="398"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="391"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="398"/>
         <source>Waiting for synthesis</source>
         <translation>等待合成</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="129"/>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="416"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="130"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="423"/>
         <source>Loop</source>
         <translation>循环</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="166"/>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="417"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="167"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="424"/>
         <source>Auto Page Turn</source>
         <translation>自动翻页</translation>
     </message>
@@ -6242,6 +6253,44 @@ All current mix settings will be lost.</source>
     </message>
 </context>
 <context>
+    <name>TimePopupWidget</name>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="36"/>
+        <source>Bar:Beat:Tick</source>
+        <translation>小节:节拍:刻</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="40"/>
+        <source>Min:Sec.Ms</source>
+        <translation>分:秒:毫秒</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="41"/>
+        <source>Both</source>
+        <translation>同时显示</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="233"/>
+        <source>Time</source>
+        <translation>时间</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="234"/>
+        <source>Display Mode</source>
+        <translation>显示模式</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="235"/>
+        <source>Bar Beat Tick</source>
+        <translation>小节 拍 Tick</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimePopupWidget.cpp" line="236"/>
+        <source>Minutes Seconds Milliseconds</source>
+        <translation>分钟 秒钟 毫秒</translation>
+    </message>
+</context>
+<context>
     <name>TimeSignatureActions</name>
     <message>
         <location filename="../../Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp" line="24"/>
@@ -6402,41 +6451,53 @@ All current mix settings will be lost.</source>
 <context>
     <name>TrackEditorView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="100"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="463"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="101"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="506"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="111"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="464"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="112"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="507"/>
         <source>Time Signature</source>
         <translation>拍号</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="123"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="508"/>
+        <source>Time (s)</source>
+        <translation>时间(秒)</translation>
     </message>
 </context>
 <context>
     <name>TrackListHeaderView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="56"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="87"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="65"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="100"/>
         <source>Lane Visibility</source>
         <translation>轨道显示</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="26"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="86"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="27"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="99"/>
         <source>New Track</source>
         <translation>新建轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="35"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="90"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="38"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="105"/>
+        <source>Time (s) Track</source>
+        <translation>时间(秒)轨</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="43"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="103"/>
         <source>Tempo Track</source>
         <translation>曲速轨</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="40"/>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="91"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="48"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="104"/>
         <source>Time Signature Track</source>
         <translation>拍号轨</translation>
     </message>

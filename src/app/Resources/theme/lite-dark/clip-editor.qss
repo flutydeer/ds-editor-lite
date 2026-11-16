@@ -266,7 +266,8 @@ QWidget#pianoRollTopLeftSpacing {
    InfoLaneHeaderView rule so the lane separators keep running across the full
    width like the track editor */
 InfoLaneHeaderView#pianoRollTempoLaneHeader,
-InfoLaneHeaderView#pianoRollTimeSignatureLaneHeader {
+InfoLaneHeaderView#pianoRollTimeSignatureLaneHeader,
+InfoLaneHeaderView#pianoRollTimeLaneHeader {
     background: ${piano.roll.background};
 }
 

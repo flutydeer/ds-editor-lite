@@ -44,3 +44,42 @@ void PreferencesTests::appearanceNativeFrameOverride() {
     QCOMPARE(option.effectiveUseNativeFrame(), savedFrame);
     QCOMPARE(option.value().value(QStringLiteral("useNativeFrame")).toBool(), savedFrame);
 }
+
+void PreferencesTests::appearanceTimecodeFormatAndTimeLane() {
+    // Defaults keep the pre-existing readout and hide the seconds time axis.
+    AppearanceOption defaults;
+    QCOMPARE(defaults.timecodeFormat, AppearanceOption::TimecodeFormat::BarBeatTick);
+    QVERIFY(!defaults.showTimeLane);
+    const auto savedDefaults = defaults.value();
+    QCOMPARE(savedDefaults.value(QStringLiteral("timecodeFormat")).toString(),
+             QStringLiteral("barBeatTick"));
+    QVERIFY(!savedDefaults.value(QStringLiteral("showTimeLane")).toBool());
+
+    AppearanceOption loaded;
+    loaded.load(QJsonObject{{QStringLiteral("timecodeFormat"), QStringLiteral("both")},
+                            {QStringLiteral("showTimeLane"), true}});
+    QCOMPARE(loaded.timecodeFormat, AppearanceOption::TimecodeFormat::Both);
+    QVERIFY(loaded.showTimeLane);
+
+    // An unknown id falls back to the default instead of being written back.
+    AppearanceOption unknown;
+    unknown.load(QJsonObject{{QStringLiteral("timecodeFormat"), QStringLiteral("frames")}});
+    QCOMPARE(unknown.timecodeFormat, AppearanceOption::TimecodeFormat::BarBeatTick);
+    QCOMPARE(unknown.value().value(QStringLiteral("timecodeFormat")).toString(),
+             QStringLiteral("barBeatTick"));
+
+    // Non-bool values are ignored and leave the default in place.
+    AppearanceOption malformed;
+    malformed.load(QJsonObject{{QStringLiteral("showTimeLane"), QStringLiteral("yes")}});
+    QVERIFY(!malformed.showTimeLane);
+
+    for (const auto format : {AppearanceOption::TimecodeFormat::BarBeatTick,
+                              AppearanceOption::TimecodeFormat::Time,
+                              AppearanceOption::TimecodeFormat::Both}) {
+        AppearanceOption source;
+        source.timecodeFormat = format;
+        AppearanceOption target;
+        target.load(source.value());
+        QCOMPARE(target.timecodeFormat, format);
+    }
+}

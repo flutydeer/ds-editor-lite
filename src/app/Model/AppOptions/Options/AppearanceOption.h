@@ -7,6 +7,10 @@
 
 class AppearanceOption : public IOption {
 public:
+    // How the transport timecode renders the playhead position: the musical
+    // bar:beat:tick readout, the seconds readout (m:ss.d), or both.
+    enum class TimecodeFormat { BarBeatTick, Time, Both };
+
     explicit AppearanceOption() : IOption("appearance") {
     }
 
@@ -38,6 +42,19 @@ public:
     // the note canvas. Hidden by default.
     bool showTempoLane = false;
     bool showTimeSignatureLane = false;
+    // Seconds time axis in the piano roll, below its ruler. The track editor's
+    // copy is a per-window menu toggle like the tempo and time signature lanes.
+    // Hidden by default, so projects keep the bar/beat-only layout.
+    bool showTimeLane = false;
+    // Transport timecode format; the bar:beat:tick readout stays the default.
+    TimecodeFormat timecodeFormat = TimecodeFormat::BarBeatTick;
+
+    // Stable persisted ids of TimecodeFormat. Unknown ids fall back to the
+    // caller's default instead of being written back verbatim.
+    [[nodiscard]] static QString timecodeFormatId(TimecodeFormat format);
+    [[nodiscard]] static TimecodeFormat
+        timecodeFormatFromId(const QString &id,
+                             TimecodeFormat fallback = TimecodeFormat::BarBeatTick);
 
 protected:
     void save(QJsonObject &object) override;
@@ -51,6 +68,8 @@ private:
     const QString showGhostNotesKey = "showGhostNotes";
     const QString showTempoLaneKey = "showTempoLane";
     const QString showTimeSignatureLaneKey = "showTimeSignatureLane";
+    const QString showTimeLaneKey = "showTimeLane";
+    const QString timecodeFormatKey = "timecodeFormat";
 };
 
 #endif // APPEARANCEOPTION_H

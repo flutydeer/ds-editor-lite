@@ -18,6 +18,7 @@
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "InfoLane/InfoLaneHeaderView.h"
 #include "InfoLane/TempoLaneView.h"
+#include "InfoLane/TimeAxisLaneView.h"
 #include "InfoLane/TimeSignatureLaneView.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -111,6 +112,21 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
     m_timeSignatureLaneHeader->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
 
+    m_timeLane = new TimeAxisLaneView;
+    m_timeLane->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
+    m_timeLane->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    m_timeLane->setQuantize(128);
+    m_timeLane->setTimeRange(initialStartTick, initialEndTick);
+
+    m_timeLaneHeader = new InfoLaneHeaderView;
+    m_timeLaneHeader->setObjectName("timeLaneHeaderView");
+    m_timeLaneHeader->setTitle(tr("Time (s)"));
+    m_timeLaneHeader->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
+    // The seconds axis starts hidden; the tempo and time signature lanes stay
+    // visible. Each window keeps its own toggle, like those two lanes.
+    m_timeLane->setVisible(false);
+    m_timeLaneHeader->setVisible(false);
+
     const auto trackListHeader = new TrackListHeaderView;
     const auto trackListArea = new TrackAreaView(m_trackListView);
     m_trackCanvasArea = new TrackAreaView(editorWidget);
@@ -119,6 +135,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackListPanelLayout->setContentsMargins({});
     trackListPanelLayout->setSpacing(0);
     trackListPanelLayout->addWidget(trackListHeader);
+    trackListPanelLayout->addWidget(m_timeLaneHeader);
     trackListPanelLayout->addWidget(m_tempoLaneHeader);
     trackListPanelLayout->addWidget(m_timeSignatureLaneHeader);
     trackListPanelLayout->addWidget(trackListArea);
@@ -127,6 +144,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackTimelineAndViewLayout->setContentsMargins({});
     trackTimelineAndViewLayout->setSpacing(0);
     trackTimelineAndViewLayout->addWidget(m_timeline);
+    trackTimelineAndViewLayout->addWidget(m_timeLane);
     trackTimelineAndViewLayout->addWidget(m_tempoLane);
     trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
     trackTimelineAndViewLayout->addWidget(m_trackCanvasArea);
@@ -194,6 +212,11 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             [this](const bool visible) {
                 m_timeSignatureLaneHeader->setVisible(visible);
                 m_timeSignatureLane->setVisible(visible);
+            });
+    connect(trackListHeader, &TrackListHeaderView::timeLaneToggled, this,
+            [this](const bool visible) {
+                m_timeLaneHeader->setVisible(visible);
+                m_timeLane->setVisible(visible);
             });
     connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &TrackEditorView::onPositionChanged);
@@ -265,6 +288,8 @@ void TrackEditorView::connectLegacyBackend() {
             &InfoLaneView::setTimeRange);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeSignatureLane,
             &InfoLaneView::setTimeRange);
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeLane,
+            &InfoLaneView::setTimeRange);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_graphicsView,
@@ -282,6 +307,14 @@ void TrackEditorView::connectLegacyBackend() {
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
             &TracksGraphicsView::onWheelHorScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
+            &TracksGraphicsView::onWheelVerScroll);
+    connect(m_timeLane, &InfoLaneView::wheelHorScale, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScale);
+    connect(m_timeLane, &InfoLaneView::wheelVerScale, m_graphicsView,
+            &TracksGraphicsView::onWheelVerScale);
+    connect(m_timeLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScroll);
+    connect(m_timeLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
             &TracksGraphicsView::onWheelVerScroll);
     connect(m_trackListView, &TrackListView::wheelVerScale, m_graphicsView,
             &TracksGraphicsView::onWheelVerScale);
@@ -327,6 +360,8 @@ void TrackEditorView::connectRhiBackend() {
             &InfoLaneView::setTimeRange);
     connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_timeSignatureLane,
             &InfoLaneView::setTimeRange);
+    connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_timeLane,
+            &InfoLaneView::setTimeRange);
     connect(m_timeline, &TimelineView::wheelHorScale, m_rhiView, &TracksRhiWidget::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_rhiView,
             &TracksRhiWidget::onWheelHorScale);
@@ -343,6 +378,14 @@ void TrackEditorView::connectRhiBackend() {
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_rhiView,
             &TracksRhiWidget::onWheelHorScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_rhiView,
+            &TracksRhiWidget::onWheelVerScroll);
+    connect(m_timeLane, &InfoLaneView::wheelHorScale, m_rhiView,
+            &TracksRhiWidget::onWheelHorScale);
+    connect(m_timeLane, &InfoLaneView::wheelVerScale, m_rhiView,
+            &TracksRhiWidget::onWheelVerScale);
+    connect(m_timeLane, &InfoLaneView::wheelHorScroll, m_rhiView,
+            &TracksRhiWidget::onWheelHorScroll);
+    connect(m_timeLane, &InfoLaneView::wheelVerScroll, m_rhiView,
             &TracksRhiWidget::onWheelVerScroll);
     connect(m_trackListView, &TrackListView::wheelVerScale, m_rhiView,
             &TracksRhiWidget::onWheelVerScale);
@@ -462,6 +505,7 @@ void TrackEditorView::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         m_tempoLaneHeader->setTitle(tr("Tempo"));
         m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
+        m_timeLaneHeader->setTitle(tr("Time (s)"));
         // Refresh legacy clip-card titles (singer/speaker display names) so
         // they follow the new UI language immediately. The RHI backend takes
         // care of itself via TracksRhiWidget::event -> scheduleSnapshot.

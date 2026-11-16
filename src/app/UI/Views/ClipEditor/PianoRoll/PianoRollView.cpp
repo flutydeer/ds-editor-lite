@@ -14,6 +14,7 @@
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Views/TrackEditor/InfoLane/InfoLaneHeaderView.h"
 #include "UI/Views/TrackEditor/InfoLane/TempoLaneView.h"
+#include "UI/Views/TrackEditor/InfoLane/TimeAxisLaneView.h"
 #include "UI/Views/TrackEditor/InfoLane/TimeSignatureLaneView.h"
 
 #include <lite/GUI/Controls/DividerLine.h>
@@ -67,11 +68,17 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_timeSignatureLane->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_timeSignatureLane->setQuantize(appStatus->pianoRollQuantize);
     m_timeSignatureLane->setTimeRange(startTick(), endTick());
+    m_timeLane = new TimeAxisLaneView;
+    m_timeLane->setFixedHeight(infoLaneHeight);
+    m_timeLane->setPixelsPerQuarterNote(pixelsPerQuarterNote);
+    m_timeLane->setQuantize(appStatus->pianoRollQuantize);
+    m_timeLane->setTimeRange(startTick(), endTick());
     // setQuantize lives on ITimelinePainter, so Qt cannot connect it with a
     // lane receiver directly; route both lanes through one lambda instead
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this, [this](const int quantize) {
         m_tempoLane->setQuantize(quantize);
         m_timeSignatureLane->setQuantize(quantize);
+        m_timeLane->setQuantize(quantize);
     });
 
     m_keyboardView = new PianoKeyboardView;
@@ -106,6 +113,11 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_timeSignatureLaneHeader->setTitle(tr("Time Sig."));
     m_timeSignatureLaneHeader->setTitleMargins(6, 2);
     m_timeSignatureLaneHeader->setFixedHeight(infoLaneHeight);
+    m_timeLaneHeader = new InfoLaneHeaderView;
+    m_timeLaneHeader->setObjectName("pianoRollTimeLaneHeader");
+    m_timeLaneHeader->setTitle(tr("Time (s)"));
+    m_timeLaneHeader->setTitleMargins(6, 2);
+    m_timeLaneHeader->setFixedHeight(infoLaneHeight);
 
     // Separator between the lane region and the canvas/keyboard, mirroring the
     // track area's top divider in the track editor; shown only with a lane
@@ -129,6 +141,7 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     pianoKeyboardLayout->setContentsMargins(0, 0, 0, 0);
     pianoKeyboardLayout->setSpacing(0);
     pianoKeyboardLayout->addWidget(topLeftSpacing);
+    pianoKeyboardLayout->addWidget(m_timeLaneHeader);
     pianoKeyboardLayout->addWidget(m_tempoLaneHeader);
     pianoKeyboardLayout->addWidget(m_timeSignatureLaneHeader);
     pianoKeyboardLayout->addWidget(m_laneBottomDividerLeft);
@@ -139,6 +152,7 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_rightLayout->setContentsMargins(0, 0, 0, 0);
     m_rightLayout->setSpacing(0);
     m_rightLayout->addWidget(m_timelineView);
+    m_rightLayout->addWidget(m_timeLane);
     m_rightLayout->addWidget(m_tempoLane);
     m_rightLayout->addWidget(m_timeSignatureLane);
     m_rightLayout->addWidget(m_laneBottomDivider);
@@ -172,6 +186,7 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     };
     connectInfoLaneWheel(m_tempoLane);
     connectInfoLaneWheel(m_timeSignatureLane);
+    connectInfoLaneWheel(m_timeLane);
     connect(m_keyboardView, &PianoKeyboardView::wheelScroll, this, [this](QWheelEvent *event) {
         if (m_rhiView)
             m_rhiView->onWheelVerScale(event);
@@ -257,6 +272,8 @@ void PianoRollView::connectLegacyBackend() {
             &InfoLaneView::setTimeRange);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeSignatureLane,
             &InfoLaneView::setTimeRange);
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeLane,
+            &InfoLaneView::setTimeRange);
     connect(m_graphicsView, &PianoRollGraphicsView::keyRangeChanged, m_keyboardView,
             &PianoKeyboardView::setKeyRange);
     connect(m_graphicsView, &PianoRollGraphicsView::keyHovered, m_keyboardView,
@@ -290,6 +307,8 @@ void PianoRollView::connectRhiBackend() {
     connect(m_rhiView, &PianoRollRhiWidget::timeRangeChanged, m_tempoLane,
             &InfoLaneView::setTimeRange);
     connect(m_rhiView, &PianoRollRhiWidget::timeRangeChanged, m_timeSignatureLane,
+            &InfoLaneView::setTimeRange);
+    connect(m_rhiView, &PianoRollRhiWidget::timeRangeChanged, m_timeLane,
             &InfoLaneView::setTimeRange);
     connect(m_rhiView, &PianoRollRhiWidget::keyRangeChanged, m_keyboardView,
             &PianoKeyboardView::setKeyRange);
@@ -526,6 +545,7 @@ void PianoRollView::changeEvent(QEvent *event) {
         m_lbTip->setText(tr("Select a singing clip to edit"));
         m_tempoLaneHeader->setTitle(tr("Tempo"));
         m_timeSignatureLaneHeader->setTitle(tr("Time Sig."));
+        m_timeLaneHeader->setTitle(tr("Time (s)"));
     }
 }
 
@@ -552,13 +572,16 @@ void PianoRollView::updateInfoLanesVisibility() const {
     const auto *option = appOptions->appearance();
     const bool tempoVisible = m_clip != nullptr && option->showTempoLane;
     const bool timeSignatureVisible = m_clip != nullptr && option->showTimeSignatureLane;
+    const bool timeVisible = m_clip != nullptr && option->showTimeLane;
     m_tempoLane->setVisible(tempoVisible);
     m_timeSignatureLane->setVisible(timeSignatureVisible);
+    m_timeLane->setVisible(timeVisible);
     m_tempoLaneHeader->setVisible(tempoVisible);
     m_timeSignatureLaneHeader->setVisible(timeSignatureVisible);
+    m_timeLaneHeader->setVisible(timeVisible);
     // The divider separates the lane region from the canvas, so it follows the
-    // lanes instead of staying visible while both are hidden
-    const bool anyLaneVisible = tempoVisible || timeSignatureVisible;
+    // lanes instead of staying visible while all of them are hidden
+    const bool anyLaneVisible = tempoVisible || timeSignatureVisible || timeVisible;
     m_laneBottomDivider->setVisible(anyLaneVisible);
     m_laneBottomDividerLeft->setVisible(anyLaneVisible);
 }

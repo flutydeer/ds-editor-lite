@@ -90,6 +90,13 @@ namespace Automation {
                 return AutomationError::invalidArgument(QStringLiteral("theme_id"),
                                                         QStringLiteral("Theme ID is empty"));
             }
+            if (settings.timecodeFormat != TimecodeFormat::BarBeatTick &&
+                settings.timecodeFormat != TimecodeFormat::Time &&
+                settings.timecodeFormat != TimecodeFormat::Both) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("timecode_format"),
+                    QStringLiteral("Transport timecode format is invalid"));
+            }
             return AutomationUnit{};
         }
 

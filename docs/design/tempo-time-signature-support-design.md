@@ -102,6 +102,7 @@
 - **撤销**：插入/删除/改值三类语义统一由 `EditTimeSignaturesAction` 整序列替换实现（`TimeSignatureActions::setTimeSignatureAt/removeTimeSignatureAt`，undo 栈名称区分三类；无变化时不产生记录）；单点 `EditTimeSignatureAction` 已删除。控制器入口 `AppController::onSetTimeSignatureAt/onRemoveTimeSignatureAt`
 - **标题栏**：`TimeSignatureComboBox` 显示/编辑**播放头所在段**，编辑开始（popup 打开或行内编辑）时快照所在段小节号，播放中改动落在快照段上
 - 已知小项：拍号轨行与轨道列表间分隔线与列表自带上边框叠加（视觉略粗，待打磨）
+- 后续复用：第三类信息轨（时间（秒）轨，即区别于 tick 的秒坐标时间轴）已按同一基类落地，排在标尺正下方、曲速轨之前，见 [time-axis-and-timecode-design.md](time-axis-and-timecode-design.md)，`InfoLaneView` 为此新增了 `paintLaneBackground` / `paintLaneContent` 两个绘制钩子
 
 ---
 

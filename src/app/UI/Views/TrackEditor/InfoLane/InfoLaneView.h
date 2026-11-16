@@ -50,6 +50,16 @@ protected:
     [[nodiscard]] int chipIndexAt(const QPoint &pos) const; // -1 when on blank
     [[nodiscard]] double tickToX(double tick) const;
     [[nodiscard]] double xToTick(double x) const;
+    // Tick window the lane is currently mapped onto, as received from the
+    // canvas. Lanes that paint something other than markers need it to derive
+    // their own scale.
+    [[nodiscard]] double visibleStartTick() const;
+    [[nodiscard]] double visibleEndTick() const;
+    // Theme colors for lane-body painting (QSS-overridable via qproperty-*)
+    [[nodiscard]] QColor textColor() const;
+    [[nodiscard]] QColor barLineColor() const;
+    [[nodiscard]] QColor beatLineColor() const;
+    [[nodiscard]] QColor commonLineColor() const;
 
     // Interaction hooks; base implementations do nothing
     virtual void chipDoubleClicked(const Chip &chip);
@@ -61,6 +71,13 @@ protected:
     void drawBar(QPainter *painter, int tick, int bar) override;
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawSubdivision(QPainter *painter, int tick, int level, int levelCount) override;
+
+    // Lane body painting, in painting order. The default background repeats the
+    // arrangement canvas' bar/beat grid and the default content draws the chip
+    // row; a lane that is not a marker list (for example the seconds time axis)
+    // overrides them instead of duplicating the playhead/theme plumbing.
+    virtual void paintLaneBackground(QPainter *painter);
+    virtual void paintLaneContent(QPainter *painter);
 
     void paintEvent(QPaintEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
@@ -75,18 +92,16 @@ private:
     void setPosition(double tick);
     void setLastPosition(double tick);
 
-    // Theme color accessors (QSS-overridable via qproperty-*)
-    [[nodiscard]] QColor textColor() const;
+    // Theme color accessors (QSS-overridable via qproperty-*). textColor,
+    // barLineColor, beatLineColor and commonLineColor are declared above with the
+    // lane-body hooks because lanes other than the chip list paint with them too.
     void setTextColor(const QColor &color);
     [[nodiscard]] QColor markerColor() const;
     void setMarkerColor(const QColor &color);
     [[nodiscard]] QColor hoverFillColor() const;
     void setHoverFillColor(const QColor &color);
-    [[nodiscard]] QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
-    [[nodiscard]] QColor beatLineColor() const;
     void setBeatLineColor(const QColor &color);
-    [[nodiscard]] QColor commonLineColor() const;
     void setCommonLineColor(const QColor &color);
     [[nodiscard]] QColor playheadColor() const;
     void setPlayheadColor(const QColor &color);

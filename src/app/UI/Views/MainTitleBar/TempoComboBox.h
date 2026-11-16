@@ -1,13 +1,11 @@
 #ifndef TEMPOCOMBOBOX_H
 #define TEMPOCOMBOBOX_H
 
-#include <lite/GUI/Controls/InlineEditLabel.h>
+#include "UI/Views/Common/PopupInlineEditLabel.h"
 
 class TempoPopupWidget;
-class QMouseEvent;
-class QTimer;
 
-class TempoComboBox : public InlineEditLabel {
+class TempoComboBox : public PopupInlineEditLabel {
     Q_OBJECT
 
 public:
@@ -17,24 +15,15 @@ public:
     void setTempo(double tempo);
 
 signals:
-    void popupAboutToShow();
     void tempoChanged(double tempo);
 
 protected:
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseDoubleClickEvent(QMouseEvent *event) override;
-    bool eventFilter(QObject *watched, QEvent *event) override;
+    void preparePopup() override;
+    void presentPopup(const QPoint &globalPos) override;
 
 private:
-    void showPopup();
-    void hidePopup();
-    void setPopupVisible(bool visible);
-
     TempoPopupWidget *m_popup = nullptr;
-    QTimer *m_clickTimer = nullptr;
     double m_tempo = 120.0;
-    bool m_ignoreNextShow = false;
-    bool m_hidingPopupFromCombo = false;
 };
 
 #endif // TEMPOCOMBOBOX_H

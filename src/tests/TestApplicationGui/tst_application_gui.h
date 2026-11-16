@@ -263,6 +263,7 @@ private slots:
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
+    void timePopupEditsPositionAndDisplayFormat();
     void timelineLaneInputsEditAndRemoveMarkers_data();
     void timelineLaneInputsEditAndRemoveMarkers();
     void tempoDialogReportsTheBarBeatTickPosition();

@@ -667,6 +667,18 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         QCOMPARE(appearance.value(QStringLiteral("themeId")).toString(),
                  ThemeIds::lightThemePreferenceId());
         QCOMPARE(appearance.value(QStringLiteral("uiFontFamily")).toString(), fontFamily);
+
+        // The seconds-axis lane switch owns the same option the track-editor lane
+        // menu writes, so toggling it here must persist immediately.
+        auto *timeLane = panel.findChild<SwitchButton *>("appearanceShowTimeLane");
+        QVERIFY(timeLane);
+        page->ensureWidgetVisible(timeLane);
+        const auto timeLaneBefore = runtime.settings().getSettings().get().appearance.showTimeLane;
+        QCOMPARE(timeLane->value(), timeLaneBefore);
+        QTest::mouseClick(timeLane, Qt::LeftButton);
+        QCOMPARE(runtime.settings().getSettings().get().appearance.showTimeLane, !timeLaneBefore);
+        QTest::mouseClick(timeLane, Qt::LeftButton);
+        QCOMPARE(runtime.settings().getSettings().get().appearance.showTimeLane, timeLaneBefore);
         panel.close();
     }
 

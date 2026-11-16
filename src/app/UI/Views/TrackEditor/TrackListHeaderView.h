@@ -15,10 +15,12 @@ public:
 
     [[nodiscard]] bool tempoLaneVisible() const;
     [[nodiscard]] bool timeSignatureLaneVisible() const;
+    [[nodiscard]] bool timeLaneVisible() const;
 
 signals:
     void tempoLaneToggled(bool visible);
     void timeSignatureLaneToggled(bool visible);
+    void timeLaneToggled(bool visible);
 
 private:
     void changeEvent(QEvent *event) override;
@@ -29,6 +31,7 @@ private:
     QMenu *m_laneMenu = nullptr;
     QAction *m_actionTempoLane = nullptr;
     QAction *m_actionTimeSignatureLane = nullptr;
+    QAction *m_actionTimeLane = nullptr;
 };
 
 

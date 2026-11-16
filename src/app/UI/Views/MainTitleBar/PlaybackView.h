@@ -5,11 +5,13 @@
 #include <QWidget>
 
 #include "Global/PlaybackGlobal.h"
+#include "Model/AppOptions/Options/AppearanceOption.h"
 #include "TitleBarSections.h"
 
 class QPushButton;
 class TempoComboBox;
 class TimeSignatureComboBox;
+class TimeComboBox;
 class InlineEditLabel;
 
 using namespace PlaybackGlobal;
@@ -69,7 +71,7 @@ private:
     QPushButton *m_btnPlayPause = nullptr;
     QPushButton *m_btnLoop = nullptr;
     QPushButton *m_btnAutoPageTurn = nullptr;
-    InlineEditLabel *m_elTime = nullptr;
+    TimeComboBox *m_elTime = nullptr;
 
     double m_tempo = 120;
     int m_numerator = 4;
@@ -86,7 +88,10 @@ private:
     int m_contentHeight = 28;
     QSize m_iconSize = QSize(16, 16);
 
-    QString toFormattedTickTime(int ticks) const;
+    // Format the transport readout currently uses (persisted appearance option).
+    [[nodiscard]] AppearanceOption::TimecodeFormat timecodeFormat() const;
+    // Persist a format picked in the popup and apply it to the field.
+    void applyTimecodeFormat(AppearanceOption::TimecodeFormat format);
     // Tick of the tempo point governing the playhead position.
     [[nodiscard]] int playheadTempoTick() const;
     // Sync the displayed tempo with the playhead's segment.
