@@ -1,28 +1,8 @@
-# 主题语义 Token Map（初稿）
+# 主题语义 Token
 
-> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **192 个 semantic token**。
->
-> 本稿确定职责和状态接口。`lite-dark/colors.json` 中的值主要来自现有视觉基线，新增状态使用
-> 临近颜色占位，均不代表最终配色已经定稿。
+语义 token 表示表面、文本、控件状态和图表元素的视觉职责。具体色值与可用键以浅色的 [`colors.json`](../../src/app/Resources/theme/lite-light/colors.json) 和深色的 [`colors.json`](../../src/app/Resources/theme/lite-dark/colors.json) 为准。新增 token 应对应独立的视觉职责。
 
-Phase 3 已将时间线、轨道编辑器、钢琴卷帘/参数编辑器、混音台和对话框中的普通 QSS 颜色及
-`qproperty-*` 颜色属性接入本表。FillLyric 的复合字符串
-属性保留独立 QssParser 格式；Phase 4 起其 `qproperty-*` 复合值可直接使用 `${token}`
-占位符（由 `ThemeColorResolver` 展开为十六进制字面量后经 `QssParser` 解析），旧
-`r,g,b,a[,width]` 写法继续兼容。FillLyric 目前使用的 token 见
-`theme-qproperty-checklist.md` 的 lyricwrapview.qss 一节。
-
-## 第一轮审查结果
-
-- `surface.popup` 仅用于菜单、下拉列表等可交互浮层，Toast 和 ToolTip 改用组件 token；
-- 删除职责不明确的 `surface.canvas`；音乐编辑画布统一使用 `editor.canvas`；
-- 文本收缩为 `primary / secondary / emphasis / onAccent / link` 五类；
-- `control` 只收录当前确实存在独立表现的 fill、border、foreground 状态；
-- Timeline 的 running 状态拆成正弦脉动所需的 low/high 两个端点；
-- 原 `mixer.mute/solo` 改成轨道、片段和混音台可共享的按钮变体。
-
-第一版不追求预先覆盖所有状态。迁移中发现新的独立语义时允许增量增加 token，但不能用已有
-token 表达不相干的职责。
+普通 QSS 颜色和 `qproperty-*` 颜色可用 `${token}`。FillLyric 的复合属性可在原有 `QssParser` 格式中使用 `${token}`，由 `ThemeColorResolver` 展开为十六进制色值。旧 `r,g,b,a[,width]` 写法继续兼容。属性用法见 [qproperty 清单](theme-qproperty-checklist.md)的 `lyricwrapview.qss` 一节。
 
 ## 命名与分层
 
@@ -41,9 +21,9 @@ token 表达不相干的职责。
 }
 ```
 
-- `palette` 是主题内部的 primitive，名称可以表达色阶，只允许颜色字面量；
-- `tokens` 是稳定接口，允许颜色字面量或精确别名 `{name}`；
-- QSS 使用 `${surface.sunken}`，禁止 `${neutral.800}`；
+- `palette` 是主题内部的 primitive，名称可以表达色阶，只允许颜色字面量。
+- `tokens` 是稳定接口，允许颜色字面量或精确别名 `{name}`。
+- QSS 使用 `${surface.sunken}`，禁止 `${neutral.800}`。
 - v1 不支持颜色计算表达式。浅色与深色主题分别显式给出 token 值。
 
 ## 通用 UI Token
@@ -99,22 +79,22 @@ Toast、ToolTip 不使用 `surface.popup`，见后文组件 token。
 | `pressed` | 未选中且按下 |
 | `disabled` | 未选中且禁用 |
 | `checked` | 选中/开启 |
-| `checkedHover` | 选中且悬停；当前只在填充中需要独立值 |
-| `checkedPressed` | 选中且按下；当前填充和前景需要独立值 |
-| `checkedDisabled` | 选中且禁用；当前填充和前景需要独立值 |
+| `checkedHover` | 选中且悬停。当前只在填充中需要独立值 |
+| `checkedPressed` | 选中且按下。当前填充和前景需要独立值 |
+| `checkedDisabled` | 选中且禁用。当前填充和前景需要独立值 |
 
 第一版 token 为：
 
 - `control.fill.default / hover / pressed / disabled / checked / checkedHover / checkedPressed /
-  checkedDisabled`；
-- `control.border.default / hover / pressed / focus / disabled / checked`；
+  checkedDisabled`。
+- `control.border.default / hover / pressed / focus / disabled / checked`。
 - `control.foreground.default / pressed / disabled / checked / checkedPressed / checkedDisabled`。
 
 没有独立 token 的状态直接复用最接近的已有状态。例如 hover 前景复用 `default`，
 checkedHover 前景复用 `checked`。只有设计或现有样式要求不同颜色时才增加新 token。
 
 特殊控件可以直接使用矩阵的一部分，也可以在组件层覆盖。例如 TagButton 可覆盖 checked 描边，
-Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵。
+Mute/Solo 可覆盖 checked 色相。未覆盖的状态继续使用通用矩阵。
 
 ### Accent、Selection、Status 与 Layer
 
@@ -149,7 +129,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `toast.text` | Toast 消息文本，可引用 `text.emphasis` |
 | `tooltip.background` | ToolTip 背景 |
 | `tooltip.border` | ToolTip 描边 |
-| `tooltip.text` | ToolTip 辅助说明文本；标题仍可使用 `text.emphasis` |
+| `tooltip.text` | ToolTip 辅助说明文本。标题仍可使用 `text.emphasis` |
 
 ### 通用组件补充
 
@@ -241,7 +221,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `meter.warning` | 已进入警告阈值、但尚未临界的电平段 |
 | `meter.critical` | 临界电平段 |
 | `meter.clipped` | 削波指示 |
-| `meter.readout` | hover 读数文本与悬停线（非主填充；主填充是 safe/warning/critical 渐变） |
+| `meter.readout` | hover 读数文本与悬停线（非主填充。主填充是 safe/warning/critical 渐变） |
 | `meter.readoutBack` | 读数背板 |
 | `meter.peakHold` | 峰值保持线 |
 | `meter.trackBack` | 轨道控制区电平表背景 |
@@ -300,7 +280,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `speakerMix.plot.selectionFill` | 声线混合框选填充 |
 | `mix.fader.trackInactive` | 增益推子未激活轨道 |
 | `mix.fader.thumbFill` | 增益推子手柄填充 |
-| `mix.fader.thumbBorder` | 增益推子手柄描边（浅色主题中性灰勾边；深色主题透明保持无描边） |
+| `mix.fader.thumbBorder` | 增益推子手柄描边（浅色主题中性灰勾边。深色主题透明保持无描边） |
 | `mix.pan.centerGraduate` | 声像滑杆中心刻度线 |
 
 ### Mute / Solo Button Variant
@@ -316,29 +296,22 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 `checkedDisabled`，只有发现 Mute/Solo 需要特殊禁用表现时才增加组件 token。
 
 Mute/Solo 当前采用无描边组件契约。`control.border.*` 表示可使用的颜色职责，不要求所有控件
-都声明 border；需要无描边的控件应直接使用 `border: none`，不使用透明描边模拟。
+都声明 border。需要无描边的控件应直接使用 `border: none`，不使用透明描边模拟。
 
-## 暂不进入 Token Map
+## 其他样式数据
 
-- `app-color-palette.json` 的 12 个轨道、音符、说话人业务色；
-- 尺寸、圆角、间距、字体等非颜色属性；
-- 根据业务色动态计算的“色块上前景”。当前白色选择边框先按过渡项迁移，后续单独设计
-  对比度策略；
-- 自动生成 hover/pressed 的公式。v1 使用显式值，等深浅主题稳定后再评估 recipe 层；
-- Timeline 脉动过程中的中间色；主题只提供 low/high 端点。
-- **代码内硬编码色**：`PackageItemDelegate`（已改由 paint 时查询
-  `text.primary`/`text.secondary`/`selection.text`，回退到 option palette）、
-  `LogWindowModel::data()` 的级别色（查询 `status.success/info/warning/error`）、
-  SpeakerMix 下拉禁用项前景（改回主题 disabled palette）、QRhi 控件、12 色业务调色板
-  的动态前景等；此类颜色按本次修订在 `theme-color-inventory.md` 中归类说明。
+- `app-color-palette.json` 的 12 个轨道、音符、说话人业务色。
+- 尺寸、圆角、间距、字体等非颜色属性。
+- 根据业务色动态计算的“色块上前景”由使用该业务色的控件决定。
+- 悬停和按下颜色在主题中显式定义。
+- Timeline 脉动过程中的中间色。主题只提供 low/high 端点。
 
-## 已确认的迁移原则
+## Token 职责
 
 1. `text.emphasis` 表示比普通正文更需要视觉优先级的文本，可用于歌手标题和透明控件悬停
-   前景；
-2. Control token 按当前实际状态收录，后续设计出现新差异时再增量扩展；
-3. Mute/Solo 是通用按钮的 checked 变体，未选中和禁用状态复用 `control.*`；
+   前景。
+2. Control token 按当前实际状态收录，后续设计出现新差异时再增量扩展。
+3. Mute/Solo 是通用按钮的 checked 变体，未选中和禁用状态复用 `control.*`。
 4. 保留 `meter.warning`：LevelMeter 本身存在 safe、warn、critical 三个阈值区间，颜色不决定
-   区间语义；
-5. QSS 迁移保持整体视觉层级和状态差异，不要求像素级一致；职责相同的历史近似色可以归并，
-   统一配色留到后续调色阶段。
+   区间语义。
+5. 配色调整保留视觉层级和状态差异。同一视觉职责可共用 token。

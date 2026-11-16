@@ -33,7 +33,7 @@ public:
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
     Property<QString>
-        languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
+        languageModuleError; // Language engine startup failure, stored only at runtime.
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
     // Runtime-only: the execution provider named in appConfig.json that this
     // machine could not use. The inference engine resets it to CPU during
@@ -60,12 +60,12 @@ public:
     // Piano roll viewport (tick range x, keyIndex range y); null rect = invalid
     Property<QRectF> pianoRollVisibleRect;
 
-    // 钢琴卷帘编辑进行中（未提交）的音符实时几何；空列表 = 无编辑
+    // Live geometry for uncommitted piano roll edits. An empty list means no edit.
     using NoteEditPreview = EditorPreview::Note;
 
     Property<QVector<NoteEditPreview>> pianoRollNoteEditPreview;
 
-    // 钢琴卷帘擦除中（未提交）被移除的音符 id；空列表 = 无擦除
+    // Note ids pending erasure in the piano roll. An empty list means no erasure.
     Property<QList<int>> pianoRollNoteErasePreview;
 
     // Loop

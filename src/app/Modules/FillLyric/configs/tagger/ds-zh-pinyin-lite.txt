@@ -1,7 +1,6 @@
-# 拼音多音字词典（lite 版）
-# 格式：词<TAB>拼音
-# DictTaggerRule 只读取首列（词），命中后标记 tag=pinyin
-# 后续可按需扩充词条
+# Pinyin dictionary for heteronyms (Lite).
+# Format: word<TAB>pinyin
+# DictTaggerRule reads the first column and assigns tag=pinyin to matching words.
 重庆	chong qing
 长城	chang cheng
 长江	chang jiang

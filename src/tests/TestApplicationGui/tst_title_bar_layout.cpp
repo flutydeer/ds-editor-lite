@@ -179,9 +179,7 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
     QVERIFY(firstSection(*titleBar) == menu);
     QVERIFY(titleBar->dividers().first()->x() >= menu->geometry().right());
 
-    // A platform that owns the menu bar removes the section. The divider that
-    // used to separate the menu from the project selector has to go with it,
-    // otherwise it is left alone at the leading edge.
+    // A native menu bar leaves the project selector first, with no leading divider.
     titleBar->setInWindowMenu(false);
     settleLayout();
 
@@ -192,8 +190,7 @@ void ApplicationGuiTests::titleBarDropsTheLeadingDividerWhenTheMenuLeavesTheWind
     QVERIFY(titleBar->dividers().first()->x() > combo->x());
     QVERIFY(combo->x() >= titleBar->sections().leftMargin);
 
-    // Restoring the section rebuilds the same chrome as before, so the toggle
-    // is symmetric and safe to expose to the developer options page.
+    // Restoring the in-window menu also restores its divider.
     titleBar->setInWindowMenu(true);
     settleLayout();
 

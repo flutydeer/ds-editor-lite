@@ -223,7 +223,7 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
     d->hideHoverToolTips();
     setSceneLengthExtension(0);
-    // 切换 clip 时清空编辑预览，避免残留到新 clip
+    // Keep in-progress note previews scoped to the old clip.
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
     if (clip == nullptr)
@@ -626,7 +626,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     // A pen offering an eraser this tool cannot honour: the stroke is swallowed
     // before it can reach the interaction layer, so the handler must not be fed
-    // hover moves either — its split marker or dashed anchor preview would
+    // hover moves either - its split marker or dashed anchor preview would
     // describe something the stroke can never do.
     if (!d->m_interactionController->isMouseDown() &&
         EditorPenController::eraseHintRefused(d->penEraserAction())) {
@@ -1318,7 +1318,7 @@ void PianoRollGraphicsView::commitAction() {
             }
         }
     }
-    // model 写入完成后才清空预览，避免轨道先画旧几何再跳变
+    // Keep the preview until the model updates so the track never redraws the old geometry.
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
     setSceneLengthExtension(0);
@@ -1857,7 +1857,7 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
     Q_Q(PianoRollGraphicsView);
     // A finger has no hover cursor; the grab target can only be explained by the
     // drawn ring. The left/right bands hang outside the note's edge where items()
-    // cannot find a body — but once a neighbouring note covers the band, the scan
+    // cannot find a body - but once a neighbouring note covers the band, the scan
     // always hits the unselected neighbour first and a trailing fallback never
     // gets its turn, degrading the handle into canvas panning. Under the
     // affordance the band therefore comes first in the hit order: it participates
@@ -2025,8 +2025,8 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 
     // The other half: the pen is offering an eraser this tool has no use for,
     // so the stroke will be swallowed whole. Nothing this tool draws on hover
-    // may stay up — the split marker and the anchor preview both promise an
-    // action the stroke can never perform — and the cursor says so.
+    // may stay up - the split marker and the anchor preview both promise an
+    // action the stroke can never perform - and the cursor says so.
     if (EditorPenController::eraseHintRefused(penEraser)) {
         if (m_currentHandler)
             m_currentHandler->suppressHoverFeedback();

@@ -1,6 +1,6 @@
 @echo off
 
-@Rem 根据实际情况修改
+@Rem Set QT_DIR to the installed Qt MSVC kit.
 set QT_DIR=C:\Apps\Qt\6.8.2\msvc2022_64
 set Qt6_DIR=%QT_DIR%
 set CMAKE_PREFIX_PATH=%QT_DIR%

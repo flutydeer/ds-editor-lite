@@ -1,10 +1,6 @@
 project(PackageManager LANGUAGES CXX)
 
-# Voicebank package management: scans the search paths (supplied by the app)
-# via lite::SynthrtEngine, maps the diffsinger catalog into lite PackageInfo /
-# SingerInfo, and answers package/singer lookups. App-agnostic: search paths are
-# injected and the scan lifecycle is reported via moduleStatusChanged instead of
-# writing AppStatus. Consumed as <lite/PackageManager/.../Xxx.h>.
+# Resolves installed voicebank metadata using caller-supplied search paths.
 find_package(synthrt CONFIG REQUIRED)
 find_package(stdcorelib CONFIG REQUIRED)
 

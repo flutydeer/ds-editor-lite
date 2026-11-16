@@ -55,7 +55,7 @@ public:
     }
 
     // Take down whatever this tool draws to describe what a hovered point would
-    // do — the split marker, the anchor preview. Called when the pen is
+    // do - the split marker, the anchor preview. Called when the pen is
     // presenting an eraser the tool cannot honour: the stroke is swallowed
     // before it can reach the interaction layer, so a hint promising a split or
     // a new anchor would describe an action that can never happen.

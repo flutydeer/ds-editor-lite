@@ -41,10 +41,6 @@
 //     the thread would remove the protection it exists to provide, so the state is
 //     leaked on purpose and the process-lifetime thread ends with the process.
 //
-// The monitor is header-only on purpose: the editor and the exit-path subprocess
-// tests in TestBootstrap share this exact implementation, and a few dozen lines do
-// not justify a library target of their own.
-//
 // Environment variables:
 //   DS_EDITOR_EXIT_WATCHDOG_MS       stall report threshold after the commit
 //   DS_EDITOR_EXIT_FORCE_EXIT_MS     absolute budget after the commit; 0 disables

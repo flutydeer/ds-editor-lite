@@ -60,9 +60,8 @@ namespace GhostNoteStyle {
     };
 }
 
-// Collects the notes of every singing clip outside the host track and refreshes them when
-// the model or the appearance option changes. The legacy backend (GhostNoteOverlay) and the
-// RHI one (PianoRollRhiWidget) each own an instance.
+// Collect notes from singing clips on other tracks. Refresh when the project or
+// ghost note preference changes.
 class GhostNoteSource final : public QObject {
     Q_OBJECT
 

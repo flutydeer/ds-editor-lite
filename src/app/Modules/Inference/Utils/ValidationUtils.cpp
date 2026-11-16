@@ -13,7 +13,7 @@ bool ValidationUtils::canInferDuration(const SingingClip &clip) {
             qCritical() << "Invalid note pronunciation";
             return false;
         }
-        // TODO: 校验音素名称序列
+        // TODO: Validate the sequence of phoneme names.
     }
     return true;
 }

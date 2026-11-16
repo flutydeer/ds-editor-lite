@@ -10,29 +10,15 @@
 
 #include <algorithm>
 
-// The resize handle frame on the selected note.
+// The handle frame is a ring whose inner edges meet the note's visible edges.
+// Only the outer edge is stroked. The vertical bands are wide enough to grab,
+// and the horizontal bands stay thin to avoid covering adjacent rows.
 //
-// Shape contract: the frame is a **ring** — a rounded rectangle with a note-sized
-// hole punched out of the middle. The hole's four edges coincide with the note's
-// visible edges, so the whole ring band lies outside the note and only the outer
-// edge gets a thin outline (the inner edge is not stroked; the note's own border
-// finishes it).
-//
-// **The band is not equally thick on all four sides**: the left/right vertical
-// bands are the finger's resize handles and are far thicker than the top/bottom
-// horizontal bands (the reference mock does the same: the vertical bars are
-// clearly heavier than the horizontal lines). The horizontal bands only close the
-// frame and should reach into the neighbouring rows as little as possible.
-//
-// Coordinate system: the modelRect the caller passes is the note's model rectangle
-// (Legacy: item coordinates of NoteView::rect(); RHI: viewport logical pixels), and
-// both are device-independent pixels, so the constants here need no scaling. The
-// scale parameter is used the same way as EditorItemGeometry::notePaintRect — it
-// only scales the constants proportionally, and the rectangle must already be in
-// that same unit (RHI painting passes the dpr-multiplied physical rectangle, hit
-// testing passes the logical one).
+// Supply the note's model rectangle in the target coordinate system.
+// scale adjusts the constants only: use 1 for logical pixels, or use the
+// device pixel ratio with a rectangle already converted to physical pixels.
 namespace NoteHandleGeometry {
-    // Thickness of the left/right vertical bands — the finger's handle width
+    // Thickness of the left/right vertical bands - the finger's handle width
     inline constexpr double sideBandWidth = 16.0;
     // Thickness of the top/bottom horizontal bands. They only close the frame, so
     // they are kept thin to minimize how far they press onto neighbouring rows
@@ -49,7 +35,7 @@ namespace NoteHandleGeometry {
     // finger slack.
     inline constexpr double grabExpansion = sideBandWidth;
 
-    // The note's visible rectangle — the same inset the body itself is painted with
+    // The note's visible rectangle - the same inset the body itself is painted with
     inline QRectF visualRect(const QRectF &modelRect, const double scale = 1.0) {
         if (scale <= 0.0)
             return {};
@@ -123,15 +109,8 @@ namespace NoteHandleGeometry {
                toolAllowsHandles(mode);
     }
 
-    // Hit testing: whether the point falls on the **left/right vertical bands**.
-    //
-    // The top/bottom horizontal bands only close the frame and take no part in hit
-    // testing. They span across the note; if they counted as a hit, a finger
-    // resting on the band right above or below the note would hit this note while
-    // the press position resolves to the neighbouring row, and the first drag move
-    // would jump the note a whole row. The vertical bands' horizontal range falls
-    // inside the resize grab tolerance anyway, so a hit there always resolves to a
-    // left/right resize — no such problem.
+    // Hit only the vertical bands. A hit on a horizontal band could select this note
+    // from an adjacent pitch row and move it by a semitone when the drag begins.
     inline bool sideBandContains(const QRectF &modelRect, const QPointF &position,
                                  const double scale = 1.0) {
         const auto outer = outerRect(modelRect, scale);
@@ -141,10 +120,8 @@ namespace NoteHandleGeometry {
         return position.x() <= inner.left() || position.x() >= inner.right();
     }
 
-    // Resize hit: the grab zone is "vertical band area (outside the note) ∪ the
-    // existing tolerance area (inside the note)". With framesActive false (mouse,
-    // pen, or multi-select) this degrades to the original pure rectangle-edge test,
-    // point-for-point identical to before the change.
+    // The resize target includes the inner edge tolerance and, when a touch frame is
+    // active, the vertical band outside the note.
     inline EditorResizeUtils::HorizontalEdge resizeEdgeAt(const QPointF &localPos,
                                                           const QRectF &modelRect,
                                                           const double tolerance,

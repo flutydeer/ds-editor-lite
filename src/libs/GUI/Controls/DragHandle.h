@@ -5,15 +5,8 @@
 
 /// The reorder grip of a drag-sortable list row.
 ///
-/// Owns everything a handle needs to be recognisable and usable: the grip
-/// icon, the size-all cursor, and - crucially - the touch claim, so a finger
-/// that goes down on the handle reorders the row instead of scrolling the list
-/// or the page the list sits in. Lists recognise handles by this type instead of
-/// sniffing for a cursor shape, which is what kept the previous handle
-/// implementation fragile.
-///
-/// It does not implement the drag: ItemViewReorderController watches the
-/// press-and-move on the handle and asks the view to start the drag.
+/// The handle claims touch presses so a finger drag reorders the row. The list recognizes
+/// the handle by type, and ItemViewReorderController starts the drag through the view.
 class DragHandle : public IconLabel {
     Q_OBJECT
 

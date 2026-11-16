@@ -9,7 +9,7 @@
 - **关闭**（默认）：参数面板（`ParamEditorGraphicsView`）与钢琴卷帘的五个音高工具把手指降级为纯导航指针——拖动平移、轻点不落点、长按不动仍出菜单。
 - **打开**：单指与鼠标一致，按当前工具执行。
 
-笔与鼠标任何情况下都不受影响；双指导航一行不改。
+笔与鼠标任何情况下都不受影响。双指导航一行不改。
 
 ## UI 文案（定稿）
 
@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | 卡片标题 | `Pen and Touch` | 笔和触控 |
 | 开关标题 | `Draw parameters with finger` | 用手指绘制参数 |
-| 开关描述 | `When off, a finger on the parameter panel or the piano roll's pitch tools only scrolls the timeline. Pen and mouse are unaffected.` | 关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴；笔和鼠标不受影响。 |
+| 开关描述 | `When off, a finger on the parameter panel or the piano roll's pitch tools only scrolls the timeline. Pen and mouse are unaffected.` | 关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴。笔和鼠标不受影响。 |
 
 描述只保留"适用范围 + 关闭后果 + 笔鼠不受影响"，不复述开关名已经说清的内容。
 
@@ -31,7 +31,7 @@
 | 钢琴卷帘范围 | 仅五个音高工具（`DrawPitch` / `EditPitchAnchor` / `ErasePitch` / `TracePitch` / `ModulatePitch`，取现成分类器 `EditorViewGlobal::isPitchEditMode()`）。音符类工具与 `IntervalSelect` 不变 |
 | 轻点 | 关闭时**什么也不做**。这两处没有"先点选再拖动"的需求，轻点直通交互层就只是一次落点/锚点编辑 |
 | 长按 | 关闭时仍是"不动=菜单、动了=平移"，与 `Pan` 领地同一条规则 |
-| 参数面板水平平移 | **转发给钢琴卷帘**执行（参数面板的水平位置本来就归钢琴卷帘所有），参数面板再跟随；转发增量而非值 |
+| 参数面板水平平移 | **转发给钢琴卷帘**执行（参数面板的水平位置本来就归钢琴卷帘所有），参数面板再跟随。转发增量而非值 |
 | 读取方式 | 每手势一次直读单例，不设缓存。进行中的手势保持起手时锁定的模式，下一次手势生效 |
 | 双指 | 导航几何与 `dispatch` 的 `Navigation*` 分支零改动 |
 
@@ -43,7 +43,7 @@
 2. 钢琴卷帘在**显式工具**下，`touchContentAt()` 对任何落在音符上的位置返回 `Selected`，而 `Selected` 时不查 `touchBlankDragAction()`。
 3. 参数编辑器 `touchContentAt()` 恒为 `None`，这一处倒是查得到，但只有它一处生效。
 
-因此判据是更强的 `EditorTouchTarget::touchFingerEdits()`（默认 `true`），只有它返回 `false` 才把**整条单指流**降级为导航；分流抽成纯函数 `EditorTouchTarget::fingerStreamFor()`（五值决策表），"旧策略"与"关闭策略"由 `TestTouchGestures` 用同一张表无头断言。
+因此判据是更强的 `EditorTouchTarget::touchFingerEdits()`（默认 `true`），只有它返回 `false` 才把**整条单指流**降级为导航。分流抽成纯函数 `EditorTouchTarget::fingerStreamFor()`（五值决策表），"旧策略"与"关闭策略"由 `TestTouchGestures` 用同一张表无头断言。
 
 ## 行为对照
 
@@ -59,9 +59,9 @@
 
 ## 真机回归
 
-1. 关闭：参数面板单指任意位置拖动都滚时间轴，**曲线与钢琴卷帘音符不错位**；Ctrl+滚轮放大到内容超宽后仍能滚到结尾。
-2. 关闭：轻点不改参数；长按不动出菜单；长按后拖动是平移而不是画线。
-3. 关闭：真实鼠标右键不被吞；开关切换后**下一次**手势生效，手势进行中切换不打断当前手势。
+1. 关闭：参数面板单指任意位置拖动都滚时间轴，**曲线与钢琴卷帘音符不错位**。Ctrl+滚轮放大到内容超宽后仍能滚到结尾。
+2. 关闭：轻点不改参数。长按不动出菜单。长按后拖动是平移而不是画线。
+3. 关闭：真实鼠标右键不被吞。开关切换后**下一次**手势生效，手势进行中切换不打断当前手势。
 4. 打开：参数编辑器六种工具（绘制/擦除/烘焙/形态/缩放/锚点）与改动前逐项一致。
-5. 关闭：钢琴卷帘五个音高工具逐一确认只平移、不绘制；音符类工具与区间选择不受影响；**两套后端都过**（开发者选项切 Legacy / Experimental）。
-6. 笔（含音高模式）与说话人混音模式不受影响；轨道编排区与双指缩放/平移回归一致。
+5. 关闭：钢琴卷帘五个音高工具逐一确认只平移、不绘制。音符类工具与区间选择不受影响。**两套后端都过**（开发者选项切 Legacy / Experimental）。
+6. 笔（含音高模式）与说话人混音模式不受影响。轨道编排区与双指缩放/平移回归一致。

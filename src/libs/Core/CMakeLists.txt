@@ -1,8 +1,6 @@
 project(Core LANGUAGES CXX)
 
-# Foundation runtime-identity infrastructure: process-unique id source
-# (IdGenerator) and the UniqueObject base class. Decoupled from AppContext
-# (plain Meyers singleton), so any layer may depend on it. Pure C++, no Qt.
+# Process-wide object identity and lifetime utilities, independent of Qt.
 file(GLOB _src CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 lite_add_library(Core STATIC SOURCES ${_src})

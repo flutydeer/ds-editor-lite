@@ -3,24 +3,11 @@
 
 class QWidget;
 
-// Windows recognises a press and hold on its own, independently of anything the
-// application does with the same contact: a translucent square while the finger
-// is down, then a right click on release (a pen gets a ring instead). No Qt
-// event exposes it and no Qt switch turns it off, so wherever the touch layer
-// intends to own the long press the platform has to be told to stand down. It
-// asks once per contact, about the window under the finger:
-//
-//     WM_TABLET_QUERYSYSTEMGESTURESTATUS -> TABLET_DISABLE_PRESSANDHOLD
-//
-// and this is the shim that answers. It is the only mechanism that works: the
-// legacy gesture stack (`SetGestureConfig` with `GC_ALLGESTURES`) is not
-// consulted for these windows at all. Measured on a Surface-class tablet,
-// see docs/design/touch-and-pen-input-design.md §3.
-//
-// The scope is deliberately narrow, because the same answer is also the only
-// way a long press reaches a context menu everywhere else: only windows that
-// host a touch-enabled editor widget are answered. A dialog or a text field
-// keeps the platform menu it has always had.
+// Suppress the Windows press-and-hold right click for touch-enabled editor windows.
+// Windows queries the window under the pointer with WM_TABLET_QUERYSYSTEMGESTURESTATUS.
+// Reply with TABLET_DISABLE_PRESSANDHOLD so the editor can handle the same contact.
+// SetGestureConfig(GC_ALLGESTURES) leaves press-and-hold active on this WM_POINTER path.
+// Other windows keep their native press-and-hold behavior.
 namespace EditorSystemGestureSuppressor {
 
     // Claim `editorWidget`'s window. The window is resolved on every query

@@ -112,7 +112,7 @@ SpeakerMixValidator::Result SpeakerMixValidator::validate(const QString &speaker
     }
 
     // If we have no available speaker set to validate against (both capability
-    // and speakers empty — legacy lite data), pass through conservatively to
+    // and speakers empty - legacy lite data), pass through conservatively to
     // avoid blocking inference on stale metadata. This mirrors the
     // Pending/Missing pass-through in step 1.
     if (available.isEmpty()) {

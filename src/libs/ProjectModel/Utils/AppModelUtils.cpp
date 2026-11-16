@@ -119,7 +119,7 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
             curvesIn(result, editedCurve->localStart(), editedCurve->localEndTick());
         if (!overlappedOriCurves.isEmpty()) {
             for (auto oriCurve : overlappedOriCurves) {
-                // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
+                // A fully covered original curve contributes no samples to the result.
                 if (!(oriCurve->localStart() >= newCurve->localStart() &&
                       oriCurve->localEndTick() <= newCurve->localEndTick()))
                     newCurve->mergeWithCurrentPriority(*oriCurve);

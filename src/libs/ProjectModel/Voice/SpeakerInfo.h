@@ -45,10 +45,9 @@ public:
     std::optional<std::pair<int, int>> toneRange() const;
     void setToneRange(std::optional<std::pair<int, int>> range);
 
-    /// True if this speaker is in the singer's mixableSpeakers (i.e. present
-    /// in every non-vocoder stage per the parse-time capabilityReport). False
-    /// when capabilityReport is nullopt (pure G2P / legacy) — the host should
-    /// treat false as "unknown, allow with warning" rather than "not mixable".
+    /// True when the capability report lists the speaker in every non-vocoder stage.
+    /// If the report is absent, false means the capability is unknown. Use the singer's
+    /// full speaker list for validation so missing capability data does not reject a speaker.
     bool mixable() const;
     void setMixable(bool mixable);
 

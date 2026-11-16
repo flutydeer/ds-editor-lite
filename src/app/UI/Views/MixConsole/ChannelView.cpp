@@ -251,7 +251,7 @@ bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
         return false;
     }
 
-    // 处理字母格式：Lxx / Rxx / C
+    // Letter format: Lxx / Rxx / C.
     if (panStr.startsWith('L', Qt::CaseInsensitive)) {
         const QString numStr = panStr.mid(1).trimmed();
         bool ok = false;
@@ -273,7 +273,7 @@ bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
         return true;
     }
 
-    // 处理数值格式：-xx / 0 / +xx
+    // Numeric format: -xx / 0 / +xx.
     bool ok = false;
     const double value = QLocale().toDouble(panStr, &ok);
     if (ok) {

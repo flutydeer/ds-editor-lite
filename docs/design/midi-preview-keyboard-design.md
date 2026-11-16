@@ -108,7 +108,7 @@ MidiMessageIntegrator m_previewMidiIntegrator  ->  MidiNoteSynthesizer m_preview
 
 ## 八、测试
 
-- `TestApplicationGui / tst_piano_keyboard`：横向键盘的固定尺寸、白键/黑键/黑键下方白键的命中、滑奏序列、按住时隐藏会补 note off、无接收者时滚轮不被消费、外框与黑键顶部裁剪、外部按住高亮的层级；`MidiInputNoteMonitor` 对 note on / note off / 力度 0 的 note on / all-notes-off / all-sound-off 的判定与解挂。
+- `TestApplicationGui / tst_piano_keyboard`：横向键盘的固定尺寸、白键/黑键/黑键下方白键的命中、滑奏序列、按住时隐藏会补 note off、无接收者时滚轮不被消费、外框与黑键顶部裁剪、外部按住高亮的层级。`MidiInputNoteMonitor` 对 note on / note off / 力度 0 的 note on / all-notes-off / all-sound-off 的判定与解挂。
 - `TestApplicationGui / tst_audio_midi_settings`：MIDI 页里能找回键盘与滚动区，点键经页面接线投到实时链（用 `MidiMessageListener` 挂过滤器断言 note on/off），按下后实时合成器的包络与 A 频率等于页面控件的当前值，外部输入经 MIDI 系统 integrator 能让键盘进入按住态并在 all-notes-off 后清空，同时配置与文档不受影响。
 - `TestApplicationGui / tst_synth_preview`：打开 premixer 后 `noteOn` 能读到非零样本，`noteOff` 若干块后回到静音，证明实时链确实挂在 `m_testMixer` 上。
 - `TestGuiComponents / tst_theme_qss_contract`：新选择器的 `qproperty-*` 能沿继承链解析到基类。

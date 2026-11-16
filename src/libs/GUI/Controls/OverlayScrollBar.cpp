@@ -55,8 +55,8 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
     m_hideTimer->setInterval(kHideDelayMs);
     connect(m_hideTimer, &QTimer::timeout, this, &OverlayScrollBar::onHideTimeout);
 
-    // initializeAnimation 会同步回调 afterSetAnimationLevel/afterSetTimeScale，
-    // 必须在动画对象创建之后调用
+    // Initialization calls the animation level and time scale hooks synchronously,
+    // so the animation objects must already exist.
     initializeAnimation();
 
     connect(this, &QScrollBar::sliderPressed, this, [this] {
@@ -85,15 +85,8 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
 
     auto *source = horizontal ? scrollArea->horizontalScrollBar() : scrollArea->verticalScrollBar();
 
-    // Qt's QGraphicsViewPrivate::recalculateContentSize() calls setRange(),
-    // which emits rangeChanged synchronously, and only AFTER that emission
-    // assigns the new pageStep/singleStep (which emit no signal of their own).
-    // A direct handler reading source->pageStep() inside rangeChanged would
-    // therefore always latch the PREVIOUS pageStep - the QScrollBar default 10
-    // on the very first recompute, collapsing the handle to minimum length and
-    // leaving it at mid-track (the start-of-app scrollbar bug; only the next
-    // range change, e.g. a zoom, fixed it). Copy the steps with a queued
-    // connection so the read happens after the emitter's stack unwinds.
+    // QGraphicsViewPrivate::recalculateContentSize() updates pageStep and singleStep
+    // after emitting rangeChanged. Queue the read so the handle uses the updated steps.
     connect(source, &QScrollBar::rangeChanged, this, [this](int min, int max) {
         setRange(min, max);
         setVisible(m_rangeVisible && max > 0);
@@ -154,16 +147,17 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
         handlePos +=
             (availableLength - handleLength) * (value() - minimum()) / (maximum() - minimum());
 
-    // 可见性因子：m_visibility 0→1 淡入，静止 3s 后淡出隐藏（与高亮/几何动画同曲线）
+    // The visibility factor fades from 0 to 1, then fades out after 3 seconds idle.
+    // It shares the highlight and geometry easing curve.
     qreal baseOpacity = (0.25 + 0.10 * m_opacity) * m_visibility;
     auto color = m_handleColor;
     color.setAlpha(qRound(color.alpha() * baseOpacity));
     p.setBrush(color);
     p.setPen(Qt::NoPen);
 
-    // 条厚 16px：平时手柄 2px 贴外缘（距边 4px），hover/按住时外缘边不动、
-    // 向内侧展开到 6px 宽（圆角 1→2）；m_geometryProgress 0→1 插值，
-    // 与透明度动画使用相同的时长与曲线
+    // In the 16 px bar, the handle rests 4 px from the outer edge. On hover or press, it
+    // expands inward from 2 to 6 px and its radius grows from 1 to 2 px. The geometry
+    // progress goes from 0 to 1 using the same duration and easing as the opacity.
     const qreal t = m_geometryProgress;
     const qreal radius = 1.0 + t;
 

@@ -111,7 +111,7 @@ EditorPenController::EditorPenController(EditorPenTarget *target, QWidget *widge
     connect(m_hover, &EditorPenHoverWatcher::changed, this, [this] {
         // Remember when the barrel was last seen down. During hover no Qt event
         // exists for it at all, and this is the only trace left when a stroke's
-        // press never reached us (an open menu had it) — the platform's own
+        // press never reached us (an open menu had it) - the platform's own
         // context menu then still needs recognising and dropping.
         //
         // Deliberately nothing more than a timestamp: acting on this state's
@@ -355,7 +355,7 @@ bool EditorPenController::handleTabletEvent(QTabletEvent *event) {
         const auto supported = penEraserAvailable();
         const auto intents = m_stroke.pressed(sample, supported);
         // A barrel stroke is the one the platform answers with a right-click of
-        // its own, and it does so at the *release* — always after this press.
+        // its own, and it does so at the *release* - always after this press.
         // Arming here is what makes the swallow land on time; arming at the end
         // of the stroke would be arming after the event it is meant to catch.
         m_platformMenuPending = m_stroke.input() == EditorPenStroke::Input::SideButton;
@@ -375,7 +375,7 @@ bool EditorPenController::handleTabletEvent(QTabletEvent *event) {
     // translated here. Which report it is barely matters: the contact state
     // decides (EditorPenStroke::feed). A press now can only be the platform
     // reacting to the barrel going down, and a release that still reports
-    // contact is the other half of that same noise — neither ends the stroke.
+    // contact is the other half of that same noise - neither ends the stroke.
     const auto report = [event] {
         switch (event->type()) {
             case QEvent::TabletPress:

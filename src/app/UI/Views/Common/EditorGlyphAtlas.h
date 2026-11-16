@@ -43,8 +43,8 @@ public:
 private:
     struct Block {
         int pageId = -1;
-        QRect rect;        // 页内分配区域（含 padding），坐标在页内像素网格上
-        QRect contentRect; // 页内实际文本内容区域（不含 padding）
+        QRect rect;        // Allocated area in page pixels, including padding.
+        QRect contentRect; // Text area in page pixels, excluding padding.
         quint64 lastUse = 0;
     };
 

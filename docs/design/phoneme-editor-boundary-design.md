@@ -32,7 +32,7 @@ paddingStartMs + abs(minimumFirstOffsetMs)
 `paddingStartMs`，但首个 SP word 仍需要基础预卷。因此允许上限取两者的最大值。
 
 对非首 piece，`SingingClipSlicer` 只有在当前 header 与上一 piece tail 之间存在足够
-间隔时才分片，所以 `headAvailableLengthMs` 已经覆盖基础 padding；同一公式会严格服从
+间隔时才分片，所以 `headAvailableLengthMs` 已经覆盖基础 padding。同一公式会严格服从
 slicer 给出的上限。
 
 ### 绝对时间锚点与取整
@@ -46,7 +46,7 @@ leftBoundaryMs   = firstNoteStartMs - maximumHeadLengthMs
 ```
 
 然后再用同一 `Timeline` 转回 tick。转换为整数 tick 或整数 offset 时使用不向左越界的
-保守取整；不能把一段“毫秒时长”直接传给项目绝对 `msToTick()`。这一点对高曲速和跨
+保守取整。不能把一段“毫秒时长”直接传给项目绝对 `msToTick()`。这一点对高曲速和跨
 tempo 点场景尤其重要。
 
 ## 分片算法如何避免重叠
@@ -66,8 +66,8 @@ B.headerStart > A.tailEnd
 
 提交 segment 时，slicer 保存：
 
-- `paddingStartMs`：首 note 对应 SP word 的基础总长度；
-- `headAvailableLengthMs`：首 note 到上一 piece tail 结束位置之间可用的头部范围；
+- `paddingStartMs`：首 note 对应 SP word 的基础总长度。
+- `headAvailableLengthMs`：首 note 到上一 piece tail 结束位置之间可用的头部范围。
 - `paddingEndMs`：末 note 后的 tail 长度。
 
 后续代码不得在这些值之外自行叠加另一份 header offset。
@@ -103,10 +103,10 @@ phone.start = requiredHeadLengthMs + headerOffset >= 0
 
 这构成 duration → start → offset → word 的往返关系。Duration 结果在写回前必须验证：
 
-- duration 数量与输入 phone 数量相同；
-- 每个 duration、word 长度和 phone start 都是有限非负值；
-- 输出 token 能逐一映射回原 note 的音素；
-- note 内 offset 不降序；
+- duration 数量与输入 phone 数量相同。
+- 每个 duration、word 长度和 phone start 都是有限非负值。
+- 输出 token 能逐一映射回原 note 的音素。
+- note 内 offset 不降序。
 - 首 note 的 `requiredHeadLengthMs` 不超过 `maximumHeadLengthMs`。
 
 验证失败时任务携带 clip、piece、note 上下文失败，不通过截断、重排或扩大 piece
@@ -137,9 +137,9 @@ leftBoundaryTick =
 
 其他边界规则保持不变：
 
-- gap 后的 note 不能越过 gap Sil；
-- 相邻 note 的首音素不能越过前一有效 note 的边界或最后音素；
-- 内部音素不能拖穿前后音素；
+- gap 后的 note 不能越过 gap Sil。
+- 相邻 note 的首音素不能越过前一有效 note 的边界或最后音素。
+- 内部音素不能拖穿前后音素。
 - note 尾音素不能超过 note 结束位置。
 
 Timeline 的开发者调试覆盖层也使用同一 canonical 左边界，以便直接比较 slicer 上限、
@@ -149,13 +149,13 @@ Timeline 的开发者调试覆盖层也使用同一 canonical 左边界，以便
 
 `SingingClipPhonemeNormalizer` 在载入和结构编辑后检查人工 offset：
 
-- offset 数量必须与音素名称数量相同；
-- offset 必须不降序；
-- piece 首 note 的布局必须位于 canonical 首部上限内；
+- offset 数量必须与音素名称数量相同。
+- offset 必须不降序。
+- piece 首 note 的布局必须位于 canonical 首部上限内。
 - 其他 note 的最早音素必须位于基于绝对时间锚点计算的左边界内。
 
 仍在 canonical 上限内的历史编辑保持不变。真正非法的编辑沿用现有可撤销流程：清空
-edited offset，让自动结果重新生效；相关 Action 在撤销时恢复原 edited offset。不会
+edited offset，让自动结果重新生效。相关 Action 在撤销时恢复原 edited offset。不会
 静默裁剪某个值后继续推理。
 
 ## 相关文件
@@ -177,4 +177,4 @@ edited offset，让自动结果重新生效；相关 Action 在撤销时恢复�
 3. 把非首 piece 的首音素拖到最左边界并继续向左，确认预览和提交都阻止越界。
 4. 重推理并复用缓存，确认 piece 起点不漂移。
 5. 覆盖首 piece、无 header、SP/AP、连音与已有合法 edited offset。
-6. 运行标准 CMake 构建；不要用 CTest 代替真实应用验证。
+6. 运行标准 CMake 构建。不要用 CTest 代替真实应用验证。

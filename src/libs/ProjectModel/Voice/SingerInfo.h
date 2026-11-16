@@ -17,23 +17,17 @@
 
 class SingerInfoData;
 
-// SingerInfo 解析状态（显式 pending 状态）
-// - Resolved: 完整元数据，G2P 可路由（PackageManager 命中）
-// - Pending: 待补全，G2P 暂不可路由（dspx fallback 构造，PackageManager 未就绪）
-// - Missing: 声库未安装/版本不匹配，永久不可路由（异步补全后仍未命中）
-// 注：运行期状态，不持久化到 dspx
+// Runtime metadata state, omitted from DSPX:
+// - Resolved: Installed metadata is available for G2P routing.
+// - Pending: Metadata has yet to be resolved. G2P routing must wait.
+// - Missing: No installed voicebank matches the required singer and package version.
 enum class ResolutionState {
     Resolved,
     Pending,
     Missing,
 };
 
-/// SingerCapabilitySummary - lite-side mirror of synthrt SingerCapabilityReport.
-///
-/// nullopt for pure G2P packages or legacy singers without inference.
-/// Carries parse-time stage capabilities and mixable speakers / effective
-/// phonemes / languages analysis so the host UI can surface support at
-/// voicebank load time (without running inference).
+/// Voicebank capabilities available to the host UI at load time.
 ///
 /// consistency fields use int (0=Ideal, 1=Degraded, 2=Inconsistent) to avoid
 /// cross-DLL enum export coupling with synthrt ConsistencyLevel.
@@ -136,8 +130,7 @@ public:
     QList<LanguageInfo> languages;
     QString defaultLanguage;
     QString defaultDict;
-    // 默认 Pending：未经验证的 SingerInfo 不应被标记为已解析。
-    // PackageManager 加载成功后显式 setResolutionState(Resolved)。
+    // A singer remains pending until its installed metadata is checked.
     ResolutionState resolutionState = ResolutionState::Pending;
 
     std::optional<SingerCapabilitySummary> capability;

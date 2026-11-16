@@ -422,8 +422,8 @@ namespace {
             reason = QStringLiteral("X11 frame capture returned no complete client image");
             return {};
         }
-        // Retain the regression guard for the observed black-window failure,
-        // excluding all window-manager decorations from the sampled rectangle.
+        // Reject nearly black client captures. Exclude window-manager decorations
+        // from the sampled rectangle.
         int black = 0, count = 0;
         for (int row = client.top(); row <= client.bottom(); row += qMax(1, client.height() / 64)) {
             for (int column = client.left(); column <= client.right();

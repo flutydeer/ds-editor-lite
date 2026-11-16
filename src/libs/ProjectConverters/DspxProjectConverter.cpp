@@ -176,12 +176,11 @@ namespace {
         if (identifier.isEmpty())
             return {};
 
-        // Try to resolve from package manager
         auto resolved = resolveSinger(identifier);
         if (!resolved.isEmpty())
             return resolved;
 
-        // Construct fallback SingerInfo (标记 Pending，PackageManager 未就绪)
+        // Keep the saved identity and display metadata until the voicebank is resolved.
         auto name = obj["name"].toString();
         auto defaultLanguage = obj["defaultLanguage"].toString();
         SingerInfo fallback(identifier, name, {}, {}, defaultLanguage, {});
@@ -317,14 +316,11 @@ namespace {
         if (sourcesArray.size() < 2)
             return {};
 
-        // 预解析原始 sources 与原始 weights，按 spk 过滤后保留可用 sources 并相应地
-        // 重建 weights 长度（N-1 explicit → M-1 explicit）。
-        // 否则 normalizeSpeakerMixData 会判 InvalidFixedWeights/InvalidDynamicKeyframes
-        // 整体退化为 Single，旧项目文件的混合配置被静默丢弃。
-        //
-        // 过滤规则（按优先级）:
-        //   1. resolveSpeakerInfoStrict: spk.id 必须在 effectiveSinger.speakers()
-        //   2. 若 effectiveSinger.capability().mixableSpeakers 非空: spk.id 必须 ∈ 该集合
+        // Legacy workspace mixes may reference unavailable speakers. Keep the original order
+        // until the weights have been remapped, so they still match the surviving speakers.
+        // Dropping sources without remapping their weights makes normalization discard the
+        // saved mix and fall back to a single speaker.
+        // A source must resolve to the singer and belong to its mixable list when one is present.
         struct RawSource {
             SpeakerInfo speaker;
             bool valid = false;
@@ -340,10 +336,9 @@ namespace {
             }
             const auto resolved = resolveSpeakerInfoStrict(effectiveSinger, fallback);
             if (resolved.isEmpty()) {
-                rawSources.append({fallback, false}); // 记录原始名用于 dropped 列表
+                rawSources.append({fallback, false}); // Keep the saved ID for diagnostics.
                 continue;
             }
-            // 额外校验: 若 capability.mixableSpeakers 非空, spk.id 必须 ∈ 该集合
             const auto &cap = effectiveSinger.capability();
             if (cap && !cap->mixableSpeakers.isEmpty() &&
                 !cap->mixableSpeakers.contains(resolved.id())) {
@@ -363,25 +358,23 @@ namespace {
                                  << "dropped legacy speakers:" << dropped.join(", ");
         }
 
-        // 仅保留 valid sources
         QList<int> validIndices;
         for (int i = 0; i < rawSources.size(); ++i) {
             if (rawSources[i].valid)
                 validIndices.append(i);
         }
         if (validIndices.size() < 2) {
-            // 退化为 Single (兼容旧行为)
+            // Mixing requires at least two sources. Fall back to a single speaker.
             return {};
         }
 
         for (int idx : validIndices)
             data.sources.append({rawSources[idx].speaker});
 
-        // 重建 weights: original explicit (N-1) → full (N) → filter (M) → explicit (M-1)
+        // Expand N-1 explicit weights to N, keep the M surviving weights, then encode M-1.
         const auto originalCount = rawSources.size();
         const auto remapWeights = [&validIndices,
                                    originalCount](const QVector<double> &explicitWeights) {
-            // explicit weights size 应为 originalCount - 1
             if (explicitWeights.size() != originalCount - 1)
                 return QVector<double>();
             const auto full = fullWeightsFromExplicitWeights(explicitWeights);
@@ -411,7 +404,7 @@ namespace {
                     keyframe.id = id;
                 keyframe.tick = keyframeObj["tick"].toInt();
                 const auto remapped = remapWeights(decodeWeights(keyframeObj["weights"].toArray()));
-                // 若 weights 长度不匹配则跳过该 keyframe（normalize 会处理空 keyframes）
+                // Normalization handles mixes with no usable keyframes.
                 if (!remapped.isEmpty()) {
                     keyframe.weights = remapped;
                     data.dynamicKeyframes.append(keyframe);
@@ -859,9 +852,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                         node->setInterpMode(AnchorNode::Linear);
                     } else if (interp == opendspx::AnchorNode::Interpolation::Hermite) {
                         node->setInterpMode(AnchorNode::Hermite);
-                    } /*else if (dspxNode.interp == opendspx::AnchorPoint::Interpolation::Cubic) {
-                        node->setInterpMode(DsAnchorNode::Cubic);
-                    }*/
+                    }
                     curve->insertNode(node);
                 }
                 curves.append(curve);
@@ -957,14 +948,11 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                         *castClip->sources, clipDsWs["sourceMixState"].toObject(), singerResolver);
                 }
 
-                // Read DS workspace for clip flags/language
-
-                // Determine useTrackSingerInfo
                 bool useTrackSingerInfo = true;
                 if (clipDsWs.contains("useTrackSingerInfo")) {
                     useTrackSingerInfo = clipDsWs["useTrackSingerInfo"].toBool();
                 } else if (officialSource.hasSinger) {
-                    // Third-party file with official singer but no DS workspace flag
+                    // A file without the workspace flag can still specify a clip singer.
                     useTrackSingerInfo = false;
                 }
 
@@ -980,7 +968,6 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                     clip->setOwnVoiceContext({}, {}, {});
                 }
 
-                // Read clip defaultLanguage
                 auto clipLang = clipDsWs["defaultLanguage"].toString();
                 if (!clipLang.isEmpty())
                     clip->setDefaultLanguage(clipLang);
@@ -1158,9 +1145,7 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
                         node.interp = opendspx::AnchorNode::Interpolation::Linear;
                     } else if (dsNode->interpMode() == AnchorNode::Hermite) {
                         node.interp = opendspx::AnchorNode::Interpolation::Hermite;
-                    } /*else if (dsNode->interpMode() == DsAnchorNode::Cubic) {
-                        node.interp = opendspx::AnchorNode::Interpolation::Cubic;
-                    }*/
+                    }
                     curve->nodes.push_back(node);
                 }
                 curves.push_back(curve);
@@ -1344,7 +1329,7 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
     };
 
     opendspx::Model dspxModel;
-    dspxModel.content.global.centShift = 0; // TODO: where should I use centShift in the editor?
+    dspxModel.content.global.centShift = 0; // The editor has no project-wide pitch shift.
     const auto masterControl = model->masterControl();
     dspxModel.content.master.control.gain = masterControl.gain();
     dspxModel.content.master.control.pan = masterControl.pan();

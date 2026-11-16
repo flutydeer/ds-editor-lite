@@ -79,7 +79,7 @@ public:
     QList<InferWord> words;
     QList<InferParam> params;
 
-    // 元数据
+    // Model metadata
     SingerIdentifier identifier;
     QString speaker;
     InferSpeakerMix speakerMix;

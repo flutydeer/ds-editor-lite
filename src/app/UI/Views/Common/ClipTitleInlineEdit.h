@@ -12,17 +12,9 @@
 class InlineTextEditOverlay;
 class QWidget;
 
-// Inline rename of a clip title, shared by both arrangement backends.
-//
-// The session rules live here so the legacy QGraphicsView canvas and the RHI
-// canvas cannot drift apart: the backend only supplies the title rect in
-// viewport coordinates and asks for the session to end when an external event
-// moves the target. Everything else - the overlay, its size, the trim/no-change
-// rules and the single controller call that commits - is one implementation.
-//
-// The session records the clip id, never a pointer: commit re-resolves the clip
-// and silently drops the edit when the target is gone, so a document swap
-// cannot write the old name into a clip that happens to reuse the id.
+// Inline rename session for an arrangement clip. The view supplies the title
+// rectangle in viewport coordinates and ends the session when the target moves.
+// On submission, look up the clip by ID and discard the edit if it is gone.
 class ClipTitleInlineEdit : public QObject {
     Q_OBJECT
 

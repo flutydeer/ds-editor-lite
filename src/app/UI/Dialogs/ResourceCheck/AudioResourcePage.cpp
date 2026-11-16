@@ -169,7 +169,7 @@ void AudioResourcePage::onRelocateClicked() {
     updateActionButtons();
 
     // Cascade: the other missing files are likely in the same directory.
-    // Cascade hits are silent (not undoable) while the relink above is undoable —
+    // Cascade hits are silent (not undoable) while the relink above is undoable -
     // intentional asymmetry, see resolveMissingClipsNear
     audioDecodingController->resolveMissingClipsNear(fileName);
 }

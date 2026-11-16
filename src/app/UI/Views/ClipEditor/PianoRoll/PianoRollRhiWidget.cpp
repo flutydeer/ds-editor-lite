@@ -2022,7 +2022,7 @@ public:
             hideHoverToolTips();
         // A pen offering an eraser this tool cannot honour: the stroke is
         // swallowed before it can reach the interaction layer, so no hover move
-        // may feed the tool either — the split preview and the anchor hover
+        // may feed the tool either - the split preview and the anchor hover
         // both promise something the stroke can never do.
         if (event->buttons() == Qt::NoButton &&
             EditorPenController::eraseHintRefused(q->penEraserAction())) {
@@ -2452,11 +2452,7 @@ private:
                           fill);
     }
 
-    // The resize handle frame on the selected note. Shares NoteHandleGeometry's
-    // shape contract with the Legacy backend: the frame is a ring — a rounded
-    // rectangle with a note-sized hole whose four edges land on the note's visible
-    // edges; the left/right vertical bands are far thicker than the top/bottom
-    // horizontal ones, and only the outer edge gets a thin outline.
+    // Draw the selected note's handle frame from NoteHandleGeometry.
     void appendNoteHandles() {
         const auto *note = framedNote();
         if (!note)

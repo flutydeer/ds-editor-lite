@@ -1,5 +1,7 @@
 # Automation Facade 行为测试清单
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 审计口径
 
 当前内部能力面由 `OperationIds::all()` 中的 **207** 个唯一 Operation ID 定义。Dispatcher 对受

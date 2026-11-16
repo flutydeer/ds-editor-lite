@@ -90,8 +90,7 @@ void ComboBox::initUi() {
     }
 #endif
 
-    // 弹出层复用 Overlay 滚动条（数据源 = QListView，几何宿主 = 弹出层容器，
-    // 使滚动条钉在容器右壁而不是跟着视口内缩）
+    // Scroll the list view and anchor the overlay bar to the popup's right edge.
     if (const auto bar = OverlayScrollBar::install(view(), Qt::Vertical); bar)
         bar->setGeometryHost(container);
 
@@ -100,8 +99,6 @@ void ComboBox::initUi() {
     auto *smoothScroller = new SmoothScroller(this);
     smoothScroller->attachTo(view());
 
-    // Mobile touch semantics for the popup: tap selects, drag scrolls with
-    // inertia, and a drag release no longer commits the item it ended on (the
-    // OS keeps synthesizing mouse events from touch that QScroller cannot stop).
+    // Suppress the synthesized mouse release after a touch drag so it cannot select an item.
     ComboPopupTouchFilter::install(this);
 }

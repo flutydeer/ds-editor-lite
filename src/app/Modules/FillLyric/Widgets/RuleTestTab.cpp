@@ -19,7 +19,7 @@ namespace FillLyric {
         mainLayout->setContentsMargins(12, 12, 12, 12);
         mainLayout->setSpacing(8);
 
-        // ── Input area ──────────────────────────────────────────────────────
+        // Input
         auto *inputGroup = new QGroupBox(tr("Input Text"));
         auto *inputLayout = new QVBoxLayout(inputGroup);
         inputLayout->setContentsMargins(8, 8, 8, 8);
@@ -44,7 +44,7 @@ namespace FillLyric {
 
         mainLayout->addWidget(inputGroup);
 
-        // ── Step 1: Split result ────────────────────────────────────────────
+        // Split result
         auto *splitGroup = new QGroupBox(tr("Step %L1 - Split Result").arg(1));
         auto *splitLayout = new QVBoxLayout(splitGroup);
         splitLayout->setContentsMargins(8, 8, 8, 8);
@@ -69,7 +69,7 @@ namespace FillLyric {
 
         mainLayout->addWidget(splitGroup, 1);
 
-        // ── Step 2: Tag result ──────────────────────────────────────────────
+        // Tag result
         auto *tagGroup = new QGroupBox(tr("Step %L1 - Tag Result").arg(2));
         auto *tagLayout = new QVBoxLayout(tagGroup);
         tagLayout->setContentsMargins(8, 8, 8, 8);
@@ -113,7 +113,7 @@ namespace FillLyric {
         m_errorLabel->clear();
         m_errorLabel->setStyleSheet("");
 
-        // ── Step 1: Split ───────────────────────────────────────────────────
+        // Split lyrics.
         const auto splitResult = TextSplitter::split(input.toStdString());
 
         QStringList splitTokens;
@@ -124,7 +124,7 @@ namespace FillLyric {
         m_splitOutput->setPlainText(tr("Token count: %L1\n").arg(splitResult.size()) +
                                     splitTokens.join(QStringLiteral(" | ")));
 
-        // ── Step 2: Tag (uses split result as input) ────────────────────────
+        // Tag the split lyrics.
         const auto tagResult = TextTagger::tag(splitResult);
 
         QStringList tagLines;

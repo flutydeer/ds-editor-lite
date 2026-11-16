@@ -18,6 +18,7 @@
 这些图验证资源兼容、语言路由、声线、任务调度、缓存及文件导出的实际接线。其输出
 不是歌声，也不用于评价真实模型音质。GAME 与 RMVPE 不在此素材范围。
 
-CMake 将 ZIP 解压至构建目录，测试默认使用它。`DSEL_TEST_VOICEBANK_ROOT` 可覆盖为
-本机真实声库目录，同时必须提供 `DSEL_TEST_SINGER_ID`、`DSEL_TEST_LANGUAGE` 和
-`DSEL_TEST_LYRIC`。配置的资源失效或推理失败均报告失败。
+CMake 将 ZIP 解压至构建目录，测试默认读取其中的声库。需要使用本机声库时，将
+`DSEL_TEST_VOICEBANK_ROOT` 设置为声库根目录的绝对路径，并提供该声库可用的
+`DSEL_TEST_SINGER_ID`、`DSEL_TEST_LANGUAGE` 和 `DSEL_TEST_LYRIC`。资源无法加载或推理失败时，
+测试会报告失败。

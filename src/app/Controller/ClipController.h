@@ -45,7 +45,7 @@ public:
                                                                 int newLength) const;
 
 signals:
-    // TODO: 连接到 AppStatus 模型监听更改
+    // TODO: Observe changes from AppStatus.
     void canSelectAllChanged(bool canSelectAll);
     void hasSelectedNotesChanged(bool has);
 

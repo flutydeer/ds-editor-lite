@@ -62,7 +62,7 @@ namespace FillLyric {
     }
 
     void LyricCell::setNote(LangNote *note) {
-        // R17/TD-4: 自我赋值保护，避免 delete m_note 后 use-after-free
+        // The caller may pass m_note itself, which becomes invalid on replacement.
         if (m_note == note)
             return;
         delete m_note;

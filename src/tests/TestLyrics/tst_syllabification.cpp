@@ -405,7 +405,7 @@ namespace {
     }
 
     void testCascadeResetOnlyEdited() {
-        // B has only a baseline, no edited offsets — resetting A must not touch it
+        // B has only baseline offsets, so resetting A leaves it alone.
         auto *a = makeWordRoot(0, "A", {100, 300, 450});
         auto *b = makeWordRoot(480, "B", {-350, 200, 400});
         SingingClip clip({a, b});
@@ -415,7 +415,7 @@ namespace {
     }
 
     void testCascadeResetMultiStep() {
-        // A→B→C chain: B overlaps A's restored last, C overlaps B's restored last
+        // B overlaps A's restored last phoneme, and C overlaps B's.
         auto *a = makeWordRoot(0, "A", {100, 450});
         auto *b = makeWordRoot(480, "B", {0, 400});
         Phonemes bPhonemes = b->phonemes();

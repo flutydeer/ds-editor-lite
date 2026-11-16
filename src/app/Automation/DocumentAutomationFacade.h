@@ -39,7 +39,7 @@ namespace Automation {
         // Host-side calls only: the session is still in Replacing, so any command
         // routed through the dispatcher would be rejected as document-busy.
         std::function<void()> resetDocumentScopedState;
-        // 此时文档已恢复 Active，接收者可同步查询完整的提交状态。
+        // The document is active again, so receivers can query the committed state.
         std::function<void(const DocumentCommitInfo &)> afterCommit;
     };
 

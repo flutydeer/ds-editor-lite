@@ -1,11 +1,6 @@
-# Clipboard System — 设计文档
+# 编辑器剪贴板设计
 
-> 状态：✅ 实施完成（Phase 1 序列化、Phase 2 音符剪贴板、Phase 2.5 钢琴卷帘右键菜单、Phase 3 剪辑剪贴板均已提交；Phase 4 Polish 为后续增强）
-> 本文是最终设计说明，实施阶段记录已移除。
-
-## Context
-
-系统剪贴板覆盖**音符**（钢琴卷帘）和**剪辑**（编排视图）两级。早期存在 `ClipboardController` 实现框架（Singleton + PIMPL，符合项目风格；MIME 类型已定义；菜单 QAction 和快捷键已注册），但序列化、粘贴逻辑全部缺失。最终结论：**保留 ClipboardController 框架并重构**，不新建控制器。
+系统剪贴板支持钢琴卷帘中的音符和编排视图中的剪辑。`ClipboardController` 负责编辑器数据的序列化和粘贴，由菜单或快捷键按活动面板分发。
 
 ## Architecture
 
@@ -72,7 +67,7 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
 | Paste (菜单栏 Ctrl+V) | 反序列化 → 播放光标位置量化对齐网格 → 偏移 → `NoteActions::insertNotes()`（可撤销） |
 | Paste (右键菜单) | 反序列化 → **右键点击位置**量化对齐网格 → 偏移 → 插入（可撤销） |
 
-**粘贴位置策略**：所有音符相对最早音符的 `localStart` 保留相对位置；菜单栏粘贴时最早音符对齐到播放光标位置经 `snapNearest` 量化后的本地位置；右键粘贴时对齐到点击处 tick（经量化）。量化使用当前钢琴卷帘的 quantize 设置，通过 `TimelineSnapUtils::snapNearest(tick, quantizeStep)` 对齐。
+**粘贴位置策略**：所有音符相对最早音符的 `localStart` 保留相对位置。菜单栏粘贴时最早音符对齐到播放光标位置经 `snapNearest` 量化后的本地位置。右键粘贴时对齐到点击处 tick（经量化）。量化使用当前钢琴卷帘的 quantize 设置，通过 `TimelineSnapUtils::snapNearest(tick, quantizeStep)` 对齐。
 
 ### Clips (Arrangement)
 
@@ -82,7 +77,7 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
 | Cut | Copy + `ClipActions::removeClips()`（可撤销） |
 | Paste | 反序列化 → 播放光标量化位置 + 当前选中轨道 → `ClipActions::insertClips()`（可撤销） |
 
-**粘贴位置策略**：最早剪辑对齐到播放光标位置（编排视图 quantize，`TimelineSnapUtils::snapNearest()`），其余保持相对偏移；轨道以 `trackIndexOffsets` 相对当前选中轨道。
+**粘贴位置策略**：最早剪辑对齐到播放光标位置（编排视图 quantize，`TimelineSnapUtils::snapNearest()`），其余保持相对偏移。轨道以 `trackIndexOffsets` 相对当前选中轨道。
 
 ## Key Design Decisions
 
@@ -93,7 +88,7 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
 5. 粘贴的 SingingClip 默认 `useTrackSingerInfo = true`，继承目标轨道声线，不复制来源 singer/speaker。
 6. **Cut = Copy + 可撤销的 Delete**。
 7. 使用系统剪贴板（`QClipboard`），不用内部缓冲。
-8. **V1 不复制参数曲线**（pitch/energy 等）；音符本身所有属性（音素、发音、workspace）完整复制。参数曲线需按选中范围切片，复杂度高，作为后续增强（Phase 4）。
+8. **V1 不复制参数曲线**（pitch/energy 等）。音符本身所有属性（音素、发音、workspace）完整复制。参数曲线需按选中范围切片，复杂度高，作为后续增强（Phase 4）。
 9. 右键菜单粘贴用点击位置，菜单栏粘贴用播放光标位置。
 
 ## Known Issues
@@ -119,4 +114,4 @@ Paste 状态通过 `QClipboard::dataChanged()` 信号动态更新。
 - `src/app/Model/ClipboardDataModel/NotesParamsInfo.h/.cpp`、`ClipsInfo.h/.cpp`（序列化模型）
 - `src/app/Controller/TrackController.cpp`（clip 粘贴）、`src/app/Controller/ClipController.cpp`（note 粘贴）
 - `src/app/UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.cpp`（右键菜单）
-- `src/app/UI/Views/MainTitleBar/MainMenuViewPrivate`（菜单分发）
+- `src/app/UI/Views/MainTitleBar/MainMenuView.cpp`（菜单分发）

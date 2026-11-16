@@ -13,12 +13,12 @@
 | 开（ON）语义 | = 原 Full：所有动画启用，时长按 `animationTimeScale` 缩放 |
 | 关（OFF）语义 | = 原 None：所有动画即时完成（duration = 0） |
 | Decreased 档 | 删除，并入 ON（不再有"轻量" vs "全面"之分） |
-| 配置存储 | `animationLevel`（字符串） → `animationEnabled`（bool，默认 `true`）；`animationTimeScale` 保持 |
+| 配置存储 | `animationLevel`（字符串） → `animationEnabled`（bool，默认 `true`）。`animationTimeScale` 保持 |
 | load 解析 | 只用 `isBool()` 判断，绝不用 `toBool()` 兜底（旧字符串转 bool 恒为 false 会让动画全关） |
 | 枚举层 | 删除 `AnimationGlobal::AnimationLevels` 枚举及 fromString/toString，bool 直通 ThemeManager → IAnimatable |
-| 重命名落点 | `setAnimationLevel` → `setAnimationEnabled`；`afterSetAnimationLevel` → `afterSetAnimationEnabled`；`getEffectiveAnimationTime(ms, minimumLevel)` → `getEffectiveAnimationTime(ms)` |
+| 重命名落点 | `setAnimationLevel` → `setAnimationEnabled`。`afterSetAnimationLevel` → `afterSetAnimationEnabled`。`getEffectiveAnimationTime(ms, minimumLevel)` → `getEffectiveAnimationTime(ms)` |
 
-**开/关语义对齐确认**：改前"Decreased"会让部分"重"动画（编辑器视口平滑滚轮、ProgressIndicator 条、ToolTip/Toast 位移动画、EditorViewportAnimation 等 minimumLevel=Full 的调用）变成即时；改后一切由开关决定——ON 全部走动画+缩放，OFF 全部即时。行为对齐旧 Full/None，无中间态。
+**开/关语义对齐确认**：改前"Decreased"会让部分"重"动画（编辑器视口平滑滚轮、ProgressIndicator 条、ToolTip/Toast 位移动画、EditorViewportAnimation 等 minimumLevel=Full 的调用）变成即时。改后一切由开关决定——ON 全部走动画+缩放，OFF 全部即时。行为对齐旧 Full/None，无中间态。
 
 ## 现状（排查结论）
 
@@ -31,7 +31,7 @@
 | 广播 | `src/libs/GUI/Theme/ThemeManager.{h,cpp}` | `m_animationLevel`, `setAnimationSettings(level, timeScale)` |
 | 边界 | `src/app/Controller/AppController.cpp:179` | `fromString(appearance->animationLevel)` |
 | 设置 | Model `AppearanceOption.{h,cpp}` | `QString animationLevel="full"`，键 `animationLevel` |
-| UI | `src/app/UI/Dialogs/Options/Pages/AppearancePage.{h,cpp}` | ComboBox 三档，`animationLevelsName`；时长缩放 LineEdit |
+| UI | `src/app/UI/Dialogs/Options/Pages/AppearancePage.{h,cpp}` | ComboBox 三档，`animationLevelsName`。时长缩放 LineEdit |
 | 测试 | `src/tests/TestAnimationSettings/main.cpp` | 三档策略断言（effectiveDuration / 运行时热更 / Progress+TapTempo / ToolTip） |
 
 订阅者（15 个类全部只做 `updateAnimationSettings()`/`updateAnimationDuration()`，无特判分支）：
@@ -158,7 +158,7 @@ inline void IAnimatable::initializeAnimation() {
 }
 ```
 
-语义：关 → 全部 0；开 → ms × scale。无中间档。
+语义：关 → 全部 0。开 → ms × scale。无中间档。
 
 **Step 3** — 全仓库 grep 确认 `AnimationGlobal` / `AnimationLevels` 无其它残留后 `git rm src/libs/GUI/Animation/AnimationGlobal.h`。
 
@@ -228,8 +228,8 @@ void afterSetAnimationEnabled(bool enabled) override;
 
 ### Task 6：`getEffectiveAnimationTime` 调用点清理
 
-- 显式传 `AnimationGlobal::Full` 的调用点（Task 表格第 2 列）删第二参数；
-- 用默认参数的调用点无需改（签名变化不影响它们）；
+- 显式传 `AnimationGlobal::Full` 的调用点（Task 表格第 2 列）删第二参数。
+- 用默认参数的调用点无需改（签名变化不影响它们）。
 - 全部遗留对 `AnimationGlobal` 的引用随 Task 2 的 git rm + grep 兜底检查。
 
 ### Task 7：设置页 UI 换成开关
@@ -277,7 +277,7 @@ animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 cd /d/GitRepos/ds-editor-lite && lupdate src/app -ts src/app/Resources/translate/translation_zh_CN.ts
 ```
 
-然后用 Python（native open）把 `<source>Enable animations</source>` 的 translation 填上 `启用动画` 标记 `type=""`。旧的 Full/Decreased/None/Level 条目会自动标为 obsolete（保留无害；如需彻底清理可用 `lupdate ... -no-obsolete`，谨慎——会连其它上下文一并清理）。
+然后用 Python（native open）把 `<source>Enable animations</source>` 的 translation 填上 `启用动画` 标记 `type=""`。旧的 Full/Decreased/None/Level 条目会自动标为 obsolete（保留无害。如需彻底清理可用 `lupdate ... -no-obsolete`，谨慎——会连其它上下文一并清理）。
 
 > 注意：改 `.ts` 的提交不含 `.qm`（编译产物 gitignore）。
 
@@ -321,7 +321,7 @@ cmake --build --preset debug --target TestAnimationSettings
 build/Debug/.../TestAnimationSettings.exe   # 期望 stdout: All animation settings tests passed
 ```
 
-（若 Menu / 图标等无关报错忽略；LNK1168 先 `taskkill /f /im DsEditorLite.exe`）
+（若 Menu / 图标等无关报错忽略。LNK1168 先 `taskkill /f /im DsEditorLite.exe`）
 
 ### Task 10：格式 + 提交
 
@@ -352,12 +352,12 @@ git add -A && git commit -m "Replace animation level setting with on/off toggle"
 3. TestAnimationSettings 通过
 4. `grep -rn "AnimationLevels" src/` 零残留
 5. `grep -rn "animationLevel" src/` 零残留（`animationEnabled` 应在）
-6. UI 手测：设置页动画卡片显示开关 + 时长缩放；切换开关立即生效（不用重启，走 `saveAndNotify` → `optionsChanged` → pushAppearance）
+6. UI 手测：设置页动画卡片显示开关 + 时长缩放。切换开关立即生效（不用重启，走 `saveAndNotify` → `optionsChanged` → pushAppearance）
 
 ## 风险 / 取舍 / 开放问题
 
-- **删除枚举的波及面**：全部 15 类 + 测试 + 边界，改动面大但全部机械。风险低；若实施中不想动枚举，可保留 `enum { Full = true, None = false }` 两值将改动面缩到仅 UI+Model。已评估：直接 bool 更干净（本次是排查+方案，最终实施粒度可在动手前再和用户确认一次）。
-- **旧配置读入**：`animationLevel` 键不存在 → 默认开（符合要求）；若旧文件里该值为字符串且键名改成新键，则 load 完全不触碰 → 默认开。行为即"解析不了默认开"。
+- **删除枚举的波及面**：全部 15 类 + 测试 + 边界，改动面大但全部机械。风险低。若实施中不想动枚举，可保留 `enum { Full = true, None = false }` 两值将改动面缩到仅 UI+Model。已评估：直接 bool 更干净（本次是排查+方案，最终实施粒度可在动手前再和用户确认一次）。
+- **旧配置读入**：`animationLevel` 键不存在 → 默认开（符合要求）。若旧文件里该值为字符串且键名改成新键，则 load 完全不触碰 → 默认开。行为即"解析不了默认开"。
 - **Duration scale**：保留，开关打开时缩放时长含义不变（`getScaledAnimationTime`）。
 - `docs/theme/* 两处命中"动画"为配色文档，无关，不改。
 
@@ -378,14 +378,14 @@ git add -A && git commit -m "Replace animation level setting with on/off toggle"
 
 ### 根因链条（分析定稿）
 1. **QWDMH 第三方依赖在供给"顺滑"**：vcpkg `qt-win32-direct-manipulate-helper`（QWDMHCore）封装 WinRT `IDirectManipulationViewport`。
-   - `MainWindow` 根据外观设置 `enableDirectManipulation` 决定是否 `registerWindow()`（MainWindow.cpp:211-214、804-815；底部面板 :710-711）。
+   - `MainWindow` 根据外观设置 `enableDirectManipulation` 决定是否 `registerWindow()`（MainWindow.cpp:211-214、804-815。底部面板 :710-711）。
 2. **QWDMH 把滚轮变成高频连续细流**：`DirectManipulationSystem.cpp:43-64 OnContentUpdated` 每次内容变换取增量 `dx/dy`（约几像素/事件），`:31-41 sendWheelEvent` 合成 **`QWheelEvent(phase=Qt::ScrollUpdate)`** 发到窗口。这就是细流的来源。
 3. **关键联动**：`EditorWheelController.cpp:12-18` `isEditorWheelAnimationEnabled() = (WITH_DIRECT_MANIPULATION ? !enableDirectManipulation : true)` 喂给 `setDiscreteAnimationEnabled(...)`。DM 开启 → 返回 `false` → `animate = discrete && m_discreteAnimationEnabled() && getEffectiveAnimationTime(...) > 0` **恒为 false**，滚轮永远走"直接应用细流"，从不启动动画。
-4. **结论**：DM 场景下"顺滑"由 DM 供给，动画开关管不到它；只有关闭 `enableDirectManipulation`，滚轮回到普通离散步进，动画开关才真正控制"平滑↔跳变"。这解释了"RHI/Legacy 两种后端都有"——共用同一条 DM → wheel → 直放链路。
+4. **结论**：DM 场景下"顺滑"由 DM 供给，动画开关管不到它。只有关闭 `enableDirectManipulation`，滚轮回到普通离散步进，动画开关才真正控制"平滑↔跳变"。这解释了"RHI/Legacy 两种后端都有"——共用同一条 DM → wheel → 直放链路。
 
 ### 可选解决方向（暂缓，仅记录）
-- **A**（曾被暂缓的那版）：动画关时把 DM 的 ScrollUpdate 细流按整档切块累积 → 变"格跳"；需区分触控板 pixel delta 保持顺滑。
-- **B**：动画关时 unregister DM + 走普通离散跳变；代价连触控板一起变粗略。
+- **A**（曾被暂缓的那版）：动画关时把 DM 的 ScrollUpdate 细流按整档切块累积 → 变"格跳"。需区分触控板 pixel delta 保持顺滑。
+- **B**：动画关时 unregister DM + 走普通离散跳变。代价连触控板一起变粗略。
 - **C**：维持现状，语义定为"触控板/DM 天然顺滑，开关只管离散输入"。
 - 触控板保护需求已确认：无论开关，触控板（pixel delta）保持顺滑跟手。
 

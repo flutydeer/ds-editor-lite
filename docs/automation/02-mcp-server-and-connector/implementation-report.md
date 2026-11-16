@@ -1,5 +1,7 @@
 # 二期 MCP Server 与 DS Connector Lite 实现报告
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 交付结论与口径
 
 二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 176 项、Connector 6 项，共 182 项。

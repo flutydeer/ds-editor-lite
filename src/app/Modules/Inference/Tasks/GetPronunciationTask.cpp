@@ -129,9 +129,7 @@ void GetPronunciationTask::runTask() {
 
 QList<PronunciationFetchResult>
     GetPronunciationTask::getPronunciationResults(const QList<NoteInferenceSnapshot> &notes) const {
-    // Pre-fill with original lyric: when the language module is not ready or
-    // G2P fails later, the original lyric is kept as the pronunciation
-    // (ds-session.md §206: G2P failure preserves lyric; no G2P fallback).
+    // Use the original lyric as the pronunciation when G2P is unavailable or fails.
     QList<PronunciationFetchResult> pronResult;
     pronResult.resize(notes.count());
     for (int i = 0; i < notes.count(); i++) {
@@ -144,9 +142,7 @@ QList<PronunciationFetchResult>
         return pronResult;
     }
 
-    // R9: resolutionState pre-check (lite UI state concern).
-    // Non-Resolved singers are treated as non-routable; original lyric is
-    // kept as the pronunciation (aligned with GetPhonemeNameTask semantics).
+    // Voicebank language routing requires a resolved singer.
     if (m_singerInfo.resolutionState() != ResolutionState::Resolved) {
         qCWarning(logInferPron) << "SingerInfo not resolved, skip pronunciation fetch. identifier:"
                                 << m_singerInfo.identifier();
@@ -160,12 +156,8 @@ QList<PronunciationFetchResult>
         return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
-    // B1b-3: Group non-skipped notes by language (preserving first-seen order).
-    // Each language calls session().convertG2p once (internally routed by
-    // SingerRef.version, which fills g2pId/g2pContext/g2pContextVersion).
-    // The inference chain never falls back to official; on route/convert
-    // failure that language keeps the original lyric (ds-session.md §206).
-    // language -> [(noteIndex, lyricUtf8), ...]
+    // Batch G2P by language and retain note indices to restore result order.
+    // Each entry stores the note index and the UTF-8 lyric with trailing '+' markers removed.
     std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
 
     for (int i = 0; i < notes.count(); i++) {
@@ -203,6 +195,8 @@ QList<PronunciationFetchResult>
         // Ensure the G2P language module is loaded before conversion.
         // convertG2p does not auto-initialize models; ensureLanguageReady
         // loads them lazily on first call (cached internally by the session).
+        // Keep the original lyrics for manual editing if either call fails.
+        // Retrying with official G2P would bypass the singer's language route.
         const auto langStd = toUtf8(language);
         auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
         if (!readyExp) {
@@ -216,9 +210,6 @@ QList<PronunciationFetchResult>
 
         auto exp = session.convertG2p(identifier, langStd, inputs);
         if (!exp) {
-            // The inference chain never silently falls back to official;
-            // original lyric is kept so users can manually adjust later in
-            // PronunciationView (ds-session.md §206).
             qCWarning(logInferPron).nospace()
                 << "G2P conversion failed for lang='" << language
                 << "': " << fromUtf8(exp.error().message()) << ". Keeping original lyric.";
@@ -228,9 +219,9 @@ QList<PronunciationFetchResult>
         }
 
         const auto &outcomes = *exp;
-        // Caller is responsible for result count validation; on mismatch the
-        // original lyric is kept (no Q_ASSERT: Debug-build abort conflicts
-        // with D11 precise error reporting).
+        // A count mismatch makes it unsafe to associate results with their notes.
+        // Keep this check in all builds so debug runs can log the error and preserve
+        // the lyrics. Q_ASSERT would abort before recovery.
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
                 << "convertG2p returned " << outcomes.size() << " outcomes for " << entries.size()
@@ -253,12 +244,8 @@ QList<PronunciationFetchResult>
                 rawCandidates.append(fromUtf8(candidate));
             res.candidates = normalizePronunciationCandidates(res.pronunciation, rawCandidates);
 
-            // Failure diagnostics (non-blocking): on per-lyric failure LangCore
-            // already sets pronunciation=lyric (the only allowed behavior per
-            // ds-session.md §196 — no G2P fallback).
-            // Note: qPrintable() avoids Qt6 QDebug auto-quoting QString
-            // (otherwise empty strings display as "", causing context='""'
-            // which misleads debugging).
+            // LangCore preserves the lyric on per-note failure. Log the module's error details
+            // without QDebug adding a second set of quotes to the fields.
             if (outcomes[i].errorType != srt::g2p::NoError) {
                 qCWarning(logInferPron).nospace()
                     << "G2P conversion error note[" << noteIdx << "] g2pId='"

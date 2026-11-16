@@ -51,12 +51,6 @@ namespace LangSetting {
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this, SmoothScroller::TouchKinetic::Disabled);
 
-        // TODO g2pMgr->g2ps() bug
-        // for (const auto &g2pId : langOrder) {
-        //     const auto &g2p = g2pMgr->g2p(g2pId);
-        //     this->addItem(g2p->displayName());
-        //     this->item(this->count() - 1)->setData(Qt::UserRole, g2p->id());
-        // }
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 
@@ -67,31 +61,19 @@ namespace LangSetting {
         const auto topLayout = new QHBoxLayout();
         const auto g2pLabel = new QLabel(tr("G2p Presets"));
 
-        // auto *copyButton = new QPushButton(tr("Copy"));
-        // auto *deleteButton = new QPushButton(tr("Delete"));
-
         m_gListWidget = new GListWidget();
         m_gListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
         topLayout->addWidget(g2pLabel);
         topLayout->addStretch();
-        // topLayout->addWidget(copyButton);
-        // topLayout->addWidget(deleteButton);
         mainLayout->addLayout(topLayout);
         mainLayout->addWidget(m_gListWidget);
         this->setLayout(mainLayout);
-
-        // connect(copyButton, &QPushButton::clicked, this, &G2pListWidget::copySelectedItem);
-        // connect(deleteButton, &QPushButton::clicked, this, &G2pListWidget::deleteSelectedItem);
-        // connect(m_gListWidget, &GListWidget::deleteButtonStateChanged, deleteButton,
-        //         &QPushButton::setEnabled);
     }
 
     G2pListWidget::~G2pListWidget() = default;
 
     QString G2pListWidget::currentG2pId() const {
-        // R2/TD-2: 列表为空时 currentItem() 返回 nullptr，直接解引用会崩溃
-        // （G2pPage::update() 与 shown 信号槽会调用本函数）。空时返回空 QString，
-        // 由 G2pInfoWidget::setInfo 显示占位文案。
+        // An empty id tells the details view that there is no selection.
         const auto *item = m_gListWidget->currentItem();
         if (!item)
             return {};
@@ -117,40 +99,7 @@ namespace LangSetting {
     }
 
     void GListWidget::copyItem(int row) {
-        // if (row < 0 || row >= this->count())
-        //     return;
-        //
-        // const QListWidgetItem *originalItem = this->item(row);
-        // const QString itemName = originalItem->text();
-        // const QString oldG2pId =
-        //     extractConfig(originalItem->data(Qt::UserRole).toString()).first;
-        //
-        // int maxNumber = -1;
-        // for (int i = 0; i < this->count(); ++i) {
-        //     QString dataString = this->item(i)->data(Qt::UserRole).toString();
-        //
-        //     int number = extractLeadingNumber(dataString).first;
-        //     if (number >= 0) {
-        //         maxNumber = qMax(maxNumber, number); // 更新最大数字
-        //     }
-        // }
-        //
-        // const int newNumber = (maxNumber >= 0) ? maxNumber + 1 : 0;
-        // const auto newG2pId = QString::number(newNumber) + oldG2pId;
-        //
-        // const auto g2pMgr = LangMgr::ILanguageManager::instance();
-        // const auto oldG2p = g2pMgr->g2p(oldG2pId);
-        // if (oldG2p == nullptr)
-        //     return;
-
-        // const auto newG2p =
-        //     g2pMgr->addG2p(oldG2p->clone(newG2pId, oldG2p->category(), oldG2p->parent()));
-        //
-        // if (newG2p) {
-        //     auto *newItem = new QListWidgetItem(itemName);
-        //     newItem->setData(Qt::UserRole, newG2pId);
-        //     this->addItem(newItem);
-        // }
+        // G2P presets cannot be duplicated from this list.
     }
 
     void GListWidget::deleteItem(const int row) {

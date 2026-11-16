@@ -500,7 +500,7 @@ void EditorRhiGeometry::appendRoundedRectRing(QVector<EditorRhiSolidVertex> &ver
     const auto outerRadius = std::max(0.0, innerRadius + verticalBand);
     const auto innerFadeRect = physicalInnerRect.adjusted(fade, fade, -fade, -fade);
     if (innerFadeRect.isEmpty()) {
-        // The hole is too small to fit even the feathering — fill the outer edge outright
+        // The hole is too small to fit even the feathering - fill the outer edge outright
         appendRoundedRect(vertices, outerRect, outerRadius, color);
         return;
     }

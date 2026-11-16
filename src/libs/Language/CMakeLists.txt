@@ -1,9 +1,6 @@
 project(Language LANGUAGES CXX)
 
-# G2P (grapheme-to-phoneme) language support: the convert runner, the input
-# adapter and the singer-G2P identifier. Wraps the synthrt G2P services.
-# Pure domain (no Qt Widgets); the language-settings widgets live in the app.
-# Consumed as <lite/Language/.../Xxx.h>.
+# Grapheme-to-phoneme request and conversion utilities for singer languages.
 find_package(synthrt CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS

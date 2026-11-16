@@ -37,7 +37,7 @@ namespace FillLyric {
 
     void RuleListWidget::dropEvent(QDropEvent *event) {
         QListWidget::dropEvent(event);
-        // After InternalMove, item widgets are lost — caller must rebuild them.
+        // After InternalMove, item widgets are lost - caller must rebuild them.
         emit orderChanged();
     }
 } // namespace FillLyric

@@ -1,5 +1,7 @@
 # 三期真正 Headless 与原生 JSON-RPC 实现报告
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 交付结论与最终口径
 
 三期在一期 Automation Facade 与二期公共 Contract、Registry、Editor MCP、Connector 基础上，

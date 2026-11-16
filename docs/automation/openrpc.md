@@ -3,7 +3,7 @@
 ## 服务入口
 
 编辑器的自动化 HTTP 服务只监听 `127.0.0.1`。两个协议共用配置端口、公共 Registry、控制层级、
-自定义权限、文件访问范围及传输限制。
+自定义权限、文件访问范围及传输限制。需要查询当前工具定义时，使用对应协议的发现接口，见[自动化文档](README.md)。
 
 | 宿主 | MCP | JSON-RPC |
 |---|---|---|
@@ -19,8 +19,8 @@ GUI 中两个开关都关闭时停止监听，任一协议开启时共用同一�
 例如 `--rpc --no-mcp` 只开放 JSON-RPC，`--mcp --no-rpc` 在 GUI 中只开放 MCP。
 
 `--headless` 强制开启 JSON-RPC，即使配置关闭或传入 `--no-rpc` 也仍然开启，启动失败按致命错误
-处理。MCP 继续由自身开关控制。两个协议仍共用 `--control-port` 和 `--control-level`。
-QLocal Bootstrap 的 `server_endpoint` 继续指向 MCP，避免改变 Connector 的发现协议。
+处理。MCP 由自身开关控制。两个协议共用 `--control-port` 和 `--control-level`。
+Connector 通过 QLocal Bootstrap 的 `server_endpoint` 发现 MCP 端点。
 
 | HTTP 入口 | 用途 |
 |---|---|
@@ -43,12 +43,11 @@ QLocal Bootstrap 的 `server_endpoint` 继续指向 MCP，避免改变 Connector
 `result` 与文档 GET 入口返回同一个 JSON 对象。`params` 可省略或传 `{}`，其他参数会返回
 `-32602`。文档 GET 不要求 Content-Type，不需要 MCP 会话或版本协商。
 
-发现集合由 `PublicAutomationRegistry::enabledContracts()` 产生，与 MCP `tools/list` 共用
-宿主和权限过滤。`rpc.discover` 额外出现在 OpenRPC 方法列表中，但不属于公共业务工具，
-不改变 MCP 工具目录或公共工具版本。已知业务方法的实际执行仍由 Registry 完成。
+OpenRPC 文档与 MCP `tools/list` 共用宿主和权限过滤。`rpc.discover` 是 JSON-RPC 自带的
+发现方法，独立于公共业务工具集。
 
-文档入口复用 Native 请求的主线程派发、并发限制、超时和响应大小限制，沿用 Host/Origin
-校验及 `Cache-Control: no-store`。权限变化后重新读取文档即可取得当前集合。
+文档入口遵循 JSON-RPC 的 Host/Origin 校验、并发、超时和响应大小限制，并返回
+`Cache-Control: no-store`。权限变化后重新读取文档即可取得当前集合。
 
 ## 契约来源与 Schema
 
@@ -80,7 +79,7 @@ OpenRPC 的逐参数列表不能完整表达 `tasks.*` 的条件必填、`reveal
 
 ## 调用与错误
 
-Native 沿用既有受限调用约定，文档中的 `x-ds-jsonrpc-profile` 记录这些限制：
+文档中的 `x-ds-jsonrpc-profile` 记录以下调用限制。
 
 - 每次 HTTP POST 接受一个请求对象，不接受 batch。
 - `id` 为字符串或 JSON 安全整数，不接受缺失及 `null`。
@@ -92,6 +91,3 @@ JSON-RPC 解析、请求格式、未知方法、参数和内部错误分别使�
 `-32602`、`-32603`。其他业务错误使用 `-32000`，具体错误由 `error.data.code` 和实际
 `message` 描述。Host/Origin 拒绝、媒体类型、请求大小、繁忙和超时等传输错误仍使用 HTTP
 状态码。通用 OpenRPC 工具可以读取标准字段，完整参数约束需要支持上述扩展。
-
-本契约更新了三期文档中“GUI 不开放 Native”和“Native 不提供发现”的约定。Headless 必须
-存在 Native 入口、MCP 可单独关闭的约定继续有效。

@@ -128,8 +128,8 @@ namespace FillLyric {
     static std::vector<TaggerConfig> g_taggers;
     static bool g_taggerInitialized = false;
     static std::filesystem::path
-        g_dictRootDir; // R7/TD-9: used by setCustomRules() to resolve dict file names
-    static std::once_flag g_taggerInitOnce; // R11/TD-7: guards lazy init thread safety
+        g_dictRootDir; // Base directory for custom dictionary paths.
+    static std::once_flag g_taggerInitOnce;
 
     static void ensureTaggerInitialized() {
         std::call_once(g_taggerInitOnce, [] {
@@ -163,7 +163,7 @@ namespace FillLyric {
                           const std::filesystem::path &dictRootDir) {
         g_taggers.clear();
         g_taggerInitialized = true;
-        g_dictRootDir = dictRootDir; // R7/TD-9: record dict root dir for setCustomRules()
+        g_dictRootDir = dictRootDir;
 
         std::vector<std::filesystem::path> entries;
         for (const auto &entry : std::filesystem::directory_iterator(configDir)) {
@@ -233,8 +233,6 @@ namespace FillLyric {
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
                 } else if (te.type == "dict") {
-                    // R7/TD-9: instantiate DictTaggerRule, resolve each dict filename in value from
-                    // dictRootDir
                     std::vector<std::string> resolvedPaths;
                     resolvedPaths.reserve(te.value.size());
                     for (const auto &filename : te.value) {
@@ -365,8 +363,6 @@ namespace FillLyric {
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
                 } else if (te.type == "dict") {
-                    // R7/TD-9: custom dict rules reuse g_dictRootDir recorded by init() to resolve
-                    // dict files
                     std::vector<std::string> resolvedPaths;
                     resolvedPaths.reserve(te.value.size());
                     for (const auto &filename : te.value) {

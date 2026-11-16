@@ -1,22 +1,18 @@
-# 四期测试执行计划
+# 测试指南
 
 ## 1. 执行入口
 
-先准备环境并完整构建 Editor、Connector 和测试，再执行规定集合。定位问题时用 CTest 标签或程序名选择套件，用 Qt Test slot 选择具体行为。分类和程序职责见[测试大纲](test-outline.md)，能力到测试的对应见[覆盖矩阵](test-coverage-matrix.md)，验收事实见[测试报告](test-report.md)。
+先准备环境并完整构建 Editor、Connector 和测试，再通过 CTest 执行。定位问题时用 CTest 标签或程序名选择套件，用 Qt Test slot 选择具体行为。测试注册以 [CMake 定义](../../../src/tests/CMakeLists.txt)为准。
 
 ## 2. 环境与构建
 
 ### 2.1. 公共要求
 
-使用 CMake 3.24 或以上、项目要求的 Qt 6、编译器及 vcpkg 依赖。Qt 包含 Core5Compat、ShaderTools、StateMachine、HttpServer、WebSockets 等组件。版本和系统包以 [workflow](../../../.github/workflows/tests.yml)、manifest 和 presets 为准，文档不维护平行版本表。
+准备项目要求的 CMake、Qt、编译器和 vcpkg。CI 的 Qt 版本、组件、系统包和平台参数见
+[测试工作流](../../../.github/workflows/tests.yml)，应用依赖见 [vcpkg manifest](../../../scripts/vcpkg-manifest/vcpkg.json)。
 
-所有测试启用 LITE_BUILD_TESTS。tests preset 使用 build/Tests，coverage 使用 build/Coverage，避免与 IDE 的 build/Debug 共享生成文件。build preset 同时构建完整产品和 lite_tests，不能仅编译测试程序后宣称产品构建通过。
-
-| 平台 | runner / 架构 | vcpkg triplet | CI 入口 |
-|---|---|---|---|
-| Linux | ubuntu-latest / x64 | x64-linux | coverage 构建，ctest --preset ci-coverage，随后独立 Coverage 步骤 |
-| Windows | windows-latest / x64 | x64-windows | 普通 Debug tests 构建，ctest --preset ci |
-| macOS | macos-latest / arm64 | arm64-osx | 普通 Debug tests 构建，ctest --preset ci |
+使用 [`tests` 或 `coverage` preset](../../../CMakePresets.json) 配置测试构建。这两个 preset
+都启用 `LITE_BUILD_TESTS`，使用独立的构建目录。对应的 build preset 会构建产品和测试。
 
 ### 2.2. Windows
 
@@ -61,7 +57,6 @@ ctest --preset local
 - CTest 用 -L 选择 unit、domain、workflow、protocol、process、gui 等职责标签，用 -R 选择程序。直接执行测试程序并传入 slot 名可定位具体行为，不另建函数清单。
 - 两个 Provider 编译变体共用源码，均须构建和执行，其配置测试不要求 CUDA 设备。
 - Windows wrapper 将结果写到 build/test-results。直接 CTest 可用 --output-junit 指定报告，逐例日志位于构建目录的 Testing/Temporary/LastTest.log。
-- 产物记录源码、工具链、依赖版本和执行条件。阶段文档不复制每次执行的版本及运行 ID。
 
 ## 3. 运行条件
 
@@ -95,7 +90,7 @@ $env:DSEL_TEST_LYRIC = "la"
 
 Linux/macOS 使用同名环境变量。显式配置优先于内置包，缺项、加载或执行失败报告 FAIL，不扫描个人目录、不自动回退内置包。
 
-DirectML/CUDA 数据行使用内置包验证实际推理及声码器。未编译 Provider 或无设备时报告 QSKIP，已发现资源的初始化、加载或执行失败报告 FAIL。配置选择测试与真实 GPU 推理分别报告。GAME/RMVPE 实际模型不在本期执行范围。
+DirectML/CUDA 数据行使用内置包验证实际推理及声码器。未编译 Provider 或无设备时报告 QSKIP，已发现资源的初始化、加载或执行失败报告 FAIL。配置选择测试与真实 GPU 推理分别报告。
 
 ### 3.3. 音频与 MIDI 设备
 
@@ -120,13 +115,9 @@ RuntimeResourcesFixture 从实际构建的 Editor 初始化规则和插件，mac
 
 ## 5. CI 引导与失败复验
 
-1. Draft PR 分别打通三平台依赖、配置、完整构建、通用工作流、协议/进程和 GUI。必须有实际运行，提交 workflow 不等于验证成功。
-2. 从首个根因区分依赖、编译、加载、断言、超时或状态污染，保留原失败日志。
-3. 可本地复现时先跑失败用例及所属组，再完成 Windows 完整构建、规定测试和覆盖分析，之后提交并正常推送。
-4. 新代码由新运行验证，恢复三平台完整集合。旧 run 的重跑仍对应旧代码，一个平台通过不能替代其他平台。
-5. 冷缓存、暖缓存及依赖更新分别验证。只操作本 PR 对应缓存，不清理其他 PR 缓存。缓存键包含 triplet、runner 镜像、Qt、manifest 及覆盖端口，每次仍执行 install，由 vcpkg ABI 决定复用或重建，不缓存整个 CMake 树。
-6. 测试退出码正确传播，失败后仍收集已有日志、JUnit 和素材。macOS crash diagnostics 仅收集系统崩溃附件，不能代替测试结果。
-7. 纯文档修改不重跑或重新等待已验证代码的 CI。缓存路径只在受影响时复验，稳定 PR body 不充当状态日志。
+在 [测试工作流](../../../.github/workflows/tests.yml)中查看各平台的构建、筛选参数和缓存步骤。
+失败时先查看退出状态、JUnit 及逐例日志。macOS 的崩溃附件可用于定位进程异常。能在本机
+复现时，可先定向运行失败用例和所属套件。
 
 ## 6. 覆盖率采集
 
@@ -140,7 +131,7 @@ cmake --preset coverage -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
 cmake --build --preset coverage
 ctest --preset coverage
 python3 -m venv build/ci/coverage-env
-build/ci/coverage-env/bin/pip install gcovr==8.6
+build/ci/coverage-env/bin/pip install gcovr
 mkdir -p build/test-results/coverage
 build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
   --html-nested build/test-results/coverage/index.html \
@@ -148,7 +139,7 @@ build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
   --csv build/test-results/coverage/files.csv --print-summary
 ```
 
-独立采样先确保该覆盖构建没有旧 .gcda，防止累计历史命中。merge-lines 按文件和源码行合并模板实例，口径修正不算新增测试贡献。
+复现 CI 报告时使用工作流指定的 gcovr 版本。独立采样前清除对应构建树中的旧 `.gcda`，防止累计历史命中。`merge-lines` 按文件和源码行合并模板实例。
 
 ### 6.2. Windows / MSVC
 
@@ -179,8 +170,4 @@ python3 scripts/tests/collect-llvm-coverage.py --output build/test-results/llvm-
 
 完整报告排除测试、第三方及生成代码，业务边界核算另保留分子、分母和逐文件区间。原始结果不能被边界统计覆盖。MSVC 不报告占位分支百分比，LLVM mapping/profile 警告保留并按函数核对，不静默缩小范围。
 
-按[大纲的边界](test-outline.md#10-业务逻辑覆盖统计边界)及产品风险分析未命中行，优先真实编辑、失败恢复、持久化、文件发布和 GUI 接线。合并重复场景和生产实现，区分新增命中、源码重构及统计变化，不为 Schema、布局或不可达私有分支堆测试。
-
-## 7. 验收与审查
-
-Windows 完整环境业务逻辑覆盖达到约定的 90% 参考目标，三平台规定测试和 Linux 独立覆盖步骤通过，文档与实现一致后交付 ready PR。真实审查问题修复并本地验证后推送，回复并 resolve，由仓库智能触发复审，不逐次手工发送触发评论。受审代码的规定验证与 bot thumbs-up 或明确无问题结论同时成立才完成验收。
+分析未命中行时，优先关注编辑、失败恢复、持久化、文件发布和 GUI 接线。归因时区分新增用例、源码变化和统计口径变化。新增用例遵循[测试原则](../../../AGENTS.md#testing-principles)。

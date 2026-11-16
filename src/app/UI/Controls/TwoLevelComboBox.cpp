@@ -25,7 +25,7 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     QStyleOptionToolButton opt;
     opt.initFrom(this);
-    // 只让 Qt style 绘制按钮背景；文本和箭头由控件自绘，确保 QSS color 能统一生效。
+    // Paint the text and arrow here so the QSS color applies to both.
     opt.features = QStyleOptionToolButton::None;
     opt.toolButtonStyle = Qt::ToolButtonTextOnly;
     style()->drawComplexControl(QStyle::CC_ToolButton, &opt, &painter, this);
@@ -39,8 +39,7 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
                      currentText().isEmpty() ? tr("Please select") : currentText());
 
     constexpr int menuButtonWidth = 28;
-    // 箭头沿用项目的 SVG 染色工具，并用 QRectF 计算位置，避免高 DPI 缩放下整数坐标
-    // 造成轻微偏移。ComboBox 如需自绘箭头，应复用同样的 IconUtils + QRectF 方式。
+    // Keep the arrow's position fractional to avoid rounding offsets at high DPI.
     const QRectF controlRect(QPointF(opt.rect.topLeft()), QSizeF(opt.rect.size()));
     const QSizeF arrowSize(16, 16);
     const QRectF arrowRect(controlRect.left() + controlRect.width() - menuButtonWidth +
@@ -147,7 +146,7 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     clear();
 
     if (m_showInheritItem) {
-        // "Follow Track" inherit item — singer/speaker populated later via setCurrentData
+        // setCurrentData fills in the track's inherited singer and speaker.
         const auto action = new QAction(tr("Follow Track"), this);
         ComboBoxItemData inheritData;
         inheritData.text = tr("Follow Track");
@@ -186,7 +185,6 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
 
     // Restore previous selection
     if (inheritWasSelected && m_showInheritItem) {
-        // Re-select inhert item — caller will update singer/speaker via
         if (!m_itemDataList.isEmpty() && m_itemDataList.first().isInheritItem) {
             m_currentItem = m_itemDataList.first();
         }

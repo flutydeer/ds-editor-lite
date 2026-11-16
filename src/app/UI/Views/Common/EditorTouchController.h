@@ -31,15 +31,9 @@ class QWidget;
 // makes Qt synthesize the mouse events for us (with the stylus device and
 // Qt::MouseEventNotSynthesized, see QGuiApplicationPrivate::processTabletEvent).
 //
-// The long press context menu is ours. Windows had its own press and hold,
-// which turned the same contact into a right click on release and drew a
-// translucent square while the finger was down, and for a while that was left
-// to run: matching its timing by hand is not worth it, and a menu opened
-// mid-hold would be closed again by the right button Windows emitted on
-// release. Now EditorSystemGestureSuppressor answers that gesture off for the
-// windows this controller owns, so the machine decides on its own — 450 ms of
-// stillness — and the menu is raised on release, which is the same timing the
-// platform used and the only one that cannot feed the release to the menu.
+// EditorSystemGestureSuppressor disables the native hold gesture for these widgets.
+// After a 450 ms hold, open the context menu on release so the menu cannot receive the
+// release that opened it.
 //
 // The controller also has to *swallow* foreign pointer events. Accepting a
 // QTouchEvent stops Qt from synthesizing mouse events, but it does nothing

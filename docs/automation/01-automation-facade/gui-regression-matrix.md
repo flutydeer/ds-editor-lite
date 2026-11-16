@@ -1,5 +1,7 @@
 # Automation Facade 全域 GUI 回归执行矩阵
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 文档状态与口径
 
 本文是一期 Automation Facade 全量 Computer Use 回归的稳定执行清单，不是测试结果或排期记录。

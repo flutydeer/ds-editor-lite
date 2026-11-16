@@ -24,7 +24,7 @@ namespace FillLyric {
 
     static std::vector<SplitterConfig> g_splitters;
     static bool g_splitterInitialized = false;
-    static std::once_flag g_splitterInitOnce; // R11/TD-7: guards lazy init thread safety
+    static std::once_flag g_splitterInitOnce;
 
     static void ensureSplitterInitialized() {
         std::call_once(g_splitterInitOnce, [] {

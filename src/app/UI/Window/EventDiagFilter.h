@@ -1,5 +1,3 @@
-// ====== TEMPORARY DIAGNOSTIC EVENT FILTER (remove after investigation) ======
-
 #ifndef EVENTDIAGFILTER_H
 #define EVENTDIAGFILTER_H
 

@@ -142,10 +142,8 @@ protected:
     void touchRelayTextCancel() override;
 
     // --- EditorPenTarget ---
-    // Mirrors the legacy piano roll's strategy table: the note tools erase
-    // notes, the pitch tools erase a parameter curve, everything else has the
-    // stroke swallowed. No arming hook is needed here, because this backend
-    // routes the erase intent itself when it starts an interaction.
+    // Note tools erase notes and pitch tools erase the curve. The widget reads
+    // the erase intent when the interaction begins.
     [[nodiscard]] EditorPenEraser penEraserAction() const override;
 
 private:

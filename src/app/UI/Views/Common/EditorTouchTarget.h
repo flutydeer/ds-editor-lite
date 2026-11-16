@@ -3,18 +3,14 @@
 
 #include <QPointF>
 
-// What an editor view must provide for EditorTouchController to drive it.
-//
-// Both editor backends (the legacy TimeGraphicsView family and the RHI
-// EditorRhiWidget family) implement this, which is what lets a single gesture
-// layer cover the piano roll, the parameter editor and the arrangement view.
+// Viewport and edit hooks used by EditorTouchController.
 class EditorTouchTarget {
 public:
     enum class BlankDragAction {
         // Hand the drag to the existing mouse state machine unchanged. The
         // active tool decides what happens (rubber band, draw curve, erase...).
         SyntheticMouse,
-        // Blank area is empty canvas — dragging it scrolls the viewport.
+        // Blank area is empty canvas - dragging it scrolls the viewport.
         Pan,
     };
 
@@ -59,9 +55,7 @@ public:
         return true;
     }
 
-    // Where a single-finger stream goes. Kept a pure function of its inputs so
-    // the whole table can be unit tested headlessly (see TestTouchGestures); the
-    // controller only turns the answer into state.
+    // Route a single-finger stream according to its initial target and editor policy.
     enum class FingerStream {
         // Nothing happens at all: no press, no move, no scroll.
         Consumed,
@@ -90,9 +84,7 @@ public:
 
     [[nodiscard]] static FingerStream fingerStreamFor(const FingerContext &context) {
         if (!context.fingerEdits) {
-            // Navigation only: a tap has nothing to select here and must not
-            // create anything either, a drag pans, and a held press keeps the
-            // menu until the finger travels — the bargain Pan territory makes.
+            // In navigation-only mode a hold preserves the menu until the finger moves.
             if (context.tap)
                 return FingerStream::Consumed;
             return context.fromLongPress ? FingerStream::DeferredPan : FingerStream::Pan;

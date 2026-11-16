@@ -32,7 +32,6 @@ namespace IconUtils {
     QPixmap renderTintedSvgPixmap(const QString &svgPath, const QSize &iconSize,
                                   const QColor &color, qreal devicePixelRatio);
 
-    // Default palette helpers (previously in MainTitleBarIconPalette)
     SvgIconColorPalette defaultActionPalette();
     SvgIconToggleColorPalette defaultToggledPalette(const QColor &checkedColor);
 

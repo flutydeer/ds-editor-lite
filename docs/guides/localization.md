@@ -5,13 +5,13 @@
 ## 当前策略
 
 - 英文是源语言，源代码中的 UI 文本使用英文，不维护 `en_US.ts/qm`。
-- 当前支持 `system`、`en_US`、`zh_CN` 三种语言偏好；配置保存在 `general.uiLanguage`。
+- 当前支持 `system`、`en_US`、`zh_CN` 三种语言偏好。配置保存在 `general.uiLanguage`。
 - “自动检测”使用 `QLocale::system().language()`：任意中文系统映射到简体中文，其他系统回退英文。
 - 自动检测在应用启动和用户重新选择“自动检测”时执行，不监听运行期间的系统语言变化。Windows 显示语言通常在注销后才生效，应用下次启动时会重新检测。
 - 用户显式选择 English 或简体中文后立即热切换，不需要重启。
 - UI 语言与歌声/G2P 语言、数字和日期区域格式相互独立。应用默认 `QLocale`
   仅由系统 locale 派生，并在保留系统 number options 的基础上启用
-  `OmitGroupSeparator`；不要根据 UI 语言改写默认 locale。需要按 UI 语言选择本地化显示名时
+  `OmitGroupSeparator`。不要根据 UI 语言改写默认 locale。需要按 UI 语言选择本地化显示名时
   使用 `UiLanguageManager::effectiveLocale()`。
 - 轨道名、剪辑名、歌词和文件名等项目数据不会随 UI 语言变化。`New Project` 这类未命名工程占位文本在显示时翻译，不作为项目数据保存。
 
@@ -48,17 +48,17 @@ QApplication
 
 最终呈现给用户的数值必须使用应用默认 locale：
 
-- 直接格式化使用 `QLocale().toString(...)`，不要使用 `QString::number(...)`；
+- 直接格式化使用 `QLocale().toString(...)`，不要使用 `QString::number(...)`。
 - 翻译字符串中的数值参数使用 `%L1`、`%L2` 等本地化占位符，复数计数使用
-  `%Ln`；
+  `%Ln`。
 - 可编辑的本地化数值必须使用 `QLocale().toInt(...)`、
-  `QLocale().toDouble(...)` 等对应接口回读，保证逗号小数等系统区域格式可以往返；
+  `QLocale().toDouble(...)` 等对应接口回读，保证逗号小数等系统区域格式可以往返。
 - 表示音乐或绝对时间的固定格式字符串（例如小节:节拍:刻、分钟:秒:毫秒）继续使用
-  C Locale 数字；
+  C Locale 数字。
 - 现有格式化若包含补零、裁剪尾零或其他复杂拼接，且不能安全地直接替换为本地化转换，
-  应保留原实现并添加带负责人的 TODO，待单独处理；
+  应保留原实现并添加带负责人的 TODO，待单独处理。
 - 应用默认 locale 来自系统 locale，并启用 `OmitGroupSeparator`，因此用户界面整数不显示
-  组分隔符；UI 语言热切换不得改变数字或日期区域格式。
+  组分隔符。UI 语言热切换不得改变数字或日期区域格式。
 
 控制台日志、DSPX/JSON/设置键等机器可读文本、缓存键、样式字符串、文件名模板，以及
 音名、API level、version 等稳定标识符和固定格式时间字符串继续使用明确规定的 C Locale
@@ -104,12 +104,12 @@ void TrackPropertiesView::retranslateUi() {
 
 需要热切换的对象必须保存为成员，常见对象包括：
 
-- Label、Button、Action、Menu 和 Tab 标题；
-- Tooltip、StatusTip、PlaceholderText；
-- GroupBox、Card 和设置项标题；
+- Label、Button、Action、Menu 和 Tab 标题。
+- Tooltip、StatusTip、PlaceholderText。
+- GroupBox、Card 和设置项标题。
 - 空状态、错误状态以及当前状态对应的动态提示。
 
-调用基类 `changeEvent()` 后再更新本组件。不要新增一套 Widget 翻译订阅机制；Qt 的 `LanguageChange` 是常驻界面的统一入口。
+调用基类 `changeEvent()` 后再更新本组件。不要新增一套 Widget 翻译订阅机制。Qt 的 `LanguageChange` 是常驻界面的统一入口。
 
 Qt Designer 生成的界面可在 `LanguageChange` 中调用 `ui->retranslateUi(this)`，手工创建的控件则使用本项目的成员加 `retranslateUi()` 模式。
 
@@ -137,7 +137,7 @@ m_modeComboBox->setCurrentIndex(m_modeComboBox->findData(selectedId));
 
 ### Tooltip
 
-更新控件的 `toolTip` 即可让 `ToolTipFilter` 在下次显示时读取新标题。自定义 Tooltip 持有的快捷键和消息也应通过其 setter 更新。不要假设语言切换时 Tooltip 实例一定存在；隐藏动画期间它可能暂时为空。
+更新控件的 `toolTip` 即可让 `ToolTipFilter` 在下次显示时读取新标题。自定义 Tooltip 持有的快捷键和消息也应通过其 setter 更新。不要假设语言切换时 Tooltip 实例一定存在。隐藏动画期间它可能暂时为空。
 
 ## 长期状态文本
 
@@ -150,13 +150,13 @@ setTranslatableName("NoteActions",
                     QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
 ```
 
-`QT_TRANSLATE_NOOP` 让 `lupdate` 提取字符串，但不会在动作创建时翻译；`ActionSequence::name()` 在菜单或 Tooltip 刷新时调用 `QCoreApplication::translate()`。如果名称本身是用户数据或无需翻译，可继续使用 `setName(QString)`。
+`QT_TRANSLATE_NOOP` 让 `lupdate` 提取字符串，但不会在动作创建时翻译。`ActionSequence::name()` 在菜单或 Tooltip 刷新时调用 `QCoreApplication::translate()`。如果名称本身是用户数据或无需翻译，可继续使用 `setName(QString)`。
 
 新增类似状态时优先采用以下顺序：
 
-1. 保存枚举、ID 或空值等语义状态；
-2. 保存显示所需的未翻译参数；
-3. 在 getter 或 View 渲染时调用 `tr()`；
+1. 保存枚举、ID 或空值等语义状态。
+2. 保存显示所需的未翻译参数。
+3. 在 getter 或 View 渲染时调用 `tr()`。
 4. 在 `LanguageChange` 时重新读取并显示。
 
 不要通过字符串匹配识别默认名称，因为用户可能真的输入同样的文本。
@@ -187,10 +187,10 @@ Qt 标准控件的中文翻译在构建时通过 `MERGE_QT_TRANSLATIONS` 合入�
 
 提交翻译更新前应确认：
 
-- 没有 `unfinished`；
-- 没有 `vanished` 或 `obsolete`；
-- 没有空翻译；
-- context 与代码实际调用一致；
+- 没有 `unfinished`。
+- 没有 `vanished` 或 `obsolete`。
+- 没有空翻译。
+- context 与代码实际调用一致。
 - `DsEditorLite_lupdate` 再次执行不会产生意外删除或重复条目。
 
 ## 新增语言
@@ -206,36 +206,36 @@ Qt 标准控件的中文翻译在构建时通过 `MERGE_QT_TRANSLATIONS` 合入�
 7. 验证嵌入式 catalog 不可用时保留可定位日志并回退英文，同时验证同一 catalog 中的应用文本和 Qt 标准控件文本。
 8. 执行目标语言与英文之间的连续往返热切换测试。
 
-语言 ID 是配置协议的一部分，发布后不要随意重命名。若第三方组件使用独立翻译资源，应由 `UiLanguageManager` 持有独立 translator，并和应用 translator 一起安装、卸载及验证；不要恢复 qtmediate 的另一套 Widget 翻译订阅路径。
+语言 ID 是配置协议的一部分，发布后不要随意重命名。若第三方组件使用独立翻译资源，应由 `UiLanguageManager` 持有独立 translator，并和应用 translator 一起安装、卸载及验证。不要恢复 qtmediate 的另一套 Widget 翻译订阅路径。
 
 ## 新增组件检查清单
 
 新增需要本地化的组件时逐项确认：
 
-- 所有应用提供的 UI 文本都由 `tr()`、`QCoreApplication::translate()` 或 `QT_TRANSLATE_NOOP` 标记；
-- 临时对象在创建时翻译，常驻对象实现 `LanguageChange` 和 `retranslateUi()`；
-- 构造函数中的局部可见控件已改为成员，能够在切换时更新；
-- 组合框用稳定 `itemData` 保存语义，并在重译时阻断信号；
-- 用户内容、文件名、设备名、轨道名和剪辑名没有被误译；
-- 长期状态保存语义而不是翻译快照；
-- UI 语言没有改变 G2P 语言或数字、日期格式；
-- 用户可见数值使用 `QLocale().toString(...)`，翻译参数使用 `%L` / `%Ln`；
-- 可编辑数值使用同一 locale 回读，并在逗号小数区域格式下完成显示—编辑—提交往返；
-- 用户界面整数不显示组分隔符；机器文本、稳定标识符、固定格式时间字符串及有负责人
-  TODO 的复杂格式化可保留 C Locale；
-- 中英往返后没有重复菜单、重复连接、对象泄漏或业务回调；
-- 更新 TS 后所有活动文本都有完成的翻译；
+- 所有应用提供的 UI 文本都由 `tr()`、`QCoreApplication::translate()` 或 `QT_TRANSLATE_NOOP` 标记。
+- 临时对象在创建时翻译，常驻对象实现 `LanguageChange` 和 `retranslateUi()`。
+- 构造函数中的局部可见控件已改为成员，能够在切换时更新。
+- 组合框用稳定 `itemData` 保存语义，并在重译时阻断信号。
+- 用户内容、文件名、设备名、轨道名和剪辑名没有被误译。
+- 长期状态保存语义而不是翻译快照。
+- UI 语言没有改变 G2P 语言或数字、日期格式。
+- 用户可见数值使用 `QLocale().toString(...)`，翻译参数使用 `%L` / `%Ln`。
+- 可编辑数值使用同一 locale 回读，并在逗号小数区域格式下完成显示—编辑—提交往返。
+- 用户界面整数不显示组分隔符。机器文本、稳定标识符、固定格式时间字符串及有负责人
+  TODO 的复杂格式化可保留 C Locale。
+- 中英往返后没有重复菜单、重复连接、对象泄漏或业务回调。
+- 更新 TS 后所有活动文本都有完成的翻译。
 - Debug 全量构建及所属 CTest 套件通过。普通控件可用 offscreen，原生窗口用例在桌面或 Linux Xvfb 执行，主观显示质量另做必要人工检查。
 
 ## 相关实现
 
-- [`src/app/Utils/UiLanguageManager.*`](../../src/app/Utils/UiLanguageManager.cpp)：语言解析和 translator 生命周期；
-- [`src/app/Model/AppOptions/Options/GeneralOption.*`](../../src/app/Model/AppOptions/Options/GeneralOption.cpp)：语言偏好持久化；
-- [`src/app/UI/Dialogs/Options/Pages/GeneralPage.*`](../../src/app/UI/Dialogs/Options/Pages/GeneralPage.cpp)：语言设置入口；
+- [`src/app/Utils/UiLanguageManager.*`](../../src/app/Utils/UiLanguageManager.cpp)：语言解析和 translator 生命周期。
+- [`src/app/Model/AppOptions/Options/GeneralOption.*`](../../src/app/Model/AppOptions/Options/GeneralOption.cpp)：语言偏好持久化。
+- [`src/app/UI/Dialogs/Options/Pages/GeneralPage.*`](../../src/app/UI/Dialogs/Options/Pages/GeneralPage.cpp)：语言设置入口。
 - [`src/libs/History/ActionSequence.*`](../../src/libs/History/ActionSequence.cpp)：长期撤销历史名称的动态翻译。
-- [`src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp`](../../src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp)：未命名工程的语义状态与动态翻译；
-- [`src/app/Resources/translate/translation_zh_CN.ts`](../../src/app/Resources/translate/translation_zh_CN.ts)：简体中文翻译源；
-- [`src/app/CMakeLists.txt`](../../src/app/CMakeLists.txt)：TS/QM 生成、资源嵌入和 Windows 部署规则；
+- [`src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp`](../../src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp)：未命名工程的语义状态与动态翻译。
+- [`src/app/Resources/translate/translation_zh_CN.ts`](../../src/app/Resources/translate/translation_zh_CN.ts)：简体中文翻译源。
+- [`src/app/CMakeLists.txt`](../../src/app/CMakeLists.txt)：TS/QM 生成、资源嵌入和 Windows 部署规则。
 - [`src/tests/TestPreferences/tst_ui_language.cpp`](../../src/tests/TestPreferences/tst_ui_language.cpp)：语言解析、回退、配置和数字格式测试。
 - [`src/tests/TestDocumentIO/tst_history_and_paths.cpp`](../../src/tests/TestDocumentIO/tst_history_and_paths.cpp)：撤销历史名称的动态翻译和文档路径测试。
 - [`src/tests/TestApplicationGui/tst_settings_pages.cpp`](../../src/tests/TestApplicationGui/tst_settings_pages.cpp)：界面语言往返热切换及工程、选择和历史保留测试。

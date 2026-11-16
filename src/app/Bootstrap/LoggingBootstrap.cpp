@@ -18,7 +18,6 @@ namespace LoggingBootstrap {
     }
 
     void init() {
-        // 设置日志等级和过滤器
         QDir appDataDir(AppDataPaths::applicationData());
         if (!appDataDir.exists()) {
             if (!appDataDir.mkpath("."))

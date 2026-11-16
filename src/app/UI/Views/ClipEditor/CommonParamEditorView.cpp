@@ -358,7 +358,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             drawEditedCurveBorders(painter, pen);
         }
     } else {
-        // 绘制填充图形
+        // Fill the curve area.
         painter->setPen(Qt::NoPen);
         if (foreground) {
             if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom) {
@@ -404,7 +404,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             drawCurveBorder(painter, base);
         }
 
-        // 绘制已编辑描边
+        // Outline the edited portion.
         if (foreground && !effectiveEdited.isEmpty()) {
             painter->setBrush(Qt::NoBrush);
             pen.setColor(resolvedEditedCurveColor());

@@ -1,9 +1,7 @@
 //
-// LitePalette — command-line OKLCH ramp generator.
+// LitePalette generates OKLCH ramps on the command line.
 //
-// Converts a series of OKLCH colors to sRGB hex using the shared ColorUtils
-// implementation (including gamut mapping), so the output matches exactly
-// what the theme system produces from colors.json.
+// The sRGB output uses the same gamut mapping as the theme colors.
 //
 // Example:
 //   LitePalette --C 0.015 --H 265 --L0 0.1 --step 0.04

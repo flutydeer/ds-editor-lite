@@ -705,7 +705,7 @@ SVS--ExpressionDoubleSpinBox {
     color: ${control.foreground.default};
     selection-color: ${selection.text};
     selection-background-color: ${selection.textFill};
-    /* QStyle 的编辑区域已自动避让一个 24px 步进按钮。 */
+    /* QStyle already reserves space for a 24px step button. */
     padding: 0px 40px 0px 8px;
 }
 

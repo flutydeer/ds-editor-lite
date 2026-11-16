@@ -19,7 +19,7 @@ namespace InferCacheUtils {
             QStringLiteral("^infer-(acoustic|duration|pitch|variance)-(input|output)-"
                            "[0-9a-f]{40}\\.(json|wav)$"));
 
-        // 进程级登记集合：主线程专用（任务完成回调 + 清理确认时收集），无需锁
+        // Main-thread registration and snapshotting keep this set lock-free.
         QSet<QString> &registeredFiles() {
             static QSet<QString> files;
             return files;
@@ -81,8 +81,7 @@ namespace InferCacheUtils {
                     if (audioPath.isEmpty())
                         continue;
                     active.insert(normalizePath(audioPath));
-                    // 配套 input json：infer-acoustic-output-<hash>.wav ->
-                    // infer-acoustic-input-<hash>.json
+                    // Keep the companion infer-acoustic-input-<hash>.json with its cached audio.
                     const auto fileInfo = QFileInfo(audioPath);
                     const auto &fileName = fileInfo.fileName();
                     const QString kOutputPrefix = QStringLiteral("infer-acoustic-output-");

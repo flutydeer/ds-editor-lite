@@ -13,7 +13,7 @@ class SingingClip;
 class Note;
 
 // Sets absolute start/length values (unlike the delta-based edit actions),
-// so each note can move by a different amount — required by quantize.
+// so each note can move by a different amount - required by quantize.
 class QuantizeNotesAction final : public IAction {
 public:
     struct Change {

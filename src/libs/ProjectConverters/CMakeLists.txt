@@ -1,10 +1,6 @@
 project(ProjectConverters LANGUAGES CXX)
 
-# Project-file conversion: the dspx load/save + parser + phoneme compat and the
-# MIDI import/export converter (with ICU text-codec handling). Pure domain --
-# the interactive MIDI dialog and the AppStatus/AppOptions bridges live in the
-# app (MidiConverterUi / MidiConverterDialog / DspxProjectConverterUi).
-# Consumed as <lite/ProjectConverters/Xxx.h>.
+# Project-file import and export. The application handles interactive choices.
 find_package(opendspx CONFIG REQUIRED)
 
 if(APPLE)

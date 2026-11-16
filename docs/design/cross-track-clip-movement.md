@@ -1,7 +1,7 @@
 # Cross-Track Clip Movement — 设计文档
 
 > 状态：✅ 实施完成（含后续修复：`ed9dcbd4` 钢琴卷帘位置、`a4126c5e` 推理管线保留）
-> 本文是最终设计说明；修改文件清单等过程记录已移除。
+> 本文是最终设计说明。修改文件清单等过程记录已移除。
 
 ## Overview
 
@@ -39,13 +39,13 @@ TrackEditorView (view: preserve/reuse clip graphics item)
 
 ### 视图保留 — 不销毁重建 clip 图形
 
-`notifyClipChanged(Removed)` 触发时，`TrackEditorView::onClipRemoved` 把 `AbstractClipView` 缓存到 `m_pendingRemoveClipViews` 而不是销毁；后续 insert 复用它。`QTimer::singleShot(0, ...)` 处理清理：若缓存视图未被随后的 insert 复用（真正的删除），则销毁。
+`notifyClipChanged(Removed)` 触发时，`TrackEditorView::onClipRemoved` 把 `AbstractClipView` 缓存到 `m_pendingRemoveClipViews` 而不是销毁。后续 insert 复用它。`QTimer::singleShot(0, ...)` 处理清理：若缓存视图未被随后的 insert 复用（真正的删除），则销毁。
 
 复用 SingingClip 视图时必须**重新连接**类型相关信号（`singerChanged`、`speakerChanged` 等）。
 
 ### Active clip 保留
 
-`ProjectStatusController::handleClipRemoved` 原来无条件清空 `activeClipId`；跨轨移动时保持 active clip（编辑上下文不因换轨丢失）。
+`ProjectStatusController::handleClipRemoved` 原来无条件清空 `activeClipId`。跨轨移动时保持 active clip（编辑上下文不因换轨丢失）。
 
 ### 轨道颜色更新
 
@@ -65,7 +65,7 @@ TrackEditorView (view: preserve/reuse clip graphics item)
 |--------|------------------------|-----------------|-----------------|
 | `clip→notifyPropertyChanged()` | 更新 offset、scene length、notes | `updateClipOnView`（位置同步） | — |
 | `oldTrack→notifyClipChanged(Removed)` | — | 缓存 clip view、断信号 | **移动：**保留 pipeline 只断信号 |
-| `newTrack→notifyClipChanged(Inserted)` | — | 复用缓存视图、重连信号 | **移动：**跳过重启；**新 clip：**启动推理 |
+| `newTrack→notifyClipChanged(Inserted)` | — | 复用缓存视图、重连信号 | **移动：**跳过重启。**新 clip：**启动推理 |
 
 信号顺序：`notifyPropertyChanged()` 先于 track 信号触发（PianoRoll/ParamEditor 的 property 连接在视图销毁前完成更新）。
 
@@ -83,7 +83,7 @@ handleSingingClipInserted:
   else                         → 新clip: 启动获取发音→音素→reSegment→管线
 ```
 
-已知边界：移动后若目标轨道 singer/speaker 上下文与源不同，仅保留 singer/speaker 上下文匹配的 pipeline；不匹配的 pipeline 正常拆除（当前实现已覆盖）。
+已知边界：移动后若目标轨道 singer/speaker 上下文与源不同，仅保留 singer/speaker 上下文匹配的 pipeline。不匹配的 pipeline 正常拆除（当前实现已覆盖）。
 
 ## 关键文件
 

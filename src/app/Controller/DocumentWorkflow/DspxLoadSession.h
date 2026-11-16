@@ -7,9 +7,8 @@
 
 class IDocumentWorkflowUi;
 
-// DSPX open session: package readiness wait (with the confirm-without-
-// metadata escape), background parse and Replace materialization. Created
-// by DspxFormatHandler for the Open purpose since migration step 6.
+// Replace the open document with a DSPX project parsed in the background.
+// Wait for package metadata unless the user chooses to continue without it.
 class DspxLoadSession final : public ProjectLoadSessionBase {
     Q_OBJECT
 

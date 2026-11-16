@@ -1,11 +1,6 @@
 # 开发者选项页面（Developer Options）— 设计文档
 
-> 状态：✅ 第一阶段实施完成（诊断信息输出开关）
-> 本文是设计说明；涉及文件修改清单已移除。
-
-## 概述
-
-"开发者选项"设置页面用于集中管理对开发者有用的辅助功能开关。第一阶段实现：**诊断信息输出开关**，控制 `MainWindow` 中的 `EventDiagFilter` 事件循环性能诊断日志（每秒打印事件频率、绘制耗时、积压情况等）。
+「选项 → 开发者选项」集中管理调试、诊断与实验功能。事件循环诊断开关控制 `MainWindow` 的 `EventDiagFilter`，用于观察事件频率、绘制耗时和积压情况。
 
 ## 架构设计
 
@@ -27,14 +22,14 @@ public:
 
 ### UI 层
 
-`DeveloperPage` 继承 `IOptionPage`，遵循其他页面模式：`OptionListCard` 容器 + `SwitchButton` 开关；`modifyOption()` 在切换时自动保存并通知。页面在设置对话框标签列表中位于 Inference 之后；菜单入口 `Options > Developer Options...`（与常规设置项用分隔线隔开）。
+[`DeveloperPage`](../../src/app/UI/Dialogs/Options/Pages/DeveloperPage.cpp) 继承 `IOptionPage`。页面通过设置服务的 `updateDeveloper()` 提交修改，提交失败时从变更前的快照恢复控件显示。
 
 ### 与 MainWindow 的联动
 
-`EventDiagFilter` 不再无条件安装：
+`MainWindow` 按 `enableDiagnostics` 决定是否安装 `EventDiagFilter`。
 
-1. `MainWindow` 构造时调用 `updateDiagnosticFilter()`；
-2. 按 `appOptions->developer()->enableDiagnostics` 决定安装/卸载过滤器；
+1. `MainWindow` 构造时调用 `updateDiagnosticFilter()`。
+2. 按 `appOptions->developer()->enableDiagnostics` 决定安装/卸载过滤器。
 3. 监听 `AppOptions::optionsChanged`，`DeveloperOptions` 变化时实时生效，无需重启。
 
 ## 配置 JSON 格式
@@ -47,19 +42,4 @@ public:
 }
 ```
 
-## 后续扩展方向（未实施）
-
-- 内部调试面板开关
-- 性能分析工具入口
-- 实验性功能开关
-- 日志级别调整
-
-添加新选项：在 `DeveloperOption` 中用 `LITE_OPTION_ITEM` 声明配置项 + 在 `DeveloperPage` 添加对应 UI 控件即可。
-
-## 关键文件
-
-- `src/app/Model/AppOptions/Options/DeveloperOption.h/.cpp`
-- `src/app/UI/Dialogs/Options/Pages/DeveloperPage.h/.cpp`
-- `src/app/UI/Window/MainWindow.cpp`（`updateDiagnosticFilter()`）
-- `src/app/UI/Views/MainTitleBar/MainMenuView.cpp`（菜单入口）
-- 完整添加选项页面流程见项目 skill `add-option-page`
+选项读写与页面接入见[首选项页面开发指南](../guides/preferences-guide.md)。开发者分组的持久字段由 [`DeveloperOption`](../../src/app/Model/AppOptions/Options/DeveloperOption.h) 定义，通过公共设置服务写入的字段须在 DTO 和适配器之间双向映射。

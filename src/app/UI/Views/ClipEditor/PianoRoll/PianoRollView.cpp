@@ -210,8 +210,8 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
             if (target == EditorInteraction::Target::PianoRoll)
                 executeEditCommand(command);
         });
-    // 底部面板折叠（docked 模式为 splitter 高度归零，不触发 hideEvent）时
-    // 使轨道侧叠加层失效；展开且本视图可见时恢复
+    // Collapsing the docked panel sets its height to zero without a hide event.
+    // Clear the track overlay until the panel is expanded and this view is visible.
     connect(appStatus, &AppStatus::bottomPanelCollapseStateChanged, this,
             [this](const bool collapsed) {
                 if (collapsed)
@@ -533,8 +533,8 @@ void PianoRollView::updatePianoRollVisibleRect() const {
     const double end = endTick();
     const double top = topKeyIndex();
     const double bottom = bottomKeyIndex();
-    // x 轴存相对 active clip 的局部 tick；轨道侧叠加层用 clip 当前 start() 平移，
-    // 拖动 clip（view start 实时变化、model start 未提交）时叠加层随之跟随
+    // Store clip-local ticks so the track overlay can follow the clip view during a drag,
+    // before the clip start is committed to the model.
     appStatus->pianoRollVisibleRect =
         QRectF(start - m_clip->start(), bottom, end - start, top - bottom);
 }
@@ -550,7 +550,7 @@ void PianoRollView::changeEvent(QEvent *event) {
 }
 
 void PianoRollView::hideEvent(QHideEvent *event) {
-    // 钢琴卷帘不可见（底部面板折叠 / 切换页面）时，轨道侧叠加层随之失效
+    // Clear the track overlay whenever the piano roll is hidden.
     appStatus->pianoRollVisibleRect = QRectF();
     QWidget::hideEvent(event);
 }

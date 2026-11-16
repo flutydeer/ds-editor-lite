@@ -1,98 +1,22 @@
 # 首选项页面开发指南
 
-> 状态：✅ 有效（2024 年写作，代码路径经验证仍与当前实现一致：AppOptions / IOptionPage / OptionsCard / appConfig.json）
-> 本文说明如何为编辑器新增一个首选项页面：模型 → AppOptions → 页面 → 对话框 → 菜单入口的完整接入流程。
+首选项由 [`AppOptions`](../../src/app/Model/AppOptions/AppOptions.cpp) 读写。对话框负责按需创建页面，页面通过设置服务提交修改。Windows 上的默认配置文件为 `%APPDATA%\OpenVPI\DS Editor Lite\appConfig.json`，实际路径可通过 `AppOptions::configPath()` 获取。
 
-## 简介
+## 定义和保存选项
 
-编辑器的首选项由模型类 `AppOptions` 和前端的对话框 `AppOptionsDialog` 管理。其中，前端对话框包含各种设置页面，模型保存着对应页面的选项及其默认值，并且保存后会发出通知，以便其他组件能够立即响应更改。
+在 [`Model/AppOptions/Options`](../../src/app/Model/AppOptions/Options) 实现 `IOption`。基类构造参数指定配置文件中的分组键。`load()` 从对应 JSON 对象读值，缺省字段保留模型中的默认值。`save()` 将当前值写入 JSON。给枚举选项定义稳定的字符串值，使配置独立于 C++ 枚举的排列。
 
-应用的首选项保存在 `C:\Users\你的用户名\AppData\Roaming\OpenVPI\DS Editor Lite\appConfig.json` 中。可以在调试的时候打开该文件，检查选项是否正确保存。
+新增配置分组时，在 `AppOptions` 的构造函数和 `saveAndNotify()` 中注册它的读写，并提供读取该分组的访问方法。已有分组内的新选项可以直接扩展对应模型的读写。
 
-## 创建一个首选项页面
+## 创建页面
 
-### 1. 创建对应的模型
+从 [`IOptionPage`](../../src/app/UI/Dialogs/Options/Pages/IOptionPage.h) 派生页面，在构造函数中调用 `initializePage()`。在 `createContentWidget()` 中用当前设置初始化控件，并为标签提供可翻译文本。`OptionListCard` 可以组合带标题、说明和右侧控件的 `OptionsCardItem`，页面主布局末尾以 `addStretch()` 保持卡片顶部对齐。
 
-在 `/Model/AppOptions/Options` 中创建一个公开继承自 `IOption` 的类，使用 IDE 生成缺失的成员方法并实现。
+在控件结束编辑或切换时调用 `modifyOption()`，通过设置服务提交对应分组的值。服务集中的校验、持久化和变更通知同时适用于界面和自动化调用。已有分组可沿用 [`AppearancePage`](../../src/app/UI/Dialogs/Options/Pages/AppearancePage.cpp) 的做法，从 `settings().getSettings()` 取得快照，修改相应字段后调用该分组的更新方法。提交失败时，按快照恢复控件显示并按需报告错误。
 
-必须使用一个键名来初始化基类的构造函数，用于区分不同的页面，如：
+## 注册页面与菜单入口
 
-```C++
-explicit AppearanceOption() : IOption("appearance") {}
-```
-
-在 load 方法中，从 QJsonObject 对象中尝试读取之前保存的设置；在 save 方法中，将当前设置保存到参数的 QJsonObject 对象中。
-
-建议将键名用 `const QString` 存储，方便使用。
-
-枚举类型的字段不要直接存，建议存成字符串，需要写好互相转换的方法，如：
-
-```C++
-static AudioSystem::HotPlugMode hotPlugModeFromString(const QString &mode);
-static QString hotPlugModeToString(const AudioSystem::HotPlugMode &mode);
-```
-
-建议采用小驼峰命名法，如：`notifyOnAnyChange` 。
-
-### 2. 添加到 `AppOptions`
-
-仿照已有的项目，添加到 private 中，并且在构造函数和保存的方法 `saveAndNotify()` 中写好对应的读写代码。
-
-提供一个方法，用于获取对应选项的指针，以便能够从外部直接修改，如：
-
-``` C++
-AppearanceOption *AppOptions::appearance() {
-    return &m_appearanceOption;
-}
-```
-
-### 3. 创建对应的页面
-
-在 `UI/Dialogs/Options/Pages` 中创建一个公开继承自 `IOptionPage` 的类，使用 IDE 生成缺失的成员方法。
-
-在构造函数中读取 `AppOptions` 中的对应设置，并创建好对应的控件。
-
-编辑器提供了卡片控件 `OptionsCard` ，可以设置卡片的标题。编辑器还提供了卡片项目 `OptionsCardItem` ，可以设置卡片的标题和描述，并且允许往里面添加其他控件，这些控件将显示在项目的右边。为了界面风格的统一性，最好不要把控件放在卡片之外的地方。
-
-卡片控件并不限制卡片的布局，但是建议使用垂直布局，把卡片项目和分割线都装进里面，并且将内容外边距设为5，控件的间距设为0，如：
-```C++
-animationCardLayout->setContentsMargins(5, 5, 5, 5);
-animationCardLayout->setSpacing(0);
-```
-
-卡片控件设置布局的方法：
-
-```C++
-animationCard->card()->setLayout(animationCardLayout);
-```
-
-页面的布局要添加一个QSpacerItem，用于占满垂直方向的剩余空间，防止页面内容被拉伸。
-
-之后，在 `modifyOption()` 方法中更改选项并保存，例如：
-
-```C++
-auto option = AppOptions::instance()->appearance();
-option->animationLevel = 从控件中读取的值;
-AppOptions::instance()->saveAndNotify();
-```
-
-每个项目修改完成后，必须立刻调用 `modifyOption()` 保存选项。
-
-### 4. 将页面装进首选项对话框
-
-添加页面的名称到 `AppOptionsDialog` 的成员 `QStringList m_pageNames` 中，这是显示在对话框左侧选项卡的名称。在枚举 `Page` 中添加对应的名称，以便区分不同的页面。
-
-添加页面对象的指针，在构造函数中初始化，并且加入页面的控件 `QStackedWidget *m_PageContent` 中。注意顺序要与上面的一致，防止出现错乱。
-
-### 5. 添加到主菜单
-
-在主窗口中添加对应的菜单项，用于直接打开对应的页面：
-
-```C++
-auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
-        dialog.exec();
-    });
-menuOptions->addAction(actionAppearanceOptions);
-```
+1. 在 [`AppOptionsGlobal::Option`](../../src/app/Global/AppOptionsGlobal.h) 中为页面增加枚举值。
+2. 在 [`AppOptionsDialog::retranslateUi()`](../../src/app/UI/Dialogs/Options/AppOptionsDialog.cpp) 中加入页面标签和图标。可见页面的顺序对应枚举值，第一行从 `All` 之后开始。
+3. 在 `AppOptionsDialog::ensurePage()` 中为枚举值添加页面构造分支。对话框在用户首次选中该页面时创建并保存实例。
+4. 需要从菜单直达该页时，沿用主菜单的选项动作，将对应枚举值传给 [`MainWindow::openAppOptions()`](../../src/app/UI/Window/MainWindow.cpp)。由触发菜单所在的窗口作为模态对话框的父窗口。

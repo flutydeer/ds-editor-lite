@@ -31,7 +31,7 @@ namespace WaveformRenderUtils {
             painter->setPen(Qt::NoPen);
             painter->setBrush(color);
 
-            // Build polygon: top edge (max) left→right, then bottom edge (min) right→left
+            // Close the polygon by traversing the maxima forward and the minima backward.
             QPolygonF polygon;
             polygon.reserve(peaks.size() * 2 + 1);
             for (const auto &p : peaks)
@@ -41,7 +41,7 @@ namespace WaveformRenderUtils {
             polygon << polygon.first();
             painter->drawPolygon(polygon);
 
-            // Zero-dynamic sections: draw horizontal lines where min ≈ max
+            // Draw horizontal lines where the minimum and maximum are almost equal.
             // so silent/constant sections are visible as a thin centre line
             QPen linePen;
             linePen.setColor(color);

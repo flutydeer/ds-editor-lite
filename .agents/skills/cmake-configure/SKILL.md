@@ -1,6 +1,6 @@
 ---
 name: CMake Configure
-description: 需要在 ds-editor-lite 中运行 CMake configure、刷新 CMake preset 或验证 Qt/vcpkg 配置时使用。默认使用项目提供的 VS DevShell + CMake preset 脚本；不要使用 CLion MCP run configuration。
+description: 通过项目的 Visual Studio 开发环境和 CMake preset 脚本配置 ds-editor-lite，适用于更新构建树或检查 Qt 和 vcpkg 配置。
 ---
 
 # CMake Configure

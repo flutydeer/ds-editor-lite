@@ -11,7 +11,7 @@
 // Source changes drive playback reload and waveform decoding via sourceChanged.
 // Manual relinks MUST be undoable: the user-picked file is unverified and may have
 // different content (this is also the "replace source" feature). In contrast,
-// sha512-verified auto/cascade relocation bypasses this action on purpose — see
+// sha512-verified auto/cascade relocation bypasses this action on purpose - see
 // AudioDecodingController::resolveMissingClipsNear for the undo-boundary rationale
 class EditAudioClipPathAction : public IAction {
 public:

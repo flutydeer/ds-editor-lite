@@ -205,7 +205,6 @@ void PathEditor::onDeleteClicked() {
     Q_EMIT pathsChanged();
 }
 
-// PathEditor 调用示例
 void PathEditor::onUpClicked() {
     if (m_listWidget->selectedItems().isEmpty()) {
         return;

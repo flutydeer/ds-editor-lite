@@ -15,16 +15,18 @@ struct ThemeColorTable {
 
 class ThemeColorResolver {
 public:
-    /// 解析 colors.json。palette 只允许颜色字面量，tokens 可引用 palette 或其他 token。
+    /// Parse colors.json. Palette entries are color literals. Tokens can reference palette
+    /// entries or other tokens.
     static std::optional<ThemeColorTable> parse(const QByteArray &data, QString *error = nullptr);
 
-    /// 将 QSS 中的 ${token.name} 替换为 Qt 可识别的颜色；QSS 不允许直接引用 palette。
+    /// Replace QSS token references of the form ${token.name} with Qt color values.
+    /// QSS references are limited to tokens.
     static std::optional<QString> applyToStyleSheet(const QString &styleSheet,
                                                     const ThemeColorTable &colors,
                                                     QSet<QString> *usedTokens = nullptr,
                                                     QString *error = nullptr);
 
-    /// 将主题颜色序列化为稳定的 QSS 表示（#RRGGBB / #AARRGGBB / transparent）。
+    /// Format a color as #RRGGBB, #AARRGGBB, or transparent for QSS.
     static QString toStyleSheetColor(const QColor &color);
 };
 

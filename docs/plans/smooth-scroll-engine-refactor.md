@@ -4,12 +4,12 @@
 > `SmoothScroller::eventFilter` 在 `getEffectiveAnimationTime()==0` 时直接 `bar->setValue()`，
 > 不再启动 0 时长动画。本方案是收敛重复实现、根治该类问题的**远期重构方向**，
 > 因核心改动涉及编辑区（TimeGraphicsView，含 scale 动画 / auto-page / edge-scroll 物理），
-> 风险较高，当前阶段不宜实施；待补丁方案稳定后再评估推进。
+> 风险较高，当前阶段不宜实施。待补丁方案稳定后再评估推进。
 
 ## 现状问题清单（重构要解决的根子）
 
 1. **动画关闭（duration==0）需显式瞬时路径** —— 7eb87b49 已把 eventFilter 在 duration==0 时直接
-   `setValue`。注意：探针实测 Qt 6.11 的 0 时长动画会**同步落点并结束**，本身不卡死；真正造成
+   `setValue`。注意：探针实测 Qt 6.11 的 0 时长动画会**同步落点并结束**，本身不卡死。真正造成
    「内嵌设置页无法滚动、必须重开对话框」的根因是 **`MainWindow` 的 Appearance `optionsChanged`
    挂钩在模态打开时重新注册 Direct Manipulation**（DM 劫持主窗 WM_MOUSEWHEEL，内嵌面板是主窗
    子级故滚轮永远到不了）。该守卫已在内嵌设置实验功能移除时一并删除。此处仍保留
@@ -28,10 +28,10 @@
 
 ```cpp
 namespace WheelScroll {
-// 120 整数倍 → 鼠标滚轮；否则可能触控板。纯函数，两处共用。
+// 120 整数倍 → 鼠标滚轮。否则可能触控板。纯函数，两处共用。
 [[nodiscard]] bool isMouseWheel(const QPoint &angleDelta);
 
-// 垂直于指定轴的每格位移（像素）。ScrollPerItem → 行数×行高；ScrollPerPixel → 行高×wheelScrollLines；
+// 垂直于指定轴的每格位移（像素）。ScrollPerItem → 行数×行高。ScrollPerPixel → 行高×wheelScrollLines。
 // QScrollArea → viewport×0.15 fallback。
 [[nodiscard]] double perStep(QAbstractScrollArea *area, Qt::Orientation axis);
 
@@ -47,7 +47,7 @@ namespace WheelScroll {
 
 ```cpp
 // 收编 heat() + eventFilter 里的 stop/startValue/endValue/start 逻辑与 logical 维护。
-// duration<=0（动画关闭）→ 直接 bar->setValue(target)、清 logical、返回 false；
+// duration<=0（动画关闭）→ 直接 bar->setValue(target)、清 logical、返回 false。
 // 否则按 running 状态衔接（currentValue 作 start 或启动新动画）、维护 logical、返回 true。
 [[nodiscard]] bool retargetScrollAnimation(QPropertyAnimation &anim,
                                            QScrollBar *bar, int targetValue,
@@ -72,9 +72,9 @@ namespace WheelScroll {
 
 ## 实施顺序（分阶段）
 
-- **阶段一**：抽出 `WheelScroll` 纯函数，先在 SmoothScroller 内使用；行为零变化，跑补丁期回归项。
+- **阶段一**：抽出 `WheelScroll` 纯函数，先在 SmoothScroller 内使用。行为零变化，跑补丁期回归项。
 - **阶段二**：抽 `retargetScrollAnimation`，替换 SmoothScroller 与 TimeGraphicsView 两处的 heat 逻辑。
-  注意 TimeGraphicsView 还有 scale 动画（m_scaleX/YAnimation）→ helper 只服务于 scrollbar 动画；
+  注意 TimeGraphicsView 还有 scale 动画（m_scaleX/YAnimation）→ helper 只服务于 scrollbar 动画。
   scale 的热更逻辑不强行合并（避免误伤缩放动画）。
 - **阶段三（编辑区，风险高，延后）**：TimeGraphicsView 的 onWheel* 全部改走共享 target 计算，
   physical/perStep 口径统一。此阶段改动编辑器手感相关代码，必须有充分回归才做。

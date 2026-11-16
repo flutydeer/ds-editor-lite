@@ -23,17 +23,17 @@ namespace InferCacheUtils {
     struct CleanResult {
         int deletedCount = 0;
         qint64 deletedBytes = 0;
-        int retainedActiveCount = 0; // 当前工程使用中（登记/状态引用），跳过
-        int retainedLockedCount = 0; // 删除失败（被占用/只读）
+        int retainedActiveCount = 0; // Registered or referenced by the current project.
+        int retainedLockedCount = 0; // Removal failed, for example for an in-use or read-only file.
     };
 
-    // 扫描缓存目录（纯文件操作，可在工作线程调用；目录不存在返回空 stats）
+    // Worker-safe. A missing cache directory returns empty statistics.
     CacheStats scanCache(const QString &cacheDir);
 
-    // 登记本会话产生的缓存文件绝对路径（必须主线程调用；任务完成回调）
+    // Register the absolute path of a cache file on the main thread when its task completes.
     void registerCacheFile(const QString &absolutePath);
 
-    // 已登记的缓存文件绝对路径集合（进程级，主线程调用）
+    // Process-wide set of registered absolute paths. Access from the main thread.
     QSet<QString> registeredCacheFiles();
 
     // Clear the registered set (main thread only). Called when the document is
@@ -44,11 +44,10 @@ namespace InferCacheUtils {
     // via the model scan in collectActiveCacheFiles().
     void clearRegisteredCacheFiles();
 
-    // 收集当前工程活跃缓存文件绝对路径（必须主线程调用，访问 appModel）：
-    // = 登记集合 ∪ 当前工程 Success 片段引用集合
+    // Main-thread snapshot of registered paths and paths used by successful project pieces.
     QSet<QString> collectActiveCacheFiles();
 
-    // 清理：删除非活跃缓存文件（纯文件操作，可在工作线程调用）
+    // Worker-safe. Remove cache files outside the supplied active set.
     CleanResult cleanCache(const QString &cacheDir, const QSet<QString> &activeFiles);
 
 } // namespace InferCacheUtils

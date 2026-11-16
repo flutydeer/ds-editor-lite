@@ -1,9 +1,6 @@
 project(MusicBase LANGUAGES CXX)
 
-# Music-domain primitives: the tick time base, time/tempo/signature conversion,
-# note-name helpers, timeline snapping, and the Tempo/TimeSignature/Timeline
-# value types. Pure value/utility layer beneath the document model; consumed as
-# <lite/MusicBase/Xxx.h>.
+# Musical time and pitch value types for the document model.
 file(GLOB _src CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 lite_add_library(MusicBase STATIC QT_AUTOGEN SOURCES ${_src})

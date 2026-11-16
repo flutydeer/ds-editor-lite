@@ -1,7 +1,6 @@
-# 粤拼词典（lite 版）
-# 格式：词<TAB>粤拼
-# DictTaggerRule 只读取首列（词），命中后标记 tag=pinyin
-# 后续可按需扩充词条
+# Jyutping dictionary (Lite).
+# Format: word<TAB>jyutping
+# DictTaggerRule reads the first column and assigns tag=pinyin to matching words.
 你好	nei5 hou2
 我	ngo5
 佢	keoi5

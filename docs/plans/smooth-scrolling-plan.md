@@ -70,7 +70,7 @@ if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
 
 ### 2. Windows 上无 Qt API 区分来源（用户提出，确认）
 
-Qt 在 Windows 由 `WM_MOUSEWHEEL` 产生 QWheelEvent，消息不携带来源信息；`QInputDevice::DeviceType` 在 Windows 恒为/不可靠地填 Mouse。`SUPPORTS_MOUSEWHEEL_DETECT_NATIVE` 仅在 Q_OS_MAC 定义（scheduler 也做同样判定）——项目里已有的 `isMouseEventFromWheel()` 就是 naive 方案。
+Qt 在 Windows 由 `WM_MOUSEWHEEL` 产生 QWheelEvent，消息不携带来源信息。`QInputDevice::DeviceType` 在 Windows 恒为/不可靠地填 Mouse。`SUPPORTS_MOUSEWHEEL_DETECT_NATIVE` 仅在 Q_OS_MAC 定义（scheduler 也做同样判定）——项目里已有的 `isMouseEventFromWheel()` 就是 naive 方案。
 
 ### 3. 判定增强：滑动窗口替代单次锁
 
@@ -79,7 +79,7 @@ Qt 在 Windows 由 `WM_MOUSEWHEEL` 产生 QWheelEvent，消息不携带来源信
 2. 判过的"鼠标"状态不衰减，长触控板滚动中途一旦出现一次 120 倍数 delta 就误切回鼠标。
 
 **改进：滑动窗口替代单次锁**。
-- 记录最近 6 个事件的 delta，**全部**为 120 倍数 → 判定鼠标；
+- 记录最近 6 个事件的 delta，**全部**为 120 倍数 → 判定鼠标。
 - 否则 → 判定触控板（直通）。
 
 落地实现（`SmoothScroller.cpp`）：无显式 latch，每次事件把本次是否 120 倍数 append 进窗口，窗口满 6 且全 true 才动画。滑动窗口天然具备"保持"特性——一旦窗口出现一个非 120 倍数事件，需后续连续 6 个全 120 倍数事件才会恢复动画，等价于设计决策的"N 事件保持窗"，且无状态、更简单。（直接用 `event->pixelDelta().isNull()` 作为辅助信号，非决定性，当前未用。）
@@ -121,15 +121,15 @@ private:
 };
 ```
 
-与方案草图的差异：逻辑全部内联在 `eventFilter`（不拆 `isTouchpad`/`animateScrollTo` 独立方法）；无显式 latch，滑动窗口承担保持任务；判定方向为**默认鼠标动画**（空窗口动画），检测到触控板特征（非 120 倍数）才线性锁直通——与编辑区 `isMouseEventFromWheel` 一致；滚动量按视口尺寸 × 0.15（与编辑区 `onWheelVerScroll` 一致），非固定 120px。
+与方案草图的差异：逻辑全部内联在 `eventFilter`（不拆 `isTouchpad`/`animateScrollTo` 独立方法）。无显式 latch，滑动窗口承担保持任务。判定方向为**默认鼠标动画**（空窗口动画），检测到触控板特征（非 120 倍数）才线性锁直通——与编辑区 `isMouseEventFromWheel` 一致。滚动量按视口尺寸 × 0.15（与编辑区 `onWheelVerScroll` 一致），非固定 120px。
 
 ### eventFilter 拦截要点
 
 - `watched == scrollArea->viewport()`，`event->type() == QWheelEvent`。
-- 窗口内出现任一非 120 倍数事件 → 直通（触控板线性锁定），滑出窗口后恢复动画；空窗口默认动画（消除"前几次无动画"感觉）。
+- 窗口内出现任一非 120 倍数事件 → 直通（触控板线性锁定），滑出窗口后恢复动画。空窗口默认动画（消除"前几次无动画"感觉）。
 - 鼠标 → 用逻辑目标叠加计算 endValue，更新动画，`return true`（消费事件）。
 - 横向：`qAbs(delta.x()) > qAbs(delta.y())` 判定，动画水平 scrollbar。
-- 滚动量：像素滚动视图用视口尺寸 × 0.15（与编辑区一致）；不区分 ScrollPerItem 行滚动（按行视图当前未纳入，见 LogWindow 排除说明）。
+- 滚动量：像素滚动视图用视口尺寸 × 0.15（与编辑区一致）。不区分 ScrollPerItem 行滚动（按行视图当前未纳入，见 LogWindow 排除说明）。
 
 ### 挂载
 
@@ -144,7 +144,7 @@ private:
 
 ## Pitfalls（写入本文件，防止后人踩）
 
-1. **Windows 无 Qt API 区分鼠标/触控板滚轮**。`WM_MOUSEWHEEL` 不带来源。naive：angleDelta 120 倍数 = 鼠标（量化：240/360 也是 120 倍数）；非整倍数 = 触控板。不要依赖 `deviceType()`（Windows 恒为 Mouse）。
+1. **Windows 无 Qt API 区分鼠标/触控板滚轮**。`WM_MOUSEWHEEL` 不带来源。naive：angleDelta 120 倍数 = 鼠标（量化：240/360 也是 120 倍数）。非整倍数 = 触控板。不要依赖 `deviceType()`（Windows 恒为 Mouse）。
 2. **勿用单一 400ms 锁**。改用 6 事件滑动窗口 + 保持窗，否则快速重入误伤。见设计决策 3。
 3. **动画中叠加目标**，不是从打断点重新算。否则快速滚会反向回弹（编辑区 78-86 行已有此坑的解法）。
 4. **动画等级变化热更**：全局关动画（None）时必须立即跳转，不能在跑动画。复用 / 参照 `TimeGraphicsView::updateAnimationDuration()` 的原地热更逻辑。
@@ -153,7 +153,7 @@ private:
 ## 验收路径
 
 1. 构建通过（`run-cmake-preset.ps1 ConfigureAndBuild debug`）。
-2. 冒烟：拖一个含多轨道的工程，鼠标滚轮在轨道列表 / 说话人列表 / 搜索弹窗 / Options 页平滑滚动，无咔哒感；触控板跟手不变。
+2. 冒烟：拖一个含多轨道的工程，鼠标滚轮在轨道列表 / 说话人列表 / 搜索弹窗 / Options 页平滑滚动，无咔哒感。触控板跟手不变。
 3. 关全局动画（AppearanceOption=无动画）后鼠标滚轮立即跳变，不残留动画。
 
 ## 待确认（后续迭代）

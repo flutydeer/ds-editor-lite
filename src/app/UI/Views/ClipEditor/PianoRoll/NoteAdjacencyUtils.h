@@ -10,7 +10,7 @@
 
 // Timeline neighbors of a note inside SingingClip's note list. The list is ordered
 // by Note::compareTo (start, key, id), so the immediate predecessor/successor is
-// the adjacent note in time regardless of pitch — the counterpart a Shift boundary
+// the adjacent note in time regardless of pitch - the counterpart a Shift boundary
 // drag moves together with the pressed note.
 namespace NoteAdjacencyUtils {
     // Whether the pair shares a boundary: left ends exactly where right starts

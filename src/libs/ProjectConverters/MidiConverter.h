@@ -29,9 +29,7 @@ struct MidiImportOptions {
     bool importTimeSignature = false;
 };
 
-// Back-channel the interactive UI uses to re-derive the track list when the
-// user toggles "separate MIDI channels" — the converter re-parses the file and
-// returns the new track layout.
+// Reparse the MIDI file and return the updated track layout when channel separation changes.
 class MidiTrackReconverter {
 public:
     virtual ~MidiTrackReconverter() = default;

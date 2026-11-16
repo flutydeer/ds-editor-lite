@@ -56,19 +56,12 @@ ActiveInference::Model &ActiveInference::Handle::model() noexcept {
 srt::core::Expected<ActiveInference::Handle>
     ActiveInference::acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
                              ds::infer::StageKind kind) {
-    // B1b: build the {inference, importOptions} Model from the ModelSetHandle.
-    // handle->load(kind) lazily creates and initializes the Inference; the
-    // importOptions come from the bound StageSet's matching StageSpec. This
-    // mirrors the old SingerModelSession::acquire() implementation, preserving
-    // the exact Model shape the 4 DiffSinger tasks consume.
     if (!handle) {
         return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
                                 "ActiveInference::acquire: null ModelSetHandle");
     }
-    // Serialize load() across tasks: ModelSet::load uses try_to_lock internally,
-    // so parallel calls (e.g. pitch + variance sharing the same ModelSet) would
-    // fail with "busy". The old SingerModelSession::acquire serialized via
-    // std::lock_guard on m_modelSetMutex; we restore that here.
+    // ModelSet::load uses try_to_lock. Serialize loads so concurrent tasks sharing
+    // a model set do not fail with "busy."
     std::lock_guard loadLock(g_modelLoadMutex);
     auto loadExp = handle->load(kind);
     if (!loadExp)
@@ -143,14 +136,9 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                        const std::map<std::string, std::string> &speakerMapping, QString &error)
     -> std::vector<Co::InputWordInfo> {
 
-    // Pre-convert speakerMix sources → static per-phone speaker weights.
-    // Duration has no frame-level speakers field (DurationStartInput only has
-    // words + duration), so phoneme-level Speaker is the only mix path.
-    // For stages with frame-level speakers (Pitch/Variance/Acoustic), the
-    // frame-level InputSpeakerInfo takes precedence; per-phone speakers here
-    // are still filled for consistency but may be overridden.
-    // Duration does not support time curves: take the first proportion as a
-    // static weight (empty proportions → 1.0).
+    // DurationStartInput can only carry per-phone speaker weights. Use each source's
+    // first proportion, or 1.0 if absent. A stage with frame-level speaker weights
+    // may override these per-phone weights.
     std::vector<std::pair<std::string, double>> staticMix;
     if (speakerMix.sources.isEmpty()) {
         // Fallback to single speaker (backward compatible).

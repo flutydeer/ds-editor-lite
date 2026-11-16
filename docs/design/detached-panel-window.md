@@ -1,38 +1,14 @@
 # 脱离面板窗口：独立顶层窗口契约
 
-## 现象
+启用开发者选项「Enable panel detach」后，底部面板可以分离为独立顶层窗口。Windows 可为它创建独立任务栏按钮，并允许独立最小化、还原或贴靠。
 
-开发者选项打开「Enable panel detach」后，底部面板可以分离成一个看起来独立的窗口，但它：
-
-- 任务栏没有自己的按钮，最小化不进入任务栏，而是缩到工作区左下角变成一条小横条。
-- 始终叠在主窗口之上，点击主窗口也不会沉下去。
-- 无法按普通窗口的方式还原、分屏，Alt+Tab 与任务栏预览的行为都不对。
-
-## 根因
-
-问题不在 QWindowKit，也不在自绘标题栏，而在窗口的父子关系。
-
-`DetachedPanelWindow` 之前以主窗口为 QWidget parent 构造：
-
-```cpp
-Window(mainWindow, Qt::Window)
-```
-
-Qt 文档对 `QWidget::isWindow()` 写明的语义是：窗口可以带 parent，但会与 parent 分组、随 parent 最小化、被 parent 删除，并且「如果窗口管理器支持，还会与 parent 共用一个任务栏项」。Windows 后端把这条语义实现为 native owner：`WindowCreationData::fromWindow()` 在顶层窗口有 `QWindow::transientParent()` 时，把这个父窗口的 HWND 作为 `CreateWindowEx` 的 owner 传入（owner 走 `GWL_HWNDPARENT`，不是 `SetParent`）。
-
-owned top-level 的 Win32 规则正好逐条对应上面的现象：
-
-- 任务栏不为 owned 窗口建按钮，最小化动画没有按钮可去，窗口被压到工作区角落。
-- owned 窗口永远在 owner 之上。
-- 最小化、显示、隐藏与 owner 生命周期绑定。
-
-`isWindow()` 仍然返回 `true`，所以只检查 `isWindow()` 的测试发现不了这个问题。
+Qt 顶层窗口仍可有父控件。Windows 会用 `QWindow::transientParent()` 为该窗口设置 native owner，使其叠在 owner 上方并随之分组最小化。独立面板的契约要求同时避免 QWidget 父级和 native owner，仅检查 `isWindow()` 不足以区分这两种窗口。
 
 ## 设计
 
 ### 无 QWidget parent，所有权显式化
 
-`DetachedPanelWindow` 以 `Window(nullptr, Qt::Window)` 构造，是一个没有 owner 的真顶层窗口。主窗口不再通过 QObject 父子树回收它，而是用 `std::unique_ptr` 显式持有，并在析构时先嵌回面板、再销毁窗口。
+`DetachedPanelWindow` 以 `Window(nullptr, Qt::Window)` 构造。主窗口用 `std::unique_ptr` 持有该窗口，在析构时先嵌回面板，再销毁窗口。
 
 反向引用用 `QPointer<MainWindow>`，只用于窗口标题与菜单 wiring，不参与窗口生命周期。主窗口先于分离窗口销毁是不可能的，`QPointer` 只是防御性兜底。
 
@@ -87,25 +63,12 @@ RHI 与 Legacy 两个轨道画布的双击入口都走这一条路径。
 6. 每个窗口自己保存几何。
 7. 辅助工具窗口（如 `LogWindow`）保留 owned 工具窗口语义，不进入任务栏，与编辑器窗口分开。
 
-## 为什么不采用其它方案
-
-- **保留 parent，事后清 `GWLP_HWNDPARENT`**：Qt 仍认为它是 secondary window，窗口重建、flag 变更、`updateTransientParent()` 都会重新施加 owner，形成两套互相矛盾的真相。
-- **保留 parent，补 `WS_EX_APPWINDOW`**：任务栏按钮可能出现，但 owned 窗口的置顶与成组最小化仍然错误。
-- **`QMdiArea` 或窗口内浮层**：没有独立任务栏按钮，没有系统 Snap，不是目标模型。
-- **通用窗口注册表/基类**：当前只有一个二级窗口，显式所有权与本文契约足够。等真的有多个编辑器窗口时再抽，避免为空需求造框架。
-
 ## 覆盖范围与已知边界
 
-- 本轮只改造底部面板这一个二级窗口，不新增钢琴卷帘、混音台等独立窗口。
-- 不提供 Always on Top 开关。本轮消除的是 owner 带来的隐式置顶，显式置顶如需再加。
-- 不恢复上次退出时的分离状态。`enablePanelDetach` 仍是开发者选项，启动即分裂会让人意外。
-- 不改变设置、Toast、文档工作流对话框的主窗口归属。这些是多窗口交互体验的后续项。
-- 自动化 `WindowSettingsDto` 不暴露 `detachedPanelGeometry`，它只是宿主本地窗口状态。
+- 分离作用于整个底部面板。窗口遵从系统堆叠顺序，启动时面板嵌在主窗口内。
+- 从任一窗口的菜单打开设置时，设置对话框以发起窗口为父窗口。
+- `detachedPanelGeometry` 是宿主本地窗口状态，由 `WindowOption` 保存。
 
 ## 验证
 
-自动化能证明的：分离窗口 `parentWidget() == nullptr`、`transientParent() == nullptr`、不在主窗口的 `findChild` 树里、在 `topLevelWidgets()` 里、Windows 下 `GW_OWNER == nullptr` 且没有 `WS_EX_TOOLWINDOW`，标题随面板页更新，几何跨主窗口实例恢复，主窗口销毁时窗口随之销毁。
-
-自动化不能证明、必须真机检查的：任务栏出现独立按钮、点击按钮最小化/还原、Win+Left/Right Snap、窗口能被主窗口覆盖、Alt+Tab 列出两个窗口、最小化进入任务栏而不是左下角。
-
-真机验收步骤见 PR 的 `## 验证` 一节。
+相关回归用例见[主窗口测试](../../src/tests/TestApplicationGui/tst_main_window.cpp)。在 Windows 桌面检查任务栏和窗口管理行为时，分离底部面板，通过任务栏分别最小化与还原两个窗口，使用 Win+方向键贴靠分离窗口，通过 Alt+Tab 切换窗口，并确认主窗口可以覆盖分离窗口。

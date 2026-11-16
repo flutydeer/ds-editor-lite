@@ -1,5 +1,7 @@
 # Automation Facade 迁移矩阵
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 口径
 
 当前内部能力面包含 **207** 个集中 Operation ID。每项能力由类型化 C++ Facade、Dispatcher

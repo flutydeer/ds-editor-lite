@@ -12,6 +12,5 @@ GetInstalledPackagesTask::GetInstalledPackagesTask(QStringList searchPaths)
 }
 
 void GetInstalledPackagesTask::runTask() {
-    // TODO 获取进度？
     result = packageManager->refreshInstalledPackages(m_searchPaths);
 }

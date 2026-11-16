@@ -1,9 +1,6 @@
 project(History LANGUAGES CXX)
 
-# Undo/redo history: the action interface (IAction), action sequences, the
-# HistoryManager singleton and the focus-transition value types (HistoryFocus).
-# App-agnostic; the undo/redo policy that depends on app-runtime state lives in
-# the app's UndoRedoController. Consumed as <lite/History/Xxx.h>.
+# Undo/redo history. The application supplies the policy for when actions may run.
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 

@@ -14,32 +14,13 @@ class EditorPenHoverWatcher;
 class QTabletEvent;
 class QWidget;
 
-// Binds the headless stroke tracker to a real widget.
+// Routes tablet events for a widget. For plain-tip input, Qt synthesizes mouse events
+// tagged Qt::MouseEventNotSynthesized with the pen device. Eraser-tip input would
+// otherwise appear as a left click, and the barrel button as a right click.
 //
-// A stylus is a mouse as far as most of this application is concerned, and for
-// the plain tip it stays that way: the tablet event is left unaccepted and Qt
-// synthesizes the mouse events itself (with the pen device, tagged
-// Qt::MouseEventNotSynthesized), which reproduces today's behaviour exactly —
-// double click, hover tips, cursor shapes and all. Only the two inputs the
-// platform maps wrongly are taken over:
-//
-//   eraser tip    -> the platform reports button=Left buttons=Left, exactly
-//                    like the tip, so without help it draws instead of erasing
-//   barrel button -> the platform reports it as the right button, so a drag
-//                    cancels out into a context menu
-//
-// Once a stroke is claimed, the pen layer owns it end to end: accepting the
-// tablet event stops Qt from synthesizing anything for it
-// (QGuiApplicationPrivate::processTabletEvent only synthesizes for events that
-// were *not* accepted), and every further sample is translated here until the
-// pen leaves the glass.
-//
-// Stroke boundaries come from the contact state and never from
-// TabletPress/TabletRelease: pressing the barrel button mid-stroke makes the
-// platform emit extra, contradictory press/release pairs that say nothing
-// about the tip (see EditorPenStroke).
-//
-// See docs/design/touch-and-pen-input-design.md §5.
+// Accepting a claimed stroke suppresses Qt's mouse synthesis. Its boundaries follow
+// tip contact because barrel changes can emit extra TabletPress/TabletRelease pairs
+// mid-stroke. See EditorPenStroke and docs/design/touch-and-pen-input-design.md.
 class EditorPenController final : public QObject {
     Q_OBJECT
 
@@ -57,10 +38,8 @@ public:
     // mouse release outside the window. Never opens a menu.
     void cancel();
 
-    // The system interrupted a claimed stroke (window deactivated, widget
-    // hidden): tear it down without synthesizing a release, so nothing the
-    // stroke did so far gets committed — the in-flight erase is discarded
-    // through EditorPenTarget::abortPenEraseStroke().
+    // On interruption, discard a claimed stroke through abortPenEraseStroke().
+    // A synthetic release would commit the in-flight erase.
     void interrupt();
 
     [[nodiscard]] bool isStrokeActive() const;
@@ -68,20 +47,9 @@ public:
     // The cursor a widget shows while the pen hovers with an erase hint. Built
     // from the toolbar's eraser icon, cached process wide.
     [[nodiscard]] static QCursor eraseCursor();
-    // Is there an erase hint at all: the pen is in range with an eraser end
-    // pointed at the glass, and this tool has something it could erase. The
-    // tool half keeps the cursor honest about what a stroke would do.
-    //
-    // Static and free of any widget, because the hover cursor belongs to the
-    // views: they own their own cursor shape and have to be able to ask the
-    // question from inside their own hover handling, where the answer decides
-    // between the eraser and whatever cursor they would show otherwise (see
-    // docs/design/touch-and-pen-input-design.md §5.4-7).
+    // Views use this to show the eraser cursor when pen hover and the armed tool allow it.
     [[nodiscard]] static bool eraseHintFor(EditorPenEraser action);
-    // The pen is presenting an eraser at all — inverted tip in range, or the
-    // barrel button held — whatever the armed tool makes of it. Hover handling
-    // needs both halves of the question: the tool's answer decides between the
-    // eraser cursor and the refusal cursor.
+    // Detect the inverted tip in range or the held barrel button independently of the tool.
     [[nodiscard]] static bool eraseHintActive();
     // The pen is presenting an eraser and this tool has nothing it could erase,
     // so the stroke is swallowed whole (EditorPenPolicy answered Unsupported)
@@ -113,8 +81,7 @@ private:
     void clearHoverCursor();
 
     [[nodiscard]] bool penEraserAvailable() const;
-    // The pen's barrel button is down, or was a moment ago — both are close
-    // enough to the right-click the platform derives from it.
+    // A platform context-menu event can follow either a recent or current barrel press.
     [[nodiscard]] bool penBarrelActive() const;
     [[nodiscard]] static EditorPenStroke::Sample sampleFrom(const QTabletEvent *event);
 
@@ -141,14 +108,8 @@ private:
     // A claimed stroke that ended on a move already saw the lift; the
     // platform's own release still follows and has to be swallowed with it.
     bool m_trailingRelease = false;
-    // The platform has a right-click of its own for the barrel button: it emits
-    // the whole legacy mouse sequence for it (measured with the TouchProbe) and
-    // Qt turns its WM_CONTEXTMENU into a context menu event of its own, at
-    // wherever the pen happens to be — which is not where the user asked for a
-    // menu. This layer has already ruled on the stroke that produced it, so the
-    // platform's copy is dropped. Armed at the barrel press — the platform's
-    // message is generated at the *release*, so arming any later would be
-    // arming after the event it is meant to catch — and spent on it.
+    // Arm suppression on the barrel press, before Windows can emit WM_CONTEXTMENU on
+    // release. The controller already decides whether and where to post a menu.
     bool m_platformMenuPending = false;
     // When the pen's barrel button was last seen down, from the watcher (during
     // hover, where no Qt event exists at all) or from a tablet sample. This is

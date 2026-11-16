@@ -268,7 +268,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
                 drawSolidLine(curNote->globalStart() + curNote->length(), 1, noteBoundaryColor);
         }
 
-        // TODO： use binary find
+        // TODO: Use binary search.
         for (const auto phoneme : m_phonemes) {
             if (phoneme->start < m_startTick)
                 continue;
@@ -547,7 +547,7 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
     return Linq::where(m_phonemes, [=](auto p) { return p->noteId == noteId; });
 }
 
-// TODO: 只处理有效片段
+// TODO: Build phoneme entries only for valid segments.
 void PhonemeView::buildPhonemeList() {
     if (m_notes.count() == 0)
         return;

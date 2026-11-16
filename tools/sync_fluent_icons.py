@@ -15,7 +15,7 @@ import re
 import argparse
 
 # ============================================================
-# 1. 需要替换的已有通用图标（用 Fluent 覆盖）
+# Existing icons to replace with Fluent assets
 # ============================================================
 REPLACE_ICONS = [
     # Playback / Transport
@@ -59,10 +59,10 @@ REPLACE_ICONS = [
 ]
 
 # ============================================================
-# 2. 新增的 Fluent 图标（菜单、工具栏等）
+# Fluent assets to copy
 # ============================================================
 NEW_ICONS = [
-    # File menu 新增
+    # File menu
     "add_16_filled.svg",
     "delete_16_filled.svg",
     "rename_16_filled.svg",
@@ -73,21 +73,21 @@ NEW_ICONS = [
     "document_16_filled.svg",
     "select_all_on_16_filled.svg",
 
-    # 编辑
+    # Edit
     "tag_16_filled.svg",
     "link_16_filled.svg",
     "question_circle_16_filled.svg",
     "add_circle_16_filled.svg",
 
-    # 音符推理错误标记（钢琴卷帘角标）
+    # Note inference error badge in the piano roll
     "dismiss_circle_16_regular.svg",
     "dismiss_circle_16_filled.svg",
 
-    # 规则列表
+    # Rule list
     "re_order_dots_vertical_16_regular.svg",
     "lock_closed_16_regular.svg",
 
-    # 录音
+    # Recording
     "record_16_filled.svg",
     "timer_16_filled.svg",
     "mic_16_filled.svg",
@@ -96,7 +96,7 @@ NEW_ICONS = [
     "arrow_repeat_all_off_16_filled.svg",
     "arrow_right_16_regular.svg",
 
-    # 工具 (24px)
+    # Tools (24 px)
     "zoom_in_24_filled.svg",
     "zoom_out_24_filled.svg",
     "full_screen_maximize_24_filled.svg",
@@ -109,23 +109,22 @@ NEW_ICONS = [
     "music_note_2_24_filled.svg",
     "draw_shape_24_filled.svg",
 
-    # 分割/合并 (箭头分叉和合并)
+    # Split and merge
     "arrow_split_24_filled.svg",
     "arrow_split_16_filled.svg",
     "arrow_join_20_filled.svg",
 
-    # 面板
-    # 分离面板按钮使用 Regular 版本，与其余面板图标的描边风格一致
+    # Panels use Regular assets for a consistent outline.
     "panel_separate_window_20_regular.svg",
     "panel_left_16_filled.svg",
     "panel_left_contract_16_filled.svg",
     "panel_left_expand_16_filled.svg",
     "panel_right_16_filled.svg",
 
-    # 录音
+    # Recording
     "record_24_filled.svg",
 
-    # 设置页侧栏图标 (AppOptionsDialog tab list) — 16px 主菜单 / 20px 侧栏
+    # Settings icons use 16 px in the menu and 20 px in the sidebar.
     "settings_20_regular.svg",
     "speaker_2_16_regular.svg",
     "speaker_2_20_regular.svg",
@@ -139,10 +138,10 @@ NEW_ICONS = [
 ]
 
 # ============================================================
-# 3. 需要删除的冗余文件（_white 和 _alt 变体，IconUtils 可以着色）
+# Unused asset variants
 # ============================================================
 DELETE_REDUNDANT = [
-    # _white 变体 — IconUtils 可运行时着色，不需要预存白色版
+    # IconUtils applies the white tint at runtime.
     "add_16_filled_white.svg",
     "checkmark_16_white.svg",
     "info_16_filled_white.svg",
@@ -153,7 +152,7 @@ DELETE_REDUNDANT = [
     "midi_clip_16_filled_white.svg",
     "audio_clip_16_filled_white.svg",
 
-    # 工具图标的白/alt变体 — 只保留主版本
+    # Alternate tool assets
     "cursor_24_filled_white.svg",
     "edit_24_filled_white.svg",
     "eraser_24_filled_white.svg",
@@ -173,13 +172,9 @@ DELETE_REDUNDANT = [
     "snow_flake_24_filled_white.svg",
     "restore_16_filled_white_alt.svg",
 
-    # 分离面板按钮已改用 Regular 版本
+    # Filled variant of the separate panel icon
     "panel_separate_window_20_filled.svg",
 ]
-
-# ============================================================
-# 执行
-# ============================================================
 
 def main():
     parser = argparse.ArgumentParser(description="同步 Fluent UI 图标到项目")
@@ -187,15 +182,11 @@ def main():
                         help="Fluent 图标目录，默认自动查找")
     args = parser.parse_args()
 
-    # 脚本所在目录 (tools/)
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # 项目根目录
     project_root = os.path.dirname(script_dir)
-    # 目标目录
     icons_dir = os.path.join(project_root, "src", "app", "Resources", "svg", "icons")
     icons_custom_dir = os.path.join(project_root, "src", "app", "Resources", "svg", "icons-custom")
 
-    # 源目录
     if args.source_dir:
         source_dir = args.source_dir
     else:
@@ -214,7 +205,6 @@ def main():
     print(f"目标目录: {icons_dir}")
     print()
 
-    # ---- 第一步：替换已有通用图标 ----
     copied = 0
     missing = []
     for name in REPLACE_ICONS:
@@ -228,7 +218,6 @@ def main():
             missing.append(name)
             print(f"  ✗ MISSING  {name} (fluent 中没有)")
 
-    # ---- 第二步：复制新增图标 ----
     for name in NEW_ICONS:
         src = os.path.join(source_dir, name)
         dst = os.path.join(icons_dir, name)
@@ -240,7 +229,6 @@ def main():
             missing.append(name)
             print(f"  ✗ MISSING  {name} (fluent 中没有)")
 
-    # ---- 第三步：删除冗余文件 ----
     deleted = 0
     for name in DELETE_REDUNDANT:
         fpath = os.path.join(icons_dir, name)
@@ -251,7 +239,6 @@ def main():
         else:
             print(f"  - SKIP    {name} (不存在)")
 
-    # ---- 第四步：检查 icons-custom/ 中是否也有冗余 ----
     for name in DELETE_REDUNDANT:
         fpath = os.path.join(icons_custom_dir, name)
         if os.path.isfile(fpath):

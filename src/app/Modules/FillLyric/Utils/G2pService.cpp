@@ -61,11 +61,8 @@ namespace FillLyric {
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
                                          const std::vector<std::string> &priorityLanguages) const {
 
-        // Pre-fill results: all notes default to original lyric preservation
-        // (pronunciation=lyric, candidates={lyric}) per ds-session.md §206.
-        // This guarantees the returned list is the same length as the input so
-        // callers do not go out of bounds. G2P fallback is forbidden by
-        // ds-session.md §196; on failure the host only preserves the lyric.
+        // Keep results index-aligned with the input and preserve lyrics for notes that
+        // cannot be converted.
         QList<G2pResult> results;
         results.reserve(notes.size());
         for (const auto &note : notes) {
@@ -92,10 +89,8 @@ namespace FillLyric {
             return results;
         }
 
-        // Group by resolved language (preserving first-seen order):
-        // language -> [(noteIndex, lyricUtf8), ...].
-        // lyric has its trailing '+' stripped, matching the old implementation
-        // (which chopped the trailing '+' before fromRoute).
+        // Batch by resolved language. Each entry stores the note index and the UTF-8
+        // lyric with trailing '+' markers removed.
         std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
         for (int i = 0; i < commonCount; i++) {
@@ -113,11 +108,9 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // B1b-3: Each language calls session().convertG2p once (internally
-        // routed by SingerRef.version, filling g2pId/g2pContext/
-        // g2pContextVersion). On route or conversion failure an Expected
-        // error is returned and all notes in that language keep the original
-        // lyric (ds-session.md §206: G2P failure preserves lyric).
+        // The singer's package version controls G2P routing. On route or conversion
+        // failure, keep the original lyrics. Retrying with official G2P would bypass
+        // the singer's language route.
         auto &session = SynthrtEngine::instance().session();
         const auto packageId = m_singer.packageId.toStdString();
         const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);

@@ -46,9 +46,7 @@ namespace {
         if (!lock.getLockInfo(&pid, &hostname, &applicationName) || pid <= 0)
             return;
 #ifdef Q_OS_WIN
-        // Windows restricts activateWindow() on a background process. The
-        // secondary grants the primary foreground rights before the handoff,
-        // matching what the legacy forwardRequest() path used to do.
+        // Grant the primary foreground rights so Windows allows it to activate its window.
         AllowSetForegroundWindow(static_cast<DWORD>(pid));
 #endif
     }
@@ -373,9 +371,7 @@ HandoffResult SecondaryHandoffController::run(const SingleInstanceRequest &start
     m_socket = new QLocalSocket(this);
     const auto sendHandoff = [this, handoff] {
         appendDiagnostic(QStringLiteral("connected"), QStringLiteral("yes"));
-        // Restore the foreground grant that the legacy forwardRequest() path
-        // used to make. Without it Windows may refuse the primary's
-        // activateWindow() call when the request arrives from the background.
+        // The primary needs foreground rights before it receives the activation request.
         allowPrimaryToTakeForeground(m_dataDirectory);
         const auto message =
             SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(handoff));

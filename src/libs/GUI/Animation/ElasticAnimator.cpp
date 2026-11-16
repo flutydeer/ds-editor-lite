@@ -58,12 +58,10 @@ void ElasticAnimator::updatePosition() {
     const qreal currentVelocity = velocityNorm(m_velocity);
     const qreal currentDistance = distanceBetweenPoints(m_target, m_position);
 
-    // 定义停止阈值
     constexpr qreal minSpeed = 0.1;
     constexpr qreal minDistance = 0.1;
 
     if (currentVelocity < minSpeed && currentDistance < minDistance) {
-        // 到达目标，停止动画
         m_position = m_target;
         m_velocity = QPointF(0, 0);
         emit positionUpdated(m_position, m_velocity);

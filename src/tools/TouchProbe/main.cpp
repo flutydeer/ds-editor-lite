@@ -1,56 +1,19 @@
-// TouchProbe — 输入探针
+// TouchProbe visualizes Qt pointer events and logs the associated Windows messages.
+// Solid trails show mouse (blue), touch (green by point ID), pen (red), and wheel
+// or native gestures (yellow). Dashed gray trails show synthesized mouse events.
 //
-// A standalone diagnostic window that visualizes every pointer event the
-// platform delivers, so the touch/pen behaviour of a real machine can be
-// checked before trusting it in the editor. It answers two questions the
-// desktop application cannot answer on its own:
+// C clears the display. S swallows synthesized mouse events. A accepts tablet events
+// to test Qt's mouse synthesis. F toggles fullscreen. Esc quits.
 //
-//   1. Does touch reach Qt as QTouchEvent, or only as synthesized mouse input?
-//   2. Does a stylus produce QTabletEvent, a mouse event, or both?
+// Accepting touch events suppresses Qt synthesis. Windows can still promote the primary
+// touch point to mouse messages. PenRawStateFilter reads PEN_FLAG_BARREL from WM_POINTER
+// messages because Qt reports the barrel state only when the pen is in contact.
 //
-// Accepting a QTouchEvent stops Qt's own touch to mouse synthesis but not the
-// operating system's: Windows promotes the primary touch point to legacy mouse
-// messages regardless. The "swallow synthesized mouse" switch applies the same
-// rule the editor uses (drop everything whose device is a touch screen, see
-// EditorTouchController) so the effect can be seen side by side.
-//
-// Trails are colored per device: mouse blue, touch green (one hue per point
-// id), pen red, wheel and native gestures yellow. Synthesized mouse events are
-// drawn as a grey dashed trail, which makes an unexpected synthesis obvious at
-// a glance.
-//
-// Keys: C clear, S toggle swallowing, A toggle accepting tablet events, G
-// toggle SetGestureConfig, Q toggle the press-and-hold query answer, F
-// fullscreen, Esc quit.
-//
-// The accept-tablet switch exists for the pen work: leaving tablet events
-// unaccepted is how the editor gets the stylus as ordinary mouse input, and
-// accepting them is how a future pen layer takes that mouse stream over. The
-// two modes side by side on real hardware are what tell us which one the
-// platform actually honours.
-//
-// A fourth question needs the raw Windows message rather than a Qt event:
-// whether the pen side button can be seen while the pen hovers. Qt reads
-// PEN_FLAG_BARREL only when the pen is in contact, so the hovering state never
-// reaches QTabletEvent, QMouseEvent or QInputDevice. PenRawStateFilter reads
-// the same WM_POINTER message the platform gives Qt and reports the state it
-// finds there, which is what decides whether a hover gesture such as OneNote's
-// barrel-button lasso is reachable from this application at all.
-//
-// A fifth question belongs to the touch long press: Windows promotes a held
-// finger into its own right click, drawing a translucent square while the
-// finger is down and opening the menu on release, and nothing in Qt can see or
-// veto that. Two documented ways to switch it off exist, and they sit at
-// different layers, so the probe exposes them as two independent switches:
-//
-//   G  SetGestureConfig(hwnd, 0, 1, {0, 0, GC_ALLGESTURES}, sizeof)  legacy gestures
-//   Q  answer WM_TABLET_QUERYSYSTEMGESTURESTATUS with TABLET_DISABLE_PRESSANDHOLD
-//
-// Every raw message line is stamped with the arm it was recorded under, so a
-// session with the switches flipped halfway through is still readable. A hold
-// that keeps producing WM_RBUTTONDOWN/UP and WM_CONTEXTMENU means the mechanism
-// is not consulted at all, and a hold that produces none means the editor is
-// free to own the long press again.
+// On Windows, G blocks legacy gestures with SetGestureConfig and GC_ALLGESTURES.
+// Q answers WM_TABLET_QUERYSYSTEMGESTURESTATUS with TABLET_DISABLE_PRESSANDHOLD.
+// Compare WM_RBUTTONDOWN, WM_RBUTTONUP and WM_CONTEXTMENU across settings to see
+// whether Windows still promotes a hold to a right-click. Each raw log line records
+// the switch states.
 
 #include <QAbstractNativeEventFilter>
 #include <QApplication>
@@ -345,11 +308,7 @@ namespace {
             update();
         }
 
-        // Off (the default) mirrors the editor today: the tablet event is
-        // ignored, so Qt synthesizes mouse events from it. On stops that
-        // synthesis, which is how the pen work takes the mouse stream over.
-        // Flipping this switch on real hardware shows whether accepting the
-        // tablet event really does silence the mouse stream.
+        // Accept tablet events to check whether the platform still delivers mouse events.
         void setAcceptTabletEvents(const bool on) {
             m_acceptTabletEvents = on;
             log(QStringLiteral("--- accept tablet events: %1 (mouse synthesis should %2)")
@@ -1072,29 +1031,15 @@ namespace {
     };
 
 #if defined(Q_OS_WIN)
-    // tpcshrd.h carries these next to a pile of MIDL-generated tablet
-    // interfaces, which is not worth pulling into a Qt translation unit, so the
-    // two values are spelled out here. Both are stable since Windows 7:
+    // Keep the message and flag constants local to avoid importing tablet COM interfaces
+    // from tpcshrd.h. Both values are stable since Windows 7.
     // WM_TABLET_QUERYSYSTEMGESTURESTATUS is WM_TABLET_DEFBASE (0x02C0) + 12.
     constexpr UINT wmTabletQuerySystemGestureStatus = 0x02CC;
     constexpr LRESULT tabletDisablePressAndHold = 0x00000001;
 
-    // The raw-message view of Windows' own press-and-hold, which is the one part
-    // of the long press no Qt event can see. Three things are logged:
-    //
-    //   - every pointer message that decides what Qt's sticky m_pointerType
-    //     holds, because that is what decides whether a promoted mouse event
-    //     enters the application as BySystem (which the editor swallows) or as
-    //     NotSynthesized (which it passes straight through),
-    //   - whether the platform asks the window about system gestures at all,
-    //   - whether a hold still produces the legacy right button and the menu.
-    //
-    // The filter sits at the application level, which is where Qt runs native
-    // filters for messages it does not treat as input: qwindowscontext.cpp skips
-    // that pass only for the messages its own event dispatcher delivered, and
-    // WM_TABLET_QUERYSYSTEMGESTURESTATUS is not one of them. That makes this the
-    // layer that can answer the query, and the layer the editor's own probes
-    // already use.
+    // Observe the pointer type that Qt uses to classify promoted mouse events.
+    // The application-level native filter can also answer
+    // WM_TABLET_QUERYSYSTEMGESTURESTATUS, which Qt receives outside its input dispatcher.
     class SystemGestureFilter final : public QAbstractNativeEventFilter {
     public:
         explicit SystemGestureFilter(ProbeCanvas *canvas) : m_canvas(canvas) {

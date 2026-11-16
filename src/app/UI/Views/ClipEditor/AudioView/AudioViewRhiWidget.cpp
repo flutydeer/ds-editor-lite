@@ -94,11 +94,8 @@ public:
         viewport.setContentTickRange(
             content.contentStartTick(),
             std::max(content.contentStartTick(), content.materialEndTick()));
-        // setContentTickRange keeps the previous *global* centre, which is the same
-        // material position only while the clip stays where it was. The scene is
-        // clip-local, so restoring the offset keeps the view on the same part of the
-        // material when the clip is dragged, exactly like the legacy view keeps its
-        // scroll bar value
+        // setContentTickRange preserves the global center. Restore the clip-local
+        // offset so the view shows the same samples when the clip moves.
         if (sameClip)
             viewport.setOffset({previousOffset, viewport.verticalOffset()});
         updateScrollBars();

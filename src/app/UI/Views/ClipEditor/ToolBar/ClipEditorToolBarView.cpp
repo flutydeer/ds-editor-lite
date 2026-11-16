@@ -164,7 +164,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d,
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
 
-    // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
+    // Preset changes on another track can affect the current selection.
     connect(appOptions, &AppOptions::optionsChanged, d, [d](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             d->refreshSingerComboPresentation();

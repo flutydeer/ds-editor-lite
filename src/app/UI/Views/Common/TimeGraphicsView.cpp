@@ -328,7 +328,7 @@ TimeGraphicsView::DragBehavior TimeGraphicsView::dragBehavior() const {
 
 void TimeGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
     m_dragBehavior = dragBehaviour;
-    // TODO: 实现手型拖动视图
+    // TODO: Implement hand dragging for this drag mode.
 }
 
 void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool visibility) {

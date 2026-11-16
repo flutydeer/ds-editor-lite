@@ -47,7 +47,6 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     tagContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     const auto tagLayout = new FlowLayout(tagContainer, 0, 6, 6);
 
-    // 全选按钮
     const auto btnSelectAll = new Button(tr("All"), tagContainer);
     btnSelectAll->setCursor(Qt::PointingHandCursor);
     connect(btnSelectAll, &Button::clicked, this, [this] {
@@ -58,7 +57,6 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     });
     tagLayout->addWidget(btnSelectAll);
 
-    // 反选按钮
     const auto btnInvert = new Button(tr("Invert"), tagContainer);
     btnInvert->setCursor(Qt::PointingHandCursor);
     connect(btnInvert, &Button::clicked, this, [this] {
@@ -303,7 +301,7 @@ SpeakerMixData SpeakerMixDialog::equalWeightMixData() const {
     if (n < 2)
         return data;
 
-    // Match SpeakerMixList::redistributeValues() — integer 100/n + remainder
+    // Match SpeakerMixList::redistributeValues() - integer 100/n + remainder
     const int baseValue = 100 / n;
     const int remainder = 100 % n;
     QVector<double> fullWeights;

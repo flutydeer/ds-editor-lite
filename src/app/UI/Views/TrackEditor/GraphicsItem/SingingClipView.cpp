@@ -156,15 +156,12 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
             return;
         const auto leftScene = tickToSceneX(start() + rStart);
         auto left = sceneXToItemX(leftScene);
-        // 宽度不能用 tickToSceneX(length)：tickToSceneX 含 leftMarginPx() 偏移，
-        // 而 tick 长度是平移不变量，margin 会被错计进宽度导致音符重叠（回归于
-        // 237a904a）。两端场景坐标相减（margin 抵消）得到正确的 item 局部宽度。
+        // Subtract the mapped endpoints so the scene's left margin cancels out of the width.
         auto width = sceneXToItemX(tickToSceneX(start() + rStart + length)) - left;
         if (start() + rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
             width = sceneXToItemX(tickToSceneX(start() + rStart + length)) - left;
         } else if (start() + rStart + length >= clipRight)
-            // 右端触到 clip 边界：同理由右边界场景坐标回推，勿把 tick 当长度
             width = sceneXToItemX(tickToSceneX(clipRight)) - left;
         const auto top = -(keyIndex - highestKeyIndex) * noteHeight + contentTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
@@ -184,17 +181,17 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
     if (!activeClip() || m_notes.isEmpty() || noteHeight <= 0)
         return;
 
-    // x 轴为相对 active clip 的局部 tick，用 clip 当前 start() 平移成全局 tick，
-    // 拖动 clip 时（view start 实时变化）叠加层跟随 clip 移动
+    // Translate local ticks with the clip view's current start so the overlay follows a drag.
     const QRectF viewportRect = appStatus->pianoRollVisibleRect;
     if (viewportRect.isNull() || viewportRect.isEmpty())
         return;
     const double prStartTick = viewportRect.left() + static_cast<double>(start());
     const double prEndTick = viewportRect.right() + static_cast<double>(start());
-    const double prLowKey = viewportRect.top();     // 低音（QRectF y 轴向下 = keyIndex 减小）
-    const double prHighKey = viewportRect.bottom(); // 高音
+    // This QRectF stores key indices, so its top represents the lower pitch.
+    const double prLowKey = viewportRect.top();
+    const double prHighKey = viewportRect.bottom();
 
-    // x 轴：与 clip 可见范围求交集
+    // Limit the overlay to the visible part of the clip.
     const double clipLeft = static_cast<double>(start() + clipStart());
     const double clipRight = static_cast<double>(clipLeft + clipLen());
     const double overlayTickStart = std::max(prStartTick, clipLeft);
@@ -205,14 +202,12 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
     const auto left = sceneXToItemX(tickToSceneX(overlayTickStart));
     const auto right = sceneXToItemX(tickToSceneX(overlayTickEnd));
 
-    // y 轴：复用 drawPreviewArea 的 noteHeight + highestKeyIndex 映射。
-    // 视口边界映射（不加 noteHeight）：kBottom 是连续浮点 key，底边所在格子可能不可见，
-    // +noteHeight 会把不可见的格子也框进叠加层（多 1 个 key）
+    // Use the note preview's vertical mapping. The bounds are fractional pitches, so adding
+    // a note height would include a key outside the visible range.
     const auto overlayTop = -(prHighKey - highestKeyIndex) * noteHeight + contentTop;
     const auto overlayBottom = -(prLowKey - highestKeyIndex) * noteHeight + contentTop;
     const auto overlayRect = QRectF(left, overlayTop, right - left, overlayBottom - overlayTop);
 
-    // 边框色跟随轨道色（AppColorPalette 由主题系统驱动）
     const auto borderColor = AppColorPalette::instance()->clipBorder(colorIndex());
     QPen pen(borderColor, 1.2);
     painter->setPen(pen);

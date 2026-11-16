@@ -15,8 +15,7 @@ public:
     /// Note: does NOT fully validate the theme; use load() for verification.
     static QStringList themeCandidates();
 
-    /// Load a theme by folder name. Returns nullopt if any file is missing or
-    /// fails validation — guarantees all-or-nothing semantics.
+    /// Load a theme by folder name. Returns nullopt if a required file is missing or invalid.
     static std::optional<ThemeDefinition> load(const QString &folderName);
 
     /// Returns a human-readable error message from the last failed load() call.

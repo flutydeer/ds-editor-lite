@@ -26,7 +26,7 @@ namespace Automation {
         AutomationResult<DocumentVersion> validateDocumentCommand(const CommandContext &context);
         AutomationResult<DocumentVersion> admitDocumentTask(CommandContext &context);
 
-        // 模型信号的同步接收者可捕获此来源，供后续异步任务使用。
+        // Direct model signal receivers can capture this origin for asynchronous work.
         [[nodiscard]] InvocationSource currentInvocationSource() const {
             return m_invocationSource;
         }

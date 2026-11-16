@@ -48,17 +48,10 @@ QString platformBestMatch(const QString &requested,
         if (supported.count == 0)
             return {};
 
-        // Match by walking the requested tag's explicit fallback chain (most
-        // specific entry first) and returning the first available key whose
-        // normalized, case-folded form equals a chain entry; ties keep the
-        // available order. Same algorithm as the ICU backends (exact
-        // comparison against the parent chain, see
-        // docs/design/localization-display-name-design.md §4).
-        // Foundation's preferredLocalizationsFromArray is deliberately not
-        // consulted: its distance-based candidate selection may rank an
-        // off-chain sibling first (zh-TW -> zh-Hant) and omit the valid
-        // parent (zh) from its result list entirely, which would both
-        // cross-match siblings and suppress the parent fallback.
+        // Walk the explicit parent chain from most to least specific.
+        // Exact case-insensitive matches keep the order in available.
+        // Foundation's distance-based selector can return off-chain siblings
+        // (zh-Hant for zh-TW) and omit the valid parent (zh).
         NSArray<NSString *> *acceptChain =
             acceptChainForNormalizedTag(requested);
         for (NSString *chainItem in acceptChain) {

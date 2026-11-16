@@ -72,7 +72,7 @@ namespace Automation {
         m_projectName = std::move(projectName);
         if (!m_closingCommitted)
             m_lifecycleState = DocumentLifecycleState::Active;
-        // 工作流 busy 由外层操作持有，文档换代时必须保留。
+        // The enclosing workflow stays busy across document generations.
         m_idempotencyStore.clear();
         return version();
     }

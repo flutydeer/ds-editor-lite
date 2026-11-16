@@ -1,3 +1,3 @@
-所有 Agent 指引已合并到 [AGENTS.md](AGENTS.md)，请直接阅读该文件。
+仓库的开发与维护约定见 [AGENTS.md](AGENTS.md)。
 
 @AGENTS.md
