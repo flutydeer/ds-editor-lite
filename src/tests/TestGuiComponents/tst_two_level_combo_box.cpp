@@ -339,8 +339,7 @@ void GuiComponentTests::submenuArrowSpaceKeepsShortcutColumnAligned() {
 
     const int offsetWithoutSubMenu = shortcutRightOffset(menu, shortcutAction);
 
-    // Adding a submenu used to switch on the arrow reservation and shift the
-    // shortcut column 30px to the left (see the File menu regression).
+    // Adding a submenu must leave the shortcut column in place.
     auto *subAction = menu->addAction(QStringLiteral("More"));
     subAction->setMenu(new QMenu(menu));
     QCOMPARE(menu->property("submenuArrowSpace").toBool(), false);
@@ -521,9 +520,7 @@ void GuiComponentTests::submenuShortcutKeepsThemeColorAndGap() {
     const int top = item.top() + 2;
     const int bottom = item.bottom() - 2;
 
-    // Codex finding: clearSlot(arrowSlot) used to erase the right-hand part of
-    // a submenu row's shortcut while that row skipped the themed repaint, so
-    // the remaining text was left in the label's primary colour.
+    // Clearing the chevron slot must leave the shortcut visible in its secondary color.
     const int lastShortcutInk =
         rightmostInkColumn(image, item.left(), chevronLeft - 1, top, bottom, background);
     QVERIFY2(lastShortcutInk > item.left(),

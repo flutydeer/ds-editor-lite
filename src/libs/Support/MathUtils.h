@@ -63,20 +63,19 @@ public:
 
         const int numOldSamples = values.size();
         if (numOldSamples < 2 || interval <= 0 || newInterval <= 0) {
-            // 如果数据点不足，或间隔无效，直接返回空的结果
             return resampledValues;
         }
 
-        const double totalLength = (numOldSamples - 1) * interval;                 // 总长度
-        const int numNewSamples = static_cast<int>(totalLength / newInterval) + 1; // 新采样点数目
+        const double totalLength = (numOldSamples - 1) * interval;
+        const int numNewSamples = static_cast<int>(totalLength / newInterval) + 1;
 
         for (int i = 0; i < numNewSamples; ++i) {
             const double newX = i * newInterval;
 
-            // 找到 newX 所处的区间 [x0, x1]
+            // The interpolation interval needs a source sample at each end.
             const int oldIndex = static_cast<int>(newX / interval);
             if (oldIndex >= numOldSamples - 1) {
-                break; // 超出范围
+                break;
             }
 
             double x0 = oldIndex * interval;

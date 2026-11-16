@@ -6,10 +6,8 @@
 #include <QByteArray>
 #include <QStringList>
 
-// Prepares MIDI files for import without mutating AppModel or the history
-// stack. Batch preparation parses every file first, then a single shared
-// options dialog is shown (Phase 3), and finally each file is generated with
-// the shared options.
+// Parse the batch and apply one set of import options to every file.
+// Preparation leaves the document and undo history untouched.
 class MidiFilePreparer {
 public:
     // Parses all paths in input order. A parse failure or a file without any

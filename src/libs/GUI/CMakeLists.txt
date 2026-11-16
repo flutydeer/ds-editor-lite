@@ -1,8 +1,6 @@
 project(GUI LANGUAGES CXX)
 
-# Generic, app-agnostic GUI toolkit: reusable controls, the theme system, the
-# animation framework, base interfaces and rendering utilities. Organized into
-# Controls/Theme/Animation/Base/Utils subfolders; consumed as <lite/GUI/.../Xxx.h>.
+# Reusable Qt Widgets components and shared styling.
 qm_find_qt(Gui Svg)
 
 # SvsExpression{,Double}SpinBox evaluate math expressions via tinyexpr.

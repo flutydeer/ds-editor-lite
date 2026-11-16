@@ -1,5 +1,5 @@
 # 英语音素支持 — 设计讨论记录
-> 状态：✅ 阶段 1–5 已完成；剩余待做：编辑器英语适配、卡拍标记规则引擎通用化、音节分配音符（`+`）连续性判断优化（均未实施，2026-08-06 复核）
+> 状态：✅ 阶段 1–5 已完成。剩余待做：编辑器英语适配、卡拍标记规则引擎通用化、音节分配音符（`+`）连续性判断优化（均未实施，2026-08-06 复核）
 
 ## 开始时间
 2026-05-02
@@ -83,7 +83,7 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 在 `getPhonemeNames()` 之后执行 `Syllabification` 后处理，识别 word+`+` 序列，按 syllable 拆分并分配音素。
 
 **分配规则**：
-- 单词音符默认取第 1 个 syllable；末尾 `+` 可增加（如 `word+` 取前 2 个 syllable）
+- 单词音符默认取第 1 个 syllable。末尾 `+` 可增加（如 `word+` 取前 2 个 syllable）
 - 纯 `+` 音符按 `+` 数量消耗对应 syllable，最后一个 `+` 贪婪取剩余全部
 - `-` 连音符不消耗配额，跳过
 - 溢出时标空
@@ -91,7 +91,7 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 **改动**：
 - `Syllabification.h/.cpp` — 提供音节分配识别、syllable 拆分和推理前后转换
 - `GetPhonemeNameTask.cpp` — 在音素名生成后保留 word 根音符上的完整音素序列
-- `GetPronunciationTask.cpp` — G2P 输入剥掉歌词尾部 `+`；纯 `+` 和 `-` 音符跳过不送入 G2P
+- `GetPronunciationTask.cpp` — G2P 输入剥掉歌词尾部 `+`。纯 `+` 和 `-` 音符跳过不送入 G2P
 - `InferControllerHelper.cpp` — `updatePhoneName` 中 names 数量变化时清空 offsets
 - `PhonemeView.cpp` — 防御性边界检查：offsets 索引不超过 offsets 长度
 
@@ -107,7 +107,7 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 将单一 `defaultLyric` 设置改为按语言的映射表 `defaultLyrics`，新建音符时根据语言查找对应默认歌词。
 
 **改动**：
-- `GeneralOption.h/.cpp` — `QString defaultLyric` → `QMap<QString, QString> defaultLyrics`（cmn→啦, eng→la, jpn→ら, yue→啦）；新增 `defaultLyricForLanguage()`；JSON key 改为 `"defaultLyrics"`（对象类型）
+- `GeneralOption.h/.cpp` — `QString defaultLyric` → `QMap<QString, QString> defaultLyrics`（cmn→啦, eng→la, jpn→ら, yue→啦）。新增 `defaultLyricForLanguage()`。JSON key 改为 `"defaultLyrics"`（对象类型）
 - `GeneralPage.h/.cpp` — 切换语言时动态保存/加载对应语言的默认歌词文本框内容
 - `PianoRollGraphicsViewHelper.cpp`、`DrawNoteHandler.cpp`、`MidiExtractController.cpp`、`MidiConverter.cpp` — 所有 `defaultLyric` 调用改为 `defaultLyricForLanguage(language)`
 

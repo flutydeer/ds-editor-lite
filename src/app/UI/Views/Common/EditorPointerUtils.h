@@ -4,14 +4,8 @@
 class QPointerEvent;
 class QSinglePointEvent;
 
-// Helpers shared by every editor view that has to tell a finger from a mouse.
-//
-// Touch is delivered to the interaction state machines as synthetic mouse
-// events carrying the originating touch device (see EditorTouchController), so
-// the whole codebase can keep working in QMouseEvent terms while still being
-// able to ask "did this come from a finger?" where it matters — hit tolerance,
-// and the "is the pointer still down?" safety nets that used to read
-// QGuiApplication::mouseButtons().
+// Synthetic mouse events carry their originating touch device. Editors use this
+// to choose hit tolerances and track pressed state across pointer types.
 namespace EditorPointer {
     // Touch hit targets are much coarser than a mouse cursor, so edge grab
     // zones are widened by this factor while a touch stream is in flight.
@@ -25,10 +19,7 @@ namespace EditorPointer {
     void beginTouchStream();
     void endTouchStream();
 
-    // A synthetic pen stream is currently driving mouse events somewhere. This
-    // is a counter of its own rather than a reuse of the touch one: the two
-    // differ exactly where the counter is read, because hit tolerance is
-    // widened for a finger and must not be for a pen.
+    // Track synthetic pen streams separately so only touch widens hit targets.
     [[nodiscard]] bool isPenStreamActive();
     void beginPenStream();
     void endPenStream();
@@ -47,14 +38,8 @@ namespace EditorPointer {
     // drag and during a pen stroke the pen layer translates itself.
     [[nodiscard]] bool isPointerPressed();
 
-    // The touch editing affordance: true right after a finger used the editor,
-    // and until a precise pointer (mouse, touchpad, pen) shows up again.
-    //
-    // It exists because a finger has no hover: affordances that a mouse reads
-    // from the cursor shape — how to grab a note's edge, where the resize
-    // targets are — have to be drawn for the finger instead, and they have to
-    // survive the lift or the user could never aim at them. A precise pointer
-    // clears it again, because there the cursor already says the same thing.
+    // Keep touch resize handles visible after finger lift so the user can target them.
+    // Mouse, touchpad, or pen input clears the handles and uses the hover cursor.
     [[nodiscard]] bool touchAffordanceActive();
     void latchTouchAffordance();
     void clearTouchAffordance();

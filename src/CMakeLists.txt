@@ -18,7 +18,7 @@ qm_find_qt(Core)
 qm_find_qt(Widgets)
 qm_find_qt(Svg)
 
-# After Qt is found: project libraries may link Qt (e.g. lite::Support -> Qt::Core).
+# Define the common Qt targets before configuring the libraries.
 add_subdirectory(libs)
 
 add_subdirectory(connector)

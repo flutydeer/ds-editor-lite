@@ -232,7 +232,7 @@ MainWindow::MainWindow() {
     m_splitter->setOrientation(Qt::Vertical);
     m_splitter->addWidget(m_trackEditorView);
     m_splitter->addWidget(m_bottomPanelView);
-    // 让轨道编辑器高度较小，剪辑编辑器高度较大，且在纵向拉伸窗口时优先拉伸钢琴卷帘
+    // Give spare vertical space to the piano roll and keep the track editor shorter.
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 100);
     m_splitter->setContentsMargins(6, 0, 6, 0);

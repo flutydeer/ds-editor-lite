@@ -691,17 +691,15 @@ bool AudioContext::shouldSilenceAudioClip(const AudioClip *audioClip) const {
 
 void AudioContext::feedCompensatedPosition(const AudioClip *audioClip,
                                            talcs::DspxAudioClipContext *audioClipContext) {
-    // talcs converts (clipStart, start + clipStart, start + clipStart + clipLen)
-    // through the project tempo map; under multi-tempo the raw model ticks would
-    // shift the material read offset. Feed a compensation triplet instead:
-    //   clipStart' = f⁻¹(trim)  — the tick whose absolute conversion equals the
-    //                             material trim offset
-    //   start'     = P − clipStart'  (never converted alone by talcs; may be
-    //                                 negative, stored without validation)
-    //   clipLen'   = f⁻¹(f(P) + playLength) − P
-    // where P is the visible start tick and f the absolute tick→time mapping.
-    // NOTE: this compensation must never be applied to singing clips —
-    // DspxNoteContext converts the singing clip's start tick ALONE.
+    // talcs maps clipStart, start + clipStart, and start + clipStart + clipLen
+    // through the project tempo map. Compensate the inputs to preserve the source
+    // trim offset and playback length across tempo changes:
+    //   clipStart' = msToTick(trimStartMs)
+    //   start'     = P - clipStart'
+    //   clipLen'   = msToTick(tickToMs(P) + playLengthMs) - P
+    // P is the visible start tick. start' may be negative because talcs never
+    // converts it alone for audio clips. DspxNoteContext converts start alone,
+    // so the compensation applies only to audio clips.
     const auto &timeline = appModel->timeline();
     const int visibleStart = audioClip->start() + audioClip->clipStart();
     if (!audioClip->hasRealTimeAnchor()) {

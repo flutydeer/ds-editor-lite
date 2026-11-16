@@ -435,10 +435,7 @@ void EditorInteractionTests::touchLiftingOneOfTwoFingersEndsNavigation() {
     QCOMPARE(gesture.phase(), Gesture::Phase::Settling);
 }
 
-// Fingers that are still on the glass after the machine lost its state (a
-// touch cancel, a pointer capture change) must be picked up again from
-// their next move. Ignoring unknown ids leaves them dead until the hand is
-// lifted, which is how a cancelled pinch used to freeze the viewport.
+// Adopt fingers that remain on the glass after cancellation so they can resume navigation.
 void EditorInteractionTests::touchAnUnknownFingerIsAdoptedInsteadOfIgnored() {
     Gesture gesture;
     gesture.pressed(1, {100, 100}, 0);

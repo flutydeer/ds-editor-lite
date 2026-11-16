@@ -39,7 +39,7 @@ namespace NoteUtils {
                 accidental -= 1;
                 i++;
             } else if (c == u'x' || c == u'X') {
-                accidental += 2; // x 表示 double sharp
+                accidental += 2; // x denotes a double sharp.
                 i++;
             } else {
                 break;

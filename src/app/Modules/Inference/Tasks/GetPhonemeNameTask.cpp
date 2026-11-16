@@ -89,9 +89,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             result.errorMessage = tr("Language module is not ready");
         return results;
     }
-    // R14/TD-21: For fallback singers (Pending/Missing) LanguageService is
-    // not invoked; return an equal-length fallback aligned with
-    // resolveLanguageRoute's valid semantics: non-Resolved is non-routable.
+    // Routing requires a resolved singer. Keep the errors index-aligned with the notes.
     if (m_clipSingerInfo.resolutionState() != ResolutionState::Resolved) {
         qCWarning(logInferPhoneme) << "SingerInfo not resolved, skip phoneme fetch. identifier:"
                                    << m_clipSingerInfo.identifier();
@@ -102,12 +100,8 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         return results;
     }
 
-    // B1b-3/B1c: S2P conversion via VoicebankSession::convertS2p().
-    // Language module readiness is ensured per language via ensureLanguageReady()
-    // (cached internally by the session); deterministic failures are cached in
-    // failedS2pLanguages so subsequent inputs in the same language skip fast.
-    // Replaces the legacy resolveS2pResource() + LanguageResource::convert() pair
-    // removed in B1c.
+    // Check readiness once per language. Reuse deterministic failures for the rest
+    // of the notes in that language.
     QHash<QString, QString> failedS2pLanguages;
     QSet<QString> readyLanguages;
 
@@ -161,8 +155,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                 readyLanguages.insert(input.language);
             }
 
-            // Convert pronunciation to phonemes. SingerIdentifier implicitly
-            // converts to SingerRef (B1a), supplying version-aware routing.
+            // Route phoneme conversion using the singer's package version.
             auto sylExp = session.convertS2p(identifier, input.language.toStdString(),
                                              input.pronunciation.toStdString());
             if (!sylExp) {

@@ -23,11 +23,7 @@ struct InferSpeakerMix;
 
 class ActiveInference final {
 public:
-    /// Model — the {inference, importOptions} pair a DiffSinger task consumes.
-    /// B1b: previously a nested type of SingerModelSession; now defined locally
-    /// since ActiveInference adapts a ds::session::ModelSetHandle into this
-    /// shape via handle->load(kind) + handle->stages().find(kind)->options.
-    /// Field shape is unchanged so all 4 task call sites compile unchanged.
+    /// Loaded inference stage and its configured import options.
     struct Model {
         srt::core::NO<srt::svs::Inference> inference;
         srt::core::NO<srt::svs::InferenceImportOptions> importOptions;
@@ -51,11 +47,7 @@ public:
         std::uint64_t m_generation;
     };
 
-    // B1b: acquire now takes a ModelSetHandle (from VoicebankSession::ensureModelSet)
-    // instead of a SingerModelSession. Internally load(kind) + model(kind) +
-    // stages().find(kind)->options build the equivalent {inference, importOptions}
-    // pair. Handle's public interface is unchanged, so the 4 DiffSinger task
-    // call sites continue to compile.
+    // Load the stage and bind it to this instance for cancellation while the handle is alive.
     srt::core::Expected<Handle> acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
                                         ds::infer::StageKind kind);
     void stop();

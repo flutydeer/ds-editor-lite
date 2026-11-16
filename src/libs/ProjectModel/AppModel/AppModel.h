@@ -43,8 +43,8 @@ public:
     const QList<Track *> &tracks() const;
     bool insertTrack(Track *track, qsizetype index, bool resolveColorIndex = true);
     bool appendTrack(Track *track);
-    // 轨道集合操作只修改数据；Action 在复合编辑完成后显式发布通知。
-    // to 为移动完成后的最终下标，语义同 QList::move。
+    // Track collection operations leave notifications to the action after a compound edit.
+    // As with QList::move(), to is the final index of the moved track.
     bool moveTrack(qsizetype from, qsizetype to);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);

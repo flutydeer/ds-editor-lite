@@ -191,14 +191,12 @@ void EditorInteractionTests::penMidStrokeBarrelNoiseNeitherRestartsNorEndsTheStr
     QCOMPARE(begun.at(0).type, Type::Begin);
     QCOMPARE(begun.at(0).position, QPointF(100, 100));
 
-    // Barrel released while the tip is still down — measured as
-    // `release button=Left buttons=Left`, a release that still reports the
-    // button as held. Noise, in both readings.
+    // With the tip still down, releasing the barrel button can report
+    // release button=Left buttons=Left. This report must keep the stroke active.
     QVERIFY(
         stroke.feed(Stroke::Report::Release, penSample({142, 100}, 0.5, Qt::LeftButton)).isEmpty());
     QCOMPARE(stroke.phase(), Stroke::Phase::Stroke);
-    // And the barrel going back down is the matching `press button=Left
-    // buttons=Right`.
+    // Pressing the barrel button again can report press button=Left buttons=Right.
     QVERIFY(
         stroke.feed(Stroke::Report::Press, penSample({144, 100}, 0.5, Qt::RightButton)).isEmpty());
     QCOMPARE(stroke.phase(), Stroke::Phase::Stroke);

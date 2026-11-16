@@ -299,7 +299,7 @@ void InferPipeline::initPitchTransitions() {
     awaitingPitchApplyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     awaitingPitchApplyState->addTransition(this, &InferPipeline::expressivenessChanged,
                                            inferPitchState);
-    // TODO 音高步数更改
+    // TODO: Rerun pitch inference when the step count changes.
 }
 
 void InferPipeline::initVarianceTransitions() {

@@ -6,9 +6,8 @@
 #include <algorithm>
 #include <limits>
 
-// Conversion formulas intentionally keep the exact operation order of the old
-// single-tempo MusicTimeConverter so that a single-point timeline stays
-// bit-identical to the previous behavior (degenerate equivalence).
+// Preserve the order of operations in the conversion formulas for exact single-tempo
+// compatibility.
 
 Timeline::Timeline() : Timeline({}, {}) {
 }

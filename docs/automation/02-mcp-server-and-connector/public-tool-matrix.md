@@ -1,5 +1,7 @@
 # 二期公共 MCP 工具矩阵
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 冻结口径
 
 二期工具面按业务域组织。Editor 提供 **179** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **185** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。

@@ -2,14 +2,13 @@
 #define DS_EDITOR_LITE_SINGINGCLIPSLICERGLOBAL_H
 
 namespace SingingClipSlicerGlobal {
-    // TODO: 更改为实体类
-    // 头部可用区域最大值(ms)
+    // Maximum available lead-in for a slice, in milliseconds.
     constexpr double headerAvailableLengthMax = 1000;
 
-    // 头部填充SP长度基础量(ms)
+    // Base SP padding, in milliseconds.
     constexpr double padBaseLength = 100;
 
-    // 头部填充SP长度增量基数(ms)
+    // Additional SP lead-in padding per pre-onset phoneme, in milliseconds.
     constexpr double padUnitAdditionalLength = 100;
 }
 

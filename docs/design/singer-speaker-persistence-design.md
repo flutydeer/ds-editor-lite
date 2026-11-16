@@ -20,7 +20,7 @@ DS Editor Lite 支持在轨道（Track）和歌唱剪辑（SingingClip）上独�
 
 剪辑有两套 singer/speaker 字段：一套是“本地值”（剪辑自己选的），一套是“轨道缓存”（从轨道同步过来用于继承展示）。通过 `useTrackSingerInfo` / `useTrackSpeakerInfo` 两个布尔标志决定 getter 返回哪一套值。
 
-当前交互和模型 API 将 singer/speaker 作为强关联的一组状态处理：正常运行时只产生“完全 Follow Track”或“完整独立 singer/speaker pair”两种状态，不再分别设置或分别通知 singer 与 speaker。保留两个 flag 是为了持久化兼容旧工程；加载旧的半继承状态时会归一化为完整 pair。
+当前交互和模型 API 将 singer/speaker 作为强关联的一组状态处理：正常运行时只产生“完全 Follow Track”或“完整独立 singer/speaker pair”两种状态，不再分别设置或分别通知 singer 与 speaker。保留两个 flag 是为了持久化兼容旧工程。加载旧的半继承状态时会归一化为完整 pair。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -133,7 +133,7 @@ struct ComboBoxItemData {
 };
 ```
 
-**"Follow Track" 条目**：`isInheritItem = true`，`text = "Follow Track"`。被选中后，singer/speaker 字段通过 `setCurrentData(singer, speaker, preferInherit=true)` 动态更新为轨道的实际歌手/声线，使按钮显示 `Follow Track (Singer / Speaker)`。`currentText()` 会保留 Follow Track 状态提示，同时展示当前有效 singer/speaker；工具栏 tooltip 同步为同一文本，避免按钮宽度不足时看不到完整信息。
+**"Follow Track" 条目**：`isInheritItem = true`，`text = "Follow Track"`。被选中后，singer/speaker 字段通过 `setCurrentData(singer, speaker, preferInherit=true)` 动态更新为轨道的实际歌手/声线，使按钮显示 `Follow Track (Singer / Speaker)`。`currentText()` 会保留 Follow Track 状态提示，同时展示当前有效 singer/speaker。工具栏 tooltip 同步为同一文本，避免按钮宽度不足时看不到完整信息。
 
 **包刷新时保留选中**：`setItems()` 重新构建菜单前保存当前状态（是否选中"Follow Track"、之前的 singer/speaker），构建后用对应逻辑恢复。
 
@@ -198,17 +198,17 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singer, const Speaker
 
 - 复制/粘贴 Follow Track Clip：新 Clip 跟随目标 Track，粘贴后显示目标 Track 的 effective singer/speaker。
 - 复制/粘贴独立 Clip：剪贴板保存源 Clip 的 effective singer/speaker 和继承 flag，粘贴后恢复为完整独立 pair，不受目标 Track singer/speaker 影响。
-- 跨轨移动 Follow Track Clip：移动到新 Track 后刷新轨道缓存，显示并使用新 Track 的 singer/speaker；撤销移动时恢复旧 Track 的缓存。
+- 跨轨移动 Follow Track Clip：移动到新 Track 后刷新轨道缓存，显示并使用新 Track 的 singer/speaker。撤销移动时恢复旧 Track 的缓存。
 - 跨轨移动独立 Clip：只刷新轨道缓存，不改变 effective 本地 pair，因此不会触发无意义 singer/speaker 变更。
 
 ## Key Files
 
 | 文件 | 职责 |
 |------|------|
-| `src/app/Model/AppModel/SingingClip.h/.cpp` | 歌手/声线模型，继承逻辑，原子 setter |
-| `src/app/Model/AppModel/Track.h/.cpp` | 轨道歌手/声线，信号推送 |
+| `src/libs/ProjectModel/AppModel/SingingClip.h/.cpp` | 歌手/声线模型，继承逻辑，原子 setter |
+| `src/libs/ProjectModel/AppModel/Track.h/.cpp` | 轨道歌手/声线，信号推送 |
 | `src/app/UI/Controls/TwoLevelComboBox.h/.cpp` | 歌手/声线下拉控件，"Follow Track" 条目 |
 | `src/app/UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp` | 剪辑编辑器工具栏，歌手选择交互 |
 | `src/app/UI/Views/TrackEditor/TrackControlView.cpp` | 轨道控制面板，歌手选择交互 |
-| `src/app/Modules/ProjectConverters/DspxProjectConverter.cpp` | dspx 文件保存/加载中的 singer/speaker 序列化 |
+| `src/libs/ProjectConverters/DspxProjectConverter.cpp` | DSPX 文件保存和加载中的歌手与声线序列化 |
 | `src/app/Modules/Inference/InferController.cpp` | 歌手变更时重建推理任务 |

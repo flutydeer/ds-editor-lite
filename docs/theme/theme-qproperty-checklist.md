@@ -6,10 +6,10 @@
 
 `qproperty-*` 是**一次性赋值**：从主题 A 切换到主题 B 时，B 漏写的属性会**残留 A 的值**，不会自动回到 C++ 默认值。C++ 中的默认值仅在"QSS 完全没有该规则"时作为首次加载的回退，不能作为主题切换的回退。因此：
 
-- 新主题必须覆盖下表中的**每一项**；
-- 主题切换测试应使用"深 → 浅 → 深"往返验证，而不是分别启动各主题；
-- 将来做多主题时建议加自动校验脚本，对比各主题声明的 qproperty 集合是否一致；
-- 新增 qproperty 时须同步更新本清单；
+- 新主题必须覆盖下表中的**每一项**。
+- 主题切换测试应使用"深 → 浅 → 深"往返验证，而不是分别启动各主题。
+- 将来做多主题时建议加自动校验脚本，对比各主题声明的 qproperty 集合是否一致。
+- 新增 qproperty 时须同步更新本清单。
 - **组合选择器里的每个类都必须声明该属性**。Qt 在 `QStyleSheetStyle::polish()` 阶段对每条
   `qproperty-*` 调用 `metaObject->indexOfProperty()`，找不到就打印
   `does not have a property named ...` 警告，而且每次 polish 都会重复。后端独有的属性必须
@@ -344,8 +344,8 @@
 
 ## 不在本清单范围的颜色
 
-- **AppColorPalette 业务色**：轨道色、音符色、说话人色等按色号取值的业务语义色，走 `AppColorPalette` + JSON，不经 QSS；
-- **交互 alpha 档位**：悬停/按下/激活等状态透明度、动画插值端点保留在 C++，QSS 只提供基色；
-- **标题栏系统按钮**：Windows 使用 Segoe 字体字形；非 Windows 运行时由
+- **AppColorPalette 业务色**：轨道色、音符色、说话人色等按色号取值的业务语义色，走 `AppColorPalette` + JSON，不经 QSS。
+- **交互 alpha 档位**：悬停/按下/激活等状态透明度、动画插值端点保留在 C++，QSS 只提供基色。
+- **标题栏系统按钮**：Windows 使用 Segoe 字体字形。非 Windows 运行时由
   `MainTitleBar`/`TabPanelTitleBar`/`DialogTitleBar` 用 `IconUtils` 把单色 SVG 按
-  `icon.primary`/`icon.disabled` 蒙版着色，主题与最大化/还原状态变化时统一重建；
+  `icon.primary`/`icon.disabled` 蒙版着色，主题与最大化/还原状态变化时统一重建。

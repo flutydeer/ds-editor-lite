@@ -29,7 +29,7 @@ QList<QColor> ThemeManager::currentPaletteColors() const {
     return m_paletteColors;
 }
 
-// ── Theme loading ────────────────────────────────────────────────────────
+// Theme loading
 
 bool ThemeManager::initialize(const QString &themeId) {
     m_observedThemePreferenceId = normalizedThemePreferenceId(themeId);
@@ -121,7 +121,7 @@ bool ThemeManager::reloadCurrentTheme() {
     return applyThemeInternal(m_currentThemeId, ColorSchemePolicy::Explicit);
 }
 
-// ── Query ────────────────────────────────────────────────────────────────
+// Query
 
 QString ThemeManager::currentThemeId() const {
     return m_currentThemeId;
@@ -143,7 +143,7 @@ QColor ThemeManager::semanticColor(const QString &token) const {
     return m_semanticColors.value(token);
 }
 
-// ── Style roots ──────────────────────────────────────────────────────────
+// Style roots
 
 void ThemeManager::addStyleRoot(QWidget *root) {
     if (!root)
@@ -172,7 +172,7 @@ void ThemeManager::removeStyleRoot(QWidget *root) {
     m_styleRoots.removeAll(ptr);
 }
 
-// ── Animation ────────────────────────────────────────────────────────────
+// Animation
 
 void ThemeManager::addAnimationObserver(IAnimatable *object) {
     m_subscribers += object;
@@ -183,7 +183,7 @@ void ThemeManager::removeAnimationObserver(IAnimatable *object) {
     m_subscribers.removeOne(object);
 }
 
-// ── Frame windows ────────────────────────────────────────────────────────
+// Frame windows
 
 void ThemeManager::addWindow(QWidget *window) {
     if (!window)
@@ -206,7 +206,7 @@ void ThemeManager::removeWindow(QWidget *window) {
     window->removeEventFilter(this);
 }
 
-// ── Slots ────────────────────────────────────────────────────────────────
+// Slots
 
 void ThemeManager::updateThemePreference(const QString &preferredThemeId) {
     const auto normalized = normalizedThemePreferenceId(preferredThemeId);
@@ -246,7 +246,7 @@ void ThemeManager::onSystemThemeColorChanged() {
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// Helpers
 
 void ThemeManager::applyAnimationSettings(IAnimatable *object) const {
     object->setAnimationEnabled(m_animationEnabled);

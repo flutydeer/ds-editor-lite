@@ -17,7 +17,7 @@
 class GhostNoteLayer final {
 public:
     // Flags the retained geometry stale. Call on ghost list changes and on theme
-    // switches — bar colors are baked into the vertices.
+    // switches - bar colors are baked into the vertices.
     void markDirty();
 
     // Brings the cache up to date and returns its vertices. The geometry arguments must

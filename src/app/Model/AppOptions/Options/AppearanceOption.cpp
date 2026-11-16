@@ -13,7 +13,7 @@ void AppearanceOption::load(const QJsonObject &object) {
         const auto saved = object.value(themeIdKey).toString().trimmed();
         // Accept only this setting's own valid preference ids; legacy concrete
         // theme ids ("lite-dark") or unknown values fall back to the default.
-        // These preference strings are the setting's own vocabulary — the theme
+        // These preference strings are the setting's own vocabulary - the theme
         // system's ThemeIds carries the same names independently, so there is no
         // cross-layer (Model -> theme system) dependency.
         if (saved == QStringLiteral("system") || saved == QStringLiteral("light") ||

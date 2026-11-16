@@ -63,9 +63,8 @@ namespace {
         auto &monitor = ShutdownMonitor::instance();
         monitor.start();
         monitor.commit();
-        // The global pool is destroyed by the Qt application teardown and waits for
-        // its runnables without a deadline. That is the phase a watchdog stopped
-        // before returning from main() used to lose.
+        // Qt waits for its global thread pool during application destruction.
+        // Keep a runnable blocked to exercise the watchdog during that teardown.
         QSemaphore entered;
         QSemaphore released;
         QThreadPool::globalInstance()->start([&entered, &released] {

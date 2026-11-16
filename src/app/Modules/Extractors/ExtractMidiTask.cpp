@@ -147,7 +147,7 @@ void ExtractMidiTask::runTask() {
     }
 
     // Configure extraction options (tempo from input; thresholds/language use defaults
-    // that match the model's config.json — the plugin may override internally).
+    // that match the model's config.json - the plugin may override internally).
     srt::extract::MidiExtractOptions options;
     options.tempo = static_cast<float>(m_input.timeline.tempoAt(0));
 

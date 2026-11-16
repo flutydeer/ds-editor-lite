@@ -182,7 +182,7 @@ void InferencePage::applyCacheScanResult(const InferCacheUtils::CacheStats &stat
 }
 
 void InferencePage::confirmCleanCache() {
-    // 主线程收集活跃集合（访问 appModel + 登记集合），再启动后台清理
+    // Snapshot the active files on the main thread before cleaning up in the worker.
     const auto active = InferCacheUtils::collectActiveCacheFiles();
     const auto cacheDir = appOptions->inference()->cacheDirectory;
     const auto deletableCount = std::count_if(
@@ -212,7 +212,7 @@ void InferencePage::confirmCleanCache() {
                 Toast::show(tr("Cache cleaned: %1 files, %2 released")
                                 .arg(result.deletedCount)
                                 .arg(QLocale().formattedDataSize(result.deletedBytes)));
-                startCacheScan(); // 刷新统计
+                startCacheScan();
             });
     watcher->setFuture(QtConcurrent::run(InferCacheUtils::cleanCache, cacheDir, active));
 }

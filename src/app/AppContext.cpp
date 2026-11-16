@@ -13,7 +13,6 @@
 #include <lite/Core/SingletonRegistry.h>
 #include <lite/BuildInfo.h>
 
-// Business singletons — all headers included here
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -57,7 +56,6 @@
 #include <QThread>
 #include <QTimer>
 
-// AudioSystemContext — moved verbatim from old main.cpp
 struct AudioSystemContext {
     AudioSystemContext() {
         AudioSystem::outputSystem()->initialize();
@@ -90,12 +88,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
     : m_hostMode(hostMode) {
     s_self = this;
 
-    // SingletonRegistry::create constructs each service (bypassing its private ctor via
-    // the SingletonRegistry friendship) and registers it immediately, so that a later
-    // service's constructor — which may call Xxx::instance() — resolves the
-    // owned instance instead of falling back to a stray Meyers static. This
-    // object still owns the returned pointers and tears them down, in reverse,
-    // via SingletonRegistry::destroy in the destructor.
+    // Register each service immediately so later constructors resolve the AppContext
+    // instance. AppContext owns the services and destroys them in reverse order.
 
     // L0: Basic data models (no dependencies)
     m_appStatus = SingletonRegistry::create<AppStatus>();
@@ -625,7 +619,7 @@ AppContext::~AppContext() {
     s_self = nullptr;
 }
 
-// instance<T>() specializations — one per business singleton
+// Service lookup specializations.
 // Returns nullptr when s_self is not set (e.g. in tests); callers fall back to Meyers static.
 template <>
 AppStatus *AppContext::instance() {

@@ -2451,9 +2451,8 @@ void ApplicationGuiTests::detachedPanelIsAnIndependentTopLevelWindow() {
     auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
 
-    // A parented top-level window is still a secondary window: Qt gives it to
-    // the platform as an owned window, which loses the taskbar entry and the
-    // normal z-order. These invariants are what keep that regression out.
+    // A detached panel needs its own taskbar entry and normal stacking order.
+    // Qt marks a parented top-level widget as an owned window on the platform.
     QCOMPARE(detached->parentWidget(), nullptr);
     QVERIFY(detached->isWindow());
     QVERIFY(!window.findChild<DetachedPanelWindow *>());
@@ -2571,10 +2570,8 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
     auto *secondaryMenu = detached->menuView();
     QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
 
-    // Save / Save As used to be wired only from MainWindow, so a second menu's
-    // actions silently did nothing. disconnect() doubles as the only public
-    // probe for an existing connection. Both menus live inside this fixture and
-    // are destroyed with it, so probing never starts a real document workflow.
+    // Both menus must forward Save and Save As. Probe their fixture-local connections
+    // with disconnect() so the test can check the wiring without starting a save.
     const auto ownsSaveWiring = [](MainMenuView *menu) {
         if (!menu || !menu->actionSave() || !menu->actionSaveAs())
             return false;

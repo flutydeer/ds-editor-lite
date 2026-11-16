@@ -2,99 +2,38 @@
 
 ## Project overview
 
-DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice editor). The build target is `DsEditorLite`. Docs are written in Chinese; code comments and commit messages are in English.
+DS Editor Lite is a C++20 / Qt 6 Widgets singing voice editor. The main build target is `DsEditorLite`. Write documentation in Chinese and code comments and commit messages in English.
 
 ## Build system
 
-- **CMake** with **vcpkg** for dependency management.
-- Clone with `--recursive` (git submodules: `src/3rdparty/qtmediate`, `scripts/vcpkg`).
-- vcpkg manifest lives at `scripts/vcpkg-manifest/vcpkg.json`, not the repo root.
-- Toolchain file: `vcpkg/scripts/buildsystems/vcpkg.cmake`.
+本项目使用 CMake 和 vcpkg。克隆仓库时使用 `--recursive` 初始化 [.gitmodules](.gitmodules) 中的子模块。
+上游 vcpkg 工具放在仓库根目录下的 `vcpkg/`，依赖和覆盖端口在[项目清单](scripts/vcpkg-manifest/vcpkg.json)中维护。
 
 ### 前置条件
 
-- **Visual Studio 2026**：安装"使用 C++ 的桌面开发"工作负荷，包含 MSVC v145 生成工具和 Windows 11 SDK。
-- **Qt 6**：安装 Qt 6.11.1+，选择 MSVC 2022 64-bit、Qt State Machines 和 Qt HTTP Server 组件。
-- **vcpkg**：克隆到项目同级目录或全局安装，详见下方 vcpkg 安装步骤。
+- Visual Studio 2026，安装“使用 C++ 的桌面开发”工作负荷、MSVC v145 工具链和 Windows 11 SDK。
+- Qt 6.11.1 或更新版本，安装 MSVC 2022 64-bit 套件。所需 Qt 组件见[测试工作流](.github/workflows/tests.yml)。
+- 首次配置时，在仓库根目录执行 `git clone https://github.com/microsoft/vcpkg.git vcpkg`，然后执行 `.\vcpkg\bootstrap-vcpkg.bat`。复现 CI 时使用 [bootstrap 脚本](scripts/ci/bootstrap-vcpkg.py)指定的版本。
 
 ### 配置和构建（Windows presets 主线）
 
-Agent 做 CMake 配置/构建验证时，优先加载 `.agents/skills/cmake-configure` 与 `.agents/skills/cmake-build` skill，不要使用 CLion MCP run configuration 代替构建。
+在仓库根目录运行 [构建脚本](.agents/skills/scripts/run-cmake-preset.ps1)。脚本会初始化 Visual Studio x64 开发环境，
+探测 Qt 安装目录，也可用 `-QtDir` 指定实际路径。
 
-本项目使用 CMake presets 作为标准构建入口。以下步骤在**同一个**命令行会话中执行：
-
-#### 1. 初始化 VS 2026 x64 开发者环境
-
-**PowerShell**：
 ```powershell
-Import-Module "C:\Program Files\Microsoft Visual Studio\18\*\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
-Enter-VsDevShell -VsInstallPath "C:\Program Files\Microsoft Visual Studio\18\*" -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
-```
-（`*` 根据实际 VS 版本替换为 `Community` / `Professional` / `Enterprise`）
-
-**cmd**：
-```cmd
-call "C:\Program Files\Microsoft Visual Studio\18\*\VC\Auxiliary\Build\vcvarsall.bat" x64
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Dependencies -Preset debug
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset debug
 ```
 
-#### 2. 设置 Qt 环境变量（每次新会话都需要）
+首次构建或 manifest 更新后同步依赖。构建 Release 时使用 `-Preset release`。
+需要单独配置或构建时分别使用 `-Mode Configure` 或 `-Mode Build`。可用的构建目标和配置见 [CMake presets](CMakePresets.json)。
 
-```cmd
-set QT_DIR=C:\Qt\6.11.1\msvc2022_64
-set Qt6_DIR=%QT_DIR%
-set CMAKE_PREFIX_PATH=%QT_DIR%
-set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR;CMAKE_PREFIX_PATH
-```
-
-#### 3. 安装/更新 vcpkg 依赖
-
-```cmd
-cd vcpkg
-vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
-cd ..
-```
-
-可选 CUDA 支持：在 vcpkg install 后追加 `--x-feature=cuda12`。
-
-#### 4. CMake 配置
-
-```cmd
-cmake --preset debug
-```
-
-#### 5. 构建
-
-```cmd
-cmake --build --preset debug
-```
-
-也可以使用 release preset：
-```cmd
-cmake --preset release && cmake --build --preset release
-```
-
-#### 备选：手动 CMake 命令
-
-如果 presets 不可用，可以用等价的命令行：
-```cmd
-cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=build/install -G Ninja
-cmake --build build --target DsEditorLite
-```
-
-#### 更新 vcpkg 依赖
-
-当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `vcpkg/installed` 与 manifest 同步。重新运行 vcpkg install 命令即可，vcpkg 会自动对比差异并增量更新：
-
-```cmd
-cd vcpkg
-vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
-```
-
-也可使用 `docs/dev-scripts/` 下的辅助脚本（复制到项目根目录并修改 Qt 路径后使用）。
+Agent 执行 CMake 验证时，使用 [cmake-configure](.agents/skills/cmake-configure/SKILL.md)
+或 [cmake-build](.agents/skills/cmake-build/SKILL.md) skill。单独配置使用 `cmake-configure`，构建使用 `cmake-build`。
 
 ### Tests
 
-Tests are gated behind `-DLITE_BUILD_TESTS=ON` (enabled by default in the `debug` preset). They live in `src/tests/`.
+Tests live in [src/tests](src/tests) and require `-DLITE_BUILD_TESTS=ON`. See the [test guide](docs/automation/04-testing-and-ci/test-plan.md) for presets, resource requirements, and coverage.
 
 #### Testing principles
 
@@ -136,20 +75,15 @@ Tests protect observable behavior and explicit contracts. Before adding a test, 
 
 ```
 src/
-  app/          # Main application (DsEditorLite target)
-    Automation/ Bootstrap/ Controller/ Global/ Interface/ Model/ Modules/
-    Resources/ UI/ Utils/
-  libs/         # Internal libraries (ADT, Core, GUI, History, Language,
-                #   MusicBase, PackageManager, ProjectConverters, ProjectModel,
-                #   Support, SynthrtEngine, Tasking)
-  3rdparty/     # curve-util; qtmediate (Git submodule - UI framework)
-  tests/        # Test targets (opt-in via LITE_BUILD_TESTS)
+  app/          # Editor and automation service
+  connector/    # MCP connector
+  libs/         # Internal libraries
+  3rdparty/     # Bundled libraries and UI framework submodule
+  tests/        # Test suites and fixtures
   tools/        # Auxiliary tools
-scripts/
-  cmake/        # CMake utilities (LiteBuildApi, OrtRuntimeGate, winrc, etc.)
-  vcpkg/        # Git submodule - vcpkg overlay ports/triplets
-  vcpkg-manifest/ # vcpkg.json
-docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, guides/ = 开发指南, theme/ = 主题文档, archive/ = 历史归档)
+cmake/          # CMake utilities and product metadata
+scripts/        # Build and test scripts, vcpkg manifest and overlays
+docs/           # 设计、方案、使用指南、主题和阶段归档
 ```
 
 ## Code style
@@ -216,13 +150,9 @@ Write for readers who have no knowledge of the conversation or implementation pr
 }
 ```
 
-## Key dependencies
-
-Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (audio), opendspx (file format), QWindowKit (frameless window), dsinfer (DNN inference), SDL2, libsndfile, yaml-cpp, language-manager/LangCore (G2p/linguistics).
-
 ## Gotchas
 
 - Windows build requires MSVC (not MinGW). Needs `dwmapi.lib` and a recent Windows SDK for DWM APIs.
 - `CMAKE_AUTOMOC/AUTORCC/AUTOUIC` are ON for the app target - Qt meta-object files are generated at build time.
 - `NOMINMAX` is defined project-wide - do not rely on Windows `min`/`max` macros.
-- vcpkg overlay ports are in `scripts/vcpkg/ports` (submodule), not upstream vcpkg.
+- The [manifest](scripts/vcpkg-manifest/vcpkg.json) defines overlay precedence. See the [local overlay guide](scripts/vcpkg-project/README.md) before updating a patch.

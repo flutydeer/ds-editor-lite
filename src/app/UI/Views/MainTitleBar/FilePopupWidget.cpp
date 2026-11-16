@@ -92,8 +92,6 @@ namespace {
             itemLayout->setSpacing(6);
             itemLayout->setAlignment(Qt::AlignVCenter);
 
-            // TODO: 替换为工程文件图标后恢复左侧图标槽。
-
             auto *infoFrame = new QFrame;
             infoFrame->setAttribute(Qt::WA_TransparentForMouseEvents);
             infoFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);

@@ -6,15 +6,8 @@
 #include <QVarLengthArray>
 #include <Qt>
 
-// Pure-logic single-stroke tracking for a stylus. Like EditorTouchGesture this
-// is deliberately free of any widget or Qt event dependency: callers feed
-// widget-local samples and get back an ordered list of intents to translate
-// into synthetic mouse events. Keeping it headless is what makes it unit
-// testable without a tablet (see src/tests/TestPenInput).
-//
-// This is not a gesture recognizer. A pen has a single contact point, so the
-// only arbitration needed is which of the three physical inputs started the
-// stroke, and when the stroke is over:
+// Track a pen stroke from widget-local samples and emit ordered mouse intents.
+// The first physical input decides the stroke type:
 //
 //   tip          -> an ordinary left-button stroke, identical to a mouse
 //   eraser       -> an ordinary left-button stroke carrying EditorPointer's
@@ -23,8 +16,7 @@
 //                   stroke (pressed at the original position), staying put
 //                   turns it into a context menu click
 //
-// Two platform facts shape the state tracking, both measured on Windows with
-// the TouchProbe (see docs/design/touch-and-pen-input-design.md):
+// Windows tablet event constraints (see docs/design/touch-and-pen-input-design.md):
 //
 //   1. Stroke boundaries come from the contact state (pressure), never from
 //      TabletPress/TabletRelease. Pressing or releasing the barrel button in
@@ -107,7 +99,7 @@ public:
     // Should this sample be taken over from the platform at all? True for the
     // two inputs the platform maps wrongly (eraser, side button); a plain tip
     // is left to Qt, whose own tablet-to-mouse synthesis already reproduces it
-    // exactly — including the double click, which is why the tip is never
+    // exactly - including the double click, which is why the tip is never
     // claimed here: Qt only detects a double click for mouse presses it
     // dispatches itself (QGuiApplicationPrivate::processMouseEvent), and a
     // synthesised press sent from this layer would bypass it.
@@ -123,10 +115,10 @@ public:
     // self-contradictory press/release pairs every time the barrel changes
     // mid-stroke (`press button=Left buttons=Right`, then
     // `release button=Left buttons=Left`), and those say nothing about the tip
-    // — so a report that arrives while the tip is still on the glass continues
+    // - so a report that arrives while the tip is still on the glass continues
     // the stroke (a move does the moving, a press or release produces nothing
     // at all), and only a report with the tip off the glass ends it.
-    // See docs/design/touch-and-pen-input-design.md §5.1.
+    // See the pen stroke state machine in docs/design/touch-and-pen-input-design.md.
     Intents feed(Report report, const Sample &sample);
 
     // The stroke ended without its release reaching the widget (the pen was
@@ -137,7 +129,7 @@ public:
 
     // The stroke was interrupted by the system (window deactivated, widget
     // hidden). Tears the stroke down without producing anything: no release
-    // is synthesized, so nothing the stroke did so far gets committed — the
+    // is synthesized, so nothing the stroke did so far gets committed - the
     // same bargain a second finger gets on the touch side.
     void aborted();
 

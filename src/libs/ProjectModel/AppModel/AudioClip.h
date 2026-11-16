@@ -51,7 +51,6 @@ public:
     PathStatus pathStatus() const;
     void setPathStatus(PathStatus status);
 
-    // TODO: 将峰值数据保存到其他地方
     const AudioInfoModel &audioInfo() const;
     void setAudioInfo(const AudioInfoModel &audioInfo);
 

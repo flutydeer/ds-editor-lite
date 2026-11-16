@@ -11,7 +11,7 @@
 //
 // The whole ring band lies outside the note (the hole's four edges are the note's
 // visible edges), so painting it inside NoteView::paint would leave artifacts by
-// exceeding the boundingRect — and NoteView's boundingRect is reused by lyric
+// exceeding the boundingRect - and NoteView's boundingRect is reused by lyric
 // layout and the inline editor, so it cannot be changed for the ring's sake. A
 // high-z overlay layer also solves neighbouring notes covering each other along
 // the way.

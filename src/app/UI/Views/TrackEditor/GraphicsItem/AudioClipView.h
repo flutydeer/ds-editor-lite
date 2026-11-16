@@ -14,9 +14,9 @@
 // Graphics item that displays an audio clip's waveform in the track editor.
 //
 // Rendering modes (selected automatically by zoom level):
-//   1. Peak mode — uses pre-computed peakCache / peakCacheMipmap (vertical lines)
-//   2. Sub-chunk peak mode — reads raw samples via IO, computes per-pixel min/max
-//   3. Waveform curve mode — reads raw samples, applies Lanczos sinc interpolation,
+//   1. Peak mode - uses pre-computed peakCache / peakCacheMipmap (vertical lines)
+//   2. Sub-chunk peak mode - reads raw samples via IO, computes per-pixel min/max
+//   3. Waveform curve mode - reads raw samples, applies Lanczos sinc interpolation,
 //      draws a smooth continuous curve via QPainterPath
 //
 // The drawing uses physical-pixel stepping and a scene-aligned sampling grid to

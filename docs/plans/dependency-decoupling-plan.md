@@ -1,8 +1,6 @@
-# app 内部依赖解耦方案
-> 状态：🔵 部分实施（A 类下沉与 B 类上移已完成；`check-layering.py` 护栏脚本未创建；C 类三 seam 倒置未做；物理抽库已完成 lib 提取。2026-08-06 复核）
+# 应用内部依赖解耦的早期方案
 
-> 目标:在**单个 `DsEditorLite` target 内部**把错误的层间依赖梳理干净,为后续物理抽库(`src/libs/` + sync_include)扫清障碍。
-> 依赖解耦与物理抽库是正交的两件事——本方案只做前者,全程不动 CMake target 结构,不改包含前缀风格(仍用 `"Model/Xxx.h"` 相对写法)。
+> 这是拆分共用库前的分层方案。下面的目录、依赖矩阵和迁移步骤对应当时的单一应用 target。现行构建目标和依赖见[应用架构](../design/app-architecture.md)。
 
 ## 层级模型
 
@@ -43,10 +41,10 @@ UI          48    63    13   141    76    64   351
 
 ## A 类 — 类型下沉(安全,优先做)
 
-**决策(已定):只下沉轻量身份类型 + 真叶子;富类型簇留在 PackageManager,列为独立设计议题。**
+初始方案先下沉轻量身份类型和叶子类型，声库富类型另作设计。实际迁移去向见下文。
 
 理由(代码勘察结论):`SingerInfo`/`SpeakerInfo` **不是**无行为的值类型,而是 **PackageManager 域的富类型**——
-- 生产者是 PackageManager 自身(`PackageManager.cpp`、`PackageInfo.cpp`、`SingerInfo.cpp`);
+- 生产者是 PackageManager 自身（`PackageManager.cpp`、`PackageInfo.cpp`、`SingerInfo.cpp`）。
 - 携带 `ResolutionState`(声库解析运行期状态,注释明说不持久化)与 `SingerCapabilitySummary`(对推理库 synthrt `SingerCapabilityReport` 的镜像)。
 
 把它们下沉到 Model 会让 Model 混入声库/推理概念,并使**生产者 PackageManager 反向依赖 Model**,进而诱发在 PackageManager 侧重造本地表示(真·多份)。故**不搬**。
@@ -55,7 +53,7 @@ UI          48    63    13   141    76    64   351
 
 | 待搬文件 | 自身依赖 | 波及面 | 落点 | 备注 |
 |---|---|---|---|---|
-| `Modules/Inference/Models/SingerIdentifier.h` | 纯 Qt/std(叶子) | 22 | `Model/AppModel/` | 轻量身份,Model/PackageManager 共享;PackageManager 反向向下依赖它,合法 |
+| `Modules/Inference/Models/SingerIdentifier.h` | 纯 Qt/std(叶子) | 22 | `Model/AppModel/` | Model 与 PackageManager 共享的轻量身份类型 |
 | `Modules/Inference/Models/InferSpeakerMix.h` | 只依赖 `Model/AppModel/{SpeakerMixData,Timeline}` | 9 | `Model/AppModel/` | 已只依赖 Model,纯误放 |
 | `Modules/History/HistoryFocus.h` | 纯 `<QList>`(叶子) | 7 | 待定(需 ≤ Interface 秩1) | 消解 `Interface→Modules` |
 
@@ -64,7 +62,7 @@ UI          48    63    13   141    76    64   351
 ### 独立设计议题(不在本轮解耦内):Model 持有 package 富类型
 
 `SingingClip`/`Track`/`EffectiveVoiceContext` 用 `Property<SingerInfo>`/`SingerInfo m_singerInfo` **快照式持有并序列化**声库富信息。这是 Model 与 PackageManager 域的真实纠缠,**无法靠移动文件解决**,需专门设计:
-- 方案 a:把 `SingerInfo` 拆为「可持久化值部分(可入 Model/共享层)」+「运行期能力/解析状态(留 PackageManager)」;
+- 方案 a:把 `SingerInfo` 拆为「可持久化值部分(可入 Model/共享层)」+「运行期能力/解析状态(留 PackageManager)」。
 - 方案 b:Model 只存 `SingerIdentifier` + 轻量持久化快照,富字段运行期回查 PackageManager(改变离线/缺包行为,属产品决策)。
 
 单列任务,先出设计再动手,不与本轮解耦混做。
@@ -77,11 +75,11 @@ UI          48    63    13   141    76    64   351
 |---|---|---|
 | 定位 | 模型的**推理投影** | 喂给推理引擎的**输入模型** |
 | 成员 | InferPiece、InferStatus、InferSpeakerMix | InferInputBase、InferInputNote、GenericInferModel、SpeakerMixValidator、InferenceTaskContext、GpuInfo… |
-| 归属 | 被 `SingingClip::PieceList` 拥有,模型的一部分;有 `Interface/IInferPiece.h` seam | 引擎输入契约(可序列化 / 带 hash 供推理缓存) |
+| 归属 | 被 `SingingClip::PieceList` 拥有，通过 `Interface/IInferPiece.h` 抽象 | 引擎输入契约(可序列化 / 带 hash 供推理缓存) |
 | 依赖 | 仅 Model / Interface / Utils | **向下依赖 `Model/InferenceData/`** + 推理域(部分依赖 PackageManager) |
 
 - 依赖方向:`Modules/Inference/Models/* → Model/InferenceData/*`(Modules→Model,向下,合法)。引擎输入模型构建在模型推理投影之上。
-- **不可合并的铁证**:`SpeakerMixValidator.h` 依赖 `Modules/PackageManager/Models/SingerInfo.h`;若把它并入 `Model/InferenceData/` 会引入 `Model→PackageManager` 违规。故 `Modules/Inference/Models/` 必须留在 Module 层。
+- `SpeakerMixValidator.h` 在当时依赖 `Modules/PackageManager/Models/SingerInfo.h`。将它并入 `Model/InferenceData/` 会引入 `Model→PackageManager` 依赖。
 - 已完成:InferPiece / InferStatus / InferSpeakerMix 从 `Model/AppModel/` 收进 `Model/InferenceData/`(提交 b62c5d6a),把"模型推理投影"与核心可编辑类型(Note/Clip/Params)在结构上分开。
 - 遗留(不在本轮):两边都叫 `Infer*` 语义上易混,理想可重命名以喊出区分(如引擎侧改 `InferInput*` 前缀),但重命名有 QSS/AUTOMOC 连锁风险,单列、不在搬迁里顺手做。
 
@@ -119,7 +117,7 @@ UI          48    63    13   141    76    64   351
 | `Modules/Audio/AudioContext` | `LevelMeterView/Manager` |
 | `Modules/Audio/utils/SettingPagesSynthHelper` | `Svs*` 控件 |
 
-**修法**:低层发信号或调注入的 `IXxxView` 接口;具体对话框/Toast 由 UI 层拥有。
+低层发信号或调用注入的 `IXxxView` 接口，由 UI 层创建对话框或 Toast。
 
 ### seam ② PlaybackController 访问
 
@@ -129,7 +127,7 @@ UI          48    63    13   141    76    64   351
 ### seam ③ ModelChangeHandler / Actions 访问
 
 `Modules→Controller` 其余(`ModelChangeHandler.h`×3、`Actions/{TrackActions,ParamsActions}`、`AppController`、`DocumentWorkflowController`、`TrackController`)。
-**修法**:模块不直接调控制器 Action;触发点上提到 Controller,或经接口下发。
+将 Action 的触发点上提到 Controller，或经接口下发。
 
 ### 伪装成搬迁、实为倒置的项
 
@@ -138,11 +136,11 @@ UI          48    63    13   141    76    64   351
 
 ### Interface 层残余
 
-- `Interface/ITrack.h → Model/AppModel/TrackControl.h`:确认 `TrackControl` 是值类型→接口依赖 Model 值类型可接受;否则下沉。
+- `Interface/ITrack.h → Model/AppModel/TrackControl.h` 允许使用 Model 的值类型。如果 `TrackControl` 承担其他职责，需要重新选择归属。
 
 ---
 
-## 执行顺序（实际完成情况）
+## 当时的迁移记录
 
 ```
 1. ✅ A 类整簇下沉:{SingerIdentifier,SingerInfo,SpeakerInfo,LanguageInfo} → Model/Voice
@@ -156,9 +154,4 @@ UI          48    63    13   141    76    64   351
 8. ❌ C-seam③:ModelChangeHandler/Actions 倒置
 ```
 
-## 每步的验证不变量
-
-- **源文件计数守恒**:`find src/app -name '*.h' -o -name '*.cpp' | wc -l` 搬前搬后一致(当前基线 861)。
-- **每步后全量重编**(不信增量,见 stack-corruption 教训)+ 跑 `TestThemeColors`/`TestThemeIcons`/相关单测。
-- **矩阵回归**:重跑本文件的矩阵脚本,确认目标违规边归零、无新增。
-- 移动文件时**不同时改类名**(避免 QSS 选择器/AUTOMOC 连锁失效)。
+移动控件文件时保留类名，以免影响 QSS 选择器与 Qt 元对象生成。

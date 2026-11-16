@@ -39,8 +39,7 @@ public:
     QString s2pFile() const;
     QString onsetFile() const;
 
-    // g2pPackageVersion：用 bool hasG2pPackageVersion + QString 组合实现 std::optional<QString>
-    // 语义
+    // Check hasG2pPackageVersion() to distinguish an absent version from a stored value.
     bool hasG2pPackageVersion() const;
     QString g2pPackageVersion() const;
     QStringList g2pPackagePaths() const;

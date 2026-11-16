@@ -14,19 +14,9 @@
 
 namespace {
 
-    // Backends other than Windows QPA: the hover tablet event carries the
-    // state, so no native code is needed here. That expectation comes from the
-    // platform backends rather than from a measurement, and it has NOT been
-    // verified on X11 or macOS hardware — see
-    // docs/design/touch-and-pen-input-design.md §6.5 and the four questions to
-    // check first in §7.7. The evidence:
-    //   - X11 accumulates the barrel buttons from XI button events, unrelated
-    //     to the contact state: qxcbconnection_xi2.cpp:1497-1507 ("the tip,
-    //     plus two barrel buttons", `tabletData->buttons |= b`).
-    //   - macOS tracks the same thing from the NSEvent button mask:
-    //     qnsview_tablet.mm:77.
-    // If a platform turns out not to report it, the degraded behaviour is "no
-    // hover cursor" — the stroke semantics do not depend on this class.
+    // This watcher relies on Qt's hover tablet events for pen state. Backends that
+    // omit hover button state still support erasing during a stroke, but cannot show
+    // the barrel-button eraser cursor before contact.
     class TabletEventPenHoverWatcher final : public EditorPenHoverWatcher {
     public:
         explicit TabletEventPenHoverWatcher(QObject *parent) : EditorPenHoverWatcher(parent) {

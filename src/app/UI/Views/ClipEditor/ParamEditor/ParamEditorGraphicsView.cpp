@@ -201,7 +201,7 @@ bool ParamEditorGraphicsView::fingerEditingEnabled() const {
 
 EditorTouchTarget::BlankDragAction ParamEditorGraphicsView::touchBlankDragAction() const {
     // With finger editing off the panel is navigation only, so blank canvas
-    // means Pan — the same answer the piano roll gives in Select mode. The
+    // means Pan - the same answer the piano roll gives in Select mode. The
     // stronger answer (touchFingerEdits()) is what actually routes taps and
     // held presses too; this one keeps the drag policy self-consistent.
     return fingerEditingEnabled() ? BlankDragAction::SyntheticMouse : BlankDragAction::Pan;

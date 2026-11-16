@@ -27,8 +27,7 @@ namespace {
     }
 }
 
-// The title band is shared by both arrangement backends: the legacy item, the
-// RHI glyph layout and the inline rename all read these numbers.
+// Keep the visible title band and its inline rename target aligned.
 void EditorRenderingTests::clipTitleBandGeometry() {
     using namespace EditorItemGeometry;
 

@@ -153,9 +153,7 @@ if (-not $NoBuild) {
     Invoke-Step "Configure CMake preset package-dml-portable" {
         $configureArgs = @("--preset", "package-dml-portable")
         if ($EnableCuda) {
-            # The preset pins LITE_ENABLE_CUDA=OFF for the DML flavor; the
-            # switch overrides it so this script and the CMake runtime gate
-            # agree on one source of truth.
+            # The preset defaults to DirectML. Enable the CUDA runtime for this package.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
         Invoke-Process "cmake" $configureArgs
@@ -166,11 +164,7 @@ if (-not $NoBuild) {
     }
 }
 
-# The portable zip is produced from a real CMake install (not the raw build
-# output): `cmake --install` lays down the app, the deployed Qt runtime,
-# plugins, resources, and the app's + Qt's PDB symbols (windeployqt --pdb +
-# LITE_INSTALL_PDB). We then add the vcpkg dependencies' PDBs, which vcpkg's
-# applocal deploy does not copy, and zip the runnable `bin` tree.
+# Package the CMake install tree so runtime resources and debug symbols are included.
 $BuildDir = Join-Path $RepoRoot "build\PortableDmlRelease"
 if (-not (Test-Path -LiteralPath (Join-Path $BuildDir "out\bin\$ExecutableName"))) {
     throw "Build output not found in $BuildDir (run without -NoBuild first)."
@@ -189,11 +183,8 @@ Invoke-Step "Install to a clean staging tree" {
     }
 }
 
-# windeployqt (--pdb) and LITE_INSTALL_PDB already installed the Qt and app
-# PDBs. vcpkg ships each dependency's PDB next to its DLL but its applocal
-# deploy copies only the DLLs, so for every installed DLL pull the same-named
-# PDB from the vcpkg release bin. Kept here (packaging), not in CMake, so the
-# build system stays vcpkg-agnostic.
+# vcpkg applocal deploy copies dependency DLLs without their PDBs.
+# Look for matching symbols in the same dependency bin directory.
 Invoke-Step "Copy vcpkg dependency PDBs" {
     $vcpkgBin = Join-Path $RepoRoot "vcpkg\installed\x64-windows\bin"
     if (-not (Test-Path -LiteralPath $vcpkgBin -PathType Container)) {
@@ -218,9 +209,7 @@ if ($PdbCount -eq 0) {
     throw "No PDB symbols in the installed tree - build was not RelWithDebInfo?"
 }
 
-# Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
-# runtime gate already enforces this at build/install time; this is the
-# packaging-boundary net so a stale vcpkg tree can never slip through.
+# Verify the installed CUDA payload before creating the archive.
 Invoke-Step "Validate staging flavor" {
     $cudaRuntimeDir = Join-Path $AppDir "plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir

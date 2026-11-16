@@ -117,8 +117,7 @@ signals:
     void setPositionTriggered(double tick);
     void contextMenuRequested(const TrackEditorMenuContext &context);
     void autoPageTurnAvailabilityChanged(bool available);
-    // Emitted when an external file drag is dropped on the canvas. Phase 1
-    // only resolves the drop slot; actual import is wired up in later phases.
+    // Pass the resolved track and tick with the dropped file URLs.
     void externalDropRequested(const TrackDropSlot &slot, const QList<QUrl> &urls);
 
 protected:
@@ -156,9 +155,7 @@ protected:
     void touchRelayTextCancel() override;
 
     // --- EditorPenTarget ---
-    // The arrangement canvas has no tool of its own and nothing an eraser could
-    // do, so an erase stroke is swallowed before it reaches the interaction
-    // layer — the same answer the legacy arrangement view gives.
+    // Consume eraser strokes before they can reach arrangement editing.
     [[nodiscard]] EditorPenEraser penEraserAction() const override;
 
 private:
@@ -248,7 +245,7 @@ private:
     [[nodiscard]] int nudgeStep() const;
     void nudgeSelection(int deltaTicks, int deltaTracks) const;
 
-    // --- External file drag-and-drop (Phase 1) ---
+    // External file drag-and-drop
     // Resolves the drop slot at the given viewport position, hitting either a
     // real track or the virtual append slot. Returns nullopt outside the
     // canvas (e.g. over the timeline ruler).
@@ -330,7 +327,7 @@ private:
     bool m_dragMoved = false;
     quint64 m_dragSessionId = 0;
 
-    // External file drag-and-drop state (Phase 1)
+    // External file drag-and-drop state
     bool m_externalDragActive = false;
     std::optional<TrackDropSlot> m_dropSlot;
     EdgeAutoScroller m_edgeAutoScroller;

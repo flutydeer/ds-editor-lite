@@ -1,15 +1,12 @@
 # 推理期间 UI 性能优化 — 设计文档
 
-> 状态：✅ 实施完成（5 项优化 + 综合修复 `656a5f42`；2026-08-06 复核）
-> 本文由原 `plans/` 实施计划整理而来；分阶段实施记录与提交清单已移除。
-
 ## 问题描述
 
 打开含有大量音符的工程后，大量片段同时推理时，界面滚动和缩放不流畅。每个片段完成一步状态转换都会在主线程触发大量连锁反应。
 
 ## 优化 1：推理任务准备移至工作线程
 
-`BaseInferState` 新增 `m_preparationEpoch` 取消令牌；`prepareTaskInput()` + `createTask()` 通过 `QtConcurrent::run()` 移至工作线程。
+`BaseInferState` 新增 `m_preparationEpoch` 取消令牌。`prepareTaskInput()` + `createTask()` 通过 `QtConcurrent::run()` 移至工作线程。
 
 **效果**：解决按下播放后所有 pipeline 同时进入 `InferAcousticState` 导致的主线程阻塞。
 
@@ -41,7 +38,7 @@
 
 ## 优化 5：TimelineView 推理状态重绘节流
 
-`TimelineView` 新增 `QTimer m_pieceUpdateThrottle` 成员；`statusChanged`/`stateChanged` 信号改为触发 **16ms 单次定时器**，把跨事件循环迭代的多次 `update()` 合并为一次 `paintEvent`。
+`TimelineView` 新增 `QTimer m_pieceUpdateThrottle` 成员。`statusChanged`/`stateChanged` 信号改为触发 **16ms 单次定时器**，把跨事件循环迭代的多次 `update()` 合并为一次 `paintEvent`。
 
 **背景**：Qt 的 `update()` 本身会合并同一事件循环迭代内的多次调用，但推理状态变更通过 `QTimer::singleShot(0)` 分散在不同迭代中，Qt 的自动合并无法跨迭代生效，因此仍需显式节流。
 
@@ -51,7 +48,7 @@
 
 **机制分析**（三轮优化后问题从"一按播放就冻结"改善为"前几秒可响应然后冻结"）：
 
-- UI 仍在刷新（不是死锁），但鼠标键盘事件不被处理 → **事件循环饥饿**：`QTimer::singleShot(0)` 和 `QMetaObject::invokeMethod(Qt::QueuedConnection)` 都通过 posted events 机制，Windows 下 `WM_QT_SENDPOSTEDEVENTS` 会批量处理所有 posted events 后才返回 OS 消息泵；当大量任务完成信号 + 状态转换信号密集到达时，事件队列被推理相关事件填满，不再处理 `WM_MOUSEMOVE` 等鼠标消息
+- UI 仍在刷新（不是死锁），但鼠标键盘事件不被处理 → **事件循环饥饿**：`QTimer::singleShot(0)` 和 `QMetaObject::invokeMethod(Qt::QueuedConnection)` 都通过 posted events 机制，Windows 下 `WM_QT_SENDPOSTEDEVENTS` 会批量处理所有 posted events 后才返回 OS 消息泵。当大量任务完成信号 + 状态转换信号密集到达时，事件队列被推理相关事件填满，不再处理 `WM_MOUSEMOVE` 等鼠标消息
 - 声学任务完成后的事件级联：每个 `handleTaskFinished` 触发 `runNext()` → sort → 状态转换 → `statusChanged(Success)` → determine，N 个片段密集完成时事件洪流淹没主线程
 - `resetState` 的级联开销：每次 resetParam 都调用 `updateOriginalParam` 深拷贝所有片段曲线 + 发信号，发生在每个新任务开始前的主线程上
 
@@ -62,7 +59,7 @@
 - **CommonParamEditorView 曲线删除泄漏修复**：移除曲线时同时 `delete` 曲线对象
 - 提交附带 MainWindow 的临时诊断事件过滤器（`EventDiagFilter`，测量事件间隙与 paint 阻塞时间，标注 "remove after investigation"）——**至今仍保留在 `MainWindow.cpp` 中，属于待清理的遗留代码**
 
-**效果**：播放中冻结问题解决；剩余待优化项目由本次综合修复覆盖，不再单独跟踪。
+**效果**：播放中冻结问题解决。剩余待优化项目由本次综合修复覆盖，不再单独跟踪。
 
 ## 设计约束（主线程 / 工作线程职责划分）
 
@@ -75,12 +72,12 @@
 
 ## 评估过但不再单独跟踪的优化项
 
-以下项目在报告时点评估有效，冻结问题由 `656a5f42` 综合修复覆盖后不再单独跟踪；如未来性能回归可参考：
+以下项目在报告时点评估有效，冻结问题由 `656a5f42` 综合修复覆盖后不再单独跟踪。如未来性能回归可参考：
 
 | 项目 | 收益 | 风险 | 工作量 | 改动范围 |
 |---|---|---|---|---|
 | mergeCurves 每帧重新分配内存（paint 中深拷贝所有 original + edited 曲线，每条 1500-3000 int 值） | 高 | 低 | 小（~20-30 行） | `CommonParamEditorView.h/cpp` |
-| updateOriginalParam 信号风暴（`updateVariance` 完成时 5 参数各深拷贝 + 发信号；20 片段 × 5 参数 = 100 次深拷贝） | 高 | 低 | 中等 | `InferControllerHelper.h/cpp` + `SingingClip.h/cpp` |
+| updateOriginalParam 信号风暴（`updateVariance` 完成时 5 参数各深拷贝 + 发信号。20 片段 × 5 参数 = 100 次深拷贝） | 高 | 低 | 中等 | `InferControllerHelper.h/cpp` + `SingingClip.h/cpp` |
 | TaskQueue 每次出队全量排序（`std::sort` + 比较器双重 O(n) 扫描） | 中 | 低 | 中等 | `TaskQueue.h` + `Queue.h` + `InferController.cpp` |
 | notifyNoteChanged 触发 PhonemeView 全量重建（`buildPhonemeList` 双向链表，增量更新需仔细处理） | 中 | 中 | 中等 | `PhonemeView.cpp` |
 

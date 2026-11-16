@@ -9,12 +9,10 @@
 class IProjectConfigPage;
 class IProjectFormatHandler;
 
-// MIDI load session split into background parse, interactive configuration
-// and materialization. Replaces the legacy synchronous MidiConverter flow
-// while keeping the same user-visible behaviour: Open always replaces,
-// Import always appends, tempo / time signature default to enabled on Open
-// and disabled on Import. Channel toggles in the configuration dialog are
-// re-processed in the background; stale results are dropped by generation id.
+// Parse MIDI in the background and apply the selected channels and timing options.
+// Open replaces the document and imports tempo and time signatures by default.
+// Import appends tracks and leaves the existing timing map by default.
+// Changing channels triggers background reprocessing. The generation ID excludes stale results.
 class MidiLoadSession final : public ProjectLoadSessionBase {
     Q_OBJECT
 

@@ -106,7 +106,7 @@ void DrawNoteHandler::commit() {
     const auto committed = PianoRollGraphicsViewHelper::drawNote(m_currentDrawingNote->rStart(),
                                                                  m_currentDrawingNote->length(),
                                                                  m_currentDrawingNote->keyIndex());
-    // model 写入后清空预览，轨道侧一次刷新到最终状态
+    // Keep the preview until the track can render the new note from the model.
     appStatus->pianoRollNoteEditPreview = {};
     m_drawing = false;
     editSessionManager->endActiveTransaction(committed ? EditSessionEndReason::Commit

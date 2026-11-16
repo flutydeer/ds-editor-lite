@@ -5,28 +5,12 @@
 
 class QTabletEvent;
 
-// Pen state during the hover phase: the pen is in range but not touching the
-// glass. This is the one piece of the pen layer that cannot stay platform
-// neutral.
+// Publishes pen state while the pen is in range without contact. Windows QPA omits
+// hover barrel and inversion flags, so the Windows watcher reads GetPointerPenInfo()
+// from native messages and leaves those messages available to Qt.
 //
-// The Windows QPA backend throws the two flags away before Qt builds a tablet event —
-// qwindowspointerhandler.cpp only reads the barrel flag while the tip is in
-// contact:
-//
-//     if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
-//         mouseButtons = Qt::RightButton; // Either left or right, not both
-//
-// so no pure-Qt application can see either the barrel button or an inverted
-// pen during hover; OneNote's lasso cursor proves the state is there, and it
-// is only reachable through GetPointerPenInfo(). Hence the shim: the interface
-// is platform free, and native types appear only in the Windows implementation
-// below.
-//
-// The watcher is process-wide on purpose. It sees the state change the instant
-// it happens — pressing the barrel button while hovering produces *no* Qt
-// event at all — and pushes the change out through changed() so each editor
-// widget can keep its cursor in sync. It only ever reads messages; the Qt
-// handler that follows must still see them untouched.
+// The process-wide watcher emits changed() so each editor can update its hover cursor
+// even if a barrel press produces no Qt tablet event.
 class EditorPenHoverWatcher : public QObject {
     Q_OBJECT
 

@@ -66,11 +66,7 @@ public:
     QString inferenceInterpreterPath() const;
     // Returns a const reference to the Runtime. Intended for public, read-only access.
     const srt::core::Runtime &constRuntime() const;
-    // B1b: acquireSingerSession now returns a ModelSetHandle from
-    // VoicebankSession::ensureModelSet() instead of a SingerModelSession.
-    // The handle is the synthrt-side chokepoint for per-stage load/start/stop;
-    // ActiveInference adapts it into the same {inference, importOptions} Model
-    // shape the 4 DiffSinger tasks consume.
+    // Acquire the singer's model set for loading and running individual inference stages.
     std::shared_ptr<ds::session::ModelSetHandle>
         acquireSingerSession(const SingerIdentifier &identifier) const;
     void retainSingerSessions(const QSet<SingerIdentifier> &identifiers);

@@ -92,7 +92,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
             << "buildWords: first note of a segment cannot be an orphan syllabification note."
             << "clipId:" << input.clipId << "noteId:" << firstNote.id;
 
-    // 如果第一个音符不是休止符，则填充 SP 音符
+    // A leading SP word gives the first sung note's pre-onset phones room.
     if (!firstNote.isRest) {
         const auto firstWordLen =
             (useOffsetInfo ? input.requiredHeadLengthMs : input.paddingStartMs) / 1000.0;
@@ -146,12 +146,11 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
             phoneBuffer.append({phonemeName.name, phonemeName.language, false, start});
         }
 
-        // 处理当前音符之后还有音符的情况
         double gapLen = 0;
         bool hasGap = false;
         QList<InferPhoneme> stashedNextPhones;
         if (noteIndex < notes.size() - 1) {
-            // 如果当前音符之后有连音，则一直往后查找，直到能计算出当前 word 的长度
+            // Include consecutive slurs in the current word's duration.
             bool reachLast = false;
             while (notes.at(noteIndex + 1).isSlur) {
                 const auto &nextNote = notes.at(noteIndex + 1);
@@ -159,21 +158,20 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
                 noteBuffer.append({nextNote.key, 0, nextNoteLength, nextNote.isRest});
                 wordLen += nextNoteLength;
                 noteIndex++;
-                if (noteIndex == notes.size() - 1) { // 查找找到了最后一个音符
+                if (noteIndex == notes.size() - 1) {
                     reachLast = true;
                     break;
                 }
             }
             if (!reachLast) {
-                // 找到下一个非连音音符
                 const auto &nextNonSlurNote = notes.at(noteIndex + 1);
                 auto nextNoteStartMs = noteStartSeconds(nextNonSlurNote);
                 gapLen = nextNoteStartMs - (wordStart + wordLen);
                 validateNonNegative("gap length", gapLen, nextNonSlurNote.id);
                 hasGap = !qFuzzyCompare(gapLen, 0);
 
-                // 如果没有间隙，则根据当前 word 的长度来计算偏移量
-                if (hasGap) // 如果有间隙，则根据间隙长度计算偏移量
+                // Pre-onset offsets are relative to the end of the preceding word or gap.
+                if (hasGap)
                     wordLen = gapLen;
                 for (int i = 0; i < nextNonSlurNote.phonemeNames.count(); i++) {
                     auto phonemeName = nextNonSlurNote.phonemeNames.at(i);
@@ -187,14 +185,14 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
                     InferPhoneme phone = {phonemeName.name, phonemeName.language, false, start};
                     if (!hasGap)
                         phoneBuffer.append(phone);
-                    else // 如果有间隙则暂存，留给间隙音符
+                    else
                         stashedNextPhones.append(phone);
                 }
             }
         }
         commit();
 
-        // 如果存在间隙，则再提交一个填充间隙的音符
+        // The gap's SP word carries the next note's pre-onset phones.
         if (hasGap) {
             validateNonNegative("rest gap length", gapLen, note.id);
             noteBuffer.append({lastKey, 0, gapLen, true});
@@ -205,7 +203,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         noteIndex++;
     }
 
-    // 如果最后一个音符不为休止符，则填充一个尾部 SP 音符，长度为 paddingEndMs
+    // Add paddingEndMs of trailing silence when the last note is sung.
     auto lastNote = notes.last();
     if (!lastNote.isRest) {
         validateNonNegative("tail padding length", input.paddingEndMs / 1000.0, lastNote.id);

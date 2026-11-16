@@ -3,10 +3,7 @@ project(Tasking LANGUAGES CXX)
 # TaskManager uses QtConcurrent; Concurrent is not found at the top level.
 qm_find_qt(Concurrent)
 
-# Generic asynchronous task-execution runtime: the Task/UniqueObject base, the
-# QThreadPool-backed TaskManager (a leaky Meyers singleton, drained by AppContext
-# during teardown), TaskQueue and DelayTimer. Domain-agnostic; concrete task
-# subclasses live in app. Included as <lite/Tasking/Xxx.h>.
+# Shared scheduling and lifecycle support for asynchronous tasks.
 file(GLOB _src CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 lite_add_library(Tasking STATIC QT_AUTOGEN SOURCES ${_src})

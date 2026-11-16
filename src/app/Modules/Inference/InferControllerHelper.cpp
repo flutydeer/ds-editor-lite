@@ -193,7 +193,7 @@ namespace InferControllerHelper {
                                                    const Timeline &timeline) {
         QList<ParamInputUpdate> result;
         for (auto &piece : clip.pieces()) {
-            // 重新合并参数曲线，并与之前的缓存比较
+            // Compare the merged parameter curve with the cached curve.
             const auto param = clip.params.getParamByName(name);
             QList<DrawCurve *> ownedCurves;
             auto editedCurves = getEditedCurvesIncludingAnchor(param, ownedCurves);
@@ -329,7 +329,7 @@ namespace InferControllerHelper {
         } else
             paramValue = alignValues;
 
-        // 将推理结果保存到分段内部
+        // Store the result on the corresponding inference piece.
         ParamUpdate update;
         update.original.setLocalStart(alignTick);
         update.original.setValues(

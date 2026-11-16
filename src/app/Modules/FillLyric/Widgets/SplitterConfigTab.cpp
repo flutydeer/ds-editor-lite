@@ -21,7 +21,6 @@
 #include "SplitterDetailPanel.h"
 
 namespace FillLyric {
-    // ── Helper: validate RE2 regex ──────────────────────────────────────────
 
     static bool validateRegex(const QString &pattern, QString &errorMsg) {
         RE2::Options opts;

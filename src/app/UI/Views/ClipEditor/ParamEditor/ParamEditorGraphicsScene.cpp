@@ -13,7 +13,7 @@ void ParamEditorGraphicsScene::onViewResized(const QSize size) {
 }
 
 void ParamEditorGraphicsScene::updateSceneRect() {
-    // 参数编辑器场景填充整个视图
+    // Keep the parameter editor scene large enough to fill the view.
     const auto targetSceneWidth = sceneBaseSize().width() * scaleX();
     const auto targetRect = QRectF(0, 0, targetSceneWidth, m_viewSize.height());
     setSceneRect(targetRect);

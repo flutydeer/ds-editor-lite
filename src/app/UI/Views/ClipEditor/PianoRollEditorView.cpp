@@ -18,7 +18,7 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
     addWidget(m_paramEditorView);
 
     setCollapsible(0, false);
-    // 让参数面板在剪辑编辑器调整高度时尽量保持高度不变，优先调整钢琴卷帘区域的高度
+    // Give the piano roll first claim on vertical resize space to stabilize the parameter panel.
     setStretchFactor(0, 100);
     setStretchFactor(1, 1);
 

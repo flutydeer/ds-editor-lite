@@ -22,8 +22,8 @@ struct PreparedAudioItem {
     double durationMs = 0.0;
 };
 
-// One item of a drag/import batch. A batch is prepared first (no model
-// mutation), then committed as a single history entry (Phase 4).
+// One item in a file import batch. Preparation leaves the document untouched,
+// and the batch is committed in one undoable operation.
 struct PreparedImportItem {
     enum class Kind { Audio, Midi, Failed };
     Kind kind = Kind::Failed;

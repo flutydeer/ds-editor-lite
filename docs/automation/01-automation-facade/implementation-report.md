@@ -1,5 +1,7 @@
 # Automation Facade 实现报告
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 最终结论
 
 当前协议无关的 Automation Facade 提供单 DocumentSession 运行时、统一提交语义、异步任务

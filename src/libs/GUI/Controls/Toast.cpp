@@ -118,7 +118,7 @@ void Toast::setGlobalContext(QWidget *context) {
 }
 
 bool Toast::eventFilter(QObject *watched, QEvent *event) {
-    // 顶层 toast 不随主窗口自动移动，监听主窗口移动/隐藏事件保持相对位置
+    // Track parent move and hide events because the toast is a top-level window.
     if (watched == m_globalContext && m_toastWidget) {
         if (event->type() == QEvent::Move) {
             m_posAnimation.stop();

@@ -51,7 +51,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setMinimumHeight(0);
     // Arrow keys nudge the clip selection, so the canvas has to keep the keyboard after a click.
     setFocusPolicy(Qt::StrongFocus);
-    // Accept external file drags (Phase 1 drop slot resolution)
+    // Resolve external file drops against the track and tick under the pointer.
     viewport()->setAcceptDrops(true);
 
     connect(this, &TimeGraphicsView::scaleChanged, this, [this](double, double) {
@@ -345,7 +345,7 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             editorViewController->bringPanelWindowToFront(AppGlobal::ClipEditor);
             double tick = playbackController->position();
             double keyIndex = 60;
-            // 音符绘制区内双击：钢琴卷帘居中到双击落点（tick + keyIndex）
+            // Center the piano roll on the tick and key in the clip's note area.
             if (const auto singingClip = dynamic_cast<SingingClipView *>(clipItem)) {
                 const double key = singingClip->keyIndexAtScenePos(scenePos);
                 if (key >= 0) {

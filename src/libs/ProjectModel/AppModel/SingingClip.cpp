@@ -172,12 +172,10 @@ ReSegmentResult SingingClip::reSegment(const Timeline &timeline, const bool bump
 }
 
 void SingingClip::updateOriginalParam(const ParamInfo::Name name) {
-    // 重新获取所有分段的所有相应自动参数，更新剪辑上的自动参数信息
     QList<Curve *> curves;
     for (const auto &piece : m_pieces) {
-        // 只获取有推理结果的分段
         if (const auto curve = piece->getOriginalCurve(name); !curve->isEmpty())
-            curves.append(new DrawCurve(*curve)); // 复制分段上的参数
+            curves.append(new DrawCurve(*curve));
     }
     const auto param = params.getParamByName(name);
     param->setCurves(Param::Original, curves, this);
@@ -198,7 +196,7 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
             }
         }
     }
-    return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
+    return {result.begin(), result.end()};
 }
 
 quint64 SingingClip::inferenceRevision() const {
@@ -219,7 +217,7 @@ void SingingClip::setDefaultLanguage(const QString &language) {
 }
 
 QString SingingClip::defaultLanguage() const {
-    // 空值表示跟随父级
+    // An empty clip language inherits the track's default.
     if (m_defaultLanguage.get().isEmpty()) {
         if (const auto track = qobject_cast<const Track *>(parent())) {
             return track->defaultLanguage();

@@ -14,8 +14,8 @@
   - 该侧存在时间上相邻的音符且严格相邻 → 正常缩放光标（`SizeHorCursor`）
   - 相邻音符存在但有间隙或重叠 → `ForbiddenCursor`，按下不启动调整、不改变选择
   - 该侧没有音符 → 完全走普通单音符调整路径，Shift 的范围选择语义不变
-- 联动模式在按下时锁定，拖拽中途松开 Shift 继续联动；普通（无 Shift）拖拽中途按住 Shift 不会切换为联动。
-- 联动按下采用 Plain 单选语义（被按音符单选），Shift 的范围选择语义在边缘热区上让位于联动；音符主体上的 Shift 范围选择不受影响。
+- 联动模式在按下时锁定，拖拽中途松开 Shift 继续联动。普通（无 Shift）拖拽中途按住 Shift 不会切换为联动。
+- 联动按下采用 Plain 单选语义（被按音符单选），Shift 的范围选择语义在边缘热区上让位于联动。音符主体上的 Shift 范围选择不受影响。
 
 ### 邻居判定
 
@@ -30,8 +30,8 @@
 
 共享边界位移 d（左边缘 snapDown、右边缘 snapNearest，Alt 临时关闭量化，最小长度为量化步且 ≥ 1，与单音符 resize 一致）：
 
-- 拖右边缘（A 左、B 右）：`A.length += d`；`B.start += d, B.length -= d`
-- 拖左边缘（C 左、A 右）：`A.start += d, A.length -= d`；`C.length += d`
+- 拖右边缘（A 左、B 右）：`A.length += d`。`B.start += d, B.length -= d`
+- 拖左边缘（C 左、A 右）：`A.start += d, A.length -= d`。`C.length += d`
 
 约束交集：`minLen − 左音符长 ≤ d ≤ 右音符长 − minLen`。某音符已短于最小长度导致区间倒置时，边界保持不动（返回 0）。
 
@@ -46,17 +46,17 @@
 ### 纯工具
 
 - `src/libs/ProjectModel/Utils/NoteResizeUtils.h` 新增 `clampJointBoundaryDelta(leftNoteLength, rightNoteLength, requestedDelta, minimumLength)`，即上述约束交集，区间倒置返回 0
-- `src/app/UI/Views/ClipEditor/PianoRoll/NoteAdjacencyUtils.h` 新增 `nextNote/prevNote`（`std::lower_bound` 于有序音符列表）、`strictlyAdjacent` 与 `neighborForEdge`（返回邻居加是否严格相邻；null note/clip 安全返回空）
+- `src/app/UI/Views/ClipEditor/PianoRoll/NoteAdjacencyUtils.h` 新增 `nextNote/prevNote`（`std::lower_bound` 于有序音符列表）、`strictlyAdjacent` 与 `neighborForEdge`（返回邻居加是否严格相邻。null note/clip 安全返回空）
 
 ### Legacy 后端（QGraphicsView）
 
 覆盖选择、区间选择（与选择共用 `SelectNoteHandler`）、绘图（`DrawNoteHandler`），三者都经 `NoteInteractionController::prepareForEditingNotes` 进入 resize：
 
-- 控制器新增 `setDataContext(SingingClip*)`（随 `moveToSingingClipState`/`moveToNullClipState` 同步）与 `m_jointNeighborId` 状态；按下时先以临时边缘做 Shift 邻接判定，非法直接返回（无选择变更），合法记邻居 id 并降级为 Plain 选择后再按 settle 后的把手状态解析最终边缘
+- 控制器新增 `setDataContext(SingingClip*)`（随 `moveToSingingClipState`/`moveToNullClipState` 同步）与 `m_jointNeighborId` 状态。按下时先以临时边缘做 Shift 邻接判定，非法直接返回（无选择变更），合法记邻居 id 并降级为 Plain 选择后再按 settle 后的把手状态解析最终边缘
 - `resizeLeftSelectedNote/resizeRightSelectedNote` 在联动时同时设置邻居 NoteView 的 start/length offset（邻居按 id 经 `findNoteViewById` 解析，新增公有方法）
-- `updateNoteDragAt` 联动分支用 `jointBoundaryDelta` 计算 delta；编辑会话的音符 id 列表追加邻居
+- `updateNoteDragAt` 联动分支用 `jointBoundaryDelta` 计算 delta。编辑会话的音符 id 列表追加邻居
 - `publishNoteEditPreview` 追加邻居预览条目，轨道侧缩略图同步显示两音符移动
-- `commitAction` 联动时调 `handleNoteSharedBoundaryResized`；`discardAction`/`commitAction` 重置邻居 offset 并清联动状态
+- `commitAction` 联动时调 `handleNoteSharedBoundaryResized`。`discardAction`/`commitAction` 重置邻居 offset 并清联动状态
 - `onHoverMove` 悬停光标按 Shift + 邻接判定给 `SizeHorCursor`/`ForbiddenCursor`
 
 ### RHI 后端（PianoRollRhiWidget）
@@ -66,9 +66,9 @@
 - 新增 `jointResizeActive`/`jointNeighborId` 状态，`resetNoteInteraction` 清空
 - 按下在 `updateNoteSelection` 之前判定：非法直接 return，合法以 `Qt::NoModifier` 走 Plain 选择并记录邻居
 - `updateNoteCursor` 增加 modifiers 参数，Shift 时做同款判定
-- `updateInteractionDelta` 联动分支用 `jointBoundaryDelta`；`beginNoteEditSession` 追加邻居 id
+- `updateInteractionDelta` 联动分支用 `jointBoundaryDelta`。`beginNoteEditSession` 追加邻居 id
 - `noteDrawSceneRect` 为邻居 id 增加方向对应的几何偏移（左边缘联动加长邻居，右边缘联动平移+缩短邻居）
-- `publishNoteEditPreview` 追加邻居条目；`mouseRelease` 联动时调 `onResizeNotesSharedBoundary`
+- `publishNoteEditPreview` 追加邻居条目。`mouseRelease` 联动时调 `onResizeNotesSharedBoundary`
 
 ### 提交命令链
 

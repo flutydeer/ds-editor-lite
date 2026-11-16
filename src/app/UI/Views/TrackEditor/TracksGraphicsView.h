@@ -64,8 +64,7 @@ public slots:
 
 signals:
     void contextMenuRequested(const TrackEditorMenuContext &context);
-    // Emitted when an external file drag is dropped on the canvas. Phase 1
-    // only resolves the drop slot; actual import is wired up in later phases.
+    // Pass the resolved track and tick with the dropped file URLs.
     void externalDropRequested(const TrackDropSlot &slot, const QList<QUrl> &urls);
 
 private slots:
@@ -122,7 +121,7 @@ private:
     void previewAnchorTrackColor(int trackIndex) const;
     void restoreAnchorTrackColor() const;
 
-    // --- External file drag-and-drop (Phase 1) ---
+    // External file drag-and-drop
     // Resolves the drop slot at the given viewport position, hitting either a
     // real track or the virtual append slot. Returns nullopt outside the
     // canvas (e.g. over the timeline ruler).
@@ -166,7 +165,7 @@ private:
     QList<AbstractClipView *> m_pastePreviewClipViews;
     QGraphicsPathItem *m_splitPreviewItem = nullptr;
 
-    // External file drag-and-drop state (Phase 1)
+    // External file drag-and-drop state
     bool m_externalDragActive = false;
     std::optional<TrackDropSlot> m_dropSlot;
     QGraphicsRectItem *m_dropHighlightItem = nullptr;

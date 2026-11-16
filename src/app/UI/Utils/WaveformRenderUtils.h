@@ -40,7 +40,7 @@ namespace WaveformRenderUtils {
     ///   - LineMode:   vertical lines (fast, original behaviour)
     ///   - FilledMode: filled polygon + zero-dynamic horizontal lines (nicer, slower)
     /// The caller is responsible for setting up the painter's pen/brush/antialiasing
-    /// before calling this function — this function manages its own rendering state.
+    /// before calling this function - this function manages its own rendering state.
     void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
                         const QVector<PeakPoint> &peaks);
 

@@ -28,10 +28,7 @@ enum class EditorPenEraser {
     EraseParam,
 };
 
-// What a view must provide for EditorPenController to drive it. Implemented by
-// the same views as EditorTouchTarget (the legacy TimeGraphicsView family and
-// the two RHI editor widgets), so there is exactly one policy table per
-// backend.
+// Editing hooks used by EditorPenController during a pen stroke.
 class EditorPenTarget {
 public:
     virtual ~EditorPenTarget();
@@ -58,12 +55,10 @@ public:
     }
 };
 
-// The per-view policy tables, as pure functions so src/tests/TestPenInput can
-// pin every mapping down without building a view.
+// Resolve the pen eraser action for the active editor tool.
 namespace EditorPenPolicy {
 
-    // Mappings that follow the tool's own purpose; see the strategy table in
-    // docs/design/touch-and-pen-input-design.md §5.4-6.
+    // See the pen eraser strategy table in docs/design/touch-and-pen-input-design.md.
     [[nodiscard]] EditorPenEraser pianoRoll(EditorViewGlobal::PianoRollEditMode mode);
     [[nodiscard]] EditorPenEraser parameterEditor(EditorViewGlobal::ParameterEditMode mode);
     // The arrangement canvas has no tool of its own and nothing to erase.

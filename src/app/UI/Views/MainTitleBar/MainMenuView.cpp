@@ -777,7 +777,6 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
-    // TODO: 恢复工程文件图标后再补回这里的菜单图标。
     setActionShortcut(actionFillLyrics, QKeySequence("Ctrl+L"), Qt::ApplicationShortcut);
     actionFillLyrics->setEnabled(false);
     connect(actionFillLyrics, &QAction::triggered, clipController,

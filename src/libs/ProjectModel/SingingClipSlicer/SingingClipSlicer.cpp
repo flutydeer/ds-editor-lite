@@ -65,7 +65,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
 
     // Calculate minimum available header length based on note, two cases:
     //
-    // 1. Non-rest note (AP/SP), needs SP note padding
+    // 1. Non-rest note, needs SP note padding
     // Note:  |          SP          |        Lyric           |
     // Phone: | SP | ph1 | ... | phn | (onset ph) |    ...    |
     // Minimum = base amount + header phoneme count (all phonemes before the onset) *
@@ -79,8 +79,6 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     // Note:  |      AP      |        Lyric           |
     // Phone: |      AP      | (onset ph) |    ...    |
     // Minimum = 0
-    //
-    // TODO: Update the method to get header phoneme count when refactoring phonemes
     auto getHeaderMinLength = [=](const Note &note) -> double {
         if (isRestNote(note))
             return 0.0;

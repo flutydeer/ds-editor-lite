@@ -389,11 +389,7 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     else
         disarmLongPressTimer();
 
-    // A long press menu belongs to the release, which is the timing Windows
-    // itself used and the only one that works: raising it while the finger is
-    // still down would hand the release to the menu and activate whatever sits
-    // under the finger. The wait is over the moment the last one leaves the
-    // glass, so the menu is up as fast as the platform's own used to be.
+    // Wait for every finger to lift so a release cannot activate an item in the new menu.
     if (m_menuPending && activeIds.isEmpty())
         raiseContextMenu(m_pendingContextMenuPosition);
 
@@ -624,10 +620,8 @@ void EditorTouchController::finishStream() {
 
 void EditorTouchController::onLongPress(const EditorTouchGesture::Event &event) {
     if (m_target->touchHitsContent(event.position)) {
-        // The finger is spent: it must not drag the object it is resting on.
-        // The menu is owed from here and raised when that finger leaves the
-        // glass — the same timing Windows used when it owned this gesture, and
-        // the only one that cannot feed the release to the menu itself.
+        // A hold on content consumes the drag. Open the menu on release so it
+        // cannot handle the release that opened it.
         m_menuPending = true;
         m_pendingContextMenuPosition = event.position;
         dispatch(m_gesture.confirmLongPress(false, now()));

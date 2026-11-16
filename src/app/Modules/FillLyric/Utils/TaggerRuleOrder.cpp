@@ -35,8 +35,7 @@ namespace FillLyric {
         result.reserve(rules.size());
         std::vector<bool> consumed(static_cast<size_t>(rules.size()), false);
 
-        // Legacy language-only entries consume same-language rules once so both sources survive
-        // migration.
+        // A saved language-only key matches the first unused rule for that language.
         for (const auto &savedKey : order) {
             const auto stableIdentity = decodeStableKey(savedKey);
             for (qsizetype index = 0; index < rules.size(); ++index) {

@@ -227,22 +227,17 @@ function(lite_deploy_application _target)
         )
     endif()
 
-    # ONNX driver payload declaration (synthrt-owned): the onnxdriver plugin
-    # fragment shipped with the synthrt package declares the plugin dir
-    # (relative to the deployed plugins/ root), its runtimes subdirectory and
-    # the flavors actually deployed. Everything ort-related below derives
-    # from that declaration — lite never hardcodes plugin paths or flavors.
+    # The synthrt ONNX driver manifest defines the plugin path relative to
+    # plugins/, its runtime subdirectory, and the deployed flavors.
     set(_ort_runtimes_rel "")
     if(DEFINED SYNTHRT_ONNXDRIVER_PLUGIN AND DEFINED SYNTHRT_ONNXDRIVER_RUNTIMES_SUBDIR)
         set(_ort_runtimes_rel
             "${SYNTHRT_ONNXDRIVER_PLUGIN}/runtimes/${SYNTHRT_ONNXDRIVER_RUNTIMES_SUBDIR}")
     endif()
 
-    # ONNX Runtime CUDA flavor gate: deployment follows LITE_ENABLE_CUDA,
-    # never the vcpkg tree's residue. ON requires the cuda/ payload (fatal if
-    # missing), OFF sweeps a stray one with a visible warning — see
-    # cmake/OrtRuntimeGate.cmake. macOS never carries a CUDA payload
-    # (cuda12 supports x64 & (windows | linux)), so there is nothing to gate.
+    # Deployment follows LITE_ENABLE_CUDA even with a reused dependency tree.
+    # The gate rejects missing CUDA runtimes when enabled and warns when
+    # removing them when disabled. macOS has no CUDA payload.
     if(NOT APPLE AND _ort_runtimes_rel)
         if(WIN32)
             set(_ort_cuda_build_dir
@@ -282,13 +277,9 @@ function(lite_deploy_application _target)
             "the synthrt package.")
     endif()
 
-    # Debug/RelWithDebInfo build trees stage the ort payload symbols next to
-    # the deployed runtime DLLs as well, so debugging the app from the build
-    # tree can frame-walk into ONNX Runtime. Mirrors the install-time staging
-    # below, but only for flavors actually kept in the build tree (cuda only
-    # when LITE_ENABLE_CUDA is ON — a stray one was swept by the gate above
-    # and never re-created here), scheduled per file with copy_if_different
-    # so incremental builds stay free. Release build trees stay symbol-free.
+    # Stage ONNX Runtime symbols beside the build-tree runtimes for stack
+    # traces in Debug and RelWithDebInfo. Skip CUDA symbols when the gate
+    # has removed the corresponding runtime directory.
     if(NOT APPLE AND CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$" AND
        _ort_runtimes_rel AND DEFINED SYNTHRT_ONNXDRIVER_FLAVORS)
         find_package(onnxruntime-builds CONFIG QUIET)
@@ -325,17 +316,8 @@ function(lite_deploy_application _target)
         endif()
     endif()
 
-    # RelWithDebInfo/Debug installs carry the ONNX Runtime payload's debug
-    # symbols next to their DLLs (portable PDB-included spec). Symbols are
-    # consumed through the declared interfaces only: flavors from the
-    # synthrt onnxdriver payload manifest, symbol dirs from the
-    # onnxruntime-builds per-flavor SYMBOLS_DIR variables — no hardcoded
-    # plugin paths, flavors or port layout. Linux ships no symbols (declared
-    # dir may not exist at all → EXISTS guard no-op); macOS dSYM bundles are
-    # directories and are installed as such. A flavor whose runtime directory was not
-    # staged (cuda/ swept by the gate above) or whose symbol dir is
-    # undefined (cuda12 not installed) is skipped, so this never resurrects
-    # a swept directory.
+    # Install symbols only when both the deployed runtime and its declared
+    # symbol directory exist. macOS dSYM bundles must be copied as directories.
     find_package(onnxruntime-builds CONFIG QUIET)
     if(LITE_INSTALL AND
        CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
@@ -359,10 +341,8 @@ function(lite_deploy_application _target)
             else()
                 set(_lite_plugins_root "\${CMAKE_INSTALL_PREFIX}/lib/plugins")
             endif()
-            # Embed flavor + symbol dir literally per install(CODE) block:
-            # install scripts run in a fresh scope and cannot see
-            # configure-time variables — an "IN LISTS <var>" indirection
-            # would silently iterate zero times at install time.
+            # Expand the flavor and symbol directory at configuration time.
+            # install(CODE) runs in a separate scope.
             foreach(_flavor IN LISTS SYNTHRT_ONNXDRIVER_FLAVORS)
                 string(TOUPPER "${_flavor}" _flavor_uc)
                 if(NOT DEFINED ONNXRUNTIME_BUILDS_${_flavor_uc}_SYMBOLS_DIR)
@@ -395,12 +375,8 @@ function(lite_deploy_application _target)
         endif()
     endif()
 
-    # Plugin binaries come from the vcpkg tree, where the synthrt port keeps
-    # PDBs next to the plugin DLLs (vcpkg_copy_pdbs covers lib/plugins), so
-    # the directory copy above stages them for Debug/RelWithDebInfo installs.
-    # Release-family installs sweep them (and any macOS dSYM bundles) to
-    # honor the symbol-free installer spec — the same config-driven spirit
-    # as the ort gate above.
+    # The plugin directory copy carries symbols supplied beside the binaries.
+    # Strip these symbols from installs outside Debug and RelWithDebInfo.
     if(LITE_INSTALL AND
        NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
         if(WIN32)

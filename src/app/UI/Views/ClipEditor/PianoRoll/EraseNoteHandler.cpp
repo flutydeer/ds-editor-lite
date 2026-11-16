@@ -44,7 +44,7 @@ void EraseNoteHandler::commit() {
         qDebug() << "Note erased count:" << m_notesToErase.count();
         clipController->onRemoveNotes(m_notesToErase);
     }
-    // model 删除完成后清空擦除预览，轨道侧一次刷新到最终状态
+    // Keep the erasure preview until the model no longer contains the removed notes.
     appStatus->pianoRollNoteErasePreview = {};
     m_notesToErase.clear();
     d->m_selectionModel->clearNoteViewsToErase();

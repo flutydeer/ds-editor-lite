@@ -209,7 +209,7 @@ bool ClipController::canSelectAll() const {
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
-    // TODO: 仅在选择和绘制模式下可全选
+    // TODO: Restrict Select All to Select and Draw modes.
     return true;
 }
 
@@ -673,7 +673,7 @@ void ClipController::onFillLyric(QWidget *parent) {
             continue;
         }
         if (i - skipCount >= noteRes.count()) {
-            // 如果输出的音符数量小于输入的音符数量，则跳过剩余的音符
+            // Preserve the remaining notes when the lyric operation returns fewer results.
             break;
         }
         arg.lyric = noteRes[i - skipCount].lyric;

@@ -10,7 +10,7 @@ class MidiBatchImportDialogPrivate;
 
 // Single shared options dialog for a batch of MIDI files: one encoding for
 // all files plus the tempo / time-signature toggles. Track selection is not
-// shown — every note-bearing track is imported automatically.
+// shown - every note-bearing track is imported automatically.
 class MidiBatchImportDialog final : public Dialog {
     Q_OBJECT
     Q_DECLARE_PRIVATE(MidiBatchImportDialog)

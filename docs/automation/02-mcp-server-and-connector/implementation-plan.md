@@ -1,5 +1,7 @@
 # 二期：MCP Server 与 DS Connector Lite 实施计划
 
+> 阶段归档。本文记录该阶段的方案、契约或验收口径。当前接口和测试入口见[自动化文档](../README.md)。
+
 ## 1. 目标与决策基线
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。

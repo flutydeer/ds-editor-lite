@@ -196,7 +196,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
     connect(track, &Track::defaultLanguageChanged, this, &TrackControlView::setLanguage);
 
-    // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
+    // Preset changes on another track can affect the current selection.
     connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             refreshSingerComboPresentation();

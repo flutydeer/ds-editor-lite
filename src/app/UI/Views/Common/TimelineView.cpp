@@ -453,7 +453,6 @@ void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *pi
     auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
     painter->drawText(QPointF(pieceStartX, y - 4), stateText);
 
-    // For debugging
     auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
     auto firstNoteStartX = tickToX(firstNoteStartTick);
 

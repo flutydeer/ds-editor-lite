@@ -17,9 +17,8 @@ struct TempoChangeRange {
 };
 
 // The project time axis: a tempo map indexed by tick and a time signature map
-// indexed by measure number. Both lists are kept sorted, deduplicated and
-// always contain a point at position 0 — that anchor point can be edited but
-// never removed; every conversion below relies on this invariant.
+// indexed by measure number. Both lists are kept sorted and deduplicated.
+// Every conversion relies on the non-removable anchor at position 0. Its value can be edited.
 //
 // Tempi control the tick<->wall-clock mapping (piecewise linear per segment);
 // time signatures control the tick<->measure/beat mapping. The two sides are

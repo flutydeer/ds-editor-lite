@@ -267,18 +267,9 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             searchPaths.push_back(path);
         }
 
-        // SynthrtEngine::initialize is triggered asynchronously by InferEngine
-        // on a separate task. VoicebankSession (Stage 1: voicebank scan +
-        // LanguageService metadata) must be ready before we can query the
-        // snapshot. We wait on sessionReady() rather than initialized() so
-        // PackageManager doesn't block on Stage 2 (ONNX model loading), which
-        // is slow and not needed for package enumeration. Uses a condition
-        // variable internally — no polling.
-        //
-        // If initialize() finishes (success or failure) without the session
-        // becoming ready, waitForSession returns true but refreshVoicebanks
-        // below will surface the actual error (e.g. "session not initialized"
-        // when Stage 1's refresh failed).
+        // Package enumeration needs the voicebank session and language metadata.
+        // It can proceed while G2P models load. If initialization ends before the
+        // session is ready, refreshVoicebanks() reports the failure.
         if (!SynthrtEngine::instance().sessionReady()) {
             if (!SynthrtEngine::instance().waitForSession()) {
                 return GetInstalledPackagesError{
@@ -308,9 +299,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                                                QString::fromStdString(diagnostic.message));
         }
 
-        // Iterate packages (valid + invalid). For valid packages, look up the
-        // manifest via VoicebankSnapshot::findManifest(). Singers are looked up
-        // by matching singer.ref.packageId + singer.ref.version to the package.
         for (const auto &status : snapshot->packages) {
             if (!status.valid) {
                 result.failedPackages.emplace_back(StringUtils::path_to_qstr(status.rootPath),
@@ -382,7 +370,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     for (const auto &spk : singer.speakers()) {
                         SpeakerInfo liteSpk(QString::fromStdString(spk.speakerId()),
                                             QString::fromStdString(spk.name().text()));
-                        // B-13 lite 侧: toneRange 映射 + 兼容旧 toneMin/toneMax QString
                         liteSpk.setLocalizedNames(toLocalizedTextMap(spk.name()));
                         if (spk.toneRange()) {
                             const auto lo = spk.toneRange()->first;
@@ -410,10 +397,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     }
                 }
 
-                // 从 snapshot.capabilityReport 提取 lite 侧 capability 摘要
-                // 并标记每个 liteSpk.mixable（mixableSpeakers 集合成员）。
-                // 纯 G2P 包或 Inconsistent 声库 capabilityReport 为 nullopt / mixableSpeakers 空，
-                // lite UI 据此展示降级信息。
+                // Without a capability report, the UI has no speaker-mixing capability to show.
                 std::optional<SingerCapabilitySummary> capSummary;
                 if (singerSnapshot.capabilityReport) {
                     const auto &report = *singerSnapshot.capabilityReport;
@@ -448,7 +432,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                         summary.languageWarnings.append(QString::fromStdString(w));
                     capSummary = std::move(summary);
 
-                    // 标记每个 liteSpk.mixable（singer 域名匹配）
+                    // The report lists speaker IDs in the singer's namespace.
                     QSet<QString> mixableSet;
                     for (const auto &spk : report.mixableSpeakers)
                         mixableSet.insert(QString::fromStdString(spk));
@@ -545,10 +529,7 @@ SingerInfo PackageManager::findSingerByIdentifier(const SingerIdentifier &identi
 }
 
 QString PackageManager::srtErrorToString(const srt::core::Error &error) {
-    // v4: use ErrorCode system (error.codeString() returns e.g.
-    // "Package::ManifestInvalid", "Inference::ModelLoadFailed") instead of
-    // the deprecated Error::Type enum which only had 10 generic values and
-    // lost all Package/Inference/G2P/Driver/S2P/SVS categorization.
+    // Preserve the domain-qualified code, such as "Package::ManifestInvalid".
     const QString code = QString::fromLatin1(error.codeString());
     const QString message = QString::fromStdString(error.message());
     if (error.ok()) {

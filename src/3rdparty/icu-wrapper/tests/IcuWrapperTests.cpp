@@ -41,9 +41,8 @@ void IcuWrapperTests::matchesLanguageFallback()
 
 void IcuWrapperTests::matchesScriptFallback()
 {
-    // Regression: the Windows SDK umbrella ICU (64.2) does not fall back
-    // across script+region combos (zh_Hans_CN -> zh_Hans) inside
-    // uloc_acceptLanguage; the explicit fallback chain must cover this.
+    // The explicit chain handles zh-Hans-CN -> zh-Hans, a fallback missing
+    // from uloc_acceptLanguage in the Windows SDK's ICU 64.2.
     const QStringList available{QStringLiteral("ja"), QStringLiteral("zh-Hans"),
                                 QStringLiteral("zh-Hant")};
     QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-Hans-CN"), available),
@@ -55,11 +54,8 @@ void IcuWrapperTests::matchesScriptFallback()
 
 void IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch()
 {
-    // Regression: zh-TW and zh-Hant maximize to the same likely-subtag form
-    // (zh_Hant_TW), so the LocaleMatcher-based uloc_acceptLanguage in ICU
-    // >= 67 cross-matches them (verified at ICU source level for 67.1,
-    // 68.2, 70.1 and 74.2). Script/region siblings must never cross-match
-    // on any platform.
+    // The parent chain excludes script and region siblings. ICU's
+    // LocaleMatcher (67+) can collapse zh-TW and zh-Hant to zh-Hant-TW.
     QVERIFY(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
                                   {QStringLiteral("zh-Hant")}).isEmpty());
     QVERIFY(IcuWrapper::bestMatch(QStringLiteral("zh-Hant"),
@@ -79,11 +75,7 @@ void IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch()
 
 void IcuWrapperTests::keepsParentFallbackBehindSibling()
 {
-    // Regression (macOS Foundation backend, Codex P2): Foundation's
-    // preferredLocalizationsFromArray may rank an off-chain sibling
-    // (zh-Hant for a zh-TW request) first and omit the valid parent (zh)
-    // from its match list entirely; rejecting the sibling must not
-    // suppress the parent fallback the ICU backends return.
+    // An off-chain sibling must not suppress an available parent.
     QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
                                    {QStringLiteral("zh-Hant"),
                                     QStringLiteral("zh")}),

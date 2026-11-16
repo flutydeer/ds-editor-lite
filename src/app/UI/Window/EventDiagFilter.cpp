@@ -1,5 +1,3 @@
-// ====== TEMPORARY DIAGNOSTIC EVENT FILTER (remove after investigation) ======
-
 #include "EventDiagFilter.h"
 
 #include <QDebug>

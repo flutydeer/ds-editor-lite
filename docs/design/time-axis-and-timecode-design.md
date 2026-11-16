@@ -10,8 +10,8 @@
 - 这一行的长相向**标尺**看齐，而不是向其它信息轨看齐：背景透明（与标尺同底）、标签用标尺的小节号/拍号色、刻度线用标尺的 bar tick / beat tick / subdivision 色，刻度从行底向上生长（整分钟最高，整秒次之，亚秒最短），标签靠左上方。它因此读起来是「标尺的第二行」，而不是一条 chip 列表。行顶仍保留与其它信息轨相同的 1px 分隔线，左侧标题与右侧轨道在同一高度断行。
 - 这一行**不叠小节/拍网格**，只画自己的秒刻度。刻度按缩放与所在曲速区间自适应，从 `100ms` 逐级放宽到 `1h`（见「刻度算法」）。步长 ≥ 1s 的区段省略十分位（`0:15`），否则带十分位（`0:02.5`）。分段选档加上区间边界处跳标已保证相邻标签不会重叠，因此标签**不做 elide**：靠视口边缘时由绘制裁切掉超出部分，标签本身仍是完整的。
 - **默认隐藏**，两个窗口各管各的，和曲速轨、拍号轨一致：
-  - 轨道窗：列表头「轨道显示」菜单第一项「时间（秒）轨」（`actionTimeLane`，排第一是为了和行内顺序一致）只切换本窗口，不写设置；
-  - 钢琴卷帘：「设置 → 外观 → 钢琴卷帘 → 显示时间（秒）轨」写入 `AppearanceOption::showTimeLane`（默认 `false`），热生效；
+  - 轨道窗：列表头「轨道显示」菜单第一项「时间（秒）轨」（`actionTimeLane`，排第一是为了和行内顺序一致）只切换本窗口，不写设置。
+  - 钢琴卷帘：「设置 → 外观 → 钢琴卷帘 → 显示时间（秒）轨」写入 `AppearanceOption::showTimeLane`（默认 `false`），热生效。
   - 钢琴卷帘没有激活片段时强制隐藏（与曲速轨、拍号轨一致）。
 - 纯展示：**不做吸附、不做 seek、不产生命中态**，双击与右键在这一行无动作。滚动/缩放只经既有滚轮信号转发给画布，不改画布网格。
 - 与曲速轨、拍号轨一样，这一行同样接收 `setTimeRange` 同步、绘制播放头实线与上一位虚线，并转发滚轮（Ctrl 横缩、Alt 纵缩、Shift 横滚、无修饰纵滚）。
@@ -20,9 +20,9 @@
 ### 标题栏时间码弹层
 
 - `elTime` 由纯 `InlineEditLabel` 换成 `TimeComboBox`（`objectName` 仍是 `elTime`）：**单击开弹层、双击内联编辑、右键开合**，与曲速、拍号字段一致。
-- 弹层（`TimePopupWidget`，标题 `Time`）内容：左边 `小节:拍:tick`、右边秒坐标，两框之间是链环指示；下方「显示模式」三段选择 `小节:节拍:刻 / 分:秒.毫秒 / 同时显示`（英文 `Bar:Beat:Tick / Min:Sec.Ms / Both`）。
+- 弹层（`TimePopupWidget`，标题 `Time`）内容：左边 `小节:拍:tick`、右边秒坐标，两框之间是链环指示。下方「显示模式」三段选择 `小节:节拍:刻 / 分:秒.毫秒 / 同时显示`（英文 `Bar:Beat:Tick / Min:Sec.Ms / Both`）。
 - 两个输入框**永远描述同一个位置**：改任一侧回车/失焦即换算成 tick 并移动播放头，另一侧立刻回算。非法输入不移动播放头，字段被改回当前播放头位置。
-- 播放头在弹层打开期间继续变化（播放、或别处 seek）时两框跟随刷新；**正在输入的那个框不覆盖**（由 `QLineEdit::textEdited` 标记活跃框，回车/失焦后解除）。
+- 播放头在弹层打开期间继续变化（播放、或别处 seek）时两框跟随刷新。**正在输入的那个框不覆盖**（由 `QLineEdit::textEdited` 标记活跃框，回车/失焦后解除）。
 - 「显示模式」直接决定标题栏时间码自己的格式，热生效并持久化到 `AppearanceOption::timecodeFormat`（默认 `barBeatTick`，即现状）。三种格式：
   - `barBeatTick`：`001:01:240`（`Timeline::getBarBeatTickTime`）
   - `time`：`01:14.514`（完整时间码，与改动前一致）
@@ -37,11 +37,11 @@
 
 | 接口 | 行为 |
 |----|----|
-| `MusicTimeConverter::formatSecondsLabel(ms, includeTenths = true)` | 标尺秒轨用的**简洁**写法：`%lld:%02lld.%lld`，即 `0:02.6`；先四舍五入到十分位再分解秒与分（`59.96s` → `1:00.0`，`359.9994s` → `6:00.0`）；`includeTenths = false` 时输出 `%lld:%02lld`（`1:14`），同样先取整到十分位再截去小数，因此 `74.514s` 不会变成 `1:15`；负数与 `NaN` 钳到 `0:00.0`；分钟不补零、不设上限 |
-| `MusicTimeConverter::formatTimecode(ms)` | 标题栏时间码用的**完整**写法：`%02lld:%02lld.%03lld`，即 `01:14.514`；四舍五入到整毫秒后分解（`59.9996s` → `01:00.000`）；负数与 `NaN` 钳到 `00:00.000`；分钟补到两位、超过 99 自然变 3 位 |
-| `MusicTimeConverter::parseMinSec(QStringView, double *ms)` | 两种写法共用一个解析器：接受 `mm:ss.mmm` / `m:ss.d` / `m:ss` / `ss.d`；小数 1~3 位按毫秒右补齐（`.6` → 600，`.614` → 614）；秒可大于 59（`0:75.0`）；归一化全角冒号；空串、负数、超长小数、多个冒号一律 `false` 且不写输出参数 |
+| `MusicTimeConverter::formatSecondsLabel(ms, includeTenths = true)` | 标尺秒轨用的**简洁**写法：`%lld:%02lld.%lld`，即 `0:02.6`。先四舍五入到十分位再分解秒与分（`59.96s` → `1:00.0`，`359.9994s` → `6:00.0`）。`includeTenths = false` 时输出 `%lld:%02lld`（`1:14`），同样先取整到十分位再截去小数，因此 `74.514s` 不会变成 `1:15`。负数与 `NaN` 钳到 `0:00.0`。分钟不补零、不设上限 |
+| `MusicTimeConverter::formatTimecode(ms)` | 标题栏时间码用的**完整**写法：`%02lld:%02lld.%03lld`，即 `01:14.514`。四舍五入到整毫秒后分解（`59.9996s` → `01:00.000`）。负数与 `NaN` 钳到 `00:00.000`。分钟补到两位、超过 99 自然变 3 位 |
+| `MusicTimeConverter::parseMinSec(QStringView, double *ms)` | 两种写法共用一个解析器：接受 `mm:ss.mmm` / `m:ss.d` / `m:ss` / `ss.d`。小数 1~3 位按毫秒右补齐（`.6` → 600，`.614` → 614）。秒可大于 59（`0:75.0`）。归一化全角冒号。空串、负数、超长小数、多个冒号一律 `false` 且不写输出参数 |
 | `TimecodeFormatUtils::formatPosition(timeline, tick, format)` | 三种显示格式的唯一生成处，负 tick 钳 0 |
-| `TimecodeFormatUtils::parsePosition(timeline, text, format, *tick)` | 三种格式的唯一解析处；`both` 取 `·` 之前那半段，含 `.` 的输入按秒坐标解析，否则按小节:拍:tick |
+| `TimecodeFormatUtils::parsePosition(timeline, text, format, *tick)` | 三种格式的唯一解析处。`both` 取 `·` 之前那半段，含 `.` 的输入按秒坐标解析，否则按小节:拍:tick |
 | tick 反解 | `qRound(timeline.msToTick(ms))`，结果 `<0` 或超 int 范围判为非法 |
 
 `both` 的渲染与剥离共用同一个分隔符（`TimecodeFormatUtils` 内部的 `combinedSeparator()`），标题栏与弹层不会各写一套。
@@ -68,8 +68,8 @@
 
 `paintEvent` 固定为「背景 → 内容 → 播放头」三段，前两段抽成受保护虚函数：
 
-- `paintLaneBackground(QPainter *)`：默认调 `drawTimeline`，即画布同款小节/拍/细分网格；秒轨置空。
-- `paintLaneContent(QPainter *)`：默认画 chip 行；秒轨改画秒刻度。
+- `paintLaneBackground(QPainter *)`：默认调 `drawTimeline`，即画布同款小节/拍/细分网格。秒轨置空。
+- `paintLaneContent(QPainter *)`：默认画 chip 行。秒轨改画秒刻度。
 
 新增信息轨只需覆盖这两个钩子，播放头、主题色、滚轮、`setTimeRange` 同步全部免费。同时把 `textColor()`、`barLineColor()`、`beatLineColor()`、`commonLineColor()` 与 `visibleStartTick()`/`visibleEndTick()` 提到 `protected`，供非 chip 轨使用。
 
@@ -89,8 +89,8 @@
 
 ## 弹层开合的可复用语义（`PopupInlineEditLabel`）
 
-- 左键单击启动 `QApplication::doubleClickInterval()` 计时器，超时开弹层；双击停表并进内联编辑；右键切换弹层开合。
-- `popupVisible` 动态属性用于 QSS 高亮；弹层 `Hide`/`Close` 时若鼠标仍在字段上按下，置 `m_ignoreNextShow` 吞掉随之而来的重开，避免「点一下关掉又立刻弹回」。
+- 左键单击启动 `QApplication::doubleClickInterval()` 计时器，超时开弹层。双击停表并进内联编辑。右键切换弹层开合。
+- `popupVisible` 动态属性用于 QSS 高亮。弹层 `Hide`/`Close` 时若鼠标仍在字段上按下，置 `m_ignoreNextShow` 吞掉随之而来的重开，避免「点一下关掉又立刻弹回」。
 - 子类只实现 `preparePopup()`（刷新弹层内容）与 `presentPopup(QPoint)`（转调各自弹层的 `showAt`，各自保留屏幕边缘钳制）。
 
 ## 主题

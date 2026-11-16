@@ -1,26 +1,3 @@
-//
-// SynthrtEngine - v2 component facade.
-//
-// Combines the independent synthrt v2 components (VoicebankSession,
-// LanguageService, Runtime + ONNX driver) into a single facade that the lite
-// module layer (PackageManager / InferEngine / Language modules) delegates to.
-//
-// VoicebankSession is the synthrt v2 chokepoint for voicebank scanning,
-// language metadata, ensureModelSet / convertG2p / convertS2p. SynthrtEngine
-// owns the Runtime and LanguageService lifetimes and borrows them to the
-// session via SessionResources.
-//
-// v3 changes vs v2:
-//   - Removed PackageCatalog: VoicebankSession.snapshot() is the single source
-//     of truth for package/singer/manifest queries.
-//   - Removed SingerModelSession: InferEngine acquires ModelSetHandle directly
-//     via VoicebankSession::ensureModelSet().
-//   - VoicebankSession.refresh() handles voicebank scanning + LanguageService
-//     metadata initialization in one call.
-//
-// Design reference: docs/design/design-guidelines.md (ARCH-03, ARCH-04)
-//
-
 #ifndef SYNTHRT_ENGINE_H
 #define SYNTHRT_ENGINE_H
 
@@ -46,6 +23,7 @@
 
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
+/// Owns the shared runtime and provides access to the current voicebank snapshot.
 class SynthrtEngine final : public QObject {
     Q_OBJECT
 
@@ -85,15 +63,11 @@ public:
     // LanguageService. Extraction therefore remains available if package or
     // language initialization fails.
     //
-    // voicebankPaths  — directories containing voicebank packages (desc.json)
-    // g2pPackagePaths — official G2P package paths
-    // ep              — ONNX execution provider ("CPU" / "DirectML" / "CUDA" / "CoreML")
-    // deviceIndex     — GPU device index (ignored for CPU)
-    // deferLanguageModels — if true, skip Stage 2 (loading all G2P ONNX
-    //   sessions) during startup. The first actual G2P conversion then loads
-    //   models lazily via LanguageService::initializeModels() (idempotent,
-    //   guarded by Manager's internal mutex), triggered from
-    //   VoicebankSession::ensureLanguageReady() on first use.
+    // voicebankPaths: directories containing voicebank packages (desc.json)
+    // g2pPackagePaths: official G2P package paths
+    // ep: ONNX execution provider ("CPU", "DirectML", "CUDA", or "CoreML")
+    // deviceIndex: GPU device index (ignored for CPU)
+    // deferLanguageModels: load G2P models on warm-up or when the session first needs them.
     bool initialize(const QStringList &voicebankPaths, const QStringList &g2pPackagePaths,
                     const QString &ep = QStringLiteral("CPU"), int deviceIndex = 0,
                     bool deferLanguageModels = false);
@@ -103,20 +77,14 @@ public:
     bool initializationDone() const noexcept;
     /// Releases initialization waiters when the host cannot start the shared runtime.
     void completeInitializationAttempt() noexcept;
-    /// Block until initialize() has been attempted (success or failure), or
-    /// \p timeoutMs elapses. Returns true if initialization finished within
-    /// the timeout (check initialized() afterwards to see if it succeeded),
-    /// false on timeout. Uses a condition variable internally — no polling.
-    /// Safe to call from multiple threads concurrently.
+    /// Wait for initialization to finish. Returns false if \p timeoutMs elapses.
+    /// Check initialized() for success. Multiple threads may wait concurrently.
     bool waitForInitialization(int timeoutMs = 30000) const;
-    /// True once VoicebankSession has completed Stage 1 (voicebank scan +
-    /// LanguageService metadata). PackageManager and other snapshot consumers
-    /// can query VoicebankSnapshot via refreshVoicebanks() / singerSnapshot()
-    /// once this returns true, even while Stage 2 (ONNX model loading) is
-    /// still in progress.
+    /// True once the voicebank scan and language metadata are available.
+    /// Snapshot consumers can query the session while G2P models load.
     bool sessionReady() const noexcept;
     /// Block until the session is ready or initialization finishes, fails, or is shut down.
-    /// Returns false on timeout; callers must still check session readiness after true.
+    /// Returns false on timeout. After a true result, check sessionReady().
     bool waitForSession(int timeoutMs = 30000) const;
     bool runtimeInitialized() const noexcept;
     bool pitchExtractionReady() const noexcept;
@@ -147,18 +115,10 @@ public:
     /// Exact package directory for a versioned singer identifier.
     std::filesystem::path packageDirectory(const SingerIdentifier &identifier) const;
 
-    // === VoicebankSession (synthrt v2 chokepoint) ===
-    //
-    // VoicebankSession provides ensureModelSet() / ensureLanguageReady() /
-    // convertG2p() / convertS2p() with version-aware routing. InferEngine,
-    // G2pService and the DiffSinger S2P/G2P tasks delegate to session().
-    // The session borrows m_runtime and m_langSvc via SessionResources;
-    // SynthrtEngine owns their lifetime.
+    // Access version-aware routing and loading of voicebank resources.
     ds::session::VoicebankSession &session();
     const ds::session::VoicebankSession &session() const;
 
-    // === Language service (replaces G2pConvertRunner / S2pMgr / OnsetMarkerMgr) ===
-    //
     // Resolve the language route (G2P context + S2P resource + onset) for a
     // singer + language combination.
     srt::core::Expected<srt::g2p::LanguageRoute>
@@ -173,13 +133,8 @@ public:
     srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
         resolveS2pResource(const SingerIdentifier &identifier, const QString &languageId) const;
 
-    // Ensure G2P language models are loaded (idempotent, thread-safe via
-    // synthrt's Manager init lock). When called after initialize() ran with
-    // deferLanguageModels=true, this kicks off the deferred Stage 2 load so
-    // the first G2P conversion does not stall the calling thread. Intended to
-    // be invoked from a background thread (e.g. QThreadPool::globalInstance())
-    // right after startup so the FillLyric dialog and inference tasks find
-    // models ready.
+    // Load deferred G2P models ahead of the first conversion. This call is idempotent and
+    // thread-safe. It can block on model loading, so schedule warm-up on a background thread.
     bool warmUpLanguageModels();
 
     // === Runtime access ===
@@ -194,32 +149,20 @@ private:
     std::atomic<bool> m_midiExtractionReady{false};
     std::atomic<bool> m_aboutToQuit{false};
 
-    // Signaled when initialize() finishes (success or failure). Paired with
-    // m_initializationDone as the predicate. PackageManager and other consumers
-    // wait on this instead of polling.
+    // Wakes waiters when m_initializationDone is published.
     mutable std::mutex m_initDoneMutex;
     mutable std::condition_variable m_initDoneCv;
-    // Signaled when VoicebankSession becomes ready (Stage 1 complete). Paired
-    // with m_sessionInitialized. PackageManager waits on this so it can query
-    // the snapshot without blocking on Stage 2 (ONNX model loading).
+    // Wakes waiters when the session becomes ready or initialization ends.
     mutable std::mutex m_sessionReadyMutex;
     mutable std::condition_variable m_sessionReadyCv;
 
-    // Components (v3 architecture: VoicebankSession is the single chokepoint)
-    // Shared_ptr so SessionResources can borrow the LanguageService without
-    // extending its lifetime (SynthrtEngine owns both m_langSvc and m_session;
-    // the session does not outlive the engine).
+    // Declare the resources before the session so both outlive it.
     std::shared_ptr<srt::g2p::LanguageService> m_langSvc =
         std::make_shared<srt::g2p::LanguageService>();
     srt::core::Runtime m_runtime;
-    // VoicebankSession: the synthrt v2 chokepoint for voicebank scanning,
-    // ensureModelSet / convertG2p / convertS2p / ensureLanguageReady.
-    // Default-constructed until initialize() move-assigns a resource-injected
-    // instance. VoicebankSession handles internal locking; no external mutex
-    // is needed for refreshVoicebanks().
+    // initialize() supplies the session's resources. The session synchronizes its own refreshes.
     ds::session::VoicebankSession m_session;
-    // Published with release/acquire: waitForSession() polls this from the
-    // application thread while Stage 1 runs on the initialization task.
+    // Release/acquire publishes session readiness to snapshot readers.
     std::atomic<bool> m_sessionInitialized{false};
 
     mutable std::mutex m_stateMutex;

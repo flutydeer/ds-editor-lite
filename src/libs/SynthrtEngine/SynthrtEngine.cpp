@@ -1,9 +1,3 @@
-//
-// SynthrtEngine implementation — v2 component facade.
-//
-// Reference: docs/refactoring-v2/03-lite-integration.md
-//
-
 #include "SynthrtEngine.h"
 
 #include <lite/Core/SingletonRegistry.h>
@@ -58,18 +52,11 @@ static srt::core::Expected<void> checkPath(const std::filesystem::path &path) {
     return srt::core::Expected<void>();
 }
 
-// ============================================================================
-// G2P ONNX driver adapters — reuse the inference ONNX driver with CPU forced.
-//
-// Design: G2P and inference share the same ONNX plugin (srt-onnxdriver). The
-// G2P side wraps the inference InferenceDriver/InferenceSession, translating
-// G2P SessionFactory/SessionTask calls and forcing useCpu=true on every
-// session open() so G2P never competes with GPU inference.
-// ============================================================================
+// G2P uses CPU sessions from the shared ONNX driver to avoid GPU contention.
 
 namespace {
 
-    /// G2P ONNX SessionTask adapter — wraps an inference InferenceSession.
+    /// Adapts an inference session to the G2P task interface.
     class G2pOnnxSessionTask : public srt::g2p::SessionTask {
     public:
         explicit G2pOnnxSessionTask(srt::core::NO<srt::driver::InferenceSession> session)
@@ -106,7 +93,7 @@ namespace {
 
         srt::core::Expected<srt::core::NO<srt::core::TaskResult>>
             start(const srt::core::NO<srt::core::TaskStartInput> &input) override {
-            // Translate G2P SessionStartInput → inference SessionStartInput
+            // Translate G2P input to inference input.
             auto inferenceInput = srt::core::NO<srt::driver::onnx::SessionStartInput>::create();
             auto g2pInput = input.as<srt::g2p::SessionStartInput>();
             if (g2pInput) {
@@ -116,7 +103,7 @@ namespace {
             auto result = m_inner->start(inferenceInput);
             if (!result)
                 return result.error();
-            // Translate inference SessionResult → G2P SessionResult
+            // Translate the inference result to a G2P result.
             auto g2pResult = srt::core::NO<srt::g2p::SessionResult>::create();
             auto inferenceResult = result.take().as<srt::driver::onnx::SessionResult>();
             if (inferenceResult) {
@@ -129,7 +116,7 @@ namespace {
         srt::core::NO<srt::driver::InferenceSession> m_inner;
     };
 
-    /// G2P ONNX SessionFactory adapter — wraps an inference InferenceDriver.
+    /// Adapts an inference driver to the G2P session factory interface.
     /// Holds a shared_ptr to the driver so the adapter remains valid even if
     /// the Runtime's ObjectPool is destroyed first during shutdown.
     class G2pOnnxSessionFactory : public srt::g2p::SessionFactory {
@@ -235,10 +222,6 @@ bool SynthrtEngine::waitForSession(int timeoutMs) const {
     if (m_sessionInitialized.load(std::memory_order_acquire)) {
         return true;
     }
-    // Wait until either the session becomes ready, or initialize() finishes
-    // (success or failure). If initialize() finished without setting
-    // m_sessionInitialized, Stage 1 failed and the caller should surface the
-    // refreshVoicebanks() error rather than wait out the full timeout.
     std::unique_lock lock(m_sessionReadyMutex);
     return m_sessionReadyCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
         return m_sessionInitialized.load(std::memory_order_acquire) ||
@@ -273,11 +256,8 @@ void SynthrtEngine::shutdown() noexcept {
         m_sessionInitialized.store(false, std::memory_order_release);
     }
     completeInitializationAttempt();
+    // Wait for outstanding runtime operation leases after closing admission.
     std::unique_lock lock(m_runtimeLifecycleMutex);
-    // VoicebankSession destructor handles cleanup of loaded packages and
-    // ModelSet handles. No explicit unloadSinger() needed — active inference
-    // tasks hold shared_ptr<ModelSetHandle> which keep the session alive
-    // until they complete.
 }
 
 fs::path SynthrtEngine::pluginRoot() {
@@ -525,7 +505,6 @@ bool SynthrtEngine::initializeRuntime(const fs::path &pluginRoot, const QString 
     }
     cfg.deviceIndex = deviceIndex;
 
-    // Validate plugin root exists (equivalent to HEAD initializeSU checkPath).
     if (auto exp = checkPath(pluginRoot); !exp) {
         qCritical() << "SynthrtEngine: invalid plugin root:"
                     << QString::fromUtf8(exp.error().message());
@@ -590,10 +569,7 @@ void SynthrtEngine::initializeExtractors(const fs::path &pluginRoot) {
 bool SynthrtEngine::initializeG2pOnnxDriver() {
     const auto mgr = srt::g2p::Manager::instance();
 
-    // Reuse the inference ONNX driver (same plugin, "dsdriver" in the
-    // "inference" category) — G2P must not have a separate ONNX driver.
-    // The adapter wraps the InferenceDriver and forces useCpu=true on every
-    // session open() so G2P never competes with GPU inference.
+    // The G2P adapter reuses the runtime's inference driver registered as "dsdriver".
     auto *inferenceCat = m_runtime.moduleCategory("inference");
     if (!inferenceCat) {
         qWarning() << "SynthrtEngine: inference module category not found";
@@ -632,7 +608,7 @@ srt::core::Expected<ds::session::RefreshResult>
         return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
                                 "SynthrtEngine::refreshVoicebanks: session not initialized");
     }
-    // The snapshot contains valid packages only; diagnostics belong to the refresh result.
+    // Refresh returns per-package diagnostics alongside the published snapshot.
     m_session.setRoots(searchPaths);
     auto result = m_session.refresh();
     if (!result.succeeded) {
@@ -706,9 +682,7 @@ srt::core::Expected<srt::g2p::LanguageRoute>
     const auto packageId = toUtf8(identifier.packageId);
     const auto singerId = toUtf8(identifier.singerId);
     const auto lang = toUtf8(languageId);
-    // Level=3: pass the real voicebank package version for precise route
-    // resolution. An empty version would cause G2pVersionAmbiguous when
-    // multiple versions of the same packageId exist.
+    // Use the singer's package version to disambiguate co-installed versions.
     const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
     return m_langSvc->resolveLanguageRoute(packageId, version, singerId, lang);
 }
@@ -723,8 +697,7 @@ srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
     const auto packageId = toUtf8(identifier.packageId);
     const auto singerId = toUtf8(identifier.singerId);
     const auto lang = toUtf8(languageId);
-    // Level=3: pass the real voicebank package version for precise S2P
-    // resource resolution (independent cache slot per version).
+    // S2P resources are cached independently for each package version.
     const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
     return m_langSvc->resolveS2pResource(packageId, version, singerId, lang);
 }
@@ -738,7 +711,7 @@ const srt::core::Runtime &SynthrtEngine::runtime() const {
     return m_runtime;
 }
 
-// === VoicebankSession (B1b) ===
+// === VoicebankSession ===
 ds::session::VoicebankSession &SynthrtEngine::session() {
     return m_session;
 }

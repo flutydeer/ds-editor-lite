@@ -58,7 +58,7 @@ private:
     void oneToastShowFinished();
     void destroyCurrentToast();
     void updateAnimationSettings();
-    /// 计算 toast 的目标位置（相对主窗口水平居中，卡片顶部 y=96）
+    /// Center the toast horizontally with its top 96 px below the main window's top.
     [[nodiscard]] QPoint targetPos() const;
 
     bool m_isShowingToast = false;

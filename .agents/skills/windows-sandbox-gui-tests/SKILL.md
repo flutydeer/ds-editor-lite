@@ -25,7 +25,7 @@ description: 在 Windows Sandbox 里运行 DS Editor Lite 的原生 GUI 测试�
 
 1. Windows Sandbox 已启用。`Containers-DisposableClientVM` 的 `InstallState` 为 1，且 `HypervisorPresent` 为 True。
 2. `wsb.exe` 存在，位置为 `%LOCALAPPDATA%\Microsoft\WindowsApps\wsb.exe`。
-3. 构建产物存在：`build\<preset>\out\bin\TestNativeDesktop.exe`，同目录下有 `plugins` 和 `configs`。仓库的 `debug` 与 `tests` preset 都带测试，但 build preset 只编 `DsEditorLite` 与 `DsConnectorLite`，必须先构建 `lite_tests`。`release` preset 关闭了 `LITE_BUILD_TESTS`，不会产出测试二进制，需要自己配置一个带测试的构建再用 `-BinSource` 指定。
+3. 准备 `TestNativeDesktop.exe` 和同目录的 `plugins`、`configs`。用 `tests` preset 构建完整测试，或在已启用 `LITE_BUILD_TESTS` 的构建树中构建 `lite_tests`。标准输出位置为 `build\<preset>\out\bin`，其他目录使用 `-BinSource` 指定。
 4. 夹具声库存在：`build\<preset>\src\tests\resources\ci-fixture@1.0.0`。
 5. 构建路径必须使用本地盘符，不能是 UNC 共享。测试二进制在编译时把构建目录的绝对路径写进了配置查找。C: 构建在客体中直接创建同名目录并复制 `configs`，其他盘符先用 `subst` 映射到客体工作目录，再复刻该路径。不会替换客体 C: 系统盘或覆盖已有的其他盘符。
 
@@ -188,11 +188,11 @@ QtTest 6.11 的 JUnit 名称规则：数据行写作 `function(tag)`，非数据
 - `windows/shots/*.png`：新窗口出现时抓取的客体桌面截图，只读观察，不注入输入。
 - 回退模式的结果在 `host-results\<runId>\`，目录结构相同，`summary.json` 里 `mode` 为 `HostDesktop`。
 
-## 已知坑
+## 已知运行限制
 
 ### 客体 MidiSrv 启动失败导致枚举永久阻塞
 
-Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的 `wdmaud2` 转接在 `midiInGetNumDevs` 内无限等待，产品会停在 `Audio::MidiSystem` 初始化，表现为所有用例 180 秒超时。
+在 Windows Sandbox 中，`Midisrv` 可能以 `0x80073B01` 退出。此时 winmm 的 `wdmaud2` 转接可能阻塞在 `midiInGetNumDevs`，使测试停在 `Audio::MidiSystem` 初始化并超时。
 
 `Run-Guest.ps1` 会在测试前移除 64 位 `Drivers32` 的 `midi1` 值并保留 `midi=wdmaud.drv`，再起一个 20 秒看门狗的独立进程确认枚举立即返回。改动只发生在一次性客体里，不碰宿主注册表，也不改产品源码。移除后产品日志是 `Audio::MidiSystem: no MIDI input devices available, skipping`。
 
@@ -200,7 +200,7 @@ Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的
 
 客体脚本以 `Set-StrictMode -Version 2.0` 运行。`(Get-ItemProperty -Name 'midi1').midi1` 在值被删除后会抛 `PropertyNotFoundException`，必须经 `PSObject.Properties` 读取并把缺失当作空值。
 
-### 一秒一次采样会漏掉短命窗口
+### 窗口采样间隔
 
 运行器等待观察器完成初始化并确认就绪后才启动测试。就绪等待超时或观察器提前退出时，本轮以脚本异常结束，不启动测试用例。观察器默认每 150 毫秒采样并按新句柄触发截图，增大间隔可能漏掉短命窗口，即使使用默认间隔也不能保证捕获生命周期短于采样间隔的窗口。
 
@@ -232,7 +232,7 @@ Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的
 | 停在 `Audio::MidiSystem` | MIDI 规避没有生效，检查 `summary.json` 的 `midiEnumeration` |
 | 用例全部超时 | 先看 `<case>.stdout.txt` 最后一行停在哪一步 |
 | `EnvironmentBlocked-MidiEnumerationUnavailable` | 客体仍阻塞在 `midiInGetNumDevs`，本轮没有启动任何测试 |
-| 退出码 `0xC0000135`，180 毫秒就结束 | payload 缺少运行库。重新生成 payload，确认 `RuntimeFilesCopied` 包含 Qt Test 与当前构建变体的 CRT |
+| 退出码 `0xC0000135` | payload 缺少运行库。重新生成 payload，确认 `RuntimeFilesCopied` 包含 Qt Test 与当前构建变体的 CRT |
 | 没有沙盒功能或 hypervisor 未运行 | 直接静默回退，用 `Invoke-HostGuiTrial.ps1 -AllowHostGui` 在当前桌面执行，不需要征求同意 |
 | 窗口记录为空 | 用例可能不建窗，或采样间隔过大 |
 

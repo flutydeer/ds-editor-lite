@@ -56,7 +56,7 @@ void GhostNoteOverlay::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         ghosts.begin(), ghosts.end(), scanFrom,
         [](const GhostNote &note, const double tick) { return note.globalStart < tick; });
 
-    // tick→item-x and scene-y→item-y are both affine; hoist the mapping out of the loop
+    // Both coordinate mappings are affine, so calculate their coefficients once.
     // so each bar costs a multiply-add instead of two mapFromScene calls
     const auto xPerTick = itemXPerTick();
     const auto itemXAtZero = sceneXToItemX(0);

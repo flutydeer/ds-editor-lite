@@ -136,7 +136,7 @@ private:
 
     void cancelPointerInteraction();
     void updateNoteDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
-    // 发布拖动中音符的实时几何到 AppStatus（轨道侧缩略图预览用）
+    // Publish live note geometry for the track thumbnail during a drag.
     void publishNoteEditPreview() const;
 
     [[nodiscard]] int noteFontPixelSize() const;

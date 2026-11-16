@@ -13,7 +13,7 @@
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
 namespace FillLyric {
-    // R16: UI 层统一 QStringList，调用 G2pService/LyricSplitter 时转 std::vector<std::string>
+    // Encode UI language identifiers as UTF-8 for the language service.
     static std::vector<std::string> toStdVector(const QStringList &qsl) {
         std::vector<std::string> v;
         v.reserve(static_cast<size_t>(qsl.size()));

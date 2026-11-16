@@ -399,8 +399,8 @@ namespace FillLyric {
             const auto g2pResults = m_g2pService->convert(notes, priorityLanguages);
             QList<LangNote *> tempNotes;
             for (int i = 0; i < notes.size(); i++) {
-                // R15/TD-22: 仅 unknown/empty 时覆盖 language/g2pId，与 LyricTab 构造路径一致
-                // 避免 reReadNote 路径（LyricTab.cpp:132）传入用户已编辑的 g2pId 被覆盖
+                // Resolve missing routing values while preserving the user's language and G2P
+                // selections when notes are reread.
                 if (notes[i].language == QStringLiteral("unknown"))
                     notes[i].language = g2pResults[i].language;
                 if (notes[i].g2pId == kUnknownG2pId || notes[i].g2pId.isEmpty())

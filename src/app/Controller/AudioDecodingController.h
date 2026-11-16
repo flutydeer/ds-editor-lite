@@ -41,14 +41,9 @@ public slots:
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 
 public:
-    // Cascading resolution: use filePath's directory as the candidate and try to resolve all
-    // still-missing audio clips (matched by file name + sha512; missing items without sha512 do not
-    // participate). Called after the user manually relinks one file, to recover other files moved
-    // to the same directory. Hits adopt the new path SILENTLY (no undo entry, no dirty flag) — by
-    // design, undo boundaries follow "could the content have changed": a manual relink is an edit
-    // (unverified user choice, undoable), while a sha512-verified hit is mathematically the
-    // original file, a fact correction with no user intent to revert. Undoing a manual relink
-    // therefore does NOT roll back cascade hits it triggered
+    // Find other missing clips' audio in filePath's directory by file name and stored SHA-512.
+    // A verified match only updates the path, without marking the project modified or adding an
+    // undo entry. Undoing the manual relink leaves these verified matches in place.
     void resolveMissingClipsNear(const QString &filePath);
 
     // Whether the clip's waveform can be drawn yet. A clip is Loading while either a path
@@ -95,8 +90,7 @@ private:
     // Last state reported through loadStateChanged, so refreshLoadState only emits real edges
     QHash<int, AppGlobal::AudioClipLoadState> m_lastLoadState;
 
-    // Aggregated path resolution state during project load (D6: notify once the counter reaches
-    // zero)
+    // Batch path resolution notifications until all project load lookups finish.
     int m_pendingResolveCount = 0;
     QList<int> m_missingClipIds;
     QList<int> m_unconfirmedClipIds;
@@ -105,7 +99,7 @@ private:
     QPointer<DocumentWorkflowController> m_documentWorkflow;
     std::function<void(const QString &)> m_notifier;
 
-    // 路径回写同步触发 sourceChanged，后续任务沿用原检查的交互策略。
+    // Writing the path emits sourceChanged synchronously. The follow-up task inherits the policy.
     struct SourceChangeContext {
         QPointer<AudioClip> clip;
         bool interactive = false;

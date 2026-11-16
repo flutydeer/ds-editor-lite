@@ -88,7 +88,7 @@ namespace Automation {
     private:
         std::atomic_bool m_shutdownCommitted = false;
         DocumentSession m_session;
-        // 工作流租约由启动它的 generation 持有，换代后仍由该 generation 释放。
+        // Only the generation that acquired the workflow lease can release it.
         DocumentId m_documentBusyOwner;
         SingleDocumentSessionResolver m_documentResolver;
         SingleWindowContext m_windowContext;

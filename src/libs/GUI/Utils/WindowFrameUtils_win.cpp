@@ -54,8 +54,7 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
         DwmExtendFrameIntoClientArea(hwnd, &margins);
     }
 
-    // Keep the default DWM border on the main window in both schemes — top-level rounded
-    // windows conventionally have one. Borderless is popup-only for now.
+    // Keep the native DWM border on the rounded main window in both color schemes.
     applyTheme(hwnd, kDwmColorDefault);
 }
 

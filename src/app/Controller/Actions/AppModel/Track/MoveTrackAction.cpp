@@ -17,8 +17,8 @@ void MoveTrackAction::execute() {
         if (m_fromIndex < 0 || m_fromIndex >= size || m_toIndex < 0 || m_toIndex > size)
             return;
 
-        // 拖拽给出的 toIndex 是「插入到该位置之前」的语义；moveTrack 需要的是移动后的
-        // 最终下标，因此当目标位于源之后时要向前修正一位。
+        // The drag reports an insertion index before removal. Adjust forward moves by one
+        // because moveTrack expects the final index.
         m_actualToIndex = m_toIndex > m_fromIndex ? m_toIndex - 1 : m_toIndex;
         if (m_fromIndex == m_actualToIndex)
             return;

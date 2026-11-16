@@ -1,11 +1,6 @@
 project(ProjectModel LANGUAGES CXX)
 
-# The dspx document object model: the entity classes (clips, tracks, notes,
-# params, curves, phonemes, voice/singer descriptors), their IClip/ITrack/
-# IInferPiece contracts, the clip slicer and the inference-data types. The
-# runtime AppModel singleton and the document-orchestration helpers
-# (SingingClipPhonemeNormalizer, ParamUtils, DiffscopeAudioWorkspace) stay in
-# the app. Consumed as <lite/ProjectModel/<Folder>/Xxx.h>.
+# The editable project model and its inference data.
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 

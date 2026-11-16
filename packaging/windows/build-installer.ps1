@@ -251,9 +251,7 @@ function Assert-StagingLayout {
         throw "Installer staging is missing runtime DLLs: $($missingDlls -join ', ')"
     }
 
-    # Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
-    # runtime gate already enforces this at build/install time; this is the
-    # packaging-boundary net so a stale vcpkg tree can never slip through.
+    # Validate the CUDA payload even when reusing an existing staging tree.
     $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
@@ -381,9 +379,7 @@ if (-not $NoBuild) {
     Invoke-Step "Configure CMake preset $PresetName" {
         $configureArgs = @("--preset", $PresetName)
         if ($EnableCuda) {
-            # The preset pins LITE_ENABLE_CUDA=OFF for the DML flavor; the
-            # switch overrides it so this script and the CMake runtime gate
-            # agree on one source of truth.
+            # The preset defaults to DirectML. Enable the CUDA runtime for this package.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
         Invoke-Process "cmake" $configureArgs

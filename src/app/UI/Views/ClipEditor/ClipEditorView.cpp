@@ -311,7 +311,7 @@ void ClipEditorView::moveToNullClipState() const {
 }
 
 void ClipEditorView::resetPianoRollViewportRange() const {
-    appStatus->pianoRollVisibleRect = QRectF(); // null rect → invalid
+    appStatus->pianoRollVisibleRect = QRectF(); // A null rectangle hides the track overlay.
 }
 
 void ClipEditorView::reset() {

@@ -5,7 +5,6 @@
 
 #include <memory>
 
-// Forward declarations — no heavy includes needed
 class AppModel;
 class AppOptions;
 class AppStatus;

@@ -5,7 +5,7 @@
 #include <QString>
 #include <QStringList>
 
-// G2P 相关常量（项目内集中定义）
+// Shared G2P identifiers.
 inline constexpr auto kUnknownG2pId = "unknown";
 inline constexpr auto kSlurLyric = "slur";
 

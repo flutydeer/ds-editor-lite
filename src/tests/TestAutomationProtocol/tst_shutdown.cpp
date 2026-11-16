@@ -33,8 +33,7 @@ namespace {
     constexpr int handshakeTimeoutMs = 2000;
     constexpr int workerGateDelayMs = 100;
 
-    // Keeps the handshake timeout short so a regression fails an assertion instead
-    // of waiting for the production default, and restores the process afterwards.
+    // Bound handshake failures with a short timeout and restore the environment on exit.
     class HandshakeSettings final {
     public:
         HandshakeSettings() : m_previous(qgetenv("DS_EDITOR_SHUTDOWN_TIMEOUT_MS")) {

@@ -37,7 +37,7 @@ public:
     void loadNotes(const OverlappableSerialList<Note> &notes);
     void loadPreviewNotes(const QVector<std::tuple<int, int, int>> &notes);
     [[nodiscard]] int contentLength() const override;
-    // 将场景坐标换算为钢琴卷帘落点的 keyIndex；不在音符绘制区内返回 -1
+    // Map a scene point to a piano roll key index. Return -1 outside the note area.
     [[nodiscard]] double keyIndexAtScenePos(const QPointF &scenePos) const;
 
 public slots:

@@ -57,9 +57,8 @@ namespace {
                 piece->localEndTick(timeline) + clip->start()};
     }
 
-    // 排序键：档位越小优先级越高，同档位内距播放头越近越优先。
-    // 档位 0 = 播放头落在片段范围内(必须最先推理，否则一定位就听不到声音)，
-    // 1 = 播放头之后，2 = 播放头之前，3 = 片段已不存在。
+    // Sort by tier, then by distance from the playhead. A piece at the playhead takes
+    // priority so audio is ready after a seek. Next come future, past, and missing pieces.
     std::pair<int, int> playbackPriorityKey(const PieceGlobalRange &range, const int pos) {
         if (!range.isValid())
             return {3, 0};
@@ -692,7 +691,6 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
             for (const auto &piece : clip->findPiecesByNotes(notes)) {
                 piece->dirty = true;
             }
-            // TODO 重跑获取发音->音素，跑之前先判断发音序列？
             ensureClipInferenceStarted(*clip);
             break;
         case SingingClip::EditedPronunciationOnly:
@@ -981,11 +979,6 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
     m_getPronTasks.onCurrentFinished(&task);
 }
 
-// TODO 任何音符改动，都会触发获取剪辑所有音符发音->获取剪辑所有音符音素名称
-// TODO
-// 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时忽略
-// TODO 对于以-开头的连续多个音符，同样被忽略
-// TODO 分段结果确保为多个有效片段
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
     if (!m_getPhoneTasks.isCurrent(&task))
         return;
