@@ -8,7 +8,7 @@
 
 - 轨道窗与钢琴卷帘的标尺正下方各多一条 **28px 信息轨**（`TimeAxisLaneView`），用来读**秒坐标**：同一段工程在这个轴上按 `0:02.6` 这样的秒值定位，与以 tick 计量的小节/拍坐标互为对照。它是曲速轨、拍号轨之外的第三条可选信息轨，行内顺序排在最前，紧跟原有标尺。
 - 这一行的长相向**标尺**看齐，而不是向其它信息轨看齐：背景透明（与标尺同底）、标签用标尺的小节号/拍号色、刻度线用标尺的 bar tick / beat tick / subdivision 色，刻度从行底向上生长（整分钟最高，整秒次之，亚秒最短），标签靠左上方。它因此读起来是「标尺的第二行」，而不是一条 chip 列表。行顶仍保留与其它信息轨相同的 1px 分隔线，左侧标题与右侧轨道在同一高度断行。
-- 这一行**不叠小节/拍网格**，只画自己的秒刻度。刻度按缩放自适应从 `100ms` 逐级放宽到 `1h`（见「刻度算法」）。步长 ≥ 1s 时省略十分位（`0:15`），否则带十分位（`0:00.5`）。选档本身已保证相邻标签不会重叠，因此标签**不做 elide**：靠视口边缘时由绘制裁切掉超出部分，标签本身仍是完整的。
+- 这一行**不叠小节/拍网格**，只画自己的秒刻度。刻度按缩放与所在曲速区间自适应，从 `100ms` 逐级放宽到 `1h`（见「刻度算法」）。步长 ≥ 1s 的区段省略十分位（`0:15`），否则带十分位（`0:02.5`）。分段选档加上区间边界处跳标已保证相邻标签不会重叠，因此标签**不做 elide**：靠视口边缘时由绘制裁切掉超出部分，标签本身仍是完整的。
 - **默认隐藏**，两个窗口各管各的，和曲速轨、拍号轨一致：
   - 轨道窗：列表头「轨道显示」菜单第一项「时间（秒）轨」（`actionTimeLane`，排第一是为了和行内顺序一致）只切换本窗口，不写设置；
   - 钢琴卷帘：「设置 → 外观 → 钢琴卷帘 → 显示时间（秒）轨」写入 `AppearanceOption::showTimeLane`（默认 `false`），热生效；
@@ -20,7 +20,7 @@
 ### 标题栏时间码弹层
 
 - `elTime` 由纯 `InlineEditLabel` 换成 `TimeComboBox`（`objectName` 仍是 `elTime`）：**单击开弹层、双击内联编辑、右键开合**，与曲速、拍号字段一致。
-- 弹层（`TimePopupWidget`，标题 `Time`）内容：左边 `小节:拍:tick`、右边秒坐标，两框之间是链环指示；下方「显示模式」三段选择 `小节:节拍:刻 / 分:秒:毫秒 / 同时显示`（英文 `Bar:Beat:Tick / Min:Sec.Ms / Both`）。
+- 弹层（`TimePopupWidget`，标题 `Time`）内容：左边 `小节:拍:tick`、右边秒坐标，两框之间是链环指示；下方「显示模式」三段选择 `小节:节拍:刻 / 分:秒.毫秒 / 同时显示`（英文 `Bar:Beat:Tick / Min:Sec.Ms / Both`）。
 - 两个输入框**永远描述同一个位置**：改任一侧回车/失焦即换算成 tick 并移动播放头，另一侧立刻回算。非法输入不移动播放头，字段被改回当前播放头位置。
 - 播放头在弹层打开期间继续变化（播放、或别处 seek）时两框跟随刷新；**正在输入的那个框不覆盖**（由 `QLineEdit::textEdited` 标记活跃框，回车/失焦后解除）。
 - 「显示模式」直接决定标题栏时间码自己的格式，热生效并持久化到 `AppearanceOption::timecodeFormat`（默认 `barBeatTick`，即现状）。三种格式：
@@ -76,8 +76,9 @@
 ## 刻度算法
 
 - 候选步长（ms）：`100/200/500/1000/2000/5000/10000/15000/30000/60000/120000/300000/600000/900000/1800000/3600000`，后一档整除前一档，缩放时只增删线不重排。
-- 选档：按**可见区内最慢的速度**算像素密度，取 `step * 像素每毫秒 >= 64` 的最小档，超出则取最粗档。像素每毫秒 = `(width / tickSpan) * bpm * ticksPerQuarterNote / 60000`，慢速段取值最小。标签在慢速段最先挤在一起，而一个只占少量 tick、却占掉大半毫秒的慢速段会让「整窗平均密度」高估好几倍，所以平均密度不能用来选档（`TestApplicationGui::timeAxisLaneStepKeepsLabelsApartAcrossTempos` 固定这一条）。
+- 选档：**每个曲速区间各自选档**，按该区间自己的像素密度取 `step * 像素每毫秒 >= 64` 的最小档，超出则取最粗档。像素每毫秒 = `(width / tickSpan) * bpm * ticksPerQuarterNote / 60000`。一个区间内 ms 到像素是线性的，所以区间内相邻标签的间距恒等于 `step * 像素每毫秒`。整条轴共用一档时，快慢悬殊的窗口只能迁就最慢的那一段，快速段的标签会稀到几百像素一个（`TestApplicationGui::timeAxisLaneDividesEachTempoSegmentAtItsOwnStep` 固定这一条）。
 - 定位：可见 tick 窗口先经 `timeline.tickToMs` 求 ms 区间，每个刻度再 `timeline.msToTick` 回到 tick、经 `tickToX` 落到像素——**变速点自动正确**，刻度永远落在该秒值真实对应的位置，而不是按平均速度线性铺。
+- 区间边界：相邻两段的档位不同时，后一段的第一个刻度可能落在前一个标签后半格的位置（例如前段步长 1s、后段 0.5s、边界在整 0.5s 处，两者只隔 500ms）。此时保留刻度线、只跳过标签，下一格照常标，所以任意相邻两个标签的间距都不小于 64px（比较留 0.5px 余量，吸收浮点误差与恰好等于下限的档位）。标签形状随之分段：步长 ≥ 1s 的区段不带十分位，否则带。
 - 上限：单行最多 2000 个刻度（防御性边界，正常缩放远达不到）。
 
 ## 显隐
@@ -108,7 +109,8 @@
 | 选项存取 | `TestPreferences::appearanceTimecodeFormatAndTimeLane`（默认值、三值往返、未知值回落、非 bool 忽略） |
 | 弹层交互 | `TestApplicationGui::timePopupEditsPositionAndDisplayFormat`（单击开层、两框一致、秒值改位置、非法输入回滚、播放头跟随、模式切换落盘、内联编辑两种格式、文档不变） |
 | 轨道窗显隐与顺序 | `TestApplicationGui::trackHeaderLaneMenuTogglesBothLanes`（三个菜单项、秒轨排第一、默认隐藏、勾选只切换本窗口且不动钢琴卷帘选项、取消隐藏） |
-| 变速下的刻度密度 | `TestApplicationGui::timeAxisLaneStepKeepsLabelsApartAcrossTempos`（慢速段占比小但毫秒多时，相邻标签仍不小于 64px） |
+| 变速下的刻度密度 | `TestApplicationGui::timeAxisLaneStepKeepsLabelsApartAcrossTempos`（区间边界落在非整格位置时，相邻标签仍不小于 64px，只跳掉当格标签） |
+| 分段选档 | `TestApplicationGui::timeAxisLaneDividesEachTempoSegmentAtItsOwnStep`（快速段用更细的档位、慢速段用更粗的档位，两段间距都不小于 64px，且快速段不满半空） |
 | 设置页 | `TestApplicationGui::appearanceInputsPersistAcrossReopening`（新开关存在且落盘） |
 | 钢琴卷帘三轨 | `TestNativeDesktop::rhiPianoNavigationInputsReachTheActiveViewport`（三轨都可见、滚轮都转发给画布） |
 | 设置自动化 | `TestApplicationServices::appearanceSettings`（新字段往返、越界枚举 `InvalidArgument`） |
