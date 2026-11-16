@@ -29,6 +29,14 @@
 .PARAMETER CaseTimeoutSeconds
     0 keeps the default: 1800 seconds for the full suite, 180 seconds per selector.
 
+.PARAMETER EntryExecutable
+    Test binary the payload runs. Defaults to TestNativeDesktop.exe.
+
+.PARAMETER FixtureExecutable
+    Extra test binaries the selected suite launches as subprocess fixtures. They are
+    staged in bin/ and mirrored at the compiled build path inside the guest, because
+    tests that spawn them hold that absolute path from compile time.
+
 .PARAMETER RequireWindowEvidence
     Require window evidence even for a filtered run. Without it, only an unfiltered
     full-suite run requires the observer to record a real test window.
@@ -44,6 +52,8 @@ param(
     [string]$Preset = 'debug',
     [string]$OutputRoot = 'build\SandboxGuiTrial',
     [string]$BinSource,
+    [string]$EntryExecutable = 'TestNativeDesktop.exe',
+    [string[]]$FixtureExecutable = @(),
     [string]$VoicebankSource,
     [string]$QtRoot,
     [string[]]$Selectors = @(''),
@@ -76,10 +86,18 @@ if (-not $OutputRoot.StartsWith($buildRoot, [StringComparison]::OrdinalIgnoreCas
 $payload = Join-Path $OutputRoot 'payload'
 $results = Join-Path $OutputRoot 'results'
 
-$exeName = 'TestNativeDesktop.exe'
+$exeName = $EntryExecutable
 $exePath = Join-Path $BinSource $exeName
 if (-not (Test-Path -LiteralPath $exePath)) {
     throw "Missing $exeName under $BinSource. Build the lite_tests target first. The repository's release preset disables LITE_BUILD_TESTS, so it never produces this binary."
+}
+foreach ($fixtureName in $FixtureExecutable) {
+    if ($fixtureName -match '[\\/]') {
+        throw "FixtureExecutable expects a file name, not a path: $fixtureName"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $BinSource $fixtureName) -PathType Leaf)) {
+        throw "Missing fixture executable $fixtureName under $BinSource."
+    }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $BinSource 'plugins'))) {
     throw "Missing the Qt plugin directory under $BinSource."
@@ -137,7 +155,7 @@ function Copy-Tree {
     param(
         [string]$Source,
         [string]$Destination,
-        [string]$KeepOnlyExecutable
+        [string[]]$KeepExecutables = @()
     )
     $sourceRoot = [IO.Path]::GetFullPath($Source).TrimEnd('\')
     New-Item -ItemType Directory -Path $Destination -Force | Out-Null
@@ -149,12 +167,18 @@ function Copy-Tree {
             $skipped++
             continue
         }
-        # Top-level test executables other than the entry point are never loaded by
-        # this run. Symbols and unrelated executables dominate the raw build output.
-        if ($KeepOnlyExecutable -and $extension -eq '.exe' -and $relative -notmatch '\\' -and
-            $file.Name -ine $KeepOnlyExecutable) {
-            $skipped++
-            continue
+        # Top-level test executables other than the entry point and its subprocess
+        # fixtures are never loaded by this run. Symbols and unrelated executables
+        # dominate the raw build output.
+        if (@($KeepExecutables).Count -gt 0 -and $extension -eq '.exe' -and $relative -notmatch '\\') {
+            $keep = $false
+            foreach ($keepName in $KeepExecutables) {
+                if ($file.Name -ieq $keepName) { $keep = $true; break }
+            }
+            if (-not $keep) {
+                $skipped++
+                continue
+            }
         }
         $target = Join-Path $Destination $relative
         $targetParent = Split-Path -Path $target -Parent
@@ -171,7 +195,8 @@ function Copy-Tree {
 }
 
 Write-Host "Staging $BinSource"
-$skippedFiles = Copy-Tree -Source $BinSource -Destination (Join-Path $payload 'bin') -KeepOnlyExecutable $exeName
+$keepExecutables = @($exeName) + @($FixtureExecutable)
+$skippedFiles = Copy-Tree -Source $BinSource -Destination (Join-Path $payload 'bin') -KeepExecutables $keepExecutables
 Write-Host "Staging $VoicebankSource"
 $skippedFiles += Copy-Tree -Source $VoicebankSource -Destination (Join-Path $payload 'voicebank')
 foreach ($scriptName in 'Run-Guest.ps1', 'Watch-Windows.ps1', 'SandboxConfigPaths.ps1', 'WindowObserverLifecycle.ps1') {
@@ -236,7 +261,8 @@ $plan = [ordered]@{
     schemaVersion = 1
     createdUtc = (Get-Date).ToUniversalTime().ToString('o')
     preset = $Preset
-    executable = 'bin/TestNativeDesktop.exe'
+    executable = ('bin/' + $exeName)
+    fixtureExecutables = @($FixtureExecutable)
     workingDirectory = 'bin'
     embeddedConfigPath = $binSourcePath.TrimEnd('\')
     configSource = 'bin/configs'
@@ -276,7 +302,7 @@ $manifest = [ordered]@{
     redistributable = $false
     binSource = $BinSource
     voicebankSource = $VoicebankSource
-    entryPoint = 'bin/TestNativeDesktop.exe'
+    entryPoint = ('bin/' + $exeName)
     fileCount = $files.Count
     totalBytes = $totalBytes
     totalMiB = [math]::Round($totalBytes / 1MB, 3)

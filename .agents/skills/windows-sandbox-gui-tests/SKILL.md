@@ -79,6 +79,8 @@ build\SandboxGuiTrial\
 - `-UseHardLinks` 用硬链接代替复制，同一卷上省空间，适合反复准备。
 - `-Force` 覆盖已有 payload。
 - `-BinSource` 和 `-VoicebankSource` 用于非标准构建目录。
+- `-EntryExecutable` 指定客体要跑的测试二进制，默认 `TestNativeDesktop.exe`。`plan.json`、`manifest.json` 的入口点和窗口观察器都跟着这个名字走，所以换套件不用改脚本。同一份 payload 只跑一个二进制，需要 `TestApplicationGui.exe` 等其它套件时另建一份 payload（结果目录按运行区分）。
+- `-FixtureExecutable` 列出所选套件当子进程启动的其它测试二进制。`TestApplicationGui` 把 `TestApplicationWorkflows` 当外部转换器用（`LITE_TEST_CONVERTER_FIXTURE`），不列出来就会在客体里找不到夹具。这些文件会 stage 进 payload，并由客体补到编译期记下的构建路径上。
 
 脚本只复制文件、写 `plan.json` 和 `manifest.json`，不执行任何程序。
 
