@@ -14,6 +14,8 @@ namespace AdaptiveToolBarLayoutDetails {
         int order = 0;
         int priority = 0;
         bool applicable = true;
+
+        bool operator==(const Entry &) const = default;
     };
 
     struct Plan {
