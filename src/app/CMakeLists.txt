@@ -32,7 +32,7 @@ find_package(SndFile CONFIG REQUIRED)
 
 set(_platform_links)
 if(WIN32)
-    list(APPEND _platform_links dwmapi.lib icu)
+    list(APPEND _platform_links dwmapi.lib icu winmm.lib)
     if(TARGET talcs::Asio)
         list(APPEND _platform_links talcs::Asio)
         set(LITE_HAVE_TALCS_ASIO ON)

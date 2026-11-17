@@ -284,7 +284,7 @@ namespace Automation {
                 settings.devicePan < -1.0 || settings.devicePan > 1.0 ||
                 settings.fileBufferingReadAheadSize < 0 || settings.hotPlugNotificationMode < 0 ||
                 settings.hotPlugNotificationMode > 2 || settings.playheadBehavior < 0 ||
-                settings.playheadBehavior > 2 || settings.midiDeviceIndex < -1 ||
+                settings.playheadBehavior > 2 ||
                 !std::isfinite(settings.midiSynthesizerAmplitude) ||
                 settings.midiSynthesizerAttackMilliseconds < 0 ||
                 settings.midiSynthesizerDecayMilliseconds < 0 ||

@@ -31,6 +31,7 @@ protected:
 
 private:
     void retranslateUi();
+    void populateDevices();
 
     SettingPageSynthHelper *m_synthHelper = nullptr;
     MidiInputNoteMonitor *m_noteMonitor = nullptr;

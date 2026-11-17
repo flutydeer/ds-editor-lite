@@ -9,6 +9,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioSettings.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Modules/Audio/utils/MidiPortList.h"
 #include "UI/Dialogs/Options/Pages/AudioPage.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
 
@@ -458,16 +459,19 @@ void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
              "Both MIDI loopback port names are required");
     GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
-    const auto inputNames = MidiSystem::availableDevices();
-    const auto inputIndex = inputNames.indexOf(inputName);
+    const auto portNames = MidiSystem::availableDevices();
+    QVERIFY2(portNames, "MIDI port enumeration failed");
+    const MidiPortList ports(*portNames);
+    const auto inputIndex = ports.names().indexOf(inputName);
     QVERIFY2(inputIndex >= 0,
              qPrintable(QStringLiteral("Configured MIDI input is unavailable: %1").arg(inputName)));
+    const auto inputId = ports.ids().at(inputIndex);
     auto *midi = AudioSystem::midiSystem();
-    QVERIFY2(midi->setDevice(inputIndex), qPrintable(inputName));
+    QVERIFY2(midi->setDeviceId(inputId), qPrintable(inputName));
     QVERIFY(midi->device() && midi->device()->isOpen());
     QCOMPARE(midi->device()->name(), inputName);
     AppOptions reopened;
-    QCOMPARE(reopened.audio()->obj.value(QStringLiteral("midiDeviceIndex")).toInt(), inputIndex);
+    QCOMPARE(reopened.audio()->obj.value(QStringLiteral("midiDeviceId")).toString(), inputId);
     midi->setGenerator(talcs::NoteSynthesizer::Sine);
     midi->setAttackMsec(5);
     midi->setDecayMsec(5);

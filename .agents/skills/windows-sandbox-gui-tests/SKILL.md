@@ -194,7 +194,7 @@ QtTest 6.11 的 JUnit 名称规则：数据行写作 `function(tag)`，非数据
 
 Windows Sandbox 里 `Midisrv` 每次启动即以 `0x80073B01` 退出。winmm 的 `wdmaud2` 转接在 `midiInGetNumDevs` 内无限等待，产品会停在 `Audio::MidiSystem` 初始化，表现为所有用例 180 秒超时。
 
-`Run-Guest.ps1` 会在测试前移除 64 位 `Drivers32` 的 `midi1` 值并保留 `midi=wdmaud.drv`，再起一个 20 秒看门狗的独立进程确认枚举立即返回。改动只发生在一次性客体里，不碰宿主注册表，也不改产品源码。移除后产品日志是 `Audio::MidiSystem: no MIDI input devices available, skipping`。
+`Run-Guest.ps1` 会在测试前移除 64 位 `Drivers32` 的 `midi1` 值并保留 `midi=wdmaud.drv`，再起一个 20 秒看门狗的独立进程确认枚举立即返回。改动只发生在一次性客体里，不碰宿主注册表，也不改产品源码。移除后产品日志是 `Audio::MidiSystem: no MIDI input devices available`。
 
 ### 严格模式读不存在的值会抛异常
 

@@ -90,8 +90,7 @@ AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(hotPlugNotificationMode, setHotPlug
 AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(playheadBehavior, setPlayheadBehavior,
                                              playheadBehavior)
 
-AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(midiDeviceIndex, setMidiDeviceIndex, -1,
-                                             midiDeviceIndex)
+AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(midiDeviceId, setMidiDeviceId, midiDeviceId)
 AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(midiSynthesizerAmplitude, setMidiSynthesizerAmplitude,
                                              -9, midiSynthesizerAmplitude)
 AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(midiSynthesizerAttackMsec,

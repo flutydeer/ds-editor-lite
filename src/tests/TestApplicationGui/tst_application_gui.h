@@ -257,7 +257,11 @@ private slots:
     void audioDeviceChoicesApplyThroughThePage_data();
     void audioDeviceChoicesApplyThroughThePage();
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
+    void midiAutoPickFallsBackToAnotherPort();
     void midiPageSynthInputsPersistWithoutPlayback();
+    void midiPollFailureKeepsTheKnownPorts();
+    void midiPortIdentitySurvivesReenumeration();
+    void midiSourceStopSilencesTheNotesOfThatSource();
     void trackHeaderInputsCommitAndUndo();
     void trackHeaderLaneMenuTogglesBothLanes();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
