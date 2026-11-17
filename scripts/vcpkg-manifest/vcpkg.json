@@ -1,7 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "dependencies": [
-    "sdl2",
     "qmsetup",
     {
       "name": "qwindowkit",
@@ -35,10 +34,17 @@
       "name": "talcs",
       "features": [
         "device",
-        "device-sdl",
         {
-          "name": "device-asio",
+          "name": "asio",
           "platform": "windows & !(arm | uwp)"
+        },
+        {
+          "name": "alsa",
+          "platform": "linux"
+        },
+        {
+          "name": "pulseaudio",
+          "platform": "linux"
         },
         "format",
         "midi",

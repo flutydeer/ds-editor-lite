@@ -3,6 +3,10 @@
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioDriver.h>
+#include <TalcsDevice/AudioDriverManager.h>
+#ifdef LITE_HAVE_TALCS_ASIO
+#    include <TalcsAsio/ASIOAudioDriver.h>
+#endif
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSettings.h>
@@ -10,6 +14,9 @@
 OutputSystem::OutputSystem(QObject *parent)
     : AbstractOutputSystem(parent), m_outputContext(new talcs::OutputContext) {
     setContext(m_outputContext.get());
+#ifdef LITE_HAVE_TALCS_ASIO
+    m_outputContext->driverManager()->addAudioDriver(new talcs::ASIOAudioDriver);
+#endif
 }
 
 OutputSystem::~OutputSystem() = default;
@@ -36,8 +43,11 @@ bool OutputSystem::initialize() {
 }
 
 bool OutputSystem::setDriver(const QString &driverName) const {
+    const bool followsDefaultDevice = AudioSettings::deviceName().isEmpty();
     if (m_outputContext->setDriver(driverName)) {
         postSetDevice();
+        if (followsDefaultDevice)
+            AudioSettings::setDeviceName(QString{});
         qDebug() << "Audio::OutputSystem: driver changed" << m_outputContext->device()->name()
                  << m_outputContext->driver()->name() << m_outputContext->adoptedBufferSize()
                  << m_outputContext->adoptedSampleRate();
@@ -49,8 +59,14 @@ bool OutputSystem::setDriver(const QString &driverName) const {
 }
 
 bool OutputSystem::setDevice(const QString &deviceName) const {
-    if (m_outputContext->setDevice(deviceName)) {
+    auto *driver = m_outputContext->driver();
+    // An empty name means the driver's default endpoint and stays empty when persisted, so a
+    // later startup follows the system default instead of pinning the current endpoint.
+    const auto targetName = deviceName.isEmpty() && driver ? driver->defaultDevice() : deviceName;
+    if (!targetName.isEmpty() && m_outputContext->setDevice(targetName)) {
         postSetDevice();
+        if (deviceName.isEmpty())
+            AudioSettings::setDeviceName(QString{});
         qDebug() << "Audio::OutputSystem: device changed" << m_outputContext->device()->name()
                  << m_outputContext->driver()->name() << m_outputContext->adoptedBufferSize()
                  << m_outputContext->adoptedSampleRate();
@@ -58,8 +74,7 @@ bool OutputSystem::setDevice(const QString &deviceName) const {
     }
 
     qWarning() << "Audio::OutputSystem: fatal: cannot set device"
-               << (m_outputContext->driver() ? m_outputContext->driver()->name() : "")
-               << deviceName;
+               << (driver ? driver->name() : "") << deviceName;
     return false;
 }
 

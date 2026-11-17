@@ -27,7 +27,7 @@ namespace {
     bool isSilent(const talcs::AudioBuffer &buffer) {
         for (int channel = 0; channel < buffer.channelCount(); ++channel) {
             for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample) {
-                if (buffer.constSampleAt(channel, sample) != 0.0f)
+                if (buffer.sample(channel, sample) != 0.0f)
                     return false;
             }
         }
@@ -114,7 +114,7 @@ void ApplicationGuiTests::settingsSynthPreviewKeepsEnvelopeDurationsAcrossSample
             bool hasSignal = false;
             for (int channel = 0; channel < buffer.channelCount(); ++channel) {
                 for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample) {
-                    const auto value = buffer.constSampleAt(channel, sample);
+                    const auto value = buffer.sample(channel, sample);
                     QVERIFY(std::isfinite(value));
                     hasSignal |= value != 0.0f;
                 }
@@ -130,7 +130,7 @@ void ApplicationGuiTests::settingsSynthPreviewKeepsEnvelopeDurationsAcrossSample
             QVERIFY(helper.isTestFinished);
             for (int channel = 0; channel < buffer.channelCount(); ++channel) {
                 for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample)
-                    QCOMPARE(buffer.constSampleAt(channel, sample), 0.0f);
+                    QCOMPARE(buffer.sample(channel, sample), 0.0f);
             }
         }
     }

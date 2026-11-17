@@ -28,18 +28,18 @@ bool DeviceTester::open(const qint64 bufferSize, const double sampleRate) {
     const double rate = std::pow(0.99, 20000.0 / sampleRate);
     qint64 i, j;
     for (i = 0; i < m_sound.sampleCount() && fadeIn < 1.0; i++) {
-        m_sound.sampleAt(0, i) = static_cast<float>(
-            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(i)) * fadeIn);
+        m_sound.setSample(0, i, static_cast<float>(
+            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(i)) * fadeIn));
         fadeIn /= rate;
     }
     for (j = m_sound.sampleCount() - 1; j >= 0 && fadeOut < 1.0; j--) {
-        m_sound.sampleAt(0, j) = static_cast<float>(
-            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(j)) * fadeOut);
+        m_sound.setSample(0, j, static_cast<float>(
+            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(j)) * fadeOut));
         fadeOut /= rate;
     }
     for (; i <= j; i++) {
-        m_sound.sampleAt(0, i) = static_cast<float>(
-            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(i)));
+        m_sound.setSample(0, i, static_cast<float>(
+            0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * static_cast<double>(i))));
     }
     m_pos = -1;
     return talcs::AudioSource::open(bufferSize, sampleRate);

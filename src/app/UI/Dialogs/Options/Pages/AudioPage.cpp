@@ -17,7 +17,6 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
 #include "Utils/Decibellinearizer.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
@@ -179,8 +178,7 @@ QWidget *AudioPage::createContentWidget() {
     connect(m_deviceControlPanelButton, &QPushButton::clicked, this, [] {
         if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
             const auto driverName = device->driver()->name();
-            if (SystemUtils::isWindows() &&
-                (driverName == "winmm" || driverName == "directsound" || driverName == "wasapi")) {
+            if (SystemUtils::isWindows() && driverName.startsWith(QStringLiteral("WASAPI"))) {
                 QDesktopServices::openUrl(QUrl("ms-settings:sound"));
             } else
                 device->openControlPanel();
@@ -223,8 +221,8 @@ void AudioPage::updateDriverComboBox() {
 
     auto driverList = outputSys->outputContext()->driverManager()->drivers();
     for (int i = 0; i < driverList.size(); i++) {
-        m_driverComboBox->addItem(
-            talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(driverList[i]), driverList[i]);
+        const auto *driver = outputSys->outputContext()->driverManager()->driver(driverList[i]);
+        m_driverComboBox->addItem(driver ? driver->displayName() : driverList[i], driverList[i]);
         if (outputSys->outputContext()->driver() &&
             driverList[i] == outputSys->outputContext()->driver()->name())
             m_driverComboBox->setCurrentIndex(i);
@@ -243,10 +241,12 @@ void AudioPage::updateDriverComboBox() {
             if (newDrvName.isEmpty())
                 return;
             if (!outputSys->setDriver(newDrvName)) {
+                const auto *driver =
+                    outputSys->outputContext()->driverManager()->driver(newDrvName);
                 QMessageBox::warning(
                     this, {},
                     tr("Cannot initialize %1 driver")
-                        .arg(talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(newDrvName)));
+                        .arg(driver ? driver->displayName() : newDrvName));
                 if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
                     m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
                 } else {
@@ -286,8 +286,7 @@ void AudioPage::updateDeviceComboBox() {
 
     if (!driver->defaultDevice().isEmpty()) {
         m_deviceComboBox->addItem(tr("Default device"), QString(""));
-        if (outputSys->outputContext()->device() &&
-            outputSys->outputContext()->device()->name().isEmpty()) {
+        if (AudioSettings::deviceName().isEmpty()) {
             currentIndexDetermined = true;
             m_deviceComboBox->setCurrentIndex(0);
         }
@@ -295,7 +294,7 @@ void AudioPage::updateDeviceComboBox() {
     auto deviceList = driver->devices();
     for (int i = 0; i < deviceList.size(); i++) {
         m_deviceComboBox->addItem(deviceList[i], deviceList[i]);
-        if (outputSys->outputContext()->device() &&
+        if (!currentIndexDetermined && outputSys->outputContext()->device() &&
             deviceList[i] == outputSys->outputContext()->device()->name()) {
             currentIndexDetermined = true;
             m_deviceComboBox->setCurrentIndex(m_deviceComboBox->count() - 1);
@@ -322,16 +321,27 @@ void AudioPage::updateDeviceComboBox() {
                     return;
                 const auto newDevName = m_deviceComboBox->itemData(index).toString();
                 if (!outputSys->setDevice(newDevName)) {
+                    // Restore the entry of the device that is still configured.
+                    const auto configuredName = AudioSettings::deviceName();
+                    int revertIndex = -1;
                     for (int i = 0; i < m_deviceComboBox->count(); i++) {
-                        if ((!outputSys->outputContext()->device() &&
-                             m_deviceComboBox->itemData(i).isNull()) ||
-                            (outputSys->outputContext()->device() &&
-                             outputSys->outputContext()->device()->name() ==
-                                 m_deviceComboBox->itemData(i).toString())) {
-                            QSignalBlocker blocker(m_deviceComboBox);
-                            m_deviceComboBox->setCurrentIndex(i);
+                        const auto data = m_deviceComboBox->itemData(i);
+                        if (!data.isNull() && data.toString() == configuredName) {
+                            revertIndex = i;
                             break;
                         }
+                    }
+                    const auto *device = outputSys->outputContext()->device();
+                    for (int i = 0; revertIndex < 0 && i < m_deviceComboBox->count(); i++) {
+                        const auto data = m_deviceComboBox->itemData(i);
+                        if (device ? (!data.isNull() && data.toString() == device->name())
+                                   : data.isNull()) {
+                            revertIndex = i;
+                        }
+                    }
+                    if (revertIndex >= 0) {
+                        QSignalBlocker blocker(m_deviceComboBox);
+                        m_deviceComboBox->setCurrentIndex(revertIndex);
                     }
                     QMessageBox::warning(
                         this, {},

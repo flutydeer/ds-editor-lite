@@ -218,7 +218,7 @@ Write for readers who have no knowledge of the conversation or implementation pr
 
 ## Key dependencies
 
-Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (audio), opendspx (file format), QWindowKit (frameless window), dsinfer (DNN inference), SDL2, libsndfile, yaml-cpp, language-manager/LangCore (G2p/linguistics).
+Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (audio), opendspx (file format), QWindowKit (frameless window), dsinfer (DNN inference), libsndfile, yaml-cpp, language-manager/LangCore (G2p/linguistics).
 
 ## Gotchas
 

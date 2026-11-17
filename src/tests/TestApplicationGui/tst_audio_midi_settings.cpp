@@ -102,6 +102,13 @@ namespace {
             setIsInitialized(true);
         }
 
+        bool open(qint64 bufferSize, double sampleRate) override {
+            if (!availableBufferSizes().contains(bufferSize) ||
+                !availableSampleRates().contains(sampleRate))
+                return false;
+            return talcs::AudioDevice::open(bufferSize, sampleRate);
+        }
+
         bool openControlPanel() override {
             ++controlPanelRequests;
             return true;
@@ -127,10 +134,6 @@ namespace {
 
         QString defaultDevice() const override {
             return defaultDeviceAvailable ? devices().first() : QString();
-        }
-
-        talcs::AudioDevice *createDefaultDevice() override {
-            return defaultDeviceAvailable ? new FixtureAudioDevice(this, {}) : nullptr;
         }
 
         talcs::AudioDevice *createDevice(const QString &name) override {
@@ -315,7 +318,21 @@ void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage() {
         QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
         QVERIFY(devices->isEnabled() && buffer->isEnabled() && rate->isEnabled());
         QCOMPARE(devices->currentData().toString(),
-                 defaultDeviceAvailable ? QString() : QStringLiteral("Output A"));
+                 defaultDeviceAvailable ? QString{} : QStringLiteral("Output A"));
+        if (defaultDeviceAvailable) {
+            chooseValue(*page, devices, QStringLiteral("Output B"));
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(deviceContext->device()->name(), QStringLiteral("Output B"));
+            QVERIFY(!AudioSettings::deviceName().isEmpty());
+            chooseValue(*page, devices, QString{});
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(deviceContext->device()->name(), QStringLiteral("Output A"));
+            QVERIFY(AudioSettings::deviceName().isEmpty());
+            emit driver->deviceChanged();
+            QTRY_COMPARE(devices->currentData().toString(), QString{});
+        }
         auto *previousOutput = deviceContext->device();
         const auto previousChoice = devices->currentData();
         const auto beforeDevice = runtime.settings().getSettings();

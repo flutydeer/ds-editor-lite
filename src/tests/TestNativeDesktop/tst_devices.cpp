@@ -168,8 +168,6 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
             QSKIP("No native audio output backend is available");
         if (!deviceContext->device() && driver->devices().isEmpty())
             QSKIP("No audio output devices are enumerated");
-        if (driver->name() == QStringLiteral("dummy") || driver->name() == QStringLiteral("disk"))
-            QSKIP("The available output backend does not provide a playback device");
     }
     QVERIFY2(deviceContext->device(), "An enumerated output device could not be initialized");
     QVERIFY2(deviceContext->device()->isOpen(), qPrintable(deviceContext->device()->errorString()));
@@ -177,6 +175,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     const auto originalSampleRate = deviceContext->adoptedSampleRate();
     const auto originalDriverName = driver->name();
     const auto originalDeviceName = deviceContext->device()->name();
+    const auto originalConfiguredDeviceName = AudioSettings::deviceName();
     const auto originalPlayheadBehavior = AudioSettings::playheadBehavior();
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto command = [&] {
@@ -191,6 +190,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
             QVERIFY(output->setDevice(originalDeviceName));
         output->setAdoptedBufferSize(originalBufferSize);
         output->setAdoptedSampleRate(originalSampleRate);
+        AudioSettings::setDeviceName(originalConfiguredDeviceName);
         AudioSettings::setPlayheadBehavior(originalPlayheadBehavior);
     });
 
@@ -239,28 +239,19 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
         QVERIFY(deviceContext->device()->isOpen());
         QVERIFY(devices->isEnabled() && testDevice->isEnabled());
         QVERIFY(drivers->findData(QVariant{}) < 0);
+        // The combo shows the default entry when the configured name is empty for that device.
         if (deviceContext->device()->name() != originalDeviceName) {
             select(devices, originalDeviceName);
             if (QTest::currentTestFailed())
                 return;
+            QCOMPARE(AudioSettings::deviceName(), originalDeviceName);
         }
-        QCOMPARE(devices->currentData().toString(), originalDeviceName);
+        QCOMPARE(devices->currentData().toString(), AudioSettings::deviceName());
         AppOptions recovered;
         QCOMPARE(recovered.audio()->obj.value(QStringLiteral("driverName")).toString(),
                  originalDriverName);
         QCOMPARE(recovered.audio()->obj.value(QStringLiteral("deviceName")).toString(),
-                 originalDeviceName);
-        // Use the default device's two aliases without switching to another physical output.
-        const auto defaultDevice = deviceContext->driver()->defaultDevice();
-        if (!defaultDevice.isEmpty() &&
-            (originalDeviceName.isEmpty() || originalDeviceName == defaultDevice)) {
-            const auto selectedName = originalDeviceName.isEmpty() ? defaultDevice : QString{};
-            select(devices, selectedName);
-            if (QTest::currentTestFailed())
-                return;
-            QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
-            QCOMPARE(deviceContext->device()->name(), selectedName);
-        }
+                 AudioSettings::deviceName());
         const auto sizes = deviceContext->device()->availableBufferSizes();
         const auto alternative = std::find_if(sizes.cbegin(), sizes.cend(), [&](qint64 size) {
             return size > 0 && size <= 8192 && size != originalBufferSize;
@@ -345,6 +336,34 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
              originalBufferSize);
     QCOMPARE(persisted.audio()->obj.value(QStringLiteral("adoptedSampleRate")).toDouble(),
              originalSampleRate);
+    // An empty device name selects the driver's default endpoint and stays empty when persisted,
+    // so a later startup follows the system default instead of pinning the endpoint.
+    const auto defaultDeviceName = deviceContext->driver()->defaultDevice();
+    if (!defaultDeviceName.isEmpty()) {
+        const auto defaultApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName, .deviceName = QString{}});
+        QVERIFY2(defaultApplied,
+                 qPrintable(defaultApplied ? QString{} : defaultApplied.getError().message));
+        QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
+        QCOMPARE(deviceContext->device()->name(), defaultDeviceName);
+        AppOptions persistedDefault;
+        QCOMPARE(persistedDefault.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+                 QString{});
+        const auto driverOnlyApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName});
+        QVERIFY2(driverOnlyApplied,
+                 qPrintable(driverOnlyApplied ? QString{} : driverOnlyApplied.getError().message));
+        AppOptions persistedDriverOnly;
+        QCOMPARE(persistedDriverOnly.audio()->obj.value(QStringLiteral("deviceName")).toString(),
+                 QString{});
+        const auto concreteApplied = runtime.settings().updateAudioDevice(
+            {.source = Automation::InvocationSource::PublicJsonRpc},
+            {.driverName = originalDriverName, .deviceName = originalConfiguredDeviceName});
+        QVERIFY2(concreteApplied,
+                 qPrintable(concreteApplied ? QString{} : concreteApplied.getError().message));
+    }
     QCOMPARE(runtime.documentVersion(), beforeSettings);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
     QCOMPARE(historyManager->nextUndoEntry(), settingsUndo);
@@ -430,55 +449,6 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     }
 }
 
-void NativeDesktopTests::audioDriverStartupCanBeCanceled_data() {
-    QTest::addColumn<bool>("deliverStartup");
-    QTest::addColumn<bool>("destroyDriver");
-    QTest::newRow("finalize-before-startup") << false << false;
-    QTest::newRow("destroy-before-startup") << false << true;
-    QTest::newRow("finalize-during-startup") << true << false;
-}
-
-void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
-    QFETCH(bool, deliverStartup);
-    QFETCH(bool, destroyDriver);
-    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
-        const auto *driver = AudioSystem::outputSystem()->outputContext()->driver();
-        if (!driver)
-            QSKIP("No audio output backend is available");
-        if (driver->findChildren<QThread *>().isEmpty())
-            QSKIP("The selected audio backend has no asynchronous startup thread");
-        runIsolatedDesktopCase(driver->name());
-        return;
-    }
-    std::unique_ptr<talcs::AudioDriverManager> drivers(
-        talcs::AudioDriverManager::createBuiltInDriverManager());
-    auto *driver = drivers->driver(qEnvironmentVariable("DSEL_TEST_AUDIO_DRIVER"));
-    QVERIFY2(driver, "The selected audio backend is unavailable in the child process");
-    QVERIFY(drivers->removeDriver(driver));
-    std::unique_ptr<talcs::AudioDriver> backend(driver);
-    // Unselected SDL backends must be disposed before the tested backend owns SDL's global state.
-    drivers.reset();
-    // Driver startup needs its production backend, without application or inference startup.
-    QVERIFY2(driver->initialize(), qPrintable(driver->errorString()));
-    QVERIFY(driver->isInitialized());
-    QVERIFY2(!driver->findChildren<QThread *>().isEmpty(),
-             "The selected audio backend did not create its startup thread");
-    if (deliverStartup)
-        QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
-    if (destroyDriver) {
-        QPointer<talcs::AudioDriver> observed(driver);
-        backend.reset();
-        QVERIFY(observed.isNull());
-        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
-    } else {
-        driver->finalize();
-        QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
-        QVERIFY(!driver->isInitialized());
-        for (auto *thread : driver->findChildren<QThread *>())
-            QVERIFY(!thread->isRunning());
-    }
-}
-
 void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
     const auto inputName = qEnvironmentVariable("DSEL_TEST_MIDI_INPUT");
     const auto outputName = qEnvironmentVariable("DSEL_TEST_MIDI_OUTPUT");
@@ -542,7 +512,7 @@ void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
         bool nonzero = false;
         for (int channel = 0; channel < buffer.channelCount(); ++channel) {
             for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample) {
-                const auto value = buffer.constSampleAt(channel, sample);
+                const auto value = buffer.sample(channel, sample);
                 QVERIFY(std::isfinite(value));
                 nonzero |= value != 0.0f;
             }
@@ -554,7 +524,7 @@ void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
             QCOMPARE(integrator->read(&buffer), qint64{256});
         for (int channel = 0; channel < buffer.channelCount(); ++channel)
             for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample)
-                QCOMPARE(buffer.constSampleAt(channel, sample), 0.0f);
+                QCOMPARE(buffer.sample(channel, sample), 0.0f);
     } catch (const std::exception &error) {
         QFAIL(error.what());
     }

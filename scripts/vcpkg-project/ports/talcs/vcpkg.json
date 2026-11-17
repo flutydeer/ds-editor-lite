@@ -1,10 +1,9 @@
 {
   "name": "talcs",
-  "version": "0.1.0",
-  "port-version": 5,
+  "version": "0.0.1.1",
   "description": "A high-level Qt audio library",
   "homepage": "https://talcs.sjimo.dev/",
-  "license": " LGPL-3.0-or-later",
+  "license": "LGPL-3.0-or-later",
   "dependencies": [
     {
       "name": "vcpkg-cmake",
@@ -24,27 +23,35 @@
     "device": {
       "description": "talcs::Device"
     },
-    "device-sdl": {
-      "description": "talcs::Device with SDL support",
-      "dependencies": [
-        {
-          "name": "sdl2",
-          "default-features": false
-        }
-      ]
-    },
-    "device-asio": {
-      "description": "talcs::Device with ASIO support",
+    "asio": {
+      "description": "talcs::Asio",
       "supports": "windows",
       "dependencies": [
         "asiosdk"
       ]
     },
+    "alsa": {
+      "description": "talcs::Alsa",
+      "supports": "linux"
+    },
+    "pulseaudio": {
+      "description": "talcs::PulseAudio",
+      "supports": "linux"
+    },
+    "pipewire": {
+      "description": "talcs::PipeWire",
+      "supports": "linux"
+    },
+    "jack": {
+      "description": "talcs::Jack",
+      "supports": "linux"
+    },
     "format": {
       "description": "talcs::Format",
       "dependencies": [
         "libsndfile",
-        "wavpack"
+        "wavpack",
+        "r8brain-free-src"
       ]
     },
     "midi": {
@@ -70,5 +77,9 @@
       "description": "talcs::Widgets"
     }
   },
-  "default-features": ["device", "device-sdl", "format", "midi"]
+  "default-features": [
+    "device",
+    "format",
+    "midi"
+  ]
 }

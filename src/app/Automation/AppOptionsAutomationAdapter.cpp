@@ -699,6 +699,7 @@ namespace Automation {
                     result.append(std::move(driver));
                     continue;
                 }
+                driver.displayName = candidateDriver->displayName();
                 if (!candidateDriver->defaultDevice().isEmpty()) {
                     driver.devices.append({
                         .id = {},
@@ -889,6 +890,13 @@ namespace Automation {
             };
         }
 
+        QString resolveAudioDeviceName(talcs::OutputContext *context, const QString &deviceName) {
+            if (!deviceName.isEmpty())
+                return deviceName;
+            const auto *driver = context->driver();
+            return driver ? driver->defaultDevice() : QString{};
+        }
+
         bool applyAudioRuntimeState(OutputSystem *output, const AudioRuntimeState &state) {
             if (!output || !output->outputContext() || !output->outputContext()->controlMixer())
                 return false;
@@ -904,7 +912,9 @@ namespace Automation {
                 return false;
             }
             const auto deviceName = context->device() ? context->device()->name() : QString{};
-            if (deviceName != state.deviceName && !context->setDevice(state.deviceName)) {
+            const auto targetDeviceName = resolveAudioDeviceName(context, state.deviceName);
+            if (!targetDeviceName.isEmpty() && deviceName != targetDeviceName &&
+                !context->setDevice(targetDeviceName)) {
                 return false;
             }
             if (context->adoptedBufferSize() != state.bufferSize &&
@@ -943,9 +953,12 @@ namespace Automation {
                 (!context->driver() || context->driver()->name() != value.driverName)) {
                 applied = context->setDriver(value.driverName);
             }
-            if (applied && patch.deviceName &&
-                (!context->device() || context->device()->name() != value.deviceName)) {
-                applied = context->setDevice(value.deviceName);
+            if (applied && patch.deviceName) {
+                const auto targetDeviceName = resolveAudioDeviceName(context, value.deviceName);
+                if (!targetDeviceName.isEmpty() &&
+                    (!context->device() || context->device()->name() != targetDeviceName)) {
+                    applied = context->setDevice(targetDeviceName);
+                }
             }
             if (applied && patch.bufferSize &&
                 context->adoptedBufferSize() != value.adoptedBufferSize) {
@@ -973,10 +986,13 @@ namespace Automation {
 
             auto persistedValue = value;
             const auto effective = captureAudioRuntimeState(output);
+            // An empty device name selects the driver's default device at startup, so it is
+            // persisted verbatim instead of the endpoint it resolves to now.
+            const auto followDefaultDevice = value.deviceName.isEmpty();
             const auto deviceSelectionChanged = patch.driverName || patch.deviceName;
             if (deviceSelectionChanged) {
                 persistedValue.driverName = effective.driverName;
-                persistedValue.deviceName = effective.deviceName;
+                persistedValue.deviceName = followDefaultDevice ? QString{} : effective.deviceName;
                 persistedValue.adoptedBufferSize = effective.bufferSize;
                 persistedValue.adoptedSampleRate = effective.sampleRate;
             } else {

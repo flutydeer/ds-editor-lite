@@ -1,4 +1,5 @@
 diff --git a/src/core/source/TransportAudioSource.cpp b/src/core/source/TransportAudioSource.cpp
+index 514565d..e6834fd 100644
 --- a/src/core/source/TransportAudioSource.cpp
 +++ b/src/core/source/TransportAudioSource.cpp
 @@ -85,9 +85,9 @@ namespace talcs {
