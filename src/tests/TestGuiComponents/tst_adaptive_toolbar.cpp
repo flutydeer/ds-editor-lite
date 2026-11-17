@@ -857,3 +857,36 @@ void GuiComponentTests::adaptiveToolbarPopupUsesTheOriginalCombo() {
     settleLayout();
     QVERIFY(!popup->isVisible());
 }
+
+void GuiComponentTests::adaptiveToolbarSpacingChangeWhileLayoutPending() {
+    // A spacing change that arrives while a layout request is already queued must not be
+    // swallowed by an arrangement applied from another LayoutRequest delivery.
+    QWidget root;
+    root.resize(640, 120);
+    AdaptiveToolBar toolbar(&root);
+    toolbar.move(12, 12);
+    toolbar.setItemSpacing(1);
+    toolbar.setGroupSpacing(18);
+    auto *first = new NaturalWidget(60);
+    auto *second = new NaturalWidget(60);
+    toolbar.addWidget(first, {0, 0, 0});
+    toolbar.addWidget(second, {1, 0, 1});
+    toolbar.resize(400, 36);
+    QVERIFY(showTestWindow(root));
+    QVERIFY(!toolbar.isWidgetOverflowed(first));
+    QVERIFY(!toolbar.isWidgetOverflowed(second));
+    const auto groupGap = [&] {
+        const QRect firstRect(first->mapTo(&toolbar, QPoint()), first->size());
+        const QRect secondRect(second->mapTo(&toolbar, QPoint()), second->size());
+        return secondRect.left() - firstRect.right() - 1;
+    };
+    QCOMPARE(groupGap(), 18);
+
+    toolbar.setGroupSpacing(30);
+    // Deliver the LayoutRequest posted by the spacing change without running its timer.
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+    QCOMPARE(groupGap(), 30);
+    toolbar.setGroupSpacing(10);
+    settleLayout();
+    QCOMPARE(groupGap(), 10);
+}
