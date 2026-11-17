@@ -10,6 +10,7 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/MidiInputNoteMonitor.h"
+#include "Modules/Audio/utils/MidiPortList.h"
 #include "Modules/Audio/utils/SettingPagesSynthHelper.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Options/Pages/AudioPage.h"
@@ -23,10 +24,13 @@
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
+#include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/MixerAudioSource.h>
+#include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDriverManager.h>
+#include <TalcsMidi/MidiInputEvent.h>
 #include <TalcsMidi/MidiMessage.h>
 #include <TalcsMidi/MidiMessageListener.h>
 #include <TalcsMidi/MidiNoteSynthesizer.h>
@@ -59,6 +63,16 @@ namespace {
         bool on;
         bool operator==(const PreviewNoteEvent &) const = default;
     };
+
+    bool isSilent(const talcs::AudioBuffer &buffer) {
+        for (int channel = 0; channel < buffer.channelCount(); ++channel) {
+            for (qint64 sample = 0; sample < buffer.sampleCount(); ++sample) {
+                if (buffer.sample(channel, sample) != 0.0f)
+                    return false;
+            }
+        }
+        return true;
+    }
 
     /// Collects the notes the settings page's live preview chain receives. The
     /// chain is page-local, so every message comes from the keyboard under test.
@@ -226,6 +240,29 @@ namespace {
         dismiss.stop();
         QVERIFY(warned);
     }
+
+    /// A MIDI system whose port enumeration the test drives.
+    class PortPollingSystem final : public MidiSystem {
+    public:
+        using MidiSystem::MidiSystem;
+
+        /// Makes the polls fail the way a backend error does.
+        void failPolls(bool fail) {
+            m_failPolls = fail;
+        }
+
+        QStringList polledNames;
+
+    protected:
+        std::optional<QStringList> enumeratePorts() override {
+            if (m_failPolls)
+                return std::nullopt;
+            return polledNames;
+        }
+
+    private:
+        bool m_failPolls = false;
+    };
 }
 
 void ApplicationGuiTests::audioDeviceChoicesApplyThroughThePage_data() {
@@ -757,4 +794,147 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
     QVERIFY(!AudioSystem::outputSystem()->isReady());
+}
+
+void ApplicationGuiTests::midiAutoPickFallsBackToAnotherPort() {
+    PortPollingSystem system;
+    // Neither port can be opened: the names do not match any real device, and
+    // a system without MIDI hardware cannot open them at all.
+    system.polledNames = {QStringLiteral("Missing Port A"), QStringLiteral("Missing Port B")};
+    QSignalSpy deviceChanged(&system, &MidiSystem::deviceChanged);
+    system.refreshDevices();
+    // Every port is tried, so a busy first port does not leave MIDI dead while
+    // another device would have worked.
+    QCOMPARE(deviceChanged.count(), 2);
+    QVERIFY(system.deviceId().isEmpty());
+    QVERIFY(!system.isDeviceReady());
+}
+
+void ApplicationGuiTests::midiPollFailureKeepsTheKnownPorts() {
+    PortPollingSystem system;
+    QSignalSpy devicesChanged(&system, &MidiSystem::devicesChanged);
+    system.polledNames = {QStringLiteral("Unavailable Port")};
+    system.refreshDevices();
+    QCOMPARE(system.ports().ids().size(), 1);
+    QCOMPARE(devicesChanged.count(), 1);
+
+    // A failed poll reports nothing, which is not the same as reporting that
+    // no port exists: the device a performer plays must stay open.
+    system.failPolls(true);
+    system.refreshDevices();
+    QCOMPARE(system.ports().ids().size(), 1);
+    QCOMPARE(devicesChanged.count(), 1);
+
+    // The next poll that works publishes what it found.
+    system.failPolls(false);
+    system.polledNames = {QStringLiteral("Another Port")};
+    system.refreshDevices();
+    QCOMPARE(system.ports().ids().size(), 1);
+    QCOMPARE(MidiPortList::nameOf(system.ports().ids().at(0)), QStringLiteral("Another Port"));
+    QCOMPARE(devicesChanged.count(), 2);
+}
+
+void ApplicationGuiTests::midiPortIdentitySurvivesReenumeration() {
+    const MidiPortList twoPorts({QStringLiteral("Port A"), QStringLiteral("Port B")});
+    QCOMPARE(twoPorts.names(), (QStringList{QStringLiteral("Port A"), QStringLiteral("Port B")}));
+    QCOMPARE(twoPorts.ids().size(), 2);
+    QVERIFY(twoPorts.ids().at(0) != twoPorts.ids().at(1));
+    QCOMPARE(MidiPortList::nameOf(twoPorts.ids().at(0)), QStringLiteral("Port A"));
+    QCOMPARE(MidiPortList::nameOf(twoPorts.ids().at(1)), QStringLiteral("Port B"));
+    // Enumerating the same ports again yields the same identities.
+    QCOMPARE(MidiPortList({QStringLiteral("Port A"), QStringLiteral("Port B")}).ids(),
+             twoPorts.ids());
+
+    // A port keeps its identity when the enumeration order changes, so a
+    // reordered port list must not look like a lost device.
+    const auto idOfB = twoPorts.ids().at(1);
+    const MidiPortList reordered({QStringLiteral("Port B"), QStringLiteral("Port A")});
+    QVERIFY(reordered.contains(idOfB));
+    QCOMPARE(reordered.deviceAction(idOfB, true), MidiPortList::DeviceAction::None);
+    QCOMPARE(reordered.deviceAction(idOfB, false), MidiPortList::DeviceAction::Open);
+
+    // Losing the port of an open device closes it, which is what stops the
+    // notes it started.
+    const MidiPortList withoutB({QStringLiteral("Port A")});
+    QVERIFY(!withoutB.contains(idOfB));
+    QCOMPARE(withoutB.deviceAction(idOfB, true), MidiPortList::DeviceAction::Close);
+    QCOMPARE(withoutB.deviceAction(idOfB, false), MidiPortList::DeviceAction::None);
+    // No device chosen yet: the caller follows the port list instead.
+    QCOMPARE(withoutB.deviceAction(QString(), false), MidiPortList::DeviceAction::None);
+    QCOMPARE(MidiPortList().deviceAction(QString(), false), MidiPortList::DeviceAction::None);
+
+    // Ports sharing a name stay apart through their occurrence.
+    const MidiPortList duplicates({QStringLiteral("Port A"), QStringLiteral("Port A")});
+    QCOMPARE(duplicates.ids().size(), 2);
+    QVERIFY(duplicates.ids().at(0) != duplicates.ids().at(1));
+    QCOMPARE(MidiPortList::nameOf(duplicates.ids().at(1)), QStringLiteral("Port A"));
+
+    // Removing either duplicate leaves the survivor holding an id of the pair,
+    // so the open device no longer provably answers to that id and is closed.
+    const MidiPortList oneDuplicate({QStringLiteral("Port A")});
+    QVERIFY(oneDuplicate.contains(duplicates.ids().at(0)));
+    QCOMPARE(oneDuplicate.deviceAction(duplicates.ids().at(0), true, duplicates),
+             MidiPortList::DeviceAction::Close);
+    QCOMPARE(oneDuplicate.deviceAction(duplicates.ids().at(1), true, duplicates),
+             MidiPortList::DeviceAction::Close);
+    // Plugging in another duplicate leaves the earlier occurrences alone.
+    QCOMPARE(duplicates.deviceAction(oneDuplicate.ids().at(0), true, oneDuplicate),
+             MidiPortList::DeviceAction::None);
+    // A name that occurs once hands nothing over either.
+    QCOMPARE(withoutB.deviceAction(twoPorts.ids().at(0), true, twoPorts),
+             MidiPortList::DeviceAction::None);
+
+    // A port name that looks like the identity encoding stays unambiguous.
+    const MidiPortList quoted({QStringLiteral("[\"Port A\",0]")});
+    QCOMPARE(MidiPortList::nameOf(quoted.ids().at(0)), QStringLiteral("[\"Port A\",0]"));
+    QCOMPARE(quoted.deviceAction(twoPorts.ids().at(0), false), MidiPortList::DeviceAction::None);
+}
+
+void ApplicationGuiTests::midiSourceStopSilencesTheNotesOfThatSource() {
+    constexpr qint64 blockSize = 256;
+    constexpr double sampleRate = 48000.0;
+    talcs::MidiNoteSynthesizer synthesizer;
+    auto *noteSynthesizer = synthesizer.noteSynthesizer();
+    // A long release tells a hard sound-off apart from a released note.
+    auto config = noteSynthesizer->config();
+    config.setAttackTime(blockSize / 4);
+    config.setDecayTime(static_cast<qint64>(sampleRate));
+    config.setDecayRatio(0.5);
+    config.setReleaseTime(static_cast<qint64>(sampleRate));
+    noteSynthesizer->setConfig(config);
+
+    talcs::MidiMessageIntegrator integrator;
+    QVERIFY(integrator.setStream(&synthesizer));
+    QVERIFY(integrator.open(blockSize, sampleRate));
+
+    talcs::AudioBuffer buffer(2, blockSize);
+    const auto device = talcs::MidiInputEvent::createSourceId();
+    const auto otherDevice = talcs::MidiInputEvent::createSourceId();
+    QVERIFY(device != otherDevice);
+
+    integrator.eventCallback(
+        {talcs::MidiMessage::noteOn(1, 69, 1.0f), device, talcs::MidiInputEvent::Message});
+    bool sounding = false;
+    for (auto block = 0; block < 8 && !sounding; ++block) {
+        QCOMPARE(integrator.read(&buffer), blockSize);
+        sounding = !isSilent(buffer);
+    }
+    QVERIFY(sounding);
+
+    // The loss of another source leaves this device's notes alone.
+    integrator.eventCallback(
+        {talcs::MidiMessage(), otherDevice, talcs::MidiInputEvent::SourceStopped});
+    for (auto block = 0; block < 2; ++block) {
+        QCOMPARE(integrator.read(&buffer), blockSize);
+        QVERIFY(!isSilent(buffer));
+    }
+
+    // The loss of the source silences its note at once: no release tail.
+    integrator.eventCallback({talcs::MidiMessage(), device, talcs::MidiInputEvent::SourceStopped});
+    bool stopped = false;
+    for (auto block = 0; block < 2 && !stopped; ++block) {
+        QCOMPARE(integrator.read(&buffer), blockSize);
+        stopped = isSilent(buffer);
+    }
+    QVERIFY(stopped);
 }

@@ -290,7 +290,7 @@ namespace Automation {
                 .fileBufferingReadAheadSize = AudioSettings::fileBufferingReadAheadSize(),
                 .hotPlugNotificationMode = AudioSettings::hotPlugNotificationMode(),
                 .playheadBehavior = AudioSettings::playheadBehavior(),
-                .midiDeviceIndex = AudioSettings::midiDeviceIndex(),
+                .midiDeviceId = AudioSettings::midiDeviceId(),
                 .midiSynthesizerAmplitude = AudioSettings::midiSynthesizerAmplitude(),
                 .midiSynthesizerAttackMilliseconds = AudioSettings::midiSynthesizerAttackMsec(),
                 .midiSynthesizerDecayMilliseconds = AudioSettings::midiSynthesizerDecayMsec(),
@@ -365,7 +365,7 @@ namespace Automation {
             object[QStringLiteral("fileBufferingReadAheadSize")] = value.fileBufferingReadAheadSize;
             object[QStringLiteral("hotPlugNotificationMode")] = value.hotPlugNotificationMode;
             object[QStringLiteral("playheadBehavior")] = value.playheadBehavior;
-            object[QStringLiteral("midiDeviceIndex")] = value.midiDeviceIndex;
+            object[QStringLiteral("midiDeviceId")] = value.midiDeviceId;
             object[QStringLiteral("midiSynthesizerAmplitude")] = value.midiSynthesizerAmplitude;
             object[QStringLiteral("midiSynthesizerAttackMsec")] =
                 value.midiSynthesizerAttackMilliseconds;

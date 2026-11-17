@@ -198,7 +198,7 @@ namespace Automation {
         qint64 fileBufferingReadAheadSize = 0;
         int hotPlugNotificationMode = 0;
         int playheadBehavior = 0;
-        int midiDeviceIndex = -1;
+        QString midiDeviceId;
         double midiSynthesizerAmplitude = -9.0;
         int midiSynthesizerAttackMilliseconds = 10;
         int midiSynthesizerDecayMilliseconds = 1000;

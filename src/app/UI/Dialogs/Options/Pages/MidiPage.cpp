@@ -4,6 +4,7 @@
 
 #include <QDebug>
 #include <QBoxLayout>
+#include <QHash>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QEvent>
@@ -14,7 +15,6 @@
 #include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/Decibels.h>
-#include <TalcsMidi/MidiInputDevice.h>
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 #include "Utils/Decibellinearizer.h"
@@ -33,6 +33,7 @@
 #include <Modules/Audio/subsystem/MidiSystem.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/utils/MidiInputNoteMonitor.h>
+#include <Modules/Audio/utils/MidiPortList.h>
 #include <Modules/Audio/utils/SettingPagesSynthHelper.h>
 
 QWidget *MidiPage::createContentWidget() {
@@ -195,34 +196,19 @@ QWidget *MidiPage::createContentWidget() {
 
     auto ms = AudioSystem::midiSystem();
 
-    const auto deviceList = MidiSystem::availableDevices();
-    if (!ms->device()) {
-        m_deviceComboBox->addItem(tr("(Not working)"), -1);
-    }
-    for (int i = 0; i < deviceList.size(); i++) {
-        m_deviceComboBox->addItem(deviceList.at(i), i);
-        if (ms->device() && i == ms->device()->deviceIndex())
-            m_deviceComboBox->setCurrentIndex(i);
-    }
     connect(m_deviceComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
-            [ms, this](const int index) {
-                const auto i = m_deviceComboBox->itemData(index).toInt();
-                if (i == -1)
+            [this](const int index) {
+                // The placeholder entry for a missing device carries no port id.
+                if (m_deviceComboBox->itemData(index).isNull())
                     return;
-                if (!ms->setDevice(i)) {
+                const auto deviceId = m_deviceComboBox->itemData(index).toString();
+                if (!AudioSystem::midiSystem()->setDeviceId(deviceId)) {
                     QMessageBox::critical(
                         this, {},
                         tr("Cannot open MIDI device %1").arg(m_deviceComboBox->itemText(index)));
-                    QSignalBlocker o(m_deviceComboBox);
-                    m_deviceComboBox->setCurrentIndex(m_deviceComboBox->findData(
-                        ms->device() ? ms->device()->deviceIndex() : -1));
-                } else {
-                    QSignalBlocker o(m_deviceComboBox);
-                    if (const auto notWorkingIndex = m_deviceComboBox->findData(-1);
-                        notWorkingIndex != -1)
-                        m_deviceComboBox->removeItem(notWorkingIndex);
                 }
             });
+    populateDevices();
 
     m_synthHelper->m_cachedGenerator = ms->generator();
     m_synthHelper->m_cachedAmplitude = ms->amplitudeDecibel();
@@ -273,12 +259,48 @@ QWidget *MidiPage::createContentWidget() {
 }
 
 MidiPage::MidiPage(QWidget *parent) : IOptionPage(parent) {
-    // One monitor per page: the content widget (and the keyboard with it) is
-    // rebuilt on a language change, while the monitor has to keep watching the
-    // MIDI input for the new one.
+    // One monitor per page: createContentWidget() rebuilds the keyboard that
+    // shows the held keys, while the monitor keeps watching the MIDI input.
     m_noteMonitor = new MidiInputNoteMonitor(this);
-    m_noteMonitor->attachTo(AudioSystem::midiSystem()->integrator());
+    const auto ms = AudioSystem::midiSystem();
+    m_noteMonitor->attachTo(ms->integrator());
+    // Ports appear and disappear while the page is open, and the device the
+    // system keeps open can be lost at any time.
+    connect(ms, &MidiSystem::devicesChanged, this, &MidiPage::populateDevices);
+    connect(ms, &MidiSystem::deviceChanged, this, &MidiPage::populateDevices);
     initializePage();
+}
+
+void MidiPage::populateDevices() {
+    if (!m_deviceComboBox)
+        return;
+    const auto ms = AudioSystem::midiSystem();
+    const QSignalBlocker blocker(m_deviceComboBox);
+    m_deviceComboBox->clear();
+
+    const auto names = ms->ports().names();
+    const auto ids = ms->ports().ids();
+    QHash<QString, int> occurrences;
+    for (int i = 0; i < names.size(); i++) {
+        const auto &name = names.at(i);
+        const auto occurrence = occurrences[name]++;
+        // Ports of the same name need their occurrence to stay distinguishable.
+        m_deviceComboBox->addItem(
+            names.count(name) > 1 ? tr("%1 (Port %2)").arg(name).arg(occurrence + 1) : name,
+            ids.at(i));
+    }
+
+    const auto deviceIndex = ms->isDeviceReady() ? m_deviceComboBox->findData(ms->deviceId()) : -1;
+    if (deviceIndex < 0) {
+        // Nothing works: name the device that is expected but unavailable.
+        const auto missingName = MidiPortList::nameOf(ms->deviceId());
+        m_deviceComboBox->addItem(missingName.isEmpty() ? tr("(Not working)")
+                                                        : tr("%1 (Not working)").arg(missingName));
+        m_deviceComboBox->setCurrentIndex(m_deviceComboBox->count() - 1);
+    } else {
+        m_deviceComboBox->setCurrentIndex(deviceIndex);
+    }
+    m_deviceComboBox->setToolTip(ms->deviceErrorString());
 }
 
 MidiPage::~MidiPage() {
@@ -305,8 +327,8 @@ void MidiPage::changeEvent(QEvent *event) {
 void MidiPage::retranslateUi() {
     m_inputCard->setTitle(tr("MIDI Input"));
     m_deviceItem->setTitle(tr("&Device"));
-    if (const auto notWorkingIndex = m_deviceComboBox->findData(-1); notWorkingIndex >= 0)
-        m_deviceComboBox->setItemText(notWorkingIndex, tr("(Not working)"));
+    // The device labels carry translated parts, so rebuild them.
+    populateDevices();
 
     m_synthesizerCard->setTitle(tr("Synthesizer"));
     m_generatorItem->setTitle(tr("&Generator"));

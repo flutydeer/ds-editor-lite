@@ -27,7 +27,7 @@ class AudioSettings {
                                             int)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(playheadBehavior, setPlayheadBehavior, int)
 
-    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiDeviceIndex, setMidiDeviceIndex, int)
+    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiDeviceId, setMidiDeviceId, QString)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiSynthesizerAmplitude, setMidiSynthesizerAmplitude,
                                             double)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiSynthesizerAttackMsec, setMidiSynthesizerAttackMsec,
