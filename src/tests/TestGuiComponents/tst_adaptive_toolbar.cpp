@@ -890,3 +890,32 @@ void GuiComponentTests::adaptiveToolbarSpacingChangeWhileLayoutPending() {
     settleLayout();
     QCOMPARE(groupGap(), 10);
 }
+void GuiComponentTests::adaptiveToolbarDirectionChangeWhileLayoutPending() {
+    // The arrangement is mirrored by QStyle::visualRect(), so a direction change that
+    // arrives while a layout request is already queued has to invalidate it as well.
+    QWidget root;
+    root.resize(640, 120);
+    AdaptiveToolBar toolbar(&root);
+    toolbar.move(12, 12);
+    toolbar.setItemSpacing(1);
+    toolbar.setGroupSpacing(18);
+    auto *first = new NaturalWidget(60);
+    auto *second = new NaturalWidget(60);
+    toolbar.addWidget(first, {0, 0, 0});
+    toolbar.addWidget(second, {1, 0, 1});
+    toolbar.resize(400, 36);
+    QVERIFY(showTestWindow(root));
+    QVERIFY(!toolbar.isWidgetOverflowed(first));
+    QVERIFY(!toolbar.isWidgetOverflowed(second));
+    const auto firstX = [&] { return first->mapTo(&toolbar, QPoint()).x(); };
+    const auto leftToRightX = firstX();
+    QVERIFY(leftToRightX < toolbar.width() / 2);
+
+    toolbar.setLayoutDirection(Qt::RightToLeft);
+    // Deliver the LayoutRequest posted by the direction change without running its timer.
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+    QVERIFY(firstX() > toolbar.width() / 2);
+    toolbar.setLayoutDirection(Qt::LeftToRight);
+    settleLayout();
+    QCOMPARE(firstX(), leftToRightX);
+}

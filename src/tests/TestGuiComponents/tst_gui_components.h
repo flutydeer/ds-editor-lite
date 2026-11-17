@@ -85,6 +85,7 @@ private slots:
     void adaptiveToolbarOversizedPopupWrapsWithoutSqueezing();
     void adaptiveToolbarTeardownCancelsPendingLayout();
     void adaptiveToolbarSpacingChangeWhileLayoutPending();
+    void adaptiveToolbarDirectionChangeWhileLayoutPending();
     void inlineLabelMigratesTheOverlayHost_data();
     void inlineLabelMigratesTheOverlayHost();
     void inlineLabelSameHostKeepsEditingAndHostChangeCommitsOnce_data();

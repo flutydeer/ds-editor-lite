@@ -314,14 +314,16 @@ public:
 
     // Inputs of the last applied arrangement. Measuring an entry calls sizeHint() on the
     // control, and the layout machinery delivers LayoutRequest repeatedly while a group
-    // host settles, so apply only when these inputs actually changed. The spacings are
-    // part of the inputs because a spacing setter can run while a request is pending.
+    // host settles, so apply only when these inputs actually changed. Spacing and layout
+    // direction are part of the inputs because their setters can run while a request is
+    // pending, and both change the resulting geometry.
     struct Arrangement {
         QRect rect;
         QList<AdaptiveToolBarLayoutDetails::Entry> entries;
         QMap<int, QSize> moreSizes;
         int itemSpacing = 0;
         int groupSpacing = 0;
+        Qt::LayoutDirection layoutDirection = Qt::LeftToRight;
 
         bool operator==(const Arrangement &) const = default;
     };
@@ -439,7 +441,8 @@ public:
         const auto moreSizes = this->moreSizes();
         // Re-entering with the same inputs would only re-apply the same geometry and
         // re-arm the same child layouts, which is what keeps LayoutRequest arriving.
-        if (const Arrangement candidate{rect, metrics, moreSizes, itemSpacing, groupSpacing};
+        if (const Arrangement candidate{rect, metrics, moreSizes, itemSpacing, groupSpacing,
+                                        q->layoutDirection()};
             appliedArrangement && *appliedArrangement == candidate) {
             applying = false;
             return;
