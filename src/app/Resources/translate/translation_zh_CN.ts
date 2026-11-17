@@ -760,12 +760,12 @@
 <context>
     <name>Audio::Internal::SettingPageSynthHelper</name>
     <message>
-        <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="111"/>
+        <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="113"/>
         <source>Why did you play ...?!</source>
         <translation>你为什么播放了……？！</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="113"/>
+        <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="115"/>
         <source>I&apos;ll put an end to it.</source>
         <translation>我来终结它。</translation>
     </message>
@@ -795,13 +795,13 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="349"/>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="762"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="350"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="767"/>
         <source>Inference failed</source>
         <translation>推理失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="427"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="428"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -822,143 +822,143 @@
 <context>
     <name>AudioPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="75"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="439"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="74"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="449"/>
         <source>&amp;Test</source>
         <translation>测试(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="77"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="440"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="76"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="450"/>
         <source>Control &amp;Panel</source>
         <translation>控制面板(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="88"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="445"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="87"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="455"/>
         <source>Notify when any device added or removed</source>
         <translation>添加或删除任何设备时发出通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="90"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="447"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="89"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="457"/>
         <source>Notify when current device removed</source>
         <translation>当前设备移除时通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="92"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="449"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="91"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="459"/>
         <source>Do not notify</source>
         <translation>不通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="122"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="431"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="441"/>
         <source>Audio Driver and Device</source>
         <translation>音频驱动和设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="123"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="432"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="122"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="442"/>
         <source>Audio d&amp;river</source>
         <translation>音频驱动(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="125"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="433"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="124"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="443"/>
         <source>Audio &amp;device</source>
         <translation>音频设备(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="126"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="434"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="125"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="444"/>
         <source>&amp;Buffer size</source>
         <translation>缓冲区大小(&amp;B)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="127"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="435"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="126"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="445"/>
         <source>&amp;Sample rate</source>
         <translation>采样率(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="128"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="436"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="127"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="446"/>
         <source>&amp;Hot plug notification</source>
         <translation>热插拔通知(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="129"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="437"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="128"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="447"/>
         <source>Device &amp;Gain (dB)</source>
         <translation>设备增益 (dB)(&amp;G)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="132"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="438"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="131"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="448"/>
         <source>Device &amp;Pan</source>
         <translation>设备声像(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="137"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="455"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="136"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="465"/>
         <source>Return to the start position after stopped</source>
         <translation>停止后返回起始位置</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="140"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="458"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="139"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="468"/>
         <source>Keep at current position after stopped, and play from current position next time</source>
         <translation>停止后保持在当前位置，下次从当前位置播放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="143"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="461"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="142"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="471"/>
         <source>Keep at current position after stopped, but play from the start position next time</source>
         <translation>停止后保持在当前位置，但下次从起始位置播放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="146"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="481"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="145"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="491"/>
         <source>Playback</source>
         <translation>回放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="147"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="482"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="146"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="492"/>
         <source>Playhead behavior</source>
         <translation>播放头行为</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="156"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="483"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="155"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="493"/>
         <source>File Caching</source>
         <translation>文件缓存</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="157"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="484"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="156"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="494"/>
         <source>&amp;File reading buffer size (samples)</source>
         <translation>文件读取缓冲区大小（采样数）(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="170"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="169"/>
         <source>Cannot start audio playback</source>
         <translation>无法开始音频回放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="172"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="171"/>
         <source>Please check the status of the audio driver and device.</source>
         <translation>请检查音频驱动和设备的状态。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="233"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="231"/>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="253"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="305"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="309"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="468"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="476"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="477"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="304"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="308"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="478"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="486"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="487"/>
         <source>(Not working)</source>
         <translation>（不可用）</translation>
     </message>
@@ -969,13 +969,13 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="288"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="339"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="473"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="349"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="483"/>
         <source>Default device</source>
         <translation>默认设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="338"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="348"/>
         <source>Audio device %1 is not available</source>
         <translation>音频设备 %1 不可用</translation>
     </message>
@@ -4543,109 +4543,118 @@ error: %2</source>
 <context>
     <name>MidiPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="45"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="306"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="46"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="328"/>
         <source>MIDI Input</source>
         <translation>MIDI 输入</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="46"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="307"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="47"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="329"/>
         <source>&amp;Device</source>
         <translation>设备(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="51"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="326"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="52"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="348"/>
         <source>Sine wave</source>
         <translation>正弦波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="52"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="327"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="53"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="349"/>
         <source>Square wave</source>
         <translation>方波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="53"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="328"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="54"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="350"/>
         <source>Triangle Wave</source>
         <translation>三角波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="54"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="329"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="55"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="351"/>
         <source>Sawtooth wave</source>
         <translation>锯齿波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="127"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="311"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="128"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="333"/>
         <source>Synthesizer</source>
         <translation>合成器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="128"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="312"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="129"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="334"/>
         <source>&amp;Generator</source>
         <translation>生成器(&amp;G)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="130"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="313"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="131"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="335"/>
         <source>&amp;Amplitude (dB)</source>
         <translation>振幅(&amp;A)（dB）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="132"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="314"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="133"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="336"/>
         <source>A&amp;ttack (ms)</source>
         <translation>起音(&amp;t)（ms）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="133"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="315"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="134"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="337"/>
         <source>D&amp;ecay (ms)</source>
         <translation>衰减(&amp;e)（毫秒）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="135"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="316"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="136"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="338"/>
         <source>Decay rati&amp;o</source>
         <translation>衰减比(&amp;o)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="137"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="317"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="138"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="339"/>
         <source>&amp;Release (ms)</source>
         <translation>释音(&amp;R)（ms）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="138"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="318"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="139"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="340"/>
         <source>&amp;Frequency of A</source>
         <translation>A 的频率(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="140"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="319"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="141"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="341"/>
         <source>Adjust by project cent shift</source>
         <translation>按工程音分偏移调整</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="170"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="321"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="171"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="343"/>
         <source>Keyboard</source>
         <translation>键盘</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="200"/>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="309"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="289"/>
+        <source>%1 (Port %2)</source>
+        <translation>%1（端口 %2）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="297"/>
         <source>(Not working)</source>
         <translation>（不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="215"/>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="298"/>
+        <source>%1 (Not working)</source>
+        <translation>%1（不可用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="208"/>
         <source>Cannot open MIDI device %1</source>
         <translation>无法打开 MIDI 设备 %1</translation>
     </message>
@@ -4658,6 +4667,15 @@ error: %2</source>
 type: %L1</source>
         <translation>重新解析 MIDI 通道失败。
 类型：%L1</translation>
+    </message>
+</context>
+<context>
+    <name>MidiSystem</name>
+    <message>
+        <location filename="../../Modules/Audio/subsystem/MidiSystem.cpp" line="149"/>
+        <location filename="../../Modules/Audio/subsystem/MidiSystem.cpp" line="166"/>
+        <source>The MIDI input device is unavailable.</source>
+        <translation>MIDI 输入设备不可用。</translation>
     </message>
 </context>
 <context>
