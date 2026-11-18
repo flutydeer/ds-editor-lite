@@ -19,9 +19,14 @@ class TracksGraphicsScene final : public TimeGraphicsScene {
 public:
     explicit TracksGraphicsScene();
     int trackIndexAt(double sceneY) const;
+    // Geometric row under sceneY for a clip gesture: real track rows first,
+    // then the virtual append row at the track count. Anything below the
+    // append row clamps to it, so the empty area past the last row still
+    // targets the slot. Returns -1 above the first row.
+    int dragRowAt(double sceneY) const;
     int tickAt(double sceneX) const;
-    // True when sceneY falls inside the virtual append slot below the last
-    // real track. Never matches real tracks.
+    // True when sceneY falls inside the virtual append slot or the empty area
+    // below it. Never matches real tracks.
     bool isAppendSlotAt(double sceneY) const;
 
 public slots:

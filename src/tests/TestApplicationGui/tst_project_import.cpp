@@ -487,12 +487,16 @@ void ApplicationGuiTests::midiChannelSelectionRebuildsTracksBeforeImport() {
 
 void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks_data() {
     QTest::addColumn<bool>("appendTracks");
-    QTest::newRow("existing-track-and-overflow") << false;
-    QTest::newRow("append-after-existing-track") << true;
+    QTest::addColumn<bool>("belowContent");
+    QTest::newRow("existing-track-and-overflow") << false << false;
+    QTest::newRow("append-after-existing-track") << true << false;
+    // The empty area below the append row belongs to it: dropping there must not be a no-op.
+    QTest::newRow("below-the-append-slot") << true << true;
 }
 
 void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks() {
     QFETCH(bool, appendTracks);
+    QFETCH(bool, belowContent);
     QTemporaryDir directory(dataRoot.filePath(QStringLiteral("audio-drop-XXXXXX")));
     QVERIFY(directory.isValid());
     // The application fixture releases cached source handles before removing its data root.
@@ -542,10 +546,12 @@ void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks()
     const auto before = runtime.documentVersion();
     const auto original = TestSupport::projectSnapshot(*appModel);
     const auto destinationIndex = appendTracks ? 1 : 0;
+    // A whole row below the append row is still the append row.
+    const auto rowOffset = belowContent ? 1.5 : 0.5;
     constexpr int dropTick = 960;
+    const auto dropY = TracksEditorGlobal::trackHeight * (destinationIndex + rowOffset);
     const auto position =
-        canvas->mapFromScene(QPointF(canvas->sceneXForTick(dropTick),
-                                     TracksEditorGlobal::trackHeight * (destinationIndex + 0.5)));
+        canvas->mapFromScene(QPointF(canvas->sceneXForTick(dropTick), dropY));
     QVERIFY(canvas->viewport()->rect().contains(position));
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(paths[0]), QUrl::fromLocalFile(paths[1])});

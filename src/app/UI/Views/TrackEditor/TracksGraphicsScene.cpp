@@ -3,6 +3,8 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Global/AppGlobal.h"
 
+#include <algorithm>
+
 TracksGraphicsScene::TracksGraphicsScene() {
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
 }
@@ -17,11 +19,18 @@ int TracksGraphicsScene::trackIndexAt(const double sceneY) const {
     return index;
 }
 
+int TracksGraphicsScene::dragRowAt(const double sceneY) const {
+    if (sceneY < 0)
+        return -1;
+    const auto unit = sceneY / (TracksEditorGlobal::trackHeight * scaleY());
+    return std::min(static_cast<int>(unit), m_trackCount);
+}
+
 bool TracksGraphicsScene::isAppendSlotAt(const double sceneY) const {
     if (sceneY < 0)
         return false;
     const auto unit = sceneY / (TracksEditorGlobal::trackHeight * scaleY());
-    return unit >= m_trackCount && unit < m_trackCount + 1.0;
+    return unit >= m_trackCount;
 }
 
 int TracksGraphicsScene::tickAt(const double sceneX) const {

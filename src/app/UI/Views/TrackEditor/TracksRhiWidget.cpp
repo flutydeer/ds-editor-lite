@@ -725,6 +725,13 @@ void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
         }
         editorViewController->centerPianoRollAt(targetTick, targetKey);
     } else {
+        // The virtual append row is an add-track affordance of its own: a
+        // double click there appends a track instead of creating a clip.
+        if (dragRowAt(event->position()) == appModel->tracks().size()) {
+            trackController->onNewTrack();
+            event->accept();
+            return;
+        }
         const auto trackIndex = trackIndexAt(event->position());
         if (trackIndex >= 0) {
             const auto tick = tickAt(event->position());
@@ -820,7 +827,9 @@ std::optional<TrackDropSlot> TracksRhiWidget::dropSlotAt(const QPointF &viewport
         slot.trackIndex = trackIndex;
         return slot;
     }
-    if (unit >= appModel->tracks().size() && unit < appModel->tracks().size() + 1.0) {
+    // The append row plus the empty area below it: a file dropped past the
+    // last track always lands on the slot that creates a track.
+    if (unit >= appModel->tracks().size()) {
         slot.kind = TrackDropSlot::Kind::Append;
         slot.trackIndex = appModel->tracks().size();
         return slot;
@@ -1339,7 +1348,11 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     ClipSnapshot result;
     result.id = clip->id();
     result.trackIndex = displayTrack;
-    result.colorIndex = appModel->tracks().at(displayTrack)->colorIndex();
+    // A placement on the append row has no track yet, so the preview keeps the
+    // colour of the track the clip is leaving.
+    const auto colorRow =
+        displayTrack < appModel->tracks().size() ? displayTrack : trackIndex;
+    result.colorIndex = appModel->tracks().at(colorRow)->colorIndex();
     result.type = clip->clipType();
     result.contentStartTick = props.start;
     result.visibleStartTick = props.start + props.clipStart;
@@ -1510,6 +1523,15 @@ int TracksRhiWidget::trackIndexAt(const QPointF &viewportPosition) const {
     return index >= 0 && index < appModel->tracks().size() ? index : -1;
 }
 
+int TracksRhiWidget::dragRowAt(const QPointF &viewportPosition) const {
+    const auto unit = m_viewport.sceneYToUnit(m_viewport.viewportToScene(viewportPosition).y());
+    if (unit < 0.0)
+        return -1;
+    // The append row is row `size`; the empty area below it clamps here too.
+    return std::min(static_cast<int>(std::floor(unit)),
+                    static_cast<int>(appModel->tracks().size()));
+}
+
 QRectF TracksRhiWidget::titleBandViewportRect(const ClipSnapshot &clip) const {
     const auto dpr = devicePixelRatioF();
     if (dpr <= 0.0)
@@ -1596,7 +1618,8 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     QList<ClipSelectionDrag::ClipState> states;
     captureSelectionStates(states);
     ClipSelectionDrag::Session::Environment environment;
-    environment.trackCount = static_cast<int>(appModel->tracks().size());
+    // One row past the last track: dragging a clip there creates that track.
+    environment.rowCount = static_cast<int>(appModel->tracks().size()) + 1;
     environment.timeline = &appModel->timeline();
     environment.gridStepAt = [this](const int tick) { return snapStep(tick); };
     const auto pressScene = m_viewport.viewportToScene(event->position());
@@ -1617,9 +1640,11 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     if (!m_dragSession.active())
         return;
     const auto scene = m_viewport.viewportToScene(position);
-    // A pointer above or below the lanes keeps the last row it was over, so the block stops at the
-    // track range instead of jumping to the opposite end.
-    const auto trackIndex = trackIndexAt(position);
+    // A pointer above the lanes keeps the last row it was over, so the block
+    // stops at the track range instead of jumping to the opposite end. Below
+    // the last track the virtual append row is a real target: the block may
+    // enter it, and the commit creates that track.
+    const auto trackIndex = dragRowAt(position);
     if (trackIndex >= 0)
         m_dragTrackIndex = trackIndex;
     if (!m_dragSession.update(m_viewport.sceneXToTick(scene.x()), m_dragTrackIndex,

@@ -256,9 +256,11 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         return;
 
     const auto scenePos = mapToScene(viewportPos);
-    // A pointer above or below the lanes keeps the last row it was over, so the block stops at the
-    // track range instead of jumping to the opposite end.
-    const auto trackIndex = m_scene->trackIndexAt(scenePos.y());
+    // A pointer above the lanes keeps the last row it was over, so the block
+    // stops at the track range instead of jumping to the opposite end. Below
+    // the last track the virtual append row is a real target: the block may
+    // enter it, and the commit creates that track.
+    const auto trackIndex = m_scene->dragRowAt(scenePos.y());
     if (trackIndex >= 0)
         m_dragTrackIndex = trackIndex;
     if (!m_dragSession.update(tickAtSceneX(scenePos.x()), m_dragTrackIndex,
@@ -324,6 +326,13 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 
 void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     const auto scenePos = mapToScene(event->position().toPoint());
+    // The virtual append row is an add-track affordance of its own: a double
+    // click there appends a track instead of creating a clip on one.
+    if (m_scene->isAppendSlotAt(scenePos.y())) {
+        trackController->onNewTrack();
+        event->accept();
+        return;
+    }
     m_trackIndex = m_scene->trackIndexAt(scenePos.y());
     if (m_trackIndex == -1)
         return;
@@ -757,7 +766,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     m_dragTrackIndex = pointerTrackIndex;
 
     ClipSelectionDrag::Session::Environment environment;
-    environment.trackCount = static_cast<int>(appModel->tracks().size());
+    // One row past the last track: dragging a clip there creates that track.
+    environment.rowCount = static_cast<int>(appModel->tracks().size()) + 1;
     environment.timeline = &appModel->timeline();
     environment.gridStepAt = [this](const int tick) { return snapStep(false, tick); };
     m_dragSession.begin(gesture, m_dragAnchorId, states, environment,
@@ -825,10 +835,13 @@ void TracksGraphicsView::applyDragPlacements(
             continue;
         item->loadCommonProperties(placement.properties);
         applied.insert(placement.clipId);
-        if (placement.trackIndex < 0 || placement.trackIndex >= tracks.size())
+        if (placement.trackIndex < 0)
             continue;
         item->setTrackIndex(placement.trackIndex);
-        item->setColorIndex(tracks.at(placement.trackIndex)->colorIndex());
+        // The append row has no track yet, so the clip keeps the colour of the
+        // track it came from until the commit creates the target.
+        if (placement.trackIndex < tracks.size())
+            item->setColorIndex(tracks.at(placement.trackIndex)->colorIndex());
     }
     // The planner drops a clip whose target would be illegal. It still has to lose the preview a
     // previous move left on it.

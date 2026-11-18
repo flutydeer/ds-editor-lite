@@ -215,6 +215,10 @@ private:
     [[nodiscard]] QRectF titleBandViewportRect(const ClipSnapshot &clip) const;
     void beginClipTitleEdit(const ClipSnapshot &clip);
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
+    // Geometric row under the pointer for a clip gesture: real track rows
+    // first, then the virtual append row at the track count. Anything below
+    // the append row clamps to it. Returns -1 above the first row.
+    [[nodiscard]] int dragRowAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);

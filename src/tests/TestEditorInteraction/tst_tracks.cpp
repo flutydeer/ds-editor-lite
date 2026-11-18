@@ -347,9 +347,9 @@ namespace {
     }
 
     ClipSelectionDrag::Session::Environment groupEnvironment(const Timeline &timeline,
-                                                             int trackCount) {
+                                                             int rowCount) {
         ClipSelectionDrag::Session::Environment environment;
-        environment.trackCount = trackCount;
+        environment.rowCount = rowCount;
         environment.timeline = &timeline;
         environment.gridStepAt = [](int) { return 120; };
         return environment;
@@ -442,6 +442,41 @@ void EditorInteractionTests::clipSelectionGroupMoveClamps() {
         QVERIFY2((groupPlacement(session.placements(), 1)->trackIndex == 0 &&
                   groupPlacement(session.placements(), 2)->trackIndex == 1),
                  "a block that already touches the first track must not move up");
+    }
+}
+
+void EditorInteractionTests::clipSelectionGroupMoveReachesAppendRow() {
+    const Timeline timeline;
+
+    {
+        // Two real tracks plus the virtual append row: a clip on the last track
+        // can be dragged onto row 2, which is the row the commit creates.
+        const auto environment = groupEnvironment(timeline, 3);
+        const QList<ClipSelectionDrag::ClipState> clips{groupClipState(1, 1, 480, 0, 960)};
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 480.0, 1);
+        QVERIFY(session.update(480.0, 2, false));
+        const auto *placement = groupPlacement(session.placements(), 1);
+        QVERIFY(placement);
+        QCOMPARE(placement->trackIndex, 2);
+        QVERIFY2(groupVisibleStart(*placement) == 480,
+                 "the append row must not move the clip in time");
+        QVERIFY(session.moved());
+    }
+
+    {
+        // The block stays rigid, so it enters the append row only as far as its
+        // bottom clip allows: one extra row is the whole budget.
+        const auto environment = groupEnvironment(timeline, 3);
+        const QList<ClipSelectionDrag::ClipState> clips{
+            groupClipState(1, 0, 480, 0, 960),
+            groupClipState(2, 1, 480, 0, 960),
+        };
+        ClipSelectionDrag::Session session;
+        session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 480.0, 0);
+        QVERIFY(session.update(480.0, 2, false));
+        QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 1);
+        QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 2);
     }
 }
 

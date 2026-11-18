@@ -978,14 +978,18 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
 
 void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot_data() {
     QTest::addColumn<bool>("append");
-    QTest::newRow("existing-track") << false;
-    QTest::newRow("append-track") << true;
+    QTest::addColumn<bool>("belowContent");
+    QTest::newRow("existing-track") << false << false;
+    QTest::newRow("append-track") << true << false;
+    // The empty area below the append row belongs to it.
+    QTest::newRow("below-the-append-slot") << true << true;
 }
 
 void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     QFETCH(bool, append);
+    QFETCH(bool, belowContent);
     TrackFixture fixture;
     QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
     auto &canvas = *fixture.canvas;
@@ -1002,7 +1006,7 @@ void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot() {
     auto *model = fixture.application.context->m_appModel;
     const auto tracksBefore = model->tracks();
     const auto before = fixture.runtime().documentVersion();
-    const auto position = fixture.point(960, append ? 2 : 1);
+    const auto position = fixture.point(960, append ? (belowContent ? 3 : 2) : 1);
     QVERIFY(canvas.rect().contains(position));
     QMimeData mime;
     mime.setUrls({QUrl::fromLocalFile(path)});
@@ -1043,6 +1047,90 @@ void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot() {
     QVERIFY(!model->findClipById(audioId));
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
+}
+
+void NativeDesktopTests::rhiTrackClipDropOnAppendRowCreatesTrack() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    auto *model = fixture.application.context->m_appModel;
+    QCOMPARE(model->tracks().size(), 2);
+    auto *source = model->tracks().first();
+
+    const auto before = fixture.runtime().documentVersion();
+    const auto modelBefore = TestSupport::projectSnapshot(*model);
+    // Two real tracks, so row 2 is the virtual append row.
+    const auto press = fixture.point(960, 0);
+    const auto release = fixture.point(960, 2);
+    QVERIFY(canvas.rect().contains(press));
+    QVERIFY(canvas.rect().contains(release));
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            QTest::keyClick(&canvas, Qt::Key_Escape);
+            QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    moveWithButton(canvas, release);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    // The track only exists after the release: the drag itself writes nothing.
+    QCOMPARE(model->tracks().size(), 2);
+    QCOMPARE(TestSupport::projectSnapshot(*model), modelBefore);
+    const auto previewFrame = frames.size();
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+
+    QCOMPARE(model->tracks().size(), 3);
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QCOMPARE(fixture.trackOfClip(), 2);
+    auto *created = model->tracks().last();
+    QVERIFY(created != source);
+    QCOMPARE(created->name(), TrackController::tr("New Track"));
+    QCOMPARE(created->clips().count(), 1);
+    // The voice configuration follows the source track so the clip keeps its context.
+    QCOMPARE(created->defaultLanguage(), source->defaultLanguage());
+    QCOMPARE(source->clips().count(), 0);
+    QTRY_VERIFY(frames.size() > previewFrame || !failed.isEmpty());
+    QVERIFY(failed.isEmpty());
+
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(model->tracks().size(), 2);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(TestSupport::projectSnapshot(*model), modelBefore);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void NativeDesktopTests::rhiAppendRowDoubleClickCreatesTrack() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    auto *model = fixture.application.context->m_appModel;
+    QCOMPARE(model->tracks().size(), 2);
+    const auto before = fixture.runtime().documentVersion();
+    const auto appendRow = fixture.point(960, 2);
+    QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, appendRow);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, appendRow);
+    QCOMPARE(model->tracks().size(), 3);
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QCOMPARE(model->tracks().last()->name(), TrackController::tr("New Track"));
+    QVERIFY(failed.isEmpty());
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(model->tracks().size(), 2);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void NativeDesktopTests::rhiFileDropScrollsUntilTheDragLeaves() {

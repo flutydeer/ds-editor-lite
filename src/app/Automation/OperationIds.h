@@ -27,6 +27,7 @@ namespace Automation::OperationIds {
     X(clips, insert, "clips.insert")                                                               \
     X(clips, list, "clips.list")                                                                   \
     X(clips, move, "clips.move")                                                                   \
+    X(clips, move_into_new_track, "clips.move_into_new_track")                                     \
     X(clips, remove, "clips.remove")                                                               \
     X(clips, rename, "clips.rename")                                                               \
     X(clips, resize_left, "clips.resize_left")                                                     \

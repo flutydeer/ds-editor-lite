@@ -2,6 +2,7 @@
 #include "OperationIds.h"
 
 #include "Controller/Actions/AppModel/Clip/ClipActions.h"
+#include "Controller/Actions/AppModel/Clip/MoveClipsWithNewTrackActions.h"
 #include "Controller/Actions/AppModel/Import/BatchImportActions.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Global/AppGlobal.h"
@@ -988,6 +989,134 @@ namespace Automation {
                                   item.target});
                 actions->editClips(edits);
                 return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
+    AutomationResult<MutationResult> ProjectAutomationFacade::moveClipsWithNewTrack(
+        const CommandContext &context, const TrackDraftDto &newTrack,
+        const QList<ClipStartDto> &intoNewTrack, const QList<ClipMoveDto> &ontoExistingTracks) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::clips::move_into_new_track, context,
+            [this, newTrack, intoNewTrack,
+             ontoExistingTracks](DocumentSession &session, const bool validateOnly) {
+                auto *model = session.model();
+                if (!model)
+                    return AutomationResult<MutationResult>(invalidModelError());
+                if (intoNewTrack.isEmpty()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("moves"),
+                        QStringLiteral("A move into the new track is required")));
+                }
+                const auto trackValidation = validate(newTrack);
+                if (!trackValidation)
+                    return AutomationResult<MutationResult>(trackValidation.getError());
+
+                // The new track is appended at the tail, which is the row the
+                // gesture dropped onto.
+                const qsizetype newTrackIndex = model->tracks().size();
+
+                struct PreparedMove {
+                    ResolvedClip resolved;
+                    Track *target = nullptr;
+                    Clip::ClipCommonProperties previous;
+                    Clip::ClipCommonProperties next;
+                };
+                QSet<int> seen;
+                QList<PreparedMove> intoNew;
+                QList<PreparedMove> ontoExisting;
+                QList<ObjectRef> affected;
+
+                const auto prepare = [&](const ClipId clipId, const int start,
+                                         const std::optional<TrackId> targetTrackId,
+                                         PreparedMove &prepared) -> std::optional<AutomationError> {
+                    if (seen.contains(clipId.value())) {
+                        return AutomationError::invalidArgument(QStringLiteral("moves"),
+                                                               QStringLiteral(
+                                                                   "Clip IDs must be unique"));
+                    }
+                    seen.insert(clipId.value());
+                    if (start < 0) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("moves.start"),
+                            QStringLiteral("Clip start must be non-negative"));
+                    }
+                    auto resolved = m_objects.clip(session, clipId);
+                    if (!resolved)
+                        return resolved.getError();
+                    Track *target = nullptr;
+                    if (targetTrackId) {
+                        auto targetResult = m_objects.track(session, *targetTrackId);
+                        if (!targetResult)
+                            return targetResult.getError();
+                        target = targetResult.get();
+                    }
+                    prepared.resolved = resolved.get();
+                    prepared.target = target;
+                    prepared.previous = Clip::ClipCommonProperties(*prepared.resolved.clip);
+                    prepared.next = prepared.previous;
+                    if (auto *audio = qobject_cast<AudioClip *>(prepared.resolved.clip);
+                        audio && audio->hasRealTimeAnchor()) {
+                        auto drag = AudioClipDragState::begin(
+                            audio->trimStartMs(), audio->playLengthMs(),
+                            audio->materialLengthMs(),
+                            prepared.previous.start + prepared.previous.clipStart,
+                            prepared.previous.start + prepared.previous.clipStart,
+                            session.model()->timeline());
+                        drag.moveTo(start, prepared.next, session.model()->timeline());
+                        drag.writeTruth(prepared.next);
+                    } else {
+                        prepared.next.start = start - prepared.next.clipStart;
+                    }
+                    if (!validClipProperties(toDto(prepared.next))) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("moves.start"),
+                            QStringLiteral("Moved clip range is out of bounds"));
+                    }
+                    affected.append({ObjectKind::Clip, clipId.value()});
+                    return std::nullopt;
+                };
+
+                intoNew.reserve(intoNewTrack.size());
+                ontoExisting.reserve(ontoExistingTracks.size());
+                for (const auto &move : intoNewTrack) {
+                    PreparedMove prepared;
+                    if (const auto error = prepare(move.id, move.start, std::nullopt, prepared))
+                        return AutomationResult<MutationResult>(*error);
+                    intoNew.append(std::move(prepared));
+                }
+                for (const auto &move : ontoExistingTracks) {
+                    PreparedMove prepared;
+                    if (const auto error =
+                            prepare(move.id, move.start, move.targetTrackId, prepared))
+                        return AutomationResult<MutationResult>(*error);
+                    ontoExisting.append(std::move(prepared));
+                }
+
+                // Creating the track is a change by itself, so this command is
+                // never an empty history entry.
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, true, affected));
+
+                QList<CreatedObjectRef> createdObjects;
+                auto track = buildTrack(newTrack, model->timeline(), &createdObjects);
+                auto *rawTrack = track.get();
+                affected.append({ObjectKind::Track, rawTrack->id()});
+
+                QList<ClipPropertyEdit> edits;
+                edits.reserve(intoNew.size() + ontoExisting.size());
+                for (const auto &item : intoNew)
+                    edits.append({item.previous, item.next, item.resolved.clip,
+                                  item.resolved.track, rawTrack});
+                for (const auto &item : ontoExisting)
+                    edits.append({item.previous, item.next, item.resolved.clip,
+                                  item.resolved.track, item.target});
+
+                auto actions = std::unique_ptr<MoveClipsWithNewTrackActions>(
+                    MoveClipsWithNewTrackActions::build(track.release(), newTrackIndex, model,
+                                                        newTrack.resolveColorIndex, edits));
+                return m_committer.commit(session, std::move(actions), affected,
+                                          std::move(createdObjects));
             });
     }
 

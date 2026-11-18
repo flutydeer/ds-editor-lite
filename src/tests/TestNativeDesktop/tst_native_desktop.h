@@ -85,6 +85,8 @@ private slots:
     void rhiTrackMenuPasteAndSelectionUseTheFullEditor();
     void rhiTrackFileDropImportsAtTheChosenSlot_data();
     void rhiTrackFileDropImportsAtTheChosenSlot();
+    void rhiTrackClipDropOnAppendRowCreatesTrack();
+    void rhiAppendRowDoubleClickCreatesTrack();
     void rhiFileDropScrollsUntilTheDragLeaves();
     void availableAudioDeviceRunsPublicPlayback();
     void audioSettingsRollbackWithoutAnInitializedBackend();
