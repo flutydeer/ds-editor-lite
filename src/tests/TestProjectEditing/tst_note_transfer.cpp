@@ -14,6 +14,7 @@
 #include <QCoreApplication>
 #include <QtTest/QTest>
 #include "../TestSupport/TestAssertions.h"
+#include "../TestSupport/ParameterValues.h"
 #include <QJsonDocument>
 #include <QScopeGuard>
 
@@ -198,36 +199,53 @@ namespace {
         expect(noteIds.size() == 2, QStringLiteral("source notes must be created"));
 
         replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
-                {draw(0, 100, {6000, 6100, 6200, 6300, 6400, 6500, 6600})});
+                {draw(0, 100,
+                      {TestSupport::pitchValue(6000), TestSupport::pitchValue(6100),
+                       TestSupport::pitchValue(6200), TestSupport::pitchValue(6300),
+                       TestSupport::pitchValue(6400), TestSupport::pitchValue(6500),
+                       TestSupport::pitchValue(6600)})});
         replace(runtime, sourceClip, ParamInfo::Pitch, Param::Original,
-                {draw(100, 100, {7100, 7200, 7300, 7400})});
+                {draw(100, 100,
+                      {TestSupport::pitchValue(7100), TestSupport::pitchValue(7200),
+                       TestSupport::pitchValue(7300), TestSupport::pitchValue(7400)})});
         replace(runtime, sourceClip, ParamInfo::Energy, Param::Envelope,
-                {draw(100, 100, {-1000, -2000, -3000, -4000})});
+                {draw(100, 100,
+                      {TestSupport::decibelValue(-1), TestSupport::decibelValue(-2),
+                       TestSupport::decibelValue(-3), TestSupport::decibelValue(-4)})});
         replace(runtime, sourceClip, ParamInfo::Gender, Param::Edited,
                 {
-                    anchor({{150, -100}, {350, 100}}
+                    anchor({{150, TestSupport::genderValue(-0.1)},
+                            {350, TestSupport::genderValue(0.1)}}
                     )
         });
         replace(runtime, sourceClip, ParamInfo::Tension, Param::Edited,
                 {
-                    anchor({{50, -500}, {250, 500}, {550, -500}}
+                    anchor({{50, TestSupport::tensionValue(-0.5)},
+                            {250, TestSupport::tensionValue(0.5)},
+                            {550, TestSupport::tensionValue(-0.5)}}
                     )
         });
         replace(runtime, sourceClip, ParamInfo::Breathiness, Param::Edited,
                 {
-                    anchor({{0, 0}, {std::numeric_limits<int>::max(), 0}}
+                    anchor({{0, TestSupport::decibelValue(0)},
+                            {std::numeric_limits<int>::max(), TestSupport::decibelValue(0)}}
                     )
         });
 
+        QList<int> targetPitchValues;
+        for (int value = 5000; value <= 5011; ++value)
+            targetPitchValues.append(TestSupport::pitchValue(value));
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
-                {draw(0, 100,
-                      {5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010, 5011})});
+                {draw(0, 100, targetPitchValues)});
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Original,
-                {draw(0, 100, {8000, 8001, 8002, 8003})});
-        replace(runtime, targetClip, ParamInfo::Energy, Param::Envelope,
                 {draw(0, 100,
-                      {-5000, -5001, -5002, -5003, -5004, -5005, -5006, -5007, -5008, -5009, -5010,
-                       -5011})});
+                      {TestSupport::pitchValue(8000), TestSupport::pitchValue(8001),
+                       TestSupport::pitchValue(8002), TestSupport::pitchValue(8003)})});
+        QList<int> targetEnergyValues;
+        for (int value = 0; value <= 11; ++value)
+            targetEnergyValues.append(TestSupport::decibelValue(-5.0 - value / 1000.0));
+        replace(runtime, targetClip, ParamInfo::Energy, Param::Envelope,
+                {draw(0, 100, targetEnergyValues)});
 
         const auto pitchBefore = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
         const auto originalBefore =
@@ -251,10 +269,10 @@ namespace {
                QStringLiteral("cross-clip duplicate must preserve relative note layout"));
 
         const auto pitchAfter = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
-        expect(drawValueAt(pitchAfter, 500) == 5005 && drawValueAt(pitchAfter, 1100) == 5011,
+        expect(drawValueAt(pitchAfter, 500) == TestSupport::pitchValue(5005) && drawValueAt(pitchAfter, 1100) == TestSupport::pitchValue(5011),
                QStringLiteral("target parameter values outside the pasted range must remain"));
-        expect(drawValueAt(pitchAfter, 603) == 6100 && drawValueAt(pitchAfter, 703) == 6200 &&
-                   drawValueAt(pitchAfter, 803) == 6300 && drawValueAt(pitchAfter, 903) == 6400,
+        expect(drawValueAt(pitchAfter, 603) == TestSupport::pitchValue(6100) && drawValueAt(pitchAfter, 703) == TestSupport::pitchValue(6200) &&
+                   drawValueAt(pitchAfter, 803) == TestSupport::pitchValue(6300) && drawValueAt(pitchAfter, 903) == TestSupport::pitchValue(6400),
                QStringLiteral("cropped source draw curve must be translated into target range"));
 
         const auto originalAfter =
@@ -262,8 +280,8 @@ namespace {
         expect(sameShape(originalBefore, originalAfter),
                QStringLiteral("inference-generated Original parameters must not be copied"));
         const auto energyAfter = parameter(runtime, targetClip, ParamInfo::Energy, Param::Envelope);
-        expect(drawValueAt(energyAfter, 500) == -5005 && drawValueAt(energyAfter, 1100) == -5011 &&
-                   drawValueAt(energyAfter, 603) == -1000 && drawValueAt(energyAfter, 903) == -4000,
+        expect(drawValueAt(energyAfter, 500) == TestSupport::decibelValue(-5.005) && drawValueAt(energyAfter, 1100) == TestSupport::decibelValue(-5.011) &&
+                   drawValueAt(energyAfter, 603) == TestSupport::decibelValue(-1) && drawValueAt(energyAfter, 903) == TestSupport::decibelValue(-4),
                QStringLiteral("Envelope must copy while preserving its target exterior"));
 
         const auto genderAfter = parameter(runtime, targetClip, ParamInfo::Gender, Param::Edited);
@@ -305,7 +323,7 @@ namespace {
             runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         expect(notesAfterRedo && notesAfterRedo.get().size() == 2 &&
                    drawValueAt(parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited),
-                               603) == 6100,
+                               603) == TestSupport::pitchValue(6100),
                QStringLiteral("redo must restore notes and parameter curves together"));
 
         auto *sourceModel = singingClip(testRuntime, sourceClip);
@@ -348,7 +366,7 @@ namespace {
                 paste && paste.get().changed && pastedNotes && pastedNotes.get().size() == 2 &&
                     pastedNotes.get().first().data.localStart == 1203 &&
                     drawValueAt(parameter(runtime, guiTargetClip, ParamInfo::Pitch, Param::Edited),
-                                1203) == 6100,
+                                1203) == TestSupport::pitchValue(6100),
                 QStringLiteral("GUI payload paste must use the same note-and-parameter commit"));
         }
     }
@@ -592,8 +610,8 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     if (hasNotes)
         draft.notes = {noteDraft(240, 120, 64, QStringLiteral("phrase"))};
     auto anchored = anchor({
-        {0,   6400},
-        {480, 6500}
+        {0,   TestSupport::pitchValue(6400)},
+        {480, TestSupport::pitchValue(6500)}
     });
     anchored.localStart = 720;
     anchored.nodes.first().interpolation = AnchorNode::Cubic;
@@ -601,16 +619,16 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     draft.params = {
         {.name = ParamInfo::Pitch,
          .type = type,
-         .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
+         .curves = {draw(0, 120, {TestSupport::pitchValue(6400), TestSupport::pitchValue(6420), TestSupport::pitchValue(6380)}), anchored}}
     };
     if (fault == QStringLiteral("duplicate-parameter-group") ||
         fault == QStringLiteral("malformed-parameter-discriminators")) {
         draft.params.append({.name = ParamInfo::Pitch,
                              .type = Param::Edited,
-                             .curves = {draw(0, 120, {6700, 6720, 6680})}});
+                             .curves = {draw(0, 120, {TestSupport::pitchValue(6700), TestSupport::pitchValue(6720), TestSupport::pitchValue(6680)})}});
         draft.params.append({.name = ParamInfo::Energy,
                              .type = Param::Envelope,
-                             .curves = {draw(0, 120, {-1000, -3000})}});
+                             .curves = {draw(0, 120, {TestSupport::decibelValue(-1), TestSupport::decibelValue(-3)})}});
     }
     const bool geometryFault = !fault.isEmpty() &&
                                fault != QStringLiteral("duplicate-parameter-group") &&
@@ -619,11 +637,11 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
     if (geometryFault)
         draft.params.append({.name = ParamInfo::Energy,
                              .type = Param::Envelope,
-                             .curves = {draw(0, 120, {-1000, -3000})}});
+                             .curves = {draw(0, 120, {TestSupport::decibelValue(-1), TestSupport::decibelValue(-3)})}});
     if (multipleAnchors)
         draft.params.first().curves.append(anchor({
-            {600, 6400},
-            {960, 6500}
+            {600, TestSupport::pitchValue(6400)},
+            {960, TestSupport::pitchValue(6500)}
         }));
     const auto source = Automation::buildClip(draft, nullptr, Timeline{});
     const ClipsInfo copied{{source.get()}, {0}};
@@ -781,10 +799,10 @@ void ProjectEditingTests::wholeClipsPasteAcrossTracksAsOneEdit() {
     lead.params = {
         {.name = ParamInfo::Pitch,
          .type = Param::Edited,
-         .curves = {draw(0, 120, {6400, 6420, 6380})}    },
+         .curves = {draw(0, 120, {TestSupport::pitchValue(6400), TestSupport::pitchValue(6420), TestSupport::pitchValue(6380)})}    },
         {.name = ParamInfo::Energy,
          .type = Param::Envelope,
-         .curves = {anchor({{120, -1000}, {960, -3000}})}}
+         .curves = {anchor({{120, TestSupport::decibelValue(-1)}, {960, TestSupport::decibelValue(-3)}})}}
     };
     lead.usesTrackVoiceContext = false;
     lead.ownSingerInfo = singer;

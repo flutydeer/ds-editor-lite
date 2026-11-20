@@ -19,6 +19,9 @@
 #include <QDebug>
 #include <QLoggingCategory>
 
+#include <algorithm>
+#include <cmath>
+
 Q_LOGGING_CATEGORY(logInferHelper, "infer.helper")
 
 #include "Model/AppOptions/AppOptions.h"
@@ -80,30 +83,88 @@ namespace InferControllerHelper {
             input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         }
 
-        InferParamCurve curveSnapshot(const DrawCurve &curve, const double scale) {
+        double engineValue(const ParamInfo::Name name, const double normalized) {
+            const auto value = std::clamp(normalized, 0.0, 1.0);
+            switch (name) {
+                case ParamInfo::Pitch:
+                    return value * 128.0;
+                case ParamInfo::Expressiveness:
+                case ParamInfo::MouthOpening:
+                    return value;
+                case ParamInfo::Energy:
+                case ParamInfo::Breathiness:
+                case ParamInfo::Voicing:
+                    return -96.0 * std::pow(1.0 - value, 0.8);
+                case ParamInfo::Tension: {
+                    const auto axis = value * 2.0 - 1.0;
+                    return std::copysign(10.0 * (1.0 - std::pow(1.0 - std::abs(axis), 0.7)),
+                                         axis);
+                }
+                case ParamInfo::Gender:
+                    return value * 2.0 - 1.0;
+                case ParamInfo::Velocity:
+                    return std::exp2(value * 2.0 - 1.0);
+                case ParamInfo::ToneShift:
+                    return value * 2400.0 - 1200.0;
+                case ParamInfo::SpeakerMix:
+                case ParamInfo::Unknown:
+                    break;
+            }
+            return value;
+        }
+
+        double normalizedValue(const ParamInfo::Name name, const double engine) {
+            double result = engine;
+            switch (name) {
+                case ParamInfo::Pitch:
+                    result = engine / 128.0;
+                    break;
+                case ParamInfo::Expressiveness:
+                case ParamInfo::MouthOpening:
+                    result = engine;
+                    break;
+                case ParamInfo::Gender:
+                    result = (engine + 1.0) / 2.0;
+                    break;
+                case ParamInfo::Energy:
+                case ParamInfo::Breathiness:
+                case ParamInfo::Voicing:
+                    result = 1.0 - std::pow(std::clamp(-engine / 96.0, 0.0, 1.0), 1.25);
+                    break;
+                case ParamInfo::Tension: {
+                    const auto axis = std::clamp(engine / 10.0, -1.0, 1.0);
+                    result = 0.5 + std::copysign(
+                                       0.5 * (1.0 - std::pow(1.0 - std::abs(axis), 1.0 / 0.7)),
+                                       axis);
+                    break;
+                }
+                case ParamInfo::Velocity:
+                    result = engine > 0.0 ? (std::log2(engine) + 1.0) / 2.0 : 0.5;
+                    break;
+                case ParamInfo::ToneShift:
+                    result = (engine + 1200.0) / 2400.0;
+                    break;
+                case ParamInfo::SpeakerMix:
+                case ParamInfo::Unknown:
+                    break;
+            }
+            return std::clamp(result, 0.0, 1.0);
+        }
+
+        InferParamCurve curveSnapshot(const DrawCurve &curve, const ParamInfo::Name name) {
+            const auto *properties = paramUtils->getPropertiesByName(name);
             InferParamCurve result;
             result.localStartTick = curve.localStart();
             result.values.reserve(curve.values().size());
             for (const auto value : curve.values())
-                result.values.append(value / scale);
+                result.values.append(engineValue(name, properties->valueToNormalized(value)));
             return result;
         }
 
         InferParamCurve toneShiftSnapshot(const InferPiece &piece) {
             if (!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, piece.clip->singerInfo()))
                 return {};
-            return curveSnapshot(piece.inputToneShift, 1.0);
-        }
-
-        template <typename F>
-        InferParamCurve curveTransformedSnapshot(const DrawCurve &curve, const double scale,
-                                                 F unaryOp) {
-            InferParamCurve result;
-            result.localStartTick = curve.localStart();
-            result.values.reserve(curve.values().size());
-            for (const auto value : curve.values())
-                result.values.append(unaryOp(value / scale));
-            return result;
+            return curveSnapshot(piece.inputToneShift, ParamInfo::ToneShift);
         }
     } // namespace
 
@@ -145,7 +206,7 @@ namespace InferControllerHelper {
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         PitchInput input;
         populateBaseInput(input, piece, identifier);
-        input.expressiveness = curveSnapshot(piece.inputExpressiveness, 1000.0);
+        input.expressiveness = curveSnapshot(piece.inputExpressiveness, ParamInfo::Expressiveness);
         return input;
     }
 
@@ -153,7 +214,7 @@ namespace InferControllerHelper {
                                           const SingerIdentifier &identifier) {
         VarianceInput input;
         populateBaseInput(input, piece, identifier);
-        input.pitch = curveSnapshot(piece.inputPitch, 100.0);
+        input.pitch = curveSnapshot(piece.inputPitch, ParamInfo::Pitch);
         input.toneShift = toneShiftSnapshot(piece);
         return input;
     }
@@ -162,15 +223,14 @@ namespace InferControllerHelper {
                                           const SingerIdentifier &identifier) {
         AcousticInput input;
         populateBaseInput(input, piece, identifier);
-        input.pitch = curveSnapshot(piece.inputPitch, 100.0);
-        input.breathiness = curveSnapshot(piece.inputBreathiness, 1000.0);
-        input.tension = curveSnapshot(piece.inputTension, 1000.0);
-        input.voicing = curveSnapshot(piece.inputVoicing, 1000.0);
-        input.energy = curveSnapshot(piece.inputEnergy, 1000.0);
-        input.mouthOpening = curveSnapshot(piece.inputMouthOpening, 1000.0);
-        input.gender = curveSnapshot(piece.inputGender, 1000.0);
-        input.velocity = curveTransformedSnapshot(piece.inputVelocity, 1000.0,
-                                                  [](double x) { return std::exp2(x); });
+        input.pitch = curveSnapshot(piece.inputPitch, ParamInfo::Pitch);
+        input.breathiness = curveSnapshot(piece.inputBreathiness, ParamInfo::Breathiness);
+        input.tension = curveSnapshot(piece.inputTension, ParamInfo::Tension);
+        input.voicing = curveSnapshot(piece.inputVoicing, ParamInfo::Voicing);
+        input.energy = curveSnapshot(piece.inputEnergy, ParamInfo::Energy);
+        input.mouthOpening = curveSnapshot(piece.inputMouthOpening, ParamInfo::MouthOpening);
+        input.gender = curveSnapshot(piece.inputGender, ParamInfo::Gender);
+        input.velocity = curveSnapshot(piece.inputVelocity, ParamInfo::Velocity);
         input.toneShift = toneShiftSnapshot(piece);
         input.depth = appOptions->inference()->depth;
         return input;
@@ -315,7 +375,7 @@ namespace InferControllerHelper {
     }
 
     ParamUpdate buildParamUpdate(const ParamInfo::Name name, const InferParamCurve &taskResult,
-                                 InferPiece &piece, const int scale, int smoothKernelSize) {
+                                 InferPiece &piece, int smoothKernelSize) {
         const auto alignTick = taskResult.localStartTick;
         const std::vector<double> alignValues{taskResult.values.begin(), taskResult.values.end()};
 
@@ -330,10 +390,14 @@ namespace InferControllerHelper {
             paramValue = alignValues;
 
         // 将推理结果保存到分段内部
+        const auto storedValue = [name](const double value) {
+            const auto normalized = normalizedValue(name, value);
+            return static_cast<int>(
+                std::lround(normalized * ParamProperties::NormalizedMaximum));
+        };
         ParamUpdate update;
         update.original.setLocalStart(alignTick);
-        update.original.setValues(
-            Linq::selectMany(paramValue, L_PRED(v, static_cast<int>(v * scale))));
+        update.original.setValues(Linq::selectMany(paramValue, storedValue));
         const auto param = piece.clip->params.getParamByName(name);
         QList<DrawCurve *> ownedCurves;
         const auto editedCurves = getEditedCurvesIncludingAnchor(param, ownedCurves);
@@ -343,8 +407,8 @@ namespace InferControllerHelper {
     }
 
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
-                     InferPiece &piece, const int scale, const int smoothKernelSize) {
-        const auto update = buildParamUpdate(name, taskResult, piece, scale, smoothKernelSize);
+                     InferPiece &piece, const int smoothKernelSize) {
+        const auto update = buildParamUpdate(name, taskResult, piece, smoothKernelSize);
         piece.setOriginalCurve(name, update.original);
         piece.setInputCurve(name, update.input);
         piece.clip->updateOriginalParam(name);
@@ -352,7 +416,7 @@ namespace InferControllerHelper {
 
     void updatePitch(const InferParamCurve &taskResult, InferPiece &piece,
                      const int smoothKernelSize) {
-        updateParam(ParamInfo::Pitch, taskResult, piece, 100, smoothKernelSize);
+        updateParam(ParamInfo::Pitch, taskResult, piece, smoothKernelSize);
     }
 
     void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,

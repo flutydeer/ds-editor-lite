@@ -2,7 +2,6 @@
 
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include <lite/Support/MathUtils.h>
 
 #include <QPainter>
 #include <QPainterPath>
@@ -136,15 +135,17 @@ void PitchEditorView::drawCurveLayer(QPainter *painter, const QList<DrawCurve *>
 }
 
 double PitchEditorView::valueToSceneY(const double value) const {
-    constexpr int min = 0;
-    constexpr int max = 12700;
-    return (12700 - MathUtils::clip(value, min, max) + 50) * scaleY() *
-           ClipEditorGlobal::noteHeight / 100;
+    constexpr double maxCents = 12700.0;
+    constexpr double displayMaximum = 12800.0;
+    const auto cents = m_properties.valueToNormalized(qRound(value)) * displayMaximum;
+    return (maxCents - std::clamp(cents, 0.0, maxCents) + 50.0) * scaleY() *
+           ClipEditorGlobal::noteHeight / 100.0;
 }
 
 double PitchEditorView::sceneYToValue(const double y) const {
-    constexpr int min = 0;
-    constexpr int max = 12700;
-    const auto value = -(y * 100 / ClipEditorGlobal::noteHeight / scaleY() - 12700 - 50);
-    return MathUtils::clip(value, min, max);
+    constexpr double maxCents = 12700.0;
+    constexpr double displayMaximum = 12800.0;
+    const auto cents = -(y * 100.0 / ClipEditorGlobal::noteHeight / scaleY() - maxCents - 50.0);
+    return m_properties.valueFromNormalizedDouble(std::clamp(cents, 0.0, maxCents) /
+                                                  displayMaximum);
 }

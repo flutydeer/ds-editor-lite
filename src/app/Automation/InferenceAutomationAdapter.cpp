@@ -423,7 +423,7 @@ namespace Automation {
                 return curveValidation.getError();
             auto *piece = pieceResult.get();
             const auto update = InferControllerHelper::buildParamUpdate(
-                ParamInfo::Pitch, request.pitchResult, *piece, 100, request.pitchSmoothKernelSize);
+                ParamInfo::Pitch, request.pitchResult, *piece, request.pitchSmoothKernelSize);
             const bool changed = paramUpdateChanges(*piece, ParamInfo::Pitch, update);
             return PreparedInferenceMutation{
                 .changed = changed,

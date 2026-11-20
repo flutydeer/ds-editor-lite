@@ -4,6 +4,7 @@
 #include "Automation/ProjectAutomationDtos.h"
 #include "TestRuntime.h"
 #include "../TestSupport/TestAssertions.h"
+#include "../TestSupport/ParameterValues.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
@@ -302,12 +303,14 @@ namespace {
                 commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
                 QStringLiteral("pitch"),
                 {
-                    {0,   6000, AnchorNode::Linear },
-                    {240, 6200, AnchorNode::Hermite}
+                    {0,   TestSupport::pitchValue(6000), AnchorNode::Linear },
+                    {240, TestSupport::pitchValue(6200), AnchorNode::Hermite}
             }));
             const auto drawn = runtime.parameters().drawParameter(
                 commandContext(runtime), clipId, ParamInfo::Breathiness, Param::Edited, 120, 5,
-                {-12000, -6000, 0}, false);
+                {TestSupport::decibelValue(-12), TestSupport::decibelValue(-6),
+                 TestSupport::decibelValue(0)},
+                false);
             QVERIFY2(drawn, qPrintable(drawn ? QString() : drawn.getError().message));
             auto audio = audioClipDraft(QStringLiteral("Backing sample"));
             audio.properties.start = 960;

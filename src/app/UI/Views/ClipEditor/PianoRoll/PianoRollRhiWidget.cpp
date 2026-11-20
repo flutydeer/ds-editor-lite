@@ -48,6 +48,7 @@
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -86,6 +87,8 @@ using namespace ClipEditorGlobal;
 
 namespace {
     constexpr float kPitchLineWidth = 1.5f;
+    constexpr double kPitchCentMaximum = 12700.0;
+    constexpr double kPitchDisplayMaximum = 12800.0;
 
     using Vertex = EditorRhiSolidVertex;
 
@@ -1203,12 +1206,22 @@ public:
         startLyricEdit(ordered.at(target));
     }
 
+    static double pitchValueToCents(const double value) {
+        return value / ParamProperties::NormalizedMaximum * kPitchDisplayMaximum;
+    }
+
+    static int pitchCentsToValue(const double cents) {
+        return static_cast<int>(std::lround(std::clamp(cents, 0.0, kPitchDisplayMaximum) /
+                                            kPitchDisplayMaximum *
+                                            ParamProperties::NormalizedMaximum));
+    }
+
     QPoint pitchPointAt(const QPointF &viewportPosition) const {
         const auto tick = std::max(
             0, MathUtils::round(static_cast<int>(localTickAt(viewportPosition)), DrawCurve().step));
         const auto sceneY = viewport.viewportToScene(viewportPosition).y();
-        const auto value = qRound((127.5 - viewport.sceneYToUnit(sceneY)) * 100.0);
-        return {tick, std::clamp(value, 0, 12700)};
+        const auto cents = (127.5 - viewport.sceneYToUnit(sceneY)) * 100.0;
+        return {tick, pitchCentsToValue(std::clamp(cents, 0.0, kPitchCentMaximum))};
     }
 
     void clearPitchPreview() {
@@ -1665,11 +1678,14 @@ public:
     }
 
     int anchorValueAtSceneY(const double sceneY) const {
-        return std::clamp(qRound((127.5 - viewport.sceneYToUnit(sceneY)) * 100.0), 0, 12700);
+        const auto cents = std::clamp(
+            (127.5 - viewport.sceneYToUnit(sceneY)) * 100.0, 0.0, kPitchCentMaximum);
+        return pitchCentsToValue(cents);
     }
 
     double anchorSceneYForValue(const int value) const {
-        return viewport.unitToSceneY((12700 - std::clamp(value, 0, 12700) + 50) / 100.0);
+        const auto cents = std::clamp(pitchValueToCents(value), 0.0, kPitchCentMaximum);
+        return viewport.unitToSceneY((kPitchCentMaximum - cents + 50.0) / 100.0);
     }
 
     bool beginAnchorEditSession() {
@@ -2868,8 +2884,9 @@ private:
         for (const auto index : indices) {
             const auto tick = start + index * curve.step;
             const auto x = tick * pixelsPerTick();
-            const auto value = MathUtils::clip(values.at(index), 0, 12700);
-            const auto y = viewport.unitToSceneY((12700 - value + 50) / 100.0);
+            const auto cents =
+                std::clamp(pitchValueToCents(values.at(index)), 0.0, kPitchCentMaximum);
+            const auto y = viewport.unitToSceneY((kPitchCentMaximum - cents + 50.0) / 100.0);
             points.append(QPointF(x, y) * dpr);
         }
         return points;
@@ -2926,8 +2943,9 @@ private:
     }
 
     QPointF anchorNodeScenePosition(const AnchorNode *node) const {
+        const auto cents = std::clamp(pitchValueToCents(node->value()), 0.0, kPitchCentMaximum);
         return {node->pos() * pixelsPerTick(),
-                viewport.unitToSceneY((12700 - node->value() + 50) / 100.0)};
+                viewport.unitToSceneY((kPitchCentMaximum - cents + 50.0) / 100.0)};
     }
 
     void appendAnchorStroke(const QList<AnchorNode *> &nodes, const double localStart,
@@ -2957,8 +2975,12 @@ private:
             bool firstPoint = points.isEmpty();
             while (sceneX <= endSceneX) {
                 const auto tick = sceneX / pixelsPerTick();
-                const auto value = std::clamp(interpolator.evaluate(tick), 0.0, 12700.0);
-                const auto sceneY = viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0);
+                const auto value = std::clamp(
+                    interpolator.evaluate(tick), 0.0,
+                    static_cast<double>(ParamProperties::NormalizedMaximum));
+                const auto cents = std::clamp(pitchValueToCents(value), 0.0, kPitchCentMaximum);
+                const auto sceneY =
+                    viewport.unitToSceneY((kPitchCentMaximum - cents + 50.0) / 100.0);
                 const auto point = QPointF(sceneX, sceneY) * dpr;
                 if (points.isEmpty() || QLineF(points.constLast(), point).length() > 0.01)
                     points.append(point);
@@ -2971,9 +2993,14 @@ private:
                 sceneX += step / dpr;
             }
 
-            const auto value = std::clamp(interpolator.evaluate(endTick), 0.0, 12700.0);
+            const auto value = std::clamp(
+                interpolator.evaluate(endTick), 0.0,
+                static_cast<double>(ParamProperties::NormalizedMaximum));
+            const auto cents = std::clamp(pitchValueToCents(value), 0.0, kPitchCentMaximum);
             const auto endpoint =
-                QPointF(endSceneX, viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0)) * dpr;
+                QPointF(endSceneX,
+                        viewport.unitToSceneY((kPitchCentMaximum - cents + 50.0) / 100.0)) *
+                dpr;
             if (points.isEmpty() || QLineF(points.constLast(), endpoint).length() > 0.01)
                 points.append(endpoint);
         }

@@ -34,6 +34,7 @@
 #include "../TestSupport/RuntimeResourcesFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "../TestSupport/FileWriteBlocker.h"
+#include "../TestSupport/ParameterValues.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -820,8 +821,10 @@ void ApplicationWorkflowTests::publicParameterTransformsUseCapabilitiesAndPreser
     const auto minimum = range.value(QStringLiteral("minimum")).toInt();
     const auto maximum = range.value(QStringLiteral("maximum")).toInt();
     QVERIFY(maximum > minimum);
-    const auto baseline = note->keyIndex() * 100;
-    const auto initialValue = modulatePitch ? baseline + 300 : minimum + (maximum - minimum) / 2;
+    const auto baseline = TestSupport::pitchValue(note->keyIndex() * 100);
+    const auto initialValue =
+        modulatePitch ? TestSupport::pitchValue(note->keyIndex() * 100 + 300)
+                      : minimum + (maximum - minimum) / 2;
     CurveDraftDto curve;
     curve.values = QList<int>(385, initialValue);
     QJsonArray values;

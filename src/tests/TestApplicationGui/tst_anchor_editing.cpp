@@ -10,6 +10,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "../TestSupport/PointerInput.h"
+#include "../TestSupport/ParameterValues.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
@@ -170,8 +171,8 @@ void ApplicationGuiTests::pitchAnchorCreationPreviewsBeforeCommitting() {
     QCOMPARE(nodes.size(), 2);
     QVERIFY(qAbs(nodes.first()->pos() - 480) <= 4);
     QVERIFY(qAbs(nodes.last()->pos() - 960) <= 4);
-    QCOMPARE(nodes.first()->value(), 6000);
-    QCOMPARE(nodes.last()->value(), 6200);
+    QCOMPARE(nodes.first()->value(), TestSupport::pitchValue(6000));
+    QCOMPARE(nodes.last()->value(), TestSupport::pitchValue(6200));
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(!anchorCurve(*singingClip));
@@ -186,10 +187,10 @@ void ApplicationGuiTests::pitchAnchorRangeEditsUseTheViewAndMenu() {
     Automation::CurveDraftDto draft;
     draft.type = Automation::CurveDraftDto::Type::Anchor;
     draft.nodes = {
-        {240, 6000, AnchorNode::Hermite},
-        {480, 6200, AnchorNode::Hermite},
-        {720, 6000, AnchorNode::Hermite},
-        {960, 6200, AnchorNode::None   }
+        {240, TestSupport::pitchValue(6000), AnchorNode::Hermite},
+        {480, TestSupport::pitchValue(6200), AnchorNode::Hermite},
+        {720, TestSupport::pitchValue(6000), AnchorNode::Hermite},
+        {960, TestSupport::pitchValue(6200), AnchorNode::None}
     };
     QVERIFY(runtime.parameters().replaceParameter(commandContext(),
                                                   Automation::ClipId(singingClip->id()),
@@ -234,7 +235,7 @@ void ApplicationGuiTests::pitchAnchorRangeEditsUseTheViewAndMenu() {
         QVERIFY(editSessionManager->hasActiveTransaction());
         const auto current = anchorCurve(*singingClip)->nodes().toList();
         QCOMPARE(current[0]->pos(), 240);
-        QCOMPARE(current[1]->value(), 6200);
+        QCOMPARE(current[1]->value(), TestSupport::pitchValue(6200));
         QVERIFY(!fixture.image().isNull());
     };
     drag();
@@ -252,10 +253,10 @@ void ApplicationGuiTests::pitchAnchorRangeEditsUseTheViewAndMenu() {
     nodes = anchorCurve(*singingClip)->nodes().toList();
     for (int index = 0; index < 3; ++index) {
         QVERIFY(qAbs(nodes[index]->pos() - (draft.nodes[index].position + 120)) <= 4);
-        QCOMPARE(nodes[index]->value(), draft.nodes[index].value + 100);
+        QCOMPARE(nodes[index]->value(), draft.nodes[index].value + TestSupport::pitchValue(100));
     }
     QCOMPARE(nodes.last()->pos(), 960);
-    QCOMPARE(nodes.last()->value(), 6200);
+    QCOMPARE(nodes.last()->value(), TestSupport::pitchValue(6200));
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(!historyManager->canUndo());
@@ -279,14 +280,14 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
     Automation::CurveDraftDto left;
     left.type = Automation::CurveDraftDto::Type::Anchor;
     left.nodes = {
-        {240, 6000, AnchorNode::Linear},
-        {360, 6100, AnchorNode::Linear},
-        {480, 6100, AnchorNode::None  }
+        {240, TestSupport::pitchValue(6000), AnchorNode::Linear},
+        {360, TestSupport::pitchValue(6100), AnchorNode::Linear},
+        {480, TestSupport::pitchValue(6100), AnchorNode::None}
     };
     auto right = left;
     right.nodes = {
-        {960,  6200, AnchorNode::Hermite},
-        {1440, 6400, AnchorNode::None   }
+        {960,  TestSupport::pitchValue(6200), AnchorNode::Hermite},
+        {1440, TestSupport::pitchValue(6400), AnchorNode::None}
     };
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.parameters().replaceParameter(commandContext(),
@@ -355,7 +356,7 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
     QCOMPARE(targetNodes.size(), 3);
     QCOMPARE(targetNodes.at(1)->id(), movedId);
     QVERIFY(qAbs(targetNodes.at(1)->pos() - 1200) <= 4);
-    QCOMPARE(targetNodes.at(1)->value(), 6300);
+    QCOMPARE(targetNodes.at(1)->value(), TestSupport::pitchValue(6300));
     QCOMPARE(runtime.documentVersion().revision, sourceVersion.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), sourceModel);
