@@ -112,6 +112,10 @@ private:
     // the controller. Cleared when playback starts again, after the engine has been
     // resynced to the authoritative controller position.
     bool m_suppressTransportPositionReports = false;
+    // Reports dropped since the suppression engaged. Reported once, as a count, when
+    // the engine is resynced: an idle playhead keeps echoing seek requests, so a line
+    // per report would follow the user's input rather than document replacement.
+    int m_droppedTransportReportCount = 0;
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;

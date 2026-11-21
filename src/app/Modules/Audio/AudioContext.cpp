@@ -103,8 +103,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
             [this](const qint64 positionSample) {
                 if (m_suppressTransportPositionReports) {
-                    qDebug() << "AudioContext: dropped transport report" << positionSample
-                             << "after a document replacement";
+                    // Seek echoes keep arriving while playback stays stopped, so the
+                    // episode is reported once, as a count, when the engine is resynced
+                    ++m_droppedTransportReportCount;
                     return;
                 }
                 m_transportPositionFlag = false;
@@ -357,6 +358,7 @@ void AudioContext::resetDocumentScopedState() {
     // deliver stale ones. Dropping them keeps the playhead on tick 0 until playback
     // starts again.
     m_suppressTransportPositionReports = true;
+    m_droppedTransportReportCount = 0;
     transport()->pause();
     transport()->setPosition(0);
     m_transportStartSample = -1;
@@ -401,7 +403,9 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
                 m_suppressTransportPositionReports = false;
                 transport()->setPosition(tickToSample(playbackController->position()));
                 qDebug() << "AudioContext: resynced the engine to" << playbackController->position()
-                         << "on playback start";
+                         << "after dropping" << m_droppedTransportReportCount
+                         << "transport reports";
+                m_droppedTransportReportCount = 0;
             }
             m_transportStartSample = transport()->position();
             m_snapToStartSample = false;
