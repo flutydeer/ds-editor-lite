@@ -134,8 +134,10 @@ transport 位置是**双向**同步的。`AudioContext` 订阅 `TransportAudioSo
 - 播放头归零属于运行期行为，单元测试覆盖不到（需要音频设备）。做法是在 `AudioContext` 的
   `positionAboutToChange` 回调、`handlePlaybackPositionChanged`、`handlePlaybackStatusChanged`
   以及 `PlaybackController::applyPosition` 上挂临时 `[RESETPROBE]` 探针，跑一次「播放中换代」，
-  用日志实锤归零与上报的先后顺序。定位靠探针，回归靠下面两条常驻日志：
-  `AudioContext: dropped transport report ...` 与 `AudioContext: resynced the engine to ...`。
+  用日志实锤归零与上报的先后顺序。定位靠探针，回归靠播放重新开始时的那条
+  `AudioContext: resynced the engine to ... after dropping ... transport reports` 常驻日志。
+  抑制窗口可以一直持续到下次播放，期间每次拖动播放头都会换来一条被丢弃的上报，所以按窗口
+  汇总成一条，正常拖动不产生日志。
 
 ## 6. 相关文件
 
