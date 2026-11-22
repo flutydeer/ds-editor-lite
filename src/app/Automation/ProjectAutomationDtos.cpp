@@ -2,8 +2,10 @@
 
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/AutomationWire/PublicConstants.h>
 
 #include <QCryptographicHash>
@@ -281,7 +283,7 @@ namespace Automation {
             addInteger(hash, draft.properties.clipLen);
             addDouble(hash, draft.properties.gain);
             addInteger(hash, draft.properties.mute);
-            addString(hash, draft.defaultLanguage);
+            addString(hash, draft.inputLanguage);
             addString(hash, draft.audioPath);
             addString(hash, draft.audioPathInfo.relativeDir);
             addString(hash, draft.audioPathInfo.sha512);
@@ -292,6 +294,8 @@ namespace Automation {
             addDouble(hash, draft.properties.playLengthMs);
             addDouble(hash, draft.properties.materialLengthMs);
             addInteger(hash, draft.usesTrackVoiceContext);
+            addInteger(hash, draft.hasSourceFallbackLanguage);
+            addString(hash, draft.sourceFallbackLanguage);
             addJsonMap(hash, draft.workspace);
             addSingerInfo(hash, draft.ownSingerInfo);
             addSpeakerInfo(hash, draft.ownSpeakerInfo);
@@ -465,8 +469,16 @@ namespace Automation {
 
         const auto &singing = static_cast<const SingingClip &>(clip);
         result.type = ClipDraftDto::Type::Singing;
-        result.defaultLanguage = singing.defaultLanguage();
+        result.inputLanguage = singing.inputLanguage();
         result.usesTrackVoiceContext = singing.usesTrackVoiceContext();
+        // An unresolved or missing source route says nothing about the language
+        // the notes were built for, so only a known route is recorded. A known
+        // route without a language is a real value.
+        const auto sourceSupport =
+            LanguageCompatibility::conversionSupport(singing.singerInfo());
+        result.hasSourceFallbackLanguage = sourceSupport.isKnown();
+        result.sourceFallbackLanguage =
+            sourceSupport.isKnown() ? singing.fallbackLanguage() : QString();
         result.ownSingerInfo = singing.ownSingerInfo();
         result.ownSpeakerInfo = singing.ownSpeakerInfo();
         result.ownSpeakerMixData = singing.ownSpeakerMixData();
@@ -498,7 +510,6 @@ namespace Automation {
         result.pan = control.pan();
         result.mute = control.mute();
         result.solo = control.solo();
-        result.defaultLanguage = track.defaultLanguage();
         result.singerInfo = track.singerInfo();
         result.speakerInfo = track.speakerInfo();
         result.speakerMixData = track.speakerMixData();
@@ -542,7 +553,7 @@ namespace Automation {
         } else {
             auto singing = std::make_unique<SingingClip>();
             appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, singing->id());
-            singing->setDefaultLanguage(draft.defaultLanguage);
+            singing->setInputLanguage(draft.inputLanguage);
             for (const auto &noteDraft : draft.notes) {
                 auto note = buildNote(noteDraft, singing.get(), createdObjects);
                 singing->insertNote(note.release());
@@ -554,6 +565,16 @@ namespace Automation {
             if (!draft.usesTrackVoiceContext) {
                 singing->setOwnVoiceContext(draft.ownSingerInfo, draft.ownSpeakerInfo,
                                             draft.ownSpeakerMixData);
+            } else if (targetTrack && draft.hasSourceFallbackLanguage &&
+                       LanguageCompatibility::conversionSupport(targetTrack->singerInfo())
+                           .isKnown()) {
+                // An inherited clip keeps the word data of the voice context it
+                // came from, so cloning it onto a track that resolves another
+                // language has to cascade the same way a move does. An unknown
+                // target route is not an empty one and leaves the words alone.
+                NoteWordCascade::applyFallbackChange(
+                    singing->notes().toList(), draft.sourceFallbackLanguage,
+                    LanguageCompatibility::fallbackLanguage(targetTrack->singerInfo()));
             }
             for (const auto &paramDraft : draft.params) {
                 auto *param = singing->params.getParamByName(paramDraft.name);
@@ -601,7 +622,6 @@ namespace Automation {
         control.setMute(draft.mute);
         control.setSolo(draft.solo);
         result->setControl(control);
-        result->setDefaultLanguage(draft.defaultLanguage);
         result->setVoiceContext(draft.singerInfo, draft.speakerInfo, draft.speakerMixData);
         for (const auto &clipDraft : draft.clips) {
             auto clip = buildClip(clipDraft, result.get(), timeline, createdObjects);
@@ -666,7 +686,6 @@ namespace Automation {
         addDouble(hash, draft.pan);
         addInteger(hash, draft.mute);
         addInteger(hash, draft.solo);
-        addString(hash, draft.defaultLanguage);
         addSingerInfo(hash, draft.singerInfo);
         addSpeakerInfo(hash, draft.speakerInfo);
         addSpeakerMix(hash, draft.speakerMixData);

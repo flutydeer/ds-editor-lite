@@ -70,7 +70,7 @@ namespace {
         clip.properties.name = QStringLiteral("Phrase");
         clip.properties.length = 3840;
         clip.properties.clipLen = 3840;
-        clip.defaultLanguage = QStringLiteral("cmn");
+        clip.inputLanguage = QStringLiteral("cmn");
         const QStringList lyrics{QStringLiteral("old-a"), QStringLiteral("-"),
                                  QStringLiteral("old-b"), QStringLiteral("old-c")};
         for (qsizetype index = 0; index < lyrics.size(); ++index) {
@@ -84,13 +84,13 @@ namespace {
         }
         TrackDraftDto track;
         track.name = QStringLiteral("Lead");
-        track.defaultLanguage = QStringLiteral("cmn");
         track.singerInfo = SingerInfo(
             {QStringLiteral("fixture"), QStringLiteral("fixture-package"), QVersionNumber(1, 0)},
             QStringLiteral("Fixture"), {},
             {LanguageInfo(QStringLiteral("cmn"), QStringLiteral("Chinese"), QStringLiteral("g2p")),
              LanguageInfo(QStringLiteral("eng"), QStringLiteral("English"), QStringLiteral("g2p"))},
             QStringLiteral("cmn"));
+        track.singerInfo.setResolutionState(ResolutionState::Resolved);
         track.clips.append(clip);
         return track;
     }
@@ -266,7 +266,8 @@ void AutomationProtocolTests::publicExtractionAuthorizesAndRoutesOptions() {
         QCOMPARE(notes.last().localStart, 600);
         QCOMPARE(notes.last().keyIndex, 62);
         QCOMPARE(notes.last().lyric, QStringLiteral("test"));
-        QCOMPARE(notes.last().language, QStringLiteral("cmn"));
+        // Imported notes stay unspecified so they keep following the voice source.
+        QVERIFY(notes.last().language.isEmpty());
     }
     const auto terminal =
         registry.invoke(QStringLiteral("tasks.get"),
@@ -501,7 +502,7 @@ void AutomationProtocolTests::fillLyricsOptions_data() {
     QTest::newRow("character-explicit-skip-slur")
         << QStringLiteral("character") << QStringLiteral("explicit") << true;
     QTest::newRow("auto-follow-singer")
-        << QStringLiteral("auto") << QStringLiteral("follow_singer") << false;
+        << QStringLiteral("auto") << QStringLiteral("unspecified") << false;
 }
 
 void AutomationProtocolTests::fillLyricsOptions() {
@@ -582,8 +583,10 @@ void AutomationProtocolTests::fillLyricsOptions() {
     QVERIFY(notes);
     QCOMPARE(notes.get().at(0).data.lyric, QStringLiteral("你"));
     QCOMPARE(notes.get().at(skipSlur ? 2 : 1).data.lyric, QStringLiteral("好"));
-    QCOMPARE(notes.get().at(0).data.language,
-             languageMode == QStringLiteral("explicit") ? QStringLiteral("cmn") : QString());
+    // A detected language is declared even when it equals the singer default, so
+    // a later singer change reports a conflict instead of silently
+    // reinterpreting the note.
+    QCOMPARE(notes.get().at(0).data.language, QStringLiteral("cmn"));
     QCOMPARE(notes.get().at(skipSlur ? 2 : 1).data.language, notes.get().at(0).data.language);
     QCOMPARE(notes.get().at(skipSlur ? 1 : 2).data.lyric,
              originalNotes.get().at(skipSlur ? 1 : 2).data.lyric);
@@ -1180,12 +1183,6 @@ void AutomationProtocolTests::publicTrackOrganizationPreservesClipsAndHistory() 
                        {"color_index", 3             }
     }),
              QString{});
-    QCOMPARE(apply(QStringLiteral("tracks.set_default_language"),
-                   {
-                       {"track_id",    leadId.value()},
-                       {"language_id", "eng"         }
-    }),
-             QString{});
     QCOMPARE(apply(QStringLiteral("clips.rename"),
                    {
                        {"clip_id", clipId.value()},
@@ -1195,7 +1192,6 @@ void AutomationProtocolTests::publicTrackOrganizationPreservesClipsAndHistory() 
     const auto organized = runtime.project().getProject(runtime.documentVersion().documentId);
     QVERIFY(organized);
     QCOMPARE(organized.get().tracks.at(1).data.colorIndex, 3);
-    QCOMPARE(organized.get().tracks.at(1).data.defaultLanguage, QStringLiteral("eng"));
     QCOMPARE(organized.get().tracks.at(1).clips.first().data.properties.name,
              QStringLiteral("Verse"));
     const auto retained = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
@@ -1672,18 +1668,25 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
 
 void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data() {
     QTest::addColumn<bool>("inherit");
-    QTest::newRow("explicit-note-language") << false;
-    QTest::newRow("inherited-clip-language") << true;
+    QTest::addColumn<bool>("clearInputLanguage");
+    QTest::newRow("explicit-note-language") << false << false;
+    QTest::newRow("inherited-clip-language") << true << false;
+    // The stored input language is only a Fill Lyric preference, so an
+    // unspecified note must still resolve through the singer route.
+    QTest::newRow("inherited-singer-fallback") << true << true;
 }
 
 void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets() {
     QFETCH(bool, inherit);
+    QFETCH(bool, clearInputLanguage);
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
     auto track = lyricTrack();
     auto &draft = track.clips.first().notes.first();
     if (inherit)
         draft.language.clear();
+    if (clearInputLanguage)
+        track.clips.first().inputLanguage.clear();
     const auto expectedLanguage = inherit ? QStringLiteral("cmn") : QStringLiteral("eng");
     PhonemeName onset;
     onset.name = QStringLiteral("l");
@@ -1836,9 +1839,10 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
                       {QStringLiteral("language_id"), QStringLiteral("eng")     }
     });
     auto unknownLanguage = note(480, timed);
+    // An unspecified note follows the voice source instead of declaring a state.
     unknownLanguage.insert(QStringLiteral("language"),
                            QJsonObject{
-                               {QStringLiteral("mode"), QStringLiteral("unknown")}
+                               {QStringLiteral("mode"), QStringLiteral("unspecified")}
     });
     input.insert(QStringLiteral("notes"), QJsonArray{manual, unknownLanguage});
     const auto inserted = registry.invoke(QStringLiteral("notes.insert"), input);
@@ -1866,7 +1870,8 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
     QCOMPARE(manualResult.value(QStringLiteral("pronunciation_candidates")).toArray(), candidates);
     QCOMPARE(manualResult.value(QStringLiteral("language")).toString(), QStringLiteral("eng"));
     const auto unknownResult = notes.last().toObject();
-    QCOMPARE(unknownResult.value(QStringLiteral("language")).toString(), QStringLiteral("unknown"));
+    // An empty language means the note leaves the language to the voice source.
+    QVERIFY(unknownResult.value(QStringLiteral("language")).toString().isEmpty());
     QCOMPARE(unknownResult.value(QStringLiteral("pronunciation"))
                  .toObject()
                  .value(QStringLiteral("source"))

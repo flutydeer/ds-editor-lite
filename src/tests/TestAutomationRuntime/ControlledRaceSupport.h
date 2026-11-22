@@ -191,7 +191,6 @@ namespace AutomationTaskRaceTests {
             Automation::TrackDraftDto track;
             track.name = QStringLiteral("Race Track");
             track.gain = 1.0;
-            track.defaultLanguage = QStringLiteral("unknown");
             const auto insertedTrack = m_runtime->project().insertTrack(context(), 0, track);
             if (!insertedTrack || insertedTrack.get().affectedObjects.size() != 1)
                 return false;
@@ -203,7 +202,7 @@ namespace AutomationTaskRaceTests {
             singing.properties.length = 960;
             singing.properties.clipLen = 960;
             singing.properties.gain = 1.0;
-            singing.defaultLanguage = QStringLiteral("unknown");
+            singing.inputLanguage = QStringLiteral("unknown");
 
             Automation::ClipDraftDto audio;
             audio.type = Automation::ClipDraftDto::Type::Audio;

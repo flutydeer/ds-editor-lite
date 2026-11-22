@@ -61,12 +61,13 @@ public:
     quint64 inferenceRevision() const;
     quint64 bumpInferenceRevision();
 
-    void setDefaultLanguage(const QString &language);
-    QString defaultLanguage() const;
-    // effective language usable at inference: explicit clip language > singer package default >
-    // defaultLanguage() fallback
-    QString effectiveDefaultLanguage() const;
-    QString defaultG2pId() const;
+    // Language the user picks when filling in lyrics. It preselects the fill-lyric
+    // dialog and is shown in the toolbar, and it never takes part in inference:
+    // changing it does not touch any note.
+    void setInputLanguage(const QString &language);
+    QString inputLanguage() const;
+    // Route language an unspecified note resolves to under the current singer.
+    QString fallbackLanguage() const;
 
     // Transient diagnostics of the last segmentation/inference cycle, never
     // serialized nor undoable
@@ -77,6 +78,9 @@ public:
     void setPendingNoteTaskErrors(const QHash<int, QString> &taskErrors);
 
     SingerInfo singerInfo() const;
+    /// The voice source inherited from the track, independent of the current
+    /// inheritance state.
+    SingerInfo trackSingerInfo() const;
     SingerInfo ownSingerInfo() const;
     SpeakerInfo speakerInfo() const;
     SpeakerInfo ownSpeakerInfo() const;
@@ -108,17 +112,20 @@ signals:
     void voiceContextChanged(const VoiceContextChange &change);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
-    void defaultLanguageChanged(QString language);
-    void defaultG2pIdChanged(QString g2pId);
+    void inputLanguageChanged(const QString &language);
     void piecesChanged(const PieceList &pieces, const PieceList &newPieces,
                        const PieceList &discardedPieces);
     void noteInferenceErrorsChanged();
 
 private:
     void init();
-    void updateDefaultG2pId(const QString &language);
     void notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext);
-    void rebuildNoteInferenceErrors(const SliceResult &sliceResult);
+    void rebuildSliceErrors(const SliceResult &sliceResult);
+    // Recomputes the language and phoneme diagnostics from the current notes and
+    // singer, then merges every source into noteInferenceErrors(). Skipped phrase
+    // ranges are reported through the same signal, so a range-only change has to
+    // ask for the notification explicitly.
+    void refreshNoteDiagnostics(bool rangesChanged = false);
     void clearNoteInferenceErrors(const QList<Note *> &notes);
     void clearAllNoteInferenceErrors();
 
@@ -127,11 +134,13 @@ private:
     quint64 m_inferenceRevision = 0;
 
     QHash<int, NoteInferenceErrorInfo> m_noteInferenceErrors;
+    QHash<int, NoteInferenceErrorInfo> m_sliceErrors;
+    QHash<int, NoteInferenceErrorInfo> m_languageErrors;
+    QHash<int, NoteInferenceErrorInfo> m_phonemeErrors;
     QList<QPair<int, int>> m_skippedPhraseRanges;
     QHash<int, QString> m_pendingNoteTaskErrors;
 
-    Property<QString> m_defaultLanguage{"unknown"};
-    Property<QString> m_defaultG2pId{"unknown"};
+    Property<QString> m_inputLanguage{QString()};
 
     Property<SingerInfo> m_singerInfo;
     Property<SingerInfo> m_trackSingerInfo;

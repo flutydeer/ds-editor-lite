@@ -188,7 +188,6 @@ namespace Automation {
                 .extensionVisible = value->extVisible,
                 .splitMode = value->splitMode,
                 .skipSlur = value->skipSlur,
-                .exportLanguage = value->exportLanguage,
                 .textEditFontSize = value->textEditFontSize,
                 .viewFontSize = value->viewFontSize,
                 .builtinSplitterEnabled = value->builtinSplitterEnabled,
@@ -254,7 +253,6 @@ namespace Automation {
             target->extVisible = value.extensionVisible;
             target->splitMode = value.splitMode;
             target->skipSlur = value.skipSlur;
-            target->exportLanguage = value.exportLanguage;
             target->textEditFontSize = value.textEditFontSize;
             target->viewFontSize = value.viewFontSize;
             target->builtinSplitterEnabled = value.builtinSplitterEnabled;

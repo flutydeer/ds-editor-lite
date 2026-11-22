@@ -8,6 +8,7 @@
 
 #include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/Utils/G2pService.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 
 namespace FillLyric {
     class CellList;
@@ -27,7 +28,7 @@ namespace FillLyric {
         Q_PROPERTY(QStringList splitterPen READ splitterPen WRITE setSplitterPen)
 
     public:
-        explicit LyricWrapView(QString qssContent, QStringList priorityLanguages,
+        explicit LyricWrapView(QString qssContent, LyricLanguageContextPtr languageContext,
                                G2pService *g2pService, QWidget *parent = nullptr);
         ~LyricWrapView() override;
 
@@ -53,8 +54,7 @@ namespace FillLyric {
         void repaintCellLists();
 
         QList<CellList *> cellLists() const;
-        QStringList priorityLanguages() const;
-
+        
     Q_SIGNALS:
         void fontSizeChanged();
         void noteCountChanged(const int &count);
@@ -121,7 +121,7 @@ namespace FillLyric {
         QPoint m_lastClickPos;
 
         QString m_qssContent;
-        QStringList m_priorityLanguages;
+        LyricLanguageContextPtr m_languageContext;
         G2pService *m_g2pService = nullptr;
 
     private Q_SLOTS:

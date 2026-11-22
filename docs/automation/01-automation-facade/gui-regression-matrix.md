@@ -207,14 +207,14 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G04：轨道属性、颜色、排序、删除与调音台
 
-- **追踪**：`tracks.insert/move/remove/set_color/set_default_language/set_properties`、
+- **追踪**：`tracks.insert/move/remove/set_color/set_properties`、
   `master.set_control`。
 - **前置**：打开干净工作副本；至少保留三条名称可区分的轨道。
 - **动作**：通过轨道头右键在中间插入轨道；改为含 Unicode 的名称；逐次切换 M、S 和默认
   语言；打开 Track color，先只 hover 后离开，再重新打开并点击另一颜色；仅从轨道编号
   区域拖动改变顺序；切到 Mix 页分别修改一条轨道和 Master 的 gain/pan；删除中间轨道，
   再 Undo/Redo。
-- **可观察断言**：插入位置、编号与名称立即更新；M/S、语言和颜色在轨道头及调音台同步；
+- **可观察断言**：插入位置、编号与名称立即更新；M/S 和颜色在轨道头及调音台同步；
   hover 退出恢复原颜色，点击才持久且颜色提交可 Undo/Redo；拖动后轨道与其唱段整体换序；
   gain/pan 文本随提交更新；删除/撤销/重做保持正确对象与顺序。
 - **恢复/清理**：Undo 到初始轨道状态，或放弃工作副本；Master 和轨道控制恢复基线。
@@ -223,10 +223,10 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G05：歌声片段、跨轨移动、缩放与剪贴板
 
-- **追踪**：`clips.insert/remove/set_default_language/set_properties/move_into_new_track`、
+- **追踪**：`clips.insert/remove/set_input_language/set_properties/move_into_new_track`、
   selection、复制/粘贴；音频片段内部状态在 `GUI-G21` 补充。
 - **前置**：至少两条可见轨；播放头位于非零 tick；当前没有选择或拖动预览。
-- **动作**：在空白轨道位置创建歌声片段并改名、默认语言和歌手继承状态；拖片段主体做水平
+- **动作**：在空白轨道位置创建歌声片段并改名、输入语种和歌手继承状态；拖片段主体做水平
   移动及跨轨移动；把片段拖到窗口底部的新建轨道入口（双击底部空白行、
   或把片段/文件拖到这一行）；拖左右边缘调整长度；`[BRIDGE]` F11 后做一次不吸附移动；F9
   后逐个追加片段到多选；执行 Copy/Paste、Cut/Paste 和 Delete；双击片段进入 Clip Editor。

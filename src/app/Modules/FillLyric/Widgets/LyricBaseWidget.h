@@ -14,6 +14,7 @@
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
 #include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/LyricTabConfig.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 #include <lite/GUI/Controls/ComboBox.h>
 
 namespace FillLyric {
@@ -24,7 +25,7 @@ namespace FillLyric {
 
     public:
         explicit LyricBaseWidget(const LyricTabConfig &config,
-                                 std::vector<std::string> priorityG2pIds,
+                                 LyricLanguageContextPtr languageContext,
                                  QWidget *parent = nullptr);
         ~LyricBaseWidget() override;
 
@@ -39,10 +40,13 @@ namespace FillLyric {
         void setLyricPrevText(const QString &text);
 
         QList<QList<LangNote>> splitLyric(const QString &lyric) const;
+        void refreshLanguageCombo();
+        void revertLanguageChoice();
 
     Q_SIGNALS:
         void modifyOption() const;
         void splitOptionChanged() const;
+        void languageChoiceChanged();
         void reReadNoteRequested();
         void toTableRequested();
         void lyricPrevRequested();
@@ -53,6 +57,9 @@ namespace FillLyric {
         void onSplitComboBoxCurrentIndexChanged(int index) const;
 
     private:
+        [[nodiscard]] std::vector<std::string> priorityLanguages() const;
+        void updateLanguageToolTip();
+
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_textTopLayout;
         QHBoxLayout *m_textBottomLayout;
@@ -81,7 +88,12 @@ namespace FillLyric {
 
         QPushButton *m_btnToTable;
 
-        std::vector<std::string> m_priorityG2pIds;
+        QHBoxLayout *m_languageLayout;
+        QLabel *m_languageLabel;
+        ComboBox *m_languageComboBox;
+
+        LyricLanguageContextPtr m_languageContext;
+        QString m_previousLanguageChoice;
     };
 
 

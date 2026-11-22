@@ -34,18 +34,18 @@ namespace Automation {
         constexpr auto kAudioFormatDataKey = "diffscope.audio.formatData";
 
         template <typename Target>
-        class SetDefaultLanguageAction final : public IAction {
+        class SetInputLanguageAction final : public IAction {
         public:
-            SetDefaultLanguageAction(Target *target, QString previous, QString current)
+            SetInputLanguageAction(Target *target, QString previous, QString current)
                 : m_target(target), m_previous(std::move(previous)), m_current(std::move(current)) {
             }
 
             void execute() override {
-                m_target->setDefaultLanguage(m_current);
+                m_target->setInputLanguage(m_current);
             }
 
             void undo() override {
-                m_target->setDefaultLanguage(m_previous);
+                m_target->setInputLanguage(m_previous);
             }
 
         private:
@@ -54,11 +54,11 @@ namespace Automation {
             QString m_current;
         };
 
-        class DefaultLanguageActions final : public ActionSequence {
+        class InputLanguageActions final : public ActionSequence {
         public:
             template <typename Target>
-            void setDefaultLanguage(Target *target, const QString &language) {
-                addAction(new SetDefaultLanguageAction<Target>(target, target->defaultLanguage(),
+            void setInputLanguage(Target *target, const QString &language) {
+                addAction(new SetInputLanguageAction<Target>(target, target->inputLanguage(),
                                                                language));
             }
         };
@@ -222,8 +222,8 @@ namespace Automation {
                         ClipSnapshotDto clipSnapshot{
                             ClipId(clip->id()), trackSnapshot.id, clipDraftDto(*clip), {}};
                         if (clip->clipType() == Clip::Singing) {
-                            clipSnapshot.effectiveDefaultLanguage =
-                                static_cast<const SingingClip *>(clip)->effectiveDefaultLanguage();
+                            clipSnapshot.inputLanguage =
+                                static_cast<const SingingClip *>(clip)->inputLanguage();
                         }
                         trackSnapshot.clips.append(std::move(clipSnapshot));
                     }
@@ -575,34 +575,6 @@ namespace Automation {
                 newProperties.colorIndex = colorIndex;
                 auto actions = std::make_unique<TrackActions>();
                 actions->editTrackProperties(oldProperties, newProperties, track);
-                return m_committer.commit(session, std::move(actions), affected);
-            });
-    }
-
-    AutomationResult<MutationResult> ProjectAutomationFacade::setTrackDefaultLanguage(
-        const CommandContext &context, const TrackId trackId, const QString &language) {
-        return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::tracks::set_default_language, context,
-            [this, trackId, language](DocumentSession &session, const bool validateOnly) {
-                auto resolved = m_objects.track(session, trackId);
-                if (!resolved)
-                    return AutomationResult<MutationResult>(resolved.getError());
-                if (language.trimmed().isEmpty()) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
-                }
-                auto *track = resolved.get();
-                const bool changed = track->defaultLanguage() != language;
-                const auto affected = QList<ObjectRef>{
-                    {ObjectKind::Track, trackId.value()}
-                };
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
-                if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                auto actions = std::make_unique<DefaultLanguageActions>();
-                actions->setDefaultLanguage(track, language);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1778,20 +1750,17 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> ProjectAutomationFacade::setSingingClipDefaultLanguage(
+    AutomationResult<MutationResult> ProjectAutomationFacade::setSingingClipInputLanguage(
         const CommandContext &context, const ClipId clipId, const QString &language) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::clips::set_default_language, context,
+            OperationIds::clips::set_input_language, context,
             [this, clipId, language](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
-                if (language.trimmed().isEmpty()) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
-                }
+                // An empty language is the "follow singer" choice, so it is valid.
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                const bool changed = clip->defaultLanguage() != language;
+                const bool changed = clip->inputLanguage() != language;
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1800,8 +1769,8 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                auto actions = std::make_unique<DefaultLanguageActions>();
-                actions->setDefaultLanguage(clip, language);
+                auto actions = std::make_unique<InputLanguageActions>();
+                actions->setInputLanguage(clip, language);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }

@@ -3,9 +3,12 @@
 #include <QCoreApplication>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QSet>
+#include <QSignalBlocker>
 
 #include "Modules/FillLyric/Utils/LrcTools/LrcDecoder.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
+#include "Utils/LanguageDisplayUtils.h"
 #include <lite/GUI/Utils/IconUtils.h>
 
 namespace FillLyric {
@@ -21,8 +24,8 @@ namespace FillLyric {
     }
 
     LyricBaseWidget::LyricBaseWidget(const LyricTabConfig &config,
-                                     std::vector<std::string> priorityG2pIds, QWidget *parent)
-        : QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)) {
+                                     LyricLanguageContextPtr languageContext, QWidget *parent)
+        : QWidget(parent), m_languageContext(std::move(languageContext)) {
         m_textTopLayout = new QHBoxLayout();
         m_btnImportLrc =
             new QPushButton(QCoreApplication::translate("LyricBaseWidget", "Import Lrc"));
@@ -97,6 +100,17 @@ namespace FillLyric {
         m_splitLayout->addWidget(m_splitters);
         m_splitLayout->addStretch(1);
 
+        m_languageLayout = new QHBoxLayout();
+        m_languageLayout->setContentsMargins(0, 0, 0, 0);
+        m_languageLabel =
+            new QLabel(QCoreApplication::translate("LyricBaseWidget", "Lyric Language :"));
+        m_languageComboBox = new ComboBox();
+        m_languageLabel->setBuddy(m_languageComboBox);
+        m_languageLayout->addWidget(m_languageLabel);
+        m_languageLayout->addWidget(m_languageComboBox);
+        m_languageLayout->addStretch(1);
+        refreshLanguageCombo();
+
         m_skipSlur =
             new QCheckBox(QCoreApplication::translate("LyricBaseWidget", "Skip Slur Note"));
         m_skipSlurLayout = new QHBoxLayout();
@@ -105,6 +119,7 @@ namespace FillLyric {
 
         m_optLayout = new QVBoxLayout();
         m_optLayout->addLayout(m_splitLayout);
+        m_optLayout->addLayout(m_languageLayout);
         m_optLayout->addLayout(m_skipSlurLayout);
         m_optWidget->setLayout(m_optLayout);
         m_mainLayout->addWidget(m_optWidget);
@@ -137,6 +152,17 @@ namespace FillLyric {
         connect(m_optButton, &QPushButton::clicked, this,
                 [this] { m_optWidget->setVisible(!m_optWidget->isVisible()); });
 
+        connect(m_languageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                [this](int index) {
+                    if (!m_languageContext || index < 0)
+                        return;
+                    m_previousLanguageChoice = m_languageContext->choice();
+                    m_languageContext->setChoice(m_languageComboBox->itemData(index).toString());
+                    updateLanguageToolTip();
+                    Q_EMIT languageChoiceChanged();
+                    Q_EMIT modifyOption();
+                });
+
         connect(m_skipSlur, &QCheckBox::stateChanged, this, [this] {
             Q_EMIT modifyOption();
             Q_EMIT splitOptionChanged();
@@ -144,6 +170,12 @@ namespace FillLyric {
     }
 
     LyricBaseWidget::~LyricBaseWidget() = default;
+
+    std::vector<std::string> LyricBaseWidget::priorityLanguages() const {
+        if (!m_languageContext)
+            return {};
+        return toStdVector(m_languageContext->priorityLanguages());
+    }
 
     QString LyricBaseWidget::lyricText() const {
         return m_textEdit->toPlainText();
@@ -219,15 +251,69 @@ namespace FillLyric {
 
         QList<QList<LangNote>> splitNotes;
         if (splitType == Auto) {
-            splitNotes = LyricSplitter::splitAuto(lyric, m_priorityG2pIds);
+            splitNotes = LyricSplitter::splitAuto(lyric, priorityLanguages());
         } else if (splitType == ByChar) {
-            splitNotes = LyricSplitter::splitByChar(lyric, m_priorityG2pIds);
+            splitNotes = LyricSplitter::splitByChar(lyric, priorityLanguages());
         } else if (splitType == Custom) {
             splitNotes = LyricSplitter::splitCustom(lyric, this->m_splitters->text().split(' '),
-                                                    m_priorityG2pIds);
+                                                    priorityLanguages());
         }
 
         return splitNotes;
+    }
+
+    void LyricBaseWidget::refreshLanguageCombo() {
+        if (!m_languageComboBox || !m_languageContext)
+            return;
+
+        const QSignalBlocker blocker(m_languageComboBox);
+        m_languageComboBox->clear();
+        m_languageComboBox->addItem(QCoreApplication::translate("LyricBaseWidget", "Auto Detect"),
+                                    QString());
+        QSet<QString> added;
+        for (const auto &language : m_languageContext->selectableLanguages()) {
+            if (language.isEmpty() || added.contains(language))
+                continue;
+            added.insert(language);
+            m_languageComboBox->addItem(LanguageDisplayUtils::displayName(language), language);
+        }
+        // A stored choice the singer cannot route stays selectable so the user
+        // sees the mismatch instead of silently dropping it.
+        const auto choice = m_languageContext->choice();
+        if (!choice.isEmpty() && !added.contains(choice))
+            m_languageComboBox->addItem(LanguageDisplayUtils::displayName(choice), choice);
+
+        const auto index = m_languageComboBox->findData(choice);
+        m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
+        m_previousLanguageChoice = choice;
+        updateLanguageToolTip();
+    }
+
+    void LyricBaseWidget::revertLanguageChoice() {
+        if (!m_languageContext)
+            return;
+        m_languageContext->setChoice(m_previousLanguageChoice);
+        const auto index = m_languageComboBox->findData(m_previousLanguageChoice);
+        {
+            const QSignalBlocker blocker(m_languageComboBox);
+            m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
+        }
+        updateLanguageToolTip();
+    }
+
+    void LyricBaseWidget::updateLanguageToolTip() {
+        if (!m_languageContext || !m_languageComboBox)
+            return;
+        if (m_languageContext->choiceUnavailable()) {
+            m_languageComboBox->setToolTip(QCoreApplication::translate(
+                "LyricBaseWidget",
+                "The singer cannot use this language. Pick another one to import lyrics."));
+        } else {
+            m_languageComboBox->setToolTip(QCoreApplication::translate(
+                "LyricBaseWidget",
+                "The chosen language ranks first. Characters the lyric engine cannot identify "
+                "fall back to it."));
+        }
     }
 
     void LyricBaseWidget::onSplitComboBoxCurrentIndexChanged(int index) const {

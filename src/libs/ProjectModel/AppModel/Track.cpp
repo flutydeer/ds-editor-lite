@@ -81,23 +81,6 @@ void Track::setColorIndex(int colorIndex) {
     emit propertyChanged();
 }
 
-QString Track::defaultLanguage() const {
-    return m_defaultLanguage;
-}
-
-void Track::setDefaultLanguage(const QString &language) {
-    if (m_defaultLanguage == language)
-        return;
-    m_defaultLanguage = language;
-    this->updateDefaultG2pId(language);
-    emit defaultLanguageChanged(language);
-    emit propertyChanged();
-}
-
-QString Track::defaultG2pId() const {
-    return m_singerInfo.g2pId(m_defaultLanguage);
-}
-
 SingerIdentifier Track::singerIdentifier() const {
     return m_singerInfo.identifier();
 }
@@ -133,7 +116,6 @@ void Track::setVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &spe
     m_singerInfo = singerInfo;
     m_speakerInfo = speakerInfo;
     m_speakerMixData = normalizedSpeakerMixData;
-    this->updateDefaultG2pId(m_defaultLanguage);
 
     const auto newContext = voiceContext();
     if (oldContext != newContext)
@@ -195,12 +177,3 @@ bool Track::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-void Track::updateDefaultG2pId(const QString &language) {
-    const auto languageInfos = this->singerInfo().languages();
-    for (const auto &languageInfo : languageInfos) {
-        if (language == languageInfo.id()) {
-            m_defaultG2pId = languageInfo.g2p();
-            break;
-        }
-    }
-}

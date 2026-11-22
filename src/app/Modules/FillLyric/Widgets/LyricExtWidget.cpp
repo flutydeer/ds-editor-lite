@@ -7,13 +7,13 @@
 
 namespace FillLyric {
     LyricExtWidget::LyricExtWidget(int *notesCount, const LyricTabConfig &config,
-                                   const QStringList &priorityLanguages, G2pService *g2pService,
+                                   LyricLanguageContextPtr languageContext, G2pService *g2pService,
                                    QWidget *parent)
-        : QWidget(parent), m_notesCount(notesCount), m_priorityLanguages(priorityLanguages) {
+        : QWidget(parent), m_notesCount(notesCount), m_languageContext(std::move(languageContext)) {
         this->setContentsMargins(0, 0, 0, 0);
 
         m_wrapView = new LyricWrapView(ThemeManager::instance()->lyricStyleSheet(),
-                                       m_priorityLanguages, g2pService);
+                                       m_languageContext, g2pService);
         m_wrapView->setContentsMargins(0, 0, 0, 0);
 
         m_tableTopLayout = new QHBoxLayout();

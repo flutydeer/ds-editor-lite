@@ -10,7 +10,7 @@ InferInputNote::InferInputNote(const Note &note) {
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
     isSyllabification = note.isSyllabification();
-    languageDictId = note.effectiveLanguage();
+    languageDictId = note.resolvedLanguage();
     phonemeNames = note.phonemeNameSeq().result();
     phonemeOffsets = note.phonemeOffsetSeq().result();
 }

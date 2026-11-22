@@ -182,7 +182,6 @@ void ApplicationGuiTests::createExportTracks() {
     for (const auto &name : {QStringLiteral("Lead"), QStringLiteral("Harmony")}) {
         Automation::TrackDraftDto draft;
         draft.name = name;
-        draft.defaultLanguage = QStringLiteral("eng");
         QVERIFY(runtime.project().insertTrack(commandContext(),
                                               context->m_appModel->tracks().size(), draft));
     }

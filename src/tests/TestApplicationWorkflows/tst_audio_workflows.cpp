@@ -1,5 +1,13 @@
 #include "tst_application_workflows.h"
 
+#include "Model/ClipboardDataModel/ClipsInfo.h"
+
+#include "Automation/ProjectAutomationDtos.h"
+
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioExporter.h"
 #include "Modules/Audio/AudioSettings.h"
@@ -173,6 +181,46 @@ void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
     }
 }
 
+void ApplicationWorkflowTests::clipboardPayloadWithoutSourceRouteKeepsTheCascadeOff() {
+    // A payload written before the source route was recorded must not look like
+    // a clip copied from a singer without any conversion route.
+    // A clip whose route is unresolved must not claim a recorded source fallback.
+    SingingClip detached;
+    QVERIFY(!Automation::clipDraftDto(detached).hasSourceFallbackLanguage);
+
+    auto *clip = new SingingClip;
+    clip->setName(QStringLiteral("Copied"));
+    clip->setStart(0);
+    clip->setLength(1920);
+    clip->setClipLen(1920);
+    auto *note = new Note;
+    note->setLocalStart(0);
+    note->setLength(480);
+    note->setLyric(QStringLiteral("la"));
+    note->setPronunciation(Pronunciation(QStringLiteral("la"), QStringLiteral("manual")));
+    clip->insertNote(note);
+    ClipsInfo info;
+    info.clips.append(clip);
+    auto payload = ClipsInfo::serializeToJson(info);
+    const auto clips = payload.value(QStringLiteral("clips")).toArray();
+    QVERIFY(!clips.isEmpty());
+    auto clipObject = clips.first().toObject();
+    QVERIFY(clipObject.contains(QStringLiteral("sourceFallbackRecorded")));
+    QVERIFY2(!clipObject.value(QStringLiteral("sourceFallbackRecorded")).toBool(),
+             "an unresolved source route must not be recorded as a known fallback");
+    clipObject.remove(QStringLiteral("sourceFallbackRecorded"));
+    clipObject.remove(QStringLiteral("sourceFallbackLanguage"));
+    payload[QStringLiteral("clips")] = QJsonArray{clipObject};
+
+    const auto previous = ClipsInfo::deserializeFromJson(payload);
+    QCOMPARE(previous.clips.size(), 1);
+    Track track;
+    const auto inserts = previous.preparePaste({&track}, 0, 0);
+    QCOMPARE(inserts.size(), 1);
+    QVERIFY2(!inserts.first().clip.hasSourceFallbackLanguage,
+             "an older payload must not claim a recorded source route");
+    delete clip;
+}
 void ApplicationWorkflowTests::audioClipTrimmingAndMovingPreserveRealtimeDurations() {
     auto &core = runtime();
     QVERIFY(core.timeline().setTempo(commandContext(), 0, 120));

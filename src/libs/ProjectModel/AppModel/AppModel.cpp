@@ -80,11 +80,6 @@ void AppModel::setMasterControl(const TrackControl &control) {
     emit masterControlChanged(d->m_masterControl);
 }
 
-void AppModel::setDefaultSingingLanguage(const QString &language) {
-    Q_D(AppModel);
-    d->m_defaultSingingLanguage = language;
-}
-
 void AppModel::setPaletteColorCount(const int count) {
     Q_D(AppModel);
     if (count > 0)
@@ -190,23 +185,13 @@ void AppModel::replaceProject(ProjectModelData &&data) {
     for (auto &track : data.tracks)
         d->m_tracks.append(track.release());
 
-    const auto defaultLanguage = d->m_defaultSingingLanguage;
     for (const auto track : std::as_const(d->m_tracks)) {
-        if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
-            track->setDefaultLanguage(defaultLanguage);
         for (const auto clip : track->clips()) {
-            if (clip->clipType() == IClip::Audio) {
-                // dspx stores ticks only; establish the realtime truth under
-                // the timeline the ticks were saved with
-                static_cast<AudioClip *>(clip)->syncTruthFromTicks(d->m_timeline);
+            if (clip->clipType() != IClip::Audio)
                 continue;
-            }
-            if (clip->clipType() != IClip::Singing)
-                continue;
-            const auto singingClip = static_cast<SingingClip *>(clip);
-            if (singingClip->defaultLanguage().isEmpty() ||
-                singingClip->defaultLanguage() == "unknown")
-                singingClip->setDefaultLanguage(track->defaultLanguage());
+            // dspx stores ticks only; establish the realtime truth under the
+            // timeline the ticks were saved with
+            static_cast<AudioClip *>(clip)->syncTruthFromTicks(d->m_timeline);
         }
     }
 
@@ -228,7 +213,6 @@ void AppModel::newProject() {
     singingClip->setClipLen(length);
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
-    newTrack->setDefaultLanguage(d->m_defaultSingingLanguage);
     newTrack->setColorIndex(0);
 
     newTrack->insertClip(singingClip);

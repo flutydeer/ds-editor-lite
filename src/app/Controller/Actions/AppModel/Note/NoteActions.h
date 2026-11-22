@@ -34,6 +34,7 @@ public:
     void editNotesWordProperties(const QList<Note *> &notes,
                                  const QList<Note::WordProperties> &args, SingingClip *clip,
                                  const QList<WordPropertyEditOptions> &options = {});
+
     void editNotePhonemeOffset(Note *note, const QList<int> &offsets, SingingClip *clip);
 
     // Reset (clear) the edited phoneme offsets of the given word roots

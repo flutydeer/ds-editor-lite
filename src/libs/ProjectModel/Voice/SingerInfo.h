@@ -87,6 +87,22 @@ public:
     QString defaultG2pId() const;
     QString defaultDict() const;
 
+    /// True when `conversionLanguages()` reflects the language service for this
+    /// singer, including the case where it is empty because no declared
+    /// language has a usable route. False means the projection was never
+    /// populated (a document round trip, a fixture), so callers may fall back to
+    /// the declared languages.
+    [[nodiscard]] bool hasConversionLanguages() const;
+    /// Addressable conversion (word-level) routes, in declaration order.
+    ///
+    /// The language service route metadata projected for this exact singer and
+    /// package version, restricted to the candidate languages the package
+    /// declares. This is the only authority for resolving an unspecified note
+    /// language and for word-level conflict checks. It is unrelated to the
+    /// model phoneme/language tables in capability().
+    QStringList conversionLanguages() const;
+    void setConversionLanguages(const QStringList &languages);
+
     ResolutionState resolutionState() const;
 
     /// Parse-time capability summary (mixable speakers / effective phonemes /
@@ -136,6 +152,8 @@ public:
     QList<LanguageInfo> languages;
     QString defaultLanguage;
     QString defaultDict;
+    QStringList conversionLanguages;
+    bool conversionLanguagesKnown = false;
     // 默认 Pending：未经验证的 SingerInfo 不应被标记为已解析。
     // PackageManager 加载成功后显式 setResolutionState(Resolved)。
     ResolutionState resolutionState = ResolutionState::Pending;

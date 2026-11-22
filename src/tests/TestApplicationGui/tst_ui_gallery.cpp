@@ -12,6 +12,7 @@
 #include "Modules/ProjectConverters/MidiConverterDialog.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Audio/AudioExportProgressDialog.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -714,7 +715,6 @@ void ApplicationGuiTests::captureUiGallery() try {
     Automation::ClipDraftDto harmony;
     harmony.properties.name = QStringLiteral("Harmony reference");
     harmony.properties.length = harmony.properties.clipLen = 3840;
-    harmony.defaultLanguage = QStringLiteral("eng");
     for (int index = 0; index < 4; ++index) {
         Automation::NoteDraftDto note;
         note.localStart = 240 + index * 720;
@@ -1084,8 +1084,12 @@ void ApplicationGuiTests::captureUiGallery() try {
     show(PhonemeEditorDialog(notes.first(), &window), Module::Lyrics,
          QStringLiteral("Edit phonemes"));
     {
-        LyricDialog lyrics(singingClip, notes, singingClip->singerIdentifier(),
-                           {TestSupport::fixtureLanguage()}, &window);
+        LyricDialog lyrics(
+            singingClip, notes, singingClip->singerIdentifier(),
+            std::make_shared<FillLyric::LyricLanguageContext>(
+                QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
+                singingClip->inputLanguage()),
+            &window);
         lyrics.show();
         lyrics.activateWindow();
         auto *input = lyrics.findChild<FillLyric::PhonicTextEdit *>();

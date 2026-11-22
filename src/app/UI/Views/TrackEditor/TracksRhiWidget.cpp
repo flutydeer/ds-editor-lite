@@ -1058,7 +1058,7 @@ void TracksRhiWidget::rebuildModelConnections() {
                 scheduleSnapshot();
             });
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
-                connect(singing, &SingingClip::defaultLanguageChanged, this,
+                connect(singing, &SingingClip::inputLanguageChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::noteChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
@@ -1372,10 +1372,9 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
         const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
             singing->singerInfo(), singing->speakerInfo(), singing->speakerMixData());
         result.title +=
-            QStringLiteral("%1%2 %3 ")
+            QStringLiteral("%1%2")
                 .arg(singerName.isEmpty() ? tr("(No singer)") : singerName,
-                     speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
-                     singing->defaultLanguage());
+                     speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName);
         for (const auto *note : singing->notes()) {
             result.notes.append({note->id(), note->localStart(), note->length(), note->keyIndex()});
         }
@@ -1464,10 +1463,9 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
                 targetTrack->singerInfo(), targetTrack->speakerInfo(),
                 targetTrack->speakerMixData());
             snapshot.title +=
-                QStringLiteral("%1%2 %3 ")
+                QStringLiteral("%1%2")
                     .arg(singerName.isEmpty() ? tr("(No singer)") : singerName,
-                         speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
-                         clip.defaultLanguage);
+                         speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName);
             for (const auto &note : clip.notes)
                 snapshot.notes.append({-1, note.start, note.length, note.key});
         } else if (clip.type == IClip::Audio) {

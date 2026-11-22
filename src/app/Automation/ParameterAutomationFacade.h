@@ -4,10 +4,13 @@
 #include "AutomationDispatcher.h"
 #include "CommandCommitter.h"
 #include "DocumentObjectResolver.h"
+#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
+#include "LanguageRepair.h"
 #include "ProjectAutomationDtos.h"
 #include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
 
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 
 #include <functional>
 #include <optional>
@@ -154,12 +157,13 @@ namespace Automation {
         AutomationResult<MutationResult>
             replaceClipSpeakerMix(const CommandContext &context, ClipId clipId,
                                   const SpeakerMixModel::SpeakerMixData &data);
-        AutomationResult<MutationResult> useTrackVoiceContext(const CommandContext &context,
-                                                              ClipId clipId);
-        AutomationResult<MutationResult> selectClipSingleSpeaker(const CommandContext &context,
-                                                                 ClipId clipId,
-                                                                 const SingerInfo &singerInfo,
-                                                                 const SpeakerInfo &speakerInfo);
+        AutomationResult<MutationResult> useTrackVoiceContext(
+            const CommandContext &context, ClipId clipId,
+            LanguageRepair languageRepair = LanguageRepair::None);
+        AutomationResult<MutationResult> selectClipSingleSpeaker(
+            const CommandContext &context, ClipId clipId, const SingerInfo &singerInfo,
+            const SpeakerInfo &speakerInfo,
+            LanguageRepair languageRepair = LanguageRepair::None);
         AutomationResult<MutationResult> enableClipDynamicSpeakerMix(
             const CommandContext &context, ClipId clipId, const SingerInfo &singerInfo,
             const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data);
@@ -219,7 +223,32 @@ namespace Automation {
             setClipVoiceContext(const OperationId &operationId, ClipVoiceAction action,
                                 const CommandContext &context, ClipId clipId,
                                 const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
-                                const SpeakerMixModel::SpeakerMixData &data);
+                                const SpeakerMixModel::SpeakerMixData &data,
+                                LanguageRepair languageRepair = LanguageRepair::None);
+
+        /// Note-level effect of moving a clip to another voice source.
+        struct VoiceLanguagePlan {
+            QList<Note *> notes;
+            QList<Note::WordProperties> wordProperties;
+            QList<QString> oldResolvedLanguages;
+            QList<QString> newResolvedLanguages;
+        };
+
+        /// Predicts which notes need a new declaration or a cascade when the clip
+        /// resolves against `targetSinger`.
+        ///
+        /// Fails when a repair was requested but the target singer has no usable
+        /// conversion language, so the caller reports the failure instead of
+        /// clearing declarations.
+        AutomationResult<VoiceLanguagePlan>
+            planVoiceLanguageChange(SingingClip *clip, const SingerInfo &targetSinger,
+                                    LanguageRepair languageRepair) const;
+
+        /// Word data the clips following `track` have to rewrite when the track
+        /// resolves against `targetSinger`. Clips with their own voice source are
+        /// unaffected and never appear in the result.
+        [[nodiscard]] QList<ClipWordCascade>
+            planTrackVoiceLanguageChange(const Track *track, const SingerInfo &targetSinger) const;
         using CurveMutation = std::function<AutomationResult<bool>(QList<CurveDraftDto> &curves)>;
         using DrawCurveMutation = std::function<AutomationResult<bool>(
             SingingClip &clip, const QList<DrawCurve *> &original, QList<DrawCurve *> &edited)>;

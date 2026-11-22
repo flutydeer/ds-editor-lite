@@ -9,6 +9,7 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/Utils/NoteResizeUtils.h>
 
@@ -177,27 +178,21 @@ namespace Automation {
         };
 
         Note::WordProperties normalizedWordProperties(const Note::WordProperties &previous,
-                                                      const NoteWordEditDto &edit) {
+                                                      const NoteWordEditDto &edit,
+                                                      const QString &fallbackLanguage) {
             Note::WordProperties next;
             next.lyric = edit.lyric.trimmed();
             next.language = edit.language;
             next.pronunciation = edit.pronunciation;
             next.pronCandidates = edit.pronunciationCandidates;
             next.phonemes = edit.phonemes;
-            const bool wordInputChanged =
-                previous.lyric != next.lyric || previous.language != next.language;
-            if (wordInputChanged) {
-                if (!edit.replacePronunciation)
-                    next.pronunciation.edited.clear();
-                if (!edit.replacePronunciationCandidates)
-                    next.pronCandidates.clear();
-            }
-            auto appliedPronunciation = previous.pronunciation;
-            appliedPronunciation.edited = next.pronunciation.edited;
-            if (wordInputChanged ||
-                previous.pronunciation.result() != appliedPronunciation.result()) {
-                next.phonemes = {};
-            }
+            NoteWordCascade::Options options;
+            options.replacePronunciation = edit.replacePronunciation;
+            options.replacePronCandidates = edit.replacePronunciationCandidates;
+            NoteWordCascade::apply(
+                previous, next,
+                NoteWordCascade::resolvedLanguage(previous.language, fallbackLanguage),
+                NoteWordCascade::resolvedLanguage(next.language, fallbackLanguage), options);
             return next;
         }
 
@@ -1087,7 +1082,9 @@ namespace Automation {
                     const auto &edit = edits.at(index);
                     auto *note = resolvedNotes.at(index);
                     const auto previous = Note::WordProperties::fromNote(*note);
-                    const auto normalized = normalizedWordProperties(previous, edit);
+                    const auto normalized = normalizedWordProperties(
+                        previous, edit,
+                        static_cast<SingingClip *>(clipResult.get().clip)->fallbackLanguage());
                     if (wordPropertiesEqual(previous, normalized))
                         continue;
                     changedNotes.append(note);
@@ -1262,34 +1259,27 @@ namespace Automation {
                         return AutomationResult<MutationResult>(resolved.getError());
                     auto *note = resolved.get().note;
                     const auto previous = Note::WordProperties::fromNote(*note);
-                    auto next = previous;
-                    if (edit.lyric)
-                        next.lyric = edit.lyric->trimmed();
-                    if (edit.language)
-                        next.language = *edit.language;
-                    if (edit.pronunciation)
-                        next.pronunciation = *edit.pronunciation;
-                    if (edit.pronunciationCandidates)
-                        next.pronCandidates = *edit.pronunciationCandidates;
-                    if (edit.phonemes)
-                        next.phonemes = *edit.phonemes;
-
-                    const bool wordInputChanged =
-                        previous.lyric != next.lyric || previous.language != next.language;
-                    if (wordInputChanged && !edit.pronunciation)
-                        next.pronunciation.edited.clear();
-                    if (wordInputChanged && !edit.pronunciationCandidates)
-                        next.pronCandidates.clear();
-                    if (!edit.phonemes && (wordInputChanged || previous.pronunciation.result() !=
-                                                                   next.pronunciation.result())) {
-                        next.phonemes = {};
-                    }
+                    // The partial patch touches only the supplied fields, then
+                    // goes through the same cascade as a full word edit so a
+                    // language change keeps the manual phoneme layers.
+                    NoteWordEditDto patch;
+                    patch.noteId = edit.noteId;
+                    patch.lyric = edit.lyric.value_or(previous.lyric);
+                    patch.language = edit.language.value_or(previous.language);
+                    patch.pronunciation = edit.pronunciation.value_or(previous.pronunciation);
+                    patch.pronunciationCandidates =
+                        edit.pronunciationCandidates.value_or(previous.pronCandidates);
+                    patch.phonemes = edit.phonemes.value_or(previous.phonemes);
+                    patch.replacePronunciation = edit.pronunciation.has_value();
+                    patch.replacePronunciationCandidates = edit.pronunciationCandidates.has_value();
+                    auto next = normalizedWordProperties(
+                        previous, patch,
+                        static_cast<SingingClip *>(clipResult.get().clip)->fallbackLanguage());
                     if (wordPropertiesEqual(previous, next))
                         continue;
                     changedNotes.append(note);
                     properties.append(next);
-                    options.append(
-                        {edit.pronunciation.has_value(), edit.pronunciationCandidates.has_value()});
+                    options.append({patch.replacePronunciation, patch.replacePronunciationCandidates});
                     changedIds.append(edit.noteId);
                 }
                 const auto affected = noteRefs(changedIds);

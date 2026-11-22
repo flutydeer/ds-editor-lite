@@ -22,6 +22,9 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/Voice/LanguageInfo.h>
+#include <lite/ProjectModel/Voice/SpeakerInfo.h>
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Tasking/TaskManager.h>
@@ -85,6 +88,14 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     auto &runtime = *context->m_coreRuntime;
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     Automation::TrackDraftDto track;
+    // The language control needs a singer that declares a convertible language.
+    track.singerInfo = SingerInfo(
+        {QStringLiteral("fixture"), QStringLiteral("fixture-package"), QVersionNumber(1, 0)},
+        QStringLiteral("Fixture"),
+        {SpeakerInfo(QStringLiteral("clear"), QStringLiteral("Clear"))},
+        {LanguageInfo(QStringLiteral("cmn"), QStringLiteral("Chinese"), QStringLiteral("g2p"))},
+        QStringLiteral("cmn"));
+    track.singerInfo.setResolutionState(ResolutionState::Resolved);
     for (const auto &name : {QStringLiteral("First clip"), QStringLiteral("Second clip")}) {
         Automation::ClipDraftDto clip;
         clip.properties.name = name;
@@ -216,10 +227,8 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
     clip.properties.name = QStringLiteral("Voice menu target");
     clip.properties.length = 1920;
     clip.properties.clipLen = 1920;
-    clip.defaultLanguage = TestSupport::fixtureLanguage();
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("Inherited voice");
-    track.defaultLanguage = TestSupport::fixtureLanguage();
     track.singerInfo = singer;
     track.speakerInfo = first;
     track.clips = {clip};
@@ -361,12 +370,11 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
     QVERIFY(modelClip->usesTrackVoiceContext());
     QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
     QVERIFY(!historyManager->canUndo());
-    {
+    if (clipTarget) {
         auto *language = host->findChild<LanguageComboBox *>();
         QVERIFY(language && language->isVisible() && language->isEnabled());
-        const auto targetLanguage = [&] {
-            return clipTarget ? modelClip->defaultLanguage() : modelTrack->defaultLanguage();
-        };
+        // Only a clip stores an input language, so the control exists there only.
+        const auto targetLanguage = [&] { return modelClip->inputLanguage(); };
         const auto previousLanguage = targetLanguage();
         const auto previousIndex = language->currentIndex();
         const auto otherIndex = previousIndex == 0 ? 1 : 0;

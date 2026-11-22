@@ -99,7 +99,7 @@ void ApplicationGuiTests::inferenceErrorBadgesExplainOverlapsAndFollowUndo() {
                                  inferenceSettled(),
                              15000);
     QCOMPARE(singingClip->noteInferenceErrors().value(first->id()).reason,
-             SliceExclusionReason::Overlapped);
+             NoteInferenceIssueReason::Overlapped);
     QCOMPARE(singingClip->noteInferenceErrors().contains(third->id()), allNotesOverlap);
     QVERIFY(firstItem->hasInferenceError());
     QVERIFY(sceneNote(second->id())->hasInferenceError());

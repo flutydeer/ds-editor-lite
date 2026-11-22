@@ -99,7 +99,6 @@
 | `tracks.set_pan` | L1 | C/S | 声像范围与单字段命令 |
 | `tracks.set_mute` | L1 | C/S | 静音单字段命令 |
 | `tracks.set_solo` | L1 | C/S | 独奏单字段命令 |
-| `tracks.set_default_language` | L1 | C/S | 默认语言与实际声音能力校验 |
 | `tracks.set_voice` | L1 | C/S | 稳定 singer 引用；speaker 可空，多个 speaker 时显式选择 |
 | `tracks.clear_voice` | L1 | C/S | 清除轨道声音上下文 |
 
@@ -130,7 +129,7 @@
 | `clips.rename` | L1 | C/S | 名称单字段命令 |
 | `clips.set_gain` | L1 | C/S | 增益单字段命令 |
 | `clips.set_mute` | L1 | C/S | 静音单字段命令 |
-| `clips.set_default_language` | L1 | C/S | 剪辑语言与有效声音能力校验 |
+| `clips.set_input_language` | L1 | C/S | 剪辑输入语种，只影响填词预选与工具栏显示 |
 | `clips.use_track_voice` | L1 | C/S | 恢复轨道声音继承 |
 | `clips.set_voice` | L1 | C/S | 设置剪辑自有声音；speaker 可空，多个 speaker 时显式选择 |
 | `clips.clear_voice` | L1 | C/S | 清除剪辑自有声音 |

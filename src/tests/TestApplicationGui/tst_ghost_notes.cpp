@@ -40,7 +40,6 @@ void ApplicationGuiTests::ghostReferenceSwitchUpdatesTheCanvasAndKeepsInputOnThe
     Automation::ClipDraftDto referenceClip;
     referenceClip.properties.length = 3840;
     referenceClip.properties.clipLen = 3840;
-    referenceClip.defaultLanguage = QStringLiteral("eng");
     Automation::NoteDraftDto note;
     note.localStart = 1920;
     note.length = 240;

@@ -54,6 +54,9 @@ PhonemeEditorDialog::PhonemeEditorDialog(const Note *note, QWidget *parent)
     });
 
     m_btnResetPhones = new Button(tr("Reset Phones"));
+    // Reset drops the edited layer, which is exactly what is needed when the
+    // derived names were cleared by a route change: the original list may be
+    // empty and inference regenerates it.
     m_btnResetPhones->setEnabled(m_isPhoneEdited);
     const auto phonesLayout = new QVBoxLayout;
     phonesLayout->addWidget(m_listPhonesEdited);

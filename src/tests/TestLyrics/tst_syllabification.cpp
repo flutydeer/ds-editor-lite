@@ -16,6 +16,7 @@
 #include <QCoreApplication>
 #include <QtTest/QTest>
 #include "../TestSupport/TestAssertions.h"
+#include <QSignalSpy>
 #include <QTextStream>
 
 namespace {
@@ -108,6 +109,31 @@ namespace {
         check({"international", "+", "there"}, internationalPhones(), true);
     }
 
+    void testSkippedRangeChangeNotifiesEvenWhenErrorsMatch() {
+        auto *root = new Note;
+        configureNote(*root, 960, "hello");
+        root->setPhonemeNameSeq(Note::Original,
+                                {phone("hh", false), phone("eh", true), phone("ow", true)});
+        auto *empty = new Note;
+        configureNote(*empty, 1440, "??");
+        auto *tail = new Note;
+        configureNote(*tail, 1920, "there");
+        tail->setPhonemeNameSeq(Note::Original, {phone("dh", false), phone("eh", true)});
+        SingingClip clip({root, empty, tail});
+        clip.reSegment(Timeline{});
+        expect(clip.skippedPhraseRanges().size() == 1,
+               "the skipped phrase is reported before the extent changes");
+
+        QSignalSpy errorsChanged(&clip, &SingingClip::noteInferenceErrorsChanged);
+        // The same note stays the culprit, so only the skipped extent changes.
+        tail->setLength(960);
+        clip.reSegment(Timeline{});
+        expect(clip.skippedPhraseRanges().size() == 1 &&
+                   clip.skippedPhraseRanges().first().second == tail->localStart() + 960,
+               "the skipped extent follows the phrase");
+        expect(errorsChanged.count() == 1,
+               "a skipped-range-only change must still notify the views");
+    }
     void testSlicerAssignmentRecovery() {
         auto *root = new Note;
         configureNote(*root, 960, "hello");
@@ -490,7 +516,7 @@ namespace {
             auto reportedIds = QSet<int>();
             for (const auto &excluded : result.excludedNotes) {
                 reportedIds.insert(excluded.noteId);
-                expect(excluded.reason == SliceExclusionReason::Overlapped,
+                expect(excluded.reason == NoteInferenceIssueReason::Overlapped,
                        "overlapping notes are reported with the Overlapped reason");
             }
             expect(reportedIds == expectedIds,
@@ -518,7 +544,7 @@ namespace {
             expect(result.segments.isEmpty(), "a phrase with a missing-phoneme note is skipped");
             expect(result.excludedNotes.size() == 1 &&
                        result.excludedNotes.first().noteId == empty->id() &&
-                       result.excludedNotes.first().reason == SliceExclusionReason::MissingPhonemes,
+                       result.excludedNotes.first().reason == NoteInferenceIssueReason::MissingPhonemes,
                    "the note without phonemes is the reported root cause");
             expect(result.skippedPhraseRanges.size() == 1 &&
                        result.skippedPhraseRanges.first() ==
@@ -530,7 +556,7 @@ namespace {
         clip.reSegment(Timeline{});
         expect(clip.noteInferenceErrors().contains(empty->id()) &&
                    clip.noteInferenceErrors().value(empty->id()).reason ==
-                       SliceExclusionReason::MissingPhonemes,
+                       NoteInferenceIssueReason::MissingPhonemes,
                "reSegment publishes the per-note exclusion on the clip");
         expect(clip.skippedPhraseRanges().size() == 1,
                "reSegment publishes the skipped phrase range on the clip");
@@ -552,7 +578,7 @@ namespace {
             expect(result.excludedNotes.size() == 1 &&
                        result.excludedNotes.first().noteId == slurFirst->id() &&
                        result.excludedNotes.first().reason ==
-                           SliceExclusionReason::FirstNoteInvalid,
+                           NoteInferenceIssueReason::FirstNoteInvalid,
                    "a phrase starting with a slur reports the slur note");
         }
     }
@@ -564,6 +590,10 @@ void LyricsTests::syllabificationRanges() {
 
 void LyricsTests::syllabificationSlicerSyllableAssignment() {
     testSlicerSyllableAssignment();
+}
+
+void LyricsTests::syllabificationSkippedRangeChangeNotifies() {
+    testSkippedRangeChangeNotifiesEvenWhenErrorsMatch();
 }
 
 void LyricsTests::syllabificationSlicerAssignmentRecovery() {

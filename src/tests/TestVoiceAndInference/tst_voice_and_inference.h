@@ -21,6 +21,9 @@ private slots:
     void speakerMixStaticAndFixedInferenceMix();
     void speakerMixDynamicInferenceMix();
     void voiceContextNotificationsContainAtomicBeforeAndAfter();
+    void languageCompatibilityRoutesAndConflicts();
+    void voiceChangeClearsStaleInferenceErrors();
+    void knownEmptyConversionRoutesAreReported();
     void voiceContextInheritanceOnlyChangePreservesInferenceInput();
     void voiceContextInheritedClipsFollowTrackWhileOwnVoiceRemains();
     void voiceContextSpeakerMetadataCopiesAreIndependent();

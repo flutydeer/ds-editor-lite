@@ -1798,11 +1798,9 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     draftClip.properties.name = QStringLiteral("Deferred words");
     draftClip.properties.length = 1920;
     draftClip.properties.clipLen = 1920;
-    draftClip.defaultLanguage = TestSupport::fixtureLanguage();
     draftClip.notes = {draftNote};
     Automation::TrackDraftDto draftTrack;
     draftTrack.name = QStringLiteral("Inference target");
-    draftTrack.defaultLanguage = TestSupport::fixtureLanguage();
     draftTrack.clips = {draftClip};
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     document.tracks = {draftTrack};

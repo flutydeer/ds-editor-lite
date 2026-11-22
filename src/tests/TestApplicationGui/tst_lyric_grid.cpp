@@ -25,6 +25,13 @@
 #include <QtTest/QTest>
 
 namespace {
+    // The grid resolves untagged notes through the singing context, so tests
+    // need an explicit English context instead of an empty one.
+    FillLyric::LyricLanguageContextPtr englishLanguageContext() {
+        return std::make_shared<FillLyric::LyricLanguageContext>(
+            QStringList{QStringLiteral("eng")}, QStringLiteral("eng"), QString());
+    }
+
     using Rows = QList<QStringList>;
 
     Rows words(const FillLyric::LyricWrapView &grid) {
@@ -168,7 +175,7 @@ void ApplicationGuiTests::lyricGridSelectionDeletesOnlyChosenWords() {
     const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
-    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    FillLyric::LyricWrapView grid({}, englishLanguageContext(), &g2p);
     showGrid(grid, {
                        {"one", "two", "three"},
                        {"four", "five"},
@@ -240,7 +247,7 @@ void ApplicationGuiTests::lyricGridMovesSelectedLinesTogether() {
         return;
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
-    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    FillLyric::LyricWrapView grid({}, englishLanguageContext(), &g2p);
     const Rows original{{"one"}, {"two"}, {"three"}, {"four"}};
     showGrid(grid, original);
     if (QTest::currentTestFailed())
@@ -311,7 +318,7 @@ void ApplicationGuiTests::lyricGridSplitKeepsTheNewLineEditable() {
         return;
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
-    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    FillLyric::LyricWrapView grid({}, englishLanguageContext(), &g2p);
     showGrid(grid, {
                        {"one", "two", "three"}
     });
@@ -351,7 +358,7 @@ void ApplicationGuiTests::lyricGridMenusInsertAndClearWords() {
         return;
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
-    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    FillLyric::LyricWrapView grid({}, englishLanguageContext(), &g2p);
     showGrid(grid, {
                        {"one", "two"},
                        {"three"}
@@ -413,7 +420,7 @@ void ApplicationGuiTests::lyricGridZoomAndScrollKeepWordsSelectable() {
     const auto before = context->m_coreRuntime->documentVersion();
     FillLyric::G2pService g2p(singingClip->singerIdentifier(),
                               SynthrtEngine::instance().languageService());
-    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    FillLyric::LyricWrapView grid({}, englishLanguageContext(), &g2p);
     auto font = grid.font();
     font.setPointSizeF(12);
     grid.setFont(font);

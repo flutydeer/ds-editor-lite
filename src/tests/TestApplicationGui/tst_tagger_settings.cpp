@@ -10,6 +10,7 @@
 #include "Modules/FillLyric/Widgets/RuleListWidget.h"
 #include "Modules/FillLyric/Widgets/TaggerConfigTab.h"
 #include "Modules/FillLyric/Widgets/TaggerDetailPanel.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
@@ -17,6 +18,15 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
+namespace {
+    // The dialog consumes the same context the editor builds from the singer
+    // routes. Tests only need a stable, addressable fixture language.
+    FillLyric::LyricLanguageContextPtr fixtureLanguageContext(const SingingClip *clip) {
+        return std::make_shared<FillLyric::LyricLanguageContext>(
+            QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
+            clip ? clip->inputLanguage() : QString());
+    }
+}
 #include <QApplication>
 #include <QAbstractScrollArea>
 #include <QCheckBox>
@@ -198,7 +208,7 @@ void ApplicationGuiTests::taggerRuleInputsApplyPersistAndReopen() {
     QString savedRuleId;
     {
         LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(),
-                           {TestSupport::fixtureLanguage()});
+                           fixtureLanguageContext(singingClip));
         openTaggerPage(dialog);
         if (QTest::currentTestFailed())
             return;
@@ -268,7 +278,8 @@ void ApplicationGuiTests::taggerRuleInputsApplyPersistAndReopen() {
     }
 
     LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
-                         {TestSupport::fixtureLanguage()});
+
+                       fixtureLanguageContext(singingClip));
     openTaggerPage(reopened);
     if (QTest::currentTestFailed())
         return;
@@ -343,7 +354,7 @@ void ApplicationGuiTests::invalidTaggerRegexPreservesAppliedRules() {
         notes.append(note);
     {
         LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(),
-                           {TestSupport::fixtureLanguage()});
+                           fixtureLanguageContext(singingClip));
         openTaggerPage(dialog);
         if (QTest::currentTestFailed())
             return;
@@ -396,7 +407,7 @@ void ApplicationGuiTests::invalidTaggerRegexPreservesAppliedRules() {
         QTest::mouseClick(cancel, Qt::LeftButton);
     }
     LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
-                         {TestSupport::fixtureLanguage()});
+                       fixtureLanguageContext(singingClip));
     openTaggerPage(reopened);
     if (QTest::currentTestFailed())
         return;

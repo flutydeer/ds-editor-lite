@@ -1,6 +1,7 @@
 #ifndef CLIPEDITORTOOLBARVIEW_P_H
 #define CLIPEDITORTOOLBARVIEW_P_H
 
+#include "Automation/LanguageRepair.h"
 #include "Global/AppGlobal.h"
 
 #include <QButtonGroup>
@@ -33,6 +34,10 @@ public:
     void moveToNullClipState() const;
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
+    /// Asks what a singer switch does with note declarations the new singer
+    /// cannot convert. Returns false when the user cancels.
+    bool confirmLanguageRepair(const SingerInfo &targetSinger,
+                               Automation::LanguageRepair &languageRepair) const;
     void refreshSingerComboPresentation() const;
     void refreshLanguageComboPresentation() const;
     void populatePresetMenus() const;
@@ -96,8 +101,8 @@ public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
     void onClipNameEdited(const QString &text);
     void onClipPropertyChanged() const;
-    void onClipLanguageChanged(const QString &language) const;
-    void onLanguageEdited(const QString &language) const;
+    void onClipInputLanguageChanged(const QString &language) const;
+    void onInputLanguageEdited(const QString &language) const;
     void onSingerEdited() const;
 
 private:

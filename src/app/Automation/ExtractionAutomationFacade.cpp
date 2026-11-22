@@ -516,7 +516,6 @@ namespace Automation {
                 .length = note.length,
                 .keyIndex = note.keyIndex,
                 .lyric = input.defaultLyric,
-                .language = input.defaultLanguage,
             });
         }
 
@@ -537,7 +536,7 @@ namespace Automation {
                 input.destinationMode.isEmpty() ? input.audioClipStartTick : input.targetStart;
             clip.properties.length = input.audioClipLengthTick;
             clip.properties.clipLen = input.audioClipLengthTick;
-            clip.defaultLanguage = input.defaultLanguage;
+            clip.inputLanguage = input.defaultLanguage;
             clip.notes = extractedNotes;
             if (input.targetTrackId) {
                 insertedClips.append({*input.targetTrackId, clip});
@@ -545,7 +544,6 @@ namespace Automation {
                 if (!input.clientRef.isEmpty())
                     track.clientRef = input.clientRef + QStringLiteral("/track");
                 track.name = QFileInfo(input.audioPath).baseName();
-                track.defaultLanguage = input.defaultLanguage;
                 track.clips.append(clip);
             }
         } else {

@@ -7,6 +7,7 @@
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -20,7 +21,9 @@
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
+#include "Utils/LanguageDisplayUtils.h"
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Utils/QuantizeOptions.h"
@@ -28,6 +31,7 @@
 #include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QButtonGroup>
+#include <QDialogButtonBox>
 #include <QDialog>
 #include <QEvent>
 #include <QHBoxLayout>
@@ -170,11 +174,11 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             d->refreshSingerComboPresentation();
     });
 
-    d->m_cbClipLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Handle);
+    d->m_cbClipLanguage = new LanguageComboBox(QString(), WheelEventPolicy::Handle);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
     d->m_cbClipLanguage->setFixedHeight(d->m_contentHeight);
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
-    d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
+    d->m_cbClipLanguage->setToolTip(tr("Input Language"));
 
     d->m_cbPianoRollQuantize = new ComboBox(WheelEventPolicy::Handle);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
@@ -454,15 +458,16 @@ void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_leClipName->setText(m_clip->name());
 }
 
-void ClipEditorToolBarViewPrivate::onClipLanguageChanged(const QString &language) const {
+void ClipEditorToolBarViewPrivate::onClipInputLanguageChanged(const QString &language) const {
     m_cbClipLanguage->setCurrentLanguage(language);
+    refreshLanguageComboPresentation();
 }
 
-void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) const {
-    if (!m_singingClip || m_singingClip->defaultLanguage() == language)
+void ClipEditorToolBarViewPrivate::onInputLanguageEdited(const QString &language) const {
+    if (!m_singingClip || m_singingClip->inputLanguage() == language)
         return;
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->project().setSingingClipDefaultLanguage(
+        runtime->project().setSingingClipInputLanguage(
             commandContext(*runtime), Automation::ClipId(m_singingClip->id()), language);
 }
 
@@ -576,40 +581,101 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                 [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
 
         connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
-                &ClipEditorToolBarViewPrivate::onLanguageEdited, Qt::UniqueConnection);
-        connect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
-                &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
+                &ClipEditorToolBarViewPrivate::onInputLanguageEdited, Qt::UniqueConnection);
+        connect(m_singingClip, &SingingClip::inputLanguageChanged, this,
+                &ClipEditorToolBarViewPrivate::onClipInputLanguageChanged);
     } else {
         disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
         if (m_singingClip) {
             disconnect(m_singingClip, &SingingClip::voiceContextChanged, this, nullptr);
-            disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
-                       &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
+            disconnect(m_singingClip, &SingingClip::inputLanguageChanged, this,
+                       &ClipEditorToolBarViewPrivate::onClipInputLanguageChanged);
         }
 
         disconnect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
-                   &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
+                   &ClipEditorToolBarViewPrivate::onInputLanguageEdited);
+        m_cbClipLanguage->setConversionLanguages({}, QString());
         m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
     }
+}
+
+bool ClipEditorToolBarViewPrivate::confirmLanguageRepair(
+    const SingerInfo &targetSinger, Automation::LanguageRepair &languageRepair) const {
+    languageRepair = Automation::LanguageRepair::None;
+    if (!m_singingClip)
+        return true;
+
+    QList<Note *> notes;
+    for (const auto note : m_singingClip->notes())
+        notes.append(note);
+    const auto targetLanguage = LanguageCompatibility::fallbackLanguage(targetSinger);
+    const auto impact = LanguageCompatibility::repairImpact(notes, targetSinger);
+    if (impact.isEmpty())
+        return true;
+
+    QStringList lines;
+    if (impact.conflictedNotes > 0) {
+        QStringList conflictLanguages;
+        for (const auto &language : impact.conflictLanguages)
+            conflictLanguages.append(LanguageDisplayUtils::displayName(language));
+        lines.append(tr("%L1 note(s) declare %2, which the new singer cannot convert.")
+                         .arg(impact.conflictedNotes)
+                         .arg(conflictLanguages.join(tr(", "))));
+    }
+    if (impact.clearedPronunciations > 0) {
+        lines.append(tr("Switching clears the edited pronunciation of %L1 note(s).")
+                         .arg(impact.clearedPronunciations));
+    }
+    if (!targetLanguage.isEmpty()) {
+        lines.append(tr("Repairing redeclares the affected notes as %1 so they can be sung again.")
+                         .arg(LanguageDisplayUtils::displayName(targetLanguage)));
+    }
+
+    auto *dialog = new MessageDialog(tr("Change Singer"), lines.join(u'\n'), const_cast<ClipEditorToolBarView *>(q_ptr));
+    dialog->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
+    dialog->addButton(tr("Keep Languages"), 1, QDialogButtonBox::AcceptRole);
+    if (!targetLanguage.isEmpty())
+        dialog->addAccentButton(tr("Repair to %1").arg(LanguageDisplayUtils::displayName(targetLanguage)),
+                                2, QDialogButtonBox::AcceptRole);
+    const auto choice = dialog->exec();
+    dialog->deleteLater();
+    // Dismissing the dialog leaves the accepted id unset, so only the two
+    // explicit accept choices continue the singer change.
+    if (choice != 1 && choice != 2)
+        return false;
+    if (choice == 2)
+        languageRepair = Automation::LanguageRepair::MapUnsupportedToDefault;
+    return true;
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
     if (!m_singingClip)
         return;
 
-    if (m_cbSinger->isInheritSelected()) {
-        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-            runtime->parameters().useTrackVoiceContext(commandContext(*runtime),
-                                                       Automation::ClipId(m_singingClip->id()));
-    } else {
-        const auto singerInfo = m_cbSinger->currentSinger();
-        const auto speakerInfo = m_cbSinger->currentSpeaker();
-        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-            runtime->parameters().selectClipSingleSpeaker(commandContext(*runtime),
-                                                          Automation::ClipId(m_singingClip->id()),
-                                                          singerInfo, speakerInfo);
+    const bool inherit = m_cbSinger->isInheritSelected();
+    const auto targetSinger =
+        inherit ? m_singingClip->trackSingerInfo() : m_cbSinger->currentSinger();
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    // The confirmation describes the current revision, so the command keeps
+    // targeting it: a document change while the dialog is open fails instead of
+    // clearing pronunciations the user never saw counted.
+    const auto context = runtime ? commandContext(*runtime) : Automation::CommandContext{};
+    auto languageRepair = Automation::LanguageRepair::None;
+    if (!confirmLanguageRepair(targetSinger, languageRepair)) {
+        refreshSingerComboPresentation();
+        return;
+    }
+
+    if (runtime) {
+        if (inherit) {
+            runtime->parameters().useTrackVoiceContext(
+                context, Automation::ClipId(m_singingClip->id()), languageRepair);
+        } else {
+            runtime->parameters().selectClipSingleSpeaker(
+                context, Automation::ClipId(m_singingClip->id()), m_cbSinger->currentSinger(),
+                m_cbSinger->currentSpeaker(), languageRepair);
+        }
     }
     refreshSingerComboPresentation();
 }
@@ -640,18 +706,21 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
     if (!m_singingClip || !m_cbClipLanguage)
         return;
 
-    const auto singerInfo = m_singingClip->singerInfo();
-    const auto language = m_cbClipLanguage->setLanguages(
-        singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
-    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
-    // latch singer default language only when singer is resolved; do not write back without a
-    // singer
-    if (singerInfo.resolutionState() == ResolutionState::Resolved &&
-        language != m_singingClip->defaultLanguage()) {
-        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-            runtime->project().setSingingClipDefaultLanguage(
-                commandContext(*runtime), Automation::ClipId(m_singingClip->id()), language);
+    // Only the routes the singer can actually address are offered. The stored
+    // value is never rewritten here: an unavailable one stays selected and
+    // flagged so the user can see the mismatch and reselect.
+    const auto support = LanguageCompatibility::conversionSupport(m_singingClip->singerInfo());
+    m_cbClipLanguage->setConversionLanguages(support.languageIds,
+                                             m_singingClip->inputLanguage());
+    m_cbClipLanguage->setEnabled(support.isKnown());
+    if (m_cbClipLanguage->currentLanguageUnavailable()) {
+        m_cbClipLanguage->setToolTip(
+            tr("The singer cannot use this input language. Lyrics will be filled with another "
+               "language."));
+    } else {
+        m_cbClipLanguage->setToolTip(tr("Input Language"));
     }
+    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
 }
 
 void ClipEditorToolBarViewPrivate::populatePresetMenus() const {
@@ -767,7 +836,7 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
         m_cbSinger->setLoadingText(ClipEditorToolBarView::tr("(Scanning packages...)"));
     else
         m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-    m_cbClipLanguage->setToolTip(ClipEditorToolBarView::tr("Clip Default Language"));
+    m_cbClipLanguage->setToolTip(ClipEditorToolBarView::tr("Input Language"));
     m_cbPianoRollQuantize->setToolTip(ClipEditorToolBarView::tr("Piano Roll Quantize"));
 
     const auto setToolTip = [](Button *button, const QString &title,

@@ -27,6 +27,14 @@ namespace FillLyric {
             return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
         }
 
+        std::vector<std::string> toStdVector(const QStringList &values) {
+            std::vector<std::string> result;
+            result.reserve(static_cast<size_t>(values.size()));
+            for (const auto &value : values)
+                result.push_back(toUtf8(value));
+            return result;
+        }
+
         /// Candidates from the g2p engine may be the split phoneme tokens of the
         /// pronunciation itself (dict step) rather than true alternative
         /// pronunciations; collapse them to the whole pronunciation so the
@@ -59,7 +67,7 @@ namespace FillLyric {
     }
 
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
-                                         const std::vector<std::string> &priorityLanguages) const {
+                                         const LyricLanguageContext &context) const {
 
         // Pre-fill results: all notes default to original lyric preservation
         // (pronunciation=lyric, candidates={lyric}) per ds-session.md §206.
@@ -84,7 +92,7 @@ namespace FillLyric {
         for (const auto &note : notes)
             taggerInput.push_back(toUtf8(note.lyric));
 
-        const auto taggerRes = TextTagger::tag(taggerInput, false, priorityLanguages);
+        const auto taggerRes = TextTagger::tag(taggerInput, false, toStdVector(context.priorityLanguages()));
 
         if (m_singer.isEmpty()) {
             qCWarning(logFillG2p)
@@ -99,13 +107,25 @@ namespace FillLyric {
         std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
         for (int i = 0; i < commonCount; i++) {
-            const auto language = notes[i].language == QStringLiteral("unknown")
-                                      ? fromUtf8(taggerRes[i].language)
-                                      : notes[i].language;
+            const auto language =
+                notes[i].language == QStringLiteral("unknown")
+                    ? context.resolvedNoteLanguage(fromUtf8(taggerRes[i].language))
+                    : notes[i].language;
+
+            // The resolved language describes the intent of the lyric, not the
+            // outcome of the conversion, so it is recorded before any route is
+            // attempted. A route failure then keeps the declaration and only
+            // preserves the raw lyric.
+            results[i].language = language;
 
             auto lyric = notes[i].lyric;
             while (lyric.endsWith('+'))
                 lyric.chop(1);
+
+            // No language means no route, so the lyric is kept as-is instead of
+            // asking the language service about an empty id.
+            if (language.isEmpty())
+                continue;
 
             langGroups[language].emplace_back(i, toUtf8(lyric));
         }
@@ -159,11 +179,6 @@ namespace FillLyric {
             for (size_t i = 0; i < coveredCount; i++) {
                 const auto noteIdx = entries[i].first;
                 auto &result = results[noteIdx];
-
-                result.language = notes[noteIdx].language == QStringLiteral("unknown")
-                                      ? fromUtf8(taggerRes[noteIdx].language)
-                                      : notes[noteIdx].language;
-
                 const auto &outcome = outcomes[i];
                 result.g2pId = fromUtf8(outcome.g2pId);
                 result.pronunciation = fromUtf8(outcome.pronunciation);

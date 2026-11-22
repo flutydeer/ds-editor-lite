@@ -161,6 +161,10 @@ void DocumentIOTests::selectionAndGeometry() {
         const auto &clip = draft.tracks.first().clips.first();
         QVERIFY2((clip.notes.size() == 2 && clip.notes.first().lyric == QStringLiteral("你好")),
                  qPrintable(QStringLiteral("Unicode lyrics must survive UTF-8 conversion")));
+        QVERIFY2(clip.notes.first().language == QStringLiteral("mandarin"),
+                 qPrintable(QStringLiteral("imported notes must declare the import language")));
+        QVERIFY2(clip.notes.last().language == QStringLiteral("mandarin"),
+                 qPrintable(QStringLiteral("every imported note must declare the import language")));
         QVERIFY2(
             (clip.properties.clipStart + clip.properties.clipLen <= clip.properties.length),
             qPrintable(QStringLiteral("visible MIDI clip geometry must fit its material length")));

@@ -42,7 +42,6 @@ namespace {
     Automation::TrackDraftDto trackDraft(const QString &name) {
         Automation::TrackDraftDto result;
         result.name = name;
-        result.defaultLanguage = QStringLiteral("en");
         return result;
     }
 
@@ -52,7 +51,6 @@ namespace {
         result.properties.name = name;
         result.properties.length = 3840;
         result.properties.clipLen = 3840;
-        result.defaultLanguage = QStringLiteral("en");
         return result;
     }
 

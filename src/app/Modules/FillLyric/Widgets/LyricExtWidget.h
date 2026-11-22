@@ -15,7 +15,7 @@ namespace FillLyric {
 
     public:
         explicit LyricExtWidget(int *notesCount, const LyricTabConfig &config,
-                                const QStringList &priorityLanguages, G2pService *g2pService,
+                                LyricLanguageContextPtr languageContext, G2pService *g2pService,
                                 QWidget *parent = nullptr);
         ~LyricExtWidget() override;
 
@@ -46,7 +46,7 @@ namespace FillLyric {
         QPushButton *m_btnFoldLeft;
         QPushButton *m_btnInsertText;
 
-        QStringList m_priorityLanguages;
+        LyricLanguageContextPtr m_languageContext;
     };
 
 } // namespace FillLyric

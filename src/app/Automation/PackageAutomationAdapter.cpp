@@ -6,8 +6,10 @@
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+
 #include <lite/Support/StringUtils.h>
 
 #include <QCoreApplication>
@@ -44,6 +46,7 @@ namespace Automation {
             }
             return speakerInfo;
         }
+
 
         int resolveDocumentVoices(PackageManager *manager, AppModel *model, const bool apply) {
             if (!model)

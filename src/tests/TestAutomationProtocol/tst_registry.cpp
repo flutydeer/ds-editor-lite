@@ -1927,7 +1927,48 @@ namespace {
                            .value(QStringLiteral("en")) == QStringLiteral("Localized Japanese"),
                QStringLiteral("voices.describe must resolve the requested package version"));
 
-        invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
+        {
+            // A stored route projection is authoritative: the declared language it
+            // omits must not be reported as ready.
+            auto projected = singer;
+            projected.setConversionLanguages({QStringLiteral("en")});
+            const auto originalCatalog = catalog;
+            const auto restoreCatalog = qScopeGuard([&] { catalog = originalCatalog; });
+            for (auto &package : catalog) {
+                if (package.id != projected.packageId() ||
+                    package.version != projected.packageVersion())
+                    continue;
+                for (auto &entry : package.singers) {
+                    if (entry.singerId == projected.singerId())
+                        entry.info = projected;
+                }
+            }
+            const auto projectedDescription = registry.invoke(
+                QStringLiteral("voices.describe"),
+                {
+                    {QStringLiteral("singer"), voiceSelection(projected, projected.speakers().first())
+                                                   .value(QStringLiteral("singer"))
+                                                   .toObject()}
+            });
+            QVERIFY(projectedDescription);
+            bool englishReady = false;
+            bool chineseReady = true;
+            for (const auto &value : projectedDescription.get()
+                                         .value(QStringLiteral("snapshot"))
+                                         .toObject()
+                                         .value(QStringLiteral("languages"))
+                                         .toArray()) {
+                const auto entry = value.toObject();
+                const auto languageId = entry.value(QStringLiteral("language_id")).toString();
+                if (languageId == QStringLiteral("en"))
+                    englishReady = entry.value(QStringLiteral("g2p_ready")).toBool();
+                if (languageId == QStringLiteral("zh"))
+                    chineseReady = entry.value(QStringLiteral("g2p_ready")).toBool();
+            }
+            expect(englishReady && !chineseReady,
+                   QStringLiteral("voices.describe must derive readiness from the route "
+                                  "projection"));
+        }        invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
                           QJsonObject{
                               {QStringLiteral("track_id"), fixture.trackId.value()},
                               {QStringLiteral("voice"),    exactVoice             }
@@ -2018,8 +2059,6 @@ namespace {
         QCOMPARE(inserted.get().createdObjects.size(), 1);
         const auto voiceClipId =
             Automation::ClipId(inserted.get().createdObjects.first().object.value);
-        QVERIFY(runtime.project().setTrackDefaultLanguage(context(), fixture.trackId,
-                                                          QStringLiteral("ja")));
         const auto queryClipVoice = [&] {
             const auto before = runtime.documentVersion();
             const auto beforeModel = TestSupport::projectSnapshot(testRuntime.model());
@@ -2048,11 +2087,7 @@ namespace {
         QVERIFY(inherited.value(QStringLiteral("own_voice")).isNull());
         QVERIFY(inherited.value(QStringLiteral("available")).toBool());
         QCOMPARE(inherited.value(QStringLiteral("effective_voice")).toObject(), exactVoice);
-        QCOMPARE(inherited.value(QStringLiteral("default_language"))
-                     .toObject()
-                     .value(QStringLiteral("mode"))
-                     .toString(),
-                 QStringLiteral("follow_singer"));
+        QVERIFY(inherited.value(QStringLiteral("input_language")).isNull());
 
         QVERIFY(invokeChangedOnce(
             registry, runtime, QStringLiteral("notes.insert"),
@@ -2087,17 +2122,11 @@ namespace {
         },
                                   QStringLiteral("track-voice-after-clip-override"),
                                   QStringLiteral("track voice change")));
-        QVERIFY(runtime.project().setTrackDefaultLanguage(context(), fixture.trackId,
-                                                          QStringLiteral("zh")));
         const auto independent = queryClipVoice();
         QVERIFY(!independent.value(QStringLiteral("inherits_track")).toBool());
         QCOMPARE(independent.value(QStringLiteral("own_voice")).toObject(), independentVoice);
         QCOMPARE(independent.value(QStringLiteral("effective_voice")).toObject(), independentVoice);
-        QCOMPARE(independent.value(QStringLiteral("default_language"))
-                     .toObject()
-                     .value(QStringLiteral("mode"))
-                     .toString(),
-                 QStringLiteral("follow_singer"));
+        QVERIFY(independent.value(QStringLiteral("input_language")).isNull());
 
         QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.use_track_voice"),
                                   {
@@ -2108,12 +2137,8 @@ namespace {
         const auto restored = queryClipVoice();
         QVERIFY(restored.value(QStringLiteral("inherits_track")).toBool());
         QCOMPARE(restored.value(QStringLiteral("effective_voice")).toObject(), changedTrackVoice);
-        QCOMPARE(restored.value(QStringLiteral("default_language"))
-                     .toObject()
-                     .value(QStringLiteral("mode"))
-                     .toString(),
-                 QStringLiteral("follow_singer"));
-        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_default_language"),
+        QVERIFY(restored.value(QStringLiteral("input_language")).isNull());
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_input_language"),
                                   {
                                       {QStringLiteral("clip_id"),     voiceClipId.value() },
                                       {QStringLiteral("language_id"), QStringLiteral("ja")}
@@ -2121,7 +2146,7 @@ namespace {
                                   QStringLiteral("clip-explicit-language"),
                                   QStringLiteral("explicit clip language overrides the singer")));
         const auto explicitLanguage = queryClipVoice();
-        QCOMPARE(explicitLanguage.value(QStringLiteral("default_language"))
+        QCOMPARE(explicitLanguage.value(QStringLiteral("input_language"))
                      .toObject()
                      .value(QStringLiteral("language_id"))
                      .toString(),
@@ -2681,6 +2706,7 @@ void AutomationProtocolTests::routing() {
                     QVersionNumber(1, 0)},
                    QStringLiteral("Registry Singer"), {registrySpeakerA, registrySpeakerB},
                    {registryLanguageEn, registryLanguageZh}, QStringLiteral("en"));
+    registrySinger.setResolutionState(ResolutionState::Resolved);
     registrySinger.setLocalizedNames({
         {QStringLiteral("en"), QStringLiteral("Localized Registry Singer")}
     });
@@ -2689,6 +2715,7 @@ void AutomationProtocolTests::routing() {
                     QVersionNumber(2, 0)},
                    QStringLiteral("Registry Singer V2"), {registrySpeakerV2, registrySpeakerV2B},
                    {registryLanguageJa}, QStringLiteral("ja"));
+    registrySingerV2.setResolutionState(ResolutionState::Resolved);
     registrySingerV2.setLocalizedNames({
         {QStringLiteral("en"), QStringLiteral("Localized Registry Singer V2")}
     });
@@ -3647,7 +3674,6 @@ void AutomationProtocolTests::sharedEditingScenario() {
     Automation::TrackDraftDto draft;
     draft.name = QStringLiteral("Before");
     draft.gain = 1.0;
-    draft.defaultLanguage = QStringLiteral("unknown");
     const auto inserted = runtime.project().insertTrack(
         {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test}, 0,
         draft);

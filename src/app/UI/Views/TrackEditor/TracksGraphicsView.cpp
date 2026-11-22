@@ -706,7 +706,6 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
                 track->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates()));
             view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
                 track->singerInfo(), track->speakerInfo(), track->speakerMixData()));
-            view->setDefaultLanguage(clip.defaultLanguage);
             clipView = view;
         } else if (clip.type == IClip::Audio) {
             auto *view = new AudioClipView(-1);

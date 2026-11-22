@@ -202,7 +202,6 @@ void ApplicationGuiTests::audioViewDrawsThePlaybackPosition() {
     clipDraft.hasRealTimeAnchor = true;
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("Audio track");
-    trackDraft.defaultLanguage = QStringLiteral("eng");
     trackDraft.clips.append(clipDraft);
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
     const auto *clip = *context->m_appModel->tracks().first()->clips().begin();

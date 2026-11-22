@@ -462,7 +462,6 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
         {TimeSignature(0, 4, 4), TimeSignature(2, 3, 4)}));
     auto *track = new Track;
     track->setName(QStringLiteral("Lead / 测试"));
-    track->setDefaultLanguage(QStringLiteral("eng"));
     QVERIFY(original.appendTrack(track));
 
     auto *clip = new SingingClip;
@@ -471,7 +470,7 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     clip->setLength(3840);
     clip->setClipStart(120);
     clip->setClipLen(2880);
-    clip->setDefaultLanguage(QStringLiteral("eng"));
+    clip->setInputLanguage(QStringLiteral("eng"));
     track->insertClip(clip);
 
     auto *note = new Note;

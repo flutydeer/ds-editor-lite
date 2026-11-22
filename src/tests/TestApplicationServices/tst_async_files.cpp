@@ -29,7 +29,6 @@ namespace {
         track.clientRef = clientRef;
         track.name = QStringLiteral("Imported Track");
         track.gain = 1.0;
-        track.defaultLanguage = QStringLiteral("en");
         Automation::ClipDraftDto clip;
         clip.clientRef = clientRef + QStringLiteral("-clip");
         clip.type = Automation::ClipDraftDto::Type::Singing;
@@ -37,7 +36,7 @@ namespace {
         clip.properties.length = 960;
         clip.properties.clipLen = 960;
         clip.properties.gain = 1.0;
-        clip.defaultLanguage = QStringLiteral("en");
+        clip.inputLanguage = QStringLiteral("en");
         track.clips.append(clip);
         return track;
     }
@@ -1480,7 +1479,8 @@ void ApplicationServicesTests::midiExtractionDestinations() {
     QCOMPARE(second.length, 360);
     QCOMPARE(second.keyIndex, 67);
     QCOMPARE(first.lyric, QStringLiteral("la"));
-    QCOMPARE(first.language, QStringLiteral("en"));
+    // Extracted notes stay unspecified and follow the clip input language.
+    QVERIFY(first.language.isEmpty());
     const auto committed = TestSupport::projectSnapshot(harness.model());
     const auto replay = runtime.extractions().startMidi(context, harness.audioClipId(), options);
     QVERIFY(replay);

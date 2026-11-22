@@ -36,6 +36,12 @@ private slots:
     void splitNote();
     void setPhonemeOffsets();
     void resetPhonemeOffsetsCascades();
+    void wordPropertyCascadeProtectsEditedPhonemeNames();
+    void applyingSpeakerMixPresetCascadesNoteLanguage();
+    void repairImpactCountsConflictsAndClearedPronunciations();
+    void duplicatingAnInheritedClipCascadesIntoTheTargetLanguage();
+    void patchingTheLanguageKeepsManualPhonemes();
+    void movingAClipFromAnUnresolvedRouteKeepsTheWordData();
     void setWordProperties();
     void removeNotes();
     void curveTransforms_data();

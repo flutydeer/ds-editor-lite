@@ -37,10 +37,6 @@ public:
     void insertClips(const QList<Clip *> &clips);
     void removeClip(Clip *clip);
 
-    QString defaultLanguage() const;
-    void setDefaultLanguage(const QString &language);
-    QString defaultG2pId() const;
-
     SingerInfo singerInfo() const;
     SingerIdentifier singerIdentifier() const;
 
@@ -81,19 +77,13 @@ public:
 signals:
     void propertyChanged();
     void clipChanged(Track::ClipChangeType type, Clip *clip);
-    void defaultLanguageChanged(const QString &language);
     void voiceContextChanged(const VoiceContextChange &change);
 
 private:
-    void updateDefaultG2pId(const QString &language);
-
     QString m_name;
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     int m_colorIndex = 0;
-
-    QString m_defaultLanguage = "unknown";
-    QString m_defaultG2pId = "unknown";
 
     SingerInfo m_singerInfo;
     SpeakerInfo m_speakerInfo;

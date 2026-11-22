@@ -101,9 +101,6 @@ void FillLyricOption::load(const QJsonObject &object) {
     if (object.contains("skipSlur"))
         skipSlur = object["skipSlur"].toBool();
 
-    if (object.contains("exportLanguage"))
-        exportLanguage = object["exportLanguage"].toBool();
-
     if (object.contains("textEditFontSize"))
         textEditFontSize = object["textEditFontSize"].toDouble();
     if (object.contains("viewFontSize"))
@@ -153,8 +150,6 @@ void FillLyricOption::save(QJsonObject &object) {
 
     object["splitMode"] = splitMode;
     object["skipSlur"] = skipSlur;
-
-    object["exportLanguage"] = exportLanguage;
 
     object["textEditFontSize"] = textEditFontSize;
     object["viewFontSize"] = viewFontSize;

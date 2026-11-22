@@ -229,7 +229,6 @@ namespace {
             draft.type = Automation::ClipDraftDto::Type::Singing;
             draft.properties.length = clipLength;
             draft.properties.clipLen = clipLength;
-            draft.defaultLanguage = QStringLiteral("eng");
             draft.notes.append(note);
             Automation::TrackDraftDto track;
             track.name = QStringLiteral("RHI existing note");
@@ -393,7 +392,6 @@ void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
     Automation::ClipDraftDto draft;
     draft.properties.length = 3840;
     draft.properties.clipLen = 3840;
-    draft.defaultLanguage = note.language;
     draft.notes = {note};
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("RHI reference");
@@ -521,7 +519,6 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     Automation::ClipDraftDto draft;
     draft.properties.length = 3840;
     draft.properties.clipLen = 3840;
-    draft.defaultLanguage = note.language;
     draft.notes = {note};
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("Theme switch");
@@ -1064,7 +1061,6 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     clipDraft.type = Automation::ClipDraftDto::Type::Singing;
     clipDraft.properties.length = 3840;
     clipDraft.properties.clipLen = 3840;
-    clipDraft.defaultLanguage = QStringLiteral("eng");
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("RHI interaction");
     trackDraft.clips.append(clipDraft);
@@ -2887,7 +2883,6 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     Automation::ClipDraftDto draft;
     draft.properties.length = 3840;
     draft.properties.clipLen = 3840;
-    draft.defaultLanguage = note.language;
     draft.notes = {note};
     Automation::TrackDraftDto track;
     track.clips = {draft};
@@ -3185,7 +3180,7 @@ void NativeDesktopTests::rhiInferenceErrorBadgesExplainOverlapsAndFollowUndo() {
                                  fixture.inferenceSettled(),
                              15000);
     QCOMPARE(fixture.clip->noteInferenceErrors().value(first->id()).reason,
-             SliceExclusionReason::Overlapped);
+             NoteInferenceIssueReason::Overlapped);
     QVERIFY(!fixture.clip->noteInferenceErrors().contains(third->id()));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())

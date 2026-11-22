@@ -38,7 +38,6 @@ public:
     void setMasterControl(const TrackControl &control);
     // Defaults for newly created tracks, supplied by the app layer so the model
     // does not depend on AppOptions / the app-wide color palette.
-    void setDefaultSingingLanguage(const QString &language);
     void setPaletteColorCount(int count);
     const QList<Track *> &tracks() const;
     bool insertTrack(Track *track, qsizetype index, bool resolveColorIndex = true);

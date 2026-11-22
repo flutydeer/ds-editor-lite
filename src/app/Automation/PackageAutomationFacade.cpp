@@ -1,5 +1,14 @@
 #include "PackageAutomationFacade.h"
+#include "CommandCommitter.h"
+#include "DocumentSession.h"
 #include "OperationIds.h"
+
+
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <algorithm>
 
@@ -171,15 +180,59 @@ namespace Automation {
             [this](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.resolveDocumentVoices)
                     return AutomationResult<MutationResult>(unavailable());
-                const auto previous = session.version();
+                // A resolved route changes the language unspecified notes resolve
+                // to. The word data of those notes moves with it, so the change is
+                // applied as one document edit with its own revision and undo step
+                // instead of being written behind the document's back.
+                QList<SingingClip *> clips;
+                QList<QString> fallbacksBefore;
+                for (auto *track : session.model()->tracks()) {
+                    for (auto *clip : track->clips()) {
+                        if (clip->clipType() != IClip::Singing)
+                            continue;
+                        auto *singing = static_cast<SingingClip *>(clip);
+                        clips.append(singing);
+                        fallbacksBefore.append(singing->fallbackLanguage());
+                    }
+                }
                 const int resolvedCount =
                     m_services.resolveDocumentVoices(session.model(), !validateOnly);
-                return AutomationResult<MutationResult>({
-                    .previous = previous,
-                    .current = previous,
-                    .changed = resolvedCount > 0,
-                    .validatedOnly = validateOnly,
-                });
+                CommandCommitter committer;
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        committer.preview(session, resolvedCount > 0));
+                // The resolved voice context is a derived state, not an undoable
+                // edit, so the word data it invalidates is applied as the same
+                // derived state: the two sides never separate, and the revision
+                // still advances for clients holding the old one.
+                QList<QPair<SingingClip *, QList<Note *>>> cascades;
+                QList<ObjectRef> affected;
+                for (qsizetype i = 0; i < clips.count(); ++i) {
+                    const auto plans = NoteWordCascade::planFallbackChange(
+                        clips.at(i)->notes().toList(), fallbacksBefore.at(i),
+                        clips.at(i)->fallbackLanguage());
+                    if (plans.isEmpty())
+                        continue;
+                    QList<Note *> notes;
+                    for (const auto &plan : plans) {
+                        notes.append(plan.note);
+                        affected.append({ObjectKind::Note, plan.note->id()});
+                    }
+                    cascades.append({clips.at(i), notes});
+                }
+                const bool changed = resolvedCount > 0 || !cascades.isEmpty();
+                return AutomationResult<MutationResult>(committer.commitStateChange(
+                    session, changed,
+                    [&cascades, &clips, &fallbacksBefore] {
+                        for (const auto &[clip, notes] : cascades) {
+                            NoteWordCascade::applyFallbackChange(
+                                notes, fallbacksBefore.at(clips.indexOf(clip)),
+                                clip->fallbackLanguage());
+                            clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange,
+                                                    notes);
+                        }
+                    },
+                    affected));
             });
     }
 

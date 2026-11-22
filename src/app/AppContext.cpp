@@ -482,15 +482,6 @@ void AppContext::resetDocumentScopedState() {
 void AppContext::initializeCommonWiring() {
     // Push app-provided new-track defaults into the model for both GUI and QCore hosts.
     m_appModel->setPaletteColorCount(AppGlobal::paletteColorCount);
-    const auto pushModelDefaults = [model = m_appModel, options = m_appOptions] {
-        model->setDefaultSingingLanguage(options->general()->defaultSingingLanguage);
-    };
-    pushModelDefaults();
-    QObject::connect(m_appOptions, &AppOptions::optionsChanged, m_appModel,
-                     [pushModelDefaults](const AppOptionsGlobal::Option option) {
-                         if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::General)
-                             pushModelDefaults();
-                     });
 
     // Map the package library lifecycle onto AppStatus without involving GUI composition.
     QObject::connect(m_packageManager, &PackageManager::moduleStatusChanged, m_appStatus,

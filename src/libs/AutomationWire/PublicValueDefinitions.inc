@@ -58,6 +58,8 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(DocumentImportMergeMode, Replace, "replace")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(CurveMergeMode, Replace, "replace")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(CurveMergeMode, Overlay, "overlay")
 
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(LanguageRepair, None, "none")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(LanguageRepair, MapUnsupportedToDefault, "map_unsupported_to_default")
 AUTOMATION_WIRE_PUBLIC_INTEGER_VALUE(Quantize, Half, 2)
 AUTOMATION_WIRE_PUBLIC_INTEGER_VALUE(Quantize, Quarter, 4)
 AUTOMATION_WIRE_PUBLIC_INTEGER_VALUE(Quantize, Eighth, 8)

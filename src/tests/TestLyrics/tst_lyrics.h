@@ -24,6 +24,7 @@ private slots:
     void lyricRulesSplitterEmptyMatchDoesNotDuplicateText();
     void syllabificationRanges();
     void syllabificationSlicerSyllableAssignment();
+    void syllabificationSkippedRangeChangeNotifies();
     void syllabificationSlicerAssignmentRecovery();
     void syllabificationStorageAndInferenceRoundTrip();
     void syllabificationDetachedSyllabificationNotesStayOrphaned();
@@ -38,6 +39,7 @@ private slots:
     void syllabificationCascadeResetStopsAtGap();
     void syllabificationCascadeResetWordEndThroughMembers();
     void syllabificationCascadeResetSkippedWithoutBaseline();
+    void wordPropertyCascadeRouteChangeResetsResolvedNotes();
     void wordPropertyCascadeLyricChangeResetsPronunciationAndPhonemes();
     void wordPropertyCascadePronunciationChangeResetsPhonemes();
     void wordPropertyCascadeUnchangedUpperPropertiesPreservePhonemes();

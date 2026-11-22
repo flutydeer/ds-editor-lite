@@ -32,7 +32,6 @@ namespace {
         track.clientRef = QStringLiteral("note-commit-track");
         track.name = QStringLiteral("Note Commit Track");
         track.gain = 1.0;
-        track.defaultLanguage = QStringLiteral("en");
         const auto insertedTrack = runtime.project().insertTrack(commandContext(runtime), 0, track);
         if (!insertedTrack || insertedTrack.get().affectedObjects.size() != 1)
             return std::nullopt;
@@ -44,7 +43,7 @@ namespace {
         clip.properties.length = 1920;
         clip.properties.clipLen = 1920;
         clip.properties.gain = 1.0;
-        clip.defaultLanguage = QStringLiteral("en");
+        clip.inputLanguage = QStringLiteral("en");
         const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
         const auto insertedClip = runtime.project().insertClips(
             commandContext(runtime), {

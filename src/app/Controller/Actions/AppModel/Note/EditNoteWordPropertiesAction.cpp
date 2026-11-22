@@ -1,48 +1,51 @@
 #include "EditNoteWordPropertiesAction.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
-namespace {
-    void applyCascadeResets(const Note::WordProperties &previous, Note::WordProperties &next,
-                            const WordPropertyEditOptions &options) {
-        next.lyric = next.lyric.trimmed();
-        const bool wordInputChanged =
-            previous.lyric != next.lyric || previous.language != next.language;
-
-        if (wordInputChanged) {
-            if (!options.replacePronunciation)
-                next.pronunciation.edited.clear();
-            if (!options.replacePronCandidates)
-                next.pronCandidates.clear();
+EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(
+    const QList<Note *> &notes, const QList<Note::WordProperties> &args, SingingClip *clip,
+    const QList<WordPropertyEditOptions> &options)
+    : m_notes(notes), m_newArgs(args), m_clip(clip) {
+    const auto fallbackLanguage = m_clip ? m_clip->fallbackLanguage() : QString();
+    const auto resolved = [&fallbackLanguage](const QString &declared) {
+        return NoteWordCascade::resolvedLanguage(declared, fallbackLanguage);
+    };
+    // A word edit that keeps the lyric, the declaration and the resolved
+    // language skips G2P and only re-runs S2P, so the notification is narrowed.
+    m_pronunciationOnly = true;
+    for (int i = 0; i < m_notes.count(); i++) {
+        const auto previous = Note::WordProperties::fromNote(*m_notes.at(i));
+        m_oldArgs.append(previous);
+        const auto noteOptions = i < options.count() ? options.at(i) : WordPropertyEditOptions{};
+        NoteWordCascade::Options cascadeOptions;
+        cascadeOptions.replacePronunciation = noteOptions.replacePronunciation;
+        cascadeOptions.replacePronCandidates = noteOptions.replacePronCandidates;
+        auto &next = m_newArgs[i];
+        NoteWordCascade::apply(previous, next, resolved(previous.language),
+                               resolved(next.language), cascadeOptions);
+        if (previous.lyric != next.lyric || previous.language != next.language ||
+            resolved(previous.language) != resolved(next.language)) {
+            m_pronunciationOnly = false;
         }
-
-        auto appliedPronunciation = previous.pronunciation;
-        appliedPronunciation.edited = next.pronunciation.edited;
-        const bool phonemeInputChanged =
-            wordInputChanged || previous.pronunciation.result() != appliedPronunciation.result();
-        if (phonemeInputChanged)
-            next.phonemes = {};
     }
 }
 
 EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(
-    const QList<Note *> &notes, const QList<Note::WordProperties> &args, SingingClip *clip,
-    const QList<WordPropertyEditOptions> &options) {
-    m_notes = notes;
-    m_newArgs = args;
-    m_clip = clip;
-    // Determine if this is a pronunciation-only edit (lyric and language unchanged).
-    // If so, execute()/undo() emit EditedPronunciationOnly so InferController
-    // skips G2P and only re-runs S2P.
+    const QList<Note *> &notes, const QList<Note::WordProperties> &applied,
+    const QList<QString> &oldResolvedLanguages, const QList<QString> &newResolvedLanguages,
+    SingingClip *clip)
+    : m_notes(notes), m_newArgs(applied), m_clip(clip) {
+    // The caller cascaded against the target language context, so the resolved
+    // languages are supplied instead of derived from the current clip.
     m_pronunciationOnly = true;
-    for (int i = 0; i < notes.count(); i++) {
-        const auto properties = Note::WordProperties::fromNote(*notes.at(i));
-        m_oldArgs.append(properties);
-        const auto noteOptions = i < options.count() ? options.at(i) : WordPropertyEditOptions{};
-        applyCascadeResets(properties, m_newArgs[i], noteOptions);
-        if (properties.lyric != m_newArgs.at(i).lyric ||
-            properties.language != m_newArgs.at(i).language) {
+    for (int i = 0; i < m_notes.count(); i++) {
+        const auto previous = Note::WordProperties::fromNote(*m_notes.at(i));
+        m_oldArgs.append(previous);
+        const auto &next = m_newArgs.at(i);
+        if (previous.lyric != next.lyric || previous.language != next.language ||
+            oldResolvedLanguages.value(i) != newResolvedLanguages.value(i)) {
             m_pronunciationOnly = false;
         }
     }
@@ -50,15 +53,14 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(
 
 void EditNoteWordPropertiesAction::execute() {
     const auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
-    qsizetype i = 0;
-    for (const auto note : m_notes) {
-        auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
+    for (int i = 0; i < m_notes.count(); i++) {
+        const auto &[lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
+        const auto note = m_notes.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);
         note->setPhonemes(phonemes);
         note->setPronunciation(Note::Edited, pronunciation.edited);
         note->setPronCandidates(pronCandidates);
-        i++;
     }
     m_resetRecords =
         SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousWordStates);
@@ -73,7 +75,8 @@ void EditNoteWordPropertiesAction::execute() {
 
 void EditNoteWordPropertiesAction::undo() {
     for (auto i = m_notes.count() - 1; i >= 0; i--) {
-        auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_oldArgs.at(i);
+        const auto &[lyric, language, pronunciation, pronCandidates, phonemes] =
+            m_oldArgs.at(i);
         const auto note = m_notes.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);

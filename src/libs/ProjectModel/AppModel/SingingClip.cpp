@@ -10,8 +10,10 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/Support/MathUtils.h>
 
+#include <QSet>
 #include <QTimer>
 
 using namespace SpeakerMixModel;
@@ -167,7 +169,7 @@ ReSegmentResult SingingClip::reSegment(const Timeline &timeline, const bool bump
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
         delete piece;
-    rebuildNoteInferenceErrors(sliceResult);
+    rebuildSliceErrors(sliceResult);
     return result;
 }
 
@@ -209,41 +211,18 @@ quint64 SingingClip::bumpInferenceRevision() {
     return ++m_inferenceRevision;
 }
 
-void SingingClip::setDefaultLanguage(const QString &language) {
-    const auto oldLanguage = defaultLanguage();
-    const auto oldG2pId = defaultG2pId();
-    m_defaultLanguage = language;
-    this->updateDefaultG2pId(language);
-    if (oldLanguage != defaultLanguage() || oldG2pId != defaultG2pId())
-        bumpInferenceRevision();
+void SingingClip::setInputLanguage(const QString &language) {
+    if (m_inputLanguage.get() == language)
+        return;
+    m_inputLanguage = language;
 }
 
-QString SingingClip::defaultLanguage() const {
-    // 空值表示跟随父级
-    if (m_defaultLanguage.get().isEmpty()) {
-        if (const auto track = qobject_cast<const Track *>(parent())) {
-            return track->defaultLanguage();
-        }
-        return "unknown";
-    }
-    return m_defaultLanguage.get();
+QString SingingClip::inputLanguage() const {
+    return m_inputLanguage.get();
 }
 
-QString SingingClip::effectiveDefaultLanguage() const {
-    // explicit clip language (non-empty and not "unknown") wins, never overridden by singer
-    const auto lang = m_defaultLanguage.get();
-    if (!lang.isEmpty() && lang != QStringLiteral("unknown"))
-        return lang;
-    // not explicit: follow the singer package default language (when a resolved singer exists)
-    const auto info = singerInfo();
-    if (!info.defaultLanguage().isEmpty())
-        return info.defaultLanguage();
-    // fall back to defaultLanguage()'s parent-following semantics
-    return defaultLanguage();
-}
-
-QString SingingClip::defaultG2pId() const {
-    return m_singerInfo.get().g2pId(m_defaultLanguage.get());
+QString SingingClip::fallbackLanguage() const {
+    return LanguageCompatibility::fallbackLanguage(singerInfo());
 }
 
 SingerInfo SingingClip::singerInfo() const {
@@ -251,6 +230,10 @@ SingerInfo SingingClip::singerInfo() const {
         return m_trackSingerInfo.get();
     }
     return m_singerInfo.get();
+}
+
+SingerInfo SingingClip::trackSingerInfo() const {
+    return m_trackSingerInfo.get();
 }
 
 SingerInfo SingingClip::ownSingerInfo() const {
@@ -336,8 +319,7 @@ void SingingClip::setTrackVoiceContext(const SingerInfo &singerInfo, const Speak
     m_trackSingerInfo = singerInfo;
     m_trackSpeakerInfo = speakerInfo;
     m_trackSpeakerMixData = normalizedSpeakerMixData;
-    updateDefaultG2pId(m_defaultLanguage);
-    notifyEffectiveVoiceContextChanged(oldContext);
+        notifyEffectiveVoiceContextChanged(oldContext);
 }
 
 void SingingClip::setOwnVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
@@ -347,8 +329,7 @@ void SingingClip::setOwnVoiceContext(const SingerInfo &singerInfo, const Speaker
     m_singerInfo = singerInfo;
     m_useTrackSingerInfo = false;
     m_ownSpeakerMixData = normalizeSpeakerMixData(speakerMixData);
-    updateDefaultG2pId(m_defaultLanguage);
-    notifyEffectiveVoiceContextChanged(oldContext);
+        notifyEffectiveVoiceContextChanged(oldContext);
 }
 
 void SingingClip::selectOwnSingleSpeaker(const SingerInfo &singerInfo,
@@ -364,8 +345,7 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
 void SingingClip::useTrackVoiceContext() {
     const auto oldContext = effectiveVoiceContext();
     m_useTrackSingerInfo = true;
-    updateDefaultG2pId(m_defaultLanguage);
-    notifyEffectiveVoiceContextChanged(oldContext);
+        notifyEffectiveVoiceContextChanged(oldContext);
 }
 
 void SingingClip::useTrackSingerAndSpeaker() {
@@ -377,17 +357,7 @@ SingerIdentifier SingingClip::singerIdentifier() const {
 }
 
 void SingingClip::init() {
-    m_defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
-}
-
-void SingingClip::updateDefaultG2pId(const QString &language) {
-    const auto languageInfos = this->singerInfo().languages();
-    for (const auto &languageInfo : languageInfos) {
-        if (language == languageInfo.id()) {
-            m_defaultG2pId = languageInfo.g2p();
-            break;
-        }
-    }
+    m_inputLanguage.onChanged(qSignalCallback(inputLanguageChanged));
 }
 
 void SingingClip::notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext) {
@@ -397,6 +367,8 @@ void SingingClip::notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext
 
     if (!oldContext.hasSameInferenceInput(newContext)) {
         bumpInferenceRevision();
+        // Slice results and task failures describe the previous inference input,
+        // so they must not outlive the voice change.
         clearAllNoteInferenceErrors();
     }
 
@@ -413,41 +385,153 @@ const QList<QPair<int, int>> &SingingClip::skippedPhraseRanges() const {
 
 void SingingClip::setPendingNoteTaskErrors(const QHash<int, QString> &taskErrors) {
     m_pendingNoteTaskErrors = taskErrors;
+    refreshNoteDiagnostics();
 }
 
-void SingingClip::rebuildNoteInferenceErrors(const SliceResult &sliceResult) {
-    QHash<int, NoteInferenceErrorInfo> errors;
+void SingingClip::rebuildSliceErrors(const SliceResult &sliceResult) {
+    m_sliceErrors.clear();
     for (const auto &excluded : sliceResult.excludedNotes) {
         NoteInferenceErrorInfo info;
         info.reason = excluded.reason;
         info.detail = m_pendingNoteTaskErrors.value(excluded.noteId);
-        errors.insert(excluded.noteId, info);
+        m_sliceErrors.insert(excluded.noteId, info);
     }
-    const bool changed =
-        errors != m_noteInferenceErrors || sliceResult.skippedPhraseRanges != m_skippedPhraseRanges;
-    m_noteInferenceErrors = std::move(errors);
+    const bool rangesChanged = sliceResult.skippedPhraseRanges != m_skippedPhraseRanges;
     m_skippedPhraseRanges = sliceResult.skippedPhraseRanges;
+    refreshNoteDiagnostics(rangesChanged);
+}
+
+namespace {
+    bool canCheckPhonemeCompatibility(const SingerCapabilitySummary &capability) {
+        // Every non-vocoder stage must have contributed a table and those tables
+        // must agree, otherwise the intersection cannot say whether a phoneme is
+        // rejected. Degraded and inconsistent models stay unreported instead of
+        // being presented as either compatible or incompatible.
+        return !capability.phonemeDegraded && capability.phonemeConsistency == 0 &&
+               !capability.effectivePhonemes.isEmpty();
+    }
+
+    bool canCheckPhonemeLanguage(const SingerCapabilitySummary &capability) {
+        return capability.languageConsistency == 0 && !capability.effectiveLanguages.isEmpty();
+    }
+}
+
+void SingingClip::refreshNoteDiagnostics(const bool rangesChanged) {
+    m_languageErrors.clear();
+    m_phonemeErrors.clear();
+
+    const auto singer = singerInfo();
+    QList<Note *> notes;
+    notes.reserve(m_notes.count());
+    for (const auto note : m_notes)
+        notes.append(note);
+
+    for (const auto &conflict : LanguageCompatibility::conflicts(notes, singer)) {
+        const auto available = LanguageCompatibility::supportedLanguages(singer);
+        for (const auto noteId : conflict.noteIds) {
+            NoteInferenceErrorInfo info;
+            info.reason = NoteInferenceIssueReason::UnsupportedLanguage;
+            info.language = conflict.language;
+            info.availableLanguages = available;
+            info.usesEditedPhonemes = conflict.notesWithEditedPhonemes.contains(noteId);
+            info.detail = m_pendingNoteTaskErrors.value(noteId);
+            m_languageErrors.insert(noteId, info);
+        }
+    }
+
+    const auto support = LanguageCompatibility::conversionSupport(singer);
+    if (support.isKnown() && support.languageIds.isEmpty()) {
+        // A singer without any conversion route cannot convert an unspecified
+        // note either. Report the missing capability on those notes instead of
+        // inventing a declaration conflict for them.
+        for (const auto note : notes) {
+            if (!note->language().isEmpty() || note->isSlur())
+                continue;
+            NoteInferenceErrorInfo info;
+            info.reason = NoteInferenceIssueReason::UnsupportedLanguage;
+            info.detail = m_pendingNoteTaskErrors.value(note->id());
+            info.usesEditedPhonemes = note->phonemeNameSeq().isEdited();
+            m_languageErrors.insert(note->id(), info);
+        }
+    }
+
+    const auto &capability = singer.capability();
+    if (capability) {
+        QSet<QString> phonemes;
+        QSet<QString> phonemeLanguages;
+        if (canCheckPhonemeCompatibility(*capability))
+            phonemes = QSet<QString>(capability->effectivePhonemes.begin(),
+                                     capability->effectivePhonemes.end());
+        if (canCheckPhonemeLanguage(*capability))
+            phonemeLanguages = QSet<QString>(capability->effectiveLanguages.begin(),
+                                             capability->effectiveLanguages.end());
+
+        for (const auto note : notes) {
+            const auto &sequence = note->phonemeNameSeq().result();
+            if (sequence.isEmpty())
+                continue;
+            for (const auto &phoneme : sequence) {
+                // An empty symbol carries no claim about the model and is not a
+                // compatibility statement either way.
+                if (phoneme.name.isEmpty())
+                    continue;
+                // Model tables may list phonemes either bare or qualified with
+                // their dictionary language, so both forms are accepted.
+                const bool unknownName =
+                    !phonemes.isEmpty() && !phonemes.contains(phoneme.name) &&
+                    (phoneme.language.isEmpty() ||
+                     !phonemes.contains(phoneme.language + QLatin1Char('/') + phoneme.name));
+                const bool unknownLanguage = !phonemeLanguages.isEmpty() &&
+                                             !phoneme.language.isEmpty() &&
+                                             !phonemeLanguages.contains(phoneme.language);
+                if (!unknownName && !unknownLanguage)
+                    continue;
+                NoteInferenceErrorInfo info;
+                info.reason = NoteInferenceIssueReason::IncompatiblePhoneme;
+                info.phoneme = phoneme.name;
+                info.phonemeLanguage = phoneme.language;
+                info.usesEditedPhonemes = note->phonemeNameSeq().isEdited();
+                m_phonemeErrors.insert(note->id(), info);
+                break;
+            }
+        }
+    }
+
+    QHash<int, NoteInferenceErrorInfo> merged = m_sliceErrors;
+    for (auto it = m_languageErrors.constBegin(); it != m_languageErrors.constEnd(); ++it) {
+        auto info = it.value();
+        if (merged.contains(it.key()))
+            info.otherReasons.append(merged.value(it.key()).reason);
+        if (m_phonemeErrors.contains(it.key()))
+            info.otherReasons.append(NoteInferenceIssueReason::IncompatiblePhoneme);
+        merged.insert(it.key(), info);
+    }
+    for (auto it = m_phonemeErrors.constBegin(); it != m_phonemeErrors.constEnd(); ++it) {
+        if (merged.contains(it.key()))
+            continue;
+        merged.insert(it.key(), it.value());
+    }
+
+    const bool changed = rangesChanged || merged != m_noteInferenceErrors;
+    m_noteInferenceErrors = std::move(merged);
     if (changed)
         emit noteInferenceErrorsChanged();
 }
 
 void SingingClip::clearNoteInferenceErrors(const QList<Note *> &notes) {
-    bool changed = false;
+    // Hide the stale slice and task diagnostics of the edited notes right away.
+    // The language and phoneme ones are recomputed from the new state below.
     for (const auto note : notes) {
-        if (m_noteInferenceErrors.remove(note->id()) > 0)
-            changed = true;
-        if (m_pendingNoteTaskErrors.remove(note->id()) > 0)
-            changed = true;
+        m_sliceErrors.remove(note->id());
+        m_pendingNoteTaskErrors.remove(note->id());
     }
-    if (changed)
-        emit noteInferenceErrorsChanged();
+    refreshNoteDiagnostics();
 }
 
 void SingingClip::clearAllNoteInferenceErrors() {
+    const bool rangesChanged = !m_skippedPhraseRanges.isEmpty();
     m_pendingNoteTaskErrors.clear();
-    if (m_noteInferenceErrors.isEmpty() && m_skippedPhraseRanges.isEmpty())
-        return;
-    m_noteInferenceErrors.clear();
+    m_sliceErrors.clear();
     m_skippedPhraseRanges.clear();
-    emit noteInferenceErrorsChanged();
+    refreshNoteDiagnostics(rangesChanged);
 }

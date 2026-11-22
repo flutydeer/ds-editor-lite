@@ -32,7 +32,7 @@ namespace Automation::OperationIds {
     X(clips, rename, "clips.rename")                                                               \
     X(clips, resize_left, "clips.resize_left")                                                     \
     X(clips, resize_right, "clips.resize_right")                                                   \
-    X(clips, set_default_language, "clips.set_default_language")                                   \
+    X(clips, set_input_language, "clips.set_input_language")                                   \
     X(clips, set_gain, "clips.set_gain")                                                           \
     X(clips, set_mute, "clips.set_mute")                                                           \
     X(clips, set_properties, "clips.set_properties")                                               \
@@ -214,7 +214,6 @@ namespace Automation::OperationIds {
     X(tracks, remove, "tracks.remove")                                                             \
     X(tracks, rename, "tracks.rename")                                                             \
     X(tracks, set_color, "tracks.set_color")                                                       \
-    X(tracks, set_default_language, "tracks.set_default_language")                                 \
     X(tracks, set_gain, "tracks.set_gain")                                                         \
     X(tracks, set_mute, "tracks.set_mute")                                                         \
     X(tracks, set_pan, "tracks.set_pan")                                                           \

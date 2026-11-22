@@ -86,7 +86,7 @@ namespace {
             clip->setClipStart(0);
             clip->setLength(1920);
             clip->setClipLen(1920);
-            clip->setDefaultLanguage(QStringLiteral("cmn"));
+            clip->setInputLanguage(QStringLiteral("cmn"));
             auto *note = new Note(clip);
             note->setLocalStart(240);
             note->setLength(480);

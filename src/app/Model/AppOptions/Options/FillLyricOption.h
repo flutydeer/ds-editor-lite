@@ -55,8 +55,6 @@ public:
     int splitMode = 0;
     bool skipSlur = false;
 
-    bool exportLanguage = false;
-
     double textEditFontSize = 11;
     double viewFontSize = 12;
 

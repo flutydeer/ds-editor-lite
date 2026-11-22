@@ -140,7 +140,14 @@ private slots:
     void fillLyricInputsCommitOrCancel_data();
     void fillLyricInputsCommitOrCancel();
     void lyricRuleEditingChangesThePreviewAndPersists();
+    void unavailableLyricLanguageChoiceBlocksTheImport();
+    void changingTheLyricLanguageKeepsTheEditedPreview();
+    void typedLyricsSurviveALanguageChange();
+    void unroutableDetectedLanguageSurvivesTheConversion();
+    void voiceContextChangeWhileTheDialogIsOpenBlocksTheImport();
+    void declaredWordStateSurvivesTheInitialPreview();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
+    void resetPhonesStaysAvailableWhenDerivedNamesAreCleared();
     void phonemeDurationResetConfirmsAdjacentChanges_data();
     void phonemeDurationResetConfirmsAdjacentChanges();
     void noteLanguageMenuChangesOnlyTheSelectedWords_data();

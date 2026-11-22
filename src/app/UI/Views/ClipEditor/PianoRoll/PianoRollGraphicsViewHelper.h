@@ -45,10 +45,12 @@ namespace PianoRollGraphicsViewHelper {
     // system and units as the given note rect
     [[nodiscard]] QRectF noteErrorBadgeRect(const QRectF &noteRect);
     // Short category label for a note excluded from inference, for tooltip titles
-    [[nodiscard]] QString noteInferenceErrorTitle(SliceExclusionReason reason);
+    [[nodiscard]] QString noteInferenceErrorTitle(NoteInferenceIssueReason reason);
     // Human-readable one-line explanation for a note excluded from inference,
     // for tooltip bodies when the task reports no more specific detail
     [[nodiscard]] QString noteInferenceErrorText(const NoteInferenceErrorInfo &error);
+    // Localized display name of a conversion language id
+    [[nodiscard]] QString languageDisplayName(const QString &language);
 }
 
 #endif // PIANOROLLGRAPHICSVIEWHELPER_H

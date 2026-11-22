@@ -117,8 +117,14 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
-    singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
-    singingCard->addItem(tr("Default Lyric"), m_leDefaultLyric);
+    singingCard->addItem(
+        tr("New Note Language"),
+        tr("Preselected for notes created in the piano roll and when importing. It is not applied "
+           "to existing notes, and a note stays unspecified when its singer cannot use it."),
+        m_cbDefaultSingingLanguage);
+    singingCard->addItem(tr("Default Lyric"),
+                         tr("Placeholder lyric for new notes in the selected language."),
+                         m_leDefaultLyric);
 
     m_packageSearchPaths = new PathEditor;
     m_packageSearchPaths->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);

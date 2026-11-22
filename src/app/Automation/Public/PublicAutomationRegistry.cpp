@@ -17,6 +17,7 @@
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 
 #include <opendspx/clip.h>
 #include <opendspx/singingclip.h>
@@ -876,6 +877,15 @@ namespace Automation {
             };
         }
 
+        Automation::LanguageRepair decodeLanguageRepair(const QJsonObject &arguments) {
+            const auto value = arguments.value(QStringLiteral("language_repair"));
+            if (value.isUndefined() || value.isNull())
+                return Automation::LanguageRepair::None;
+            if (value.toString() == QStringLiteral("map_unsupported_to_default"))
+                return Automation::LanguageRepair::MapUnsupportedToDefault;
+            return Automation::LanguageRepair::None;
+        }
+
         QString decodeLanguageSelection(const QJsonValue &value, const QString &fallback) {
             if (value.isString())
                 return value.toString();
@@ -883,24 +893,19 @@ namespace Automation {
             const auto mode = selection.value(QStringLiteral("mode")).toString();
             if (mode == QStringLiteral("explicit"))
                 return selection.value(QStringLiteral("language_id")).toString();
-            if (mode == QStringLiteral("unknown"))
-                return QStringLiteral("unknown");
+            if (mode == QStringLiteral("unspecified"))
+                return {};
             return fallback;
         }
 
-        QJsonObject encodeLanguageSelection(const QString &language,
-                                            const QString &singerDefault = {}) {
-            if (language.isEmpty() || (!singerDefault.isEmpty() && language == singerDefault))
+        QJsonObject encodeLanguageSelection(const QString &language) {
+            if (language.isEmpty())
                 return {
-                    {QStringLiteral("mode"), QStringLiteral("follow_singer")}
-                };
-            if (language == QStringLiteral("unknown"))
-                return {
-                    {QStringLiteral("mode"), QStringLiteral("unknown")}
+                    {QStringLiteral("mode"), QStringLiteral("unspecified")}
                 };
             return {
                 {QStringLiteral("mode"),        QStringLiteral("explicit")},
-                {QStringLiteral("language_id"), language                  },
+                {QStringLiteral("language_id"), language                 }
             };
         }
 
@@ -1203,7 +1208,6 @@ namespace Automation {
             result.pan = object.value(QStringLiteral("pan")).toDouble();
             result.mute = object.value(QStringLiteral("mute")).toBool();
             result.solo = object.value(QStringLiteral("solo")).toBool();
-            result.defaultLanguage = object.value(QStringLiteral("default_language")).toString();
             if (object.contains(QStringLiteral("voice")))
                 result.singerInfo = decodeSinger(object.value(QStringLiteral("voice")).toObject());
             return result;
@@ -1222,7 +1226,6 @@ namespace Automation {
                 result.properties.clipLen = result.properties.length;
                 result.properties.name = object.value(QStringLiteral("name")).toString();
             }
-            result.defaultLanguage = object.value(QStringLiteral("default_language")).toString();
             for (const auto &value : object.value(QStringLiteral("notes")).toArray())
                 result.notes.append(decodeNote(value.toObject()));
             for (const auto &value : object.value(QStringLiteral("parameters")).toArray()) {
@@ -1453,7 +1456,6 @@ namespace Automation {
                 {QStringLiteral("pan"),                 track.data.pan            },
                 {QStringLiteral("mute"),                track.data.mute           },
                 {QStringLiteral("solo"),                track.data.solo           },
-                {QStringLiteral("default_language_id"), track.data.defaultLanguage},
                 {QStringLiteral("clip_count"),          track.clips.size()        },
             };
         }
@@ -1470,14 +1472,14 @@ namespace Automation {
                 {QStringLiteral("length"),              clip.data.properties.length                           },
                 {QStringLiteral("gain"),                clip.data.properties.gain                             },
                 {QStringLiteral("mute"),                clip.data.properties.mute                             },
-                {QStringLiteral("default_language_id"), clip.data.defaultLanguage                             },
+                {QStringLiteral("input_language_id"),  clip.data.inputLanguage                               },
             };
         }
 
         QJsonObject encodeVoiceContext(const SingerInfo &ownSinger, const SpeakerInfo &ownSpeaker,
                                        const SingerInfo &effectiveSinger,
                                        const SpeakerInfo &effectiveSpeaker,
-                                       const bool inheritsTrack, const QString &defaultLanguage) {
+                                       const bool inheritsTrack, const QString &inputLanguage) {
             const bool ownAvailable = !ownSinger.isEmpty();
             const bool effectiveAvailable = !effectiveSinger.isEmpty();
             return {
@@ -1489,11 +1491,10 @@ namespace Automation {
                      ? QJsonValue(encodeVoiceSelection(effectiveSinger, effectiveSpeaker))
                      : QJsonValue(QJsonValue::Null)},
                 {QStringLiteral("inherits_track"), inheritsTrack},
-                {QStringLiteral("default_language"),
-                 defaultLanguage.isEmpty()
+                {QStringLiteral("input_language"),
+                 inputLanguage.isEmpty()
                      ? QJsonValue(QJsonValue::Null)
-                     : QJsonValue(encodeLanguageSelection(defaultLanguage,
-                 effectiveSinger.defaultLanguage()))},
+                     : QJsonValue(encodeLanguageSelection(inputLanguage))},
                 {QStringLiteral("available"), effectiveAvailable},
                 {QStringLiteral("unavailable_reason"),
                  effectiveAvailable ? QString() : QStringLiteral("No voice is assigned")},
@@ -1727,12 +1728,24 @@ namespace Automation {
             return QPair<SpeakerMixPresetDto, EffectiveVoiceContext>{*found, resolved.get()};
         }
 
-        QString effectiveDefaultLanguage(const ProjectSnapshotDto &project, const ClipId clipId) {
+        QString clipInputLanguage(const ProjectSnapshotDto &project, const ClipId clipId) {
             for (const auto &track : project.tracks) {
                 for (const auto &clip : track.clips) {
                     if (clip.id != clipId)
                         continue;
-                    return clip.effectiveDefaultLanguage;
+                    return clip.inputLanguage;
+                }
+            }
+            return {};
+        }
+
+        SingerInfo effectiveClipSinger(const ProjectSnapshotDto &project, const ClipId clipId) {
+            for (const auto &track : project.tracks) {
+                for (const auto &clip : track.clips) {
+                    if (clip.id != clipId)
+                        continue;
+                    return clip.data.usesTrackVoiceContext ? track.data.singerInfo
+                                                           : clip.data.ownSingerInfo;
                 }
             }
             return {};
@@ -2506,12 +2519,21 @@ namespace Automation {
                                         QJsonArray languageIds;
                                         QJsonArray languages;
                                         bool defaultG2pReady = false;
+                                        // A stored route projection is authoritative: a
+                                        // declared language it omits cannot be converted and
+                                        // must not be advertised as ready.
+                                        const auto conversionSupport =
+                                            LanguageCompatibility::conversionSupport(singer.info);
+                                        const bool routesKnown = singer.info.hasConversionLanguages();
                                         for (const auto &language : singer.info.languages()) {
                                             const auto languageId = language.id();
                                             const auto g2pId = language.g2p();
                                             const bool g2pReady =
-                                                resolved && !g2pId.isEmpty() &&
-                                                g2pId != QStringLiteral("unknown");
+                                                resolved &&
+                                                (routesKnown
+                                                     ? conversionSupport.supports(languageId)
+                                                     : !g2pId.isEmpty() &&
+                                                           g2pId != QStringLiteral("unknown"));
                                             languageIds.append(languageId);
                                             languages.append(QJsonObject{
                                                 {QStringLiteral("language_id"), languageId},
@@ -2597,10 +2619,6 @@ namespace Automation {
         });
         addBinding(ToolNames::tracks_insert, [this](const QJsonObject &arguments,
                                                     const PublicInvocationContext &invocation) {
-            QString defaultLanguage = QStringLiteral("unknown");
-            const auto settings = m_runtime.settings().getSettings();
-            if (settings && !settings.get().general.defaultSingingLanguage.isEmpty())
-                defaultLanguage = settings.get().general.defaultSingingLanguage;
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
                 return AutomationResult<QJsonObject>(project.getError());
@@ -2641,7 +2659,6 @@ namespace Automation {
                     effectiveColors.insert(targetIndex,
                                            object.value(QStringLiteral("color_index")).toInt());
                 }
-                object.insert(QStringLiteral("default_language"), defaultLanguage);
                 auto track = decodeTrack(object);
                 track.resolveColorIndex = false;
                 tracks.append(std::move(track));
@@ -2680,13 +2697,6 @@ namespace Automation {
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            arguments.value(QStringLiteral("color_index")).toInt()));
                    });
-        addBinding(ToolNames::tracks_set_default_language,
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                       return mutationResult(m_runtime.project().setTrackDefaultLanguage(
-                           commandContext(arguments, invocation),
-                           TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
-                           arguments.value(QStringLiteral("language_id")).toString()));
-                   });
         addBinding(ToolNames::clips_insert, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &invocation) {
             auto project = m_runtime.project().getProject(documentId(arguments));
@@ -2697,9 +2707,6 @@ namespace Automation {
                 return AutomationResult<QJsonObject>(timelineSnapshot.getError());
             const Timeline timeline(timelineSnapshot.get().tempos,
                                     timelineSnapshot.get().timeSignatures);
-            QHash<int, QString> trackLanguages;
-            for (const auto &track : project.get().tracks)
-                trackLanguages.insert(track.id.value(), track.data.defaultLanguage);
             QList<ClipInsertDto> clips;
             QList<ResolvedValue> resolvedValues;
             const auto inputClips = arguments.value(QStringLiteral("clips")).toArray();
@@ -2740,8 +2747,6 @@ namespace Automation {
                     resolvedValues.append({path + QStringLiteral("length"), resolvedLength});
                 }
                 const auto trackId = TrackId(object.value(QStringLiteral("track_id")).toInt());
-                object.insert(QStringLiteral("default_language"),
-                              trackLanguages.value(trackId.value()));
                 clips.append({trackId, decodeClip(object)});
             }
             auto result =
@@ -2763,9 +2768,9 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            arguments.value(QStringLiteral("name")).toString()));
                    });
-        addBinding(ToolNames::clips_set_default_language,
+        addBinding(ToolNames::clips_set_input_language,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                       return mutationResult(m_runtime.project().setSingingClipDefaultLanguage(
+                       return mutationResult(m_runtime.project().setSingingClipInputLanguage(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            arguments.value(QStringLiteral("language_id")).toString()));
@@ -2773,17 +2778,14 @@ namespace Automation {
         addBinding(ToolNames::notes_insert, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &invocation) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            QString defaultLyric = QStringLiteral("la");
             auto settings = m_runtime.settings().getSettings();
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
                 return AutomationResult<QJsonObject>(project.getError());
-            auto language = effectiveDefaultLanguage(project.get(), clipId);
-            if (language.isEmpty() && settings)
-                language = settings.get().general.defaultSingingLanguage;
-            if (settings)
-                defaultLyric =
-                    settings.get().general.defaultLyrics.value(language, QStringLiteral("la"));
+            // Automation honors the drafts only. It never applies the interactive
+            // creation preference: a missing lyric uses the table of the language
+            // the note actually resolves to.
+            const auto clipSinger = effectiveClipSinger(project.get(), clipId);
             QList<NoteDraftDto> notes;
             QList<ResolvedValue> resolvedValues;
             const auto inputNotes = arguments.value(QStringLiteral("notes")).toArray();
@@ -2806,7 +2808,15 @@ namespace Automation {
                                            "omitted from all phonemes")));
                     }
                 }
-                auto note = decodeNote(object, {}, defaultLyric);
+                auto note = decodeNote(object, {}, QString());
+                if (!object.contains(QStringLiteral("lyric"))) {
+                    const auto lyricLanguage =
+                        note.language.isEmpty() ? LanguageCompatibility::fallbackLanguage(clipSinger)
+                                                : note.language;
+                    note.lyric = settings ? settings.get().general.defaultLyrics.value(
+                                                lyricLanguage, QStringLiteral("la"))
+                                          : QStringLiteral("la");
+                }
                 const auto path = QStringLiteral("/notes/%1/").arg(index);
                 if (!object.contains(QStringLiteral("lyric")))
                     resolvedValues.append({path + QStringLiteral("lyric"), note.lyric});
@@ -3175,7 +3185,8 @@ namespace Automation {
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.parameters().useTrackVoiceContext(
                            commandContext(arguments, invocation),
-                           ClipId(arguments.value(QStringLiteral("clip_id")).toInt())));
+                           ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                           decodeLanguageRepair(arguments)));
                    });
         addBinding(ToolNames::clips_set_voice, [this](const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
@@ -3187,7 +3198,7 @@ namespace Automation {
             return mutationResult(m_runtime.parameters().selectClipSingleSpeaker(
                 commandContext(arguments, invocation),
                 ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), voice.get().first,
-                voice.get().second));
+                voice.get().second, decodeLanguageRepair(arguments)));
         });
         addBinding(ToolNames::speaker_mix_enable_dynamic,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
@@ -4266,9 +4277,7 @@ namespace Automation {
                 const auto &track = project.get().tracks.at(index);
                 if (track.id == trackId) {
                     auto snapshot = encodeTrackSnapshot(track, index);
-                    const auto language = !track.data.defaultLanguage.isEmpty()
-                                              ? track.data.defaultLanguage
-                                              : track.data.singerInfo.defaultLanguage();
+                    const auto language = track.data.singerInfo.defaultLanguage();
                     snapshot.insert(QStringLiteral("voice_context"),
                                     encodeVoiceContext(track.data.singerInfo,
                                                        track.data.speakerInfo,
@@ -4408,7 +4417,7 @@ namespace Automation {
                                                                clip.data.ownSpeakerInfo,
                                                                effectiveSinger, effectiveSpeaker,
                                                                clip.data.usesTrackVoiceContext,
-                                                               clip.effectiveDefaultLanguage));
+                                                               clip.inputLanguage));
                         } else {
                             snapshot.insert(QStringLiteral("voice_context"),
                                             QJsonValue(QJsonValue::Null));
@@ -4653,7 +4662,11 @@ namespace Automation {
                     auto project = m_runtime.project().getProject(documentId(arguments));
                     if (!project)
                         return AutomationResult<QJsonObject>(project.getError());
-                    language = effectiveDefaultLanguage(project.get(), clipId);
+                    // An unspecified note takes the language its voice source
+                    // resolves to. The stored input language is only a Fill Lyric
+                    // preference and may be empty or unroutable.
+                    language = LanguageCompatibility::fallbackLanguage(
+                        effectiveClipSinger(project.get(), clipId));
                 }
                 auto phonemes = selectedNote->data.phonemes;
                 phonemes.nameSeq.edited.clear();
@@ -4709,39 +4722,44 @@ namespace Automation {
             if (!project)
                 return AutomationResult<QJsonObject>(project.getError());
             const auto options = arguments.value(QStringLiteral("options")).toObject();
-            const auto defaultLanguage = effectiveDefaultLanguage(project.get(), clipId);
+            const auto initialLanguage = clipInputLanguage(project.get(), clipId);
             const auto languageSelection = options.value(QStringLiteral("language")).toObject();
-            const bool followSinger =
-                options.contains(QStringLiteral("language")) &&
-                languageSelection.value(QStringLiteral("mode")) == QStringLiteral("follow_singer");
             const auto languageOverride =
                 options.contains(QStringLiteral("language"))
                     ? decodeLanguageSelection(options.value(QStringLiteral("language")),
-                                              defaultLanguage)
+                                              initialLanguage)
                     : QString();
-            if (languageSelection.value(QStringLiteral("mode")) == QStringLiteral("explicit")) {
-                bool supported = false;
-                for (const auto &track : project.get().tracks) {
-                    for (const auto &clip : track.clips) {
-                        if (clip.id != clipId)
-                            continue;
-                        const auto &singer = clip.data.usesTrackVoiceContext
-                                                 ? track.data.singerInfo
-                                                 : clip.data.ownSingerInfo;
-                        const auto languages = singer.languages();
-                        supported = std::any_of(languages.cbegin(), languages.cend(),
-                                                [&languageOverride](const auto &language) {
-                                                    return language.id() == languageOverride;
-                                                });
-                    }
-                }
-                if (!supported) {
-                    return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
-                        QStringLiteral("/options/language/language_id"),
-                        QStringLiteral("The requested lyric language is unavailable")));
+            QStringList supported;
+            QString fallbackLanguage;
+            for (const auto &track : project.get().tracks) {
+                for (const auto &clip : track.clips) {
+                    if (clip.id != clipId)
+                        continue;
+                    const auto &singer = clip.data.usesTrackVoiceContext ? track.data.singerInfo
+                                                                        : clip.data.ownSingerInfo;
+                    supported = LanguageCompatibility::supportedLanguages(singer);
+                    fallbackLanguage = LanguageCompatibility::fallbackLanguage(singer);
                 }
             }
-            QStringList priority{languageOverride.isEmpty() ? defaultLanguage : languageOverride};
+            const bool explicitLanguage =
+                languageSelection.value(QStringLiteral("mode")) == QStringLiteral("explicit");
+            if (explicitLanguage && !supported.contains(languageOverride)) {
+                return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
+                    QStringLiteral("/options/language/language_id"),
+                    QStringLiteral("The requested lyric language is unavailable")));
+            }
+            // The chosen language biases the tagger first, then the singer own
+            // routes. Auto detection keeps the routes only, so a language the
+            // singer cannot route stays visible instead of being rewritten.
+            QStringList priority;
+            const auto appendUnique = [&priority](const QString &language) {
+                if (!language.isEmpty() && !priority.contains(language))
+                    priority.append(language);
+            };
+            appendUnique(languageOverride);
+            appendUnique(fallbackLanguage);
+            for (const auto &language : std::as_const(supported))
+                appendUnique(language);
             std::vector<std::string> priorityLanguages;
             for (const auto &language : std::as_const(priority)) {
                 if (!language.isEmpty())
@@ -4785,9 +4803,16 @@ namespace Automation {
                 NoteWordEditDto edit;
                 edit.noteId = note.id;
                 edit.lyric = word.lyric;
-                edit.language =
-                    followSinger ? QString()
-                                 : (languageOverride.isEmpty() ? word.language : languageOverride);
+                // A chosen language only catches tokens the tagger could not
+                // identify or route. Languages already identified and routable
+                // keep their own assignment.
+                QString noteLanguage = word.language;
+                if (noteLanguage == QLatin1String("unknown"))
+                    noteLanguage.clear();
+                if (!languageOverride.isEmpty() &&
+                    (noteLanguage.isEmpty() || !supported.contains(noteLanguage)))
+                    noteLanguage = languageOverride;
+                edit.language = noteLanguage;
                 edit.pronunciation = Pronunciation(word.syllable, word.syllableRevised);
                 edit.pronunciationCandidates = word.candidates;
                 edit.phonemes =
