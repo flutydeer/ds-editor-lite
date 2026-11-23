@@ -12,7 +12,6 @@
 namespace SVS {
     class SeekBar;
 }
-class LanguageComboBox;
 class QListWidgetItem;
 class LevelMeter;
 class Track;
@@ -36,7 +35,6 @@ public:
     [[nodiscard]] TrackControl control() const override;
     void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on) const;
-    void setLanguage(const QString &language) const;
     [[nodiscard]] LevelMeter *levelMeter() const;
     [[nodiscard]] bool isInDragArea(const QPoint &pos) const;
 
@@ -61,10 +59,12 @@ private:
     void retranslateUi();
     void changeTrackProperty() const;
     void refreshSingerComboPresentation() const;
-    void refreshLanguageComboPresentation() const;
     void populatePresetMenus() const;
     void onPresetApplied(const QString &presetId) const;
     void onManagePresetsAction(const SingerInfo &singerInfo) const;
+    /// Asks before a voice change clears edited pronunciations or leaves
+    /// declarations the target singer cannot route.
+    [[nodiscard]] bool confirmVoiceLanguageChange(const SingerInfo &targetSinger) const;
 
 public:
     void updateTrackColor();
@@ -80,7 +80,6 @@ private:
     Button *btnSolo;
     InlineEditLabel *leTrackName;
     TwoLevelComboBox *cbSinger;
-    LanguageComboBox *cbLanguage;
     QSpacerItem *panVolumeSpacer;
     LevelMeter *m_levelMeter;
     QHBoxLayout *mainLayout;

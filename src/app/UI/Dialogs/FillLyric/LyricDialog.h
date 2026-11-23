@@ -29,12 +29,15 @@ class LyricDialog final : public Dialog {
 
 public:
     explicit LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
-                         const QStringList &priorityLanguages = {}, QWidget *parent = nullptr);
+                         FillLyric::LyricLanguageContextPtr languageContext = {},
+                         QWidget *parent = nullptr);
     ~LyricDialog() override;
 
     void setLangNotes() const;
 
     LyricResult noteResult() const;
+    // The language the user picked for the next fill, empty for automatic detection.
+    QString inputLanguage() const;
     LyricResult exportLangNotes() const;
 
 protected:
@@ -49,6 +52,8 @@ private:
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
+    void updateAcceptState();
+    [[nodiscard]] bool choiceRoutable() const;
 
     static void _on_modifyOption(const FillLyric::LyricTabConfig &config);
 
@@ -69,6 +74,7 @@ private:
     AccentButton *m_btnOk;
     Button *m_btnCancel;
 
+    FillLyric::LyricLanguageContextPtr m_dialogLanguageContext;
     QList<Note *> m_notes;
     QList<LangNote> m_langNotes;
     LyricResult m_noteResult;

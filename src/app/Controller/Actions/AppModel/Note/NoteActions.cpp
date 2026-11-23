@@ -158,6 +158,7 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
     setFocusTransition({focus, focus});
 }
 
+
 void NoteActions::editNotePhonemeOffset(Note *note, const QList<int> &offsets, SingingClip *clip) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, offsets, clip));

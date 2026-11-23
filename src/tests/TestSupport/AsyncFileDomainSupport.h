@@ -531,7 +531,6 @@ namespace AutomationAsyncFileTests {
             track.clientRef = QStringLiteral("async-file-track");
             track.name = QStringLiteral("Async File Track");
             track.gain = 1.0;
-            track.defaultLanguage = QStringLiteral("en");
             const auto insertedTrack = m_runtime->project().insertTrack(context(), 0, track);
             if (!insertedTrack || insertedTrack.get().affectedObjects.size() != 1)
                 return false;
@@ -544,7 +543,7 @@ namespace AutomationAsyncFileTests {
             singing.properties.length = 1920;
             singing.properties.clipLen = 1920;
             singing.properties.gain = 1.0;
-            singing.defaultLanguage = QStringLiteral("en");
+            singing.inputLanguage = QStringLiteral("en");
 
             Automation::ClipDraftDto audio;
             audio.clientRef = QStringLiteral("async-file-audio");

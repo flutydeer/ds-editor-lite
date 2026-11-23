@@ -10,7 +10,7 @@ QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip
         NoteInferenceSnapshot snapshot;
         snapshot.noteId = note->id();
         snapshot.lyric = note->lyric();
-        snapshot.language = note->effectiveLanguage();
+        snapshot.language = note->resolvedLanguage();
         snapshot.pronunciation = note->pronunciation().result();
         snapshot.globalStart = note->globalStart();
         snapshot.length = note->length();

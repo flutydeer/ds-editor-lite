@@ -18,7 +18,6 @@ namespace {
         track.clientRef = QStringLiteral("runtime-track");
         track.name = QStringLiteral("Runtime Track");
         track.gain = 1.0;
-        track.defaultLanguage = QStringLiteral("unknown");
 
         Automation::ClipDraftDto clip;
         clip.clientRef = QStringLiteral("runtime-clip");
@@ -29,7 +28,7 @@ namespace {
         clip.properties.clipStart = 0;
         clip.properties.clipLen = 1920;
         clip.properties.gain = 1.0;
-        clip.defaultLanguage = QStringLiteral("unknown");
+        clip.inputLanguage = QStringLiteral("unknown");
         clip.notes.append({
             .clientRef = QStringLiteral("runtime-note"),
             .localStart = 0,

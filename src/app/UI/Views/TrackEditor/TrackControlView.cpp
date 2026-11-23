@@ -16,6 +16,10 @@
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
+#include "Utils/LanguageDisplayUtils.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Utils/IconUtils.h>
@@ -34,7 +38,6 @@
 #include <optional>
 
 #include <lite/GUI/Controls/SvsSeekbar.h>
-#include "UI/Views/Common/LanguageComboBox.h"
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
@@ -134,27 +137,26 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             return;
         }
 
-        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-            runtime->parameters().selectTrackSingleSpeaker(commandContext(*runtime),
-                                                           Automation::TrackId(m_track->id()),
-                                                           singerInfo, speakerInfo);
+        // The confirmation describes the current revision, so the command keeps
+        // targeting it: a document change while the dialog is open fails instead
+        // of clearing pronunciations the user never saw counted.
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        const auto context = runtime ? commandContext(*runtime) : Automation::CommandContext{};
+        if (!confirmVoiceLanguageChange(singerInfo)) {
+            refreshSingerComboPresentation();
+            return;
+        }
+        if (runtime) {
+            runtime->parameters().selectTrackSingleSpeaker(
+                context, Automation::TrackId(m_track->id()), singerInfo, speakerInfo);
         }
         refreshSingerComboPresentation();
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
 
-    cbLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Pass);
-    cbLanguage->setObjectName("cbLanguage");
-    connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
-            [this](const QString &language) {
-                if (m_track && m_track->defaultLanguage() != language)
-                    trackController->changeTrackDefaultLanguage(m_track->id(), language);
-            });
-
     singerLanguageLayout = new QHBoxLayout;
     singerLanguageLayout->addWidget(cbSinger);
-    singerLanguageLayout->addWidget(cbLanguage);
     singerLanguageLayout->setSpacing(4);
     singerLanguageLayout->setContentsMargins(4, 0, 4, 0);
 
@@ -194,7 +196,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     connect(track, &Track::voiceContextChanged, this,
             [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
-    connect(track, &Track::defaultLanguageChanged, this, &TrackControlView::setLanguage);
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
     connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
@@ -278,9 +279,6 @@ void TrackControlView::setNarrowMode(const bool on) const {
     }
 }
 
-void TrackControlView::setLanguage(const QString &language) const {
-    cbLanguage->setCurrentLanguage(language);
-}
 
 LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
@@ -373,19 +371,8 @@ void TrackControlView::refreshSingerComboPresentation() const {
     }
     cbSinger->setToolTip(cbSinger->currentText());
     populatePresetMenus();
-    refreshLanguageComboPresentation();
 }
 
-void TrackControlView::refreshLanguageComboPresentation() const {
-    if (!m_track || !cbLanguage)
-        return;
-
-    const auto singerInfo = m_track->singerInfo();
-    const auto language = cbLanguage->setLanguages(
-        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
-    if (language != m_track->defaultLanguage())
-        trackController->changeTrackDefaultLanguage(m_track->id(), language);
-}
 
 void TrackControlView::populatePresetMenus() const {
     if (!cbSinger)
@@ -441,15 +428,63 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
         Toast::show(tr("Preset speakers are unavailable"));
         return;
     }
-
-    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->parameters().applyTrackSpeakerMix(commandContext(*runtime),
-                                                   Automation::TrackId(m_track->id()), singerInfo,
-                                                   data.sources.first().speaker, data);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    const auto context = runtime ? commandContext(*runtime) : Automation::CommandContext{};
+    if (!confirmVoiceLanguageChange(singerInfo)) {
+        refreshSingerComboPresentation();
+        return;
+    }
+    if (runtime) {
+        runtime->parameters().applyTrackSpeakerMix(context, Automation::TrackId(m_track->id()),
+                                                   singerInfo, data.sources.first().speaker, data);
     }
     refreshSingerComboPresentation();
 }
 
+bool TrackControlView::confirmVoiceLanguageChange(const SingerInfo &targetSinger) const {
+    if (!m_track)
+        return true;
+
+    // Only clips that follow the track move with it, so the confirmation covers
+    // exactly the notes the cascade can touch.
+    QList<Note *> notes;
+    for (const auto clip : m_track->clips()) {
+        if (!clip || clip->clipType() != IClip::Singing)
+            continue;
+        const auto *singing = static_cast<SingingClip *>(clip);
+        if (!singing->usesTrackVoiceContext())
+            continue;
+        for (const auto note : singing->notes())
+            notes.append(note);
+    }
+    const auto impact = LanguageCompatibility::repairImpact(notes, targetSinger);
+    if (impact.isEmpty())
+        return true;
+
+    QStringList lines;
+    if (impact.conflictedNotes > 0) {
+        QStringList conflictLanguages;
+        for (const auto &language : impact.conflictLanguages)
+            conflictLanguages.append(LanguageDisplayUtils::displayName(language));
+        lines.append(tr("%L1 note(s) declare %2, which the new singer cannot convert.")
+                         .arg(impact.conflictedNotes)
+                         .arg(conflictLanguages.join(tr(", "))));
+    }
+    if (impact.clearedPronunciations > 0) {
+        lines.append(tr("Switching clears the edited pronunciation of %L1 note(s).")
+                         .arg(impact.clearedPronunciations));
+    }
+
+    auto *dialog = new MessageDialog(tr("Change Singer"), lines.join(u'\n'),
+                                     Dialog::globalParent()
+                                         ? Dialog::globalParent()
+                                         : const_cast<TrackControlView *>(this));
+    dialog->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
+    dialog->addAccentButton(tr("Continue"), 1, QDialogButtonBox::AcceptRole);
+    const auto choice = dialog->exec();
+    dialog->deleteLater();
+    return choice == 1;
+}
 void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const {
     if (singerInfo.speakers().size() < 2)
         return;
@@ -463,10 +498,13 @@ void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const
                                                    : const_cast<TrackControlView *>(this));
     if (dialog.exec() == QDialog::Accepted && m_track) {
         const auto data = dialog.speakerMixData();
-        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        const auto context = runtime ? commandContext(*runtime) : Automation::CommandContext{};
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(data) &&
+            confirmVoiceLanguageChange(singerInfo)) {
+            if (runtime) {
                 runtime->parameters().applyTrackSpeakerMix(
-                    commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
+                    context, Automation::TrackId(m_track->id()), singerInfo,
                     data.sources.first().speaker, data);
             }
         }

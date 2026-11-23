@@ -10,7 +10,9 @@
 #include "Modules/FillLyric/Controls/EditDialog.h"
 #include "Modules/FillLyric/Controls/LyricCell.h"
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
+#include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/LyricTab.h"
+#include "Modules/FillLyric/Utils/G2pService.h"
 #include "Modules/FillLyric/Widgets/RuleListItemWidget.h"
 #include "Modules/FillLyric/Widgets/RuleListWidget.h"
 #include "Modules/FillLyric/Widgets/RuleTestTab.h"
@@ -23,6 +25,8 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -44,6 +48,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QScopeGuard>
+#include <QSignalSpy>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QTimer>
@@ -246,7 +251,6 @@ void ApplicationGuiTests::createLyricSelection(const int firstTick, const bool i
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
-    singingClip->setDefaultLanguage(TestSupport::fixtureLanguage());
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.parameters().selectClipSingleSpeaker(commandContext(),
                                                          Automation::ClipId(singingClip->id()),
@@ -510,6 +514,395 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     }
 }
 
+void ApplicationGuiTests::declaredWordStateSurvivesTheInitialPreview() {
+    // Opening the dialog rebuilds the preview from the selected notes. A language
+    // a note already declares and the pronunciation it edited are user state, so
+    // the rebuild must neither re-detect the language nor drop the edit.
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    auto settings = original;
+    settings.baseVisible = true;
+    settings.extensionVisible = true;
+    QVERIFY(runtime.settings().updateFillLyric({}, settings));
+    QList<Note *> notes;
+    for (auto *note : singingClip->notes()) {
+        note->setLanguage(QStringLiteral("eng"));
+        note->setPronunciation(Note::Edited, QStringLiteral("laa"));
+        notes.append(note);
+    }
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QString());
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    dialog.setLangNotes();
+    if (QTest::currentTestFailed())
+        return;
+    const auto exported = dialog.exportLangNotes().langNotes;
+    QVERIFY(!exported.isEmpty());
+    QCOMPARE(exported.first().language, QStringLiteral("eng"));
+    QCOMPARE(exported.first().syllableRevised, QStringLiteral("laa"));
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
+}
+
+void ApplicationGuiTests::speakerChangesWhileTheLyricDialogIsOpenKeepEdits_data() {
+    QTest::addColumn<bool>("mixWeightOnly");
+    QTest::newRow("speaker-only") << false;
+    QTest::newRow("fixed-mix-weight") << true;
+}
+
+void ApplicationGuiTests::speakerChangesWhileTheLyricDialogIsOpenKeepEdits() {
+    QFETCH(bool, mixWeightOnly);
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto singer = singingClip->singerInfo();
+    if (singer.speakers().size() < 2)
+        QSKIP("The selected voicebank needs two speakers for speaker changes");
+    const auto first = singer.speakers().first();
+    const auto second = singer.speakers().at(1);
+    SpeakerMixModel::SpeakerMixData mix;
+    if (mixWeightOnly) {
+        mix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        mix.sources = {{first}, {second}};
+        mix.fixedWeights = {0.3};
+        QVERIFY(runtime.parameters().applyClipSpeakerMix(
+            commandContext(), Automation::ClipId(singingClip->id()), singer, first, mix));
+    }
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    auto settings = original;
+    settings.baseVisible = true;
+    settings.extensionVisible = true;
+    QVERIFY(runtime.settings().updateFillLyric({}, settings));
+    QList<Note *> notes;
+    QList<Note::WordProperties> before;
+    for (auto *note : singingClip->notes()) {
+        notes.append(note);
+        before.append(Note::WordProperties::fromNote(*note));
+    }
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        singer.conversionLanguages(), singingClip->fallbackLanguage(), QString());
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    splitIntoPreview(dialog, TestSupport::fixtureLyric(), FillLyric::Auto);
+    if (QTest::currentTestFailed())
+        return;
+    auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
+    auto *input = base ? base->findChild<FillLyric::PhonicTextEdit *>() : nullptr;
+    QVERIFY(base && input);
+    const auto typedLyrics = QStringLiteral("la la unsaved");
+    typeText(input, typedLyrics);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(base->lyricText(), typedLyrics);
+    const auto contextBefore = singingClip->effectiveVoiceContext();
+    QSignalSpy voiceChanges(singingClip, &SingingClip::voiceContextChanged);
+    QSignalSpy rejected(&dialog, &QDialog::rejected);
+    QVERIFY(voiceChanges.isValid() && rejected.isValid());
+
+    if (mixWeightOnly) {
+        mix.fixedWeights = {0.7};
+        QVERIFY(runtime.parameters().replaceClipSpeakerMix(
+            commandContext(), Automation::ClipId(singingClip->id()), mix));
+        QCOMPARE(singingClip->speakerMixData().fixedWeights, QVector<double>{0.7});
+        QVERIFY(singingClip->speakerInfo() == contextBefore.speaker);
+    } else {
+        QVERIFY(runtime.parameters().selectClipSingleSpeaker(
+            commandContext(), Automation::ClipId(singingClip->id()), singer, second));
+        QCOMPARE(singingClip->speakerId(), second.id());
+        QVERIFY(singingClip->speakerInfo() != contextBefore.speaker);
+    }
+    QVERIFY(!voiceChanges.isEmpty());
+    QVERIFY(singingClip->singerInfo() == contextBefore.singer);
+    QCoreApplication::processEvents();
+    QVERIFY2(dialog.isVisible(), "Speaker changes must not discard the open lyric editor");
+    QVERIFY(rejected.isEmpty());
+    QCOMPARE(base->lyricText(), typedLyrics);
+    auto *preview = dialog.findChild<FillLyric::LyricWrapView *>();
+    QVERIFY(preview && preview->isVisible());
+    const auto output = dialog.exportLangNotes();
+    QCOMPARE(output.langNotes.size(), 2);
+    QCOMPARE(output.langNotes.first().lyric, TestSupport::fixtureLyric());
+    QCOMPARE(output.langNotes.at(1).lyric, QStringLiteral("-"));
+    auto *import = buttonWithText(&dialog, LyricDialog::tr("&Import"));
+    QVERIFY(import && import->isEnabled());
+    for (int index = 0; index < notes.size(); ++index) {
+        const auto after = Note::WordProperties::fromNote(*notes.at(index));
+        const auto &expected = before.at(index);
+        QCOMPARE(after.lyric, expected.lyric);
+        QCOMPARE(after.language, expected.language);
+        QCOMPARE(Pronunciation::serialize(after.pronunciation),
+                 Pronunciation::serialize(expected.pronunciation));
+        QCOMPARE(after.pronCandidates, expected.pronCandidates);
+        QCOMPARE(after.phonemes.serialize(), expected.phonemes.serialize());
+    }
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
+}
+
+void ApplicationGuiTests::voiceContextChangeWhileTheDialogIsOpenBlocksTheImport_data() {
+    QTest::addColumn<bool>("routesOnly");
+    QTest::newRow("singer") << false;
+    QTest::newRow("conversion-routes") << true;
+}
+
+void ApplicationGuiTests::voiceContextChangeWhileTheDialogIsOpenBlocksTheImport() {
+    QFETCH(bool, routesOnly);
+    // A package resolution can change the clip's routes while the modal dialog
+    // is open, so the import has to follow the live singer, not the snapshot.
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    QList<Note *> notes;
+    for (auto *note : singingClip->notes())
+        notes.append(note);
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QStringLiteral("eng"));
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    auto *import = buttonWithText(&dialog, LyricDialog::tr("&Import"));
+    QVERIFY(import);
+    QVERIFY2(import->isEnabled(), "a routable choice must not block the import");
+    QVERIFY(dialog.isVisible());
+
+    QSignalSpy rejected(&dialog, &QDialog::rejected);
+    QVERIFY(rejected.isValid());
+    if (routesOnly) {
+        auto singer = singingClip->singerInfo();
+        const auto identifier = singer.identifier();
+        QVERIFY(!singer.conversionLanguages().isEmpty());
+        singer.setConversionLanguages({});
+        singingClip->setOwnSingerAndSpeaker(singer, singingClip->speakerInfo());
+        QVERIFY(singingClip->singerIdentifier() == identifier);
+    } else {
+        QList<LanguageInfo> languages;
+        languages.emplace_back(QStringLiteral("cmn"), QStringLiteral("cmn"), QStringLiteral("g2p"));
+        SingerInfo routed(
+            {QStringLiteral("singer"), QStringLiteral("package"), QVersionNumber(1, 0)},
+            QStringLiteral("Singer"), {}, languages, QStringLiteral("cmn"));
+        routed.setResolutionState(ResolutionState::Resolved);
+        routed.setConversionLanguages({QStringLiteral("cmn")});
+        singingClip->setOwnSingerAndSpeaker(routed, {});
+    }
+    QTRY_VERIFY2(!dialog.isVisible(),
+                 "the dialog must not commit a preview built for another singer or route");
+    QVERIFY(!rejected.isEmpty());
+    QCOMPARE(dialog.result(), int(QDialog::Rejected));
+}
+void ApplicationGuiTests::unroutableDetectedLanguageSurvivesTheConversion() {
+    // No route can be loaded for this package, so the conversion fails. The
+    // detected language still describes the lyric, so it must survive.
+    FillLyric::G2pService g2p({QString(), QStringLiteral("missing-package"), QVersionNumber(1, 0)},
+                              SynthrtEngine::instance().languageService());
+    // Automatic mode with a route the detected language cannot use: the language
+    // describes what the lyric is, so it survives the failed conversion.
+    const FillLyric::LyricLanguageContext languageContext({QStringLiteral("cmn")},
+                                                          QStringLiteral("cmn"), QString());
+    LangNote note;
+    note.lyric = QStringLiteral("abc");
+    note.language = QStringLiteral("unknown");
+    const auto results = g2p.convert({note}, languageContext);
+    QCOMPARE(results.size(), 1);
+    QCOMPARE(results.first().language, QStringLiteral("eng"));
+    QCOMPARE(results.first().pronunciation, QStringLiteral("abc"));
+}
+void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
+    // A singer change can leave the stored clip language without a route. The
+    // choice stays visible, but it must neither feed resolution nor be imported.
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        QStringList{QStringLiteral("cmn")}, QStringLiteral("cmn"), QStringLiteral("eng"));
+    QVERIFY(languageContext->choiceUnavailable());
+    QVERIFY(!languageContext->priorityLanguages().contains(QStringLiteral("eng")));
+    QCOMPARE(languageContext->priorityLanguages().first(), QStringLiteral("cmn"));
+    QVERIFY2(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")).isEmpty(),
+             "an unavailable choice must not act as the fallback");
+    QCOMPARE(languageContext->resolvedNoteLanguage(QStringLiteral("cmn")), QStringLiteral("cmn"));
+
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    QList<Note *> notes;
+    for (auto *note : singingClip->notes())
+        notes.append(note);
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    auto *import = buttonWithText(&dialog, LyricDialog::tr("&Import"));
+    QVERIFY(import);
+    QVERIFY2(!import->isEnabled(), "an unavailable language must block the import");
+
+    auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
+    QVERIFY(base);
+    QComboBox *language = nullptr;
+    for (auto *combo : base->findChildren<QComboBox *>()) {
+        if (combo->findData(QStringLiteral("cmn")) >= 0)
+            language = combo;
+    }
+    QVERIFY(language);
+    QCOMPARE(language->currentData().toString(), QStringLiteral("eng"));
+    language->setCurrentIndex(language->findData(QStringLiteral("cmn")));
+    QCOMPARE(languageContext->choice(), QStringLiteral("cmn"));
+    QVERIFY(import->isEnabled());
+    QVERIFY(!languageContext->choiceUnavailable());
+    QVERIFY(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")) ==
+            QStringLiteral("cmn"));
+}
+
+void ApplicationGuiTests::changingTheLyricLanguageKeepsTheEditedPreview() {
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    auto settings = original;
+    settings.baseVisible = true;
+    settings.extensionVisible = true;
+    QVERIFY(runtime.settings().updateFillLyric({}, settings));
+    QList<Note *> notes;
+    for (auto *note : singingClip->notes())
+        notes.append(note);
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QString());
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    splitIntoPreview(dialog, QStringLiteral("la"), FillLyric::Auto, true);
+    if (QTest::currentTestFailed())
+        return;
+    auto *preview = dialog.findChild<FillLyric::LyricWrapView *>();
+    QVERIFY(preview);
+    auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
+    QVERIFY(base);
+    auto *cellList = preview->cellLists().first();
+    QVERIFY(!cellList->m_cells.isEmpty());
+    auto *cell = cellList->m_cells.first();
+    // Replacing the syllable is what the preview edit dialog does, and it marks
+    // the note as revised.
+    QMetaObject::invokeMethod(cellList, "changeSyllable", Qt::DirectConnection,
+                              Q_ARG(FillLyric::LyricCell *, cell),
+                              Q_ARG(QString, QStringLiteral("laa")));
+    QVERIFY(cell->note()->revised);
+    QCOMPARE(cell->note()->syllableRevised, QStringLiteral("laa"));
+
+    QComboBox *language = nullptr;
+    for (auto *combo : base->findChildren<QComboBox *>()) {
+        if (combo->findData(QStringLiteral("cmn")) >= 0)
+            language = combo;
+    }
+    QVERIFY(language);
+    const auto english = language->findData(QStringLiteral("eng"));
+    QVERIFY(english > 0);
+
+    bool declined = false;
+    QTimer decline;
+    decline.setSingleShot(true);
+    QObject::connect(&decline, &QTimer::timeout, &dialog, [&] {
+        auto *question = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        QVERIFY(question);
+        auto *no = question->button(QMessageBox::No);
+        QVERIFY(no);
+        QTest::mouseClick(no, Qt::LeftButton);
+        declined = true;
+    });
+    decline.start(0);
+    language->setCurrentIndex(english);
+    decline.stop();
+    QVERIFY2(declined, "changing the language over an edited preview must ask first");
+    QVERIFY2(language->currentData().toString().isEmpty(),
+             qPrintable(language->currentData().toString()));
+    QVERIFY(languageContext->choice().isEmpty());
+    QCOMPARE(cell->note()->syllableRevised, QStringLiteral("laa"));
+    QVERIFY(cell->note()->revised);
+
+    bool confirmed = false;
+    QTimer confirm;
+    confirm.setSingleShot(true);
+    QObject::connect(&confirm, &QTimer::timeout, &dialog, [&] {
+        auto *question = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        QVERIFY(question);
+        auto *yes = question->button(QMessageBox::Yes);
+        QVERIFY(yes);
+        QTest::mouseClick(yes, Qt::LeftButton);
+        confirmed = true;
+    });
+    confirm.start(0);
+    language->setCurrentIndex(english);
+    confirm.stop();
+    QVERIFY(confirmed);
+    QCOMPARE(languageContext->choice(), QStringLiteral("eng"));
+    QCOMPARE(preview->cellLists().size(), 1);
+    QVERIFY(!preview->cellLists().first()->m_cells.first()->note()->revised);
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
+}
+void ApplicationGuiTests::typedLyricsSurviveALanguageChange() {
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    auto settings = original;
+    settings.baseVisible = true;
+    settings.extensionVisible = true;
+    QVERIFY(runtime.settings().updateFillLyric({}, settings));
+    QList<Note *> notes;
+    for (auto *note : singingClip->notes())
+        notes.append(note);
+    auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QString());
+    LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(), languageContext);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    splitIntoPreview(dialog, QStringLiteral("la"), FillLyric::Auto, true);
+    if (QTest::currentTestFailed())
+        return;
+    auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
+    QVERIFY(base);
+    base->setLyricText(QStringLiteral("la la newword"));
+    QCOMPARE(base->lyricText(), QStringLiteral("la la newword"));
+
+    QComboBox *language = nullptr;
+    for (auto *combo : base->findChildren<QComboBox *>()) {
+        if (combo->findData(QStringLiteral("cmn")) >= 0)
+            language = combo;
+    }
+    QVERIFY(language);
+    const auto english = language->findData(QStringLiteral("eng"));
+    QVERIFY(english > 0);
+    language->setCurrentIndex(english);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(languageContext->choice(), QStringLiteral("eng"));
+    QVERIFY2(base->lyricText().contains(QStringLiteral("newword")),
+             qPrintable(base->lyricText()));
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
+}
 void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     createLyricSelection();
     if (QTest::currentTestFailed())
@@ -530,8 +923,11 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     for (auto *note : singingClip->notes())
         notes.append(note);
     {
-        LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(),
-                           {TestSupport::fixtureLanguage()});
+        LyricDialog dialog(
+            singingClip, notes, singingClip->singerIdentifier(),
+            std::make_shared<FillLyric::LyricLanguageContext>(
+                QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
+                singingClip->inputLanguage()));
         dialog.show();
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isVisible());
@@ -615,8 +1011,11 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QVERIFY(!saved.first().toObject().value(QStringLiteral("enabled")).toBool());
     QCOMPARE(saved.first().toObject().value(QStringLiteral("ruleId")).toString(), ruleId);
     file.close();
-    LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
-                         {TestSupport::fixtureLanguage()});
+    LyricDialog reopened(
+        singingClip, notes, singingClip->singerIdentifier(),
+        std::make_shared<FillLyric::LyricLanguageContext>(
+            QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
+            singingClip->inputLanguage()));
     reopened.show();
     reopened.activateWindow();
     selectLyricTab(reopened, LyricDialog::tr("Splitter"));

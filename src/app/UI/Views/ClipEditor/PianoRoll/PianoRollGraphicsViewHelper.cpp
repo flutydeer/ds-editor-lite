@@ -11,11 +11,13 @@
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include "Model/AppModel/NewNoteDefaults.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
+#include "Utils/LanguageDisplayUtils.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -23,9 +25,9 @@
 #include <QCoreApplication>
 
 QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *clip) {
-    const auto language =
-        clip ? clip->effectiveDefaultLanguage() : appOptions->general()->defaultSingingLanguage;
-    return appOptions->general()->defaultLyricForLanguage(language);
+    if (!clip)
+        return appOptions->general()->defaultLyricForLanguage(QString());
+    return NewNoteDefaults::resolve(clip->singerInfo()).lyric;
 }
 
 bool PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
@@ -33,11 +35,15 @@ bool PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, c
     const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
     if (!singingClip)
         return false;
+    // The language marker and the placeholder lyric are one decision, so the
+    // note never carries a lyric looked up for another language.
+    const auto defaults = NewNoteDefaults::resolve(singingClip->singerInfo());
     Automation::NoteDraftDto note;
     note.localStart = rStart;
     note.length = length;
     note.keyIndex = keyIndex;
-    note.lyric = defaultLyricForNewNote(singingClip);
+    note.language = defaults.language;
+    note.lyric = defaults.lyric;
     note.pronunciation = Pronunciation("", "");
     const auto createdId = clipController->onInsertNote(std::move(note));
     if (!createdId)
@@ -194,40 +200,108 @@ QRectF PianoRollGraphicsViewHelper::noteErrorBadgeRect(const QRectF &noteRect) {
             badgeSize.height()};
 }
 
-QString PianoRollGraphicsViewHelper::noteInferenceErrorTitle(const SliceExclusionReason reason) {
+QString PianoRollGraphicsViewHelper::noteInferenceErrorTitle(
+    const NoteInferenceIssueReason reason) {
     switch (reason) {
-        case SliceExclusionReason::MissingPhonemes:
+        case NoteInferenceIssueReason::MissingPhonemes:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Missing phonemes");
-        case SliceExclusionReason::FirstNoteInvalid:
+        case NoteInferenceIssueReason::FirstNoteInvalid:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper",
                                                "Invalid phrase start");
-        case SliceExclusionReason::UnassignedSyllabification:
+        case NoteInferenceIssueReason::UnassignedSyllabification:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper",
                                                "No phonemes assigned");
-        case SliceExclusionReason::Overlapped:
+        case NoteInferenceIssueReason::Overlapped:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Overlapping note");
+        case NoteInferenceIssueReason::UnsupportedLanguage:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "Language not supported");
+        case NoteInferenceIssueReason::IncompatiblePhoneme:
+            return QCoreApplication::translate("PianoRollGraphicsViewHelper",
+                                               "Unsupported phonemes");
     }
     return {};
 }
 
+namespace {
+    QString languageDisplayName(const QString &language) {
+        return PianoRollGraphicsViewHelper::languageDisplayName(language);
+    }
+}
+
 QString PianoRollGraphicsViewHelper::noteInferenceErrorText(const NoteInferenceErrorInfo &error) {
     switch (error.reason) {
-        case SliceExclusionReason::MissingPhonemes:
+        case NoteInferenceIssueReason::MissingPhonemes:
             return QCoreApplication::translate(
                 "PianoRollGraphicsViewHelper",
                 "No phonemes are available for this note. Check the lyric, the pronunciation, or "
                 "the language settings");
-        case SliceExclusionReason::FirstNoteInvalid:
+        case NoteInferenceIssueReason::FirstNoteInvalid:
             return QCoreApplication::translate(
                 "PianoRollGraphicsViewHelper",
                 "A phrase cannot start with a slur or syllabification note");
-        case SliceExclusionReason::UnassignedSyllabification:
+        case NoteInferenceIssueReason::UnassignedSyllabification:
             return QCoreApplication::translate(
                 "PianoRollGraphicsViewHelper",
                 "This syllabification note was not assigned any phonemes");
-        case SliceExclusionReason::Overlapped:
+        case NoteInferenceIssueReason::Overlapped:
             return QCoreApplication::translate("PianoRollGraphicsViewHelper",
                                                "This note overlaps another note and is ignored");
+        case NoteInferenceIssueReason::UnsupportedLanguage: {
+            QStringList available;
+            available.reserve(error.availableLanguages.size());
+            for (const auto &language : error.availableLanguages)
+                available.append(languageDisplayName(language));
+            const auto declaration = languageDisplayName(error.language);
+            if (available.isEmpty()) {
+                return QCoreApplication::translate(
+                    "PianoRollGraphicsViewHelper",
+                    "The singer provides no conversion language, so this note cannot be "
+                    "converted.");
+            }
+            auto text = QCoreApplication::translate(
+                            "PianoRollGraphicsViewHelper",
+                            "The singer provides no %1 conversion route. Available languages: %2.")
+                            .arg(declaration, available.join(
+                                                  QCoreApplication::translate(
+                                                      "PianoRollGraphicsViewHelper", ", ")));
+            if (error.usesEditedPhonemes) {
+                text += "\n";
+                text += QCoreApplication::translate(
+                    "PianoRollGraphicsViewHelper",
+                    "The edited phonemes are kept. Whether they can be synthesized depends on "
+                    "whether the singer accepts them.");
+            }
+            return text;
+        }
+        case NoteInferenceIssueReason::IncompatiblePhoneme: {
+            auto text = error.phoneme.isEmpty()
+                            ? QCoreApplication::translate(
+                                  "PianoRollGraphicsViewHelper",
+                                  "The current model does not accept the phonemes of this note.")
+                            : QCoreApplication::translate(
+                                  "PianoRollGraphicsViewHelper",
+                                  "The current model does not accept the phoneme '%1'.")
+                                  .arg(error.phoneme);
+            if (!error.phonemeLanguage.isEmpty()) {
+                text += "\n";
+                text += QCoreApplication::translate(
+                            "PianoRollGraphicsViewHelper",
+                            "Its dictionary language is %1, which the model also rejects.")
+                            .arg(languageDisplayName(error.phonemeLanguage));
+            }
+            text += "\n";
+            text += QCoreApplication::translate(
+                "PianoRollGraphicsViewHelper",
+                "Kept phonemes are not guaranteed to be synthesized.");
+            return text;
+        }
     }
     return {};
+}
+
+QString PianoRollGraphicsViewHelper::languageDisplayName(const QString &language) {
+    if (language.isEmpty())
+        return QCoreApplication::translate("PianoRollGraphicsViewHelper", "Unspecified");
+    return LanguageDisplayUtils::displayName(language);
 }

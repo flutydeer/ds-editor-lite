@@ -45,8 +45,10 @@ SingerInfoData::SingerInfoData(SingerIdentifier identifier, QString name,
 SingerInfoData::SingerInfoData(const SingerInfoData &other)
     : QSharedData(other), identifier(other.identifier), name(other.name), speakers(other.speakers),
       languages(other.languages), defaultLanguage(other.defaultLanguage),
-      defaultDict(other.defaultDict), localizedNames(other.localizedNames),
-      resolutionState(other.resolutionState), capability(other.capability) {
+      defaultDict(other.defaultDict), conversionLanguages(other.conversionLanguages),
+      conversionLanguagesKnown(other.conversionLanguagesKnown),
+      localizedNames(other.localizedNames), resolutionState(other.resolutionState),
+      capability(other.capability) {
 }
 
 SingerInfoData::~SingerInfoData() = default;
@@ -54,7 +56,10 @@ SingerInfoData::~SingerInfoData() = default;
 bool SingerInfoData::operator==(const SingerInfoData &other) const {
     return identifier == other.identifier && name == other.name && speakers == other.speakers &&
            languages == other.languages && defaultLanguage == other.defaultLanguage &&
-           defaultDict == other.defaultDict && localizedNames == other.localizedNames &&
+           defaultDict == other.defaultDict &&
+           conversionLanguages == other.conversionLanguages &&
+           conversionLanguagesKnown == other.conversionLanguagesKnown &&
+           localizedNames == other.localizedNames &&
            resolutionState == other.resolutionState && capability == other.capability;
 }
 
@@ -149,6 +154,19 @@ QString SingerInfo::defaultG2pId() const {
 
 QString SingerInfo::defaultDict() const {
     return d->defaultDict;
+}
+
+bool SingerInfo::hasConversionLanguages() const {
+    return d->conversionLanguagesKnown;
+}
+
+QStringList SingerInfo::conversionLanguages() const {
+    return d->conversionLanguages;
+}
+
+void SingerInfo::setConversionLanguages(const QStringList &languages) {
+    d->conversionLanguages = languages;
+    d->conversionLanguagesKnown = true;
 }
 
 ResolutionState SingerInfo::resolutionState() const {
@@ -255,7 +273,8 @@ QString SingerInfo::toString() const {
     }
 
     return QString("SingerInfo(name=%1, identifier=%2, speakers=[%3], "
-                   "languages=[%4], defaultLanguage=%5, defaultDict=%6, resolutionState=%7, "
+                   "languages=[%4], defaultLanguage=%5, defaultDict=%6, "
+                   "conversionLanguages=[%9], resolutionState=%7, "
                    "capability=%8)")
         .arg(d->name)
         .arg(d->identifier.singerId)
@@ -264,7 +283,8 @@ QString SingerInfo::toString() const {
         .arg(d->defaultLanguage)
         .arg(d->defaultDict)
         .arg(stateName)
-        .arg(capStr);
+        .arg(capStr)
+        .arg(d->conversionLanguages.join(", "));
 }
 
 void swap(SingerInfo &first, SingerInfo &second) noexcept {

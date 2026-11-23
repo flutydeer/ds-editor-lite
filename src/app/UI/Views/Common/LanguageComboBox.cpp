@@ -1,7 +1,10 @@
 #include "LanguageComboBox.h"
 
 #include "Global/AppGlobal.h"
+#include "Utils/LanguageDisplayUtils.h"
 #include "Utils/UiLanguageManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 
 #include <QEvent>
@@ -9,22 +12,16 @@
 #include <QSignalBlocker>
 
 namespace {
+    // Data role marking an entry the singer cannot route but that the document
+    // still stores, so it stays visible instead of being silently rewritten.
+    constexpr int kUnavailableRole = Qt::UserRole + 2;
+
     QString displayName(const QString &id, const QString &packageName) {
         if (id.isEmpty())
             return LanguageComboBox::tr("Follow singer");
-        if (id == QStringLiteral("cmn"))
-            return LanguageComboBox::tr("Mandarin");
-        if (id == QStringLiteral("eng"))
-            return LanguageComboBox::tr("English");
-        if (id == QStringLiteral("jpn"))
-            return LanguageComboBox::tr("Japanese");
-        if (id == QStringLiteral("yue"))
-            return LanguageComboBox::tr("Cantonese");
-        if (id == QStringLiteral("unknown"))
-            return LanguageComboBox::tr("Unknown");
         if (!packageName.trimmed().isEmpty())
             return packageName.trimmed();
-        return id;
+        return LanguageDisplayUtils::displayName(id);
     }
 }
 
@@ -100,6 +97,51 @@ QString LanguageComboBox::setLanguageCodes(const QStringList &languageCodes,
     const auto selected = setLanguages(languages, currentLanguage);
     m_languages.clear(); // the built-in list has no package-localized names
     return selected;
+}
+
+QString LanguageComboBox::setConversionLanguages(const QStringList &languageIds,
+                                                 const QString &currentLanguage) {
+    QSignalBlocker blocker(this);
+    clear();
+    m_languages.clear();
+
+    auto addEntry = [this](const QString &id, const QString &text, const bool unavailable) {
+        addItem(text, id);
+        setItemData(count() - 1, QString(), Qt::UserRole + 1);
+        setItemData(count() - 1, unavailable, kUnavailableRole);
+        if (unavailable)
+            setItemIcon(count() - 1, unavailableIcon());
+    };
+
+    addEntry(QString(), tr("Follow singer"), false);
+    QSet<QString> addedIds;
+    for (const auto &languageId : languageIds) {
+        const auto id = languageId.trimmed();
+        if (id.isEmpty() || addedIds.contains(id))
+            continue;
+        addedIds.insert(id);
+        addEntry(id, displayName(id, {}), false);
+    }
+
+    const auto selected = currentLanguage.trimmed();
+    if (!selected.isEmpty() && !addedIds.contains(selected))
+        addEntry(selected, displayName(selected, {}), true);
+
+    const auto index = findData(selected);
+    setCurrentIndex(index >= 0 ? index : 0);
+    adjustWidthToContent();
+    return currentLanguage.isEmpty() ? QString() : selected;
+}
+
+bool LanguageComboBox::currentLanguageUnavailable() const {
+    const auto index = currentIndex();
+    return index >= 0 && itemData(index, kUnavailableRole).toBool();
+}
+
+QIcon LanguageComboBox::unavailableIcon() const {
+    const auto color = ThemeManager::instance()->semanticColor(QStringLiteral("status.warning"));
+    return IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/info_16_regular.svg"),
+                                          QSize(16, 16), color);
 }
 
 void LanguageComboBox::changeEvent(QEvent *event) {

@@ -147,16 +147,19 @@ QString Note::language() const {
 }
 
 void Note::setLanguage(const QString &language) {
-    m_language = language;
+    // The legacy detection-failure marker is not user intent, so it reloads as
+    // an unspecified note instead of a third state.
+    m_language = language == QLatin1String("unknown") ? QString() : language;
 }
 
-QString Note::effectiveLanguage() const {
-    // auto (empty): resolve to clip effective default; explicit/unknown returned as-is
+NoteLanguageState Note::languageState() const {
+    return m_language.isEmpty() ? NoteLanguageState::Unspecified : NoteLanguageState::Specified;
+}
+
+QString Note::resolvedLanguage() const {
     if (!m_language.isEmpty())
         return m_language;
-    if (m_clip)
-        return m_clip->effectiveDefaultLanguage();
-    return QString();
+    return m_clip ? m_clip->fallbackLanguage() : QString();
 }
 
 bool Note::lineFeed() const {
@@ -252,7 +255,7 @@ QJsonObject Note::serialize() const {
     obj["keyIndex"] = m_keyIndex;
     obj["centShift"] = m_centShift;
     obj["lyric"] = m_lyric;
-    // auto (empty) is not persisted and reloads as auto; explicit/unknown persisted as-is
+    // An unspecified note is not persisted and reloads as unspecified.
     if (!m_language.isEmpty())
         obj["language"] = m_language;
     obj["pronunciation"] = Pronunciation::serialize(Pronunciation({}, m_pronunciation.edited));
@@ -277,7 +280,9 @@ bool Note::deserialize(const QJsonObject &obj) {
     m_keyIndex = obj["keyIndex"].toInt();
     m_centShift = obj["centShift"].toInt();
     m_lyric = obj["lyric"].toString().trimmed();
-    m_language = obj["language"].toString(); // missing/empty -> auto; "unknown" kept as terminal
+    m_language = obj["language"].toString();
+    if (m_language == QLatin1String("unknown"))
+        m_language.clear();
     m_lineFeed = obj["lineFeed"].toBool();
 
     const auto pronObj = obj["pronunciation"].toObject();

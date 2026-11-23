@@ -6,9 +6,11 @@
 #include "../TestSupport/TestAssertions.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -53,7 +55,6 @@ namespace {
         result.colorIndex = 1;
         result.gain = 0.5;
         result.pan = -0.25;
-        result.defaultLanguage = QStringLiteral("en");
         return result;
     }
 
@@ -67,7 +68,6 @@ namespace {
         result.properties.clipStart = 0;
         result.properties.clipLen = 3840;
         result.properties.gain = 1.0;
-        result.defaultLanguage = QStringLiteral("en");
         return result;
     }
 
@@ -236,6 +236,16 @@ namespace {
         data.sourcePresetId = QStringLiteral(" preset ");
         data.sourcePresetName = QStringLiteral(" blend ");
         return data;
+    }
+
+    /// A resolved singer that declares exactly one conversion language.
+    SingerInfo languageSinger(const QString &id, const QString &language) {
+        SingerInfo result(
+            {id, QStringLiteral("package"), QVersionNumber(1, 0)}, id.toUpper(),
+            {speaker(QStringLiteral("clear"))},
+            {LanguageInfo(language, language, QStringLiteral("g2p"))}, language);
+        result.setResolutionState(ResolutionState::Resolved);
+        return result;
     }
 
     SpeakerMixModel::SpeakerMixData dynamicMix(const SpeakerInfo &first,
@@ -1524,32 +1534,6 @@ void ProjectEditingTests::trackEditing() {
             qPrintable(QStringLiteral("identical color must be a no-op")));
     };
 
-    {
-        // Automation::OperationIds::tracks::set_default_language /
-        // QStringLiteral("unicode-and-noop")
-
-        testRuntime.history()->reset();
-        const auto base = runtime.documentVersion();
-        const auto empty = runtime.project().setTrackDefaultLanguage(commandContext(runtime), third,
-                                                                     QStringLiteral("  "));
-        QVERIFY2((isError(empty, AutomationErrorCode::InvalidArgument, QStringLiteral("language"))),
-                 qPrintable(QStringLiteral("blank language must be rejected")));
-        const auto changed = runtime.project().setTrackDefaultLanguage(
-            commandContext(runtime), third, QStringLiteral("zh-汉字"));
-        const auto snapshot = trackSnapshot(runtime, third);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.defaultLanguage == QStringLiteral("zh-汉字")),
-                 qPrintable(QStringLiteral("Unicode language ID must round-trip")));
-        const auto noOp = runtime.project().setTrackDefaultLanguage(commandContext(runtime), third,
-                                                                    QStringLiteral("zh-汉字"));
-        const auto state = runtime.history().getState(runtime.documentVersion().documentId);
-        QVERIFY2((noOp && !noOp.get().changed && state && state.get().canUndo),
-                 qPrintable(QStringLiteral("language state change must create one History entry")));
-        const auto undo = runtime.history().undo(commandContext(runtime));
-        const auto restored = trackSnapshot(runtime, third);
-        QVERIFY2((undo && restored && restored->data.defaultLanguage == QStringLiteral("en")),
-                 qPrintable(QStringLiteral("track language change must undo atomically")));
-    };
 }
 
 void ProjectEditingTests::singingClipEditing() {
@@ -1776,30 +1760,34 @@ void ProjectEditingTests::singingClipEditing() {
     };
 
     {
-        // Automation::OperationIds::clips::set_default_language /
+        // Automation::OperationIds::clips::set_input_language /
         // QStringLiteral("validation-revision-history")
 
         testRuntime.history()->reset();
-        const auto blank = runtime.project().setSingingClipDefaultLanguage(
-            commandContext(runtime), clip, QStringLiteral(""));
-        QVERIFY2((isError(blank, AutomationErrorCode::InvalidArgument, QStringLiteral("language"))),
-                 qPrintable(QStringLiteral("empty clip language must be rejected")));
         const auto base = runtime.documentVersion();
-        const auto changed = runtime.project().setSingingClipDefaultLanguage(
+        const auto changed = runtime.project().setSingingClipInputLanguage(
             commandContext(runtime), clip, QStringLiteral("ja"));
         const auto snapshot = clipSnapshot(runtime, clip);
         const auto state = runtime.history().getState(runtime.documentVersion().documentId);
         QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.defaultLanguage == QStringLiteral("ja") && state &&
+                  snapshot->data.inputLanguage == QStringLiteral("ja") && state &&
                   state.get().canUndo),
                  qPrintable(QStringLiteral("clip language must advance revision with History")));
-        const auto noOp = runtime.project().setSingingClipDefaultLanguage(
+        const auto noOp = runtime.project().setSingingClipInputLanguage(
             commandContext(runtime), clip, QStringLiteral("ja"));
         QVERIFY2((noOp && !noOp.get().changed),
                  qPrintable(QStringLiteral("identical clip language must be a no-op")));
+        // The input language is a stored preference, so clearing it is a valid
+        // edit rather than an invalid argument.
+        const auto cleared = runtime.project().setSingingClipInputLanguage(
+            commandContext(runtime), clip, QString());
+        const auto clearedSnapshot = clipSnapshot(runtime, clip);
+        QVERIFY2((cleared && cleared.get().changed && clearedSnapshot &&
+                  clearedSnapshot->data.inputLanguage.isEmpty()),
+                 qPrintable(QStringLiteral("input language must be clearable")));
         const auto undo = runtime.history().undo(commandContext(runtime));
         const auto restored = clipSnapshot(runtime, clip);
-        QVERIFY2((undo && restored && restored->data.defaultLanguage == QStringLiteral("en")),
+        QVERIFY2((undo && restored && restored->data.inputLanguage == QStringLiteral("ja")),
                  qPrintable(QStringLiteral("clip language change must undo atomically")));
     };
 
@@ -2477,7 +2465,7 @@ void ProjectEditingTests::setWordProperties() {
               note->data.language == QStringLiteral("zh") &&
               note->data.pronunciation.edited.isEmpty() &&
               note->data.pronunciationCandidates.isEmpty() &&
-              note->data.phonemes.nameSeq.result().isEmpty()),
+              note->data.phonemes.nameSeq.original.isEmpty()),
              qPrintable(QStringLiteral("word input change must trim Unicode and cascade reset")));
     Automation::NoteWordEditDto identical;
     identical.noteId = fixture.firstNoteId;
@@ -3241,6 +3229,125 @@ void ProjectEditingTests::clearingClipVoiceStopsInheritanceUntilRestored() {
     QCOMPARE(sibling->speakerInfo(), second);
 }
 
+void ProjectEditingTests::clearingVoiceCascadesResolvedNoteLanguage_data() {
+    QTest::addColumn<bool>("clearTrack");
+    QTest::addColumn<bool>("inheritTrackVoice");
+    QTest::newRow("track-inherited") << true << true;
+    QTest::newRow("clip-independent") << false << false;
+    QTest::newRow("clip-inherited") << false << true;
+}
+
+void ProjectEditingTests::clearingVoiceCascadesResolvedNoteLanguage() {
+    QFETCH(bool, clearTrack);
+    QFETCH(bool, inheritTrackVoice);
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Voices"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Sung"));
+    QVERIFY(trackId.isValid() && clipId.isValid());
+
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    QVERIFY(parameters.selectTrackSingleSpeaker(commandContext(runtime), trackId, mandarin, clear));
+    if (!inheritTrackVoice)
+        QVERIFY(
+            parameters.selectClipSingleSpeaker(commandContext(runtime), clipId, mandarin, clear));
+
+    Automation::NoteDraftDto draft;
+    draft.localStart = 0;
+    draft.length = 480;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    auto declaredDraft = draft;
+    declaredDraft.localStart = 480;
+    declaredDraft.language = QStringLiteral("cmn");
+    const auto ids = insertedNotes(runtime, clipId, {draft, declaredDraft});
+    QCOMPARE(ids.size(), 2);
+    const auto noteId = ids.first();
+    const auto declaredNoteId = ids.last();
+
+    PhonemeName onset;
+    onset.language = QStringLiteral("cmn");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("cmn");
+    vowel.name = QStringLiteral("a");
+    const QList<PhonemeName> manualNames{onset, vowel};
+    Automation::NoteWordEditDto edit;
+    edit.noteId = noteId;
+    edit.lyric = draft.lyric;
+    edit.phonemes.nameSeq.edited = manualNames;
+    edit.pronunciation.edited = QStringLiteral("manual");
+    edit.replacePronunciation = true;
+    auto declaredEdit = edit;
+    declaredEdit.noteId = declaredNoteId;
+    declaredEdit.language = declaredDraft.language;
+    QVERIFY(
+        runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit, declaredEdit}));
+
+    auto *clip = static_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(clip);
+    auto *note = clip->findNoteById(noteId.value());
+    auto *declaredNote = clip->findNoteById(declaredNoteId.value());
+    QVERIFY(note && declaredNote);
+    QCOMPARE(clip->usesTrackVoiceContext(), inheritTrackVoice);
+    QVERIFY(note->language().isEmpty());
+    QCOMPARE(note->resolvedLanguage(), QStringLiteral("cmn"));
+    // Derived layers normally come from inference for the resolved singer route.
+    for (auto *seeded : {note, declaredNote}) {
+        seeded->setPhonemeNameSeq(Note::Original, manualNames);
+        seeded->setPhonemeOffsetSeq(Note::Original, {-40, 80});
+    }
+    const auto originalPhonemes = note->phonemes().serialize();
+    const auto originalDeclaredPhonemes = declaredNote->phonemes().serialize();
+    const auto original = TestSupport::projectSnapshot(fixture.model());
+    fixture.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto clearVoice = [&](const bool validateOnly = false) {
+        return clearTrack
+                   ? parameters.clearTrackVoice(commandContext(runtime, validateOnly), trackId)
+                   : parameters.clearClipVoice(commandContext(runtime, validateOnly), clipId);
+    };
+
+    const auto preview = clearVoice(true);
+    QVERIFY(preview && preview.get().changed);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!fixture.history()->canUndo());
+
+    const auto cleared = clearVoice();
+    QVERIFY(cleared && cleared.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(clip->usesTrackVoiceContext(), clearTrack);
+    QVERIFY(clip->effectiveVoiceContext().singer.isEmpty());
+    QVERIFY(note->resolvedLanguage().isEmpty());
+    const auto clearedNote = noteSnapshot(runtime, clipId, noteId);
+    QVERIFY(clearedNote);
+    QVERIFY(clearedNote->data.pronunciation.edited.isEmpty());
+    QVERIFY(clearedNote->data.phonemes.nameSeq.original.isEmpty());
+    QVERIFY(clearedNote->data.phonemes.offsetSeq.original.isEmpty());
+    QCOMPARE(clearedNote->data.phonemes.nameSeq.edited, manualNames);
+    QVERIFY(clearedNote->data.language.isEmpty());
+    QCOMPARE(clearedNote->data.lyric, draft.lyric);
+    QCOMPARE(declaredNote->language(), declaredDraft.language);
+    QCOMPARE(declaredNote->resolvedLanguage(), declaredDraft.language);
+    QCOMPARE(declaredNote->pronunciation().edited, declaredEdit.pronunciation.edited);
+    QCOMPARE(declaredNote->phonemes().serialize(), originalDeclaredPhonemes);
+
+    const auto clearedVersion = runtime.documentVersion();
+    const auto repeated = clearVoice();
+    QVERIFY(repeated && !repeated.get().changed);
+    QCOMPARE(runtime.documentVersion(), clearedVersion);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
+    QCOMPARE(note->resolvedLanguage(), QStringLiteral("cmn"));
+    QCOMPARE(note->phonemes().serialize(), originalPhonemes);
+    QCOMPARE(declaredNote->phonemes().serialize(), originalDeclaredPhonemes);
+    QVERIFY(!fixture.history()->canUndo());
+}
+
 void ProjectEditingTests::pronunciationSourcesAndResetPreserveAutomaticWords() {
     NoteFixture fixture;
     auto &runtime = fixture.testRuntime.runtime();
@@ -3610,6 +3717,428 @@ void ProjectEditingTests::quantizeInChild() {
                                 .arg(probe.exitCode())
                                 .arg(QString::fromUtf8(probe.readAllStandardError()))));
     };
+}
+
+void ProjectEditingTests::wordPropertyCascadeProtectsEditedPhonemeNames() {
+    PhonemeName editedName;
+    editedName.language = QStringLiteral("cmn");
+    editedName.name = QStringLiteral("k");
+    editedName.isOnset = true;
+
+    Note::WordProperties previous;
+    previous.lyric = QStringLiteral("la");
+    previous.language = QStringLiteral("cmn");
+    previous.pronunciation.edited = QStringLiteral("manual");
+    previous.phonemes.nameSeq.original = {editedName};
+    previous.phonemes.nameSeq.edited = {editedName};
+
+    // A new declaration changes the resolved language, so the derived word data
+    // is invalidated while the manually edited phoneme names survive.
+    auto next = previous;
+    next.language = QStringLiteral("eng");
+    NoteWordCascade::apply(previous, next, QStringLiteral("cmn"), QStringLiteral("eng"));
+    QVERIFY2(next.pronunciation.edited.isEmpty(),
+             qPrintable(QStringLiteral("language change must clear the edited pronunciation")));
+    QVERIFY2(next.phonemes.nameSeq.original.isEmpty(),
+             qPrintable(QStringLiteral("language change must drop derived phoneme names")));
+    QCOMPARE(next.phonemes.nameSeq.edited, previous.phonemes.nameSeq.edited);
+
+    // The resolved language alone is enough: the declaration stays, but the
+    // voice source now routes the note elsewhere.
+    auto rerouted = previous;
+    NoteWordCascade::apply(previous, rerouted, QStringLiteral("cmn"), QStringLiteral("yue"));
+    QVERIFY2(rerouted.pronunciation.edited.isEmpty(),
+             qPrintable(QStringLiteral("resolved language change must clear the pronunciation")));
+    QCOMPARE(rerouted.phonemes.nameSeq.edited, previous.phonemes.nameSeq.edited);
+
+    // A lyric change invalidates every derived phoneme layer, including the
+    // manual names, which describe the old syllable layout.
+    auto lyricChanged = previous;
+    lyricChanged.lyric = QStringLiteral("la la");
+    NoteWordCascade::apply(previous, lyricChanged, QStringLiteral("cmn"), QStringLiteral("cmn"));
+    QVERIFY(lyricChanged.phonemes.nameSeq.original.isEmpty());
+    QVERIFY(lyricChanged.phonemes.nameSeq.edited.isEmpty());
+
+    // Editing only the pronunciation leaves the words and the route untouched,
+    // so keeping the phoneme layers lets the S2P pass refresh them in place.
+    auto pronunciationOnly = previous;
+    pronunciationOnly.pronunciation.edited = QStringLiteral("other");
+    NoteWordCascade::apply(previous, pronunciationOnly, QStringLiteral("cmn"),
+                           QStringLiteral("cmn"));
+    QCOMPARE(pronunciationOnly.phonemes.nameSeq.original, previous.phonemes.nameSeq.original);
+    QCOMPARE(pronunciationOnly.phonemes.nameSeq.edited, previous.phonemes.nameSeq.edited);
+    QCOMPARE(pronunciationOnly.pronunciation.edited, QStringLiteral("other"));
+}
+
+void ProjectEditingTests::applyingSpeakerMixPresetCascadesNoteLanguage() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Preset"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Preset Clip"));
+    QVERIFY(trackId.isValid() && clipId.isValid());
+
+    PhonemeName onset;
+    onset.language = QStringLiteral("cmn");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("cmn");
+    vowel.name = QStringLiteral("a");
+
+    const auto modelNote = [&fixture, clipId](const NoteId noteId) -> Note * {
+        auto *clip = dynamic_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+        if (!clip)
+            return nullptr;
+        for (const auto *note : clip->notes()) {
+            if (note->id() == noteId.value())
+                return const_cast<Note *>(note);
+        }
+        return nullptr;
+    };
+    const auto writeManualWords = [&](const NoteId noteId) {
+        Automation::NoteWordEditDto edit;
+        edit.noteId = noteId;
+        edit.lyric = QStringLiteral("la");
+        edit.phonemes.nameSeq.edited = {onset, vowel};
+        edit.pronunciation.edited = QStringLiteral("manual");
+        edit.replacePronunciation = true;
+        const auto applied =
+            runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit});
+        QVERIFY(applied && applied.get().changed);
+        // The derived layers normally come from inference; seed them here so the
+        // cascade has something to invalidate.
+        auto *note = modelNote(noteId);
+        QVERIFY(note);
+        note->setPhonemeNameSeq(Note::Original, {onset, vowel});
+        note->setPhonemeOffsetSeq(Note::Original, {-40, 80});
+    };
+
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    const auto english = languageSinger(QStringLiteral("english-voice"), QStringLiteral("eng"));
+    QVERIFY(parameters.selectClipSingleSpeaker(commandContext(runtime), clipId, mandarin, clear));
+
+    // The note declares no language, so it resolves through the singer and the
+    // applied preset must reroute it.
+    Automation::NoteDraftDto draft;
+    draft.localStart = 0;
+    draft.length = 480;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    const auto ids = insertedNotes(runtime, clipId, {draft});
+    QCOMPARE(ids.size(), 1);
+    const auto noteId = ids.first();
+    writeManualWords(noteId);
+    fixture.history()->reset();
+
+    const auto sameVoice = runtime.parameters().applyClipSpeakerMix(
+        commandContext(runtime), clipId, mandarin, clear, fixedMix(clear, clear));
+    QVERIFY(sameVoice && sameVoice.get().changed);
+    auto note = noteSnapshot(runtime, clipId, noteId);
+    QVERIFY(note);
+    QVERIFY2(note->data.phonemes.nameSeq.original.size() == 2,
+             qPrintable(QStringLiteral("an unchanged route must keep derived phonemes")));
+    QCOMPARE(note->data.pronunciation.edited, QStringLiteral("manual"));
+    QVERIFY(fixture.history()->canUndo());
+    fixture.history()->undo();
+
+    const auto switched = runtime.parameters().applyClipSpeakerMix(
+        commandContext(runtime), clipId, english, clear, fixedMix(clear, clear));
+    QVERIFY(switched && switched.get().changed);
+    auto clip = clipSnapshot(runtime, clipId);
+    QVERIFY(clip);
+    QCOMPARE(clip->data.ownSingerInfo, english);
+    note = noteSnapshot(runtime, clipId, noteId);
+    QVERIFY(note);
+    QVERIFY2(note->data.pronunciation.edited.isEmpty(),
+             qPrintable(QStringLiteral("the new route must clear the edited pronunciation")));
+    QVERIFY2(note->data.phonemes.nameSeq.original.isEmpty(),
+             qPrintable(QStringLiteral("the new route must drop derived phoneme names")));
+    QVERIFY(note->data.phonemes.offsetSeq.original.isEmpty());
+    QCOMPARE(note->data.phonemes.nameSeq.edited.size(), 2);
+
+    QVERIFY(fixture.history()->canUndo());
+    fixture.history()->undo();
+    note = noteSnapshot(runtime, clipId, noteId);
+    clip = clipSnapshot(runtime, clipId);
+    QVERIFY(note && clip);
+    QCOMPARE(clip->data.ownSingerInfo, mandarin);
+    QCOMPARE(note->data.pronunciation.edited, QStringLiteral("manual"));
+    QCOMPARE(note->data.phonemes.nameSeq.original.size(), 2);
+}
+
+void ProjectEditingTests::duplicatingAnInheritedClipCascadesIntoTheTargetLanguage() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto sourceTrack = insertedTrack(runtime, QStringLiteral("Source"));
+    const auto targetTrack = insertedTrack(runtime, QStringLiteral("Target"));
+    const auto clipId = insertedSingingClip(runtime, sourceTrack, QStringLiteral("Sung"));
+    QVERIFY(sourceTrack.isValid() && targetTrack.isValid() && clipId.isValid());
+
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    const auto english = languageSinger(QStringLiteral("english-voice"), QStringLiteral("eng"));
+    QVERIFY(runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime), sourceTrack,
+                                                          mandarin, clear));
+    QVERIFY(runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime), targetTrack,
+                                                          english, clear));
+
+    Automation::NoteDraftDto draft;
+    draft.localStart = 0;
+    draft.length = 480;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    const auto ids = insertedNotes(runtime, clipId, {draft});
+    QCOMPARE(ids.size(), 1);
+    const auto noteId = ids.first();
+
+    PhonemeName onset;
+    onset.language = QStringLiteral("cmn");
+    onset.name = QStringLiteral("n");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("cmn");
+    vowel.name = QStringLiteral("i");
+    Automation::NoteWordEditDto edit;
+    edit.noteId = noteId;
+    edit.lyric = QStringLiteral("la");
+    edit.phonemes.nameSeq.edited = {onset, vowel};
+    edit.pronunciation.edited = QStringLiteral("manual");
+    edit.replacePronunciation = true;
+    const auto applied = runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit});
+    QVERIFY(applied && applied.get().changed);
+    // The derived layers normally come from inference. Seed them so the cascade
+    // has something to invalidate.
+    auto *sourceClip = static_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(sourceClip);
+    auto *note = sourceClip->findNoteById(noteId.value());
+    QVERIFY(note);
+    note->setPhonemeNameSeq(Note::Original, {onset, vowel});
+    note->setPhonemeOffsetSeq(Note::Original, {-40, 80});
+
+    Automation::ClipDuplicateDestinationDto destination;
+    destination.targetTrackId = targetTrack;
+    destination.targetStart = 0;
+    const auto duplicated =
+        runtime.project().duplicateClips(commandContext(runtime), {clipId}, destination);
+    QVERIFY(duplicated);
+    QList<ClipId> copies;
+    for (const auto &created : duplicated.get().createdObjects) {
+        if (created.object.kind == Automation::ObjectKind::Clip)
+            copies.append(ClipId(created.object.value));
+    }
+    QCOMPARE(copies.size(), 1);
+    const auto *copied = dynamic_cast<const SingingClip *>(
+        fixture.model().findClipById(copies.first().value()));
+    QVERIFY(copied);
+    QCOMPARE(copied->notes().count(), 1);
+    const auto words = Note::WordProperties::fromNote(*copied->notes().toList().first());
+    QVERIFY2(words.pronunciation.edited.isEmpty(),
+             qPrintable(QStringLiteral("the copied clip must not keep the source route's "
+                                       "edited pronunciation")));
+    QVERIFY(words.phonemes.nameSeq.original.isEmpty());
+    QVERIFY(words.phonemes.offsetSeq.original.isEmpty());
+    QCOMPARE(words.phonemes.nameSeq.edited.size(), 2);
+    QVERIFY(words.language.isEmpty());
+
+    // The source clip is untouched by the copy.
+    const auto *source = dynamic_cast<const SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(source);
+    const auto sourceWords = Note::WordProperties::fromNote(*source->notes().toList().first());
+    QCOMPARE(sourceWords.pronunciation.edited, QStringLiteral("manual"));
+    QCOMPARE(sourceWords.phonemes.nameSeq.original.size(), 2);
+}
+void ProjectEditingTests::movingAClipFromAnUnresolvedRouteKeepsTheWordData() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto sourceTrack = insertedTrack(runtime, QStringLiteral("Source"));
+    const auto targetTrack = insertedTrack(runtime, QStringLiteral("Target"));
+    const auto clipId = insertedSingingClip(runtime, sourceTrack, QStringLiteral("Sung"));
+    QVERIFY(sourceTrack.isValid() && targetTrack.isValid() && clipId.isValid());
+    // The source track has no singer, so its route is unknown rather than
+    // authoritatively empty. The target resolves to Mandarin.
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    QVERIFY(runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime), targetTrack,
+                                                          mandarin, clear));
+
+    Automation::NoteDraftDto draft;
+    draft.localStart = 0;
+    draft.length = 480;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    const auto ids = insertedNotes(runtime, clipId, {draft});
+    QCOMPARE(ids.size(), 1);
+    const auto noteId = ids.first();
+
+    PhonemeName onset;
+    onset.language = QStringLiteral("cmn");
+    onset.name = QStringLiteral("n");
+    onset.isOnset = true;
+    Automation::NoteWordEditDto edit;
+    edit.noteId = noteId;
+    edit.lyric = QStringLiteral("la");
+    edit.phonemes.nameSeq.edited = {onset};
+    edit.pronunciation.edited = QStringLiteral("manual");
+    edit.replacePronunciation = true;
+    QVERIFY(runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit}));
+    auto *clip = static_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(clip);
+    auto *note = clip->findNoteById(noteId.value());
+    QVERIFY(note);
+    note->setPhonemeNameSeq(Note::Original, {onset});
+
+    QVERIFY(runtime.project().moveClips(commandContext(runtime), {{clipId, targetTrack, 0}}));
+    const auto words = Note::WordProperties::fromNote(*note);
+    QVERIFY2(words.pronunciation.edited == QStringLiteral("manual"),
+             "an unresolved source route must not clear the edited pronunciation");
+    QCOMPARE(words.phonemes.nameSeq.edited.size(), 1);
+    QCOMPARE(words.phonemes.nameSeq.original.size(), 1);
+}
+void ProjectEditingTests::patchingTheLanguageKeepsManualPhonemes() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Patch"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Patch Clip"));
+    QVERIFY(trackId.isValid() && clipId.isValid());
+
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    QVERIFY(runtime.parameters().selectTrackSingleSpeaker(commandContext(runtime), trackId, mandarin,
+                                                          clear));
+
+    Automation::NoteDraftDto draft;
+    draft.localStart = 0;
+    draft.length = 480;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    const auto ids = insertedNotes(runtime, clipId, {draft});
+    QCOMPARE(ids.size(), 1);
+    const auto noteId = ids.first();
+
+    PhonemeName onset;
+    onset.language = QStringLiteral("cmn");
+    onset.name = QStringLiteral("n");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("cmn");
+    vowel.name = QStringLiteral("i");
+    Automation::NoteWordEditDto edit;
+    edit.noteId = noteId;
+    edit.lyric = QStringLiteral("la");
+    edit.phonemes.nameSeq.edited = {onset, vowel};
+    edit.pronunciation.edited = QStringLiteral("manual");
+    edit.replacePronunciation = true;
+    const auto applied = runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit});
+    QVERIFY(applied && applied.get().changed);
+
+    // A partial patch that only changes the declaration still cascades: the
+    // manual phoneme names are kept, the derived layers and the edited
+    // pronunciation of the old route are not.
+    Automation::NoteWordPatchDto patch;
+    patch.noteId = noteId;
+    patch.language = QStringLiteral("eng");
+    const auto patched =
+        runtime.notes().patchWordProperties(commandContext(runtime), clipId, {patch});
+    QVERIFY(patched && patched.get().changed);
+
+    auto *clip = static_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(clip);
+    auto *note = clip->findNoteById(noteId.value());
+    QVERIFY(note);
+    const auto words = Note::WordProperties::fromNote(*note);
+    QCOMPARE(words.language, QStringLiteral("eng"));
+    QCOMPARE(words.phonemes.nameSeq.edited.size(), 2);
+    QVERIFY(words.phonemes.nameSeq.original.isEmpty());
+    QVERIFY(words.pronunciation.edited.isEmpty());
+}
+void ProjectEditingTests::repairImpactCountsConflictsAndClearedPronunciations() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Impact"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Impact Clip"));
+    QVERIFY(trackId.isValid() && clipId.isValid());
+
+    const auto clear = speaker(QStringLiteral("clear"));
+    const auto mandarin = languageSinger(QStringLiteral("mandarin-voice"), QStringLiteral("cmn"));
+    const auto english = languageSinger(QStringLiteral("english-voice"), QStringLiteral("eng"));
+    QVERIFY(runtime.parameters().selectClipSingleSpeaker(commandContext(runtime), clipId, mandarin,
+                                                         clear));
+
+    Automation::NoteDraftDto unspecified;
+    unspecified.localStart = 0;
+    unspecified.length = 480;
+    unspecified.keyIndex = 60;
+    unspecified.lyric = QStringLiteral("la");
+    Automation::NoteDraftDto declared;
+    declared.localStart = 480;
+    declared.length = 480;
+    declared.keyIndex = 62;
+    declared.lyric = QStringLiteral("li");
+    declared.language = QStringLiteral("eng");
+    const auto ids = insertedNotes(runtime, clipId, {unspecified, declared});
+    QCOMPARE(ids.size(), 2);
+    Automation::NoteWordEditDto edit;
+    edit.noteId = ids.at(0);
+    edit.lyric = QStringLiteral("la");
+    edit.pronunciation.edited = QStringLiteral("manual");
+    edit.replacePronunciation = true;
+    auto declaredEdit = edit;
+    declaredEdit.noteId = ids.at(1);
+    declaredEdit.lyric = declared.lyric;
+    declaredEdit.language = declared.language;
+    declaredEdit.pronunciation.edited = QStringLiteral("declared-manual");
+    const auto applied =
+        runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit, declaredEdit});
+    QVERIFY(applied && applied.get().changed);
+    const auto before = TestSupport::projectSnapshot(fixture.model());
+
+    auto *clip = dynamic_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    QVERIFY(clip);
+    QList<Note *> notes;
+    for (const auto *note : clip->notes())
+        notes.append(const_cast<Note *>(note));
+
+    // Keeping an unsupported declaration preserves its pronunciation, but repair clears it.
+    const auto declaredConflict = LanguageCompatibility::repairImpact(notes, mandarin);
+    QCOMPARE(declaredConflict.conflictedNotes, 1);
+    QCOMPARE(declaredConflict.conflictLanguages, QStringList({QStringLiteral("eng")}));
+    QCOMPARE(declaredConflict.clearedPronunciations, 0);
+    QCOMPARE(declaredConflict.clearedPronunciationsWithRepair, 1);
+    QVERIFY(!declaredConflict.isEmpty());
+
+    // Both choices reroute the unspecified note and preserve a supported declaration.
+    const auto cleared = LanguageCompatibility::repairImpact(notes, english);
+    QCOMPARE(cleared.conflictedNotes, 0);
+    QCOMPARE(cleared.clearedPronunciations, 1);
+    QCOMPARE(cleared.clearedPronunciationsWithRepair, 1);
+    QVERIFY(!cleared.isEmpty());
+
+    // Repair counts the rerouted note and the repaired declaration, once each.
+    const auto japanese = languageSinger(QStringLiteral("japanese-voice"), QStringLiteral("jpn"));
+    const auto repaired = LanguageCompatibility::repairImpact(notes, japanese);
+    QCOMPARE(repaired.conflictedNotes, 1);
+    QCOMPARE(repaired.clearedPronunciations, 1);
+    QCOMPARE(repaired.clearedPronunciationsWithRepair, 2);
+
+    // With no fallback, switching can still invalidate data but repair is unavailable.
+    auto noRoutes = mandarin;
+    noRoutes.setConversionLanguages({});
+    const auto unroutable = LanguageCompatibility::repairImpact(notes, noRoutes);
+    QCOMPARE(unroutable.conflictedNotes, 1);
+    QCOMPARE(unroutable.clearedPronunciations, 1);
+    QCOMPARE(unroutable.clearedPronunciationsWithRepair, 0);
+    QVERIFY(!unroutable.isEmpty());
+
+    auto pending = mandarin;
+    pending.setResolutionState(ResolutionState::Pending);
+    const auto unresolved = LanguageCompatibility::repairImpact(notes, pending);
+    QCOMPARE(unresolved.conflictedNotes, 0);
+    QCOMPARE(unresolved.clearedPronunciations, 1);
+    QCOMPARE(unresolved.clearedPronunciationsWithRepair, 0);
+    QVERIFY(!unresolved.isEmpty());
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), before);
 }
 
 int runProjectQuantizeProbe(int argc, char **argv) {

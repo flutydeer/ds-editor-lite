@@ -93,7 +93,6 @@ void TrackController::onInsertNewTrack(const qsizetype index) {
         return;
     Automation::TrackDraftDto draft;
     draft.name = tr("New Track");
-    draft.defaultLanguage = appOptions->general()->defaultSingingLanguage;
     runtime->project().insertTrack(commandContext(*runtime), index, draft);
 }
 
@@ -184,13 +183,6 @@ void TrackController::changeTrackColor(const int trackId, const int colorIndex) 
                                      colorIndex);
 }
 
-void TrackController::changeTrackDefaultLanguage(const int trackId, const QString &language) {
-    auto *runtime = automationRuntime();
-    if (!runtime)
-        return;
-    runtime->project().setTrackDefaultLanguage(commandContext(*runtime),
-                                               Automation::TrackId(trackId), language);
-}
 
 void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
                                      const QJsonObject &workspace, const int id, const int tick) {
@@ -423,7 +415,6 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     draft.properties.start = tick;
     draft.properties.length = length;
     draft.properties.clipLen = length;
-    draft.defaultLanguage = track->defaultLanguage();
     const auto result = runtime->project().insertClips(
         commandContext(*runtime), {
                                       {Automation::TrackId(track->id()), std::move(draft)}

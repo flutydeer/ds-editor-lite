@@ -12,6 +12,19 @@
 
 class SingingClip;
 
+/// Whether the note declares a conversion language at all.
+///
+/// There are only two states: the document stores user intent and nothing else.
+/// A failed language detection is an unspecified note, not a third state.
+enum class NoteLanguageState {
+    /// The stored language is empty. Inference resolves it from the current
+    /// singer's conversion routes.
+    Unspecified,
+    /// The note declares a language. It is kept even when the singer cannot
+    /// route it, so the conflict stays visible instead of being rewritten.
+    Specified,
+};
+
 class Note : public QObject, public Overlappable, public UniqueObject, public ISerializable {
     Q_OBJECT
 public:
@@ -55,10 +68,15 @@ public:
     void setPhonemeOffsetSeq(WordPropertyType wordType, const QList<int> &offsetSeq);
 
     QString language() const;
+    /// Stores the declared language. Empty (and the legacy "unknown" marker)
+    /// mean unspecified.
     void setLanguage(const QString &language);
-    // empty = auto (unspecified, resolved at inference); "unknown" = detection failure/terminal;
-    // else explicit
-    QString effectiveLanguage() const;
+    [[nodiscard]] NoteLanguageState languageState() const;
+    /// Word-level language used for conversion. A specified note returns its
+    /// declaration even when the singer cannot route it, so a non-empty result
+    /// does not mean inference can start. An unspecified note returns the
+    /// current singer's route language, or empty when no route is available.
+    [[nodiscard]] QString resolvedLanguage() const;
     bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
     static bool isSlurLyric(const QString &lyric);

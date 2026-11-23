@@ -45,7 +45,6 @@ public slots:
     void onNotePropertyChanged(const Note *note);
     void setSingerName(const QString &singerName);
     void setSpeakerName(const QString &speakerName);
-    void setDefaultLanguage(const QString &language);
 
 private:
     // override;
@@ -62,7 +61,6 @@ private:
     QList<NoteViewModel *> m_notes;
     QString m_singerName;
     QString m_speakerName;
-    QString m_language = "unknown";
 
     void addNote(const Note *note);
     void removeNote(int id);

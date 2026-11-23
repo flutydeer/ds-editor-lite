@@ -26,16 +26,18 @@ namespace FillLyric {
 
     LyricTab::LyricTab(const QList<LangNote> &langNotes, SingerIdentifier singer,
                        const srt::g2p::LanguageService &languageService,
-                       const QStringList &priorityLanguages, const LyricTabConfig &config,
+                       LyricLanguageContextPtr languageContext, const LyricTabConfig &config,
                        QWidget *parent)
         : QWidget(parent), m_g2pService(std::move(singer), languageService) {
-        m_priorityLanguages = priorityLanguages;
-        for (const auto &langNote : langNotes)
+        m_languageContext = std::move(languageContext);
+        for (const auto &langNote : langNotes) {
             m_langNotes.append(new LangNote(langNote));
+            m_declaredLanguages.append(langNote.language);
+        }
 
-        m_lyricBaseWidget = new LyricBaseWidget(config, toStdVector(m_priorityLanguages), this);
+        m_lyricBaseWidget = new LyricBaseWidget(config, m_languageContext, this);
         m_lyricExtWidget =
-            new LyricExtWidget(&m_notesCount, config, m_priorityLanguages, &m_g2pService);
+            new LyricExtWidget(&m_notesCount, config, m_languageContext, &m_g2pService);
 
         m_lyricLayout = new QHBoxLayout();
         m_lyricLayout->setContentsMargins(0, 0, 0, 0);
@@ -95,14 +97,35 @@ namespace FillLyric {
         }
 
         m_lyricBaseWidget->setSkipSlur(config.baseSkipSlur);
-        m_exportLanguage = config.exportLanguage;
         connect(m_lyricBaseWidget, &LyricBaseWidget::splitOptionChanged, this,
                 [this] { setLangNotes(false); });
+        connect(m_lyricBaseWidget, &LyricBaseWidget::languageChoiceChanged, this,
+                &LyricTab::onLanguageChoiceChanged);
     }
 
     LyricTab::~LyricTab() {
         qDeleteAll(m_langNotes);
         m_langNotes.clear();
+    }
+
+    const LyricLanguageContext &LyricTab::languageContext() const {
+        return *m_languageContext;
+    }
+
+    void LyricTab::resetOriginalNotesG2p() {
+        // Only the derived conversion output is rebuilt. The language a note
+        // declares and the pronunciation it edited are user state, so a rebuilt
+        // preview must not re-detect them.
+        if (m_declaredLanguages.size() != m_langNotes.size())
+            m_declaredLanguages.clear();
+        for (qsizetype i = 0; i < m_langNotes.size(); ++i) {
+            auto *note = m_langNotes.at(i);
+            note->language = m_declaredLanguages.value(static_cast<int>(i), note->language);
+            note->g2pId = kUnknownG2pId;
+            note->syllable.clear();
+            note->candidates.clear();
+        }
+        m_originalNotesG2pReady = false;
     }
 
     void LyricTab::ensureOriginalNotesG2p() {
@@ -114,7 +137,7 @@ namespace FillLyric {
         for (const auto &note : m_langNotes)
             inputNotes.append(*note);
 
-        const auto g2pResults = m_g2pService.convert(inputNotes, toStdVector(m_priorityLanguages));
+        const auto g2pResults = m_g2pService.convert(inputNotes, languageContext());
         const int resultCount =
             std::min(static_cast<int>(m_langNotes.size()), static_cast<int>(g2pResults.size()));
         for (int i = 0; i < resultCount; i++) {
@@ -144,6 +167,37 @@ namespace FillLyric {
         m_previewInitialized = true;
     }
 
+    void LyricTab::onLanguageChoiceChanged() {
+        if (!confirmPreviewRebuild()) {
+            m_lyricBaseWidget->revertLanguageChoice();
+            Q_EMIT languageChoiceChanged();
+            return;
+        }
+        setLangNotes(false);
+        Q_EMIT languageChoiceChanged();
+    }
+
+    bool LyricTab::confirmPreviewRebuild() const {
+        if (!m_lyricExtWidget->isVisible() || !previewHasRevisions())
+            return true;
+        const auto answer = QMessageBox::question(
+            nullptr, tr("Preview Lyric"),
+            tr("Changing the language rebuilds the preview and discards your revisions. "
+               "Continue?"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        return answer == QMessageBox::Yes;
+    }
+
+    bool LyricTab::previewHasRevisions() const {
+        for (const auto *cellList : m_lyricExtWidget->wrapView()->cellLists()) {
+            for (const auto *cell : cellList->m_cells) {
+                if (cell->note()->revised)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     void LyricTab::setLangNotes(const bool warn) {
         const bool skipSlurRes = m_lyricBaseWidget->skipSlur();
 
@@ -158,14 +212,38 @@ namespace FillLyric {
 
         if (!warn || setLangNotes) {
             QStringList lyrics;
-            for (const auto &langNote : m_langNotes) {
-                if (skipSlurRes && (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
-                    continue;
-                lyrics.append(langNote->lyric);
+            const auto currentText = m_lyricBaseWidget->lyricText();
+            if (currentText.trimmed().isEmpty()) {
+                // The dialog opens before the text is populated, so the first
+                // rebuild starts from the notes it was opened with.
+                for (const auto &langNote : m_langNotes) {
+                    if (skipSlurRes && (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
+                        continue;
+                    lyrics.append(langNote->lyric);
+                }
+            } else {
+                // Re-split the text on screen, so lyrics typed since the last
+                // split survive a language change instead of being replaced by
+                // the notes they were derived from.
+                qDeleteAll(m_langNotes);
+                m_langNotes.clear();
+                m_declaredLanguages.clear();
+                const auto split = m_lyricBaseWidget->splitLyric(currentText);
+                for (const auto &line : split) {
+                    for (const auto &langNote : line) {
+                        m_langNotes.append(new LangNote(langNote));
+                        m_declaredLanguages.append(langNote.language);
+                        if (skipSlurRes &&
+                            (langNote.g2pId == kSlurLyric || langNote.lyric == "-"))
+                            continue;
+                        lyrics.append(langNote.lyric);
+                    }
+                }
             }
             m_notesCount = static_cast<int>(lyrics.size());
             m_lyricBaseWidget->setLyricText(lyrics.join(" "));
             m_previewInitialized = false;
+            resetOriginalNotesG2p();
             if (m_lyricExtWidget->isVisible())
                 initializeOriginalNotesPreview();
         } else {
@@ -182,7 +260,7 @@ namespace FillLyric {
 
         QList<QList<LangNote>> result;
         for (auto &notes : langNotes) {
-            const auto g2pResults = m_g2pService.convert(notes, toStdVector(m_priorityLanguages));
+            const auto g2pResults = m_g2pService.convert(notes, languageContext());
             for (int i = 0; i < g2pResults.size(); i++) {
                 if (notes[i].language == QStringLiteral("unknown"))
                     notes[i].language = g2pResults[i].language;
@@ -220,7 +298,7 @@ namespace FillLyric {
         if (text.isEmpty())
             return;
         m_lyricExtWidget->wrapView()->init(
-            LyricSplitter::splitAuto(text, toStdVector(m_priorityLanguages)));
+            LyricSplitter::splitAuto(text, toStdVector(languageContext().priorityLanguages())));
         m_previewInitialized = true;
     }
 
@@ -242,6 +320,6 @@ namespace FillLyric {
         Q_EMIT this->modifyOptionSignal(
             {m_lyricBaseWidget->isVisible(), m_lyricExtWidget->isVisible(),
              m_lyricBaseWidget->fontSize(), m_lyricBaseWidget->skipSlur(),
-             m_lyricBaseWidget->splitMode(), m_lyricExtWidget->fontSize(), m_exportLanguage});
+             m_lyricBaseWidget->splitMode(), m_lyricExtWidget->fontSize()});
     }
 } // namespace FillLyric

@@ -3,6 +3,7 @@
 #include "Controller/Actions/AppModel/Note/EditNoteWordPropertiesAction.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
@@ -98,8 +99,10 @@ namespace {
 
         expect(note->pronunciation().edited == QStringLiteral("ma"),
                "pronunciation edit must be applied");
-        expect(phonemesEmpty(note->phonemes()),
-               "pronunciation edit must clear phonemes derived from the old pronunciation");
+        // The route and the syllable layout are unchanged, so the phoneme layers
+        // stay and the S2P pass refreshes the derived names in place.
+        expect(phonemesEqual(note->phonemes(), oldPhonemes),
+               "pronunciation edit must keep the existing phoneme layers");
 
         action.undo();
         expect(note->pronunciation().edited == QStringLiteral("mee") &&
@@ -173,6 +176,68 @@ namespace {
         expect(phonemesEmpty(revisedNote->phonemes()) && phonemesEmpty(unrevisedNote->phonemes()),
                "fill lyric must reset phonemes for every changed lyric");
     }
+
+    void testFallbackChangeResetsNotesThatResolveDifferently() {
+        auto manualPhonemes = phonemes("l", "a", "k", "a");
+        manualPhonemes.offsetSeq.edited = {0, 90};
+        auto *unspecified =
+            makeNote(QStringLiteral("la"), QStringLiteral("custom"), manualPhonemes);
+        auto *declared =
+            makeNote(QStringLiteral("mi"), QStringLiteral("custom"), phonemes("m", "i", "n", "i"));
+        declared->setLanguage(QStringLiteral("eng"));
+        const auto declaredPhonemes = declared->phonemes();
+        const auto declaredPronunciation = declared->pronunciation();
+        // An unspecified note follows the route, a declared one does not.
+        unspecified->setLanguage(QString());
+        NoteWordCascade::applyFallbackChange({unspecified, declared}, QStringLiteral("cmn"),
+                                             QStringLiteral("yue"));
+        expect(unspecified->pronunciation().edited.isEmpty() &&
+                   unspecified->phonemes().nameSeq.original.isEmpty() &&
+                   unspecified->phonemes().offsetSeq.original.isEmpty(),
+               "a route change must clear the edited pronunciation and the derived layers");
+        expect(unspecified->phonemes().nameSeq.edited == manualPhonemes.nameSeq.edited &&
+                   unspecified->phonemes().offsetSeq.edited == manualPhonemes.offsetSeq.edited,
+               "a route change must keep the manual phoneme names and their valid timing");
+        expect(declared->pronunciation().edited == declaredPronunciation.edited &&
+                   phonemesEqual(declared->phonemes(), declaredPhonemes),
+               "a declared note must keep its word data when the route changes");
+    }
+
+    void testFallbackChangeClearsOffsetsWithoutManualNames() {
+        auto oldPhonemes = phonemes("l", "a", "k", "a");
+        oldPhonemes.nameSeq.edited.clear();
+        oldPhonemes.offsetSeq.edited = {0, 90};
+        auto *note = makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        note->setLanguage(QString());
+        SingingClip clip({note});
+
+        NoteWordCascade::applyFallbackChange({note}, QStringLiteral("cmn"), QStringLiteral("yue"));
+        expect(note->phonemeOffsetSeq().edited.isEmpty(),
+               "a route change must not retain timing for discarded derived phoneme names");
+
+        auto regenerated = note->phonemes();
+        regenerated.nameSeq.original = {phone("a", true)};
+        regenerated.offsetSeq.original = {0};
+        note->setPhonemes(regenerated);
+        expect(note->phonemeOffsetSeq().result().size() == note->phonemeNameSeq().result().size(),
+               "regenerated phonemes must have matching timing for inference");
+    }
+
+    void testFallbackChangeKeepsDataForTheSameRoute() {
+        auto *note = makeNote(QStringLiteral("la"), QStringLiteral("custom"),
+                              phonemes("l", "a", "k", "a"));
+        note->setLanguage(QString());
+        const auto before = note->phonemes();
+        NoteWordCascade::applyFallbackChange({note}, QStringLiteral("cmn"), QStringLiteral("cmn"));
+        expect(note->pronunciation().edited == QStringLiteral("custom") &&
+                   phonemesEqual(note->phonemes(), before),
+               "an unchanged route must keep every layer");
+    }}
+
+void LyricsTests::wordPropertyCascadeRouteChangeResetsResolvedNotes() {
+    testFallbackChangeResetsNotesThatResolveDifferently();
+    testFallbackChangeClearsOffsetsWithoutManualNames();
+    testFallbackChangeKeepsDataForTheSameRoute();
 }
 
 void LyricsTests::wordPropertyCascadeLyricChangeResetsPronunciationAndPhonemes() {

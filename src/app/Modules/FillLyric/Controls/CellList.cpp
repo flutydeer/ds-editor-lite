@@ -15,9 +15,9 @@ namespace FillLyric {
 
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
                        QGraphicsScene *scene, QGraphicsView *view, QList<CellList *> *cellLists,
-                       const QStringList &priorityLanguages, G2pService *g2pService)
+                       LyricLanguageContextPtr languageContext, G2pService *g2pService)
         : m_view(view), m_scene(scene), m_cellQss(new CellQss()), m_cellLists(cellLists),
-          m_priorityLanguages(priorityLanguages), m_g2pService(g2pService) {
+          m_languageContext(std::move(languageContext)), m_g2pService(g2pService) {
         this->setPos(x, y);
         m_scene->addItem(this);
         setFlag(ItemIsSelectable);
@@ -350,14 +350,7 @@ namespace FillLyric {
         }
         tempNotes[cellIndex].lyric = lyric;
 
-        std::vector<std::string> priorityLanguages;
-        priorityLanguages.reserve(m_priorityLanguages.size());
-        for (const auto &id : m_priorityLanguages) {
-            const auto bytes = id.toUtf8();
-            priorityLanguages.emplace_back(bytes.constData(), static_cast<size_t>(bytes.size()));
-        }
-
-        const auto g2pResults = m_g2pService->convert(tempNotes, priorityLanguages);
+        const auto g2pResults = m_g2pService->convert(tempNotes, *m_languageContext);
         for (int i = 0; i < m_cells.size(); i++) {
             auto *note = m_cells[i]->note();
             const auto &res = g2pResults[i];

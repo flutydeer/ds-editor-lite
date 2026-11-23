@@ -11,8 +11,6 @@ namespace FillLyric {
         int splitMode = 0;
 
         double lyricExtFontSize = 12;
-
-        bool exportLanguage = false;
     };
 } // namespace FillLyric
 #endif // LYRIC_TAB_LYRIC_TAB_CONFIG_H

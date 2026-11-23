@@ -187,7 +187,6 @@ void ApplicationGuiTests::trackMenusCreateCutAndDeleteWithUndo() {
     auto *created = context->m_appModel->tracks().at(1);
     const auto trackId = created->id();
     QVERIFY(trackId != existingId);
-    QCOMPARE(created->defaultLanguage(), appOptions->general()->defaultSingingLanguage);
     QVERIFY(trackControls(editor, trackId));
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
 
@@ -205,7 +204,6 @@ void ApplicationGuiTests::trackMenusCreateCutAndDeleteWithUndo() {
     QCOMPARE(clip->start(), start);
     QCOMPARE(clip->length(), 7680);
     QCOMPARE(clip->clipLen(), clip->length());
-    QCOMPARE(clip->defaultLanguage(), created->defaultLanguage());
     QCOMPARE(appStatus->activeClipId.get(), clipId);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 2);
     auto *item = editor.findClipItemById(clipId);

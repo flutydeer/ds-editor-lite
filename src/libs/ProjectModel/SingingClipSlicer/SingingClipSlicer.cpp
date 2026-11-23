@@ -105,7 +105,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return padBaseLength;
     };
 
-    auto addExclusion = [](SliceResult &result, const Note *note, SliceExclusionReason reason) {
+    auto addExclusion = [](SliceResult &result, const Note *note, NoteInferenceIssueReason reason) {
         for (const auto &excluded : result.excludedNotes)
             if (excluded.noteId == note->id())
                 return;
@@ -125,7 +125,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         }
     }
     for (const auto note : overlappedNotes)
-        addExclusion(result, note, SliceExclusionReason::Overlapped);
+        addExclusion(result, note, NoteInferenceIssueReason::Overlapped);
 
     if (notes.isEmpty()) {
         qWarning() << "advancedSlice: no valid notes after filtering overlapped notes";
@@ -208,11 +208,11 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             // Skip phrases with missing phonemes or unassigned continuation notes.
             if (hasMissingPhonemeInfo || firstNoteIsInvalid || !unassignedSylNotes.isEmpty()) {
                 for (const auto note : missingPhonemeNotes)
-                    addExclusion(result, note, SliceExclusionReason::MissingPhonemes);
+                    addExclusion(result, note, NoteInferenceIssueReason::MissingPhonemes);
                 if (firstNoteIsInvalid)
-                    addExclusion(result, firstNote, SliceExclusionReason::FirstNoteInvalid);
+                    addExclusion(result, firstNote, NoteInferenceIssueReason::FirstNoteInvalid);
                 for (const auto note : unassignedSylNotes)
-                    addExclusion(result, note, SliceExclusionReason::UnassignedSyllabification);
+                    addExclusion(result, note, NoteInferenceIssueReason::UnassignedSyllabification);
 
                 const auto rangeLast = buffer.last();
                 result.skippedPhraseRanges.append(

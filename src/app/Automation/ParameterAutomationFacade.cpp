@@ -10,7 +10,9 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/NoteWordCascade.h>
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 
 #include <QCryptographicHash>
 #include <QHash>
@@ -1179,17 +1181,84 @@ namespace Automation {
             });
     }
 
+    AutomationResult<ParameterAutomationFacade::VoiceLanguagePlan>
+        ParameterAutomationFacade::planVoiceLanguageChange(SingingClip *clip,
+                                                           const SingerInfo &targetSinger,
+                                                           const LanguageRepair languageRepair) const {
+        VoiceLanguagePlan plan;
+        if (!clip)
+            return plan;
+
+        const auto supported = LanguageCompatibility::supportedLanguages(targetSinger);
+        const auto targetFallback = LanguageCompatibility::fallbackLanguage(targetSinger);
+
+        bool repairImpossible = false;
+        for (const auto note : clip->notes()) {
+            const auto previous = Note::WordProperties::fromNote(*note);
+            auto declaration = previous.language;
+            const bool unsupported =
+                !declaration.isEmpty() && !supported.contains(declaration);
+            if (unsupported && languageRepair == LanguageRepair::MapUnsupportedToDefault) {
+                if (targetFallback.isEmpty()) {
+                    repairImpossible = true;
+                    break;
+                }
+                declaration = targetFallback;
+            }
+
+            const auto oldResolved =
+                NoteWordCascade::resolvedLanguage(previous.language, clip->fallbackLanguage());
+            const auto newResolved = NoteWordCascade::resolvedLanguage(declaration, targetFallback);
+            if (declaration == previous.language && newResolved == oldResolved)
+                continue;
+
+            auto next = previous;
+            next.language = declaration;
+            NoteWordCascade::apply(previous, next, oldResolved, newResolved);
+            plan.notes.append(note);
+            plan.wordProperties.append(next);
+            plan.oldResolvedLanguages.append(oldResolved);
+            plan.newResolvedLanguages.append(newResolved);
+        }
+
+        if (repairImpossible) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("language_repair"),
+                QStringLiteral("The target voice source has no conversion language to repair "
+                               "note languages to"));
+        }
+        return plan;
+    }
+
     AutomationResult<MutationResult>
         ParameterAutomationFacade::useTrackVoiceContext(const CommandContext &context,
-                                                        const ClipId clipId) {
+                                                        const ClipId clipId,
+                                                        const LanguageRepair languageRepair) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::clips::use_track_voice, context,
-            [this, clipId](DocumentSession &session, const bool validateOnly) {
+            [this, clipId, languageRepair](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                const bool changed = !clip->usesTrackVoiceContext();
+                if (clip->usesTrackVoiceContext() && languageRepair == LanguageRepair::None) {
+                    const auto affected = QList<ObjectRef>{
+                        {ObjectKind::Clip, clipId.value()}
+                    };
+                    if (validateOnly)
+                        return AutomationResult<MutationResult>(
+                            m_committer.preview(session, false, affected));
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                }
+                // The clip keeps inheriting; only the prediction of its resolved
+                // singer moves to the track, so the plan never touches the
+                // inheritance marker or the clip's own configuration.
+                auto *track = resolved.get().track;
+                const auto targetSinger = track ? track->voiceContext().singer : SingerInfo{};
+                auto plan = planVoiceLanguageChange(clip, targetSinger, languageRepair);
+                if (!plan)
+                    return AutomationResult<MutationResult>(plan.getError());
+                const bool changed = !clip->usesTrackVoiceContext() || !plan.get().notes.isEmpty();
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1198,17 +1267,20 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                const ClipWordCascade cascade{clip, plan.get().notes, plan.get().wordProperties,
+                                              plan.get().oldResolvedLanguages,
+                                              plan.get().newResolvedLanguages};
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->useTrackVoiceContext(clip);
+                actions->useTrackVoiceContext(clip, cascade);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::selectClipSingleSpeaker(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
-        const SpeakerInfo &speakerInfo) {
+        const SpeakerInfo &speakerInfo, const LanguageRepair languageRepair) {
         return setClipVoiceContext(OperationIds::clips::set_voice, ClipVoiceAction::SelectSingle,
-                                   context, clipId, singerInfo, speakerInfo, {});
+                                   context, clipId, singerInfo, speakerInfo, {}, languageRepair);
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::enableClipDynamicSpeakerMix(
@@ -1248,27 +1320,35 @@ namespace Automation {
 
     AutomationResult<MutationResult> ParameterAutomationFacade::applyClipSpeakerMix(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
-        const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
+        const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data,
+        const LanguageRepair languageRepair) {
         return setClipVoiceContext(OperationIds::speaker_mix::clip::apply,
                                    ClipVoiceAction::ApplyPreset, context, clipId, singerInfo,
-                                   speakerInfo, data);
+                                   speakerInfo, data, languageRepair);
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::setClipVoiceContext(
         const OperationId &operationId, const ClipVoiceAction action, const CommandContext &context,
         const ClipId clipId, const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
-        const SpeakerMixModel::SpeakerMixData &data) {
+        const SpeakerMixModel::SpeakerMixData &data, const LanguageRepair languageRepair) {
         return m_dispatcher.dispatchDocumentCommand(
             operationId, context,
-            [this, clipId, singerInfo, speakerInfo, data, action](DocumentSession &session,
-                                                                  const bool validateOnly) {
+            [this, clipId, singerInfo, speakerInfo, data, action, languageRepair](
+                DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const EffectiveVoiceContext next{
                     singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
-                const bool changed = !sameVoiceContextPayload(clip->effectiveVoiceContext(), next);
+                // Every action here can replace the effective singer, so the note
+                // cascade is planned the same way regardless of the mix shape.
+                auto planned = planVoiceLanguageChange(clip, singerInfo, languageRepair);
+                if (!planned)
+                    return AutomationResult<MutationResult>(planned.getError());
+                const auto plan = std::move(planned.get());
+                const bool changed = !sameVoiceContextPayload(clip->effectiveVoiceContext(), next) ||
+                                     !plan.notes.isEmpty();
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1277,25 +1357,74 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                ClipWordCascade cascade{clip, plan.notes, plan.wordProperties,
+                                        plan.oldResolvedLanguages, plan.newResolvedLanguages};
                 auto actions = std::make_unique<SpeakerMixActions>();
                 switch (action) {
                     case ClipVoiceAction::SelectSingle:
-                        actions->selectClipSingleSpeaker(singerInfo, speakerInfo, clip);
+                        actions->selectClipSingleSpeaker(singerInfo, speakerInfo, clip, cascade);
                         break;
                     case ClipVoiceAction::EnableDynamic:
-                        actions->enableClipDynamicSpeakerMix(singerInfo, speakerInfo, data, clip);
+                        actions->enableClipDynamicSpeakerMix(singerInfo, speakerInfo, data, clip,
+                                                             cascade);
                         break;
                     case ClipVoiceAction::ApplyPreset:
-                        actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, data, clip);
+                        actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, data, clip,
+                                                           cascade);
                         break;
                 }
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
-    AutomationResult<MutationResult> ParameterAutomationFacade::selectTrackSingleSpeaker(
-        const CommandContext &context, const TrackId trackId, const SingerInfo &singerInfo,
-        const SpeakerInfo &speakerInfo) {
+    QList<ClipWordCascade>
+        ParameterAutomationFacade::planTrackVoiceLanguageChange(
+            const Track *track, const SingerInfo &targetSinger) const {
+        QList<ClipWordCascade> result;
+        if (!track)
+            return result;
+
+        const auto targetFallback = LanguageCompatibility::fallbackLanguage(targetSinger);
+        for (const auto clip : track->clips()) {
+            if (!clip || clip->clipType() != IClip::Singing)
+                continue;
+            auto *singing = static_cast<SingingClip *>(clip);
+            // An independent voice source does not move with the track.
+            if (!singing->usesTrackVoiceContext())
+                continue;
+
+            const auto oldFallback = singing->fallbackLanguage();
+            if (oldFallback == targetFallback)
+                continue;
+
+            ClipWordCascade cascade;
+            cascade.clip = singing;
+            for (const auto note : singing->notes()) {
+                const auto previous = Note::WordProperties::fromNote(*note);
+                const auto oldResolved =
+                    NoteWordCascade::resolvedLanguage(previous.language, oldFallback);
+                const auto newResolved =
+                    NoteWordCascade::resolvedLanguage(previous.language, targetFallback);
+                if (oldResolved == newResolved)
+                    continue;
+                auto next = previous;
+                NoteWordCascade::apply(previous, next, oldResolved, newResolved);
+                cascade.notes.append(note);
+                cascade.wordProperties.append(next);
+                cascade.oldResolvedLanguages.append(oldResolved);
+                cascade.newResolvedLanguages.append(newResolved);
+            }
+            if (!cascade.notes.isEmpty())
+                result.append(std::move(cascade));
+        }
+        return result;
+    }
+
+    AutomationResult<MutationResult>
+        ParameterAutomationFacade::selectTrackSingleSpeaker(const CommandContext &context,
+                                                            const TrackId trackId,
+                                                            const SingerInfo &singerInfo,
+                                                            const SpeakerInfo &speakerInfo) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::tracks::set_voice, context,
             [this, trackId, singerInfo, speakerInfo](DocumentSession &session,
@@ -1305,7 +1434,9 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
                 const EffectiveVoiceContext next{singerInfo, speakerInfo, {}, false};
-                const bool changed = !sameVoiceContextPayload(track->voiceContext(), next);
+                const auto cascades = planTrackVoiceLanguageChange(track, singerInfo);
+                const bool changed = !sameVoiceContextPayload(track->voiceContext(), next) ||
+                                     !cascades.isEmpty();
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1315,7 +1446,11 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, track);
+                if (cascades.isEmpty()) {
+                    actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, track);
+                } else {
+                    actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, track, cascades);
+                }
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1333,7 +1468,9 @@ namespace Automation {
                 auto *track = resolved.get();
                 const EffectiveVoiceContext next{
                     singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
-                const bool changed = !sameVoiceContextPayload(track->voiceContext(), next);
+                const auto cascades = planTrackVoiceLanguageChange(track, singerInfo);
+                const bool changed =
+                    !sameVoiceContextPayload(track->voiceContext(), next) || !cascades.isEmpty();
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1343,7 +1480,12 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->applyTrackSpeakerMixPreset(singerInfo, speakerInfo, data, track);
+                if (cascades.isEmpty()) {
+                    actions->applyTrackSpeakerMixPreset(singerInfo, speakerInfo, data, track);
+                } else {
+                    actions->applyTrackSpeakerMixPreset(singerInfo, speakerInfo, data, track,
+                                                         cascades);
+                }
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1362,7 +1504,10 @@ namespace Automation {
                 const EffectiveVoiceContext next{
                     previous.singer, previous.speaker,
                     SpeakerMixModel::preservePresetSourceAsDirty(previous.speakerMix, data), false};
-                const bool changed = !sameVoiceContextPayload(previous, next);
+                const auto cascades =
+                    planTrackVoiceLanguageChange(track, previous.singer);
+                const bool changed =
+                    !sameVoiceContextPayload(previous, next) || !cascades.isEmpty();
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1372,7 +1517,11 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->replaceTrackSpeakerMix(data, track);
+                if (cascades.isEmpty()) {
+                    actions->replaceTrackSpeakerMix(data, track);
+                } else {
+                    actions->replaceTrackSpeakerMix(data, track, cascades);
+                }
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1433,7 +1582,9 @@ namespace Automation {
                     if (!resolved)
                         return AutomationResult<MutationResult>(resolved.getError());
                     auto *track = resolved.get();
-                    const bool changed = track->voiceContext() != next;
+                    const auto cascades = planTrackVoiceLanguageChange(track, singerInfo);
+                    const bool changed =
+                        track->voiceContext() != next || !cascades.isEmpty();
                     if (validateOnly)
                         return AutomationResult<MutationResult>(
                             m_committer.preview(session, changed, affected));
@@ -1441,28 +1592,36 @@ namespace Automation {
                         return AutomationResult<MutationResult>(m_committer.unchanged(session));
                     auto actions = std::make_unique<SpeakerMixActions>();
                     if (normalized.mode == SpeakerMixModel::SingerSourceMode::Single)
-                        actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, track);
+                        actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, track, cascades);
                     else
                         actions->applyTrackSpeakerMixPreset(singerInfo, speakerInfo, normalized,
-                                                            track);
+                                                            track, cascades);
                     return m_committer.commit(session, std::move(actions), affected);
                 }
                 auto resolved = m_objects.singingClip(session, ClipId(target.id));
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                const bool changed =
-                    clip->usesTrackVoiceContext() || clip->effectiveVoiceContext() != next;
+                auto plan = planVoiceLanguageChange(clip, singerInfo, LanguageRepair::None);
+                if (!plan)
+                    return AutomationResult<MutationResult>(plan.getError());
+                const bool changed = clip->usesTrackVoiceContext() ||
+                                     clip->effectiveVoiceContext() != next ||
+                                     !plan.get().notes.isEmpty();
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                const ClipWordCascade cascade{clip, plan.get().notes, plan.get().wordProperties,
+                                              plan.get().oldResolvedLanguages,
+                                              plan.get().newResolvedLanguages};
                 auto actions = std::make_unique<SpeakerMixActions>();
                 if (normalized.mode == SpeakerMixModel::SingerSourceMode::Single)
-                    actions->selectClipSingleSpeaker(singerInfo, speakerInfo, clip);
+                    actions->selectClipSingleSpeaker(singerInfo, speakerInfo, clip, cascade);
                 else
-                    actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, normalized, clip);
+                    actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, normalized, clip,
+                                                       cascade);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1735,7 +1894,9 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
-                const bool changed = track->voiceContext() != EffectiveVoiceContext{};
+                const auto cascades = planTrackVoiceLanguageChange(track, {});
+                const bool changed =
+                    track->voiceContext() != EffectiveVoiceContext{} || !cascades.isEmpty();
                 const QList<ObjectRef> affected{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1745,7 +1906,7 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->selectTrackSingleSpeaker({}, {}, track);
+                actions->selectTrackSingleSpeaker({}, {}, track, cascades);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1760,8 +1921,12 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
+                auto planned = planVoiceLanguageChange(clip, {}, LanguageRepair::None);
+                if (!planned)
+                    return AutomationResult<MutationResult>(planned.getError());
+                const auto plan = std::move(planned.get());
                 const bool changed = clip->effectiveVoiceContext() != EffectiveVoiceContext{} ||
-                                     clip->usesTrackVoiceContext();
+                                     clip->usesTrackVoiceContext() || !plan.notes.isEmpty();
                 const QList<ObjectRef> affected{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1770,8 +1935,10 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                const ClipWordCascade cascade{clip, plan.notes, plan.wordProperties,
+                                              plan.oldResolvedLanguages, plan.newResolvedLanguages};
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->selectClipSingleSpeaker({}, {}, clip);
+                actions->selectClipSingleSpeaker({}, {}, clip, cascade);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }

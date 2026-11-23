@@ -129,9 +129,10 @@ namespace AutomationWire {
                 },
                     {QStringLiteral("mode")});
             };
+            // A note either declares a language or leaves it to the voice
+            // source, so there are exactly two selectable states.
             return JsonSchema::oneOf(QJsonArray{
-                simple(QStringLiteral("follow_singer")),
-                simple(QStringLiteral("unknown")),
+                simple(QStringLiteral("unspecified")),
                 JsonSchema::object(
                     {
                               {QStringLiteral("mode"), JsonSchema::constant(QStringLiteral("explicit"))},
@@ -665,6 +666,8 @@ namespace AutomationWire {
                 return stringDomainSchema(PublicValueDomain::UnsavedPolicy);
             if (name == QStringLiteral("template"))
                 return stringDomainSchema(PublicValueDomain::DocumentTemplate);
+            if (name == QStringLiteral("language_repair"))
+                return stringDomainSchema(PublicValueDomain::LanguageRepair);
             if (name == QStringLiteral("failure_policy"))
                 return stringDomainSchema(PublicValueDomain::FailurePolicy);
             if (name == QStringLiteral("overwrite_policy"))
@@ -906,7 +909,6 @@ namespace AutomationWire {
                 PublicToolNames::tracks_set_pan,
                 PublicToolNames::tracks_set_mute,
                 PublicToolNames::tracks_set_solo,
-                PublicToolNames::tracks_set_default_language,
                 PublicToolNames::tracks_set_voice,
                 PublicToolNames::tracks_clear_voice,
                 PublicToolNames::master_set_gain,
@@ -922,7 +924,7 @@ namespace AutomationWire {
                 PublicToolNames::clips_rename,
                 PublicToolNames::clips_set_gain,
                 PublicToolNames::clips_set_mute,
-                PublicToolNames::clips_set_default_language,
+                PublicToolNames::clips_set_input_language,
                 PublicToolNames::clips_use_track_voice,
                 PublicToolNames::clips_set_voice,
                 PublicToolNames::clips_clear_voice,
@@ -1045,8 +1047,6 @@ namespace AutomationWire {
                  {QStringLiteral("track_id"), QStringLiteral("mute")}                                                   },
                 {PublicToolNames::tracks_set_solo,
                  {QStringLiteral("track_id"), QStringLiteral("solo")}                                                   },
-                {PublicToolNames::tracks_set_default_language,
-                 {QStringLiteral("track_id"), QStringLiteral("language_id")}                                            },
                 {PublicToolNames::tracks_set_voice,
                  {QStringLiteral("track_id"), QStringLiteral("voice")}                                                  },
                 {PublicToolNames::tracks_clear_voice,                  {QStringLiteral("track_id")}                     },
@@ -1070,7 +1070,7 @@ namespace AutomationWire {
                  {QStringLiteral("clip_id"), QStringLiteral("gain")}                                                    },
                 {PublicToolNames::clips_set_mute,
                  {QStringLiteral("clip_id"), QStringLiteral("mute")}                                                    },
-                {PublicToolNames::clips_set_default_language,
+                {PublicToolNames::clips_set_input_language,
                  {QStringLiteral("clip_id"), QStringLiteral("language_id")}                                             },
                 {PublicToolNames::clips_use_track_voice,               {QStringLiteral("clip_id")}                      },
                 {PublicToolNames::clips_set_voice,
@@ -1241,6 +1241,8 @@ namespace AutomationWire {
                  {QStringLiteral("format_id"), QStringLiteral("plan_digest")}                                      },
                 {PublicToolNames::formats_list,                 {QStringLiteral("purpose")}                        },
                 {PublicToolNames::tracks_list,                  {QStringLiteral("cursor"), QStringLiteral("limit")}},
+                {PublicToolNames::clips_use_track_voice, {QStringLiteral("language_repair")}},
+                {PublicToolNames::clips_set_voice,      {QStringLiteral("language_repair")}},
                 {PublicToolNames::clips_list,
                  {QStringLiteral("track_id"), QStringLiteral("type"), QStringLiteral("range"),
                   QStringLiteral("cursor"), QStringLiteral("limit")}                                               },
@@ -2308,7 +2310,6 @@ namespace AutomationWire {
                 {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
                 {QStringLiteral("mute"), JsonSchema::boolean()},
                 {QStringLiteral("solo"), JsonSchema::boolean()},
-                {QStringLiteral("default_language_id"), JsonSchema::string()},
                 {QStringLiteral("clip_count"), JsonSchema::integer(0.0)},
             };
             QStringList required{QStringLiteral("track_id"),
@@ -2319,7 +2320,6 @@ namespace AutomationWire {
                                  QStringLiteral("pan"),
                                  QStringLiteral("mute"),
                                  QStringLiteral("solo"),
-                                 QStringLiteral("default_language_id"),
                                  QStringLiteral("clip_count")};
             if (includeVoiceContext) {
                 properties.insert(QStringLiteral("voice_context"), voiceContextSnapshotSchema());
@@ -2351,7 +2351,7 @@ namespace AutomationWire {
                 {QStringLiteral("length"),              JsonSchema::integer(1.0)                       },
                 {QStringLiteral("gain"),                JsonSchema::number()                           },
                 {QStringLiteral("mute"),                JsonSchema::boolean()                          },
-                {QStringLiteral("default_language_id"), JsonSchema::string()                           },
+                {QStringLiteral("input_language_id"),   JsonSchema::string()                           },
             };
             QStringList required{QStringLiteral("clip_id"),
                                  QStringLiteral("track_id"),
@@ -2361,7 +2361,7 @@ namespace AutomationWire {
                                  QStringLiteral("length"),
                                  QStringLiteral("gain"),
                                  QStringLiteral("mute"),
-                                 QStringLiteral("default_language_id")};
+                                 QStringLiteral("input_language_id")};
             if (includeVoiceContext) {
                 properties.insert(QStringLiteral("voice_context"),
                                   JsonSchema::oneOf(QJsonArray{voiceContextSnapshotSchema(),
@@ -2381,12 +2381,12 @@ namespace AutomationWire {
                     {QStringLiteral("own_voice"),          nullableVoice        },
                     {QStringLiteral("effective_voice"),    nullableVoice        },
                     {QStringLiteral("inherits_track"),     JsonSchema::boolean()},
-                    {QStringLiteral("default_language"),   nullableLanguage     },
+                    {QStringLiteral("input_language"),     nullableLanguage     },
                     {QStringLiteral("available"),          JsonSchema::boolean()},
                     {QStringLiteral("unavailable_reason"), JsonSchema::string() },
             },
                 {QStringLiteral("own_voice"), QStringLiteral("effective_voice"),
-                 QStringLiteral("inherits_track"), QStringLiteral("default_language"),
+                 QStringLiteral("inherits_track"), QStringLiteral("input_language"),
                  QStringLiteral("available"), QStringLiteral("unavailable_reason")});
         }
 
@@ -4135,16 +4135,12 @@ namespace AutomationWire {
 
             if (id == PublicToolNames::voices_describe)
                 add(QStringLiteral("/singer"), PublicToolNames::voices_list);
-            if (id == PublicToolNames::tracks_set_default_language) {
-                add(QStringLiteral("/language_id"), PublicToolNames::voices_describe,
-                    {QStringLiteral("/document_id"), QStringLiteral("/track_id")});
-            }
             if (id == PublicToolNames::tracks_set_voice) {
                 add(QStringLiteral("/voice/singer"), PublicToolNames::voices_list);
                 add(QStringLiteral("/voice/speaker"), PublicToolNames::voices_describe,
                     {QStringLiteral("/voice/singer")});
             }
-            if (id == PublicToolNames::clips_set_default_language) {
+            if (id == PublicToolNames::clips_set_input_language) {
                 add(QStringLiteral("/language_id"), PublicToolNames::voices_describe,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }

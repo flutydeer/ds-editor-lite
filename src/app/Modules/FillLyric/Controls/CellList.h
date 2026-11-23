@@ -9,6 +9,7 @@
 #include "Modules/FillLyric/Controls/SplitterItem.h"
 #include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/Utils/G2pService.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 
 namespace FillLyric {
     class CellQss;
@@ -20,7 +21,7 @@ namespace FillLyric {
     public:
         explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
                           QGraphicsScene *scene, QGraphicsView *view, QList<CellList *> *cellLists,
-                          const QStringList &priorityLanguages, G2pService *g2pService);
+                          LyricLanguageContextPtr languageContext, G2pService *g2pService);
         ~CellList() override;
 
         void clear();
@@ -109,7 +110,7 @@ namespace FillLyric {
         CellQss *m_cellQss;
         QList<CellList *> *m_cellLists;
 
-        QStringList m_priorityLanguages;
+        LyricLanguageContextPtr m_languageContext;
         G2pService *m_g2pService = nullptr;
 
     private Q_SLOTS:

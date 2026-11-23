@@ -15,10 +15,10 @@
 #include <QFile>
 
 namespace FillLyric {
-    LyricWrapView::LyricWrapView(QString qssContent, QStringList priorityLanguages,
+    LyricWrapView::LyricWrapView(QString qssContent, LyricLanguageContextPtr languageContext,
                                  G2pService *g2pService, QWidget *parent)
         : QGraphicsView(parent), m_qssContent(std::move(qssContent)),
-          m_priorityLanguages(std::move(priorityLanguages)), m_g2pService(g2pService) {
+          m_languageContext(std::move(languageContext)), m_g2pService(g2pService) {
         setAttribute(Qt::WA_StyledBackground, true);
         if (!m_qssContent.isEmpty())
             this->setStyleSheet(m_qssContent);
@@ -300,7 +300,7 @@ namespace FillLyric {
     CellList *LyricWrapView::createNewList() {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList =
-            new CellList(0, 0, {}, m_scene, this, &m_cellLists, m_priorityLanguages, m_g2pService);
+            new CellList(0, 0, {}, m_scene, this, &m_cellLists, m_languageContext, m_g2pService);
         cellList->setFont(this->font());
         cellList->setWidth(width);
         this->connectCellList(cellList);
@@ -342,7 +342,7 @@ namespace FillLyric {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList =
             new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())), noteList, m_scene,
-                         this, &m_cellLists, m_priorityLanguages, m_g2pService);
+                         this, &m_cellLists, m_languageContext, m_g2pService);
         cellList->setFont(this->font());
         cellList->setWidth(width);
         m_cellLists.append(cellList);
@@ -372,10 +372,6 @@ namespace FillLyric {
         return m_cellLists;
     }
 
-    QStringList LyricWrapView::priorityLanguages() const {
-        return m_priorityLanguages;
-    }
-
     void LyricWrapView::clear() {
         for (auto &m_cellList : m_cellLists) {
             m_cellList->clear();
@@ -389,14 +385,22 @@ namespace FillLyric {
     void LyricWrapView::init(const QList<QList<LangNote>> &noteLists) {
         this->clear();
 
-        std::vector<std::string> priorityLanguages;
-        for (const auto &id : m_priorityLanguages) {
-            const auto bytes = id.toUtf8();
-            priorityLanguages.emplace_back(bytes.constData(), static_cast<size_t>(bytes.size()));
+        // The convert step needs the shared context; a missing one means the
+        // dialog was built without a singer, so the lyric is kept as-is.
+        if (!m_languageContext || !m_g2pService) {
+            for (const auto &notes : noteLists) {
+                QList<LangNote *> tempNotes;
+                for (const auto &note : notes)
+                    tempNotes.append(new LangNote(note));
+                if (!tempNotes.isEmpty())
+                    this->appendList(tempNotes);
+            }
+            this->repaintCellLists();
+            return;
         }
 
         for (auto notes : noteLists) {
-            const auto g2pResults = m_g2pService->convert(notes, priorityLanguages);
+            const auto g2pResults = m_g2pService->convert(notes, *m_languageContext);
             QList<LangNote *> tempNotes;
             for (int i = 0; i < notes.size(); i++) {
                 // R15/TD-22: 仅 unknown/empty 时覆盖 language/g2pId，与 LyricTab 构造路径一致

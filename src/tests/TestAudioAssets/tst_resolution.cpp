@@ -125,7 +125,6 @@ namespace {
             track.clientRef = QStringLiteral("audio-asset-track");
             track.name = QStringLiteral("Audio Asset Track");
             track.gain = 1.0;
-            track.defaultLanguage = QStringLiteral("en");
             const auto insertedTrack = m_runtime->project().insertTrack(context(), 0, track);
             if (!insertedTrack || insertedTrack.get().affectedObjects.size() != 1)
                 return false;

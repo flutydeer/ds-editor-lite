@@ -935,8 +935,6 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
                     [singingClip, singingView](const VoiceContextChange &) {
                         updateSingingClipDisplay(singingClip, singingView);
                     });
-            connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
-                    &SingingClipView::setDefaultLanguage);
             connect(singingClip, &SingingClip::noteChanged, singingView,
                     &SingingClipView::onNoteListChanged);
         } else if (clip->clipType() == Clip::Audio) {
@@ -968,13 +966,10 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     const auto &notesRef = clip->notes();
     clipView->loadNotes(notesRef);
     updateSingingClipDisplay(clip, clipView);
-    clipView->setDefaultLanguage(clip->defaultLanguage());
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(
         clip, &SingingClip::voiceContextChanged, this,
         [clip, clipView](const VoiceContextChange &) { updateSingingClipDisplay(clip, clipView); });
-    connect(clip, &SingingClip::defaultLanguageChanged, clipView,
-            &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
     track->clips[clip] = clipView;
 }

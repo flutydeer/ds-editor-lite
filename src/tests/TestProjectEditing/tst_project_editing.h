@@ -36,6 +36,12 @@ private slots:
     void splitNote();
     void setPhonemeOffsets();
     void resetPhonemeOffsetsCascades();
+    void wordPropertyCascadeProtectsEditedPhonemeNames();
+    void applyingSpeakerMixPresetCascadesNoteLanguage();
+    void repairImpactCountsConflictsAndClearedPronunciations();
+    void duplicatingAnInheritedClipCascadesIntoTheTargetLanguage();
+    void patchingTheLanguageKeepsManualPhonemes();
+    void movingAClipFromAnUnresolvedRouteKeepsTheWordData();
     void setWordProperties();
     void removeNotes();
     void curveTransforms_data();
@@ -48,9 +54,13 @@ private slots:
     void speakerMixEditing();
     void clearingTrackVoicePreservesIndependentClips();
     void clearingClipVoiceStopsInheritanceUntilRestored();
+    void clearingVoiceCascadesResolvedNoteLanguage_data();
+    void clearingVoiceCascadesResolvedNoteLanguage();
     void pronunciationSourcesAndResetPreserveAutomaticWords();
     void timelineAndHistoryDomain();
     void quantizeInChild();
+    void wholeClipClipboardPreservesInputLanguage_data();
+    void wholeClipClipboardPreservesInputLanguage();
     void wholeClipParameterRoundTrip_data();
     void wholeClipParameterRoundTrip();
     void wholeClipsPasteAcrossTracksAsOneEdit();

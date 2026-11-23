@@ -1,11 +1,126 @@
 #include "tst_voice_and_inference.h"
 
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QtTest/QTest>
 
+void VoiceAndInferenceTests::languageCompatibilityRoutesAndConflicts() {
+    const auto singer = [](const QStringList &declared) {
+        QList<LanguageInfo> languages;
+        for (const auto &id : declared)
+            languages.emplace_back(id, id, QStringLiteral("g2p"));
+        SingerInfo info({QStringLiteral("singer"), QStringLiteral("package"), QVersionNumber(1, 0)},
+                        QStringLiteral("Singer"), {}, languages, declared.value(0));
+        info.setResolutionState(ResolutionState::Resolved);
+        return info;
+    };
+
+    // Without a projection the declared languages are the only candidates, which
+    // keeps documents and fixtures from older builds working.
+    const auto declaredOnly = singer({QStringLiteral("cmn"), QStringLiteral("eng")});
+    QVERIFY(!declaredOnly.hasConversionLanguages());
+    auto support = LanguageCompatibility::conversionSupport(declaredOnly);
+    QVERIFY(support.isKnown());
+    QCOMPARE(support.languageIds, QStringList({QStringLiteral("cmn"), QStringLiteral("eng")}));
+    QCOMPARE(LanguageCompatibility::fallbackLanguage(declaredOnly), QStringLiteral("cmn"));
+
+    // A populated projection is authoritative: a declared language without a
+    // route is not convertible and the conflict check reports it.
+    auto routed = singer({QStringLiteral("cmn"), QStringLiteral("eng")});
+    routed.setConversionLanguages({QStringLiteral("cmn")});
+    support = LanguageCompatibility::conversionSupport(routed);
+    QVERIFY(support.isKnown());
+    QCOMPARE(support.languageIds, QStringList({QStringLiteral("cmn")}));
+    QCOMPARE(LanguageCompatibility::fallbackLanguage(routed), QStringLiteral("cmn"));
+
+    Note mandarin;
+    mandarin.setLanguage(QStringLiteral("cmn"));
+    Note english;
+    english.setLanguage(QStringLiteral("eng"));
+    Note unspecified;
+    const QList<Note *> notes{&mandarin, &english, &unspecified};
+    const auto conflicts = LanguageCompatibility::conflicts(notes, routed);
+    QCOMPARE(conflicts.size(), 1);
+    QCOMPARE(conflicts.first().language, QStringLiteral("eng"));
+    QCOMPARE(conflicts.first().noteIds, QList<int>{english.id()});
+
+    // An empty projection means every declared language lacks a route, so the
+    // singer stays resolvable but cannot convert anything.
+    auto unroutable = singer({QStringLiteral("cmn")});
+    unroutable.setConversionLanguages({});
+    support = LanguageCompatibility::conversionSupport(unroutable);
+    QVERIFY(support.isKnown());
+    QVERIFY(support.languageIds.isEmpty());
+    QVERIFY(LanguageCompatibility::fallbackLanguage(unroutable).isEmpty());
+    QCOMPARE(LanguageCompatibility::conflicts({&mandarin}, unroutable).size(), 1);
+
+    // Unresolved metadata must not produce diagnostics.
+    auto pending = singer({QStringLiteral("cmn")});
+    pending.setResolutionState(ResolutionState::Pending);
+    QVERIFY(!LanguageCompatibility::conversionSupport(pending).isKnown());
+    QVERIFY(LanguageCompatibility::conflicts({&mandarin}, pending).isEmpty());
+}
+void VoiceAndInferenceTests::voiceChangeClearsStaleInferenceErrors() {
+    // Missing phonemes make the slicer exclude the phrase, which publishes both a
+    // per-note error and a skipped range on the clip.
+    auto *silent = new Note;
+    silent->setLocalStart(0);
+    silent->setLength(480);
+    silent->setLyric(QStringLiteral("la"));
+    SingingClip clip({silent});
+    clip.setTrackSingerAndSpeakerInfo(
+        SingerInfo({QStringLiteral("first"), QStringLiteral("package"), QVersionNumber(1, 0)},
+                   QStringLiteral("First")),
+        SpeakerInfo(QStringLiteral("clear")));
+    clip.reSegment(Timeline{});
+    QVERIFY(clip.noteInferenceErrors().contains(silent->id()));
+    QVERIFY(!clip.skippedPhraseRanges().isEmpty());
+
+    // A singer change invalidates the previous inference input, so the transient
+    // errors of that input must not survive it.
+    clip.selectOwnSingleSpeaker(
+        SingerInfo({QStringLiteral("second"), QStringLiteral("package"), QVersionNumber(1, 0)},
+                   QStringLiteral("Second")),
+        SpeakerInfo(QStringLiteral("clear")));
+    QVERIFY(clip.noteInferenceErrors().isEmpty());
+    QVERIFY(clip.skippedPhraseRanges().isEmpty());
+}
+
+void VoiceAndInferenceTests::knownEmptyConversionRoutesAreReported() {
+    auto *unspecified = new Note;
+    unspecified->setLocalStart(0);
+    unspecified->setLength(480);
+    unspecified->setLyric(QStringLiteral("la"));
+    auto *declared = new Note;
+    declared->setLocalStart(480);
+    declared->setLength(480);
+    declared->setLyric(QStringLiteral("la"));
+    declared->setLanguage(QStringLiteral("cmn"));
+    SingingClip clip({unspecified, declared});
+
+    auto singer = SingerInfo(
+        {QStringLiteral("mute"), QStringLiteral("package"), QVersionNumber(1, 0)},
+        QStringLiteral("Mute"), {},
+        {LanguageInfo(QStringLiteral("cmn"), QStringLiteral("Chinese"), QStringLiteral("g2p"))},
+        QStringLiteral("cmn"));
+    singer.setResolutionState(ResolutionState::Resolved);
+    // A known and populated projection says no declared language has a route.
+    singer.setConversionLanguages({});
+    clip.setTrackSingerAndSpeakerInfo(singer, SpeakerInfo(QStringLiteral("clear")));
+
+    const auto &errors = clip.noteInferenceErrors();
+    QVERIFY(errors.contains(unspecified->id()));
+    QCOMPARE(errors.value(unspecified->id()).reason,
+             NoteInferenceIssueReason::UnsupportedLanguage);
+    QVERIFY(errors.value(unspecified->id()).availableLanguages.isEmpty());
+    // The declared note keeps the declaration conflict instead.
+    QVERIFY(errors.contains(declared->id()));
+    QCOMPARE(errors.value(declared->id()).language, QStringLiteral("cmn"));
+}
 void VoiceAndInferenceTests::voiceContextNotificationsContainAtomicBeforeAndAfter() {
     Track track;
     int notificationCount = 0;

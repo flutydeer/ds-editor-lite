@@ -130,7 +130,6 @@ namespace Automation {
         bool extensionVisible = false;
         int splitMode = 0;
         bool skipSlur = false;
-        bool exportLanguage = false;
         double textEditFontSize = 11.0;
         double viewFontSize = 12.0;
         QMap<QString, bool> builtinSplitterEnabled;

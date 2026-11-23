@@ -104,10 +104,20 @@ namespace Automation {
         ClipPropertiesDto properties;
         QMap<QString, QJsonObject> workspace;
 
-        QString defaultLanguage;
+        // Language preselected when filling in lyrics. It never takes part in
+        // inference, so changing it does not touch any note.
+        QString inputLanguage;
         QList<NoteDraftDto> notes;
         QList<ParamCurvesDraftDto> params;
         bool usesTrackVoiceContext = true;
+        // Route language the notes were built for, and whether that value was
+        // captured at all. A known-empty route is a real value: cloning such a
+        // clip onto a usable route has to cascade like any other transition.
+        // An inherited clip cloned onto another track cascades its word data
+        // from this language to the target one, the same way a cross-track move
+        // does.
+        QString sourceFallbackLanguage;
+        bool hasSourceFallbackLanguage = false;
         SingerInfo ownSingerInfo;
         SpeakerInfo ownSpeakerInfo;
         SpeakerMixModel::SpeakerMixData ownSpeakerMixData;
@@ -145,7 +155,6 @@ namespace Automation {
         double pan = 0.0;
         bool mute = false;
         bool solo = false;
-        QString defaultLanguage;
         SingerInfo singerInfo;
         SpeakerInfo speakerInfo;
         SpeakerMixModel::SpeakerMixData speakerMixData;

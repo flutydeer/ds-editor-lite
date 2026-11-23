@@ -2,6 +2,7 @@
 #include "../TestSupport/WaveFixture.h"
 
 #include "AppContext.h"
+#include "Utils/LanguageDisplayUtils.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -79,7 +80,6 @@ void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords_data() {
     QTest::addColumn<int>("choice");
     QTest::newRow("explicit-language") << 0;
     QTest::newRow("follow-singer") << 1;
-    QTest::newRow("unknown-language") << 2;
 }
 
 void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords() {
@@ -100,8 +100,6 @@ void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords() {
         }
         if (selectedLanguage.isEmpty())
             QSKIP("The configured voicebank has no second language");
-    } else if (choice == 2) {
-        selectedLanguage = QStringLiteral("unknown");
     }
     auto &runtime = *context->m_coreRuntime;
     const auto clipId = Automation::ClipId(singingClip->id());
@@ -154,11 +152,9 @@ void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords() {
         }
         QVERIFY(languages);
         const auto closeLanguages = qScopeGuard([&] { languages->close(); });
-        QString text = selectedLanguage;
+        QString text = LanguageDisplayUtils::displayName(selectedLanguage);
         if (choice == 1)
             text = PianoRollContextMenuController::tr("Follow singer");
-        else if (choice == 2)
-            text = PianoRollContextMenuController::tr("Unknown");
         else if (selectedLanguage == singingClip->singerInfo().defaultLanguage())
             text += PianoRollContextMenuController::tr(" (default)");
         QAction *target = nullptr;
@@ -169,8 +165,10 @@ void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords() {
         QVERIFY(target);
         QVERIFY(target->isEnabled());
         QVERIFY(!target->isChecked());
-        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
-                          menu->actionGeometry(languages->menuAction()).center());
+        // Open the submenu directly instead of relying on platform menu timing
+        // for hovering the parent action.
+        languages->popup(
+            menu->mapToGlobal(menu->actionGeometry(languages->menuAction()).center()));
         QTRY_VERIFY(languages->isVisible());
         QTest::mouseClick(languages, Qt::LeftButton, Qt::NoModifier,
                           languages->actionGeometry(target).center());
@@ -569,6 +567,33 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::resetPhonesStaysAvailableWhenDerivedNamesAreCleared() {
+    // A route change clears the derived names but keeps the manual layer, so
+    // discarding that layer must stay possible before inference regenerates.
+    Note note;
+    note.setLyric(QStringLiteral("la"));
+    Phonemes phonemes;
+    PhonemeName name;
+    name.language = QStringLiteral("eng");
+    name.name = QStringLiteral("l");
+    name.isOnset = true;
+    phonemes.nameSeq.edited.append(name);
+    note.setPhonemes(phonemes);
+    PhonemeEditorDialog dialog(&note, nullptr);
+    dialog.show();
+    QTRY_VERIFY(dialog.isVisible());
+    Button *reset = nullptr;
+    for (auto *button : dialog.findChildren<Button *>()) {
+        if (button->text() == PhonemeEditorDialog::tr("Reset Phones"))
+            reset = button;
+    }
+    QVERIFY(reset);
+    QVERIFY2(reset->isEnabled(),
+             "the retained manual layer must be discardable when the derived names are empty");
+    QTest::mouseClick(reset, Qt::LeftButton);
+    QVERIFY(!reset->isEnabled());
+    QVERIFY(dialog.phonemeNames().isEmpty());
+}
 void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches() {
     const auto nativeFrame = appOptions->appearance()->useNativeFrame;
     appOptions->appearance()->useNativeFrame = true;

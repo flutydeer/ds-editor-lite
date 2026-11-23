@@ -980,10 +980,13 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                     clip->setOwnVoiceContext({}, {}, {});
                 }
 
-                // Read clip defaultLanguage
-                auto clipLang = clipDsWs["defaultLanguage"].toString();
+                // Read the clip input language. The key was renamed from
+                // defaultLanguage when the clip field stopped affecting inference.
+                auto clipLang = clipDsWs["inputLanguage"].toString();
+                if (clipLang.isEmpty())
+                    clipLang = clipDsWs["defaultLanguage"].toString();
                 if (!clipLang.isEmpty())
-                    clip->setDefaultLanguage(clipLang);
+                    clip->setInputLanguage(clipLang);
 
                 track->insertClip(clip);
             } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
@@ -1022,7 +1025,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
             track->setName(QString::fromStdString(dspxTrack.name));
             track->setControl(trackControl);
 
-            // Read track singer/speaker/language from DS workspace
+            // Read track singer/speaker from DS workspace
             auto trackDsWs = dsWorkspaceFrom(dspxTrack.workspace);
             if (!trackDsWs.isEmpty()) {
                 auto singerObj = trackDsWs["singer"].toObject();
@@ -1032,10 +1035,6 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                     resolveSpeakerInfo(singerInfo, decodeSpeakerInfoFromWorkspace(speakerObj));
                 if (!singerInfo.isEmpty() || !speakerInfo.isEmpty())
                     track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
-
-                auto defaultLang = trackDsWs["defaultLanguage"].toString();
-                if (!defaultLang.isEmpty())
-                    track->setDefaultLanguage(defaultLang);
 
                 if (trackDsWs.contains("colorIndex"))
                     track->setColorIndex(trackDsWs["colorIndex"].toInt());
@@ -1233,19 +1232,15 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
                         JsonStdc::fromQJsonValue(value).toObject();
                 }
 
-                // Write clip DS workspace (flags/speaker/language)
+                // Write clip DS workspace (flags/speaker/input language)
                 QJsonObject clipDsWs;
                 clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
                 const bool useTrackInfo = singingClip->usesTrackVoiceContext();
                 clipDsWs["useTrackSingerInfo"] = useTrackInfo;
 
-                auto clipLang = singingClip->defaultLanguage();
-                if (!clipLang.isEmpty() && clipLang != "unknown")
-                    clipDsWs["defaultLanguage"] = clipLang;
-
-                auto clipG2p = singingClip->defaultG2pId();
-                if (!clipG2p.isEmpty() && clipG2p != "unknown")
-                    clipDsWs["defaultG2pId"] = clipG2p;
+                const auto inputLanguage = singingClip->inputLanguage();
+                if (!inputLanguage.isEmpty())
+                    clipDsWs["inputLanguage"] = inputLanguage;
 
                 if (!useTrackInfo) {
                     auto sourceMixState =
@@ -1310,7 +1305,7 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
             track.control.mute = dsTrack->control().mute();
             track.control.solo = dsTrack->control().solo();
 
-            // Write track DS workspace (singer/speaker/language)
+            // Write track DS workspace (singer/speaker)
             QJsonObject trackDsWs;
             trackDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
 
@@ -1321,14 +1316,6 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
             auto speakerObj = encodeSpeakerInfoForWorkspace(dsTrack->speakerInfo());
             if (!speakerObj.isEmpty())
                 trackDsWs["speaker"] = speakerObj;
-
-            auto trackLang = dsTrack->defaultLanguage();
-            if (!trackLang.isEmpty() && trackLang != "unknown")
-                trackDsWs["defaultLanguage"] = trackLang;
-
-            auto trackG2p = dsTrack->defaultG2pId();
-            if (!trackG2p.isEmpty() && trackG2p != "unknown")
-                trackDsWs["defaultG2pId"] = trackG2p;
 
             trackDsWs["colorIndex"] = dsTrack->colorIndex();
 

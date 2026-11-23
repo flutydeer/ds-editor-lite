@@ -159,14 +159,16 @@ void ApplicationServicesTests::packages() {
     const auto applied = runtime.packages().resolveDocumentVoices(commandContext(runtime));
     QVERIFY2((preview && preview.get().validatedOnly && preview.get().changed && applied &&
               applied.get().changed && harness.packageResolvePreviewCalls == 1 &&
-              harness.packageResolveApplyCalls == 1 && runtime.documentVersion() == version),
-             qPrintable(
-                 QStringLiteral("voice resolution must preview/apply without document revision")));
+              harness.packageResolveApplyCalls == 1 &&
+              runtime.documentVersion().revision == version.revision + 1),
+             qPrintable(QStringLiteral(
+                 "voice resolution must preview without a revision and apply as one revision")));
 
     harness.packageResolveCount = 0;
+    const auto resolvedVersion = runtime.documentVersion();
     const auto noOp = runtime.packages().resolveDocumentVoices(commandContext(runtime));
     QVERIFY2((noOp && !noOp.get().changed && harness.packageResolveApplyCalls == 2 &&
-              runtime.documentVersion() == version),
+              runtime.documentVersion() == resolvedVersion),
              qPrintable(QStringLiteral("zero resolved voices must be a successful no-op")));
 
     auto stale = commandContext(runtime);

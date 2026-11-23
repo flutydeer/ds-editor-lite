@@ -201,7 +201,6 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     clipDraft.properties.start = originalStart;
     clipDraft.properties.length = clipLength;
     clipDraft.properties.clipLen = clipLength;
-    clipDraft.defaultLanguage = QStringLiteral("eng");
     if (audio) {
         clipDraft.type = Automation::ClipDraftDto::Type::Audio;
         clipDraft.audioPath = directory.filePath(QStringLiteral("gesture.wav"));
@@ -216,7 +215,6 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     }
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("Track gesture");
-    trackDraft.defaultLanguage = QStringLiteral("eng");
     trackDraft.clips.append(clipDraft);
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
     QCOMPARE(context->m_appModel->tracks().size(), 1);
@@ -631,7 +629,6 @@ namespace {
                           const Automation::CommandContext &context, const QString &name) {
         Automation::TrackDraftDto draft;
         draft.name = name;
-        draft.defaultLanguage = QStringLiteral("eng");
         runtime.project().insertTrack(context, appModel->tracks().size(), draft);
     }
 
@@ -675,10 +672,8 @@ void ApplicationGuiTests::trackClipGroupDragCommitsAtomically() {
 
     Automation::TrackDraftDto firstTrack;
     firstTrack.name = QStringLiteral("Block source");
-    firstTrack.defaultLanguage = QStringLiteral("eng");
     Automation::ClipDraftDto firstClipDraft;
     firstClipDraft.type = Automation::ClipDraftDto::Type::Singing;
-    firstClipDraft.defaultLanguage = QStringLiteral("eng");
     firstClipDraft.properties.name = QStringLiteral("Block A");
     firstClipDraft.properties.start = 480;
     firstClipDraft.properties.length = 1920;
@@ -688,9 +683,7 @@ void ApplicationGuiTests::trackClipGroupDragCommitsAtomically() {
 
     Automation::TrackDraftDto secondTrack;
     secondTrack.name = QStringLiteral("Block anchor");
-    secondTrack.defaultLanguage = QStringLiteral("eng");
     Automation::ClipDraftDto anchorDraft;
-    anchorDraft.defaultLanguage = QStringLiteral("eng");
     anchorDraft.properties.name = QStringLiteral("Block B");
     anchorDraft.properties.start = 960;
     anchorDraft.properties.length = 1920;
@@ -839,10 +832,8 @@ void ApplicationGuiTests::trackClipGroupTrimCommitsAtomically() {
 
     Automation::TrackDraftDto firstTrack;
     firstTrack.name = QStringLiteral("Trim source");
-    firstTrack.defaultLanguage = QStringLiteral("eng");
     Automation::ClipDraftDto firstClipDraft;
     firstClipDraft.type = Automation::ClipDraftDto::Type::Singing;
-    firstClipDraft.defaultLanguage = QStringLiteral("eng");
     firstClipDraft.properties.start = 960;
     firstClipDraft.properties.length = 4800;
     firstClipDraft.properties.clipStart = 480;
@@ -852,10 +843,8 @@ void ApplicationGuiTests::trackClipGroupTrimCommitsAtomically() {
 
     Automation::TrackDraftDto secondTrack;
     secondTrack.name = QStringLiteral("Trim peer");
-    secondTrack.defaultLanguage = QStringLiteral("eng");
     Automation::ClipDraftDto secondClipDraft;
     secondClipDraft.type = Automation::ClipDraftDto::Type::Singing;
-    secondClipDraft.defaultLanguage = QStringLiteral("eng");
     secondClipDraft.properties.start = 1440;
     secondClipDraft.properties.length = 4800;
     secondClipDraft.properties.clipStart = 480;
@@ -958,11 +947,9 @@ void ApplicationGuiTests::trackClipSelectionModifiersAndNudge() {
 
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("Nudge track");
-    trackDraft.defaultLanguage = QStringLiteral("eng");
     for (int index = 0; index < 3; ++index) {
         Automation::ClipDraftDto clipDraft;
         clipDraft.type = Automation::ClipDraftDto::Type::Singing;
-        clipDraft.defaultLanguage = QStringLiteral("eng");
         clipDraft.properties.name = QStringLiteral("Nudge %1").arg(index);
         clipDraft.properties.start = 480 + index * 1920;
         clipDraft.properties.length = 960;
@@ -1088,11 +1075,9 @@ void ApplicationGuiTests::trackClipRangeAnchorClearsWithTheSelection() {
 
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("Anchor track");
-    trackDraft.defaultLanguage = QStringLiteral("eng");
     for (int index = 0; index < 3; ++index) {
         Automation::ClipDraftDto clipDraft;
         clipDraft.type = Automation::ClipDraftDto::Type::Singing;
-        clipDraft.defaultLanguage = QStringLiteral("eng");
         clipDraft.properties.name = QStringLiteral("Anchor %1").arg(index);
         clipDraft.properties.start = 480 + index * 1920;
         clipDraft.properties.length = 960;
@@ -1566,14 +1551,12 @@ void ApplicationGuiTests::trackClipDropOnAppendRowCreatesTrack() {
     const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
     Automation::TrackDraftDto trackDraft;
     trackDraft.name = QStringLiteral("Source");
-    trackDraft.defaultLanguage = QStringLiteral("eng");
     Automation::ClipDraftDto clipDraft;
     clipDraft.type = Automation::ClipDraftDto::Type::Singing;
     clipDraft.properties.name = QStringLiteral("Phrase");
     clipDraft.properties.start = 480;
     clipDraft.properties.length = 1920;
     clipDraft.properties.clipLen = 1920;
-    clipDraft.defaultLanguage = QStringLiteral("eng");
     Automation::NoteDraftDto noteDraft;
     noteDraft.localStart = 120;
     noteDraft.length = 480;
@@ -1639,8 +1622,6 @@ void ApplicationGuiTests::trackClipDropOnAppendRowCreatesTrack() {
     QCOMPARE(created->name(), TrackController::tr("New Track"));
     QCOMPARE(created->clips().count(), 1);
     QCOMPARE((*created->clips().begin())->id(), clipId);
-    // The voice configuration follows the source track so the clip keeps its context.
-    QCOMPARE(created->defaultLanguage(), source->defaultLanguage());
     QCOMPARE(source->clips().count(), 0);
     QCOMPARE(source->name(), QStringLiteral("Source"));
 

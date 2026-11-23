@@ -84,7 +84,6 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     clip.properties.start = 480;
     clip.properties.length = 960;
     clip.properties.clipLen = 960;
-    clip.defaultLanguage = note.language;
     clip.properties.gain = 0.625;
     if (audio) {
         clip.type = Automation::ClipDraftDto::Type::Audio;

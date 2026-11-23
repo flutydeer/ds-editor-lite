@@ -28,7 +28,6 @@ namespace {
         clip.properties.start = start;
         clip.properties.length = 3840;
         clip.properties.clipLen = 3840;
-        clip.defaultLanguage = QStringLiteral("eng");
         NoteDraftDto note;
         note.localStart = noteStart;
         note.length = length;

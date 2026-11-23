@@ -274,7 +274,6 @@ void DocumentImportController::commitBatch() {
                 entry.existingTrackId = Automation::TrackId(trackId);
             } else {
                 entry.newTrack.name = QFileInfo(item.path).baseName();
-                entry.newTrack.defaultLanguage = language;
             }
             batch.items.append(std::move(entry));
             m_successCount++;

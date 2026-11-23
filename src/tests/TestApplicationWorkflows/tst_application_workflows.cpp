@@ -7,6 +7,7 @@
 #include "Bootstrap/AppDataPaths.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -105,12 +106,10 @@ namespace {
         clip.properties.name = name;
         clip.properties.length = 1920;
         clip.properties.clipLen = 1920;
-        clip.defaultLanguage = QStringLiteral("eng");
         clip.notes = {note};
 
         Automation::TrackDraftDto track;
         track.name = name;
-        track.defaultLanguage = QStringLiteral("eng");
         track.clips = {clip};
         return track;
     }

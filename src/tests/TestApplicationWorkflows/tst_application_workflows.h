@@ -28,6 +28,7 @@ private slots:
     void audioClipRangeChangesWaitForActiveReads_data();
     void audioClipRangeChangesWaitForActiveReads();
     void audioClipTrimmingAndMovingPreserveRealtimeDurations();
+    void clipboardPayloadWithoutSourceRouteKeepsTheCascadeOff();
     void customExportPresetPersistsAndProducesIntegerWave();
 
     void initTestCase();

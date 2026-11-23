@@ -19,6 +19,10 @@
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/Voice/LanguageInfo.h>
+#include <lite/ProjectModel/Voice/SpeakerInfo.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -64,6 +68,15 @@ namespace {
     auto toolbarDocument(const QString &audioPath = {}) {
         auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
         Automation::TrackDraftDto track;
+        // The clip controls offer the languages the singer can actually convert,
+        // so a resolved singer keeps the language control applicable.
+        track.singerInfo = SingerInfo(
+            {QStringLiteral("fixture"), QStringLiteral("fixture-package"), QVersionNumber(1, 0)},
+            QStringLiteral("Fixture"),
+            {SpeakerInfo(QStringLiteral("clear"), QStringLiteral("Clear"))},
+            {LanguageInfo(QStringLiteral("cmn"), QStringLiteral("Chinese"), QStringLiteral("g2p"))},
+            QStringLiteral("cmn"));
+        track.singerInfo.setResolutionState(ResolutionState::Resolved);
         for (const auto &name : {QStringLiteral("First clip"), QStringLiteral("Second clip")}) {
             Automation::ClipDraftDto clip;
             clip.properties.name = name;
@@ -349,7 +362,8 @@ void ApplicationGuiTests::adaptiveClipToolbarApplicabilityAndPriorities() {
     ClipEditorToolBarView toolbar;
     ThemeManager::instance()->addStyleRoot(&toolbar);
     toolbar.setDataContext(clip);
-    toolbar.resize(1400, 48);
+    // Start fully inline before checking overflow at narrower widths.
+    toolbar.resize(qMax(1400, toolbar.sizeHint().width()), 48);
     toolbar.show();
     toolbar.activateWindow();
     settleToolbar();
@@ -366,7 +380,17 @@ void ApplicationGuiTests::adaptiveClipToolbarApplicabilityAndPriorities() {
         QCOMPARE(adaptive->isItemApplicable(item), applicable);
         QCOMPARE(item->isVisible(), applicable);
         if (applicable) {
-            QVERIFY(item->isEnabled());
+            if (name == QStringLiteral("cbClipLanguage")) {
+                // The language control offers the routes the singer can convert,
+                // so it is only enabled when the clip resolves to such a singer.
+                const auto *singing = clipState == 0 ? dynamic_cast<SingingClip *>(clip) : nullptr;
+                QCOMPARE(item->isEnabled(),
+                         LanguageCompatibility::conversionSupport(singing ? singing->singerInfo()
+                                                                          : SingerInfo{})
+                             .isKnown());
+            } else {
+                QVERIFY2(item->isEnabled(), qPrintable(name));
+            }
             QVERIFY(qobject_cast<ControlGroup *>(item->parentWidget()));
         } else if (name != QStringLiteral("btnAutoPageTurn")) {
             QVERIFY(!item->isEnabled());

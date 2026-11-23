@@ -35,12 +35,12 @@
 <context>
     <name>AppModel</name>
     <message>
-        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="224"/>
+        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="209"/>
         <source>New Singing Clip</source>
         <translation>新歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="230"/>
+        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="215"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -795,13 +795,13 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="350"/>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="767"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="351"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="771"/>
         <source>Inference failed</source>
         <translation>推理失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="428"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="432"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -1521,17 +1521,17 @@
 <context>
     <name>ClipController</name>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="357"/>
+        <location filename="../../Controller/ClipController.cpp" line="358"/>
         <source>%1 (%2)</source>
         <translation>%1（%2）</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="364"/>
+        <location filename="../../Controller/ClipController.cpp" line="365"/>
         <source>Reset phoneme durations</source>
         <translation>还原音素时长</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="365"/>
+        <location filename="../../Controller/ClipController.cpp" line="366"/>
         <source>To avoid phoneme overlap, %1 adjacent word(s) will also be reset:
 %2
 
@@ -1542,12 +1542,12 @@ Reset them?</source>
 是否还原？</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="370"/>
+        <location filename="../../Controller/ClipController.cpp" line="371"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../Controller/ClipController.cpp" line="369"/>
+        <location filename="../../Controller/ClipController.cpp" line="370"/>
         <source>Reset</source>
         <translation>还原</translation>
     </message>
@@ -1555,145 +1555,145 @@ Reset them?</source>
 <context>
     <name>ClipEditorToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="124"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="764"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="128"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="847"/>
         <source>Clip Name</source>
         <translation>剪辑名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="139"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="765"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="143"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="848"/>
         <source>Clip Singer</source>
         <translation>剪辑歌手</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="146"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="767"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="150"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="850"/>
         <source>(Scanning packages...)</source>
         <translation>(正在扫描包...)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="181"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="853"/>
+        <source>Input Language</source>
+        <translation>输入语种</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="185"/>
         <source>(No Quantize)</source>
         <translation>(无量化)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="188"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="771"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="192"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="854"/>
         <source>Piano Roll Quantize</source>
         <translation>钢琴卷帘量化</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="212"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="784"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="216"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="867"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="215"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="785"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="219"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="868"/>
         <source>Interval Select</source>
         <translation>区间选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="217"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="787"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="221"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="870"/>
         <source>Drag in the blank: Draw a new note
 Drag on a note: Edit the note</source>
         <translation>在空白处拖动：绘制新音符
 在音符上拖动：编辑音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="219"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="786"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="223"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="869"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="221"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="789"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="225"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="872"/>
         <source>Erase Note</source>
         <translation>擦除音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="223"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="790"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="227"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="873"/>
         <source>Split Note</source>
         <translation>分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="224"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="791"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="228"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="874"/>
         <source>Split note at quantize line</source>
         <translation>在量化线处分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="226"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="792"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="230"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="875"/>
         <source>Pitch Anchor</source>
         <translation>音高锚点</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="227"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="794"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="231"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="877"/>
         <source>Left drag: Draw
 Right drag: Erase</source>
         <translation>左键拖动：绘制
 右键拖动：擦除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="230"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="793"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="234"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="876"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="232"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="795"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="236"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="878"/>
         <source>Erase Pitch</source>
         <translation>擦除音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="236"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="796"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="240"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="879"/>
         <source>Trace Pitch</source>
         <translation>描摹音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="238"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="801"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="242"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="884"/>
         <source>Modulate pitch deviations from the smoothed note pitch curve</source>
         <translation>调制相对于平滑音符基准曲线的音高偏差</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="307"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="309"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="805"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="806"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="311"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="313"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="888"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="889"/>
         <source>More Controls</source>
         <translation>更多控件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="234"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="797"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="238"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="880"/>
         <source>Trace automatic pitch inference results onto the edited pitch curve</source>
         <translation>将自动音高推理结果描摹到已编辑音高曲线</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="177"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="770"/>
-        <source>Clip Default Language</source>
-        <translation>剪辑默认语种</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="241"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="800"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="245"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="883"/>
         <source>Modulate Pitch</source>
         <translation>调制音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="244"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="802"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="248"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="885"/>
         <source>Auto Page Turn</source>
         <translation>自动翻页</translation>
     </message>
@@ -1701,12 +1701,67 @@ Right drag: Erase</source>
 <context>
     <name>ClipEditorToolBarViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="687"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="622"/>
+        <source>%L1 note(s) declare %2, which the new singer cannot convert.</source>
+        <translation>%L1 个音符声明了 %2，新歌手无法转换。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="624"/>
+        <source>, </source>
+        <translation>、</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="627"/>
+        <source>Keeping languages clears the edited pronunciation of %L1 note(s).</source>
+        <translation>保留语种会清除 %L1 个音符已编辑的发音。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="632"/>
+        <source>Repairing clears the edited pronunciation of %L1 note(s).</source>
+        <translation>修复会清除 %L1 个音符已编辑的发音。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="635"/>
+        <source>Repairing redeclares the affected notes as %1 so they can be sung again.</source>
+        <translation>修复会把受影响的音符重新声明为 %1，使它们能再次演唱。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="639"/>
+        <source>Change Singer</source>
+        <translation>更换歌手</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="640"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="641"/>
+        <source>Keep Languages</source>
+        <translation>保留语种</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="643"/>
+        <source>Repair to %1</source>
+        <translation>修复为 %1</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="722"/>
+        <source>The singer cannot use this input language. Lyrics will be filled with another language.</source>
+        <translation>该歌手无法使用这个输入语种，填词会改用其他语种。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="725"/>
+        <source>Input Language</source>
+        <translation>输入语种</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="760"/>
         <source>Manage mix presets...</source>
         <translation>管理混合预设...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="709"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="782"/>
         <source>Preset speakers are unavailable</source>
         <translation>预设声线不可用</translation>
     </message>
@@ -2051,30 +2106,30 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../Modules/Import/DocumentImportController.cpp" line="271"/>
-        <location filename="../../Modules/Import/DocumentImportController.cpp" line="300"/>
+        <location filename="../../Modules/Import/DocumentImportController.cpp" line="299"/>
         <source>Target track was deleted</source>
         <translation>目标轨道已被删除</translation>
     </message>
     <message>
         <location filename="../../Modules/Import/DocumentImportController.cpp" line="211"/>
-        <location filename="../../Modules/Import/DocumentImportController.cpp" line="316"/>
+        <location filename="../../Modules/Import/DocumentImportController.cpp" line="315"/>
         <source>Batch commit failed: %1</source>
         <translation>批量提交失败：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Import/DocumentImportController.cpp" line="342"/>
+        <location filename="../../Modules/Import/DocumentImportController.cpp" line="341"/>
         <source>Import completed with errors</source>
         <translation>导入完成，但出现错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Import/DocumentImportController.cpp" line="343"/>
+        <location filename="../../Modules/Import/DocumentImportController.cpp" line="342"/>
         <source>The following files were not imported:
 %1</source>
         <translation>以下文件未能导入：
 %1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Import/DocumentImportController.cpp" line="364"/>
+        <location filename="../../Modules/Import/DocumentImportController.cpp" line="363"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -2209,24 +2264,24 @@ Right drag: Erase</source>
 <context>
     <name>DspxProjectConverter</name>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1055"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1054"/>
         <source>Failed to load project file: timeline is incomplete.</source>
         <translation>加载工程文件失败：时间线不完整。</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1064"/>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1075"/>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1086"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1063"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1074"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1085"/>
         <source>Failed to load project file: timeline values are invalid.</source>
         <translation>加载工程文件失败：时间线数值无效。</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1112"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1111"/>
         <source>Failed to open project file: %1</source>
         <translation>打开工程文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1119"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1118"/>
         <source>Failed to load project file.
 path: %1
 %2</source>
@@ -2235,32 +2290,32 @@ path: %1
 %2</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1414"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1401"/>
         <source>Failed to open file for writing: %1</source>
         <translation>打开文件写入失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1424"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1411"/>
         <source>Failed to write all data to file: %1</source>
         <translation>未能将全部数据写入文件：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1431"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1418"/>
         <source>Failed to flush file: %1</source>
         <translation>写入文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1436"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1423"/>
         <source>Failed to commit file: %1</source>
         <translation>提交文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1381"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1368"/>
         <source>Serialization errors occurred:</source>
         <translation>发生序列化错误：</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1403"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1390"/>
         <source> at %1</source>
         <translation> 于 %1</translation>
     </message>
@@ -2522,32 +2577,32 @@ errors: %1</source>
 <context>
     <name>FillLyric::CellList</name>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="413"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="406"/>
         <source>append cell</source>
         <translation>追加单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="416"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="409"/>
         <source>delete line</source>
         <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="417"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="410"/>
         <source>add prev line</source>
         <translation>添加上一行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="418"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="411"/>
         <source>add next line</source>
         <translation>添加下一行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="421"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="414"/>
         <source>move up</source>
         <translation>上移</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="423"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="416"/>
         <source>move down</source>
         <translation>下移</translation>
     </message>
@@ -2568,37 +2623,43 @@ errors: %1</source>
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="64"/>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="94"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="66"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="96"/>
         <source>Fold Preview</source>
         <translation>折叠预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="65"/>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="92"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="67"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="94"/>
         <source>Lyric Prev</source>
         <translation>歌词预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="76"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="78"/>
         <source>Fold Left</source>
         <translation>折叠左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="77"/>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="86"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="79"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="88"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="153"/>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="232"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="184"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="207"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="310"/>
         <source>Preview Lyric</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="153"/>
-        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="232"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="185"/>
+        <source>Changing the language rebuilds the preview and discards your revisions. Continue?</source>
+        <translation>切换语种会重建预览并放弃你的修改。是否继续？</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="207"/>
+        <location filename="../../Modules/FillLyric/LyricTab.cpp" line="310"/>
         <source>Split the lyric into Preview window?</source>
         <translation>将歌词拆分到预览窗口？</translation>
     </message>
@@ -2926,12 +2987,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>GeneralPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="136"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="142"/>
         <source>Package Search Paths (needs restart)</source>
         <translation>包搜索路径（需要重启）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="160"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="166"/>
         <source>Game Model Dir</source>
         <translation>GAME 模型目录</translation>
     </message>
@@ -2956,42 +3017,52 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>应用界面使用的语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="120"/>
-        <source>Default Singing Language</source>
-        <translation>默认演唱语言</translation>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="121"/>
+        <source>New Note Language</source>
+        <translation>新音符语种</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="122"/>
+        <source>Preselected for notes created in the piano roll and when importing. It is not applied to existing notes, and a note stays unspecified when its singer cannot use it.</source>
+        <translation>在钢琴卷创建和导入音符时预选。它不会套用到已有音符，歌手无法使用的语种也不会写入音符。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="125"/>
         <source>Default Lyric</source>
         <translation>默认歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="139"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="126"/>
+        <source>Placeholder lyric for new notes in the selected language.</source>
+        <translation>所选语种下新音符的占位歌词。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="145"/>
         <source>ONNX Files (*.onnx);;All Files (*)</source>
         <translation>ONNX 文件 (*.onnx);;所有文件 (*)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="143"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="149"/>
         <source>Directories</source>
         <translation>目录</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="155"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="161"/>
         <source>Executable (*.exe)</source>
         <translation>可执行文件 (*.exe)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="159"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="165"/>
         <source>Model</source>
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="161"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="167"/>
         <source>Rmvpe Model Path</source>
         <translation>RMVPE 模型路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="162"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="168"/>
         <source>LibreSVIP Path</source>
         <translation>LibreSVIP 路径</translation>
     </message>
@@ -3517,35 +3588,68 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>LanguageComboBox</name>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="14"/>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="70"/>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="21"/>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="67"/>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="116"/>
         <source>Follow singer</source>
         <translation>跟随歌手</translation>
     </message>
+</context>
+<context>
+    <name>LanguageCompatibility</name>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="16"/>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="28"/>
+        <source>No singer selected</source>
+        <translation>未选择歌手</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="41"/>
+        <source>The singer provides no conversion route</source>
+        <translation>该歌手没有可用的转换路线</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="53"/>
+        <source>The singer declares no conversion language</source>
+        <translation>该歌手未声明转换语言</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="62"/>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="72"/>
+        <source>Singer metadata is not ready</source>
+        <translation>歌手元数据尚未就绪</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectModel/Voice/LanguageCompatibility.cpp" line="67"/>
+        <source>The singer package is not installed</source>
+        <translation>该歌手包尚未安装</translation>
+    </message>
+</context>
+<context>
+    <name>LanguageDisplayUtils</name>
+    <message>
+        <location filename="../../Utils/LanguageDisplayUtils.cpp" line="10"/>
         <source>Mandarin</source>
         <translation>普通话</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="18"/>
+        <location filename="../../Utils/LanguageDisplayUtils.cpp" line="12"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="20"/>
+        <location filename="../../Utils/LanguageDisplayUtils.cpp" line="14"/>
         <source>Japanese</source>
         <translation>日语</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="22"/>
+        <location filename="../../Utils/LanguageDisplayUtils.cpp" line="16"/>
         <source>Cantonese</source>
         <translation>粤语</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="24"/>
-        <source>Unknown</source>
-        <translation>未知</translation>
+        <location filename="../../Utils/LanguageDisplayUtils.cpp" line="18"/>
+        <source>Korean</source>
+        <translation>韩语</translation>
     </message>
 </context>
 <context>
@@ -3684,85 +3788,105 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>LyricBaseWidget</name>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="28"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="31"/>
         <source>Import Lrc</source>
         <translation>导入 LRC</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="30"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="33"/>
         <source>Reread Note</source>
         <translation>重新读取音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="32"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="35"/>
         <source>Lyric Prev</source>
         <translation>歌词预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="40"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="43"/>
         <source>Please input lyric here.</source>
         <translation>请在此处输入歌词。</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="44"/>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="192"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="47"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="224"/>
         <source>Note Count: %L1</source>
         <translation>音符数：%L1</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="48"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="51"/>
         <source>split lyric to preview dialog</source>
         <translation>拆分歌词到预览对话框</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="65"/>
         <source>Fill-in Options:</source>
         <translation>填词选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="83"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="86"/>
         <source>Split Mode :</source>
         <translation>分割模式：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="87"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="90"/>
         <source>Auto</source>
         <translation>自动</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="88"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="91"/>
         <source>By Char</source>
         <translation>按字符</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="89"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="92"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="101"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="106"/>
+        <source>Lyric Language :</source>
+        <translation>填词语种：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="115"/>
         <source>Skip Slur Note</source>
         <translation>跳过连音音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="197"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="229"/>
         <source>Open Lrc File</source>
         <translation>打开 LRC 文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="198"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="230"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>LRC 文件 (*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="206"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="238"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="207"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="239"/>
         <source>Failed to decode lrc file.</source>
         <translation>解码 LRC 文件失败。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="271"/>
+        <source>Auto Detect</source>
+        <translation>自动检测</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="308"/>
+        <source>The singer cannot use this language. Pick another one to import lyrics.</source>
+        <translation>该歌手无法使用此语种。请另选一个语种再导入歌词。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="312"/>
+        <source>The chosen language ranks first. Characters the lyric engine cannot identify fall back to it.</source>
+        <translation>所选语种排在最前，填词引擎无法识别的字会交给它。</translation>
     </message>
 </context>
 <context>
@@ -3812,44 +3936,49 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>LyricDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="38"/>
         <source>Fill Lyric</source>
         <translation>填入歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="72"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="73"/>
         <source>&amp;Import</source>
         <translation>导入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="75"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="76"/>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="82"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="83"/>
         <source>Lyric</source>
         <translation>歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="83"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="84"/>
         <source>Splitter</source>
         <translation>分割器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="84"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="85"/>
         <source>Tagger</source>
         <translation>标注器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="85"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="86"/>
         <source>Test</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="87"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="88"/>
         <source>Help</source>
         <translation>帮助</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="225"/>
+        <source>Pick Auto Detect or a language the singer can convert.</source>
+        <translation>请选择“自动识别”或该歌手能够转换的语种。</translation>
     </message>
 </context>
 <context>
@@ -4414,19 +4543,19 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MidiConverter</name>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="151"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="152"/>
         <source>Invalid tone or octave</source>
         <translation>无效的音名或八度</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="265"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="266"/>
         <source>Failed to read MIDI file.
 path: %1</source>
         <translation>读取 MIDI 文件失败。
 路径：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="282"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="283"/>
         <source>Failed to load MIDI file.
 path: %1
 type: %L2</source>
@@ -4435,14 +4564,14 @@ type: %L2</source>
 类型：%L2</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="308"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="309"/>
         <source>Invalid MIDI track selection while importing.
 path: %1</source>
         <translation>导入时选择了无效的 MIDI 轨道。
 路径：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="356"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="357"/>
         <source>Failed to load MIDI file.
 Invalid time signature positions or values.</source>
         <translation>加载 MIDI 文件失败。
@@ -4450,32 +4579,32 @@ Invalid time signature positions or values.</source>
     </message>
     <message>
         <location filename="../../Controller/DocumentWorkflow/MidiLoadSession.cpp" line="161"/>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="245"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="246"/>
         <source>No MIDI tracks were selected for import.</source>
         <translation>未选择要导入的 MIDI 轨道。</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="418"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="419"/>
         <source>Failed to open file for writing: %1</source>
         <translation>打开文件写入失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="426"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="427"/>
         <source>Failed to write all data to file: %1</source>
         <translation>未能将全部数据写入文件：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="432"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="433"/>
         <source>Failed to flush file: %1</source>
         <translation>写入文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="437"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="438"/>
         <source>Failed to commit file: %1</source>
         <translation>提交文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="448"/>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="449"/>
         <source>Failed to save MIDI file.
 path: %1
 error: %2</source>
@@ -4733,27 +4862,27 @@ type: %L1</source>
         <translation>编辑音符文字属性</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="162"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="163"/>
         <source>Edite phoneme offset</source>
         <translation>编辑音素偏移</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="169"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="170"/>
         <source>Reset phoneme offsets</source>
         <translation>还原音素时长</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="176"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="177"/>
         <source>Split note</source>
         <translation>分割音符</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="193"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="194"/>
         <source>Quantize notes</source>
         <translation>量化音符</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="200"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="201"/>
         <source>Resize notes</source>
         <translation>调整音符长度</translation>
     </message>
@@ -4967,7 +5096,7 @@ type: %L1</source>
         <translation>路径不是有效目录</translation>
     </message>
     <message>
-        <location filename="../../../libs/PackageManager/PackageManager.cpp" line="555"/>
+        <location filename="../../../libs/PackageManager/PackageManager.cpp" line="571"/>
         <source>No error: </source>
         <translation>无错误：</translation>
     </message>
@@ -5306,17 +5435,17 @@ type: %L1</source>
         <translation>重置音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="132"/>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="135"/>
         <source>Please add phonemes</source>
         <translation>请添加音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="138"/>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="141"/>
         <source>Please fill in name for all phonemes</source>
         <translation>请为所有音素填写名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="151"/>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="154"/>
         <source>At least one phoneme must be set as onset</source>
         <translation>至少需要将一个音素标记为卡拍</translation>
     </message>
@@ -5350,28 +5479,28 @@ type: %L1</source>
 <context>
     <name>PianoRollContextMenuController</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="92"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="94"/>
         <source>Linear</source>
         <translation>线性</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="100"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="102"/>
         <source>Hermite</source>
         <translation>Hermite</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="118"/>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="208"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="120"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="219"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="131"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="132"/>
         <source>Language</source>
         <translation>语种</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="136"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="137"/>
         <source>Follow singer</source>
         <translation>跟随歌手</translation>
     </message>
@@ -5381,52 +5510,52 @@ type: %L1</source>
         <translation>（默认）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="162"/>
-        <source>Unknown</source>
-        <translation>未知</translation>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="170"/>
+        <source>%1 (not supported by the singer)</source>
+        <translation>%1（歌手不支持）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="172"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="183"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="176"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="187"/>
         <source>Move Lyrics Backward</source>
         <translation>向后移动歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="184"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="195"/>
         <source>Edit Phonemes...</source>
         <translation>编辑音素...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="191"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="202"/>
         <source>Reset Phoneme Durations</source>
         <translation>还原音素时长</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="200"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="211"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="204"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="215"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="213"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="224"/>
         <source>Split Note</source>
         <translation>分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="230"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="241"/>
         <source>Search lyrics...</source>
         <translation>搜索歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="237"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="248"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
@@ -5434,44 +5563,99 @@ type: %L1</source>
 <context>
     <name>PianoRollGraphicsViewHelper</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="200"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="207"/>
         <source>Missing phonemes</source>
         <translation>缺少音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="202"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="209"/>
         <source>Invalid phrase start</source>
         <translation>乐句起始无效</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="205"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="212"/>
         <source>No phonemes assigned</source>
         <translation>未分配到音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="208"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="215"/>
         <source>Overlapping note</source>
         <translation>音符重叠</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="216"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="217"/>
+        <source>Language not supported</source>
+        <translation>语种不受支持</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="220"/>
+        <source>Unsupported phonemes</source>
+        <translation>音素不受支持</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="235"/>
         <source>No phonemes are available for this note. Check the lyric, the pronunciation, or the language settings</source>
         <translation>该音符没有可用的音素，请检查歌词、发音或语言设置</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="221"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="240"/>
         <source>A phrase cannot start with a slur or syllabification note</source>
         <translation>乐句不能以连音或音节分配符开头</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="225"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="244"/>
         <source>This syllabification note was not assigned any phonemes</source>
         <translation>音节分配符未分配到音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="229"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="248"/>
         <source>This note overlaps another note and is ignored</source>
         <translation>该音符与其他音符重叠，已被忽略</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="257"/>
+        <source>The singer provides no conversion language, so this note cannot be converted.</source>
+        <translation>歌手没有提供转换语种，这个音符无法转换。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="262"/>
+        <source>The singer provides no %1 conversion route. Available languages: %2.</source>
+        <translation>歌手没有提供 %1 的转换路由。可用语种：%2。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="266"/>
+        <source>, </source>
+        <translation>、</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="270"/>
+        <source>The edited phonemes are kept. Whether they can be synthesized depends on whether the singer accepts them.</source>
+        <translation>已编辑的音素会保留，能否合成取决于歌手是否接受它们。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="279"/>
+        <source>The current model does not accept the phonemes of this note.</source>
+        <translation>当前模型不接受这个音符的音素。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="282"/>
+        <source>The current model does not accept the phoneme &apos;%1&apos;.</source>
+        <translation>当前模型不接受音素“%1”。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="288"/>
+        <source>Its dictionary language is %1, which the model also rejects.</source>
+        <translation>它的词典语种是 %1，模型同样不接受。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="294"/>
+        <source>Kept phonemes are not guaranteed to be synthesized.</source>
+        <translation>保留的音素不保证能合成。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp" line="305"/>
+        <source>Unspecified</source>
+        <translation>未指定</translation>
     </message>
 </context>
 <context>
@@ -5980,12 +6164,12 @@ Only continue if you have confirmed that no work needs to be saved.</source>
 <context>
     <name>SingingClipView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="127"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="123"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="255"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="251"/>
         <source>[Singing] </source>
         <translation>[歌声] </translation>
     </message>
@@ -6031,34 +6215,39 @@ Only continue if you have confirmed that no work needs to be saved.</source>
 <context>
     <name>SpeakerMixActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="15"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="16"/>
         <source>Edit speaker mix</source>
         <translation>编辑声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="24"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="25"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="129"/>
         <source>Use track singer</source>
         <translation>使用轨道歌手</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="40"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="42"/>
         <source>Enable dynamic speaker mix</source>
         <translation>启用动态声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="49"/>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="65"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="53"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="70"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="98"/>
         <source>Apply speaker mix preset</source>
         <translation>应用声线混合预设</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="32"/>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="57"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="33"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="62"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="88"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="138"/>
         <source>Select speaker</source>
         <translation>选择声线</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="72"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="77"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="107"/>
         <source>Edit track speaker mix</source>
         <translation>编辑轨道声线混合</translation>
     </message>
@@ -6359,64 +6548,94 @@ All current mix settings will be lost.</source>
 <context>
     <name>TrackControlView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="107"/>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="351"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="110"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="349"/>
         <source>(Scanning packages...)</source>
         <translation>（正在扫描包...）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="296"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="294"/>
         <source>Insert new track</source>
         <translation>插入新轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="299"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="297"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="307"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="305"/>
         <source>Track color</source>
         <translation>轨道颜色</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="419"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="406"/>
         <source>Manage mix presets...</source>
         <translation>管理混合预设...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="441"/>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="428"/>
         <source>Preset speakers are unavailable</source>
         <translation>预设声线不可用</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="469"/>
+        <source>%L1 note(s) declare %2, which the new singer cannot convert.</source>
+        <translation>%L1 个音符声明了 %2，新歌手无法转换。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="471"/>
+        <source>, </source>
+        <translation>、</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="474"/>
+        <source>Switching clears the edited pronunciation of %L1 note(s).</source>
+        <translation>切换会清除 %L1 个音符已编辑的发音。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="478"/>
+        <source>Change Singer</source>
+        <translation>更换歌手</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="482"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="483"/>
+        <source>Continue</source>
+        <translation>继续</translation>
     </message>
 </context>
 <context>
     <name>TrackController</name>
     <message>
-        <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2622"/>
+        <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2641"/>
         <location filename="../../Controller/TrackController.cpp" line="95"/>
-        <location filename="../../Controller/TrackController.cpp" line="320"/>
+        <location filename="../../Controller/TrackController.cpp" line="312"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
     <message>
-        <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2712"/>
-        <location filename="../../Controller/TrackController.cpp" line="422"/>
+        <location filename="../../Automation/Public/PublicAutomationRegistry.cpp" line="2720"/>
+        <location filename="../../Controller/TrackController.cpp" line="414"/>
         <source>New Singing Clip</source>
         <translation>新歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="509"/>
+        <location filename="../../Controller/TrackController.cpp" line="500"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="510"/>
+        <location filename="../../Controller/TrackController.cpp" line="501"/>
         <source>Failed to open audio file:</source>
         <translation>无法打开音频文件：</translation>
     </message>
     <message>
-        <location filename="../../Controller/TrackController.cpp" line="514"/>
+        <location filename="../../Controller/TrackController.cpp" line="505"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -6533,7 +6752,7 @@ All current mix settings will be lost.</source>
     <name>TracksRhiWidget</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1376"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1468"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1467"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>

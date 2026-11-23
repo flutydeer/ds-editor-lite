@@ -33,7 +33,6 @@ public:
 
     // App-provided defaults for new tracks, pushed in by the app layer so the
     // model does not reach into AppOptions / the app-wide palette itself.
-    QString m_defaultSingingLanguage = QStringLiteral("unknown");
     int m_paletteColorCount = 12;
 
 private:

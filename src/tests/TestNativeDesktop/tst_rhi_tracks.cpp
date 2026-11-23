@@ -111,7 +111,6 @@ namespace {
             clip.properties.start = 480;
             clip.properties.length = 1920;
             clip.properties.clipLen = 960;
-            clip.defaultLanguage = QStringLiteral("eng");
             Automation::NoteDraftDto note;
             note.localStart = 120;
             note.length = 480;
@@ -1094,8 +1093,6 @@ void NativeDesktopTests::rhiTrackClipDropOnAppendRowCreatesTrack() {
     QVERIFY(created != source);
     QCOMPARE(created->name(), TrackController::tr("New Track"));
     QCOMPARE(created->clips().count(), 1);
-    // The voice configuration follows the source track so the clip keeps its context.
-    QCOMPARE(created->defaultLanguage(), source->defaultLanguage());
     QCOMPARE(source->clips().count(), 0);
     QTRY_VERIFY(frames.size() > previewFrame || !failed.isEmpty());
     QVERIFY(failed.isEmpty());
@@ -1345,7 +1342,6 @@ void NativeDesktopTests::rhiClipGroupDragCommitsAtomically() {
     secondDraft.properties.start = 960;
     secondDraft.properties.length = 1920;
     secondDraft.properties.clipLen = 960;
-    secondDraft.defaultLanguage = QStringLiteral("eng");
     Automation::NoteDraftDto note;
     note.localStart = 120;
     note.length = 480;
@@ -1499,7 +1495,6 @@ void NativeDesktopTests::rhiClipGroupTrimAndNudgeCommitAtomically() {
     secondDraft.properties.start = 1920;
     secondDraft.properties.length = 1920;
     secondDraft.properties.clipLen = 960;
-    secondDraft.defaultLanguage = QStringLiteral("eng");
     QVERIFY(fixture.runtime().project().insertClips(
         fixture.command(), {
                                {Automation::TrackId(fixture.secondTrackId), secondDraft}
@@ -1588,7 +1583,6 @@ void NativeDesktopTests::rhiClipRangeAnchorClearsWithTheSelection() {
     secondDraft.properties.start = 2400;
     secondDraft.properties.length = 1920;
     secondDraft.properties.clipLen = 960;
-    secondDraft.defaultLanguage = QStringLiteral("eng");
     QVERIFY(fixture.runtime().project().insertClips(
         fixture.command(), {
                                {Automation::TrackId(fixture.firstTrackId), secondDraft}

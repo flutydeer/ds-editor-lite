@@ -33,8 +33,11 @@ private slots:
     void batchImportRouting_data();
     void batchImportRouting();
     void batchImportPlanRevalidation();
+    void publicVoiceQueriesKeepInputPreferenceClipScoped();
     void fillLyricsOptions_data();
     void fillLyricsOptions();
+    void fillLyricsInputLanguagePreference_data();
+    void fillLyricsInputLanguagePreference();
     void fillLyricsUnavailableLanguage();
     void parameterQueryBoundsSamplesAndPreservesAnchors();
     void publicParameterEditsPreserveCurvesAndUndo();

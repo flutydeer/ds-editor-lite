@@ -30,6 +30,8 @@ static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, c
         note->setLength(dsNote.length);
         note->setKeyIndex(dsNote.keyNum);
         note->setLyric(dsNote.lyric.empty() ? defaultLyric : QString::fromStdString(dsNote.lyric));
+        // The import language describes the material, so every imported note
+        // declares it instead of resolving through whichever singer is assigned.
         note->setLanguage(language);
         notes.push_back(note);
     }
@@ -49,7 +51,7 @@ static void convertClips(const opendspx::Track &track, Track *dsTrack, const QSt
             const auto visibleLength = clip->time.clipLen + 960;
             singingClip->setLength(qMax(clip->time.length, clip->time.clipStart + visibleLength));
             singingClip->setClipLen(visibleLength);
-            singingClip->setDefaultLanguage(language);
+            singingClip->setInputLanguage(language);
 
             auto notes = convertNotes(singClip->notes, start, language, defaultLyric);
             for (const auto note : notes) {
@@ -78,7 +80,6 @@ static Track *convertTrack(const opendspx::Track &track, const QString &language
                            const Timeline &timeline, const QString &defaultLyric) {
     const auto dsTrack = new Track;
     dsTrack->setName(QString::fromStdString(track.name));
-    dsTrack->setDefaultLanguage(language);
     convertClips(track, dsTrack, language, timeline, defaultLyric);
     return dsTrack;
 }

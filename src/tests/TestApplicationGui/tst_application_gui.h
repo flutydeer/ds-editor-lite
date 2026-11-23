@@ -140,7 +140,17 @@ private slots:
     void fillLyricInputsCommitOrCancel_data();
     void fillLyricInputsCommitOrCancel();
     void lyricRuleEditingChangesThePreviewAndPersists();
+    void unavailableLyricLanguageChoiceBlocksTheImport();
+    void changingTheLyricLanguageKeepsTheEditedPreview();
+    void typedLyricsSurviveALanguageChange();
+    void unroutableDetectedLanguageSurvivesTheConversion();
+    void speakerChangesWhileTheLyricDialogIsOpenKeepEdits_data();
+    void speakerChangesWhileTheLyricDialogIsOpenKeepEdits();
+    void voiceContextChangeWhileTheDialogIsOpenBlocksTheImport_data();
+    void voiceContextChangeWhileTheDialogIsOpenBlocksTheImport();
+    void declaredWordStateSurvivesTheInitialPreview();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
+    void resetPhonesStaysAvailableWhenDerivedNamesAreCleared();
     void phonemeDurationResetConfirmsAdjacentChanges_data();
     void phonemeDurationResetConfirmsAdjacentChanges();
     void noteLanguageMenuChangesOnlyTheSelectedWords_data();
@@ -162,6 +172,8 @@ private slots:
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
     void voiceMenusApplyPresetsToTheChosenTarget_data();
     void voiceMenusApplyPresetsToTheChosenTarget();
+    void clipVoicePresetMenusConfirmLanguageRepair_data();
+    void clipVoicePresetMenusConfirmLanguageRepair();
     void clipToolbarNameEditingKeepsTheOriginalTarget_data();
     void clipToolbarNameEditingKeepsTheOriginalTarget();
     void audioDbAxisTickLadderFollowsTheLaneHeight();

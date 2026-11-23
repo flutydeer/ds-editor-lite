@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Modules/FillLyric/LangCommon.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 namespace srt::g2p {
@@ -36,7 +37,7 @@ namespace FillLyric {
         /// Each call invokes session().convertG2p per language; on failure
         /// that language keeps the original lyric (ds-session.md §206).
         QList<G2pResult> convert(const QList<LangNote> &notes,
-                                 const std::vector<std::string> &priorityLanguages = {}) const;
+                                 const LyricLanguageContext &context) const;
 
     private:
         SingerIdentifier m_singer;

@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/PackageManager/PackageManager.h>
 
 #include <limits>
@@ -225,9 +226,16 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
         if (clip->clipType() == IClip::Singing) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             obj["type"] = "singing";
-            obj["defaultLanguage"] = singingClip->defaultLanguage();
+            obj["inputLanguage"] = singingClip->inputLanguage();
             const bool useTrackInfo = singingClip->usesTrackVoiceContext();
             obj["useTrackSingerInfo"] = useTrackInfo;
+            // An unresolved source route is unknown, not an authoritative empty
+            // route, so only a known route is recorded.
+            const auto sourceSupport =
+                LanguageCompatibility::conversionSupport(singingClip->singerInfo());
+            obj["sourceFallbackLanguage"] =
+                sourceSupport.isKnown() ? singingClip->fallbackLanguage() : QString();
+            obj["sourceFallbackRecorded"] = sourceSupport.isKnown();
             obj["singer"] = serializeSingerInfo(singingClip->ownSingerInfo());
             obj["speaker"] = serializeSpeakerInfo(singingClip->ownSpeakerInfo());
             if (!useTrackInfo)
@@ -281,7 +289,9 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
         Clip *clip = nullptr;
         if (type == "singing") {
             auto singingClip = new SingingClip;
-            singingClip->setDefaultLanguage(obj["defaultLanguage"].toString());
+            singingClip->setInputLanguage(obj.contains("inputLanguage")
+                                              ? obj["inputLanguage"].toString()
+                                              : obj["defaultLanguage"].toString());
 
             const auto notesArr = obj["notes"].toArray();
             for (const auto &noteVal : notesArr) {
@@ -320,6 +330,8 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
 
         if (clip) {
             deserializeClipCommon(clip, obj);
+            info.sourceFallbackLanguages.append(obj["sourceFallbackLanguage"].toString());
+            info.sourceFallbackKnown.append(obj["sourceFallbackRecorded"].toBool());
             if (type == "audio" && obj.contains("playLengthMs")) {
                 static_cast<AudioClip *>(clip)->setRealTimeAnchor(
                     obj["trimStartMs"].toDouble(), obj["playLengthMs"].toDouble(),
@@ -354,6 +366,16 @@ QList<Automation::ClipInsertDto> ClipsInfo::preparePaste(const QList<Track *> &t
         const auto targetIndex = static_cast<int>(qBound<qint64>(
             0, static_cast<qint64>(trackIndex) + trackIndexOffsets.value(i, 0), tracks.size() - 1));
         auto draft = Automation::clipDraftDto(*clip);
+        // The detached clipboard clip has no voice context, so the derived value
+        // is not a source state. Only a payload that recorded the route may
+        // drive the cascade, otherwise an older payload would look like a clip
+        // copied from a singer without any conversion route.
+        draft.hasSourceFallbackLanguage = false;
+        draft.sourceFallbackLanguage.clear();
+        if (sourceFallbackKnown.value(i)) {
+            draft.hasSourceFallbackLanguage = true;
+            draft.sourceFallbackLanguage = sourceFallbackLanguages.value(i);
+        }
         const auto translatedStart = static_cast<qint64>(draft.properties.start) + offset;
         if (translatedStart < std::numeric_limits<int>::min() ||
             translatedStart > std::numeric_limits<int>::max()) {

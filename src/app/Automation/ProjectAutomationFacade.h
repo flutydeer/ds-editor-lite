@@ -14,7 +14,7 @@ namespace Automation {
         ClipId id;
         TrackId trackId;
         ClipDraftDto data;
-        QString effectiveDefaultLanguage;
+        QString inputLanguage;
     };
 
     struct TrackSnapshotDto {
@@ -102,9 +102,6 @@ namespace Automation {
                                                       TrackId trackId, bool solo);
         AutomationResult<MutationResult> setTrackColor(const CommandContext &context,
                                                        TrackId trackId, int colorIndex);
-        AutomationResult<MutationResult> setTrackDefaultLanguage(const CommandContext &context,
-                                                                 TrackId trackId,
-                                                                 const QString &language);
 
         AutomationResult<MutationResult> insertClips(const CommandContext &context,
                                                      const QList<ClipInsertDto> &clips);
@@ -174,7 +171,7 @@ namespace Automation {
             setAudioClipHash(const CommandContext &context, ClipId clipId,
                              const AudioAssetSnapshotDto &expectedAsset, const QString &sha512);
         AutomationResult<MutationResult>
-            setSingingClipDefaultLanguage(const CommandContext &context, ClipId clipId,
+            setSingingClipInputLanguage(const CommandContext &context, ClipId clipId,
                                           const QString &language);
 
     private:

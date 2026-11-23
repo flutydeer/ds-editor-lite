@@ -9,6 +9,7 @@
 #include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include "UI/Views/Common/EditorMenuPreviewGuard.h"
+#include "Utils/LanguageDisplayUtils.h"
 
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
@@ -17,6 +18,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/Utils/NotePasteUtils.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 
 #include <QActionGroup>
 #include <QClipboard>
@@ -126,13 +128,12 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         appendPronunciationCandidateActions(menu, clip, context.noteId);
 
         const auto singerInfo = clip->singerInfo();
-        const bool hasLanguages = singerInfo.resolutionState() == ResolutionState::Resolved &&
-                                  !singerInfo.languages().isEmpty();
+        const auto support = LanguageCompatibility::conversionSupport(singerInfo);
         auto *languageMenu = new Menu(tr("Language"), &menu);
         auto *languageGroup = new QActionGroup(languageMenu);
         languageGroup->setExclusive(true);
 
-        // auto/follow singer: checked when note language is unspecified (empty)
+        // Unspecified: the note follows whatever the singer resolves to.
         auto *followAction = languageMenu->addAction(tr("Follow singer"));
         followAction->setCheckable(true);
         followAction->setChecked(context.noteLanguage.isEmpty());
@@ -141,10 +142,9 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
             clipController->onNoteLanguagesEdited(context.selectedNoteIds, QString());
         });
 
-        if (hasLanguages) {
-            for (const auto &language : singerInfo.languages()) {
-                const auto id = language.id();
-                auto text = id;
+        if (support.isKnown()) {
+            for (const auto &id : support.languageIds) {
+                auto text = LanguageDisplayUtils::displayName(id);
                 if (id == singerInfo.defaultLanguage())
                     text += tr(" (default)");
                 auto *action = languageMenu->addAction(text);
@@ -158,15 +158,26 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
             languageMenu->addSeparator();
         }
 
-        // "unknown" = detection failure / terminal language; keep manual entry, distinct from auto
-        auto *unknownAction = languageMenu->addAction(tr("Unknown"));
-        unknownAction->setCheckable(true);
-        unknownAction->setChecked(context.noteLanguage == QStringLiteral("unknown"));
-        languageGroup->addAction(unknownAction);
-        connect(unknownAction, &QAction::triggered, this, [context] {
-            clipController->onNoteLanguagesEdited(context.selectedNoteIds,
-                                                  QStringLiteral("unknown"));
-        });
+        // A declaration the singer cannot route stays selectable so the
+        // mismatch remains visible and reversible instead of being dropped. An
+        // unresolved route says nothing about support, so it is not reported as
+        // unsupported here either.
+        const bool declaredUnsupported =
+            support.isKnown() && !context.noteLanguage.isEmpty() &&
+            !support.supports(context.noteLanguage);
+        if (declaredUnsupported) {
+            auto *unsupportedAction =
+                languageMenu->addAction(tr("%1 (not supported by the singer)")
+                                            .arg(LanguageDisplayUtils::displayName(
+                                                context.noteLanguage)));
+            unsupportedAction->setCheckable(true);
+            unsupportedAction->setChecked(true);
+            languageGroup->addAction(unsupportedAction);
+            connect(unsupportedAction, &QAction::triggered, this, [context] {
+                clipController->onNoteLanguagesEdited(context.selectedNoteIds,
+                                                      context.noteLanguage);
+            });
+        }
         menu.addMenu(languageMenu);
 
         auto *fillLyrics = menu.addAction(tr("Fill lyrics..."));

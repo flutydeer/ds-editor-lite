@@ -57,7 +57,6 @@ void ApplicationGuiTests::createPianoRoll() {
     auto &runtime = *context->m_coreRuntime;
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("Mouse gesture");
-    track.defaultLanguage = QStringLiteral("eng");
     const auto insertedTrack = runtime.project().insertTrack(commandContext(), 0, track);
     QVERIFY(insertedTrack);
     QCOMPARE(insertedTrack.get().affectedObjects.size(), 1);
@@ -68,7 +67,6 @@ void ApplicationGuiTests::createPianoRoll() {
     clip.properties.name = QStringLiteral("Mouse gesture");
     clip.properties.length = 3840;
     clip.properties.clipLen = 3840;
-    clip.defaultLanguage = QStringLiteral("eng");
     const auto insertedClip =
         runtime.project().insertClips(commandContext(), {
                                                             {.trackId = trackId, .clip = clip}
@@ -231,7 +229,6 @@ void ApplicationGuiTests::copyPasteUsesTheActiveClipAndPlaybackPosition() {
     clip.type = Automation::ClipDraftDto::Type::Singing;
     clip.properties.length = 3840;
     clip.properties.clipLen = 3840;
-    clip.defaultLanguage = QStringLiteral("eng");
     const auto inserted =
         runtime.project().insertClips(commandContext(), {
                                                             {.trackId = trackId, .clip = clip}
@@ -305,7 +302,6 @@ void ApplicationGuiTests::wholeClipClipboardUsesSelectedTrackAndPreservesCurves(
                                                   ParamInfo::Pitch, Param::Edited, {curve}));
     Automation::TrackDraftDto draft;
     draft.name = QStringLiteral("Clipboard destination");
-    draft.defaultLanguage = QStringLiteral("eng");
     const auto inserted = runtime.project().insertTrack(
         commandContext(), context->m_appModel->tracks().size(), draft);
     QVERIFY(inserted);

@@ -314,16 +314,17 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
     if (origin == QStringLiteral("header")) {
         auto *controls = qobject_cast<TrackControlView *>(headers->itemWidget(headers->item(0)));
         QVERIFY(controls);
+        // A track owns no language of its own, so the header only carries the
+        // voice control.
         auto *singer = controls->findChild<QWidget *>("cbSinger");
-        auto *language = controls->findChild<QWidget *>("cbLanguage");
-        QVERIFY(singer && language);
-        QVERIFY(!singer->isHidden() && !language->isHidden());
+        QVERIFY(singer);
+        QVERIFY(!singer->isHidden());
         wheel(-240, Qt::AltModifier);
         QTRY_VERIFY(editor.viewState().verticalScale < beforeScale.verticalScale);
-        QTRY_VERIFY(singer->isHidden() && language->isHidden());
+        QTRY_VERIFY(singer->isHidden());
         QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
         wheel(240, Qt::AltModifier);
-        QTRY_VERIFY(!singer->isHidden() && !language->isHidden());
+        QTRY_VERIFY(!singer->isHidden());
         QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
     }
     if (!headerInput) {
@@ -426,7 +427,6 @@ void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
     TrackEditorView editor;
     Automation::TrackDraftDto draft;
     draft.name = QStringLiteral("Original lead");
-    draft.defaultLanguage = QStringLiteral("eng");
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
     auto *track = context->m_appModel->tracks().first();
     auto *controls = editor.findChild<TrackControlView *>();
@@ -522,7 +522,6 @@ void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
     const auto *appended = context->m_appModel->tracks().last();
     const auto appendedId = appended->id();
     QCOMPARE(appended->name(), TrackController::tr("New Track"));
-    QCOMPARE(appended->defaultLanguage(), appOptions->general()->defaultSingingLanguage);
     QCOMPARE(runtime.documentVersion().revision, beforeAppend.revision + 1);
     QCOMPARE(runtime.documentVersion().documentId, beforeAppend.documentId);
     QTRY_COMPARE(headers->trackCount(), 2);

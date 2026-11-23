@@ -462,6 +462,22 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     QString::fromStdString(singerSnapshot.name.text()), std::move(speakerInfos),
                     std::move(languageInfos),
                     QString::fromStdString(singerSnapshot.defaultLanguage));
+                // Project the routes the language service can actually resolve
+                // for this singer, so a declared language without a route is not
+                // offered as convertible. Without ready metadata the projection
+                // stays absent and consumers fall back to the declared list.
+                if (SynthrtEngine::instance().languageService().metadataReady()) {
+                    QStringList conversionLanguages;
+                    for (const auto &languageInfo : singerInfo.languages()) {
+                        auto route =
+                            SynthrtEngine::instance().languageService().resolveLanguageRoute(
+                                status.packageId, status.version,
+                                singerSnapshot.ref.singerId, languageInfo.id().toStdString());
+                        if (route)
+                            conversionLanguages.append(languageInfo.id());
+                    }
+                    singerInfo.setConversionLanguages(conversionLanguages);
+                }
                 singerInfo.setLocalizedNames(toLocalizedTextMap(singerSnapshot.name));
                 singerInfo.setCapability(std::move(capSummary));
                 switch (singerSnapshot.resolutionState) {
