@@ -54,6 +54,8 @@ private slots:
     void speakerMixEditing();
     void clearingTrackVoicePreservesIndependentClips();
     void clearingClipVoiceStopsInheritanceUntilRestored();
+    void clearingVoiceCascadesResolvedNoteLanguage_data();
+    void clearingVoiceCascadesResolvedNoteLanguage();
     void pronunciationSourcesAndResetPreserveAutomaticWords();
     void timelineAndHistoryDomain();
     void quantizeInChild();

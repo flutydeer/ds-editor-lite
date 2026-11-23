@@ -1894,7 +1894,9 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
-                const bool changed = track->voiceContext() != EffectiveVoiceContext{};
+                const auto cascades = planTrackVoiceLanguageChange(track, {});
+                const bool changed =
+                    track->voiceContext() != EffectiveVoiceContext{} || !cascades.isEmpty();
                 const QList<ObjectRef> affected{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1904,7 +1906,7 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->selectTrackSingleSpeaker({}, {}, track);
+                actions->selectTrackSingleSpeaker({}, {}, track, cascades);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -1919,8 +1921,12 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
+                auto planned = planVoiceLanguageChange(clip, {}, LanguageRepair::None);
+                if (!planned)
+                    return AutomationResult<MutationResult>(planned.getError());
+                const auto plan = std::move(planned.get());
                 const bool changed = clip->effectiveVoiceContext() != EffectiveVoiceContext{} ||
-                                     clip->usesTrackVoiceContext();
+                                     clip->usesTrackVoiceContext() || !plan.notes.isEmpty();
                 const QList<ObjectRef> affected{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1929,8 +1935,10 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                const ClipWordCascade cascade{clip, plan.notes, plan.wordProperties,
+                                              plan.oldResolvedLanguages, plan.newResolvedLanguages};
                 auto actions = std::make_unique<SpeakerMixActions>();
-                actions->selectClipSingleSpeaker({}, {}, clip);
+                actions->selectClipSingleSpeaker({}, {}, clip, cascade);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
