@@ -4708,11 +4708,16 @@ namespace Automation {
                     fallbackLanguage = LanguageCompatibility::fallbackLanguage(singer);
                 }
             }
+            const bool skipSlur = options.value(QStringLiteral("skip_slur")).toBool(false);
             // Without an explicit request the notes being filled decide the
-            // language, the same way the interactive dialog preselects it.
+            // language, the same way the interactive dialog preselects it. A slur
+            // note is not rewritten, so its declaration does not vote.
             QStringList declaredLanguages;
-            for (const auto &note : ordered)
+            for (const auto &note : ordered) {
+                if (skipSlur && Note::isSlurLyric(note.data.lyric))
+                    continue;
                 declaredLanguages.append(note.data.language);
+            }
             const auto initialLanguage =
                 LanguageCompatibility::dominantLanguage(declaredLanguages, supported);
             const auto languageSelection = options.value(QStringLiteral("language")).toObject();
@@ -4759,7 +4764,6 @@ namespace Automation {
                 for (const auto &word : line)
                     lyrics.append(word);
             }
-            const bool skipSlur = options.value(QStringLiteral("skip_slur")).toBool(false);
             QList<NoteWordEditDto> edits;
             qsizetype lyricIndex = 0;
             for (const auto &note : ordered) {

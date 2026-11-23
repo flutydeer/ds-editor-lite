@@ -38,6 +38,7 @@ private slots:
     void fillLyricsOptions();
     void fillLyricsDerivesLanguageFromNotes_data();
     void fillLyricsDerivesLanguageFromNotes();
+    void fillLyricsDerivesLanguageFromSlurFreeNotes();
     void fillLyricsUnavailableLanguage();
     void parameterQueryBoundsSamplesAndPreservesAnchors();
     void publicParameterEditsPreserveCurvesAndUndo();
