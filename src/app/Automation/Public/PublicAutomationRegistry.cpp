@@ -4,6 +4,7 @@
 
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
+#include "Modules/FillLyric/Utils/LyricLanguageContext.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
@@ -4728,7 +4729,7 @@ namespace Automation {
                 options.contains(QStringLiteral("language"))
                     ? decodeLanguageSelection(options.value(QStringLiteral("language")),
                                               initialLanguage)
-                    : QString();
+                    : initialLanguage;
             QStringList supported;
             QString fallbackLanguage;
             for (const auto &track : project.get().tracks) {
@@ -4736,7 +4737,7 @@ namespace Automation {
                     if (clip.id != clipId)
                         continue;
                     const auto &singer = clip.data.usesTrackVoiceContext ? track.data.singerInfo
-                                                                        : clip.data.ownSingerInfo;
+                                                                         : clip.data.ownSingerInfo;
                     supported = LanguageCompatibility::supportedLanguages(singer);
                     fallbackLanguage = LanguageCompatibility::fallbackLanguage(singer);
                 }
@@ -4748,23 +4749,12 @@ namespace Automation {
                     QStringLiteral("/options/language/language_id"),
                     QStringLiteral("The requested lyric language is unavailable")));
             }
-            // The chosen language biases the tagger first, then the singer own
-            // routes. Auto detection keeps the routes only, so a language the
-            // singer cannot route stays visible instead of being rewritten.
-            QStringList priority;
-            const auto appendUnique = [&priority](const QString &language) {
-                if (!language.isEmpty() && !priority.contains(language))
-                    priority.append(language);
-            };
-            appendUnique(languageOverride);
-            appendUnique(fallbackLanguage);
-            for (const auto &language : std::as_const(supported))
-                appendUnique(language);
+            // An unavailable stored preference must not participate in detection or write-back.
+            const FillLyric::LyricLanguageContext languageContext(supported, fallbackLanguage,
+                                                                  languageOverride);
             std::vector<std::string> priorityLanguages;
-            for (const auto &language : std::as_const(priority)) {
-                if (!language.isEmpty())
-                    priorityLanguages.push_back(language.toStdString());
-            }
+            for (const auto &language : languageContext.priorityLanguages())
+                priorityLanguages.push_back(language.toStdString());
             const auto splitterId =
                 options.value(QStringLiteral("splitter_id")).toString(QStringLiteral("auto"));
             const auto taggerId =
@@ -4806,13 +4796,7 @@ namespace Automation {
                 // A chosen language only catches tokens the tagger could not
                 // identify or route. Languages already identified and routable
                 // keep their own assignment.
-                QString noteLanguage = word.language;
-                if (noteLanguage == QLatin1String("unknown"))
-                    noteLanguage.clear();
-                if (!languageOverride.isEmpty() &&
-                    (noteLanguage.isEmpty() || !supported.contains(noteLanguage)))
-                    noteLanguage = languageOverride;
-                edit.language = noteLanguage;
+                edit.language = languageContext.resolvedNoteLanguage(word.language);
                 edit.pronunciation = Pronunciation(word.syllable, word.syllableRevised);
                 edit.pronunciationCandidates = word.candidates;
                 edit.phonemes =

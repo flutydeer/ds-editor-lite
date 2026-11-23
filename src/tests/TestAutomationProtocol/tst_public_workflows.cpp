@@ -638,6 +638,84 @@ void AutomationProtocolTests::fillLyricsOptions() {
     QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
 }
 
+void AutomationProtocolTests::fillLyricsInputLanguagePreference_data() {
+    QTest::addColumn<QString>("splitter");
+    QTest::addColumn<QString>("languageMode");
+    QTest::addColumn<QString>("expectedLanguage");
+    QTest::newRow("omitted-options-follows-clip")
+        << QString() << QString() << QStringLiteral("yue");
+    QTest::newRow("omitted-language-follows-clip")
+        << QStringLiteral("character") << QString() << QStringLiteral("yue");
+    QTest::newRow("explicit-overrides-clip")
+        << QStringLiteral("auto") << QStringLiteral("explicit") << QStringLiteral("cmn");
+    QTest::newRow("unspecified-detects-from-singer")
+        << QStringLiteral("auto") << QStringLiteral("unspecified") << QStringLiteral("cmn");
+}
+
+void AutomationProtocolTests::fillLyricsInputLanguagePreference() {
+    QFETCH(QString, splitter);
+    QFETCH(QString, languageMode);
+    QFETCH(QString, expectedLanguage);
+    const auto configs = QFINDTESTDATA("../../app/Modules/FillLyric/configs");
+    QVERIFY(!configs.isEmpty());
+    const auto root = std::filesystem::path(configs.toStdU16String());
+    QVERIFY(FillLyric::TextSplitter::init(root / "splitter"));
+    QVERIFY(FillLyric::TextTagger::init(root / "tagger", root / "tagger"));
+
+    auto track = lyricTrack();
+    track.singerInfo.setLanguages(
+        {LanguageInfo(QStringLiteral("cmn"), QStringLiteral("Mandarin"), QStringLiteral("g2p")),
+         LanguageInfo(QStringLiteral("yue"), QStringLiteral("Cantonese"), QStringLiteral("g2p"))});
+    track.singerInfo.setConversionLanguages({QStringLiteral("cmn"), QStringLiteral("yue")});
+    auto &clipDraft = track.clips.first();
+    clipDraft.inputLanguage = QStringLiteral("yue");
+    for (auto &note : clipDraft.notes)
+        note.language = QStringLiteral("cmn");
+    clipDraft.notes.first().pronunciation.edited = QStringLiteral("old-reading");
+    clipDraft.notes.first().pronunciationCandidates = {QStringLiteral("old-candidate")};
+
+    RegistryFixture fixture;
+    QVERIFY(fixture.runtime.project().insertTrack(commandContext(fixture.runtime), 0, track));
+    const auto project =
+        fixture.runtime.project().getProject(fixture.runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clip = project.get().tracks.first().clips.first();
+    const auto before = fixture.runtime.documentVersion();
+    const auto originalNotes = fixture.runtime.notes().getNotes(before.documentId, clip.id);
+    QVERIFY(originalNotes);
+    QCOMPARE(originalNotes.get().first().data.pronunciation.edited, QStringLiteral("old-reading"));
+    auto arguments = commandArguments(before);
+    arguments.insert(QStringLiteral("clip_id"), clip.id.value());
+    arguments.insert(QStringLiteral("note_ids"),
+                     QJsonArray{originalNotes.get().first().id.value()});
+    arguments.insert(QStringLiteral("text"), QStringLiteral("你"));
+    QJsonObject options;
+    if (!splitter.isEmpty())
+        options.insert(QStringLiteral("splitter_id"), splitter);
+    if (!languageMode.isEmpty()) {
+        QJsonObject language{
+            {QStringLiteral("mode"), languageMode}
+        };
+        if (languageMode == QStringLiteral("explicit"))
+            language.insert(QStringLiteral("language_id"), QStringLiteral("cmn"));
+        options.insert(QStringLiteral("language"), language);
+    }
+    if (!options.isEmpty())
+        arguments.insert(QStringLiteral("options"), options);
+    PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    const auto result = registry.invoke(QStringLiteral("notes.fill_lyrics"), arguments);
+    QVERIFY2(result, qPrintable(errorMessage(result)));
+    const auto notes = fixture.runtime.notes().getNotes(before.documentId, clip.id);
+    QVERIFY(notes);
+    QCOMPARE(notes.get().first().data.lyric, QStringLiteral("你"));
+    QCOMPARE(notes.get().first().data.language, expectedLanguage);
+    QVERIFY(notes.get().first().data.pronunciation.edited.isEmpty());
+    QVERIFY(!notes.get().first().data.pronunciationCandidates.contains(
+        QStringLiteral("old-candidate")));
+    QCOMPARE(notes.get().at(1).data.lyric, originalNotes.get().at(1).data.lyric);
+}
+
 void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
     RegistryFixture fixture;
     QVERIFY(

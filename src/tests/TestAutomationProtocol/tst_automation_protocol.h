@@ -35,6 +35,8 @@ private slots:
     void batchImportPlanRevalidation();
     void fillLyricsOptions_data();
     void fillLyricsOptions();
+    void fillLyricsInputLanguagePreference_data();
+    void fillLyricsInputLanguagePreference();
     void fillLyricsUnavailableLanguage();
     void parameterQueryBoundsSamplesAndPreservesAnchors();
     void publicParameterEditsPreserveCurvesAndUndo();
