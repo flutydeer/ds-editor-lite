@@ -1,6 +1,6 @@
 # 音符语种模型重构：意图、能力与解析
 
-> 状态：✅ 已实施，待验收（2026-11-22）。
+> 状态：✅ 已实施，待验收（2026-11-24 修订：删除片段级语种，填词初值改由音符声明推导）。
 > 关联工单：rKgePB「切换剪辑语种导致原有音符不发声」、rXtAd3「语言切换（建议）」
 
 ## 0. 摘要
@@ -13,7 +13,7 @@
 
 - 音符语种只有两态，未指定、已指定。未指定只由**当前歌手的可用转换路由**解析，优先歌手默认，否则取路由列表首项，不读片段、轨道或应用设置。
 - 应用级「默认演唱语种」降级为**交互创建时的偏好**，在歌手的转换路由能力内兑现，兑现不了就静默留空。语种与默认歌词由同一次创建决策产生。
-- 片段级语种改名为**录入语种**，只做填词对话框的预选和工具栏显示，不参与推理。
+- 片段不保存语种。填词语种初值由所选音符已有的声明推导，多数一致时预选，混杂或全未指定时自动识别。
 - 轨道级语种删除。
 - 转换路由冲突与模型音素不兼容分别诊断，不静默改写声明，也不保证保留的手工音素一定可合成。
 - 填词语种选择器改为「优先级 + 兜底」，所选语种实际参与 tagger 排序，不做「强制全部」。
@@ -111,7 +111,6 @@ SynthV 可以让所有歌手支持所有语种，因为音素空间统一，语�
 |---|---|---|
 | 转换语种 | 音符声明的语种，决定 G2P / S2P 路由 | 音符 |
 | 合成语种 | 单个音素的字典语种，决定 SP token 路由 | 音素 |
-| 录入语种 | 用户填词时选择的语种，只影响填词预选和显示 | 片段 |
 | 歌手默认语种 | 声库包声明的首选转换语种，不可路由时按有序路由回退 | 歌手 |
 | 默认演唱语种 | 应用设置里的用户偏好，只在新音符创建时兑现 | 应用 |
 
@@ -133,7 +132,7 @@ SynthV 可以让所有歌手支持所有语种，因为音素空间统一，语�
 | D1 | 音符语种只保留两态，未指定与已指定 | `unknown` 是检测失败的产物，不是用户意图。检测失败应该表现为未指定 | 保留三态。否，它让「未指定」和「检测失败」在 UI 和推理里都要分叉 |
 | D2 | 未指定只按歌手转换路由解析，优先默认，否则取首项 | 不向片段、轨道语种或应用偏好继续回退，解析结果来源唯一可解释 | 保留音符到片段到轨道到应用的四级链路。否，它正是本次缺陷的来源 |
 | D3 | 删除轨道级语种 | 轨道不参与合成，它的语种没有消费者，存在只让用户以为「设了就会生效」 | 保留作为批量默认。否，批量应该是显式动作 |
-| D4 | 片段语种改名录入语种，只做填词预选 | 需要记住用户填词时选的语种，避免每次重选，但它不能影响推理 | 直接删除。否，社区会反复填词 |
+| D4 | 片段不存语种，填词初值由所选音符的多数已有声明推导 | 需要记住用户上次填词选的语种，但这个意图已经写在音符上。存一份片段副本会与音符不一致，还要维护生效、失效与警示 | 片段存录入语种。否，它把一个只做预选的值抬成需要用户维护的文档状态。直接删除且不留推导。否，社区会反复填词 |
 | D5 | 应用级默认演唱语种降级为创建时偏好 | 它缺少歌手这个前提。作为偏好仍有价值，但不能参与解析 | 删除。否，用户仍希望新建音符默认用某种语言 |
 | D6 | 默认歌词按新音符的实际解析语种查表 | 已有 `defaultLyrics` 表可复用，关键是歌词与音符语种来自同一次创建决策 | 无条件按歌手默认语种查表。否，会与受支持的应用偏好错配 |
 | D7 | 冲突用音符级红叉，暂不做汇总徽标 | 现有 `noteInferenceErrors` 通道已经能表达，汇总徽标要新造 UI 且信息密度低 | 汇总徽标。暂缓，不是永久放弃 |
@@ -153,7 +152,6 @@ SynthV 可以让所有歌手支持所有语种，因为音素空间统一，语�
 |---|---|---|---|
 | 音符语种 | `Note::m_language` | opendspx `Note.language` | 是，转换路由 |
 | 音素语种 | `PhonemeName::language` | 音符 workspace `phoneme` | 是，合成路由 |
-| 录入语种 | `SingingClip::m_inputLanguage` | 片段 workspace `inputLanguage` | 否 |
 | 歌手默认语种 | `SingerInfo::defaultLanguage` | 声库包 | 是，未指定时的解析 |
 | 转换语种能力 | 歌手上下文的转换路由元数据 | 声库包 | 是，解析与词级冲突校验 |
 | 模型音素能力 | `SingerCapabilitySummary` | 声库包 | 是，音素兼容性诊断，不直接决定词级语种 |
@@ -253,20 +251,19 @@ conflicts(clip, candidateSinger):
 
 这条公理支持 D10 对**音素**的规则：换语种时 `original` 必须重算，音素 `edited` 必须保留。词级的 `pronunciation.edited` 则按第 9 节清除，不属于手工音素保留承诺。
 
-### 4.6 录入语种
+### 4.6 填词初值
 
-- 片段级字段，`""` 表示「跟随歌手」。
-- 只做两件事，一是填词对话框的默认选择，二是工具栏的显示。
-- 绝不参与解析，绝不因为改变它而修改任何音符。
-- 默认值为 `""`。它不用歌手默认语种初始化，因为它是用户的选择，不是解析结果。
-- 用户选择了歌手不支持的语种时，控件显示警示图标，不改写任何东西。
+- 没有片段级语种字段。填词对话框的初值由**所选音符已声明的语种**推导，取多数一致的、且歌手能路由的那一种。
+- 推导见 `LanguageCompatibility::dominantLanguage`。没有声明、声明平票、或占多数的语种歌手无法路由时返回空，按自动识别开始。
+- 它只决定选择器的初始项，不改变任何音符。用户在对话框里改动只影响本次填词。
+- 选择器只列出自动识别与当前歌手的转换路由，因此不存在「选了但不可路由」的状态，也不需要警示图标。
 
 ## 5. 持久化与序列化
 
 ### 5.1 opendspx
 
 - `Note.language` 保持官方字段，未指定写空串。
-- 片段 `inputLanguage` 写入 `ds-editor-lite` workspace。原 `defaultLanguage` 键改名，读取时先找新键，找不到再看旧键。这是一行兼容，不是迁移器。
+- 片段 workspace 不写语种。旧工程的 `inputLanguage` 与 `defaultLanguage` 键读取时忽略，其中的值与音符无关。
 - 删除片段 workspace 的 `defaultLanguage` 与 `defaultG2pId`。
 - 删除轨道 workspace 的 `defaultLanguage` 与 `defaultG2pId`。
 - 删除模型里的 `m_defaultG2pId`。它从来没被读过，而且 [SingingClip::defaultG2pId](../../src/libs/ProjectModel/AppModel/SingingClip.cpp#L245) 用的是 own singer 而不是 effective singer，属于死代码加错误来源。
@@ -283,16 +280,14 @@ conflicts(clip, candidateSinger):
 
 ### 5.3 不做迁移
 
-内测期不做工程级迁移。用户打开旧工程时，音符上写过语种的保留成已指定，空着的变成未指定并按歌手的有序转换路由解析。片段上被 latch 过的值会作为录入语种保留，但不再影响音符。如果结果不符合预期，用户可以批量修，而批量修现在是显式且一次撤销的。
+内测期不做工程级迁移。用户打开旧工程时，音符上写过语种的保留成已指定，空着的变成未指定并按歌手的有序转换路由解析。旧工程片段上 latch 过的语种值没有消费者，直接丢弃。如果结果不符合预期，用户可以批量修，而批量修现在是显式且一次撤销的。
 
 ## 6. 交互
 
 ### 6.1 片段工具栏
 
-- 语种下拉的标签从「语言」改为「录入语种」。
-- 选项为「跟随歌手」加当前歌手可用的转换路由语种。歌手未解析时只显示「跟随歌手」并禁用。已有非空录入值即使不再可用也保留显示并警示，不在刷新控件时抹掉。
-- 改变它只写片段字段，不动音符。
-- 它的值作为填词对话框的默认选择。
+- 工具栏不设语种控件。片段没有语种字段，名字与歌手之外没有可编辑的语种状态。
+- 填词语种完全在填词对话框里决定，初值来自所选音符的声明（4.6）。
 
 ### 6.2 音符右键
 
@@ -354,8 +349,8 @@ newNoteDefaults(singer, preference, defaultLyrics):
 
 - 在文本输入页的拆分选项旁增加「语种」下拉。
 - 选项为「自动识别」加当前歌手可用的转换路由语种。没有歌手时只有「自动识别」。
-- 初值取 `clip->inputLanguage()`。已有值不再可用时保留警示，要求重选或明确改为自动识别，不能悄悄当作有效兜底。
-- 改变语种会按当前拆分模式重新拆分，因为 tagger 的优先级顺序影响分词结果。沿用已有的预览覆盖确认，拒绝时保留原选择和预览。接受后更新同一份上下文，片段字段在最终确认填词时写回。
+- 初值由所选音符多数声明的语种决定（4.6）。没有可用初值时是自动识别。
+- 改变语种会按当前拆分模式重新拆分，因为 tagger 的优先级顺序影响分词结果。沿用已有的预览覆盖确认，拒绝时保留原选择和预览。接受后更新同一份上下文，选择不写回工程。
 
 ## 7. 填词链路改造
 
@@ -394,15 +389,15 @@ for each token in tagged:
 - **指定语种模式**先让所选语种的 tagger 尝试，再让其他语种识别。已识别且有转换路由的其他语种保留，未知或无转换路由的结果落到所选语种。不强制把全部词改成所选语种，也不保证最终音素一定可被模型合成。
 - 普通话与粤语都用汉字规则，因此选择粤语必须使粤语 tagger 先于普通话。歌手默认普通话、同时支持两者时，选择粤语后汉字应标记 `yue`。选择英语或日语时，其他 tagger 已识别的异语种仍可保留。
 - 拆分、预览 G2P、确认回写共用同一份选择与优先级上下文。`G2pService` 的第二次 tag 不能重新退回歌手默认优先，且不得覆盖已有明确语种的 token。
-- `inputLanguage` 是初始选择来源，不是有效选择的保证。换歌手后若保存值已不在转换路由集合中，展示警示并停用导入按钮，要求用户重选或明确选择自动识别，不把无效值用作兜底，也不静默覆写保存值。
+- 初值由所选音符多数声明的语种决定（4.6）。选择器只列自动识别与当前转换路由，所以不存在不可路由的选择，也不需要警示或停用导入。
 - 预览里已有手工修改的音节时，切换语种先确认再重建预览。取消时把下拉框与上下文选择一起还原，修改原样保留。
 
 ### 7.3 代码触点
 
-- `ClipController::onFillLyric`：构建转换路由上下文、持久化用户选择的 `inputLanguage`。
+- `ClipController::onFillLyric`：构建转换路由上下文，用 `dominantLanguage` 从选中音符推导初值。
 - `LyricDialog`、`LyricTab`、`LyricWrapView` 与 `LyricBaseWidget`：传递同一份选择、优先级与可用转换语种，在选择变化后重新拆分。
 - `G2pService::convert`：接收同一份填词上下文，统一 tagger 优先级与兜底，不另建一套规则。
-- 回写处：未知结果映射为未指定，其他结果显式存储，提交前重新校验选择仍可用。
+- 回写处：未知结果映射为未指定，其他结果显式存储。
 - `FillLyricOption::exportLanguage`：确认无消费者后删除。它是持久化字段，但只有写没有读。
 
 ## 8. 复合命令与撤销
@@ -448,7 +443,7 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 
 ### 8.4 快照字段
 
-`ClipSnapshotDto::effectiveDefaultLanguage` 换成 `inputLanguage`。公开 schema 的 `default_language` 同步改名为 `input_language`。这是破坏性变更，按 D12 不做兼容别名。
+`ClipSnapshotDto::effectiveDefaultLanguage` 与片段语种一起删除，公开 schema 不再有 `default_language` 或 `input_language`。`clips.set_input_language` 一并移除。这是破坏性变更，按 D12 不做兼容别名。
 
 ## 9. 音素级联规则
 
@@ -518,18 +513,18 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 - 继承片段从普通话轨道移到粤语轨道，清除旧 `ni3` 手工发音、保留手工音素，撤销移动同时恢复发音与归属。覆盖移动到新轨道的复合路径，独立声源片段移动时不因轨道歌手不同而误清除。
 - 初次装载不伪造清除历史。装载后切换上下文、保存与重开，验证已提交的清除结果和保留的手工音素。
 - 预检后文档或目标路由元数据变化时，不按旧确认静默提交。修复目标无可用路由时拒绝，无部分修改。
-- 交互创建同时传入语种与歌词。自动化 draft 的显式值和空语种不被 GUI 偏好覆盖。导入保留源声明，切换片段和修改录入语种不再 latch 回写。
+- 交互创建同时传入语种与歌词。自动化 draft 的显式值和空语种不被 GUI 偏好覆盖。导入保留源声明，切换片段不再 latch 回写。
 - 默认普通话且支持普通话/粤语，选择粤语输入汉字，拆分、预览转换与提交均为 `yue`。重选普通话重新拆分后为 `cmn`，验证 G2P 二次 tag 没有恢复旧优先级。
 - 自动模式与指定模式分别覆盖英日混杂、未知 token、无转换路由的 tagger 结果。指定模式保留已识别且可路由的其他语种，自动模式暴露不支持声明。
 - 保留的手工音素含新模型未知 token 或字典语种时，出现音素兼容性错误，不显示「仍会正常合成」。测试用可控离线表验证错误传播，不下载真实模型。
 
 ### 11.3 GUI
 
-- 工具栏显示录入语种，改变它只影响填词预选，不影响已有音符。
+- 工具栏没有语种控件，填词语种只影响本次填词。
 - 转换冲突与音素兼容性错误可见，手工音素附加说明不承诺成功合成。
 - 选择具体歌手与切回轨道歌手均覆盖取消、保留声明、修复三种选择。取消不写入，无可用目标时修复禁用。
 - 只有未指定音符的手工发音将失效、没有声明冲突时，也显示清除数量并允许取消。撤销后控件与手工发音同时恢复。
-- 换歌手后保存的录入语种已不可用时，显示警示，不能作为填词兜底直接提交。
+- 填词对话框的语种初值随所选音符走：多数是粤语时预选粤语，混杂或全未指定时是自动识别。
 - 音素编辑器重置按钮在 `original` 为空时禁用。
 
 ## 12. 明确不做
@@ -541,7 +536,7 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 - 不做老工程迁移器。
 - 不保留 `unknown` 第三态。
 - 不保留轨道级语种。
-- 不在工具栏语种上做隐式批量，批量必须是显式菜单动作。
+- 不保留片段级语种，也不在工具栏做隐式批量，批量必须是显式菜单动作。
 
 ## 13. 待确认与实施检查
 
@@ -561,7 +556,7 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 - 新增 `src/libs/ProjectModel/Voice/LanguageCompatibility.h/.cpp`，消费只读路由投影，提供 `conversionSupport`、`supportedLanguages`、`fallbackLanguage`、`conflicts`。保持 `Known` / `Unresolved` 区分，不依赖 GUI 设置或模型加载状态。
 - [PackageManager.cpp](../../src/libs/PackageManager/PackageManager.cpp)、[SynthrtEngine.cpp](../../src/libs/SynthrtEngine/SynthrtEngine.cpp)：接通与语言服务同源、精确到包版本和歌手的路由元数据投影，补齐空歌手声明时的包级兜底。模型层仅消费数据，不直接调用引擎。
 - [Note.cpp](../../src/libs/ProjectModel/AppModel/Note.cpp)：新增 `NoteLanguageState`、`languageState()`、`resolvedLanguage()`，删除 `effectiveLanguage()`，读入时把 `"unknown"` 归一为未指定。
-- [SingingClip.cpp](../../src/libs/ProjectModel/AppModel/SingingClip.cpp)：`m_defaultLanguage` 改为 `m_inputLanguage`，删除 `effectiveDefaultLanguage()`、`defaultG2pId()`、`m_defaultG2pId`、`updateDefaultG2pId()`，信号改名。
+- [SingingClip.cpp](../../src/libs/ProjectModel/AppModel/SingingClip.cpp)：保留 `fallbackLanguage()` 作为未指定音符的解析语种，删除 `defaultG2pId()`、`m_defaultG2pId`、`updateDefaultG2pId()` 与全部片段级语种字段（`m_defaultLanguage`、`m_inputLanguage`）。
 - [Track.cpp](../../src/libs/ProjectModel/AppModel/Track.cpp)：删除 `defaultLanguage()`、`setDefaultLanguage()`、`defaultLanguageChanged`、`defaultG2pId()`、`updateDefaultG2pId()`。
 - [AppModel.cpp](../../src/libs/ProjectModel/AppModel/AppModel.cpp)：删除 `m_defaultSingingLanguage`、`setDefaultSingingLanguage()`、`setData` 的语种填充、`newProject` 的轨道语种写入。
 
@@ -569,8 +564,8 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 
 - `AppContext`：删除 `pushModelDefaults` 及其连接。
 - `TrackController`：删除新建轨道与新建片段的语种播种，删除 `changeTrackDefaultLanguage`。
-- [ClipController.cpp](../../src/app/Controller/ClipController.cpp)：`onFillLyric` 的上下文与 `inputLanguage` 持久化，回写时把未知结果映射为未指定。
-- [ClipEditorToolBarView.cpp](../../src/app/UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp)：语种下拉改为录入语种，删除 latch。指定歌手与使用轨道歌手共用预检及确认逻辑。
+- [ClipController.cpp](../../src/app/Controller/ClipController.cpp)：`onFillLyric` 用 `dominantLanguage` 从选中音符推导初值，回写时把未知结果映射为未指定，不持久化任何片段语种。
+- [ClipEditorToolBarView.cpp](../../src/app/UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp)：删除语种下拉与 latch。指定歌手与使用轨道歌手共用预检及确认逻辑。
 - `TrackControlView`：删除语种下拉与 latch。
 - [PianoRollGraphicsViewHelper.cpp](../../src/app/UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsViewHelper.cpp)：使用共享创建策略同时填充 draft 的语种与默认歌词，不无条件读取歌手默认语种。音符诊断展示转换冲突与独立的音素错误。
 - `PhonemeView`：`noteLanguage` 改用 `resolvedLanguage()`。
@@ -588,22 +583,22 @@ UI 按目标 voice context 预检两种提交选项，显示冲突集合与实�
 
 ### 自动化层
 
-- `ProjectAutomationFacade`、[ProjectAutomationDtos.cpp](../../src/app/Automation/ProjectAutomationDtos.cpp)：`ClipSnapshotDto` 与 `ClipDraftDto` 的语种字段改名，删除轨道语种相关入口。`buildNote` 不读取应用偏好，创建默认值在上层填入 draft。
+- `ProjectAutomationFacade`、[ProjectAutomationDtos.cpp](../../src/app/Automation/ProjectAutomationDtos.cpp)：删除 `ClipSnapshotDto` 与 `ClipDraftDto` 的语种字段，删除轨道语种相关入口。`buildNote` 不读取应用偏好，创建默认值在上层填入 draft。
 - [ParameterAutomationFacade.cpp](../../src/app/Automation/ParameterAutomationFacade.cpp)：`selectClipSingleSpeaker` 和 `useTrackVoiceContext` 增加 `languageRepair` 参数，共用目标 voice context 复合构造。其他片段和轨道声源入口接入必要的语种变化级联。
 - [SpeakerMixActions.cpp](../../src/app/Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp)：保留继承与独立上下文动作的区别，复合动作保存可撤销的全部词级变化。
 - [MoveClipToTrackAction.cpp](../../src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.cpp)、[MoveClipsWithNewTrackActions.cpp](../../src/app/Controller/Actions/AppModel/Clip/MoveClipsWithNewTrackActions.cpp)：跨轨移动时按实际有效歌手变化应用级联，与移动操作同一撤销步骤。
-- [PublicToolContract.cpp](../../src/libs/AutomationWire/PublicToolContract.cpp)：两个片段命令的公开 schema 增加 `language_repair`，快照字段改名。
-- [PublicAutomationRegistry.cpp](../../src/app/Automation/Public/PublicAutomationRegistry.cpp)：同步两个命令的执行绑定，不将 registry 当作唯一 schema 定义。
+- [PublicToolContract.cpp](../../src/libs/AutomationWire/PublicToolContract.cpp)：两个片段命令的公开 schema 增加 `language_repair`，快照去掉片段语种字段并移除 `clips.set_input_language`。
+- [PublicAutomationRegistry.cpp](../../src/app/Automation/Public/PublicAutomationRegistry.cpp)：同步命令绑定，`notes.fill_lyrics` 未指定语种时按音符推导，不将 registry 当作唯一 schema 定义。
 - `SettingsAutomationFacade`、`AppOptionsAutomationAdapter`：偏好字段及说明对齐。
 
 ### 转换器
 
-- [DspxProjectConverter.cpp](../../src/libs/ProjectConverters/DspxProjectConverter.cpp)：音符语种空值处理，片段 workspace 写 `inputLanguage`，删除轨道语种与 `defaultG2pId` 的读写，保留源文件的显式音符语种。
+- [DspxProjectConverter.cpp](../../src/libs/ProjectConverters/DspxProjectConverter.cpp)：音符语种空值处理，片段 workspace 不写语种，删除轨道语种与 `defaultG2pId` 的读写，保留源文件的显式音符语种。
 - [MidiConverter.cpp](../../src/libs/ProjectConverters/MidiConverter.cpp)、[MidiConverterUi.cpp](../../src/app/Modules/ProjectConverters/MidiConverterUi.cpp)、[DocumentImportController.cpp](../../src/app/Modules/Import/DocumentImportController.cpp)：需要补默认值的入口对齐创建策略，不在工程装载后用应用偏好覆盖已有音符。
 
 ### 填词
 
 - `LyricBaseWidget`：新增语种下拉与重新拆分，沿用预览覆盖确认。
-- [LyricDialog.cpp](../../src/app/UI/Dialogs/FillLyric/LyricDialog.cpp)、[LyricTab.cpp](../../src/app/Modules/FillLyric/LyricTab.cpp)、[LyricWrapView.cpp](../../src/app/Modules/FillLyric/Controls/LyricWrapView.cpp)：传递选择、优先级、可用路由与 `inputLanguage`，避免中途重新构造不同优先级。
+- [LyricDialog.cpp](../../src/app/UI/Dialogs/FillLyric/LyricDialog.cpp)、[LyricTab.cpp](../../src/app/Modules/FillLyric/LyricTab.cpp)、[LyricWrapView.cpp](../../src/app/Modules/FillLyric/Controls/LyricWrapView.cpp)：传递选择、优先级与可用路由，避免中途重新构造不同优先级。只能选到可用路由，不需要不可用选择的分支。
 - [G2pService.cpp](../../src/app/Modules/FillLyric/Utils/G2pService.cpp)：接收共享填词上下文，统一二次 tag 和兜底规则。
 - `FillLyricOption`：确认后删除 `exportLanguage`。

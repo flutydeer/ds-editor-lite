@@ -2087,7 +2087,6 @@ namespace {
         QVERIFY(inherited.value(QStringLiteral("own_voice")).isNull());
         QVERIFY(inherited.value(QStringLiteral("available")).toBool());
         QCOMPARE(inherited.value(QStringLiteral("effective_voice")).toObject(), exactVoice);
-        QVERIFY(inherited.value(QStringLiteral("input_language")).isNull());
 
         QVERIFY(invokeChangedOnce(
             registry, runtime, QStringLiteral("notes.insert"),
@@ -2126,7 +2125,6 @@ namespace {
         QVERIFY(!independent.value(QStringLiteral("inherits_track")).toBool());
         QCOMPARE(independent.value(QStringLiteral("own_voice")).toObject(), independentVoice);
         QCOMPARE(independent.value(QStringLiteral("effective_voice")).toObject(), independentVoice);
-        QVERIFY(independent.value(QStringLiteral("input_language")).isNull());
 
         QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.use_track_voice"),
                                   {
@@ -2137,20 +2135,6 @@ namespace {
         const auto restored = queryClipVoice();
         QVERIFY(restored.value(QStringLiteral("inherits_track")).toBool());
         QCOMPARE(restored.value(QStringLiteral("effective_voice")).toObject(), changedTrackVoice);
-        QVERIFY(restored.value(QStringLiteral("input_language")).isNull());
-        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_input_language"),
-                                  {
-                                      {QStringLiteral("clip_id"),     voiceClipId.value() },
-                                      {QStringLiteral("language_id"), QStringLiteral("ja")}
-        },
-                                  QStringLiteral("clip-explicit-language"),
-                                  QStringLiteral("explicit clip language overrides the singer")));
-        const auto explicitLanguage = queryClipVoice();
-        QCOMPARE(explicitLanguage.value(QStringLiteral("input_language"))
-                     .toObject()
-                     .value(QStringLiteral("language_id"))
-                     .toString(),
-                 QStringLiteral("ja"));
 
         const auto editMix = [&](const QString &operation, QJsonObject arguments) {
             return invokeChangedOnce(registry, runtime, operation, arguments,

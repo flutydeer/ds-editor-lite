@@ -277,12 +277,8 @@ namespace FillLyric {
             added.insert(language);
             m_languageComboBox->addItem(LanguageDisplayUtils::displayName(language), language);
         }
-        // A stored choice the singer cannot route stays selectable so the user
-        // sees the mismatch instead of silently dropping it.
-        const auto choice = m_languageContext->choice();
-        if (!choice.isEmpty() && !added.contains(choice))
-            m_languageComboBox->addItem(LanguageDisplayUtils::displayName(choice), choice);
 
+        const auto choice = m_languageContext->choice();
         const auto index = m_languageComboBox->findData(choice);
         m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
         m_previousLanguageChoice = choice;
@@ -304,16 +300,9 @@ namespace FillLyric {
     void LyricBaseWidget::updateLanguageToolTip() {
         if (!m_languageContext || !m_languageComboBox)
             return;
-        if (m_languageContext->choiceUnavailable()) {
-            m_languageComboBox->setToolTip(QCoreApplication::translate(
-                "LyricBaseWidget",
-                "The singer cannot use this language. Pick another one to import lyrics."));
-        } else {
-            m_languageComboBox->setToolTip(QCoreApplication::translate(
-                "LyricBaseWidget",
-                "The chosen language ranks first. Characters the lyric engine cannot identify "
-                "fall back to it."));
-        }
+        m_languageComboBox->setToolTip(QCoreApplication::translate(
+            "LyricBaseWidget", "The chosen language ranks first. Characters the lyric "
+                               "engine cannot identify fall back to it."));
     }
 
     void LyricBaseWidget::onSplitComboBoxCurrentIndexChanged(int index) const {

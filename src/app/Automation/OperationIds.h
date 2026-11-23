@@ -32,7 +32,6 @@ namespace Automation::OperationIds {
     X(clips, rename, "clips.rename")                                                               \
     X(clips, resize_left, "clips.resize_left")                                                     \
     X(clips, resize_right, "clips.resize_right")                                                   \
-    X(clips, set_input_language, "clips.set_input_language")                                   \
     X(clips, set_gain, "clips.set_gain")                                                           \
     X(clips, set_mute, "clips.set_mute")                                                           \
     X(clips, set_properties, "clips.set_properties")                                               \

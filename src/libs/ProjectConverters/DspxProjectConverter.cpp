@@ -980,14 +980,6 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                     clip->setOwnVoiceContext({}, {}, {});
                 }
 
-                // Read the clip input language. The key was renamed from
-                // defaultLanguage when the clip field stopped affecting inference.
-                auto clipLang = clipDsWs["inputLanguage"].toString();
-                if (clipLang.isEmpty())
-                    clipLang = clipDsWs["defaultLanguage"].toString();
-                if (!clipLang.isEmpty())
-                    clip->setInputLanguage(clipLang);
-
                 track->insertClip(clip);
             } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
                 const auto castClip = std::static_pointer_cast<opendspx::AudioClip>(dspxClip);
@@ -1237,10 +1229,6 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
                 clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
                 const bool useTrackInfo = singingClip->usesTrackVoiceContext();
                 clipDsWs["useTrackSingerInfo"] = useTrackInfo;
-
-                const auto inputLanguage = singingClip->inputLanguage();
-                if (!inputLanguage.isEmpty())
-                    clipDsWs["inputLanguage"] = inputLanguage;
 
                 if (!useTrackInfo) {
                     auto sourceMixState =

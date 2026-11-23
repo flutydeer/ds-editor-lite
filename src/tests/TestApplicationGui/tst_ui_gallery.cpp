@@ -1084,12 +1084,11 @@ void ApplicationGuiTests::captureUiGallery() try {
     show(PhonemeEditorDialog(notes.first(), &window), Module::Lyrics,
          QStringLiteral("Edit phonemes"));
     {
-        LyricDialog lyrics(
-            singingClip, notes, singingClip->singerIdentifier(),
-            std::make_shared<FillLyric::LyricLanguageContext>(
-                QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
-                singingClip->inputLanguage()),
-            &window);
+        LyricDialog lyrics(singingClip, notes, singingClip->singerIdentifier(),
+                           std::make_shared<FillLyric::LyricLanguageContext>(
+                               QStringList{TestSupport::fixtureLanguage()},
+                               TestSupport::fixtureLanguage(), QString()),
+                           &window);
         lyrics.show();
         lyrics.activateWindow();
         auto *input = lyrics.findChild<FillLyric::PhonicTextEdit *>();

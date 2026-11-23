@@ -127,7 +127,6 @@ QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
 }
 
 TwoLevelComboBox#cbClipSinger,
-ComboBox#cbClipLanguage,
 ComboBox#cbPianoRollQuantize {
     background: ${surface.raised};
     border: none;
@@ -146,20 +145,17 @@ TwoLevelComboBox#cbClipSinger:disabled {
     color: ${control.foreground.disabled};
 }
 
-TwoLevelComboBox#cbClipSinger[groupPos="first"],
-ComboBox#cbClipLanguage[groupPos="first"] {
+TwoLevelComboBox#cbClipSinger[groupPos="first"] {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
 
-TwoLevelComboBox#cbClipSinger[groupPos="last"],
-ComboBox#cbClipLanguage[groupPos="last"] {
+TwoLevelComboBox#cbClipSinger[groupPos="last"] {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
 }
 
 TwoLevelComboBox#cbClipSinger[groupPos="only"],
-ComboBox#cbClipLanguage[groupPos="only"],
 ComboBox#cbPianoRollQuantize[groupPos="only"] {
     border-radius: 4px;
 }

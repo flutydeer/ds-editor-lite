@@ -12,8 +12,8 @@ class Note;
 /// Word-level (conversion) language capability and conflict analysis.
 ///
 /// The only inputs are the ordered conversion routes recorded on the singer and
-/// the languages the notes declare. Model phoneme/language tables, the clip and
-/// track input languages, and the application preference never participate.
+/// the languages the notes declare. Model phoneme/language tables and the
+/// application preference never participate.
 namespace LanguageCompatibility {
 
     enum class SupportState {
@@ -65,6 +65,14 @@ namespace LanguageCompatibility {
     /// The singer default language when it is addressable, else the first
     /// addressable route, else empty.
     QString fallbackLanguage(const SingerInfo &singer);
+
+    /// The language a group of notes declares most often, when the singer can
+    /// route it and no other declared language ties with it. Empty when the
+    /// notes declare nothing, split evenly, or only declare unroutable
+    /// languages. Fill Lyric uses this as the language the notes already agree
+    /// on instead of storing a separate clip-level preference.
+    QString dominantLanguage(const QStringList &declaredLanguages,
+                             const QStringList &supportedLanguages);
 
     /// Groups the specified-language notes the singer cannot route. Notes are
     /// visited in clip order, so the result and every id list are stable.
