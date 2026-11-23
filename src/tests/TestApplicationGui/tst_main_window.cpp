@@ -181,7 +181,6 @@ namespace {
         auto *clip = new SingingClip;
         clip->setLength(1920);
         clip->setClipLen(1920);
-        clip->setInputLanguage(QStringLiteral("eng"));
         auto *note = new Note(clip);
         note->setLocalStart(0);
         note->setLength(480);

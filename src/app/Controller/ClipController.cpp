@@ -632,11 +632,16 @@ void ClipController::onFillLyric(QWidget *parent) {
     }
 
     const auto singerInfo = singingClip->singerInfo();
+    const auto supportedLanguages = LanguageCompatibility::supportedLanguages(singerInfo);
     // The selector offers the routes the singer can address and preselects the
-    // clip's stored input language, so the dialog and the write-back agree.
+    // language the notes being filled already agree on. Nothing is stored: a
+    // mixed or silent selection starts from automatic detection.
+    QStringList declaredLanguages;
+    for (const auto &note : selectedNotes)
+        declaredLanguages.append(note->language());
     auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
-        LanguageCompatibility::supportedLanguages(singerInfo),
-        LanguageCompatibility::fallbackLanguage(singerInfo), singingClip->inputLanguage());
+        supportedLanguages, LanguageCompatibility::fallbackLanguage(singerInfo),
+        LanguageCompatibility::dominantLanguage(declaredLanguages, supportedLanguages));
 
     const auto singer = singerInfo.resolutionState() == ResolutionState::Resolved
                             ? singerInfo.identifier()
@@ -648,15 +653,6 @@ void ClipController::onFillLyric(QWidget *parent) {
 
     if (lyricDialog.result() != QDialog::Accepted)
         return;
-
-    // The dialog's language choice becomes the clip's input language for the next
-    // fill. It never touches the notes themselves.
-    if (auto *runtime = automationRuntime();
-        runtime && lyricDialog.inputLanguage() != singingClip->inputLanguage()) {
-        runtime->project().setSingingClipInputLanguage(
-            commandContext(*runtime), Automation::ClipId(singingClip->id()),
-            lyricDialog.inputLanguage());
-    }
 
     const auto lyricRes = lyricDialog.noteResult();
     auto noteRes = lyricRes.langNotes;

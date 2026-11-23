@@ -28,7 +28,6 @@ namespace {
         clip.properties.clipStart = 0;
         clip.properties.clipLen = 1920;
         clip.properties.gain = 1.0;
-        clip.inputLanguage = QStringLiteral("unknown");
         clip.notes.append({
             .clientRef = QStringLiteral("runtime-note"),
             .localStart = 0,

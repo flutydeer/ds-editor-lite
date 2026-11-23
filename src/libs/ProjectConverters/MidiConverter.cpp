@@ -51,7 +51,6 @@ static void convertClips(const opendspx::Track &track, Track *dsTrack, const QSt
             const auto visibleLength = clip->time.clipLen + 960;
             singingClip->setLength(qMax(clip->time.length, clip->time.clipStart + visibleLength));
             singingClip->setClipLen(visibleLength);
-            singingClip->setInputLanguage(language);
 
             auto notes = convertNotes(singClip->notes, start, language, defaultLyric);
             for (const auto note : notes) {

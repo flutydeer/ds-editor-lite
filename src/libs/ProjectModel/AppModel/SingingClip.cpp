@@ -19,11 +19,9 @@
 using namespace SpeakerMixModel;
 
 SingingClip::SingingClip() : Clip(), params(this) {
-    init();
 }
 
 SingingClip::SingingClip(const QList<Note *> &notes) : Clip(), params(this) {
-    init();
     insertNotes(notes);
 }
 
@@ -211,16 +209,6 @@ quint64 SingingClip::bumpInferenceRevision() {
     return ++m_inferenceRevision;
 }
 
-void SingingClip::setInputLanguage(const QString &language) {
-    if (m_inputLanguage.get() == language)
-        return;
-    m_inputLanguage = language;
-}
-
-QString SingingClip::inputLanguage() const {
-    return m_inputLanguage.get();
-}
-
 QString SingingClip::fallbackLanguage() const {
     return LanguageCompatibility::fallbackLanguage(singerInfo());
 }
@@ -354,10 +342,6 @@ void SingingClip::useTrackSingerAndSpeaker() {
 
 SingerIdentifier SingingClip::singerIdentifier() const {
     return singerInfo().identifier();
-}
-
-void SingingClip::init() {
-    m_inputLanguage.onChanged(qSignalCallback(inputLanguageChanged));
 }
 
 void SingingClip::notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext) {

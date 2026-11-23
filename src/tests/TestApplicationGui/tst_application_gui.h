@@ -140,7 +140,7 @@ private slots:
     void fillLyricInputsCommitOrCancel_data();
     void fillLyricInputsCommitOrCancel();
     void lyricRuleEditingChangesThePreviewAndPersists();
-    void unavailableLyricLanguageChoiceBlocksTheImport();
+    void lyricLanguageSelectorOffersOnlySingerRoutes();
     void changingTheLyricLanguageKeepsTheEditedPreview();
     void typedLyricsSurviveALanguageChange();
     void unroutableDetectedLanguageSurvivesTheConversion();

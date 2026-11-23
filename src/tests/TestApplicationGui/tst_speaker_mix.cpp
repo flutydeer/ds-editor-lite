@@ -8,7 +8,6 @@
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixList.h"
 #include "UI/Controls/TwoLevelComboBox.h"
-#include "UI/Views/Common/LanguageComboBox.h"
 #include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Controller/TrackController.h"
@@ -139,11 +138,9 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     toolbar.show();
     toolbar.activateWindow();
     auto *label = toolbar.findChild<InlineEditLabel *>("leClipName");
-    auto *language = toolbar.findChild<LanguageComboBox *>();
     auto *noteTool = toolbar.findChild<QAbstractButton *>("btnNotePencil");
-    QVERIFY(label && language && noteTool);
+    QVERIFY(label && noteTool);
     QTRY_VERIFY(toolbar.isActiveWindow() && label->isVisible() && label->isEnabled());
-    QVERIFY(language->isVisible() && language->isEnabled());
     QVERIFY(noteTool->isVisible() && noteTool->isEnabled());
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
@@ -173,8 +170,6 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     QCOMPARE(second->name(), QStringLiteral("Second clip"));
     QCOMPARE(label->text(), second->name());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-    QCOMPARE(language->isVisible(), !secondAudio);
-    QCOMPARE(language->isEnabled(), !secondAudio);
     QCOMPARE(noteTool->isVisible(), !secondAudio);
     QCOMPARE(noteTool->isEnabled(), !secondAudio);
     edit("Edited second clip");
@@ -196,7 +191,6 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     const auto beforeReturnModel = TestSupport::projectSnapshot(*context->m_appModel);
     toolbar.setDataContext(first);
     QCOMPARE(label->text(), first->name());
-    QVERIFY(language->isVisible() && language->isEnabled());
     QVERIFY(noteTool->isVisible() && noteTool->isEnabled());
     QCOMPARE(runtime.documentVersion(), beforeReturn);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeReturnModel);
@@ -376,34 +370,6 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
     QVERIFY(modelClip->usesTrackVoiceContext());
     QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
     QVERIFY(!historyManager->canUndo());
-    if (clipTarget) {
-        auto *language = host->findChild<LanguageComboBox *>();
-        QVERIFY(language && language->isVisible() && language->isEnabled());
-        // Only a clip stores an input language, so the control exists there only.
-        const auto targetLanguage = [&] { return modelClip->inputLanguage(); };
-        const auto previousLanguage = targetLanguage();
-        const auto previousIndex = language->currentIndex();
-        const auto otherIndex = previousIndex == 0 ? 1 : 0;
-        QVERIFY(otherIndex < language->count());
-        const auto chosenLanguage = language->itemData(otherIndex).toString();
-        QVERIFY(!chosenLanguage.isEmpty() && chosenLanguage != previousLanguage);
-        const auto beforeLanguage = runtime.documentVersion();
-        const auto beforeLanguageModel = TestSupport::projectSnapshot(*context->m_appModel);
-        QTest::mouseClick(language, Qt::LeftButton);
-        QTRY_VERIFY(language->view()->isVisible());
-        QTest::keyClick(language->view(), Qt::Key_Home);
-        if (otherIndex == 1)
-            QTest::keyClick(language->view(), Qt::Key_Down);
-        QTest::keyClick(language->view(), Qt::Key_Return);
-        QCOMPARE(targetLanguage(), chosenLanguage);
-        QCOMPARE(language->currentLanguage(), chosenLanguage);
-        QCOMPARE(runtime.documentVersion().revision, beforeLanguage.revision + 1);
-        QVERIFY(runtime.history().undo(commandContext()));
-        QCOMPARE(targetLanguage(), previousLanguage);
-        QCOMPARE(language->currentLanguage(), previousLanguage);
-        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeLanguageModel);
-        QVERIFY(!historyManager->canUndo());
-    }
 }
 
 void ApplicationGuiTests::clipVoicePresetMenusConfirmLanguageRepair_data() {

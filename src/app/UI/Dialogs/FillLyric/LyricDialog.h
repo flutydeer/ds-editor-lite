@@ -36,8 +36,6 @@ public:
     void setLangNotes() const;
 
     LyricResult noteResult() const;
-    // The language the user picked for the next fill, empty for automatic detection.
-    QString inputLanguage() const;
     LyricResult exportLangNotes() const;
 
 protected:
@@ -52,8 +50,6 @@ private:
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
-    void updateAcceptState();
-    [[nodiscard]] bool choiceRoutable() const;
 
     static void _on_modifyOption(const FillLyric::LyricTabConfig &config);
 

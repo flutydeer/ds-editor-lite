@@ -470,7 +470,6 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     clip->setLength(3840);
     clip->setClipStart(120);
     clip->setClipLen(2880);
-    clip->setInputLanguage(QStringLiteral("eng"));
     track->insertClip(clip);
 
     auto *note = new Note;

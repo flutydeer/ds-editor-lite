@@ -11,7 +11,6 @@
 
 class SingingClip;
 class TwoLevelComboBox;
-class LanguageComboBox;
 class Clip;
 class QAbstractButton;
 class QWidget;
@@ -39,7 +38,6 @@ public:
     bool confirmLanguageRepair(const SingerInfo &targetSinger,
                                Automation::LanguageRepair &languageRepair) const;
     void refreshSingerComboPresentation() const;
-    void refreshLanguageComboPresentation() const;
     void populatePresetMenus() const;
     void retranslateUi() const;
     void onPresetApplied(const QString &presetId) const;
@@ -92,7 +90,6 @@ public:
     Button *m_btnPitchTrace = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
-    LanguageComboBox *m_cbClipLanguage = nullptr;
     ComboBox *m_cbPianoRollQuantize = nullptr;
 
     AdaptiveToolBar *m_adaptiveToolBar = nullptr;
@@ -101,8 +98,6 @@ public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
     void onClipNameEdited(const QString &text);
     void onClipPropertyChanged() const;
-    void onClipInputLanguageChanged(const QString &language) const;
-    void onInputLanguageEdited(const QString &language) const;
     void onSingerEdited() const;
 
 private:

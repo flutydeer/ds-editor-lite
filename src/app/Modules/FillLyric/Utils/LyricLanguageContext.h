@@ -10,10 +10,12 @@ namespace FillLyric {
 
     /// One language decision shared by the whole fill-lyric chain.
     ///
-    /// Built once from the clip's singer and its stored input language, then
-    /// handed to the splitter, the tagger, G2P and the write-back so every step
-    /// ranks and resolves languages the same way. The choice is a priority: it
-    /// never forces a token whose language is already known and routable.
+    /// Built once from the clip's singer and the languages the notes being
+    /// filled already declare, then handed to the splitter, the tagger, G2P and
+    /// the write-back so every step ranks and resolves languages the same way.
+    /// The choice is a priority: it never forces a token whose language is
+    /// already known and routable, and the selector only offers routable
+    /// languages, so a choice is either empty or convertible.
     class LyricLanguageContext {
     public:
         LyricLanguageContext() = default;
@@ -32,8 +34,6 @@ namespace FillLyric {
         [[nodiscard]] QStringList priorityLanguages() const;
         /// Languages the selector offers.
         [[nodiscard]] QStringList selectableLanguages() const;
-        /// True when a choice is set but the singer cannot route it.
-        [[nodiscard]] bool choiceUnavailable() const;
 
         /// The stored note declaration for a language the tagger detected.
         /// Returns empty for an unspecified note.

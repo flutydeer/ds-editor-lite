@@ -1760,38 +1760,6 @@ void ProjectEditingTests::singingClipEditing() {
     };
 
     {
-        // Automation::OperationIds::clips::set_input_language /
-        // QStringLiteral("validation-revision-history")
-
-        testRuntime.history()->reset();
-        const auto base = runtime.documentVersion();
-        const auto changed = runtime.project().setSingingClipInputLanguage(
-            commandContext(runtime), clip, QStringLiteral("ja"));
-        const auto snapshot = clipSnapshot(runtime, clip);
-        const auto state = runtime.history().getState(runtime.documentVersion().documentId);
-        QVERIFY2((changed && changed.get().current.revision == base.revision + 1 && snapshot &&
-                  snapshot->data.inputLanguage == QStringLiteral("ja") && state &&
-                  state.get().canUndo),
-                 qPrintable(QStringLiteral("clip language must advance revision with History")));
-        const auto noOp = runtime.project().setSingingClipInputLanguage(
-            commandContext(runtime), clip, QStringLiteral("ja"));
-        QVERIFY2((noOp && !noOp.get().changed),
-                 qPrintable(QStringLiteral("identical clip language must be a no-op")));
-        // The input language is a stored preference, so clearing it is a valid
-        // edit rather than an invalid argument.
-        const auto cleared = runtime.project().setSingingClipInputLanguage(
-            commandContext(runtime), clip, QString());
-        const auto clearedSnapshot = clipSnapshot(runtime, clip);
-        QVERIFY2((cleared && cleared.get().changed && clearedSnapshot &&
-                  clearedSnapshot->data.inputLanguage.isEmpty()),
-                 qPrintable(QStringLiteral("input language must be clearable")));
-        const auto undo = runtime.history().undo(commandContext(runtime));
-        const auto restored = clipSnapshot(runtime, clip);
-        QVERIFY2((undo && restored && restored->data.inputLanguage == QStringLiteral("ja")),
-                 qPrintable(QStringLiteral("clip language change must undo atomically")));
-    };
-
-    {
         // Automation::OperationIds::clips::remove / QStringLiteral("duplicates-preview-undo")
 
         testRuntime.history()->reset();

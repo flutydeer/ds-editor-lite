@@ -1058,8 +1058,6 @@ void TracksRhiWidget::rebuildModelConnections() {
                 scheduleSnapshot();
             });
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
-                connect(singing, &SingingClip::inputLanguageChanged, this,
-                        &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::noteChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::voiceContextChanged, this,

@@ -33,7 +33,6 @@ struct TrackPastePreviewClip {
     IClip::ClipType type = IClip::Generic;
     Clip::ClipCommonProperties properties;
     int trackIndexOffset = 0;
-    QString inputLanguage;
     QVector<TrackPastePreviewNote> notes;
     QString audioPath;
     AudioInfoModel audioInfo;

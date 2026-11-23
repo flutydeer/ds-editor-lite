@@ -536,7 +536,6 @@ namespace Automation {
                 input.destinationMode.isEmpty() ? input.audioClipStartTick : input.targetStart;
             clip.properties.length = input.audioClipLengthTick;
             clip.properties.clipLen = input.audioClipLengthTick;
-            clip.inputLanguage = input.defaultLanguage;
             clip.notes = extractedNotes;
             if (input.targetTrackId) {
                 insertedClips.append({*input.targetTrackId, clip});

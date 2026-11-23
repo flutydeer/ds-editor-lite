@@ -63,7 +63,6 @@ namespace {
             preview.properties = Clip::ClipCommonProperties(*clip);
             preview.trackIndexOffset = info.trackIndexOffsets.value(index, 0);
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
-                preview.inputLanguage = singing->inputLanguage();
                 preview.notes.reserve(singing->notes().count());
                 for (const auto *note : singing->notes()) {
                     preview.notes.append(TrackPastePreviewNote{note->localStart(), note->length(),

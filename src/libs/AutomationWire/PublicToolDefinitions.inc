@@ -94,8 +94,6 @@ AUTOMATION_WIRE_PUBLIC_TOOL(clips_set_gain, "clips.set_gain", "clips", L1, Comma
                             NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(clips_set_mute, "clips.set_mute", "clips", L1, Command, Synchronous, 1,
                             NonDestructive, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(clips_set_input_language, "clips.set_input_language", "clips", L1,
-                            Command, Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(clips_use_track_voice, "clips.use_track_voice", "clips", L1, Command,
                             Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(clips_set_voice, "clips.set_voice", "clips", L1, Command, Synchronous,

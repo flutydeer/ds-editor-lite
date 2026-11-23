@@ -22,6 +22,7 @@ private slots:
     void speakerMixDynamicInferenceMix();
     void voiceContextNotificationsContainAtomicBeforeAndAfter();
     void languageCompatibilityRoutesAndConflicts();
+    void dominantLanguagePicksTheRoutableMajority();
     void voiceChangeClearsStaleInferenceErrors();
     void knownEmptyConversionRoutesAreReported();
     void voiceContextInheritanceOnlyChangePreservesInferenceInput();

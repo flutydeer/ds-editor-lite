@@ -71,7 +71,6 @@ namespace {
         clip.properties.name = QStringLiteral("Phrase");
         clip.properties.length = 3840;
         clip.properties.clipLen = 3840;
-        clip.inputLanguage = QStringLiteral("cmn");
         const QStringList lyrics{QStringLiteral("old-a"), QStringLiteral("-"),
                                  QStringLiteral("old-b"), QStringLiteral("old-c")};
         for (qsizetype index = 0; index < lyrics.size(); ++index) {
@@ -496,12 +495,10 @@ void AutomationProtocolTests::batchImportPlanRevalidation() {
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
-void AutomationProtocolTests::publicVoiceQueriesKeepInputPreferenceClipScoped() {
+void AutomationProtocolTests::publicVoiceQueriesDescribeOnlyVoiceState() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
-    auto draft = lyricTrack();
-    draft.clips.first().inputLanguage = QStringLiteral("eng");
-    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, draft));
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
     const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
     QVERIFY(project);
     const auto &track = project.get().tracks.first();
@@ -539,15 +536,13 @@ void AutomationProtocolTests::publicVoiceQueriesKeepInputPreferenceClipScoped() 
                                .toObject();
     QVERIFY(trackVoice.value(QStringLiteral("available")).toBool());
     QVERIFY(clipVoice.value(QStringLiteral("inherits_track")).toBool());
-    QCOMPARE(clipVoice.value(QStringLiteral("input_language")).toObject(),
-             (QJsonObject{
-                 {QStringLiteral("mode"),        QStringLiteral("explicit")},
-                 {QStringLiteral("language_id"), QStringLiteral("eng")     }
-    }));
+    // Nothing declares a clip language any more, so neither query may invent
+    // one from the singer. Fill Lyric derives its default from the notes.
+    QVERIFY(!trackVoice.contains(QStringLiteral("input_language")));
+    QVERIFY(!clipVoice.contains(QStringLiteral("input_language")));
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
-    QCOMPARE(trackVoice.value(QStringLiteral("input_language")), QJsonValue(QJsonValue::Null));
 }
 
 void AutomationProtocolTests::fillLyricsOptions_data() {
@@ -693,21 +688,28 @@ void AutomationProtocolTests::fillLyricsOptions() {
     QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
 }
 
-void AutomationProtocolTests::fillLyricsInputLanguagePreference_data() {
+void AutomationProtocolTests::fillLyricsDerivesLanguageFromNotes_data() {
+    QTest::addColumn<QString>("noteLanguage");
     QTest::addColumn<QString>("splitter");
     QTest::addColumn<QString>("languageMode");
     QTest::addColumn<QString>("expectedLanguage");
-    QTest::newRow("omitted-options-follows-clip")
-        << QString() << QString() << QStringLiteral("yue");
-    QTest::newRow("omitted-language-follows-clip")
-        << QStringLiteral("character") << QString() << QStringLiteral("yue");
-    QTest::newRow("explicit-overrides-clip")
-        << QStringLiteral("auto") << QStringLiteral("explicit") << QStringLiteral("cmn");
+    QTest::newRow("omitted-options-follows-notes")
+        << QStringLiteral("yue") << QString() << QString() << QStringLiteral("yue");
+    QTest::newRow("omitted-language-follows-notes")
+        << QStringLiteral("yue") << QStringLiteral("character") << QString()
+        << QStringLiteral("yue");
+    QTest::newRow("silent-notes-detect-from-singer")
+        << QString() << QString() << QString() << QStringLiteral("cmn");
+    QTest::newRow("explicit-overrides-notes")
+        << QStringLiteral("yue") << QStringLiteral("auto") << QStringLiteral("explicit")
+        << QStringLiteral("cmn");
     QTest::newRow("unspecified-detects-from-singer")
-        << QStringLiteral("auto") << QStringLiteral("unspecified") << QStringLiteral("cmn");
+        << QStringLiteral("yue") << QStringLiteral("auto") << QStringLiteral("unspecified")
+        << QStringLiteral("cmn");
 }
 
-void AutomationProtocolTests::fillLyricsInputLanguagePreference() {
+void AutomationProtocolTests::fillLyricsDerivesLanguageFromNotes() {
+    QFETCH(QString, noteLanguage);
     QFETCH(QString, splitter);
     QFETCH(QString, languageMode);
     QFETCH(QString, expectedLanguage);
@@ -723,9 +725,8 @@ void AutomationProtocolTests::fillLyricsInputLanguagePreference() {
          LanguageInfo(QStringLiteral("yue"), QStringLiteral("Cantonese"), QStringLiteral("g2p"))});
     track.singerInfo.setConversionLanguages({QStringLiteral("cmn"), QStringLiteral("yue")});
     auto &clipDraft = track.clips.first();
-    clipDraft.inputLanguage = QStringLiteral("yue");
     for (auto &note : clipDraft.notes)
-        note.language = QStringLiteral("cmn");
+        note.language = noteLanguage;
     clipDraft.notes.first().pronunciation.edited = QStringLiteral("old-reading");
     clipDraft.notes.first().pronunciationCandidates = {QStringLiteral("old-candidate")};
 
@@ -1801,25 +1802,18 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
 
 void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data() {
     QTest::addColumn<bool>("inherit");
-    QTest::addColumn<bool>("clearInputLanguage");
-    QTest::newRow("explicit-note-language") << false << false;
-    QTest::newRow("inherited-clip-language") << true << false;
-    // The stored input language is only a Fill Lyric preference, so an
-    // unspecified note must still resolve through the singer route.
-    QTest::newRow("inherited-singer-fallback") << true << true;
+    QTest::newRow("explicit-note-language") << false;
+    QTest::newRow("inherited-singer-fallback") << true;
 }
 
 void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets() {
     QFETCH(bool, inherit);
-    QFETCH(bool, clearInputLanguage);
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
     auto track = lyricTrack();
     auto &draft = track.clips.first().notes.first();
     if (inherit)
         draft.language.clear();
-    if (clearInputLanguage)
-        track.clips.first().inputLanguage.clear();
     const auto expectedLanguage = inherit ? QStringLiteral("cmn") : QStringLiteral("eng");
     PhonemeName onset;
     onset.name = QStringLiteral("l");

@@ -722,16 +722,19 @@ void ApplicationGuiTests::unroutableDetectedLanguageSurvivesTheConversion() {
     QCOMPARE(results.first().language, QStringLiteral("eng"));
     QCOMPARE(results.first().pronunciation, QStringLiteral("abc"));
 }
-void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
-    // A singer change can leave the stored clip language without a route. The
-    // choice stays visible, but it must neither feed resolution nor be imported.
+
+void ApplicationGuiTests::lyricLanguageSelectorOffersOnlySingerRoutes() {
+    // The selector is the only source of the fill language, so it offers exactly
+    // automatic detection plus the singer routes, and nothing can block the
+    // import.
     auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
-        QStringList{QStringLiteral("cmn")}, QStringLiteral("cmn"), QStringLiteral("eng"));
-    QVERIFY(languageContext->choiceUnavailable());
-    QVERIFY(!languageContext->priorityLanguages().contains(QStringLiteral("eng")));
-    QCOMPARE(languageContext->priorityLanguages().first(), QStringLiteral("cmn"));
-    QVERIFY2(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")).isEmpty(),
-             "an unavailable choice must not act as the fallback");
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QStringLiteral("eng"));
+    QCOMPARE(languageContext->selectableLanguages(),
+             (QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}));
+    QCOMPARE(languageContext->priorityLanguages().first(), QStringLiteral("eng"));
+    QCOMPARE(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")),
+             QStringLiteral("eng"));
     QCOMPARE(languageContext->resolvedNoteLanguage(QStringLiteral("cmn")), QStringLiteral("cmn"));
 
     createLyricSelection();
@@ -746,7 +749,7 @@ void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
     QTRY_VERIFY(dialog.isActiveWindow());
     auto *import = buttonWithText(&dialog, LyricDialog::tr("&Import"));
     QVERIFY(import);
-    QVERIFY2(!import->isEnabled(), "an unavailable language must block the import");
+    QVERIFY2(import->isEnabled(), "a routable choice must not block the import");
 
     auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
     QVERIFY(base);
@@ -756,13 +759,13 @@ void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
             language = combo;
     }
     QVERIFY(language);
+    QCOMPARE(language->count(), 3);
+    QCOMPARE(language->itemData(0).toString(), QString());
     QCOMPARE(language->currentData().toString(), QStringLiteral("eng"));
     language->setCurrentIndex(language->findData(QStringLiteral("cmn")));
     QCOMPARE(languageContext->choice(), QStringLiteral("cmn"));
     QVERIFY(import->isEnabled());
-    QVERIFY(!languageContext->choiceUnavailable());
-    QVERIFY(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")) ==
-            QStringLiteral("cmn"));
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
 }
 
 void ApplicationGuiTests::changingTheLyricLanguageKeepsTheEditedPreview() {
@@ -923,11 +926,10 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     for (auto *note : singingClip->notes())
         notes.append(note);
     {
-        LyricDialog dialog(
-            singingClip, notes, singingClip->singerIdentifier(),
-            std::make_shared<FillLyric::LyricLanguageContext>(
-                QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
-                singingClip->inputLanguage()));
+        LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(),
+                           std::make_shared<FillLyric::LyricLanguageContext>(
+                               QStringList{TestSupport::fixtureLanguage()},
+                               TestSupport::fixtureLanguage(), QString()));
         dialog.show();
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isVisible());
@@ -1011,11 +1013,10 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QVERIFY(!saved.first().toObject().value(QStringLiteral("enabled")).toBool());
     QCOMPARE(saved.first().toObject().value(QStringLiteral("ruleId")).toString(), ruleId);
     file.close();
-    LyricDialog reopened(
-        singingClip, notes, singingClip->singerIdentifier(),
-        std::make_shared<FillLyric::LyricLanguageContext>(
-            QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
-            singingClip->inputLanguage()));
+    LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
+                         std::make_shared<FillLyric::LyricLanguageContext>(
+                             QStringList{TestSupport::fixtureLanguage()},
+                             TestSupport::fixtureLanguage(), QString()));
     reopened.show();
     reopened.activateWindow();
     selectLyricTab(reopened, LyricDialog::tr("Splitter"));
