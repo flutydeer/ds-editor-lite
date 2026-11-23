@@ -113,13 +113,13 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     connect(m_lyricWidget, &FillLyric::LyricTab::languageChoiceChanged, this,
             &LyricDialog::updateAcceptState);
     connect(m_clip, &SingingClip::voiceContextChanged, this, &LyricDialog::updateAcceptState);
-    connect(m_clip, &SingingClip::voiceContextChanged, this, [this] {
-        // The converter and the language context were built for the singer the
-        // clip had when this dialog opened, so a live route change cannot be
-        // applied to the preview that is on screen.
-        if (isVisible())
-            reject();
-    });
+    connect(m_clip, &SingingClip::voiceContextChanged, this,
+            [this](const VoiceContextChange &change) {
+                // A new singer or refreshed route metadata invalidates the preview.
+                // Speaker selection and mix weights do not affect its converter.
+                if (isVisible() && change.before.singer != change.after.singer)
+                    reject();
+            });
     updateAcceptState();
 }
 

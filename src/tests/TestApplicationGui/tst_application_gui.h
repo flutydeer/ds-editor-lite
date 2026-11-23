@@ -144,6 +144,9 @@ private slots:
     void changingTheLyricLanguageKeepsTheEditedPreview();
     void typedLyricsSurviveALanguageChange();
     void unroutableDetectedLanguageSurvivesTheConversion();
+    void speakerChangesWhileTheLyricDialogIsOpenKeepEdits_data();
+    void speakerChangesWhileTheLyricDialogIsOpenKeepEdits();
+    void voiceContextChangeWhileTheDialogIsOpenBlocksTheImport_data();
     void voiceContextChangeWhileTheDialogIsOpenBlocksTheImport();
     void declaredWordStateSurvivesTheInitialPreview();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
