@@ -289,7 +289,9 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
         Clip *clip = nullptr;
         if (type == "singing") {
             auto singingClip = new SingingClip;
-            singingClip->setInputLanguage(obj["inputLanguage"].toString());
+            singingClip->setInputLanguage(obj.contains("inputLanguage")
+                                              ? obj["inputLanguage"].toString()
+                                              : obj["defaultLanguage"].toString());
 
             const auto notesArr = obj["notes"].toArray();
             for (const auto &noteVal : notesArr) {

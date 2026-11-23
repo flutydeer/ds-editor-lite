@@ -57,6 +57,8 @@ private slots:
     void pronunciationSourcesAndResetPreserveAutomaticWords();
     void timelineAndHistoryDomain();
     void quantizeInChild();
+    void wholeClipClipboardPreservesInputLanguage_data();
+    void wholeClipClipboardPreservesInputLanguage();
     void wholeClipParameterRoundTrip_data();
     void wholeClipParameterRoundTrip();
     void wholeClipsPasteAcrossTracksAsOneEdit();
