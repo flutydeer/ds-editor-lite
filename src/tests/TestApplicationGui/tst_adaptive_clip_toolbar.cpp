@@ -362,7 +362,8 @@ void ApplicationGuiTests::adaptiveClipToolbarApplicabilityAndPriorities() {
     ClipEditorToolBarView toolbar;
     ThemeManager::instance()->addStyleRoot(&toolbar);
     toolbar.setDataContext(clip);
-    toolbar.resize(1400, 48);
+    // Start fully inline before checking overflow at narrower widths.
+    toolbar.resize(qMax(1400, toolbar.sizeHint().width()), 48);
     toolbar.show();
     toolbar.activateWindow();
     settleToolbar();

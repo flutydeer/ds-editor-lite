@@ -779,36 +779,46 @@ void ClipEditorToolBarViewPrivate::onPresetApplied(const QString &presetId) cons
         return;
     }
 
-    const auto speakerInfo = data.sources.first().speaker;
-    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->parameters().applyClipSpeakerMix(commandContext(*runtime),
-                                                  Automation::ClipId(m_singingClip->id()),
-                                                  singerInfo, speakerInfo, data);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto context = commandContext(*runtime);
+    const auto clipId = Automation::ClipId(m_singingClip->id());
+    auto languageRepair = Automation::LanguageRepair::None;
+    if (confirmLanguageRepair(singerInfo, languageRepair)) {
+        runtime->parameters().applyClipSpeakerMix(
+            context, clipId, singerInfo, data.sources.first().speaker, data, languageRepair);
+    }
 
     refreshSingerComboPresentation();
 }
 
 void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singerInfo) const {
-    if (singerInfo.speakers().size() < 2)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!m_singingClip || singerInfo.speakers().size() < 2 || !runtime)
         return;
 
+    const auto context = commandContext(*runtime);
+    const QPointer<SingingClip> clip = m_singingClip;
+    const auto clipId = Automation::ClipId(clip->id());
     Q_Q(const ClipEditorToolBarView);
     auto *parent = Dialog::globalParent();
     if (!parent)
         parent = const_cast<ClipEditorToolBarView *>(q);
 
-    const auto initialData =
-        m_singingClip && m_singingClip->singerInfo().identifier() == singerInfo.identifier()
-            ? m_singingClip->speakerMixData()
-            : SpeakerMixData();
+    const auto initialData = clip->singerInfo().identifier() == singerInfo.identifier()
+                                 ? clip->speakerMixData()
+                                 : SpeakerMixData();
     SpeakerMixDialog dialog(singerInfo, initialData, parent);
-    if (dialog.exec() == QDialog::Accepted && m_singingClip) {
+    if (dialog.exec() == QDialog::Accepted && clip && m_singingClip == clip) {
         const auto data = dialog.speakerMixData();
         if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-                runtime->parameters().applyClipSpeakerMix(
-                    commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
-                    data.sources.first().speaker, data);
+            auto languageRepair = Automation::LanguageRepair::None;
+            if (confirmLanguageRepair(singerInfo, languageRepair)) {
+                runtime->parameters().applyClipSpeakerMix(context, clipId, singerInfo,
+                                                          data.sources.first().speaker, data,
+                                                          languageRepair);
+            }
         }
     }
     refreshSingerComboPresentation();

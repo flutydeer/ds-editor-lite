@@ -169,6 +169,8 @@ private slots:
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
     void voiceMenusApplyPresetsToTheChosenTarget_data();
     void voiceMenusApplyPresetsToTheChosenTarget();
+    void clipVoicePresetMenusConfirmLanguageRepair_data();
+    void clipVoicePresetMenusConfirmLanguageRepair();
     void clipToolbarNameEditingKeepsTheOriginalTarget_data();
     void clipToolbarNameEditingKeepsTheOriginalTarget();
     void audioDbAxisTickLadderFollowsTheLaneHeight();

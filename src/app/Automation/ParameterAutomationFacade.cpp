@@ -1320,10 +1320,11 @@ namespace Automation {
 
     AutomationResult<MutationResult> ParameterAutomationFacade::applyClipSpeakerMix(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
-        const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
+        const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data,
+        const LanguageRepair languageRepair) {
         return setClipVoiceContext(OperationIds::speaker_mix::clip::apply,
                                    ClipVoiceAction::ApplyPreset, context, clipId, singerInfo,
-                                   speakerInfo, data);
+                                   speakerInfo, data, languageRepair);
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::setClipVoiceContext(

@@ -172,7 +172,8 @@ namespace Automation {
         AutomationResult<MutationResult>
             applyClipSpeakerMix(const CommandContext &context, ClipId clipId,
                                 const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
-                                const SpeakerMixModel::SpeakerMixData &data);
+                                const SpeakerMixModel::SpeakerMixData &data,
+                                LanguageRepair languageRepair = LanguageRepair::None);
         AutomationResult<MutationResult> selectTrackSingleSpeaker(const CommandContext &context,
                                                                   TrackId trackId,
                                                                   const SingerInfo &singerInfo,

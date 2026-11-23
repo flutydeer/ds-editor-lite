@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixBar.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixList.h"
@@ -17,6 +18,7 @@
 #include "../TestSupport/WaveFixture.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/TagButton.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/History/HistoryManager.h>
@@ -24,7 +26,9 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Tasking/TaskManager.h>
@@ -129,7 +133,8 @@ void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
     QVERIFY(first && second);
     ClipEditorToolBarView toolbar;
     toolbar.setDataContext(first);
-    toolbar.resize(1100, 48);
+    // The editing checks require every control to remain inline.
+    toolbar.resize(qMax(1100, toolbar.sizeHint().width()), 48);
     toolbar.show();
     toolbar.activateWindow();
     auto *label = toolbar.findChild<InlineEditLabel *>("leClipName");
@@ -398,6 +403,304 @@ void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeLanguageModel);
         QVERIFY(!historyManager->canUndo());
     }
+}
+
+void ApplicationGuiTests::clipVoicePresetMenusConfirmLanguageRepair_data() {
+    QTest::addColumn<QString>("entry");
+    QTest::addColumn<QString>("answer");
+    QTest::addColumn<QString>("bump");
+
+    QTest::newRow("preset-cancel")
+        << QStringLiteral("preset") << QStringLiteral("cancel") << QStringLiteral("none");
+    QTest::newRow("preset-keep") << QStringLiteral("preset") << QStringLiteral("keep")
+                                 << QStringLiteral("none");
+    QTest::newRow("preset-repair")
+        << QStringLiteral("preset") << QStringLiteral("repair") << QStringLiteral("none");
+    QTest::newRow("preset-stale-confirmation")
+        << QStringLiteral("preset") << QStringLiteral("keep") << QStringLiteral("confirm");
+    QTest::newRow("manage-cancel")
+        << QStringLiteral("manage") << QStringLiteral("cancel") << QStringLiteral("none");
+    QTest::newRow("manage-keep") << QStringLiteral("manage") << QStringLiteral("keep")
+                                 << QStringLiteral("none");
+    QTest::newRow("manage-repair")
+        << QStringLiteral("manage") << QStringLiteral("repair") << QStringLiteral("none");
+    QTest::newRow("manage-stale-mix-dialog")
+        << QStringLiteral("manage") << QStringLiteral("keep") << QStringLiteral("manage");
+}
+
+void ApplicationGuiTests::clipVoicePresetMenusConfirmLanguageRepair() {
+    QFETCH(QString, entry);
+    QFETCH(QString, answer);
+    QFETCH(QString, bump);
+
+    SingerInfo singer;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (candidate.singerId() == TestSupport::fixtureSingerId())
+                singer = candidate;
+        }
+    }
+    QVERIFY(!singer.isEmpty());
+    if (singer.speakers().size() < 2)
+        QSKIP("The selected voicebank needs two speakers for the mix preset menu");
+    const auto first = singer.speakers().first();
+    const auto second = singer.speakers().at(1);
+    const auto targetFallback = LanguageCompatibility::fallbackLanguage(singer);
+    QVERIFY(!targetFallback.isEmpty());
+    // The clip keeps its own singer with another default language, so applying
+    // the installed singer's preset really crosses a language boundary.
+    QString clipFallback;
+    for (const auto &language : singer.languages()) {
+        if (language.id() != targetFallback && !language.id().isEmpty())
+            clipFallback = language.id();
+    }
+    QVERIFY(!clipFallback.isEmpty());
+    QString unsupported;
+    for (const auto &candidate :
+         {QStringLiteral("jpn"), QStringLiteral("deu"), QStringLiteral("fra")}) {
+        if (!LanguageCompatibility::supportedLanguages(singer).contains(candidate)) {
+            unsupported = candidate;
+            break;
+        }
+    }
+    QVERIFY(!unsupported.isEmpty());
+    QVERIFY(!LanguageCompatibility::supportedLanguages(singer).contains(unsupported));
+    QVERIFY(LanguageCompatibility::supportedLanguages(singer).contains(clipFallback));
+    SingerInfo clipSinger(
+        {TestSupport::fixtureSingerId(), singer.packageId(), singer.packageVersion()},
+        singer.name(), singer.speakers(), singer.languages(), clipFallback);
+    clipSinger.setResolutionState(ResolutionState::Resolved);
+    QCOMPARE(LanguageCompatibility::fallbackLanguage(clipSinger), clipFallback);
+
+    auto &runtime = *context->m_coreRuntime;
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.properties.name = QStringLiteral("Language repair target");
+    clipDraft.properties.length = 1920;
+    clipDraft.properties.clipLen = 1920;
+    Automation::TrackDraftDto trackDraft;
+    trackDraft.name = QStringLiteral("Language repair track");
+    trackDraft.singerInfo = singer;
+    trackDraft.speakerInfo = first;
+    trackDraft.clips = {clipDraft};
+    document.tracks = {trackDraft};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    auto *modelTrack = context->m_appModel->tracks().first();
+    auto *modelClip = qobject_cast<SingingClip *>(*modelTrack->clips().begin());
+    QVERIFY(modelClip);
+
+    SpeakerMixPreset preset;
+    preset.name = QStringLiteral("Language preset");
+    preset.packageId = singer.packageId();
+    preset.packageVersion = singer.packageVersion();
+    preset.singerId = singer.singerId();
+    preset.sources = {{first}, {second}};
+    preset.fixedWeights = {0.3};
+    const auto saved = SpeakerMixPresetStore::savePreset(preset);
+    QVERIFY(saved);
+    const auto cleanup =
+        qScopeGuard([&] { QVERIFY(SpeakerMixPresetStore::deletePreset(saved->id)); });
+
+    ClipEditorToolBarView toolbar;
+    toolbar.setDataContext(modelClip);
+    // The adaptive toolbar must lay the singer menu out inline, otherwise the
+    // preset entries are unreachable.
+    toolbar.resize(qMax(1100, toolbar.sizeHint().width()), 48);
+    toolbar.show();
+    toolbar.activateWindow();
+    auto *combo = toolbar.findChild<TwoLevelComboBox *>();
+    QVERIFY(combo);
+    QTRY_VERIFY(toolbar.isActiveWindow() && combo->isVisible() && combo->isEnabled());
+
+    const auto drain = [&] {
+        QCoreApplication::processEvents();
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    };
+    // The commit queued a zero-delay resolution that replaces this synthesized
+    // singer by identifier, so it has to run before the source below is installed.
+    drain();
+    auto *resolvedNote = new Note(modelClip);
+    resolvedNote->setLocalStart(0);
+    resolvedNote->setLength(480);
+    resolvedNote->setKeyIndex(60);
+    resolvedNote->setLyric(QStringLiteral("la"));
+    modelClip->insertNote(resolvedNote);
+    auto *declaredNote = new Note(modelClip);
+    declaredNote->setLocalStart(480);
+    declaredNote->setLength(480);
+    declaredNote->setKeyIndex(62);
+    declaredNote->setLyric(QStringLiteral("ka"));
+    modelClip->insertNote(declaredNote);
+    PhonemeName onset;
+    onset.language = clipFallback;
+    onset.name = QStringLiteral("n");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = clipFallback;
+    vowel.name = QStringLiteral("i");
+    vowel.isOnset = false;
+    modelClip->setOwnSingerAndSpeaker(clipSinger, first);
+    resolvedNote->setLanguage(QString());
+    resolvedNote->setPronunciation(Note::Edited, QStringLiteral("laa"));
+    resolvedNote->setPhonemeNameSeq(Note::Original, {onset, vowel});
+    resolvedNote->setPhonemeNameSeq(Note::Edited, {onset, vowel});
+    declaredNote->setLanguage(unsupported);
+    declaredNote->setPronunciation(Note::Edited, QStringLiteral("manual"));
+    // Let pronunciation and phoneme inference finish before capturing the baseline.
+    drain();
+    QVERIFY2(modelClip->fallbackLanguage() == clipFallback &&
+                 resolvedNote->pronunciation().edited == QStringLiteral("laa") &&
+                 resolvedNote->phonemes().nameSeq.isEdited() &&
+                 declaredNote->language() == unsupported &&
+                 declaredNote->pronunciation().edited == QStringLiteral("manual"),
+             "package resolution moved the installed source singer");
+    const auto before = runtime.documentVersion();
+    historyManager->reset();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+
+    bool confirmSeen = false;
+    bool mixDialogSeen = false;
+    bool bumped = false;
+    const auto bumpRevision = [&] {
+        if (bumped)
+            return;
+        bumped = true;
+        QVERIFY(runtime.project().renameClip(commandContext(), Automation::ClipId(modelClip->id()),
+                                             QStringLiteral("Bumped")));
+    };
+    const auto translated = [](const char *text) {
+        return QCoreApplication::translate("ClipEditorToolBarViewPrivate", text);
+    };
+    QTimer responder;
+    responder.setInterval(10);
+    connect(&responder, &QTimer::timeout, &toolbar, [&] {
+        if (auto *mix = qobject_cast<SpeakerMixDialog *>(QApplication::activeModalWidget())) {
+            if (mixDialogSeen)
+                return;
+            mixDialogSeen = true;
+            if (bump == QStringLiteral("manage"))
+                bumpRevision();
+            QTest::mouseClick(mix->okButton(), Qt::LeftButton);
+            return;
+        }
+        auto *confirm = qobject_cast<MessageDialog *>(QApplication::activeModalWidget());
+        if (!confirm)
+            return;
+        if (confirmSeen) {
+            // A second prompt would mean the flow loops, so it is dismissed.
+            confirm->reject();
+            return;
+        }
+        confirmSeen = true;
+        const auto closeOnFailure = qScopeGuard([&] {
+            if (confirm->isVisible())
+                confirm->reject();
+        });
+        Button *cancel = nullptr;
+        Button *keep = nullptr;
+        Button *repair = nullptr;
+        for (auto *button : confirm->findChildren<Button *>()) {
+            if (button->text() == translated("Cancel"))
+                cancel = button;
+            else if (button->text() == translated("Keep Languages"))
+                keep = button;
+            else
+                repair = button;
+        }
+        QVERIFY2(cancel && keep && repair,
+                 "the language confirmation must offer cancel, keep and repair");
+        if (bump == QStringLiteral("confirm"))
+            bumpRevision();
+        Button *choice = answer == QStringLiteral("cancel")
+                             ? cancel
+                             : (answer == QStringLiteral("keep") ? keep : repair);
+        QTest::mouseClick(choice, Qt::LeftButton);
+    });
+    QTimer watchdog;
+    watchdog.setSingleShot(true);
+    connect(&watchdog, &QTimer::timeout, &toolbar, [&] {
+        if (auto *modal = QApplication::activeModalWidget())
+            modal->close();
+        QFAIL("The clip voice menu did not finish its confirmation");
+    });
+    watchdog.start(30000);
+    responder.start();
+    const auto choose = [&](const QString &text) {
+        bool chosen = false;
+        QTimer::singleShot(0, combo, [&] {
+            auto *root = combo->mainMenu();
+            auto *group = combo->groupMenuForSinger(singer);
+            const auto close = qScopeGuard([&] { root->close(); });
+            QTRY_VERIFY(root->isVisible());
+            QVERIFY(group);
+            QTest::mouseClick(root, Qt::LeftButton, Qt::NoModifier,
+                              root->actionGeometry(group->menuAction()).center());
+            QTRY_VERIFY(group->isVisible());
+            QAction *action = nullptr;
+            for (auto *candidate : group->actions()) {
+                if (candidate->text() == text)
+                    action = candidate;
+            }
+            QVERIFY(action && action->isEnabled());
+            QTest::mouseClick(group, Qt::LeftButton, Qt::NoModifier,
+                              group->actionGeometry(action).center());
+            chosen = true;
+        });
+        QTest::mouseClick(combo, Qt::LeftButton);
+        QVERIFY(chosen);
+    };
+    choose(entry == QStringLiteral("preset") ? saved->name : translated("Manage mix presets..."));
+    watchdog.stop();
+    responder.stop();
+    if (QTest::currentTestFailed())
+        return;
+
+    const auto mix = [&] { return modelClip->speakerMixData(); };
+    const auto expectUntouched = [&] {
+        QCOMPARE(modelClip->fallbackLanguage(), clipFallback);
+        QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
+        QCOMPARE(resolvedNote->pronunciation().edited, QStringLiteral("laa"));
+        QCOMPARE(declaredNote->language(), unsupported);
+        QCOMPARE(declaredNote->pronunciation().edited, QStringLiteral("manual"));
+    };
+    QVERIFY2(confirmSeen, "a cross-language preset must ask before it clears word data");
+    QCOMPARE(mixDialogSeen, entry == QStringLiteral("manage"));
+
+    if (answer == QStringLiteral("cancel")) {
+        expectUntouched();
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
+    if (bump != QStringLiteral("none")) {
+        QVERIFY(bumped);
+        expectUntouched();
+        // Only the document edit that raced the confirmation reached the model.
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        return;
+    }
+
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(modelClip->fallbackLanguage(), targetFallback);
+    QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(mix().sources.size(), 2);
+    QVERIFY2(resolvedNote->pronunciation().edited.isEmpty(),
+             "the resolved language moves with the applied route");
+    QVERIFY(resolvedNote->phonemes().nameSeq.original.isEmpty());
+    QVERIFY(resolvedNote->phonemes().nameSeq.isEdited());
+    if (answer == QStringLiteral("keep")) {
+        QCOMPARE(declaredNote->language(), unsupported);
+        QCOMPARE(declaredNote->pronunciation().edited, QStringLiteral("manual"));
+    } else {
+        QCOMPARE(declaredNote->language(), targetFallback);
+        QVERIFY(declaredNote->pronunciation().edited.isEmpty());
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::speakerMixSelectionAndDrag_data() {
