@@ -9,6 +9,7 @@
 #include "TestRuntime.h"
 #include "../TestSupport/AsyncFileDomainSupport.h"
 
+#include <lite/AutomationWire/PublicToolNames.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -493,6 +494,60 @@ void AutomationProtocolTests::batchImportPlanRevalidation() {
     QCOMPARE(fixture.runtime.documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
+}
+
+void AutomationProtocolTests::publicVoiceQueriesKeepInputPreferenceClipScoped() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto draft = lyricTrack();
+    draft.clips.first().inputLanguage = QStringLiteral("eng");
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, draft));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto &track = project.get().tracks.first();
+    const auto &clip = track.clips.first();
+    QCOMPARE(track.data.singerInfo.defaultLanguage(), QStringLiteral("cmn"));
+
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    const auto trackResult =
+        registry.invoke(AutomationWire::PublicToolNames::tracks_get,
+                        {
+                            {QStringLiteral("document_id"), before.documentId.toString()},
+                            {QStringLiteral("track_id"),    track.id.value()            }
+    });
+    QVERIFY2(trackResult, qPrintable(errorMessage(trackResult)));
+    const auto clipResult =
+        registry.invoke(AutomationWire::PublicToolNames::clips_get,
+                        {
+                            {QStringLiteral("document_id"), before.documentId.toString()},
+                            {QStringLiteral("clip_id"),     clip.id.value()             }
+    });
+    QVERIFY2(clipResult, qPrintable(errorMessage(clipResult)));
+    const auto trackVoice = trackResult.get()
+                                .value(QStringLiteral("snapshot"))
+                                .toObject()
+                                .value(QStringLiteral("voice_context"))
+                                .toObject();
+    const auto clipVoice = clipResult.get()
+                               .value(QStringLiteral("snapshot"))
+                               .toObject()
+                               .value(QStringLiteral("voice_context"))
+                               .toObject();
+    QVERIFY(trackVoice.value(QStringLiteral("available")).toBool());
+    QVERIFY(clipVoice.value(QStringLiteral("inherits_track")).toBool());
+    QCOMPARE(clipVoice.value(QStringLiteral("input_language")).toObject(),
+             (QJsonObject{
+                 {QStringLiteral("mode"),        QStringLiteral("explicit")},
+                 {QStringLiteral("language_id"), QStringLiteral("eng")     }
+    }));
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
+    QCOMPARE(trackVoice.value(QStringLiteral("input_language")), QJsonValue(QJsonValue::Null));
 }
 
 void AutomationProtocolTests::fillLyricsOptions_data() {

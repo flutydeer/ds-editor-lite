@@ -4278,12 +4278,11 @@ namespace Automation {
                 const auto &track = project.get().tracks.at(index);
                 if (track.id == trackId) {
                     auto snapshot = encodeTrackSnapshot(track, index);
-                    const auto language = track.data.singerInfo.defaultLanguage();
                     snapshot.insert(QStringLiteral("voice_context"),
                                     encodeVoiceContext(track.data.singerInfo,
                                                        track.data.speakerInfo,
                                                        track.data.singerInfo,
-                                                       track.data.speakerInfo, false, language));
+                                                       track.data.speakerInfo, false, QString()));
                     return AutomationResult<QJsonObject>(queryResult(
                         project.get().document, QStringLiteral("snapshot"), std::move(snapshot)));
                 }
