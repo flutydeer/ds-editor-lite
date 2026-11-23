@@ -25,11 +25,12 @@ namespace NoteWordCascade {
         if (lyricChanged) {
             next.phonemes = {};
         } else if (languageChanged) {
-            // A language change keeps the manual layers because they may be
-            // built across languages. The derived layers describe the old route
-            // and are regenerated.
+            // Manual names can span languages, but derived names describe the old route.
+            // Edited timing needs a surviving name for every offset.
             next.phonemes.nameSeq.original.clear();
             next.phonemes.offsetSeq.original.clear();
+            if (next.phonemes.offsetSeq.edited.count() != next.phonemes.nameSeq.result().count())
+                next.phonemes.offsetSeq.edited.clear();
         }
     }
 
