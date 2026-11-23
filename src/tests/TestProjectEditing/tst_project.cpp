@@ -4084,8 +4084,15 @@ void ProjectEditingTests::repairImpactCountsConflictsAndClearedPronunciations() 
     edit.lyric = QStringLiteral("la");
     edit.pronunciation.edited = QStringLiteral("manual");
     edit.replacePronunciation = true;
-    const auto applied = runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit});
+    auto declaredEdit = edit;
+    declaredEdit.noteId = ids.at(1);
+    declaredEdit.lyric = declared.lyric;
+    declaredEdit.language = declared.language;
+    declaredEdit.pronunciation.edited = QStringLiteral("declared-manual");
+    const auto applied =
+        runtime.notes().setWordProperties(commandContext(runtime), clipId, {edit, declaredEdit});
     QVERIFY(applied && applied.get().changed);
+    const auto before = TestSupport::projectSnapshot(fixture.model());
 
     auto *clip = dynamic_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
     QVERIFY(clip);
@@ -4093,19 +4100,45 @@ void ProjectEditingTests::repairImpactCountsConflictsAndClearedPronunciations() 
     for (const auto *note : clip->notes())
         notes.append(const_cast<Note *>(note));
 
-    // A declaration the target singer cannot route is reported on its own.
+    // Keeping an unsupported declaration preserves its pronunciation, but repair clears it.
     const auto declaredConflict = LanguageCompatibility::repairImpact(notes, mandarin);
     QCOMPARE(declaredConflict.conflictedNotes, 1);
     QCOMPARE(declaredConflict.conflictLanguages, QStringList({QStringLiteral("eng")}));
     QCOMPARE(declaredConflict.clearedPronunciations, 0);
+    QCOMPARE(declaredConflict.clearedPronunciationsWithRepair, 1);
     QVERIFY(!declaredConflict.isEmpty());
 
-    // A changed route reroutes the unspecified note, so its edited
-    // pronunciation is reported as lost while the declarations stay routable.
+    // Both choices reroute the unspecified note and preserve a supported declaration.
     const auto cleared = LanguageCompatibility::repairImpact(notes, english);
     QCOMPARE(cleared.conflictedNotes, 0);
     QCOMPARE(cleared.clearedPronunciations, 1);
+    QCOMPARE(cleared.clearedPronunciationsWithRepair, 1);
     QVERIFY(!cleared.isEmpty());
+
+    // Repair counts the rerouted note and the repaired declaration, once each.
+    const auto japanese = languageSinger(QStringLiteral("japanese-voice"), QStringLiteral("jpn"));
+    const auto repaired = LanguageCompatibility::repairImpact(notes, japanese);
+    QCOMPARE(repaired.conflictedNotes, 1);
+    QCOMPARE(repaired.clearedPronunciations, 1);
+    QCOMPARE(repaired.clearedPronunciationsWithRepair, 2);
+
+    // With no fallback, switching can still invalidate data but repair is unavailable.
+    auto noRoutes = mandarin;
+    noRoutes.setConversionLanguages({});
+    const auto unroutable = LanguageCompatibility::repairImpact(notes, noRoutes);
+    QCOMPARE(unroutable.conflictedNotes, 1);
+    QCOMPARE(unroutable.clearedPronunciations, 1);
+    QCOMPARE(unroutable.clearedPronunciationsWithRepair, 0);
+    QVERIFY(!unroutable.isEmpty());
+
+    auto pending = mandarin;
+    pending.setResolutionState(ResolutionState::Pending);
+    const auto unresolved = LanguageCompatibility::repairImpact(notes, pending);
+    QCOMPARE(unresolved.conflictedNotes, 0);
+    QCOMPARE(unresolved.clearedPronunciations, 1);
+    QCOMPARE(unresolved.clearedPronunciationsWithRepair, 0);
+    QVERIFY(!unresolved.isEmpty());
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), before);
 }
 
 int runProjectQuantizeProbe(int argc, char **argv) {

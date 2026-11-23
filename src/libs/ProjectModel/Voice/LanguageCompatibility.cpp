@@ -75,7 +75,8 @@ namespace LanguageCompatibility {
     }
 
     bool RepairImpact::isEmpty() const {
-        return conflictedNotes == 0 && clearedPronunciations == 0;
+        return conflictedNotes == 0 && clearedPronunciations == 0 &&
+               clearedPronunciationsWithRepair == 0;
     }
 
     RepairImpact repairImpact(const QList<Note *> &notes, const SingerInfo &singer) {
@@ -91,8 +92,12 @@ namespace LanguageCompatibility {
                 continue;
             const auto nextResolved =
                 NoteWordCascade::resolvedLanguage(note->language(), targetLanguage);
-            if (note->resolvedLanguage() != nextResolved)
+            const bool resolvedLanguageChanged = note->resolvedLanguage() != nextResolved;
+            if (resolvedLanguageChanged)
                 result.clearedPronunciations++;
+            if (!targetLanguage.isEmpty() &&
+                (resolvedLanguageChanged || result.conflictLanguages.contains(note->language())))
+                result.clearedPronunciationsWithRepair++;
         }
         return result;
     }

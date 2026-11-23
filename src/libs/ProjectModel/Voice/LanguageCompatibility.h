@@ -50,8 +50,11 @@ namespace LanguageCompatibility {
         int conflictedNotes = 0;
         /// Those declarations in clip order, without duplicates.
         QStringList conflictLanguages;
-        /// Notes whose edited pronunciation the cascade would clear.
+        /// Notes whose edited pronunciation switching clears while keeping declarations.
         int clearedPronunciations = 0;
+        /// Total cleared by switching and repairing unsupported declarations to fallback.
+        /// Zero when no fallback exists, so repair is unavailable.
+        int clearedPronunciationsWithRepair = 0;
 
         [[nodiscard]] bool isEmpty() const;
     };
@@ -67,8 +70,8 @@ namespace LanguageCompatibility {
     /// visited in clip order, so the result and every id list are stable.
     QList<LanguageConflict> conflicts(const QList<Note *> &notes, const SingerInfo &singer);
 
-    /// Summarizes the conflicts and the edited pronunciations a switch to the
-    /// given singer would clear, without touching any note.
+    /// Summarizes conflicts and pronunciation loss when switching to the given
+    /// singer, with and without repairing declarations, without touching any note.
     RepairImpact repairImpact(const QList<Note *> &notes, const SingerInfo &singer);
 
 }

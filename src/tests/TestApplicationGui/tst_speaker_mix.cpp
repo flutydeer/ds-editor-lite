@@ -40,6 +40,7 @@
 #include <QAbstractButton>
 #include <QComboBox>
 #include <QInputDialog>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
@@ -611,6 +612,23 @@ void ApplicationGuiTests::clipVoicePresetMenusConfirmLanguageRepair() {
         }
         QVERIFY2(cancel && keep && repair,
                  "the language confirmation must offer cancel, keep and repair");
+        QStringList visibleMessages;
+        for (const auto *label : confirm->findChildren<QLabel *>()) {
+            if (label->isVisible())
+                visibleMessages.append(label->text());
+        }
+        const auto message = visibleMessages.join(u'\n');
+        QVERIFY2(
+            message.contains(
+                translated("Repairing clears the edited pronunciation of %L1 note(s).").arg(2)),
+            qPrintable(QStringLiteral("Repair must warn about both edited pronunciations: %1")
+                           .arg(message)));
+        QVERIFY2(
+            message.contains(
+                translated("Keeping languages clears the edited pronunciation of %L1 note(s).")
+                    .arg(1)),
+            qPrintable(
+                QStringLiteral("Keep must only warn about the rerouted note: %1").arg(message)));
         if (bump == QStringLiteral("confirm"))
             bumpRevision();
         Button *choice = answer == QStringLiteral("cancel")

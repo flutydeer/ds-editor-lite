@@ -624,10 +624,14 @@ bool ClipEditorToolBarViewPrivate::confirmLanguageRepair(
                          .arg(conflictLanguages.join(tr(", "))));
     }
     if (impact.clearedPronunciations > 0) {
-        lines.append(tr("Switching clears the edited pronunciation of %L1 note(s).")
+        lines.append(tr("Keeping languages clears the edited pronunciation of %L1 note(s).")
                          .arg(impact.clearedPronunciations));
     }
     if (!targetLanguage.isEmpty()) {
+        if (impact.clearedPronunciationsWithRepair > 0) {
+            lines.append(tr("Repairing clears the edited pronunciation of %L1 note(s).")
+                             .arg(impact.clearedPronunciationsWithRepair));
+        }
         lines.append(tr("Repairing redeclares the affected notes as %1 so they can be sung again.")
                          .arg(LanguageDisplayUtils::displayName(targetLanguage)));
     }
