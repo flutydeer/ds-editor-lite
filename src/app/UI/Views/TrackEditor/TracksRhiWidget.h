@@ -210,8 +210,10 @@ private:
         int trackIndex = -1;
         bool pastePreview = false;
     };
+    [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
+                                                 double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex, double dpr,
-                                                 const ClipDisplay &display = {}) const;
+                                                 const ClipDisplay &display) const;
     [[nodiscard]] std::optional<ClipSnapshot>
         buildCopyGhostSnapshot(const Clip *clip, int trackIndex, double dpr) const;
     [[nodiscard]] QRectF clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,

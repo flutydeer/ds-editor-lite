@@ -1368,6 +1368,12 @@ void TracksRhiWidget::updatePlaybackOverlay() {
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
+                                                                const int trackIndex,
+                                                                const double dpr) const {
+    return buildClipSnapshot(clip, trackIndex, dpr, ClipDisplay{});
+}
+
+TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
                                                                  const int trackIndex,
                                                                  const double dpr,
                                                                  const ClipDisplay &display) const {
