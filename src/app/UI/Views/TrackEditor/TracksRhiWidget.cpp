@@ -1126,9 +1126,22 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
             // The copy preview is culled on its own rect: scrolling can take the
             // source out of the viewport while the copy stays under the pointer.
-            if (const auto ghost = buildCopyGhostSnapshot(clip, trackIndex, dpr);
-                ghost && visiblePhysical.intersects(ghost->paintPhysicalRect))
+            if (auto ghost = buildCopyGhostSnapshot(clip, trackIndex, dpr);
+                ghost && visiblePhysical.intersects(ghost->paintPhysicalRect)) {
+                // The ghost stands where the copy will land, so an audio copy has
+                // to sample its own waveform instead of reusing the source shape.
+                if (const auto audio = qobject_cast<const AudioClip *>(clip);
+                    audio && ghost->loadState == AppGlobal::AudioClipLoadState::Loaded) {
+                    sampledAudioClipIds.insert(ghost->id);
+                    auto &sampler = m_audioWaveformSamplers[ghost->id];
+                    if (!sampler)
+                        sampler = std::make_shared<AudioWaveformSampler>();
+                    sampler->setPath(audio->path());
+                    ghost->waveform =
+                        sampleAudioWaveform(*sampler, audio->audioInfo(), *ghost, dpr);
+                }
                 m_copyGhostSnapshots.append(*ghost);
+            }
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
             if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
