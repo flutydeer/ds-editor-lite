@@ -9,6 +9,7 @@
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
+#include "UI/Views/Common/EditorModifierWatcher.h"
 #include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
@@ -35,6 +36,7 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
+struct ClipGeometryEdit;
 class EditorPenController;
 class EditorRhiScrollBarController;
 class EditorTouchController;
@@ -200,8 +202,18 @@ private:
     void updatePlaybackOverlay();
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     void appendSplitPreviewOverlay(EditorRhiFrameData &frame, double dpr) const;
-    [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
-                                                 double dpr) const;
+    // Paints a clip somewhere other than where the model keeps it. A Ctrl drag
+    // uses it for the translucent duplicate that follows the pointer while the
+    // clip it copies stays put.
+    struct ClipDisplay {
+        const Clip::ClipCommonProperties *properties = nullptr;
+        int trackIndex = -1;
+        bool pastePreview = false;
+    };
+    [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex, double dpr,
+                                                 const ClipDisplay &display = {}) const;
+    [[nodiscard]] std::optional<ClipSnapshot>
+        buildCopyGhostSnapshot(const Clip *clip, int trackIndex, double dpr) const;
     [[nodiscard]] QRectF clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,
                                                int trackIndex, double dpr) const;
     [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
@@ -223,6 +235,12 @@ private:
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);
     void updateDrag(const QPointF &position, Qt::KeyboardModifiers modifiers);
+    // Switches the gesture between moving the selection and copying it. The
+    // clips never move while copies are showing: only the ghost follows.
+    void setCopyDrag(bool copy);
+    // Hands the selection to the clips a copy gesture created, keeping the
+    // gesture anchor active. Returns false when the model created nothing.
+    bool selectDuplicatedClips(const QList<ClipGeometryEdit> &edits, const QList<int> &copies);
     void updateRubberBandSelection(const QPointF &position);
     void commitDrag();
     void discardDrag();
@@ -332,6 +350,16 @@ private:
     int m_dragAnchorId = -1;
     int m_dragTrackIndex = -1;
     bool m_dragMoved = false;
+    // A Ctrl drag copies the selection: the gesture plans the same placements,
+    // but the canvas paints the originals where the model keeps them and adds a
+    // translucent duplicate at each placement.
+    bool m_copyDrag = false;
+    // Last modifier state seen during the gesture. Auto scroll repaints without
+    // a new pointer event, so it replays this instead of querying the keyboard.
+    Qt::KeyboardModifiers m_dragModifiers;
+    // Reports the modifier presses and releases that arrive while the gesture
+    // owns the pointer but not the keyboard focus.
+    EditorModifierWatcher *m_modifierWatcher = nullptr;
     quint64 m_dragSessionId = 0;
 
     // External file drag-and-drop state (Phase 1)

@@ -5,6 +5,7 @@
 #include "ClipSelectionDrag.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
+#include "UI/Views/Common/EditorModifierWatcher.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
@@ -21,6 +22,7 @@ class QGraphicsPathItem;
 class QGraphicsRectItem;
 class TrackEditorBackgroundView;
 class TracksGraphicsScene;
+struct ClipGeometryEdit;
 
 class TracksGraphicsView final : public TimeGraphicsView,
                                  public IAtomicAction,
@@ -98,6 +100,18 @@ private:
     void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
                                Qt::KeyboardModifiers modifiers) override;
     void updateClipDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
+    // Switches the gesture between moving the selection and copying it. A copy
+    // leaves the selected clips on their model geometry and paints a translucent
+    // duplicate at each placement instead.
+    void setCopyDrag(bool copy);
+    void updateCopyGhosts(const QList<ClipSelectionDrag::Placement> &placements);
+    void clearCopyGhosts();
+    [[nodiscard]] AbstractClipView *
+        createCopyGhost(const Clip *clip, int trackIndex,
+                        const Clip::ClipCommonProperties &properties) const;
+    // Hands the selection to the clips a copy gesture created. Returns false
+    // when the model produced no copies.
+    bool selectDuplicatedClips(const QList<ClipGeometryEdit> &edits, const QList<int> &copies);
     void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
     AbstractClipView *findClipById(int id) const;
     bool updateClipSelection(AbstractClipView *clipItem, Qt::KeyboardModifiers modifiers);
@@ -163,6 +177,19 @@ private:
     int m_dragAnchorId = -1;
     int m_dragTrackIndex = -1;
     bool m_movedBeforeMouseUp = false;
+    // A Ctrl drag copies the selection: the planner computes the same
+    // placements, but the clips keep their places and ghosts follow the pointer.
+    bool m_copyDrag = false;
+    // Last modifier state seen during the gesture. Edge auto scroll repaints
+    // without a new pointer event, so it replays this instead of the keyboard.
+    Qt::KeyboardModifiers m_dragModifiers;
+    // Last pointer position of the gesture, in viewport coordinates. A modifier
+    // change repaints the preview without a pointer event, so it needs this.
+    QPoint m_lastDragViewportPos;
+    // Reports modifier presses and releases that arrive while the gesture owns
+    // the pointer but not the keyboard focus.
+    EditorModifierWatcher *m_modifierWatcher = nullptr;
+    QList<AbstractClipView *> m_copyGhostViews;
     QList<AbstractClipView *> m_pastePreviewClipViews;
     QGraphicsPathItem *m_splitPreviewItem = nullptr;
 

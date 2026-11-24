@@ -13,6 +13,7 @@
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -93,6 +94,15 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
         } else
             qFatal() << "Clip not found: " << clipId;
     });
+
+    // Ctrl pressed or released mid-gesture has to reach the preview even when the
+    // canvas does not hold the keyboard focus. The watcher is enabled only while
+    // a clip gesture owns the pointer, so the session guard is enough.
+    m_modifierWatcher =
+        new EditorModifierWatcher(this, [this](const Qt::KeyboardModifiers modifiers) {
+            if (m_dragSession.active())
+                updateClipDragAt(m_lastDragViewportPos, modifiers);
+        });
 }
 
 void TracksGraphicsView::setSnapGrid(TrackEditorBackgroundView *grid) {
@@ -255,20 +265,146 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     if (!m_dragSession.active())
         return;
 
+    m_lastDragViewportPos = viewportPos;
+    m_dragModifiers = modifiers;
     const auto scenePos = mapToScene(viewportPos);
+    // Ctrl turns a move into a copy, the way the office suites do it: the
+    // selection stays where it is and a duplicate follows the pointer. Resizing
+    // has no duplicate form, so the flag only follows move gestures.
+    const auto copyDrag = m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move &&
+                          modifiers.testFlag(Qt::ControlModifier);
     // A pointer above the lanes keeps the last row it was over, so the block
     // stops at the track range instead of jumping to the opposite end. Below
     // the last track the virtual append row is a real target: the block may
-    // enter it, and the commit creates that track.
-    const auto trackIndex = m_scene->dragRowAt(scenePos.y());
+    // enter it, and the commit creates that track. A copy has no row to create,
+    // so it stops at the last real track instead.
+    auto trackIndex = m_scene->dragRowAt(scenePos.y());
+    if (copyDrag && trackIndex >= appModel->tracks().size())
+        trackIndex = static_cast<int>(appModel->tracks().size()) - 1;
     if (trackIndex >= 0)
         m_dragTrackIndex = trackIndex;
+    if (m_copyDrag != copyDrag)
+        setCopyDrag(copyDrag);
+    // Alt suspends snapping for the gesture, so the two modifiers combine: a
+    // Ctrl drag parks the copies on unsnapped positions while Alt is held.
     if (!m_dragSession.update(tickAtSceneX(scenePos.x()), m_dragTrackIndex,
-                              modifiers == Qt::AltModifier))
+                              modifiers.testFlag(Qt::AltModifier)))
         return;
 
-    applyDragPlacements(m_dragSession.placements());
+    if (m_copyDrag) {
+        // The originals never move in a copy gesture: only the ghosts follow.
+        restoreDragOriginals();
+        updateCopyGhosts(m_dragSession.placements());
+    } else {
+        applyDragPlacements(m_dragSession.placements());
+    }
     m_movedBeforeMouseUp = m_dragSession.moved();
+}
+
+void TracksGraphicsView::setCopyDrag(const bool copy) {
+    if (m_copyDrag == copy)
+        return;
+    m_copyDrag = copy;
+    if (copy) {
+        // The selected clips go back where the model keeps them and the anchor
+        // track keeps the colour it started on until the copies land.
+        restoreAnchorTrackColor();
+        restoreDragOriginals();
+    } else {
+        clearCopyGhosts();
+    }
+    viewport()->update();
+}
+
+void TracksGraphicsView::updateCopyGhosts(
+    const QList<ClipSelectionDrag::Placement> &placements) {
+    clearCopyGhosts();
+    const auto &tracks = appModel->tracks();
+    if (tracks.isEmpty())
+        return;
+    for (const auto &placement : placements) {
+        if (placement.trackIndex < 0 || placement.trackIndex >= tracks.size())
+            continue;
+        Track *track = nullptr;
+        const auto *clip = appModel->findClipById(placement.clipId, track);
+        if (!clip)
+            continue;
+        if (auto *ghost = createCopyGhost(clip, placement.trackIndex, placement.properties)) {
+            m_scene->addCommonItem(ghost);
+            m_copyGhostViews.append(ghost);
+        }
+    }
+    viewport()->update();
+}
+
+void TracksGraphicsView::clearCopyGhosts() {
+    for (auto *ghost : m_copyGhostViews) {
+        m_scene->removeCommonItem(ghost);
+        delete ghost;
+    }
+    m_copyGhostViews.clear();
+}
+
+AbstractClipView *TracksGraphicsView::createCopyGhost(
+    const Clip *clip, const int trackIndex, const Clip::ClipCommonProperties &properties) const {
+    const auto &tracks = appModel->tracks();
+    if (trackIndex < 0 || trackIndex >= tracks.size())
+        return nullptr;
+    AbstractClipView *ghost = nullptr;
+    if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
+        auto *view = new SingingClipView(-1);
+        QVector<std::tuple<int, int, int>> notes;
+        for (const auto *note : singing->notes())
+            notes.append({note->localStart(), note->length(), note->keyIndex()});
+        view->loadPreviewNotes(notes);
+        const auto &voice = singing->singerInfo();
+        view->setSingerName(voice.displayName(UiLanguageManager::currentBcp47Candidates()));
+        view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
+            voice, singing->speakerInfo(), singing->speakerMixData()));
+        ghost = view;
+    } else if (const auto *audio = qobject_cast<const AudioClip *>(clip)) {
+        auto *view = new AudioClipView(-1);
+        view->setPath(audio->path());
+        view->setTimeline(appModel->timeline());
+        view->setAudioInfo(audio->audioInfo());
+        // Nothing decodes behind a ghost, and its samples come straight from the
+        // model, so it is loaded by construction.
+        view->setLoadState(AppGlobal::AudioClipLoadState::Loaded);
+        ghost = view;
+    }
+    if (!ghost)
+        return nullptr;
+    // The placement already carries the target geometry, so the common
+    // properties alone put the ghost where the copies will land.
+    ghost->loadCommonProperties(properties);
+    ghost->setTrackIndex(trackIndex);
+    ghost->setColorIndex(tracks.at(trackIndex)->colorIndex());
+    ghost->setOpacity(0.35);
+    ghost->setAcceptedMouseButtons(Qt::NoButton);
+    ghost->setAcceptHoverEvents(false);
+    ghost->setFlag(QGraphicsItem::ItemIsSelectable, false);
+    return ghost;
+}
+
+bool TracksGraphicsView::selectDuplicatedClips(const QList<ClipGeometryEdit> &edits,
+                                               const QList<int> &copies) {
+    if (copies.isEmpty())
+        return false;
+    // The anchor's copy keeps the bottom panel on what the gesture created.
+    auto anchorIndex = -1;
+    for (qsizetype index = 0; index < edits.size() && index < copies.size(); ++index) {
+        if (edits.at(index).clipId != m_dragAnchorId)
+            continue;
+        anchorIndex = static_cast<int>(index);
+        break;
+    }
+    applyClipSelection(copies);
+    m_selectionModel.synchronize(copies);
+    trackController->setSelectedClips(copies);
+    trackController->setActiveClip(anchorIndex >= 0 ? copies.at(anchorIndex) : copies.constFirst());
+    if (anchorIndex >= 0)
+        trackController->setSelectedTrackIndex(edits.at(anchorIndex).trackIndex);
+    return true;
 }
 
 void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
@@ -293,7 +429,7 @@ void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
                 setSceneLengthExtension(sceneLengthExtension() + visibleTickSpan);
             }
         }
-        updateClipDragAt(clampedViewportPos, modifiers);
+        updateClipDragAt(clampedViewportPos, m_dragModifiers);
         return;
     }
     // Rubber band selection is handled by the base class
@@ -584,6 +720,7 @@ void TracksGraphicsView::discardAction() {
     cancelRequested = true;
     restoreAnchorTrackColor();
     restoreDragOriginals();
+    clearCopyGhosts();
     editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     resetEditState();
 }
@@ -601,8 +738,15 @@ void TracksGraphicsView::commitAction() {
         // A clip the planner dropped (its target was illegal) still shows a preview, so put it
         // back before the command runs; the model signal only refreshes the clips that did change.
         restoreDragOriginals(committedIds);
+        clearCopyGhosts();
         if (!edits.isEmpty()) {
-            if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move)
+            if (m_copyDrag) {
+                // One command for the whole gesture: the copies land together
+                // and one undo takes them back.
+                const auto copies = trackController->onDuplicateClips(edits);
+                if (copies.size() != edits.size() || !selectDuplicatedClips(edits, copies))
+                    syncClipSelectionToAppStatus();
+            } else if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move)
                 trackController->onMoveClips(edits);
             else
                 trackController->onResizeClips(edits);
@@ -617,6 +761,10 @@ void TracksGraphicsView::commitAction() {
 
 void TracksGraphicsView::resetEditState() {
     m_movedBeforeMouseUp = false;
+    m_copyDrag = false;
+    if (m_modifierWatcher)
+        m_modifierWatcher->setEnabled(false);
+    clearCopyGhosts();
     m_dragSession.reset();
     m_dragAnchorId = -1;
     m_dragTrackIndex = -1;
@@ -772,6 +920,10 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     m_dragSession.begin(gesture, m_dragAnchorId, states, environment,
                         static_cast<double>(tickAtSceneX(scenePos.x())), pointerTrackIndex);
     m_movedBeforeMouseUp = false;
+    m_copyDrag = false;
+    m_dragModifiers = event->modifiers();
+    m_lastDragViewportPos = event->pos();
+    m_modifierWatcher->setEnabled(true);
 
     QList<int> clipIds;
     for (const auto clip : selectedClipItems())
