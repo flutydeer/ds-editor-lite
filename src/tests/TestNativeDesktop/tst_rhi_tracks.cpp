@@ -590,18 +590,26 @@ void NativeDesktopTests::rhiCtrlDragCopiesTheClipAndSelectsTheCopy() {
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
 
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-    moveWithButton(canvas, release);
-    // With no pointer event in between, holding Ctrl has to turn the running move
-    // into a copy: the clip stays put and the preview shows where the copy lands.
-    QTest::keyPress(&canvas, Qt::Key_Control);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    // A Ctrl click that never moves still deselects, and only on release.
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+
+    // Ctrl held before the press copies as well, the way the other DAWs do it.
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    moveWithButton(canvas, release, Qt::ControlModifier);
     QCOMPARE(clip->start(), originalStart);
     QCOMPARE(fixture.trackOfClip(), 0);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
-
-    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
-    QTest::keyRelease(&canvas, Qt::Key_Control);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::ControlModifier, release);
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
     QCOMPARE(clip->start(), originalStart);
     QCOMPARE(fixture.trackOfClip(), 0);
@@ -614,11 +622,31 @@ void NativeDesktopTests::rhiCtrlDragCopiesTheClipAndSelectsTheCopy() {
     // The copies replace the selection, so the next gesture grabs them.
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{copyId});
     QCOMPARE(appStatus->activeClipId.get(), copyId);
-
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
-    QVERIFY(!fixture.application.context->m_appModel->findClipById(copyId));
-    QVERIFY(fixture.application.context->m_appModel->findClipById(fixture.clipId));
+
+    // Ctrl pressed mid-drag reaches the preview without any pointer event.
+    const auto afterUndo = fixture.runtime().documentVersion();
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    moveWithButton(canvas, release);
+    QTest::keyPress(&canvas, Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(fixture.runtime().documentVersion(), afterUndo);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QTest::keyRelease(&canvas, Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(tracks[1]->clips().count(), 1);
+    copy = *tracks[1]->clips().begin();
+    QVERIFY(copy && copy->id() != fixture.clipId);
+    QCOMPARE(copy->start(), originalStart + 480);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{copy->id()});
+    const auto secondCopyId = copy->id();
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+    QVERIFY(!fixture.application.context->m_appModel->findClipById(secondCopyId));
 }
 
 void NativeDesktopTests::rhiClipResizeCommitsOrCancels_data() {

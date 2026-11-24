@@ -709,9 +709,20 @@ void ApplicationGuiTests::trackCtrlDragDuplicatesTheSelection() {
     const auto version = runtime.documentVersion();
     const auto before = TestSupport::projectSnapshot(*appModel);
     const auto originalStart = clip->start();
-    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
-    // Ctrl only goes down after the press, so the click still selects the clip
-    // instead of toggling it away.
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({clipId}));
+    // A Ctrl click that never moves deselects on release, not on press.
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({clipId}));
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+
+    // Ctrl held before the press copies as well, the way the other DAWs do it.
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
     QMouseEvent copyMove(QEvent::MouseMove, QPointF(to),
                          QPointF(canvas->viewport()->mapToGlobal(to)), Qt::NoButton,
                          Qt::LeftButton, Qt::ControlModifier);
@@ -743,6 +754,28 @@ void ApplicationGuiTests::trackCtrlDragDuplicatesTheSelection() {
     QCOMPARE(targetTrackModel->clips().count(), 0);
     QVERIFY(!appModel->findClipById(copyId));
     QVERIFY(appModel->findClipById(clipId));
+
+    // Ctrl arriving mid-drag reaches the preview without any pointer event.
+    const auto afterUndo = runtime.documentVersion();
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QMouseEvent move(QEvent::MouseMove, QPointF(to), QPointF(canvas->viewport()->mapToGlobal(to)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QCOMPARE(item->start(), originalStart + moveTicks);
+    QCOMPARE(item->trackIndex(), 1);
+    QTest::keyPress(canvas->viewport(), Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(runtime.documentVersion(), afterUndo);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+    QTest::keyRelease(canvas->viewport(), Qt::Key_Control);
+    QCOMPARE(targetTrackModel->clips().count(), 1);
+    copy = *targetTrackModel->clips().begin();
+    QVERIFY(copy && copy->id() != clipId);
+    QCOMPARE(copy->start(), originalStart + moveTicks);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({copy->id()}));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
 }
 
 void ApplicationGuiTests::trackClipGroupDragCommitsAtomically_data() {

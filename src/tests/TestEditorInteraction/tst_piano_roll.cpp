@@ -200,10 +200,12 @@ void EditorInteractionTests::orderedSelection() {
     result.selection = selection.release(result.selection, false);
 
     result = selection.press(result.selection, orderedNotes, 30, Qt::ControlModifier);
-    QVERIFY2((result.selection == (QList<int>{20, 40, 50}) && !result.targetSelected &&
-              selection.anchorId() == 30),
-             "Ctrl press must toggle the target and update the anchor");
+    QVERIFY2((result.selection == (QList<int>{20, 30, 40, 50}) && result.targetSelected &&
+              result.deselectOnRelease && selection.anchorId() == 30),
+             "Ctrl press must keep the target selected and defer its removal to the release");
     result.selection = selection.release(result.selection, false);
+    QVERIFY2((result.selection == (QList<int>{20, 40, 50})),
+             "an unmoved Ctrl release must remove the pressed note");
 
     selection.synchronize(result.selection);
     QVERIFY2((selection.anchorId() == 50),
@@ -218,6 +220,13 @@ void EditorInteractionTests::orderedSelection() {
     QVERIFY2((result.selection == QList<int>{40} && selection.anchorId() == 40),
              "Shift press without a valid anchor must fall back to a plain single selection");
     result.selection = selection.release(result.selection, false);
+
+    result = selection.press(result.selection, orderedNotes, 40, Qt::ControlModifier);
+    QVERIFY2((result.targetSelected && result.deselectOnRelease),
+             "a Ctrl press on a selected note must leave it draggable");
+    result.selection = selection.release(result.selection, true);
+    QVERIFY2((result.selection == QList<int>{40}),
+             "a moved Ctrl release must keep the pressed note in the selection");
 }
 
 void EditorInteractionTests::clickAndDragSelection() {
@@ -230,11 +239,15 @@ void EditorInteractionTests::clickAndDragSelection() {
     const auto dragged = clickSelection.release({10, 20, 30}, true);
     (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::ControlModifier);
     const auto modified = clickSelection.release({10, 20, 30}, false);
+    (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::ControlModifier);
+    const auto ctrlDragged = clickSelection.release({10, 20, 30}, true);
     (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::AltModifier);
     const auto altClick = clickSelection.release({10, 20, 30}, false);
     QVERIFY2((collapsed == QList<int>{20} && dragged == (QList<int>{10, 20, 30}) &&
-              modified == (QList<int>{10, 20, 30}) && altClick == QList<int>{20}),
-             "click release must collapse only an unmoved plain press");
+              modified == (QList<int>{10, 30}) && ctrlDragged == (QList<int>{10, 20, 30}) &&
+              altClick == QList<int>{20}),
+             "click release must collapse an unmoved plain press and must remove the target of an "
+             "unmoved Ctrl press");
 }
 
 void EditorInteractionTests::contextMenuSelection() {

@@ -76,8 +76,8 @@ void EditorInteractionTests::clipSelection() {
     QVERIFY2((EditorSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2})),
              "pressing a selected clip must preserve its multi-selection");
     QVERIFY2((EditorSelectionUtils::selectionForPress({1}, 2, true) == (QList<int>{1, 2}) &&
-              EditorSelectionUtils::selectionForPress({1}, 1, true).isEmpty()),
-             "toggle presses must add or remove the target clip");
+              EditorSelectionUtils::selectionForPress({1, 2}, 1, true) == (QList<int>{1, 2})),
+             "a toggle press must add an unselected clip and keep a selected one");
 }
 
 void EditorInteractionTests::singingClipRightResize() {
