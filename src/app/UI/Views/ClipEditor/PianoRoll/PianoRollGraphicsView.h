@@ -6,6 +6,7 @@
 #include <lite/History/HistoryFocus.h>
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorModifierWatcher.h"
 #include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
@@ -138,6 +139,15 @@ private:
     void updateNoteDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     // 发布拖动中音符的实时几何到 AppStatus（轨道侧缩略图预览用）
     void publishNoteEditPreview() const;
+    // Switches a move gesture between moving the selection and copying it. A
+    // copy leaves the notes on their model geometry and paints a translucent
+    // duplicate at the pointer instead.
+    void setCopyDrag(bool copy);
+    void updateCopyGhosts(int deltaTick, int deltaKey);
+    void clearCopyGhosts();
+    // Hands the selection to the notes a copy gesture created. Returns false
+    // when the model produced no copies.
+    bool selectDuplicatedNotes(const QList<int> &copies);
 
     [[nodiscard]] int noteFontPixelSize() const;
     void setNoteFontPixelSize(int size);
@@ -180,6 +190,18 @@ private:
 
     Q_DECLARE_PRIVATE(PianoRollGraphicsView)
     PianoRollGraphicsViewPrivate *d_ptr;
+
+    // A Ctrl drag copies the selection: the notes keep their places and ghosts
+    // follow the pointer.
+    bool m_copyDrag = false;
+    // Last modifier state of the gesture. Edge auto scroll repaints without a
+    // pointer event, so it replays this instead of querying the keyboard.
+    Qt::KeyboardModifiers m_dragModifiers;
+    QPoint m_lastDragViewportPos;
+    // Reports modifier presses and releases that arrive while the gesture owns
+    // the pointer but not the keyboard focus.
+    EditorModifierWatcher *m_modifierWatcher = nullptr;
+    QList<NoteView *> m_copyGhostViews;
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

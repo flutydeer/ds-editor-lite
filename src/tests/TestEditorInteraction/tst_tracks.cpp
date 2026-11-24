@@ -76,8 +76,8 @@ void EditorInteractionTests::clipSelection() {
     QVERIFY2((EditorSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2})),
              "pressing a selected clip must preserve its multi-selection");
     QVERIFY2((EditorSelectionUtils::selectionForPress({1}, 2, true) == (QList<int>{1, 2}) &&
-              EditorSelectionUtils::selectionForPress({1}, 1, true).isEmpty()),
-             "toggle presses must add or remove the target clip");
+              EditorSelectionUtils::selectionForPress({1, 2}, 1, true) == (QList<int>{1, 2})),
+             "a toggle press must add an unselected clip and keep a selected one");
 }
 
 void EditorInteractionTests::singingClipRightResize() {
@@ -478,6 +478,30 @@ void EditorInteractionTests::clipSelectionGroupMoveReachesAppendRow() {
         QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 1);
         QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 2);
     }
+}
+
+void EditorInteractionTests::clipSelectionGroupMoveHonorsRowLimit() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 4);
+    const QList<ClipSelectionDrag::ClipState> clips{
+        groupClipState(1, 1, 480, 0, 960),
+        groupClipState(2, 2, 480, 0, 960),
+    };
+    ClipSelectionDrag::Session session;
+    session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 480.0, 1);
+
+    // A move may take the bottom clip into the virtual append row.
+    QVERIFY(session.update(480.0, 2, false));
+    QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 2);
+    QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 3);
+    QVERIFY(session.moved());
+
+    // A copy has no row to create, so a lower limit keeps the whole block on the
+    // real tracks instead of letting the bottom clip out of range.
+    QVERIFY(session.update(480.0, 2, false, 3));
+    QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 1);
+    QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 2);
+    QVERIFY(!session.moved());
 }
 
 void EditorInteractionTests::clipSelectionGroupTrim() {

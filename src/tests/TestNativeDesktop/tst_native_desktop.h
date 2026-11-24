@@ -44,6 +44,7 @@ private slots:
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
     void rhiNoteMoveCanBeCanceledAndThenCommitted_data();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
+    void rhiCtrlDraggingANoteCopiesTheSelection();
     void rhiNoteDragKeepsScrollingUntilTheGestureEnds();
     void rhiMultiNoteSelectionAndMoveCommitAtomically();
     void rhiNoteResizeUndoRestoresTheHitRegion_data();
@@ -72,6 +73,7 @@ private slots:
     void rhiAnchorSelectionMovesTheGroupAtomically();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView_data();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
+    void rhiCtrlDragCopiesTheClipAndSelectsTheCopy();
     void rhiClipGroupDragCommitsAtomically_data();
     void rhiClipGroupDragCommitsAtomically();
     void rhiClipGroupTrimAndNudgeCommitAtomically();

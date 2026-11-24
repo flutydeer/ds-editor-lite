@@ -568,6 +568,87 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     QCOMPARE(fixture.clip()->start(), 960);
 }
 
+void NativeDesktopTests::rhiCtrlDragCopiesTheClipAndSelectsTheCopy() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(canvas.isActiveWindow());
+    QVERIFY(failed.isEmpty());
+    const auto before = fixture.runtime().documentVersion();
+    const auto original = TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+    auto *clip = fixture.clip();
+    QVERIFY(clip);
+    const auto originalStart = clip->start();
+    const auto press = fixture.point(720, 0);
+    const auto release = fixture.point(1200, 1);
+    QVERIFY(canvas.rect().contains(press));
+    QVERIFY(canvas.rect().contains(release));
+
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    // A Ctrl click that never moves still deselects, and only on release.
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+
+    // Ctrl held before the press copies as well, the way the other DAWs do it.
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::ControlModifier, press);
+    moveWithButton(canvas, release, Qt::ControlModifier);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::ControlModifier, release);
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    const auto &tracks = fixture.application.context->m_appModel->tracks();
+    QCOMPARE(tracks[1]->clips().count(), 1);
+    auto *copy = *tracks[1]->clips().begin();
+    QVERIFY(copy && copy->id() != fixture.clipId);
+    const auto copyId = copy->id();
+    QCOMPARE(copy->start(), originalStart + 480);
+    // The copies replace the selection, so the next gesture grabs them.
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{copyId});
+    QCOMPARE(appStatus->activeClipId.get(), copyId);
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+
+    // Ctrl pressed mid-drag reaches the preview without any pointer event.
+    const auto afterUndo = fixture.runtime().documentVersion();
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    moveWithButton(canvas, release);
+    QTest::keyPress(&canvas, Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(fixture.runtime().documentVersion(), afterUndo);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QTest::keyRelease(&canvas, Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(tracks[1]->clips().count(), 1);
+    copy = *tracks[1]->clips().begin();
+    QVERIFY(copy && copy->id() != fixture.clipId);
+    QCOMPARE(copy->start(), originalStart + 480);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{copy->id()});
+    const auto secondCopyId = copy->id();
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), original);
+    QVERIFY(!fixture.application.context->m_appModel->findClipById(secondCopyId));
+}
+
 void NativeDesktopTests::rhiClipResizeCommitsOrCancels_data() {
     QTest::addColumn<bool>("leftEdge");
     QTest::newRow("extend-right-and-undo") << false;

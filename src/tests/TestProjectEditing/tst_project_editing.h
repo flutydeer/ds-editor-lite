@@ -21,6 +21,7 @@ private slots:
     void singingClipEditing();
     void duplicateClipsPreserveContentAndCreateIndependentObjects_data();
     void duplicateClipsPreserveContentAndCreateIndependentObjects();
+    void duplicateClipsAtTargetsEveryCopyIndependently();
     void insertingPreparedContentCanRetryWithoutDuplicatingEdits_data();
     void insertingPreparedContentCanRetryWithoutDuplicatingEdits();
     void legacyAudioClipEditing();
@@ -63,6 +64,8 @@ private slots:
     void wholeClipParameterRoundTrip();
     void wholeClipsPasteAcrossTracksAsOneEdit();
     void duplicateWithParameters();
+    void duplicatingNotesWithKeyOffsetTransposesCopies();
+    void duplicatingNotesPastTheKeyRangeIsRejected();
     void oversizedTargetTailIsRejected();
     void oversizedSourceCurveIsRejected();
     void insertReturnsCommittedNote();

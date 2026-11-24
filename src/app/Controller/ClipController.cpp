@@ -278,6 +278,42 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
                                deltaTick, deltaKey);
 }
 
+QList<int> ClipController::onDuplicateNotes(const QList<int> &noteIds, const int deltaTick,
+                                            const int deltaKey) {
+    Q_D(ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing || noteIds.isEmpty())
+        return {};
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto minimumStart = std::numeric_limits<int>::max();
+    for (const auto id : noteIds) {
+        if (const auto *note = singingClip->findNoteById(id))
+            minimumStart = std::min(minimumStart, note->localStart());
+    }
+    if (minimumStart == std::numeric_limits<int>::max())
+        return {};
+    const auto targetStart = minimumStart + deltaTick;
+    if (targetStart < 0)
+        return {};
+    QList<Automation::NoteId> ids;
+    ids.reserve(noteIds.size());
+    for (const auto id : noteIds)
+        ids.append(Automation::NoteId(id));
+    const auto result = runtime->notes().duplicateNotes(
+        commandContext(*runtime), Automation::ClipId(singingClip->id()), ids,
+        Automation::ClipId(singingClip->id()), targetStart, deltaKey);
+    if (!result || !result.get().changed)
+        return {};
+    QList<int> createdIds;
+    for (const auto &object : result.get().affectedObjects) {
+        if (object.kind == Automation::ObjectKind::Note)
+            createdIds.append(object.value);
+    }
+    revealInsertedNotes(singingClip, result.get());
+    emit hasSelectedNotesChanged(hasSelectedNotes());
+    return createdIds;
+}
+
 void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick,
                                        const int minimumLength) const {
     Q_D(const ClipController);

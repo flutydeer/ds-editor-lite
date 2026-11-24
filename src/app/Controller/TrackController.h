@@ -71,6 +71,10 @@ public slots:
     // command entirely when nothing is left to edit.
     static void onMoveClips(const QList<ClipGeometryEdit> &edits);
     static void onResizeClips(const QList<ClipGeometryEdit> &edits);
+    // Commits a drag-copy gesture: every edit becomes a duplicate at its target track and geometry,
+    // inside one history entry. Returns the created clip ids in `edits` order, or an empty list
+    // when nothing was copied.
+    static QList<int> onDuplicateClips(const QList<ClipGeometryEdit> &edits);
     // Moves the current clip selection by whole steps and clamps it so no clip leaves the timeline
     // or the track range. Both deltas are in ticks and track rows.
     static void nudgeSelectedClips(int deltaTicks, int deltaTracks);

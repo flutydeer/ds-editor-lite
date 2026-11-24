@@ -67,6 +67,17 @@ namespace Automation {
         int targetStart = 0;
     };
 
+    // One duplicate target of a gesture: the source clip, the track the copy
+    // lands on, and the complete geometry the gesture previewed. The copy keeps
+    // every part of its source (notes, parameters, voice, audio asset) and takes
+    // only its position from `properties`.
+    struct ClipDuplicateTargetDto {
+        ClipId sourceId;
+        // An empty id keeps the source clip on its own track.
+        std::optional<TrackId> targetTrackId;
+        ClipPropertiesDto properties;
+    };
+
     class ProjectAutomationFacade final {
     public:
         ProjectAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
@@ -111,6 +122,12 @@ namespace Automation {
         AutomationResult<MutationResult>
             duplicateClips(const CommandContext &context, QList<ClipId> clipIds,
                            const ClipDuplicateDestinationDto &destination);
+        // Duplicates every target onto its own track and geometry in one command,
+        // so a gesture that copies a whole selection is one history entry.
+        // `affectedObjects` and `createdObjects` follow `targets` order.
+        AutomationResult<MutationResult>
+            duplicateClipsAt(const CommandContext &context,
+                             const QList<ClipDuplicateTargetDto> &targets);
         AutomationResult<MutationResult> moveClips(const CommandContext &context,
                                                    const QList<ClipMoveDto> &moves);
         // One history entry: appends `newTrack` at the project tail and applies

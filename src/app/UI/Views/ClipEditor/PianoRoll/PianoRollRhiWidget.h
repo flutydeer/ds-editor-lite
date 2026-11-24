@@ -4,6 +4,7 @@
 #include "Interface/EditorViewState.h"
 #include "PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorModifierWatcher.h"
 #include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorTouchTarget.h"
@@ -151,6 +152,9 @@ protected:
 private:
     class Private;
     std::unique_ptr<Private> d;
+    // Reports the modifier presses and releases that arrive while a note
+    // gesture owns the pointer but not the keyboard focus.
+    EditorModifierWatcher *m_modifierWatcher = nullptr;
 
     void notifyViewportChanged();
     void notifyBackendUnavailable();

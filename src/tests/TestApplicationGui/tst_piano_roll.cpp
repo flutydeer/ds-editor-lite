@@ -751,6 +751,156 @@ void ApplicationGuiTests::draggingExistingNoteCommitsOrCancels() {
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterContents);
 }
 
+void ApplicationGuiTests::ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto noteId = insertSelectedNote();
+    QVERIFY(noteId >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *item = sceneNote(noteId);
+    QVERIFY(item);
+    const auto originalPosition = item->scenePos();
+    const auto press = pointFor(600, 62);
+    const auto release = pointFor(1080, 64);
+    QVERIFY(view->viewport()->rect().contains(press));
+    QVERIFY(view->viewport()->rect().contains(release));
+
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{noteId});
+    // A Ctrl click that never moves deselects on release, not on press.
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::ControlModifier, press);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{noteId});
+    QCOMPARE(item->startOffset(), 0);
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::ControlModifier, press);
+    QVERIFY(appStatus->selectedNotes.get().isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+
+    // Ctrl held before the press copies as well, the way the other DAWs do it.
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::ControlModifier, press);
+    QMouseEvent copyMove(QEvent::MouseMove, QPointF(release),
+                         QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton,
+                         Qt::LeftButton, Qt::ControlModifier);
+    QApplication::sendEvent(view->viewport(), &copyMove);
+    // The note stays on its model geometry and only the thumbnails show the copy.
+    QCOMPARE(item->startOffset(), 0);
+    QCOMPARE(item->keyOffset(), 0);
+    QCOMPARE(item->scenePos(), originalPosition);
+    QCOMPARE(item->rStart(), 480);
+    QCOMPARE(item->keyIndex(), 62);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().rStart, 960);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().length, 240);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().keyIndex, 64);
+
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::ControlModifier, release);
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    // The opaque copies replace the translucent previews instead of stacking on top.
+    QCOMPARE(sceneNoteCount(-1), 0);
+    const auto *source = singingClip->findNoteById(noteId);
+    QVERIFY(source);
+    QCOMPARE(source->localStart(), 480);
+    QCOMPARE(source->keyIndex(), 62);
+    // The copies replace the selection, so the next gesture grabs them.
+    QCOMPARE(appStatus->selectedNotes.get().size(), 1);
+    const auto copyId = appStatus->selectedNotes.get().first();
+    QVERIFY(copyId != noteId);
+    const auto *copy = singingClip->findNoteById(copyId);
+    QVERIFY(copy);
+    QCOMPARE(copy->localStart(), 960);
+    QCOMPARE(copy->length(), 240);
+    QCOMPARE(copy->keyIndex(), 64);
+    QCOMPARE(copy->lyric(), source->lyric());
+    QVERIFY(sceneNote(copyId));
+    QVERIFY(sceneNote(copyId)->isSelected());
+    QVERIFY(!sceneNote(noteId)->isSelected());
+
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(singingClip->findNoteById(noteId));
+    QVERIFY(!singingClip->findNoteById(copyId));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QVERIFY(!historyManager->canUndo());
+
+    // Ctrl arriving mid-drag turns the running move into a copy.
+    const auto afterUndo = runtime.documentVersion();
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+    QVERIFY(item->startOffset() != 0);
+    QTest::keyPress(view->viewport(), Qt::Key_Control);
+    QCOMPARE(item->startOffset(), 0);
+    QCOMPARE(item->keyOffset(), 0);
+    QCOMPARE(item->scenePos(), originalPosition);
+    QCOMPARE(runtime.documentVersion(), afterUndo);
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().rStart, 960);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().keyIndex, 64);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QTest::keyRelease(view->viewport(), Qt::Key_Control);
+    QCOMPARE(appStatus->selectedNotes.get().size(), 1);
+    QVERIFY(appStatus->selectedNotes.get().first() != noteId);
+    QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
+    QCOMPARE(singingClip->notes().count(), 2);
+    QCOMPARE(sceneNoteCount(-1), 0);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+}
+
+void ApplicationGuiTests::ctrlBeforeTheFirstMoveKeepsTheNoteInPlace() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto noteId = insertSelectedNote();
+    QVERIFY(noteId >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *item = sceneNote(noteId);
+    QVERIFY(item);
+    const auto originalPosition = item->scenePos();
+    const auto press = pointFor(600, 62);
+    QVERIFY(view->viewport()->rect().contains(press));
+
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    // Ctrl arriving before the first move has to replay the press point, not a
+    // stale position: the note keeps its place and no stray delta is previewed.
+    QTest::keyPress(view->viewport(), Qt::Key_Control);
+    for (const auto &preview : appStatus->pianoRollNoteEditPreview.get()) {
+        QCOMPARE(preview.rStart, 480);
+        QCOMPARE(preview.keyIndex, 62);
+    }
+    QTest::keyRelease(view->viewport(), Qt::Key_Control);
+    QCOMPARE(item->startOffset(), 0);
+    QCOMPARE(item->keyOffset(), 0);
+    QCOMPARE(item->scenePos(), originalPosition);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(singingClip->notes().count(), 1);
+    QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
+    QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
+    QCOMPARE(sceneNoteCount(-1), 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QVERIFY(!historyManager->canUndo());
+}
+
 int ApplicationGuiTests::insertSelectedNote() {
     Automation::NoteDraftDto note;
     note.localStart = 480;

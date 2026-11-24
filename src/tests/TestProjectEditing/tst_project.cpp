@@ -545,6 +545,107 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
     QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
 }
 
+void ProjectEditingTests::duplicateClipsAtTargetsEveryCopyIndependently() {
+    CopyableContentFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = fixture.testRuntime.runtime();
+    const auto target = insertedTrack(runtime, QStringLiteral("Drag copies"));
+    QVERIFY(target.isValid());
+    const auto sourceVoice = clipSnapshot(runtime, fixture.clipId);
+    const auto sourceAudio = clipSnapshot(runtime, fixture.audioId);
+    QVERIFY(sourceVoice && sourceAudio);
+
+    // The geometry a rigid copy drag previews: one clip lands on another track,
+    // the other keeps its own track and only moves in time.
+    auto voiceGeometry = sourceVoice->data.properties;
+    voiceGeometry.start = sourceVoice->data.properties.start + 4800;
+    auto audioGeometry = sourceAudio->data.properties;
+    audioGeometry.start = sourceAudio->data.properties.start + 960;
+    const QList<Automation::ClipDuplicateTargetDto> targets{
+        {fixture.clipId,  target,       voiceGeometry},
+        {fixture.audioId, std::nullopt, audioGeometry},
+    };
+
+    fixture.testRuntime.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.testRuntime.model());
+    const auto preview = runtime.project().duplicateClipsAt(commandContext(runtime, true), targets);
+    QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
+    QVERIFY(preview.get().createdObjects.isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
+
+    const auto duplicated = runtime.project().duplicateClipsAt(commandContext(runtime), targets);
+    QVERIFY2(duplicated, qPrintable(duplicated ? QString() : duplicated.getError().message));
+    QCOMPARE(duplicated.get().affectedObjects.size(), 2);
+    QCOMPARE(duplicated.get().createdObjects.size(), 2);
+    const auto voiceCopyId = ClipId(duplicated.get().affectedObjects.at(0).value);
+    const auto audioCopyId = ClipId(duplicated.get().affectedObjects.at(1).value);
+    const auto voiceCopy = clipSnapshot(runtime, voiceCopyId);
+    const auto audioCopy = clipSnapshot(runtime, audioCopyId);
+    QVERIFY(voiceCopy && audioCopy);
+    QCOMPARE(voiceCopy->trackId, target);
+    QCOMPARE(audioCopy->trackId, fixture.audioTrack);
+    QCOMPARE(voiceCopy->data.properties.start, voiceGeometry.start);
+    QCOMPARE(audioCopy->data.properties.start, audioGeometry.start);
+    QCOMPARE(audioCopy->data.audioPath, sourceAudio->data.audioPath);
+    QVERIFY(audioCopy->data.hasRealTimeAnchor);
+    QCOMPARE(audioCopy->data.properties.trimStartMs, audioGeometry.trimStartMs);
+    QCOMPARE(audioCopy->data.properties.playLengthMs, audioGeometry.playLengthMs);
+    // The sources stay exactly where the gesture found them.
+    const auto voiceSource = clipSnapshot(runtime, fixture.clipId);
+    const auto audioSource = clipSnapshot(runtime, fixture.audioId);
+    QVERIFY(voiceSource && audioSource);
+    QCOMPARE(voiceSource->data.properties.start, sourceVoice->data.properties.start);
+    QCOMPARE(voiceSource->trackId, fixture.trackId);
+    QCOMPARE(audioSource->data.properties.start, sourceAudio->data.properties.start);
+
+    // Every copy owns its objects: no note id is shared with the source.
+    const auto sourceNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId);
+    const auto copiedNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, voiceCopyId);
+    QVERIFY(sourceNotes && copiedNotes);
+    QCOMPARE(copiedNotes.get().size(), sourceNotes.get().size());
+    for (qsizetype i = 0; i < sourceNotes.get().size(); ++i) {
+        const auto &source = sourceNotes.get().at(i);
+        const auto &copy = copiedNotes.get().at(i);
+        QVERIFY(copy.id != source.id);
+        QCOMPARE(copy.data.localStart, source.data.localStart);
+        QCOMPARE(copy.data.keyIndex, source.data.keyIndex);
+        QCOMPARE(copy.data.lyric, source.data.lyric);
+    }
+    QVERIFY(voiceCopy->data.ownSingerInfo == sourceVoice->data.ownSingerInfo);
+
+    // One gesture stays one history entry.
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
+    QVERIFY(!fixture.testRuntime.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    const auto redone = clipSnapshot(runtime, voiceCopyId);
+    QVERIFY(redone);
+    QCOMPARE(redone->data.properties.start, voiceGeometry.start);
+
+    // Geometry the model would reject is refused before anything is written.
+    fixture.testRuntime.history()->reset();
+    const auto rejectedBefore = runtime.documentVersion();
+    auto invalid = sourceVoice->data.properties;
+    invalid.clipStart = 0;
+    invalid.start = -120;
+    const auto rejected = runtime.project().duplicateClipsAt(
+        commandContext(runtime), {
+                                     {fixture.clipId, std::nullopt, invalid}
+    });
+    QVERIFY(isError(rejected, AutomationErrorCode::InvalidArgument,
+                    QStringLiteral("targets.properties")));
+    QCOMPARE(runtime.documentVersion(), rejectedBefore);
+    QCOMPARE(clipSnapshot(runtime, fixture.clipId)->data.properties.start,
+             sourceVoice->data.properties.start);
+}
+
 void ProjectEditingTests::insertingPreparedContentCanRetryWithoutDuplicatingEdits_data() {
     QTest::addColumn<bool>("insertTracks");
     QTest::newRow("complete-tracks") << true;

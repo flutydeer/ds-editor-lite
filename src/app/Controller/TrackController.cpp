@@ -337,6 +337,40 @@ void TrackController::onResizeClips(const QList<ClipGeometryEdit> &edits) {
     (void) runtime->project().setClipsProperties(commandContext(*runtime), batch);
 }
 
+QList<int> TrackController::onDuplicateClips(const QList<ClipGeometryEdit> &edits) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return {};
+    const auto trackCount = static_cast<int>(appModel->tracks().size());
+    QList<Automation::ClipDuplicateTargetDto> targets;
+    targets.reserve(edits.size());
+    for (const auto &edit : edits) {
+        // The gesture may outlive a clip (an import finishing, an undo from elsewhere), so every
+        // entry is re-resolved instead of trusted.
+        if (!appModel->findClipById(edit.clipId))
+            continue;
+        // A copy has to land on a real track. An out-of-range row has no destination, and
+        // duplicating onto the source track instead would put the copy under the original.
+        if (edit.trackIndex < 0 || edit.trackIndex >= trackCount)
+            continue;
+        targets.append({Automation::ClipId(edit.clipId),
+                        Automation::TrackId(appModel->tracks().at(edit.trackIndex)->id()),
+                        clipPropertiesDto(edit.properties)});
+    }
+    if (targets.isEmpty())
+        return {};
+    const auto result = runtime->project().duplicateClipsAt(commandContext(*runtime), targets);
+    if (!result || !result.get().changed)
+        return {};
+    // The command reports one affected object per target, in that order.
+    QList<int> createdIds;
+    createdIds.reserve(targets.size());
+    const auto &created = result.get().affectedObjects;
+    for (qsizetype index = 0; index < targets.size() && index < created.size(); ++index)
+        createdIds.append(created.at(index).value);
+    return createdIds;
+}
+
 void TrackController::nudgeSelectedClips(const int deltaTicks, const int deltaTracks) {
     auto *runtime = automationRuntime();
     if (!runtime)

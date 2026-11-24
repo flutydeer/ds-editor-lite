@@ -143,6 +143,98 @@ void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFin
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::trackCtrlDragStopsCopiesAtTheLastRealTrack() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+
+    Automation::TrackDraftDto upperTrack;
+    upperTrack.name = QStringLiteral("Copy upper");
+    Automation::ClipDraftDto upperDraft;
+    upperDraft.type = Automation::ClipDraftDto::Type::Singing;
+    upperDraft.properties.name = QStringLiteral("Copy upper clip");
+    upperDraft.properties.start = 960;
+    upperDraft.properties.length = 1920;
+    upperDraft.properties.clipLen = 1920;
+    upperTrack.clips.append(upperDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, upperTrack));
+    Automation::TrackDraftDto lowerTrack;
+    lowerTrack.name = QStringLiteral("Copy lower");
+    Automation::ClipDraftDto lowerDraft = upperDraft;
+    lowerDraft.properties.name = QStringLiteral("Copy lower clip");
+    lowerTrack.clips.append(lowerDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 1, lowerTrack));
+
+    auto *upperModel = appModel->tracks().at(0);
+    auto *lowerModel = appModel->tracks().at(1);
+    auto *upperClip = *upperModel->clips().begin();
+    auto *lowerClip = *lowerModel->clips().begin();
+    QVERIFY(upperClip && lowerClip);
+    const auto upperId = upperClip->id();
+    const auto lowerId = lowerClip->id();
+
+    editor.resize(1200, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, canvas->scaleYMin()));
+    canvas->setViewportStartTick(0);
+    canvas->setVerticalBarValue(0);
+    QCoreApplication::processEvents();
+    auto *upperItem = editor.findClipItemById(upperId);
+    QVERIFY(upperItem);
+
+    const auto rowHeight = TracksEditorGlobal::trackHeight * canvas->scaleY();
+    const auto from = canvas->mapFromScene(upperItem->sceneBoundingRect().center());
+    const auto to = canvas->mapFromScene(
+        upperItem->sceneBoundingRect().center() + QPointF(0, rowHeight));
+    const auto geometryDiagnostic = QStringLiteral("Viewport %1x%2, from (%3, %4), to (%5, %6)")
+                                        .arg(canvas->viewport()->width())
+                                        .arg(canvas->viewport()->height())
+                                        .arg(from.x())
+                                        .arg(from.y())
+                                        .arg(to.x())
+                                        .arg(to.y());
+    QVERIFY2(canvas->viewport()->rect().contains(from), qPrintable(geometryDiagnostic));
+    QVERIFY2(canvas->viewport()->rect().contains(to), qPrintable(geometryDiagnostic));
+
+    historyManager->reset();
+    const auto version = runtime.documentVersion();
+    const auto before = TestSupport::projectSnapshot(*appModel);
+    appStatus->selectedClips.set({upperId, lowerId});
+    appStatus->activeClipId.set(upperId);
+
+    // The block already ends on the last real track, so a copy has no row to move
+    // down into: the pointer enters the virtual append row and the gesture stops.
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QMouseEvent move(QEvent::MouseMove, QPointF(to), QPointF(canvas->viewport()->mapToGlobal(to)),
+                     Qt::NoButton, Qt::LeftButton, Qt::ControlModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QCOMPARE(upperItem->trackIndex(), 0);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, to);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+    QCOMPARE(upperModel->clips().count(), 1);
+    QCOMPARE(lowerModel->clips().count(), 1);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::trackClipDragCommitsOrCancels_data() {
     QTest::addColumn<bool>("audio");
     QTest::addColumn<int>("edge");
@@ -641,6 +733,141 @@ namespace {
         QTest::mouseRelease(target, Qt::LeftButton, modifiers, to);
     }
 
+}
+
+void ApplicationGuiTests::trackCtrlDragDuplicatesTheSelection() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    const auto clearDocument = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        canvas->discardAction();
+        runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+
+    Automation::TrackDraftDto sourceTrack;
+    sourceTrack.name = QStringLiteral("Copy source");
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    clipDraft.properties.name = QStringLiteral("Copy A");
+    clipDraft.properties.start = 960;
+    clipDraft.properties.length = 1920;
+    clipDraft.properties.clipLen = 1920;
+    sourceTrack.clips.append(clipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, sourceTrack));
+    appendEmptyTrack(runtime, commandContext(), QStringLiteral("Copy target"));
+
+    auto *sourceTrackModel = appModel->tracks().at(0);
+    auto *targetTrackModel = appModel->tracks().at(1);
+    auto *clip = *sourceTrackModel->clips().begin();
+    QVERIFY(clip);
+    const auto clipId = clip->id();
+
+    editor.resize(1200, 560);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    canvas->setFocus();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, canvas->scaleYMin()));
+    canvas->setViewportStartTick(0);
+    canvas->setVerticalBarValue(0);
+    QCoreApplication::processEvents();
+    auto *item = editor.findClipItemById(clipId);
+    QVERIFY(item);
+
+    constexpr int moveTicks = 480;
+    const auto rowHeight = TracksEditorGlobal::trackHeight * canvas->scaleY();
+    const auto tickDelta = canvas->sceneXForTick(moveTicks) - canvas->sceneXForTick(0);
+    const auto from = canvas->mapFromScene(item->sceneBoundingRect().center());
+    const auto to =
+        canvas->mapFromScene(item->sceneBoundingRect().center() + QPointF(tickDelta, rowHeight));
+    const auto geometryDiagnostic = QStringLiteral("Viewport %1x%2, from (%3, %4), to (%5, %6)")
+                                        .arg(canvas->viewport()->width())
+                                        .arg(canvas->viewport()->height())
+                                        .arg(from.x())
+                                        .arg(from.y())
+                                        .arg(to.x())
+                                        .arg(to.y());
+    QVERIFY2(canvas->viewport()->rect().contains(from), qPrintable(geometryDiagnostic));
+    QVERIFY2(canvas->viewport()->rect().contains(to), qPrintable(geometryDiagnostic));
+
+    historyManager->reset();
+    const auto version = runtime.documentVersion();
+    const auto before = TestSupport::projectSnapshot(*appModel);
+    const auto originalStart = clip->start();
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({clipId}));
+    // A Ctrl click that never moves deselects on release, not on press.
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({clipId}));
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+
+    // Ctrl held before the press copies as well, the way the other DAWs do it.
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, from);
+    QMouseEvent copyMove(QEvent::MouseMove, QPointF(to),
+                         QPointF(canvas->viewport()->mapToGlobal(to)), Qt::NoButton,
+                         Qt::LeftButton, Qt::ControlModifier);
+    QApplication::sendEvent(canvas->viewport(), &copyMove);
+    // The source keeps its place: only the copy preview follows the pointer.
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(item->start(), originalStart);
+    QCOMPARE(item->trackIndex(), 0);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, to);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion().revision, version.revision + 1);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(sourceTrackModel->clips().count(), 1);
+    QCOMPARE(*sourceTrackModel->clips().begin(), clip);
+    QCOMPARE(targetTrackModel->clips().count(), 1);
+    auto *copy = *targetTrackModel->clips().begin();
+    QVERIFY(copy && copy->id() != clipId);
+    QCOMPARE(copy->start(), originalStart + moveTicks);
+    // The copies replace the selection, so the next gesture grabs them.
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({copy->id()}));
+    QCOMPARE(appStatus->activeClipId.get(), copy->id());
+    const auto copyId = copy->id();
+
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+    QCOMPARE(targetTrackModel->clips().count(), 0);
+    QVERIFY(!appModel->findClipById(copyId));
+    QVERIFY(appModel->findClipById(clipId));
+
+    // Ctrl arriving mid-drag reaches the preview without any pointer event.
+    const auto afterUndo = runtime.documentVersion();
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+    QMouseEvent move(QEvent::MouseMove, QPointF(to), QPointF(canvas->viewport()->mapToGlobal(to)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QCOMPARE(item->start(), originalStart + moveTicks);
+    QCOMPARE(item->trackIndex(), 1);
+    QTest::keyPress(canvas->viewport(), Qt::Key_Control);
+    QCOMPARE(clip->start(), originalStart);
+    QCOMPARE(runtime.documentVersion(), afterUndo);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+    QTest::keyRelease(canvas->viewport(), Qt::Key_Control);
+    QCOMPARE(targetTrackModel->clips().count(), 1);
+    copy = *targetTrackModel->clips().begin();
+    QVERIFY(copy && copy->id() != clipId);
+    QCOMPARE(copy->start(), originalStart + moveTicks);
+    QCOMPARE(canonicalClipIds(appStatus->selectedClips.get()), canonicalClipIds({copy->id()}));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), before);
 }
 
 void ApplicationGuiTests::trackClipGroupDragCommitsAtomically_data() {
