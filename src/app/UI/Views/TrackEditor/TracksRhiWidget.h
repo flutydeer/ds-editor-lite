@@ -140,7 +140,6 @@ protected:
     void dragLeaveEvent(QDragLeaveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void leaveEvent(QEvent *event) override;
-    void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
 
     // --- EditorTouchTarget ---
@@ -193,13 +192,13 @@ private:
         AudioWaveformSampler::Result waveform;
     };
 
-    void rebuildSnapshot();
+    void rebuildSnapshot(EditorRhiFrameData &frame) override;
     void rebuildModelConnections();
     void appendGrid(EditorRhiFrameData &frame, double dpr) const;
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);
     void appendLastPlaybackIndicator(EditorRhiFrameData &frame, double dpr) const;
-    void updatePlaybackOverlay();
+    void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const override;
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     void appendSplitPreviewOverlay(EditorRhiFrameData &frame, double dpr) const;
     // Paints a clip somewhere other than where the model keeps it. A Ctrl drag
@@ -223,7 +222,7 @@ private:
                                                                    const AudioInfoModel &audioInfo,
                                                                    const ClipSnapshot &clip,
                                                                    double dpr) const;
-    [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
+    [[nodiscard]] std::optional<ClipSnapshot> hitTest(const QPointF &viewportPosition) const;
     // The band that carries the clip title, in viewport coordinates. Empty when
     // the clip is too short to draw its title as its own strip.
     [[nodiscard]] QRectF titleBandViewportRect(const ClipSnapshot &clip) const;
@@ -327,8 +326,6 @@ private:
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_copyGhostSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
-    QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
-    bool m_snapshotScheduled = false;
     // rebuildModelConnections() runs on every model change; this keeps the controller connection
     // from stacking up across those rebuilds.
     bool m_loadStateConnected = false;

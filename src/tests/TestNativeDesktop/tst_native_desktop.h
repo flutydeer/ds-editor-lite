@@ -60,6 +60,7 @@ private slots:
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
     void rhiPianoNavigationInputsReachTheActiveViewport();
+    void rhiPianoViewportChangesReachTheNextFrame();
     void rhiTouchpadPinchLocksTheAxisWithoutEditing_data();
     void rhiTouchpadPinchLocksTheAxisWithoutEditing();
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();

@@ -392,8 +392,7 @@ void TracksRhiWidget::setLeftMarginPx(const double px) {
 void TracksRhiWidget::setPlaybackPosition(const double tick) {
     m_playbackPosition = tick;
     handleAutoPageTurn();
-    if (!m_snapshotScheduled)
-        updatePlaybackOverlay();
+    update();
 }
 
 void TracksRhiWidget::setLastPlaybackPosition(const double tick) {
@@ -433,19 +432,13 @@ void TracksRhiWidget::updateScrollBars() {
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
-    if (m_snapshotScheduled)
-        return;
-    m_snapshotScheduled = true;
-    QTimer::singleShot(0, this, [this] {
-        m_snapshotScheduled = false;
-        rebuildSnapshot();
-    });
+    requestSnapshot();
 }
 
 void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     m_viewport.setViewportSize(event->size());
     emit sizeChanged(event->size());
+    EditorRhiWidget::resizeEvent(event);
 }
 
 bool TracksRhiWidget::event(QEvent *event) {
@@ -500,7 +493,7 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
     m_viewport.stopAnimation();
     disarmDragAutoScroll();
-    const auto *hit = hitTest(event->position());
+    const auto hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {
         if (hit) {
             // A right press only decides what the menu acts on: plain semantics, so a group that
@@ -579,7 +572,7 @@ void TracksRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
 
 EditorTouchTarget::ContentHit
     TracksRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
-    const auto *hit = hitTest(viewportPosition);
+    const auto hit = hitTest(viewportPosition);
     if (!hit)
         return ContentHit::None;
     // A finger has to select a clip before it can move or resize it, so that
@@ -703,7 +696,7 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
 }
 
 void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (const auto *hit = hitTest(event->position())) {
+    if (const auto hit = hitTest(event->position())) {
         // The title band renames the clip in place, the body keeps opening it
         // in the clip editor.
         if (event->button() == Qt::LeftButton && !hit->pastePreview &&
@@ -757,7 +750,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     context.rawTick = tickAt(event->pos());
     context.snappedTick = TimelineSnapUtils::snapDown(context.rawTick, snapStep(context.rawTick),
                                                       appModel->timeline());
-    if (const auto *hit = hitTest(event->pos())) {
+    if (const auto hit = hitTest(event->pos())) {
         updateClipSelection(*hit, Qt::NoModifier);
         context.trackIndex = hit->trackIndex;
         context.clipId = hit->id;
@@ -997,19 +990,14 @@ void TracksRhiWidget::leaveEvent(QEvent *event) {
     EditorRhiWidget::leaveEvent(event);
 }
 
-void TracksRhiWidget::onRhiReady() {
-    scheduleSnapshot();
-}
-
 void TracksRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     m_glyphAtlas.clear();
     scheduleSnapshot();
 }
 
-void TracksRhiWidget::rebuildSnapshot() {
+void TracksRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
     const auto dpr = devicePixelRatioF();
-    auto frame = acquireFrame();
     frame.solidVertices.clear();
     frame.drawList.clear();
     frame.clearColor = m_backgroundColor;
@@ -1041,8 +1029,6 @@ void TracksRhiWidget::rebuildSnapshot() {
     }
     frame.drawList.finish(frame.solidVertices.size());
     m_glyphAtlas.populateTextureBatches(frame.textureBatches);
-    submitFrame(std::move(frame));
-    updatePlaybackOverlay();
 }
 
 void TracksRhiWidget::rebuildModelConnections() {
@@ -1357,14 +1343,11 @@ void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
     }
 }
 
-void TracksRhiWidget::updatePlaybackOverlay() {
+void TracksRhiWidget::appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
     const auto dpr = devicePixelRatioF();
-    m_playbackOverlayRects.clear();
     EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-        m_playbackOverlayRects,
-        (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr, 0.0,
-        height() * dpr, dpr, m_playPosIndicatorColor);
-    m_playbackOverlayRects = submitOverlay(std::move(m_playbackOverlayRects));
+        rects, (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr,
+        0.0, height() * dpr, dpr, m_playPosIndicatorColor);
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
@@ -1564,13 +1547,15 @@ void TracksRhiWidget::clearTrackSplitPreview() {
     scheduleSnapshot();
 }
 
-const TracksRhiWidget::ClipSnapshot *
+std::optional<TracksRhiWidget::ClipSnapshot>
     TracksRhiWidget::hitTest(const QPointF &viewportPosition) const {
+    // Input may arrive between a viewport or model change and the queued paint.
+    ensureSnapshot();
     const auto physicalScene = m_viewport.viewportToScene(viewportPosition) * devicePixelRatioF();
     for (auto iterator = m_clipSnapshots.crbegin(); iterator != m_clipSnapshots.crend(); ++iterator)
         if (iterator->modelPhysicalRect.contains(physicalScene))
-            return &*iterator;
-    return nullptr;
+            return *iterator;
+    return std::nullopt;
 }
 
 int TracksRhiWidget::trackIndexAt(const QPointF &viewportPosition) const {
@@ -1963,7 +1948,7 @@ void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTr
 }
 
 void TracksRhiWidget::updateCursor(const QPointF &position) {
-    const auto *clip = hitTest(position);
+    const auto clip = hitTest(position);
     if (!clip) {
         unsetCursor();
         return;
@@ -2065,7 +2050,7 @@ QColor TracksRhiWidget::playPosIndicatorColor() const {
 
 void TracksRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     m_playPosIndicatorColor = color;
-    updatePlaybackOverlay();
+    update();
 }
 
 QColor TracksRhiWidget::lastPlayPosIndicatorColor() const {

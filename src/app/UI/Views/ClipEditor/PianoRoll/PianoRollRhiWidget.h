@@ -125,7 +125,8 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void onRhiReady() override;
+    void rebuildSnapshot(EditorRhiFrameData &frame) override;
+    void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const override;
     void onDevicePixelRatioChanged() override;
 
     // --- EditorTouchTarget ---

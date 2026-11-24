@@ -454,19 +454,16 @@ public:
     void setPlaybackPosition(const double tick) {
         playbackPosition = tick;
         handleAutoPageTurn();
-        if (!snapshotScheduled)
-            updatePlaybackOverlay();
+        q->update();
     }
 
-    void updatePlaybackOverlay() {
-        playbackOverlayRects.clear();
+    void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
         if (clip && q->width() > 0 && q->height() > 0) {
             const auto currentX = viewport.tickToSceneX(playbackPosition - clip->start()) * dpr;
             EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-                playbackOverlayRects, currentX - horizontalOffset() * dpr, 0.0, q->height() * dpr,
-                dpr, q->playPosIndicatorColor());
+                rects, currentX - horizontalOffset() * dpr, 0.0, q->height() * dpr, dpr,
+                q->playPosIndicatorColor());
         }
-        playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
 
     void setAutoPageTurn(const bool enabled) {
@@ -2267,17 +2264,10 @@ public:
     }
 
     void scheduleSnapshot() {
-        if (snapshotScheduled)
-            return;
-        snapshotScheduled = true;
-        QTimer::singleShot(0, q, [this] {
-            snapshotScheduled = false;
-            rebuildSnapshot();
-        });
+        q->requestSnapshot();
     }
 
-    void rebuildSnapshot() {
-        auto frame = q->acquireFrame();
+    void rebuildSnapshot(EditorRhiFrameData &frame) {
         vertices = std::move(frame.solidVertices);
         vertices.clear();
         drawList = std::move(frame.drawList);
@@ -2316,8 +2306,6 @@ public:
         frame.solidVertices = std::move(vertices);
         frame.drawList = std::move(drawList);
         glyphAtlas.populateTextureBatches(frame.textureBatches);
-        q->submitFrame(std::move(frame));
-        updatePlaybackOverlay();
     }
 
 private:
@@ -3316,7 +3304,6 @@ public:
     QPointer<SingingClip> clip;
     bool cameraInitialized = false;
     bool viewportPositionPending = false;
-    bool snapshotScheduled = false;
     bool fallbackRequested = false;
     int trackColorIndex = 0;
     PianoRollEditMode editMode = Select;
@@ -3400,7 +3387,6 @@ public:
     bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
-    QVector<EditorRhiOverlayRect> playbackOverlayRects;
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
@@ -3757,8 +3743,8 @@ void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
 }
 
 void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     d->resize();
+    EditorRhiWidget::resizeEvent(event);
 }
 
 void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
@@ -3955,8 +3941,12 @@ void PianoRollRhiWidget::deleteSelectedAnchors() {
     d->anchorController.deleteSelectedNodes();
 }
 
-void PianoRollRhiWidget::onRhiReady() {
-    d->scheduleSnapshot();
+void PianoRollRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
+    d->rebuildSnapshot(frame);
+}
+
+void PianoRollRhiWidget::appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
+    d->appendPlaybackOverlay(rects);
 }
 
 void PianoRollRhiWidget::onDevicePixelRatioChanged() {
@@ -4170,7 +4160,7 @@ QColor PianoRollRhiWidget::playPosIndicatorColor() const {
 
 void PianoRollRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     d->playPosIndicatorColor = color;
-    d->updatePlaybackOverlay();
+    update();
 }
 
 QColor PianoRollRhiWidget::lastPlayPosIndicatorColor() const {
