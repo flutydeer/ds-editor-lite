@@ -520,6 +520,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     // already swapped for the erase one (beginPenEraseStroke).
     const auto pressMode =
         d->activePenErasure() == EditorPenEraser::EraseNote ? EraseNote : d->m_editMode;
+    // The modifier watcher replays the last pointer position when Ctrl arrives
+    // before the first move, so it has to start at the press point.
+    m_lastDragViewportPos = event->pos();
     // A tap on the error badge asks for the reason instead of interacting. The
     // eraser keeps its own semantics
     if (event->button() == Qt::LeftButton && pressMode != EraseNote) {

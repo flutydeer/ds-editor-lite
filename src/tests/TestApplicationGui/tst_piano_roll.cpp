@@ -859,6 +859,48 @@ void ApplicationGuiTests::ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
 }
 
+void ApplicationGuiTests::ctrlBeforeTheFirstMoveKeepsTheNoteInPlace() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto noteId = insertSelectedNote();
+    QVERIFY(noteId >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeContents = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *item = sceneNote(noteId);
+    QVERIFY(item);
+    const auto originalPosition = item->scenePos();
+    const auto press = pointFor(600, 62);
+    QVERIFY(view->viewport()->rect().contains(press));
+
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    // Ctrl arriving before the first move has to replay the press point, not a
+    // stale position: the note keeps its place and no stray delta is previewed.
+    QTest::keyPress(view->viewport(), Qt::Key_Control);
+    for (const auto &preview : appStatus->pianoRollNoteEditPreview.get()) {
+        QCOMPARE(preview.rStart, 480);
+        QCOMPARE(preview.keyIndex, 62);
+    }
+    QTest::keyRelease(view->viewport(), Qt::Key_Control);
+    QCOMPARE(item->startOffset(), 0);
+    QCOMPARE(item->keyOffset(), 0);
+    QCOMPARE(item->scenePos(), originalPosition);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(singingClip->notes().count(), 1);
+    QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
+    QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
+    QCOMPARE(sceneNoteCount(-1), 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
+    QVERIFY(!historyManager->canUndo());
+}
+
 int ApplicationGuiTests::insertSelectedNote() {
     Automation::NoteDraftDto note;
     note.localStart = 480;

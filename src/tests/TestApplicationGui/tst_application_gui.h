@@ -71,6 +71,7 @@ private slots:
     void draggingExistingNoteCommitsOrCancels_data();
     void draggingExistingNoteCommitsOrCancels();
     void ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources();
+    void ctrlBeforeTheFirstMoveKeepsTheNoteInPlace();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
     void activeClipMoveRebindsThePianoTrackColor_data();
