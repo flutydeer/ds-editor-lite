@@ -109,10 +109,9 @@ signals:
     void backendFailed(const QString &reason);
 
 protected:
-    // Reclaiming the submitted snapshot lets producers rebuild it in place before update().
-    [[nodiscard]] EditorRhiFrameData acquireFrame();
-    void submitFrame(EditorRhiFrameData frame);
-    [[nodiscard]] QVector<EditorRhiOverlayRect> submitOverlay(QVector<EditorRhiOverlayRect> rects);
+    void requestSnapshot();
+    virtual void rebuildSnapshot(EditorRhiFrameData &frame) = 0;
+    virtual void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const = 0;
     [[nodiscard]] QPointF physicalWindowOffset() const;
     void requestBackendFailure(const QString &reason);
 
@@ -121,7 +120,6 @@ protected:
     void releaseResources() final;
     bool event(QEvent *event) override;
 
-    virtual void onRhiReady();
     virtual void onDevicePixelRatioChanged();
 
 private:

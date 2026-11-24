@@ -70,7 +70,8 @@ protected:
     void hideEvent(QHideEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
-    void onRhiReady() override;
+    void rebuildSnapshot(EditorRhiFrameData &frame) override;
+    void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const override;
     void onDevicePixelRatioChanged() override;
 
     // --- EditorTouchTarget ---

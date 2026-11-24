@@ -7,7 +7,6 @@
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
-#include <QTimer>
 #include <rhi/qrhi.h>
 
 #include <algorithm>
@@ -87,6 +86,19 @@ public:
     }
 
     void initialize() {
+        if (resourcesReady && rhi == q->rhi() && colorTexture == q->colorTexture() &&
+            sceneTexture->pixelSize() != colorTexture->pixelSize()) {
+            // Qt resized the color texture in place. Both passes keep their formats and pipelines.
+            sceneTexture->setPixelSize(colorTexture->pixelSize());
+            if (!sceneTexture->create() || !renderTarget->create() ||
+                !sceneRenderTarget->create()) {
+                resourcesReady = false;
+                fail(QStringLiteral("failed to resize editor render targets"));
+                return;
+            }
+            frameDirty = true;
+            return;
+        }
         release();
         rhi = q->rhi();
         colorTexture = q->colorTexture();
@@ -153,7 +165,7 @@ public:
             return;
 
         resourcesReady = true;
-        q->onRhiReady();
+        snapshotDirty = true;
     }
 
     bool createPipelines() {
@@ -307,35 +319,24 @@ public:
         return true;
     }
 
-    EditorRhiFrameData acquireFrame() {
-        return std::move(frame);
-    }
-
-    void submit(EditorRhiFrameData newFrame) {
-        frame = std::move(newFrame);
-        frameDirty = true;
-        updateRequestedNs = clock.nsecsElapsed();
-        q->update();
-    }
-
-    QVector<EditorRhiOverlayRect> submitOverlay(QVector<EditorRhiOverlayRect> newRects) {
-        auto previousRects = std::move(overlayRects);
-        overlayRects = std::move(newRects);
-        q->update();
-        return previousRects;
-    }
-
     void render(QRhiCommandBuffer *cb) {
         if (!resourcesReady || !cb)
             return;
         if (colorTexture != q->colorTexture() || !renderTarget || !sceneRenderTarget) {
-            // Qt recreates the color buffer on resize / DPI change without
-            // re-entering initialize(), so detect the swap here and rebuild the
-            // render targets lazily.
+            // A replaced output texture needs new attachments even if Qt did not reinitialize us.
             colorTexture = q->colorTexture();
             if (!rebuildRenderTargets())
                 return;
         }
+
+        // Consume viewport changes in the same paint as the adjacent rulers.
+        if (snapshotDirty) {
+            snapshotDirty = false;
+            q->rebuildSnapshot(frame);
+            frameDirty = true;
+        }
+        overlayRects.clear();
+        q->appendPlaybackOverlay(overlayRects);
 
         QElapsedTimer uploadTimer;
         uploadTimer.start();
@@ -629,6 +630,7 @@ public:
     QString diagnosticsTag;
     EditorRhiFrameData frame;
     QVector<EditorRhiOverlayRect> overlayRects;
+    bool snapshotDirty = true;
     bool frameDirty = true;
     bool resourcesReady = false;
     bool failureRequested = false;
@@ -688,16 +690,10 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
 
 EditorRhiWidget::~EditorRhiWidget() = default;
 
-EditorRhiFrameData EditorRhiWidget::acquireFrame() {
-    return d->acquireFrame();
-}
-
-void EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
-    d->submit(std::move(frame));
-}
-
-QVector<EditorRhiOverlayRect> EditorRhiWidget::submitOverlay(QVector<EditorRhiOverlayRect> rects) {
-    return d->submitOverlay(std::move(rects));
+void EditorRhiWidget::requestSnapshot() {
+    d->snapshotDirty = true;
+    d->updateRequestedNs = d->clock.nsecsElapsed();
+    update();
 }
 
 QPointF EditorRhiWidget::physicalWindowOffset() const {
@@ -726,9 +722,6 @@ bool EditorRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::DevicePixelRatioChange)
         onDevicePixelRatioChanged();
     return result;
-}
-
-void EditorRhiWidget::onRhiReady() {
 }
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {

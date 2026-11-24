@@ -392,8 +392,7 @@ void TracksRhiWidget::setLeftMarginPx(const double px) {
 void TracksRhiWidget::setPlaybackPosition(const double tick) {
     m_playbackPosition = tick;
     handleAutoPageTurn();
-    if (!m_snapshotScheduled)
-        updatePlaybackOverlay();
+    update();
 }
 
 void TracksRhiWidget::setLastPlaybackPosition(const double tick) {
@@ -433,19 +432,13 @@ void TracksRhiWidget::updateScrollBars() {
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
-    if (m_snapshotScheduled)
-        return;
-    m_snapshotScheduled = true;
-    QTimer::singleShot(0, this, [this] {
-        m_snapshotScheduled = false;
-        rebuildSnapshot();
-    });
+    requestSnapshot();
 }
 
 void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     m_viewport.setViewportSize(event->size());
     emit sizeChanged(event->size());
+    EditorRhiWidget::resizeEvent(event);
 }
 
 bool TracksRhiWidget::event(QEvent *event) {
@@ -997,19 +990,14 @@ void TracksRhiWidget::leaveEvent(QEvent *event) {
     EditorRhiWidget::leaveEvent(event);
 }
 
-void TracksRhiWidget::onRhiReady() {
-    scheduleSnapshot();
-}
-
 void TracksRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     m_glyphAtlas.clear();
     scheduleSnapshot();
 }
 
-void TracksRhiWidget::rebuildSnapshot() {
+void TracksRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
     const auto dpr = devicePixelRatioF();
-    auto frame = acquireFrame();
     frame.solidVertices.clear();
     frame.drawList.clear();
     frame.clearColor = m_backgroundColor;
@@ -1041,8 +1029,6 @@ void TracksRhiWidget::rebuildSnapshot() {
     }
     frame.drawList.finish(frame.solidVertices.size());
     m_glyphAtlas.populateTextureBatches(frame.textureBatches);
-    submitFrame(std::move(frame));
-    updatePlaybackOverlay();
 }
 
 void TracksRhiWidget::rebuildModelConnections() {
@@ -1357,14 +1343,11 @@ void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
     }
 }
 
-void TracksRhiWidget::updatePlaybackOverlay() {
+void TracksRhiWidget::appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
     const auto dpr = devicePixelRatioF();
-    m_playbackOverlayRects.clear();
     EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-        m_playbackOverlayRects,
-        (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr, 0.0,
-        height() * dpr, dpr, m_playPosIndicatorColor);
-    m_playbackOverlayRects = submitOverlay(std::move(m_playbackOverlayRects));
+        rects, (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr,
+        0.0, height() * dpr, dpr, m_playPosIndicatorColor);
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
@@ -2065,7 +2048,7 @@ QColor TracksRhiWidget::playPosIndicatorColor() const {
 
 void TracksRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     m_playPosIndicatorColor = color;
-    updatePlaybackOverlay();
+    update();
 }
 
 QColor TracksRhiWidget::lastPlayPosIndicatorColor() const {

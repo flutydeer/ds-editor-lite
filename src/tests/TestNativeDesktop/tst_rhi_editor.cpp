@@ -785,6 +785,43 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
 }
 
+void NativeDesktopTests::rhiPianoViewportChangesReachTheNextFrame() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen") || !platformRhiAvailable())
+        QSKIP("A native graphics backend is required for framebuffer validation");
+    const auto restoreSoftware = preferSoftwareRhi(true);
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize(38400, true);
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    const auto initial = canvas.grabFramebuffer();
+    QVERIFY(!initial.isNull());
+    QVERIFY(canvas.setViewScale(2.0, 1.0));
+    const auto firstZoom = canvas.grabFramebuffer();
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    const auto settledZoom = canvas.grabFramebuffer();
+    const QRect noteRows(0, initial.height() / 3, initial.width(), initial.height() / 3);
+    QVERIFY(settledZoom.copy(noteRows) != initial.copy(noteRows));
+    QCOMPARE(firstZoom.copy(noteRows), settledZoom.copy(noteRows));
+
+    const auto originalSize = canvas.size();
+    canvas.resize(originalSize.width() - 180, originalSize.height());
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    const auto narrowWidth = canvas.grabFramebuffer().width();
+    QVERIFY(narrowWidth > 0);
+    canvas.resize(originalSize);
+    const auto firstResize = canvas.grabFramebuffer();
+    QCOMPARE(firstResize.size(), settledZoom.size());
+    const QRect exposed(narrowWidth, noteRows.y(), settledZoom.width() - narrowWidth,
+                        noteRows.height());
+    QVERIFY(!exposed.isEmpty());
+    QCOMPARE(firstResize.copy(exposed), settledZoom.copy(exposed));
+}
+
 void NativeDesktopTests::rhiPianoNavigationInputsReachTheActiveViewport() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");

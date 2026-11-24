@@ -134,17 +134,10 @@ public:
     }
 
     void scheduleSnapshot() {
-        if (snapshotScheduled)
-            return;
-        snapshotScheduled = true;
-        QTimer::singleShot(0, q, [this] {
-            snapshotScheduled = false;
-            rebuildSnapshot();
-        });
+        q->requestSnapshot();
     }
 
-    void rebuildSnapshot() {
-        auto frame = q->acquireFrame();
+    void rebuildSnapshot(EditorRhiFrameData &frame) {
         vertices = std::move(frame.solidVertices);
         vertices.clear();
         drawList = std::move(frame.drawList);
@@ -168,19 +161,15 @@ public:
         glyphAtlas.populateTextureBatches(frame.textureBatches);
         frame.solidVertices = std::move(vertices);
         frame.drawList = std::move(drawList);
-        q->submitFrame(std::move(frame));
-        updatePlaybackOverlay();
     }
 
-    void updatePlaybackOverlay() {
-        playbackOverlayRects.clear();
+    void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
         if (hasContent()) {
             const auto currentX = viewport.tickToSceneX(playbackPosition) * dpr;
             EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-                playbackOverlayRects, currentX - viewport.horizontalOffset() * dpr, 0.0,
-                q->height() * dpr, dpr, playPosIndicatorColor);
+                rects, currentX - viewport.horizontalOffset() * dpr, 0.0, q->height() * dpr, dpr,
+                playPosIndicatorColor);
         }
-        playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
 
     [[nodiscard]] QRectF laneSceneRect(const int lane) const {
@@ -376,11 +365,9 @@ public:
 
     QVector<EditorRhiSolidVertex> vertices;
     EditorRhiDrawList drawList;
-    QVector<EditorRhiOverlayRect> playbackOverlayRects;
     double dpr = 1.0;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
-    bool snapshotScheduled = false;
     bool viewportPositionPending = false;
 
     QColor laneBackgroundColor = {32, 35, 43};
@@ -481,8 +468,7 @@ void AudioViewRhiWidget::setHorizontalBarValue(const int value) {
 
 void AudioViewRhiWidget::setPlaybackPosition(const double tick) {
     d->playbackPosition = tick;
-    if (!d->snapshotScheduled)
-        d->updatePlaybackOverlay();
+    update();
 }
 
 void AudioViewRhiWidget::setLastPlaybackPosition(const double tick) {
@@ -551,11 +537,11 @@ void AudioViewRhiWidget::hideEvent(QHideEvent *event) {
 }
 
 void AudioViewRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     d->viewport.setViewportSize(size());
     d->positionViewportAtContent();
     d->updateScrollBars();
     d->scheduleSnapshot();
+    EditorRhiWidget::resizeEvent(event);
 }
 
 void AudioViewRhiWidget::wheelEvent(QWheelEvent *event) {
@@ -563,8 +549,12 @@ void AudioViewRhiWidget::wheelEvent(QWheelEvent *event) {
         EditorRhiWidget::wheelEvent(event);
 }
 
-void AudioViewRhiWidget::onRhiReady() {
-    d->scheduleSnapshot();
+void AudioViewRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
+    d->rebuildSnapshot(frame);
+}
+
+void AudioViewRhiWidget::appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
+    d->appendPlaybackOverlay(rects);
 }
 
 void AudioViewRhiWidget::onDevicePixelRatioChanged() {
@@ -647,7 +637,7 @@ QColor AudioViewRhiWidget::playPosIndicatorColor() const {
 
 void AudioViewRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     d->playPosIndicatorColor = color;
-    d->updatePlaybackOverlay();
+    update();
 }
 
 QColor AudioViewRhiWidget::lastPlayPosIndicatorColor() const {
