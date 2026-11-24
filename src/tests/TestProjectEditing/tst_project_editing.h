@@ -64,6 +64,8 @@ private slots:
     void wholeClipParameterRoundTrip();
     void wholeClipsPasteAcrossTracksAsOneEdit();
     void duplicateWithParameters();
+    void duplicatingNotesWithKeyOffsetTransposesCopies();
+    void duplicatingNotesPastTheKeyRangeIsRejected();
     void oversizedTargetTailIsRejected();
     void oversizedSourceCurveIsRejected();
     void insertReturnsCommittedNote();

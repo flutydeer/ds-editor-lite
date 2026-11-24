@@ -53,6 +53,9 @@ public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
+    // Duplicates the notes onto an offset of themselves and returns the created
+    // note ids, so a drag-copy gesture can hand the selection to the copies.
+    QList<int> onDuplicateNotes(const QList<int> &noteIds, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick, int minimumLength) const;
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick, int minimumLength) const;
     void onResizeNotesSharedBoundary(int leftNoteId, int rightNoteId, int deltaTick,

@@ -351,6 +351,73 @@ namespace {
         }
     }
 
+    void testDuplicateWithKeyOffset() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto track = insertTrack(runtime, QStringLiteral("Transpose"));
+        const auto clip = insertClip(runtime, track, QStringLiteral("Transpose Clip"));
+        const auto noteIds = insertTransferNotes(runtime, clip);
+        expect(noteIds.size() == 2, QStringLiteral("fixture must insert both notes"));
+
+        const auto before = runtime.documentVersion();
+        auto previewContext = commandContext(runtime);
+        previewContext.validateOnly = true;
+        const auto preview =
+            runtime.notes().duplicateNotes(previewContext, clip, noteIds, clip, 520, 7);
+        expect(preview && preview.get().validatedOnly && runtime.documentVersion() == before,
+               QStringLiteral("a transposing duplicate must validate without writing"));
+
+        const auto duplicate =
+            runtime.notes().duplicateNotes(commandContext(runtime), clip, noteIds, clip, 520, 7);
+        expect(duplicate && duplicate.get().changed &&
+                   runtime.documentVersion().revision == before.revision + 1,
+               QStringLiteral("a transposing duplicate must commit as one revision"));
+
+        const auto notes = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+        expect(notes && notes.get().size() == 4,
+               QStringLiteral("the duplicate must keep the originals and add the copies"));
+        if (notes && notes.get().size() == 4) {
+            const auto &all = notes.get();
+            expect(all.at(0).data.keyIndex == 60 && all.at(1).data.keyIndex == 62,
+                   QStringLiteral("transposing a duplicate must not move the originals"));
+            expect(all.at(2).data.localStart == 520 && all.at(2).data.keyIndex == 67 &&
+                       all.at(3).data.localStart == 720 && all.at(3).data.keyIndex == 69,
+                   QStringLiteral("copies must translate on both axes"));
+            expect(all.at(2).data.lyric == all.at(0).data.lyric &&
+                       all.at(3).data.length == all.at(1).data.length,
+                   QStringLiteral("copies must keep the word data and lengths"));
+        }
+
+        const auto undo = runtime.history().undo(commandContext(runtime));
+        expect(undo && undo.get().changed,
+               QStringLiteral("one undo must revert the whole transposing duplicate"));
+        const auto restored = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+        expect(restored && restored.get().size() == 2,
+               QStringLiteral("undo must leave only the source notes"));
+    }
+
+    void testDuplicateKeyOffsetOutOfRangeIsRejected() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto track = insertTrack(runtime, QStringLiteral("Transpose"));
+        const auto clip = insertClip(runtime, track, QStringLiteral("Transpose Clip"));
+        const auto noteIds = insertTransferNotes(runtime, clip);
+        const auto before = runtime.documentVersion();
+        const auto notesBefore =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+        const auto duplicate =
+            runtime.notes().duplicateNotes(commandContext(runtime), clip, noteIds, clip, 520, 70);
+        expect(!duplicate &&
+                   duplicate.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                   duplicate.getError().fieldPath == QStringLiteral("delta_key"),
+               QStringLiteral("a transpose past key 127 must be refused"));
+        const auto notesAfter =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+        expect(runtime.documentVersion() == before && notesBefore && notesAfter &&
+                   notesAfter.get().size() == notesBefore.get().size(),
+               QStringLiteral("a refused transpose must write nothing"));
+    }
+
     void testOversizedTargetTailIsRejected() {
         TestRuntime testRuntime;
         auto &runtime = testRuntime.runtime();
@@ -868,6 +935,14 @@ void ProjectEditingTests::wholeClipsPasteAcrossTracksAsOneEdit() {
 
 void ProjectEditingTests::duplicateWithParameters() {
     testDuplicateWithParameters();
+}
+
+void ProjectEditingTests::duplicatingNotesWithKeyOffsetTransposesCopies() {
+    testDuplicateWithKeyOffset();
+}
+
+void ProjectEditingTests::duplicatingNotesPastTheKeyRangeIsRejected() {
+    testDuplicateKeyOffsetOutOfRangeIsRejected();
 }
 
 void ProjectEditingTests::oversizedTargetTailIsRejected() {

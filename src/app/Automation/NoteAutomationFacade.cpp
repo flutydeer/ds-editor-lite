@@ -391,18 +391,18 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-        NoteAutomationFacade::duplicateNotes(const CommandContext &context,
-                                             const ClipId sourceClipId, QList<NoteId> noteIds,
-                                             const ClipId targetClipId, const int targetStart) {
+    AutomationResult<MutationResult> NoteAutomationFacade::duplicateNotes(
+        const CommandContext &context, const ClipId sourceClipId, QList<NoteId> noteIds,
+        const ClipId targetClipId, const int targetStart, const int deltaKey) {
         const auto requestFingerprint =
             context.idempotencyKey.isEmpty()
                 ? QByteArray{}
-                : noteIdsFingerprint(sourceClipId, noteIds, {targetClipId.value(), targetStart});
+                : noteIdsFingerprint(sourceClipId, noteIds,
+                                     {targetClipId.value(), targetStart, deltaKey});
         return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::duplicate, context, requestFingerprint,
-            [this, sourceClipId, noteIds = std::move(noteIds), targetClipId,
-             targetStart](DocumentSession &session, const bool validateOnly) {
+            [this, sourceClipId, noteIds = std::move(noteIds), targetClipId, targetStart,
+             deltaKey](DocumentSession &session, const bool validateOnly) {
                 auto source = m_objects.singingClip(session, sourceClipId);
                 if (!source)
                     return AutomationResult<MutationResult>(source.getError());
@@ -423,10 +423,23 @@ namespace Automation {
                 }
                 if (sourceNotes.isEmpty())
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                const auto payload = captureNoteTransfer(
+                auto payload = captureNoteTransfer(
                     *static_cast<const SingingClip *>(source.get().clip), sourceNotes);
                 if (!payload)
                     return AutomationResult<MutationResult>(payload.getError());
+                if (deltaKey != 0) {
+                    for (auto &draft : payload.get().notes) {
+                        const auto transposed = static_cast<qint64>(draft.keyIndex) + deltaKey;
+                        if (transposed < 0 || transposed > 127) {
+                            return AutomationResult<MutationResult>(
+                                AutomationError::invalidArgument(
+                                    QStringLiteral("delta_key"),
+                                    QStringLiteral(
+                                        "Transposed note key is outside the valid range")));
+                        }
+                        draft.keyIndex = static_cast<int>(transposed);
+                    }
+                }
                 return commitTransfer(session, targetClipId, targetStart, payload.get(),
                                       validateOnly);
             });
