@@ -117,7 +117,7 @@ Legacy 的 `m_currentEditingClip`、`m_mouseDownStart` 等一组单剪辑标量�
 
 - 方向键自动重复不合并历史，按住不放会连续产生撤销记录。
 - 不做块级刚性裁边极限：裁边是逐剪辑钳制的，到达极限的剪辑停住，其它继续跟随。
-- 不做多选 Duplicate（Ctrl+D）、批量 Split、批量增益/静音/改名面板、拖动复制（Alt+拖出副本）。
+- 不做多选 Duplicate（Ctrl+D）、批量 Split、批量增益/静音/改名面板。拖动复制（Ctrl 拖出副本）见[拖动复制](drag-copy-design.md)。
 - 不合并 `Legacy` 与 `RHI` 两个渲染后端，本次只让它们共享交互数学。
 
 ## 关键文件
