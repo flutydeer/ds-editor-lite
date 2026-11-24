@@ -141,6 +141,7 @@ private slots:
     void fillLyricInputsCommitOrCancel();
     void lyricRuleEditingChangesThePreviewAndPersists();
     void lyricLanguageSelectorOffersOnlySingerRoutes();
+    void lyricLanguageContextKeepsTheDerivedChoiceImplicit();
     void fillLyricDerivesLanguageFromSlurFreeNotes();
     void changingTheLyricLanguageKeepsTheEditedPreview();
     void typedLyricsSurviveALanguageChange();

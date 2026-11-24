@@ -36,6 +36,11 @@ namespace FillLyric {
         /// Records a selection made in the language control, which the derived
         /// choice then never overwrites.
         void setChoice(const QString &choice);
+        /// Restores a previously shown choice together with its origin, so a
+        /// canceled change leaves a derived choice derived.
+        void restoreChoice(const QString &choice, bool explicitChoice);
+        /// True once the current choice came from the language control.
+        [[nodiscard]] bool choiceIsExplicit() const;
 
         /// Re-derives the choice for a new skip-slur state and reports whether it
         /// changed. A derived choice follows the notes being filled, so skipping

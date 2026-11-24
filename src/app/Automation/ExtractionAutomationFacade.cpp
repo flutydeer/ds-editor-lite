@@ -516,6 +516,10 @@ namespace Automation {
                 .length = note.length,
                 .keyIndex = note.keyIndex,
                 .lyric = input.defaultLyric,
+                // The requested language describes the extracted material, so
+                // every note declares it instead of resolving through whichever
+                // singer the destination clip ends up with.
+                .language = input.defaultLanguage,
             });
         }
 

@@ -831,6 +831,38 @@ void ApplicationGuiTests::fillLyricDerivesLanguageFromSlurFreeNotes() {
     QCOMPARE(runtime.documentVersion(), before);
 }
 
+void ApplicationGuiTests::lyricLanguageContextKeepsTheDerivedChoiceImplicit() {
+    using FillLyric::LyricLanguageContext;
+    // The derived choice follows the notes being filled, so changing the skip
+    // state refreshes it while a selection the user made does not move.
+    LyricLanguageContext context({QStringLiteral("cmn"), QStringLiteral("yue")},
+                                 QStringLiteral("cmn"), QString(),
+                                 [](const bool skipSlur) {
+                                     return skipSlur ? QStringLiteral("cmn") : QString();
+                                 });
+    QVERIFY(!context.choiceIsExplicit());
+    QVERIFY(context.choice().isEmpty());
+    QVERIFY(context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    QVERIFY(!context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    context.setChoice(QStringLiteral("yue"));
+    QVERIFY(context.choiceIsExplicit());
+    QVERIFY(!context.refreshChoice(false));
+    QCOMPARE(context.choice(), QStringLiteral("yue"));
+    // A canceled change restores the derived choice as derived.
+    context.restoreChoice(QString(), false);
+    QVERIFY(!context.choiceIsExplicit());
+    QVERIFY(context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    // Restoring an explicit choice keeps it explicit.
+    context.setChoice(QStringLiteral("yue"));
+    context.restoreChoice(QStringLiteral("yue"), true);
+    QVERIFY(context.choiceIsExplicit());
+    QVERIFY(!context.refreshChoice(false));
+    QCOMPARE(context.choice(), QStringLiteral("yue"));
+}
+
 void ApplicationGuiTests::lyricLanguageSelectorOffersOnlySingerRoutes() {
     // The selector is the only source of the fill language, so it offers exactly
     // automatic detection plus the singer routes, and nothing can block the

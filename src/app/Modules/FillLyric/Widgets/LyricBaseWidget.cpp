@@ -157,6 +157,7 @@ namespace FillLyric {
                     if (!m_languageContext || index < 0)
                         return;
                     m_previousLanguageChoice = m_languageContext->choice();
+                    m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
                     m_languageContext->setChoice(m_languageComboBox->itemData(index).toString());
                     updateLanguageToolTip();
                     Q_EMIT languageChoiceChanged();
@@ -174,6 +175,7 @@ namespace FillLyric {
                     m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
                 }
                 m_previousLanguageChoice = m_languageContext->choice();
+                m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
                 updateLanguageToolTip();
             }
             Q_EMIT modifyOption();
@@ -294,13 +296,14 @@ namespace FillLyric {
         const auto index = m_languageComboBox->findData(choice);
         m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
         m_previousLanguageChoice = choice;
+        m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
         updateLanguageToolTip();
     }
 
     void LyricBaseWidget::revertLanguageChoice() {
         if (!m_languageContext)
             return;
-        m_languageContext->setChoice(m_previousLanguageChoice);
+        m_languageContext->restoreChoice(m_previousLanguageChoice, m_previousChoiceIsExplicit);
         const auto index = m_languageComboBox->findData(m_previousLanguageChoice);
         {
             const QSignalBlocker blocker(m_languageComboBox);

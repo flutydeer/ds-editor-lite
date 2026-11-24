@@ -266,8 +266,8 @@ void AutomationProtocolTests::publicExtractionAuthorizesAndRoutesOptions() {
         QCOMPARE(notes.last().localStart, 600);
         QCOMPARE(notes.last().keyIndex, 62);
         QCOMPARE(notes.last().lyric, QStringLiteral("test"));
-        // Imported notes stay unspecified so they keep following the voice source.
-        QVERIFY(notes.last().language.isEmpty());
+        // The requested default language describes the extracted notes.
+        QCOMPARE(notes.last().language, QStringLiteral("cmn"));
     }
     const auto terminal =
         registry.invoke(QStringLiteral("tasks.get"),

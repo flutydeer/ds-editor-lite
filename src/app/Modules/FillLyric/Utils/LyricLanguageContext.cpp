@@ -27,6 +27,15 @@ namespace FillLyric {
         m_choiceIsExplicit = true;
     }
 
+    void LyricLanguageContext::restoreChoice(const QString &choice, const bool explicitChoice) {
+        m_choice = choice;
+        m_choiceIsExplicit = explicitChoice;
+    }
+
+    bool LyricLanguageContext::choiceIsExplicit() const {
+        return m_choiceIsExplicit;
+    }
+
     bool LyricLanguageContext::refreshChoice(const bool skipSlur) {
         if (m_choiceIsExplicit || !m_choiceResolver)
             return false;
