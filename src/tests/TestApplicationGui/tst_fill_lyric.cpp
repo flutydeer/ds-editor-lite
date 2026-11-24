@@ -192,6 +192,11 @@ namespace {
         QTest::mouseRelease(preview->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         editPreview.stop();
         QVERIFY(edited);
+        // The cell editor is a Qt::Popup. The offscreen platform has no window manager
+        // that reactivates the dialog after the popup closes, so a later click inside it
+        // cannot take focus.
+        dialog.activateWindow();
+        QTRY_VERIFY(dialog.isActiveWindow());
         QCOMPARE(second->lyric(), QStringLiteral("-"));
         const auto output = dialog.exportLangNotes();
         QCOMPARE(output.langNotes.size(), 2);

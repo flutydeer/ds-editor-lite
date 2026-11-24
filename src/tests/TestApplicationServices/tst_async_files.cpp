@@ -1357,6 +1357,7 @@ void ApplicationServicesTests::midiExtractionDestinations() {
     options.clientRef = QStringLiteral("extracted");
     options.minimumNoteLength = 120;
     options.targetStart = 720;
+    options.defaultLanguage = QStringLiteral("jpn");
     if (!destinationMode.isEmpty())
         options.targetTrackId = harness.trackId();
     if (merging)
@@ -1478,8 +1479,13 @@ void ApplicationServicesTests::midiExtractionDestinations() {
     QCOMPARE(second.length, 360);
     QCOMPARE(second.keyIndex, 67);
     QCOMPARE(first.lyric, QStringLiteral("la"));
-    // Extracted notes stay unspecified and follow the clip input language.
-    QVERIFY(first.language.isEmpty());
+    // The requested language describes the extracted material, so every note
+    // declares it instead of resolving through the destination clip.
+    QCOMPARE(first.language, QStringLiteral("jpn"));
+    QCOMPARE(second.language, QStringLiteral("jpn"));
+    // Merging only appends notes; notes already in the clip keep their own declaration.
+    if (merging)
+        QCOMPARE(notes.first().language, QStringLiteral("en"));
     const auto committed = TestSupport::projectSnapshot(harness.model());
     const auto replay = runtime.extractions().startMidi(context, harness.audioClipId(), options);
     QVERIFY(replay);
