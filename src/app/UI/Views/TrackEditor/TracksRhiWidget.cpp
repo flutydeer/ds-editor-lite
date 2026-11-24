@@ -1116,7 +1116,7 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
 
 void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     m_clipSnapshots.clear();
-    QVector<ClipSnapshot> copyGhosts;
+    m_copyGhostSnapshots.clear();
     QSet<int> sampledAudioClipIds;
     const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
                                         m_viewport.visibleSceneRect().size() * dpr)
@@ -1124,6 +1124,11 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     const auto &tracks = appModel->tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
+            // The copy preview is culled on its own rect: scrolling can take the
+            // source out of the viewport while the copy stays under the pointer.
+            if (const auto ghost = buildCopyGhostSnapshot(clip, trackIndex, dpr);
+                ghost && visiblePhysical.intersects(ghost->paintPhysicalRect))
+                m_copyGhostSnapshots.append(*ghost);
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
             if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
@@ -1140,13 +1145,10 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
             }
             m_clipSnapshots.append(std::move(snapshot));
             appendClip(frame, m_clipSnapshots.constLast(), dpr);
-            if (const auto ghost = buildCopyGhostSnapshot(clip, trackIndex, dpr);
-                ghost && visiblePhysical.intersects(ghost->paintPhysicalRect))
-                copyGhosts.append(*ghost);
         }
     }
     // The copies sit above every clip they came from, the way the paste preview does.
-    for (const auto &ghost : copyGhosts)
+    for (const auto &ghost : m_copyGhostSnapshots)
         appendClip(frame, ghost, dpr);
     for (const auto &preview : m_pastePreviewSnapshots) {
         if (visiblePhysical.intersects(preview.paintPhysicalRect))

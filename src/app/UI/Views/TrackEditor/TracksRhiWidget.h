@@ -323,6 +323,7 @@ private:
     QPointF m_titleEditOffset;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
+    QVector<ClipSnapshot> m_copyGhostSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
     QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
     bool m_snapshotScheduled = false;
