@@ -166,6 +166,33 @@ namespace Automation {
             error.message = QStringLiteral("Document session has no AppModel");
             return error;
         }
+
+        // A duplicate owns every part of its source: notes, parameters, voice and
+        // audio asset. Only the identity-bearing values are refreshed, so a copy
+        // never shares curve, node or keyframe ids with the clip it came from.
+        ClipDraftDto duplicateClipDraft(const Clip &source, const ClipPropertiesDto &geometry,
+                                        const QString &clientRef) {
+            auto draft = clipDraftDto(source);
+            draft.clientRef = clientRef;
+            draft.properties.id = {};
+            draft.properties.start = geometry.start;
+            draft.properties.length = geometry.length;
+            draft.properties.clipStart = geometry.clipStart;
+            draft.properties.clipLen = geometry.clipLen;
+            draft.properties.trimStartMs = geometry.trimStartMs;
+            draft.properties.playLengthMs = geometry.playLengthMs;
+            draft.properties.materialLengthMs = geometry.materialLengthMs;
+            for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
+                keyframe.id = IdGenerator::instance()->next();
+            for (auto &parameter : draft.params) {
+                for (auto &curve : parameter.curves) {
+                    curve.id = {};
+                    for (auto &node : curve.nodes)
+                        node.id = {};
+                }
+            }
+            return draft;
+        }
     }
 
     ProjectAutomationFacade::ProjectAutomationFacade(AutomationDispatcher &dispatcher,
@@ -789,10 +816,9 @@ namespace Automation {
                         QStringLiteral("destination.target_start"),
                         QStringLiteral("Destination start must be non-negative")));
                 }
-                const auto delta =
-                    static_cast<qint64>(destination.targetStart) - minimumStart;
-                QList<int> translatedStarts;
-                translatedStarts.reserve(sources.size());
+                const auto delta = static_cast<qint64>(destination.targetStart) - minimumStart;
+                QList<ClipPropertiesDto> translated;
+                translated.reserve(sources.size());
                 for (const auto &source : sources) {
                     auto properties = clipDraftDto(*source.clip).properties;
                     const auto translatedStart = static_cast<qint64>(properties.start) + delta;
@@ -808,7 +834,7 @@ namespace Automation {
                             QStringLiteral("destination.target_start"),
                             QStringLiteral("Translated clip range is out of bounds")));
                     }
-                    translatedStarts.append(properties.start);
+                    translated.append(properties);
                 }
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, true));
@@ -821,21 +847,12 @@ namespace Automation {
                 qsizetype duplicateIndex = 0;
                 for (qsizetype sourceIndex = 0; sourceIndex < sources.size(); ++sourceIndex) {
                     const auto &source = sources.at(sourceIndex);
-                    auto draft = clipDraftDto(*source.clip);
-                    draft.clientRef = QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++);
-                    draft.properties.start = translatedStarts.at(sourceIndex);
-                    for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
-                        keyframe.id = IdGenerator::instance()->next();
-                    for (auto &parameter : draft.params) {
-                        for (auto &curve : parameter.curves) {
-                            curve.id = {};
-                            for (auto &node : curve.nodes)
-                                node.id = {};
-                        }
-                    }
+                    auto draft = duplicateClipDraft(
+                        *source.clip, translated.at(sourceIndex),
+                        QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++));
                     auto *target = fixedTarget ? fixedTarget : source.track;
-                    auto clip =
-                        buildClip(draft, target, session.model()->timeline(), &createdObjects);
+                    auto clip = buildClip(draft, target, session.model()->timeline(),
+                                          &createdObjects);
                     targets.append(target);
                     rawClips.append(clip.get());
                     affected.append({ObjectKind::Clip, clip->id()});
@@ -843,6 +860,79 @@ namespace Automation {
                 }
                 auto actions = std::make_unique<ClipActions>();
                 actions->insertClips(rawClips, targets);
+                auto result = m_committer.commit(session, std::move(actions), affected,
+                                                 std::move(createdObjects));
+                if (result) {
+                    for (auto &clip : owned)
+                        clip.release();
+                }
+                return result;
+            });
+    }
+
+    AutomationResult<MutationResult>
+        ProjectAutomationFacade::duplicateClipsAt(const CommandContext &context,
+                                                  const QList<ClipDuplicateTargetDto> &targets) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::clips::duplicate, context,
+            [this, targets](DocumentSession &session, const bool validateOnly) {
+                if (targets.isEmpty())
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                QSet<int> seen;
+                struct PreparedDuplicate {
+                    const Clip *source = nullptr;
+                    Track *target = nullptr;
+                    ClipPropertiesDto geometry;
+                };
+                QList<PreparedDuplicate> prepared;
+                prepared.reserve(targets.size());
+                for (const auto &target : targets) {
+                    if (seen.contains(target.sourceId.value())) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("targets"), QStringLiteral("Clip IDs must be unique")));
+                    }
+                    seen.insert(target.sourceId.value());
+                    auto resolved = m_objects.clip(session, target.sourceId);
+                    if (!resolved)
+                        return AutomationResult<MutationResult>(resolved.getError());
+                    PreparedDuplicate item{resolved.get().clip, resolved.get().track,
+                                           target.properties};
+                    if (target.targetTrackId) {
+                        auto track = m_objects.track(session, *target.targetTrackId);
+                        if (!track)
+                            return AutomationResult<MutationResult>(track.getError());
+                        item.target = track.get();
+                    }
+                    item.geometry.id = {};
+                    if (!validClipProperties(item.geometry)) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("targets.properties"),
+                            QStringLiteral("Duplicated clip range is out of bounds")));
+                    }
+                    prepared.append(item);
+                }
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(m_committer.preview(session, true));
+
+                QList<Track *> copiedTracks;
+                QList<Clip *> rawClips;
+                QList<ObjectRef> affected;
+                QList<CreatedObjectRef> createdObjects;
+                std::vector<std::unique_ptr<Clip>> owned;
+                qsizetype duplicateIndex = 0;
+                for (const auto &item : prepared) {
+                    auto draft = duplicateClipDraft(
+                        *item.source, item.geometry,
+                        QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++));
+                    auto clip = buildClip(draft, item.target, session.model()->timeline(),
+                                          &createdObjects);
+                    copiedTracks.append(item.target);
+                    rawClips.append(clip.get());
+                    affected.append({ObjectKind::Clip, clip->id()});
+                    owned.push_back(std::move(clip));
+                }
+                auto actions = std::make_unique<ClipActions>();
+                actions->insertClips(rawClips, copiedTracks);
                 auto result = m_committer.commit(session, std::move(actions), affected,
                                                  std::move(createdObjects));
                 if (result) {

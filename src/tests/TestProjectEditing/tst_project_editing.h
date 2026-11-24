@@ -21,6 +21,7 @@ private slots:
     void singingClipEditing();
     void duplicateClipsPreserveContentAndCreateIndependentObjects_data();
     void duplicateClipsPreserveContentAndCreateIndependentObjects();
+    void duplicateClipsAtTargetsEveryCopyIndependently();
     void insertingPreparedContentCanRetryWithoutDuplicatingEdits_data();
     void insertingPreparedContentCanRetryWithoutDuplicatingEdits();
     void legacyAudioClipEditing();
