@@ -210,6 +210,21 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
         d->m_pitchTransformContext.invalidate();
         d->setPitchEditMode(true, false, false, true);
     });
+
+    // Ctrl pressed or released mid-gesture has to reach the preview even when
+    // the canvas does not hold the keyboard focus.
+    m_modifierWatcher =
+        new EditorModifierWatcher(this, [this](const Qt::KeyboardModifiers modifiers) {
+            Q_D(PianoRollGraphicsView);
+            const auto behavior = d->m_interactionController->mouseMoveBehavior();
+            if (!d->m_interactionController->isMouseDown() ||
+                (behavior != NoteInteractionController::Move &&
+                 behavior != NoteInteractionController::ResizeLeft &&
+                 behavior != NoteInteractionController::ResizeRight))
+                return;
+            updateNoteDragAt(m_lastDragViewportPos, modifiers);
+        });
+    m_modifierWatcher->setEnabled(true);
 }
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
@@ -677,6 +692,18 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
         globalTick, d->m_offset, quantizedTickLength, appModel->timeline());
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto deltaX = sceneXToTick(scenePos.x() - d->m_interactionController->mouseDownPos().x());
+    // Ctrl turns a move into a copy, the way the office suites do it: the
+    // selected notes keep their places and a duplicate follows the pointer.
+    // Resizing has no duplicate form, so the flag only follows move gestures.
+    // Alt suspends snapping for the gesture, so the two combine: a Ctrl drag
+    // parks the copies on unsnapped positions while Alt is held.
+    const auto copyDrag =
+        d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move &&
+        modifiers.testFlag(Qt::ControlModifier);
+    if (m_copyDrag != copyDrag)
+        setCopyDrag(copyDrag);
+    m_dragModifiers = modifiers;
+    m_lastDragViewportPos = viewportPos;
 
     if (!d->m_interactionController->movedBeforeMouseUp()) {
         QList<int> noteIds;
@@ -708,8 +735,13 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
             keyOffset = d->m_interactionController->moveMinDeltaKey();
         d->m_interactionController->setDeltaTick(startOffset);
         d->m_interactionController->setDeltaKey(keyOffset);
-        d->m_interactionController->moveSelectedNotes(d->m_interactionController->deltaTick(),
-                                                      d->m_interactionController->deltaKey());
+        if (m_copyDrag) {
+            // The originals stay on their model geometry: only the ghosts follow.
+            updateCopyGhosts(startOffset, keyOffset);
+        } else {
+            d->m_interactionController->moveSelectedNotes(
+                d->m_interactionController->deltaTick(), d->m_interactionController->deltaKey());
+        }
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
         const auto *jointNeighbor = d->m_interactionController->jointNeighborView();
@@ -747,6 +779,71 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
     d->syncNoteHandleFrame();
 }
 
+void PianoRollGraphicsView::setCopyDrag(const bool copy) {
+    Q_D(PianoRollGraphicsView);
+    if (m_copyDrag == copy)
+        return;
+    m_copyDrag = copy;
+    if (copy) {
+        // The moved notes go back where the model keeps them; the ghosts take
+        // over the follow-the-pointer duty.
+        d->m_interactionController->resetSelectedNotesOffset();
+    } else {
+        clearCopyGhosts();
+    }
+    viewport()->update();
+}
+
+void PianoRollGraphicsView::updateCopyGhosts(const int deltaTick, const int deltaKey) {
+    Q_D(PianoRollGraphicsView);
+    clearCopyGhosts();
+    for (const auto *note : d->m_selectionModel->selectedNoteItems()) {
+        auto *ghost = new NoteView(-1);
+        ghost->setPronunciationView(new PronunciationView(-1));
+        ghost->setRStart(note->rStart() + deltaTick);
+        ghost->setLength(note->length());
+        ghost->setKeyIndex(note->keyIndex() + deltaKey);
+        ghost->setLyric(note->lyric());
+        ghost->setPronunciation(note->pronunciation(), note->pronunciationEdited());
+        ghost->setOpacity(0.35);
+        ghost->setAcceptedMouseButtons(Qt::NoButton);
+        ghost->setAcceptHoverEvents(false);
+        ghost->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        if (ghost->pronunciationView())
+            ghost->pronunciationView()->setOpacity(0.35);
+        scene()->addCommonItem(ghost);
+        if (ghost->pronunciationView())
+            scene()->addCommonItem(ghost->pronunciationView());
+        m_copyGhostViews.append(ghost);
+    }
+    viewport()->update();
+}
+
+void PianoRollGraphicsView::clearCopyGhosts() {
+    for (auto *ghost : m_copyGhostViews) {
+        if (ghost->scene() == reinterpret_cast<QGraphicsScene *>(scene())) {
+            scene()->removeCommonItem(ghost);
+            if (ghost->pronunciationView())
+                scene()->removeCommonItem(ghost->pronunciationView());
+        }
+        delete ghost;
+    }
+    m_copyGhostViews.clear();
+}
+
+bool PianoRollGraphicsView::selectDuplicatedNotes(const QList<int> &copies) {
+    Q_D(PianoRollGraphicsView);
+    if (copies.isEmpty())
+        return false;
+    // Duplicating a selection replaces it with the copies it produced, so the
+    // next gesture grabs the new notes. The selection itself travels through the
+    // platform selection, which the view mirrors like any other change.
+    d->m_selectionModel->setSelecting(false);
+    clipController->selectNotes(copies, true);
+    d->syncNoteHandleFrame();
+    return true;
+}
+
 void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
                                                   const Qt::KeyboardModifiers modifiers) {
     Q_D(PianoRollGraphicsView);
@@ -766,7 +863,7 @@ void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportP
 
     if (d->m_interactionController->mouseMoveBehavior() != NoteInteractionController::None &&
         d->m_interactionController->isMouseDown()) {
-        updateNoteDragAt(clampedViewportPos, modifiers);
+        updateNoteDragAt(clampedViewportPos, m_dragModifiers);
         return;
     }
     if (d->m_currentHandler && d->m_currentHandler->edgeAutoScrollAxes()) {
@@ -782,10 +879,21 @@ void PianoRollGraphicsView::publishNoteEditPreview() const {
     QVector<AppStatus::NoteEditPreview> preview;
     const auto behavior = d->m_interactionController->mouseMoveBehavior();
     if (behavior == NoteInteractionController::Move) {
-        for (const auto note : d->m_selectionModel->selectedNoteItems()) {
-            preview.append({note->id(), note->rStart() + note->startOffset(),
-                            note->length() + note->lengthOffset(),
-                            note->keyIndex() + note->keyOffset()});
+        if (m_copyDrag) {
+            // The sources stay where they are, so the thumbnails get the
+            // duplicates as transient notes under their own negative ids.
+            auto ghostId = -2;
+            for (const auto note : d->m_selectionModel->selectedNoteItems()) {
+                preview.append(
+                    {ghostId--, note->rStart() + d->m_interactionController->deltaTick(),
+                     note->length(), note->keyIndex() + d->m_interactionController->deltaKey()});
+            }
+        } else {
+            for (const auto note : d->m_selectionModel->selectedNoteItems()) {
+                preview.append({note->id(), note->rStart() + note->startOffset(),
+                                note->length() + note->lengthOffset(),
+                                note->keyIndex() + note->keyOffset()});
+            }
         }
     } else if (behavior == NoteInteractionController::ResizeLeft ||
                behavior == NoteInteractionController::ResizeRight) {
@@ -1234,6 +1342,8 @@ void PianoRollGraphicsView::discardAction() {
     cancelRequested = true;
     disarmEdgeAutoScroll();
     setSceneLengthExtension(0);
+    clearCopyGhosts();
+    m_copyDrag = false;
     if (d->m_currentHandler) {
         d->m_currentHandler->discard();
     }
@@ -1271,11 +1381,27 @@ void PianoRollGraphicsView::discardAction() {
 void PianoRollGraphicsView::commitAction() {
     Q_D(PianoRollGraphicsView);
     d->m_pitchEditor->commitAction();
+    auto assignedCopies = false;
     if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
         if (d->m_interactionController->movedBeforeMouseUp()) {
-            d->m_interactionController->resetSelectedNotesOffset();
-            d->m_interactionController->handleNotesMoved(d->m_interactionController->deltaTick(),
-                                                         d->m_interactionController->deltaKey());
+            if (m_copyDrag) {
+                // One command for the whole gesture: the copies land together
+                // and one undo takes them back. A gesture that stayed on the
+                // same tick and key changed nothing, so it creates no copy.
+                QList<int> noteIds;
+                for (const auto note : d->m_selectionModel->selectedNoteItems())
+                    noteIds.append(note->id());
+                const auto deltaTick = d->m_interactionController->deltaTick();
+                const auto deltaKey = d->m_interactionController->deltaKey();
+                if (deltaTick != 0 || deltaKey != 0)
+                    assignedCopies = selectDuplicatedNotes(
+                        clipController->onDuplicateNotes(noteIds, deltaTick, deltaKey));
+            } else {
+                d->m_interactionController->resetSelectedNotesOffset();
+                d->m_interactionController->handleNotesMoved(
+                    d->m_interactionController->deltaTick(),
+                    d->m_interactionController->deltaKey());
+            }
         }
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeLeft) {
@@ -1330,8 +1456,10 @@ void PianoRollGraphicsView::commitAction() {
     d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
-    const auto notes = selectedNotesId();
-    clipController->selectNotes(notes, true);
+    if (!assignedCopies) {
+        const auto notes = selectedNotesId();
+        clipController->selectNotes(notes, true);
+    }
 
     editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
