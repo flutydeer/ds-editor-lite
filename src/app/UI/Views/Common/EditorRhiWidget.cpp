@@ -434,8 +434,9 @@ public:
         }
 
         cb->beginPass(renderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
-        cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
         cb->setGraphicsPipeline(scenePipeline.get());
+        // D3D12 derives the blit scissor from the active pipeline when setting the viewport.
+        cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
         cb->setShaderResources(sceneBindings.get());
         cb->draw(3);
         ++drawCalls;
@@ -672,7 +673,8 @@ public:
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
     : QRhiWidget(parent), d(std::make_unique<Private>(this, std::move(diagnosticsTag))) {
 #ifdef Q_OS_WIN
-    setApi(QRhiWidget::Api::Direct3D11);
+    // D3D11 composition of these widgets can grow shared GPU memory on Intel graphics.
+    setApi(QRhiWidget::Api::Direct3D12);
 #endif
     setSampleCount(1);
     setColorBufferFormat(QRhiWidget::TextureFormat::RGBA8);

@@ -73,7 +73,7 @@
 | 设置与反馈 | 即时保存、写入失败恢复、延期重启、异步 GPU 枚举、音频/MIDI 配置、主题及语言切换、日志、工具提示、数值控件和电平反馈 |
 | 渲染 | Legacy 与 RHI 各自的输入接线、主题、几何、字形/图标、波形、实际帧、上下文切换及后端失败回退 |
 
-普通控件使用 offscreen，Qt QDrag 套件使用 minimal，原生窗口在 Linux Xvfb 或当前系统桌面运行。默认 Legacy/QGraphicsView 和实验 RHI 分别验证实际接线。RHI 的 Null 后端验证 CPU 准备与帧提交，平台后端数据行使用 Windows D3D11 软件渲染、macOS Metal 或 Linux OpenGL，读回同次运行的小区域验证绘制与撤销，不建立跨平台截图基线。
+普通控件使用 offscreen，Qt QDrag 套件使用 minimal，原生窗口在 Linux Xvfb 或当前系统桌面运行。默认 Legacy/QGraphicsView 和实验 RHI 分别验证实际接线。RHI 的 Null 后端验证 CPU 准备与帧提交，平台后端数据行读回同次运行的小区域验证绘制与撤销，不建立跨平台截图基线。运行条件见[测试计划](test-plan.md#31-gui-后端)。
 
 后端可用后的绘制、读回、事件或断言失败必须失败。真实驱动的笔悬停、全部窗口管理器、多屏、GPU 组合和主观观感不由合成事件或 Null 后端证明。
 

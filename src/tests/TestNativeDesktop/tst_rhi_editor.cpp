@@ -109,21 +109,11 @@ namespace {
                  describe(QApplication::activeWindow()));
     }
 
-    QRhiWidget::Api platformRhiApi() {
-#if defined(Q_OS_WIN)
-        return QRhiWidget::Api::Direct3D11;
-#elif defined(Q_OS_MACOS)
-        return QRhiWidget::Api::Metal;
-#else
-        return QRhiWidget::Api::OpenGL;
-#endif
-    }
-
     bool platformRhiAvailable() {
 #if defined(Q_OS_WIN)
-        QRhiD3D11InitParams params;
+        QRhiD3D12InitParams params;
         std::unique_ptr<QRhi> device(QRhi::create(
-            QRhi::D3D11, &params, QRhi::PreferSoftwareRenderer | QRhi::SuppressSmokeTestWarnings));
+            QRhi::D3D12, &params, QRhi::PreferSoftwareRenderer | QRhi::SuppressSmokeTestWarnings));
 #elif defined(Q_OS_MACOS)
         QRhiMetalInitParams params;
         std::unique_ptr<QRhi> device(
@@ -217,7 +207,7 @@ namespace {
                                });
         }
 
-        void initialize(const int clipLength = 3840, QRhiWidget::Api api = QRhiWidget::Api::Null) {
+        void initialize(const int clipLength = 3840, bool platformRenderer = false) {
             QVERIFY2(app.initialize(), qPrintable(app.error));
             Automation::NoteDraftDto note;
             note.localStart = 480;
@@ -244,7 +234,8 @@ namespace {
             appStatus->pianoRollQuantize = 16;
             appStatus->pianoRollQuantizeEnabled = true;
             canvas = std::make_unique<PianoRollRhiWidget>();
-            canvas->setApi(api);
+            if (!platformRenderer)
+                canvas->setApi(QRhiWidget::Api::Null);
             canvas->setDataContext(clip);
             canvas->setEditMode(ClipEditorGlobal::Select);
             QObject::connect(canvas.get(), &EditorRhiWidget::backendFailed, canvas.get(),
@@ -354,7 +345,7 @@ void NativeDesktopTests::rhiGhostReferencesUpdateFramesWithoutOwningEdits() {
         QSKIP("No graphics backend is available for framebuffer validation");
     const auto restoreSoftware = preferSoftwareRhi(scaleDisplay);
     ExistingRhiNoteFixture fixture;
-    fixture.initialize(3840, scaleDisplay ? platformRhiApi() : QRhiWidget::Api::Null);
+    fixture.initialize(3840, scaleDisplay);
     if (QTest::currentTestFailed())
         return;
     auto *screen = fixture.canvas->screen();
@@ -1309,7 +1300,7 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (platformRenderer && !platformRhiAvailable())
         QSKIP("No graphics backend is available for framebuffer validation");
     ExistingRhiNoteFixture fixture;
-    fixture.initialize(38400, platformRenderer ? platformRhiApi() : QRhiWidget::Api::Null);
+    fixture.initialize(38400, platformRenderer);
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
