@@ -74,7 +74,7 @@ ctest --preset local
 | ApplicationGui | Windows/Linux offscreen，macOS 原生窗口，执行相同样例和断言 |
 | NativeDesktop | 原生桌面，Linux CI 使用 Xvfb，与其他原生套件共用 desktop 资源锁 |
 | RHI Null 场景 | 需要原生窗口，不要求物理 GPU，验证输入、CPU 准备及帧提交 |
-| RHI 平台图形数据行 | Windows D3D11 软件渲染、macOS Metal 或 Linux OpenGL，后端可用后验证真实帧读回 |
+| RHI 平台图形数据行 | Windows 使用 D3D12 软件渲染，macOS 使用 Metal，Linux 使用 OpenGL。后端可用后验证真实帧读回 |
 
 本地原生测试需要可交互且空闲的桌面，期间避免移动鼠标、切换窗口或使用剪贴板。资源锁不能隔离其他桌面程序。fixture 同步合成输入与系统光标，结束后恢复自身改动。
 
