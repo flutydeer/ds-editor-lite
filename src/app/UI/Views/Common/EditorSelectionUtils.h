@@ -10,6 +10,9 @@ namespace EditorSelectionUtils {
     struct PressResult {
         QList<int> selection;
         bool targetSelected = false;
+        // Ctrl pressing a selected item keeps it, so the press can start a drag
+        // with it. The removal lands on release when the pointer never moved.
+        bool deselectOnRelease = false;
     };
 
     inline QList<int> selectionForPress(const QList<int> &currentSelection, const int itemId,
@@ -18,14 +21,14 @@ namespace EditorSelectionUtils {
             return {};
 
         auto selection = currentSelection;
-        if (toggle) {
-            if (selection.contains(itemId))
-                selection.removeAll(itemId);
-            else
-                selection.append(itemId);
-        } else if (!selection.contains(itemId)) {
+        // A selected item stays in the selection even for a toggle press: the
+        // release removes it when the press never turned into a drag.
+        if (selection.contains(itemId))
+            return selection;
+        if (toggle)
+            selection.append(itemId);
+        else
             selection = {itemId};
-        }
         return selection;
     }
 
@@ -50,6 +53,7 @@ namespace EditorSelectionUtils {
             m_pressedItemId = -1;
             m_pressModifiers = Qt::NoModifier;
             m_pressActive = false;
+            m_pressToggleOnRelease = false;
         }
 
         void invalidateAnchor(const int itemId) {
@@ -80,6 +84,7 @@ namespace EditorSelectionUtils {
 
         PressResult applyPress(const QList<int> &currentSelection, const QList<int> &orderedItems,
                                const int itemId, const SelectionMode mode) {
+            m_pressToggleOnRelease = false;
             if (itemId < 0) {
                 clearAnchor();
                 return {};
@@ -88,8 +93,9 @@ namespace EditorSelectionUtils {
             PressResult result;
             if (mode == SelectionMode::Plain || mode == SelectionMode::Toggle) {
                 m_anchorId = itemId;
-                result.selection =
-                    selectionForPress(currentSelection, itemId, mode == SelectionMode::Toggle);
+                const auto toggle = mode == SelectionMode::Toggle;
+                result.selection = selectionForPress(currentSelection, itemId, toggle);
+                m_pressToggleOnRelease = toggle && currentSelection.contains(itemId);
             } else {
                 const auto anchorIndex = orderedItems.indexOf(m_anchorId);
                 const auto targetIndex = orderedItems.indexOf(itemId);
@@ -115,6 +121,7 @@ namespace EditorSelectionUtils {
             }
             result.selection = orderedSelection;
             result.targetSelected = result.selection.contains(itemId);
+            result.deselectOnRelease = m_pressToggleOnRelease;
             return result;
         }
 
@@ -123,8 +130,12 @@ namespace EditorSelectionUtils {
             auto selection = currentSelection;
             const auto preserveSelection = m_pressModifiers.testFlag(Qt::ControlModifier) ||
                                            m_pressModifiers.testFlag(Qt::ShiftModifier);
-            if (m_pressActive && !pointerMoved && !preserveSelection &&
-                currentSelection.contains(m_pressedItemId)) {
+            if (m_pressToggleOnRelease && !pointerMoved) {
+                // A Ctrl click that never moved completes the toggle the press
+                // deferred. A drag keeps the item, because it already acted on it.
+                selection.removeAll(m_pressedItemId);
+            } else if (m_pressActive && !pointerMoved && !preserveSelection &&
+                       currentSelection.contains(m_pressedItemId)) {
                 selection = {m_pressedItemId};
             }
             cancelPress();
@@ -136,6 +147,7 @@ namespace EditorSelectionUtils {
         int m_pressedItemId = -1;
         Qt::KeyboardModifiers m_pressModifiers = Qt::NoModifier;
         bool m_pressActive = false;
+        bool m_pressToggleOnRelease = false;
     };
 }
 

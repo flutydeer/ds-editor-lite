@@ -1917,7 +1917,9 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip,
     syncSelection(result.selection, targetSelected ? clip.trackIndex : -1);
     if (!targetSelected)
         return false;
-    trackController->setActiveClip(clip.id);
+    // A Ctrl press that only deselects on release must not move the active clip.
+    if (!result.deselectOnRelease)
+        trackController->setActiveClip(clip.id);
     return true;
 }
 

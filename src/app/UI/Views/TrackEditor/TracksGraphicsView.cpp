@@ -1095,7 +1095,9 @@ bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem,
     applyClipSelection(result.selection);
     if (!result.targetSelected)
         return false;
-    trackController->setActiveClip(clipItem->id());
+    // A Ctrl press that only deselects on release must not move the active clip.
+    if (!result.deselectOnRelease)
+        trackController->setActiveClip(clipItem->id());
     return true;
 }
 
