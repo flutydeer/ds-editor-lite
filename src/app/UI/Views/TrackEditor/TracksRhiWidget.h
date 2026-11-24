@@ -194,6 +194,7 @@ private:
 
     void rebuildSnapshot(EditorRhiFrameData &frame) override;
     void rebuildModelConnections();
+    [[nodiscard]] double physicalViewportX(double tick, double dpr) const;
     void appendGrid(EditorRhiFrameData &frame, double dpr) const;
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);

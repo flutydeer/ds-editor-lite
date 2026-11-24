@@ -891,20 +891,21 @@ void TracksRhiWidget::appendDropOverlay(EditorRhiFrameData &frame, const double 
     if (!m_externalDragActive || !m_dropSlot)
         return;
     const auto slot = *m_dropSlot;
-    const auto sceneWidth = m_viewport.tickToSceneX(effectiveSceneLength());
     const auto trackHeightPx = trackHeight * scaleY();
-    const auto top = slot.trackIndex * trackHeightPx;
+    const auto top = slot.trackIndex * trackHeightPx - m_viewport.verticalOffset();
+    const auto right = width() * dpr;
     EditorRhiGeometry::appendRect(frame.solidVertices,
-                                  QRectF(0, top * dpr, sceneWidth * dpr, trackHeightPx * dpr),
+                                  QRectF(0, top * dpr, right, trackHeightPx * dpr),
                                   m_dropHighlightColor);
     EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices, top * dpr, 0.0,
-                                                        sceneWidth * dpr, m_dropIndicatorColor);
+                                                        right, m_dropIndicatorColor);
     EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices,
-                                                        (top + trackHeightPx) * dpr, 0.0,
-                                                        sceneWidth * dpr, m_dropIndicatorColor);
-    const auto contentHeight = (appModel->tracks().size() + 1) * trackHeightPx * dpr;
+                                                        (top + trackHeightPx) * dpr, 0.0, right,
+                                                        m_dropIndicatorColor);
+    const auto bottom =
+        ((appModel->tracks().size() + 1) * trackHeightPx - m_viewport.verticalOffset()) * dpr;
     EditorRhiGeometry::appendPixelAlignedVerticalLine(
-        frame.solidVertices, m_viewport.tickToSceneX(slot.snappedTick) * dpr, 0.0, contentHeight,
+        frame.solidVertices, physicalViewportX(slot.snappedTick, dpr), 0.0, bottom,
         m_dropIndicatorColor);
 }
 
@@ -917,9 +918,10 @@ void TracksRhiWidget::appendSplitPreviewOverlay(EditorRhiFrameData &frame, const
     constexpr double forkLength = 6.0;
     constexpr double forkAngle = 45.0;
     const auto trackHeightPx = trackHeight * scaleY();
-    const auto x = m_viewport.tickToSceneX(m_splitPreviewTick) * dpr;
-    const auto lineTop = (m_splitPreviewTrackIndex * trackHeightPx - extensionLength) * dpr;
-    const auto lineBottom = ((m_splitPreviewTrackIndex + 1) * trackHeightPx + extensionLength) * dpr;
+    const auto x = physicalViewportX(m_splitPreviewTick, dpr);
+    const auto top = m_splitPreviewTrackIndex * trackHeightPx - m_viewport.verticalOffset();
+    const auto lineTop = (top - extensionLength) * dpr;
+    const auto lineBottom = (top + trackHeightPx + extensionLength) * dpr;
     const auto forkAngleRad = forkAngle * std::numbers::pi / 180.0;
     const auto forkOffsetX = forkLength * std::sin(forkAngleRad) * dpr;
     const auto forkOffsetY = forkLength * std::cos(forkAngleRad) * dpr;
@@ -1001,8 +1003,8 @@ void TracksRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
     frame.solidVertices.clear();
     frame.drawList.clear();
     frame.clearColor = m_backgroundColor;
-    frame.physicalCameraOffset =
-        QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
+    // Subtract the camera in double precision before packing viewport geometry into GPU floats.
+    frame.physicalCameraOffset = {};
     m_glyphAtlas.beginFrame();
     appendGrid(frame, dpr);
     appendClips(frame, dpr);
@@ -1020,7 +1022,9 @@ void TracksRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
     appendDropOverlay(frame, dpr);
     appendSplitPreviewOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
-        const auto rect = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+        const auto offset = m_viewport.offset();
+        const auto rect = QRectF((m_rubberBandStart - offset) * dpr,
+                                 (m_rubberBandEnd - offset) * dpr).normalized();
         const auto radius = EditorItemGeometry::adaptiveCornerRadius(rect, 6.0 * dpr);
         EditorRhiGeometry::appendRoundedRect(frame.solidVertices, rect, radius,
                                              m_rubberBandFillColor);
@@ -1072,31 +1076,32 @@ void TracksRhiWidget::rebuildModelConnections() {
     }
 }
 
+double TracksRhiWidget::physicalViewportX(const double tick, const double dpr) const {
+    return (m_viewport.tickToSceneX(tick) - m_viewport.horizontalOffset()) * dpr;
+}
+
 void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) const {
-    const auto visible = m_viewport.visibleSceneRect();
-    const auto sceneWidth = m_viewport.tickToSceneX(effectiveSceneLength());
+    const auto right = width() * dpr;
     if (appStatus->selectedTrackIndex >= 0) {
-        const auto top = appStatus->selectedTrackIndex * trackHeight * scaleY();
+        const auto top = appStatus->selectedTrackIndex * trackHeight * scaleY() -
+                         m_viewport.verticalOffset();
         EditorRhiGeometry::appendRect(
-            frame.solidVertices,
-            QRectF(0, top * dpr, sceneWidth * dpr, trackHeight * scaleY() * dpr),
+            frame.solidVertices, QRectF(0, top * dpr, right, trackHeight * scaleY() * dpr),
             m_selectedTrackColor);
     }
     for (int row = 1; row <= appModel->tracks().size(); ++row) {
-        const auto y = row * trackHeight * scaleY() * dpr;
-        EditorRhiGeometry::appendAntialiasedHorizontalLine(frame.solidVertices, y, 0.0,
-                                                           sceneWidth * dpr, dpr, m_commonLineColor,
-                                                           m_viewport.verticalOffset() * dpr);
+        const auto y = (row * trackHeight * scaleY() - m_viewport.verticalOffset()) * dpr;
+        EditorRhiGeometry::appendAntialiasedHorizontalLine(frame.solidVertices, y, 0.0, right, dpr,
+                                                           m_commonLineColor);
     }
 
     TimelineLineEmitter emitter;
     emitter.emitLines(appModel->timeline(), 128, m_viewport.startTick(), m_viewport.endTick(),
-                      visible.width(), m_barLineColor, m_beatLineColor, m_commonLineColor,
-                      [this, &frame, dpr, visible](const int tick, const QColor &color) {
+                      width(), m_barLineColor, m_beatLineColor, m_commonLineColor,
+                      [this, &frame, dpr](const int tick, const QColor &color) {
                           EditorRhiGeometry::appendAntialiasedVerticalLine(
-                              frame.solidVertices, m_viewport.tickToSceneX(tick) * dpr,
-                              visible.top() * dpr, visible.bottom() * dpr, dpr, color,
-                              m_viewport.horizontalOffset() * dpr);
+                              frame.solidVertices, physicalViewportX(tick, dpr), 0.0,
+                              height() * dpr, dpr, color);
                       });
 }
 
@@ -1175,11 +1180,12 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         for (auto *color : {&fill, &selectedFill, &transparent, &foreground, &border})
             color->setAlphaF(color->alphaF() * opacity);
     }
-    const auto &paintRect = clip.paintPhysicalRect;
+    const auto camera = m_viewport.offset() * dpr;
+    const auto paintRect = clip.paintPhysicalRect.translated(-camera);
     const auto radius = EditorItemGeometry::adaptiveCornerRadius(
         paintRect, EditorItemGeometry::clipCornerRadius * dpr);
     const auto titleHeight = EditorItemGeometry::clipTitleHeight * dpr;
-    const auto preview = clipPreviewRect(clip, dpr);
+    const auto preview = clipPreviewRect(clip, dpr).translated(-camera);
     // The title owns its own strip only while the body below it is tall enough
     // for a preview. The test runs on logical units so both backends share it.
     const auto hasPreview =
@@ -1202,14 +1208,11 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 
     QFont font = this->font();
     const QFontMetricsF metrics(font);
-    const auto rawLeft = clip.modelPhysicalRect.left();
-    const auto rawRight = clip.modelPhysicalRect.right();
-    const auto visibleLeft = m_viewport.horizontalOffset() * dpr;
-    const auto titleLeft = visibleLeft < rawLeft
-                               ? paintRect.left()
-                               : visibleLeft + EditorItemGeometry::clipHorizontalPadding * dpr;
-    const auto titleWidth =
-        rawRight - std::max(rawLeft, visibleLeft) - EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
+    const auto modelRect = clip.modelPhysicalRect.translated(-camera);
+    const auto titleLeft =
+        modelRect.left() > 0.0 ? paintRect.left() : EditorItemGeometry::clipHorizontalPadding * dpr;
+    const auto titleWidth = modelRect.right() - std::max(0.0, modelRect.left()) -
+                            EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
     constexpr double iconWidth = 4.0;
     // An open inline rename is the only place the name shows.
     if (!clip.titleEditing &&
@@ -1223,8 +1226,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                               hasPreview ? titleHeight : paintRect.height());
         const auto textSpan = m_glyphAtlas.appendText(
             clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop), foreground, textClip,
-            dpr, QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
-            physicalWindowOffset());
+            dpr, {}, physicalWindowOffset());
         frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
     }
 
@@ -1244,8 +1246,8 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 std::min(clip.visibleEndTick, clip.contentStartTick + note.rStart + note.length);
             if (end <= start)
                 continue;
-            const auto left = std::max(preview.left(), m_viewport.tickToSceneX(start) * dpr);
-            const auto right = std::min(preview.right(), m_viewport.tickToSceneX(end) * dpr);
+            const auto left = std::max(preview.left(), physicalViewportX(start, dpr));
+            const auto right = std::min(preview.right(), physicalViewportX(end, dpr));
             const auto top = contentTop + (high - note.keyIndex) * noteHeight;
             EditorRhiGeometry::appendRect(frame.solidVertices,
                                           QRectF(left, top, right - left, noteHeight), noteColor);
@@ -1260,11 +1262,8 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             if (overlayEnd > overlayStart) {
                 const auto overlayTop = contentTop + (high - pianoRollRect.bottom()) * noteHeight;
                 const auto overlayBottom = contentTop + (high - pianoRollRect.top()) * noteHeight;
-                const QRectF overlay(
-                    m_viewport.tickToSceneX(overlayStart) * dpr, overlayTop,
-                    (m_viewport.tickToSceneX(overlayEnd) - m_viewport.tickToSceneX(overlayStart)) *
-                        dpr,
-                    overlayBottom - overlayTop);
+                const QRectF overlay(QPointF(physicalViewportX(overlayStart, dpr), overlayTop),
+                                     QPointF(physicalViewportX(overlayEnd, dpr), overlayBottom));
                 const auto overlayColor = palette.clipBorder(clip.colorIndex);
                 QVector<EditorRhiSolidVertex> overlayVertices;
                 EditorRhiGeometry::appendRoundedRectStroke(overlayVertices, overlay, radius,
@@ -1289,13 +1288,9 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                                   std::ceil(metrics.height() * dpr));
             // Centre inside the visible slice of the clip: on a long clip scrolled away from its
             // middle, the geometric centre is off-screen and the hint would never be seen.
-            auto labelRect = preview;
-            const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
-                                                m_viewport.visibleSceneRect().size() * dpr);
-            const auto clippedLabel = labelRect.intersected(visiblePhysical);
-            if (clippedLabel.isEmpty())
+            const auto labelRect = preview.intersected(QRectF(QPointF(), QSizeF(size()) * dpr));
+            if (labelRect.isEmpty())
                 return;
-            labelRect = clippedLabel;
             auto topLeft =
                 labelRect.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
             if (!isMissing) {
@@ -1318,36 +1313,31 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 topLeft.setX(block.textLeft);
             }
             const auto textSpan = m_glyphAtlas.appendText(
-                text, font, topLeft, textColor, labelRect, dpr,
-                QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
-                physicalWindowOffset());
+                text, font, topLeft, textColor, labelRect, dpr, {}, physicalWindowOffset());
             frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
             return;
         }
-        WaveformRhiUtils::appendWaveform(
-            frame.solidVertices, clip.waveform, preview, waveformColor, dpr,
-            QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr);
+        WaveformRhiUtils::appendWaveform(frame.solidVertices, clip.waveform, preview, waveformColor,
+                                         dpr, {}, m_viewport.offset());
     }
 }
 
 void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
                                                   const double dpr) const {
-    const auto visible = m_viewport.visibleSceneRect();
-    const auto top = visible.top() * dpr;
-    const auto bottom = visible.bottom() * dpr;
-    const auto lastX = m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr;
-    for (auto dashTop = top; dashTop < bottom; dashTop += 6.0 * dpr) {
+    const auto bottom = height() * dpr;
+    const auto lastX = physicalViewportX(m_lastPlaybackPosition, dpr);
+    for (auto dashTop = 0.0; dashTop < bottom; dashTop += 6.0 * dpr) {
         EditorRhiGeometry::appendAntialiasedVerticalLine(
             frame.solidVertices, lastX, dashTop, std::min(dashTop + 4.0 * dpr, bottom), dpr,
-            m_lastPlayPosIndicatorColor, m_viewport.horizontalOffset() * dpr);
+            m_lastPlayPosIndicatorColor);
     }
 }
 
 void TracksRhiWidget::appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const {
     const auto dpr = devicePixelRatioF();
     EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-        rects, (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr,
-        0.0, height() * dpr, dpr, m_playPosIndicatorColor);
+        rects, physicalViewportX(m_playbackPosition, dpr), 0.0, height() * dpr, dpr,
+        m_playPosIndicatorColor);
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
