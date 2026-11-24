@@ -516,6 +516,10 @@ namespace Automation {
                 .length = note.length,
                 .keyIndex = note.keyIndex,
                 .lyric = input.defaultLyric,
+                // The requested language describes the extracted material, so
+                // every note declares it instead of resolving through whichever
+                // singer the destination clip ends up with.
+                .language = input.defaultLanguage,
             });
         }
 
@@ -536,7 +540,6 @@ namespace Automation {
                 input.destinationMode.isEmpty() ? input.audioClipStartTick : input.targetStart;
             clip.properties.length = input.audioClipLengthTick;
             clip.properties.clipLen = input.audioClipLengthTick;
-            clip.inputLanguage = input.defaultLanguage;
             clip.notes = extractedNotes;
             if (input.targetTrackId) {
                 insertedClips.append({*input.targetTrackId, clip});

@@ -61,11 +61,6 @@ public:
     quint64 inferenceRevision() const;
     quint64 bumpInferenceRevision();
 
-    // Language the user picks when filling in lyrics. It preselects the fill-lyric
-    // dialog and is shown in the toolbar, and it never takes part in inference:
-    // changing it does not touch any note.
-    void setInputLanguage(const QString &language);
-    QString inputLanguage() const;
     // Route language an unspecified note resolves to under the current singer.
     QString fallbackLanguage() const;
 
@@ -112,13 +107,11 @@ signals:
     void voiceContextChanged(const VoiceContextChange &change);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
-    void inputLanguageChanged(const QString &language);
     void piecesChanged(const PieceList &pieces, const PieceList &newPieces,
                        const PieceList &discardedPieces);
     void noteInferenceErrorsChanged();
 
 private:
-    void init();
     void notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext);
     void rebuildSliceErrors(const SliceResult &sliceResult);
     // Recomputes the language and phoneme diagnostics from the current notes and
@@ -139,8 +132,6 @@ private:
     QHash<int, NoteInferenceErrorInfo> m_phonemeErrors;
     QList<QPair<int, int>> m_skippedPhraseRanges;
     QHash<int, QString> m_pendingNoteTaskErrors;
-
-    Property<QString> m_inputLanguage{QString()};
 
     Property<SingerInfo> m_singerInfo;
     Property<SingerInfo> m_trackSingerInfo;

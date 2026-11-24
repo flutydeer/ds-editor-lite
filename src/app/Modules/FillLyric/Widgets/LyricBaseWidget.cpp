@@ -157,6 +157,7 @@ namespace FillLyric {
                     if (!m_languageContext || index < 0)
                         return;
                     m_previousLanguageChoice = m_languageContext->choice();
+                    m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
                     m_languageContext->setChoice(m_languageComboBox->itemData(index).toString());
                     updateLanguageToolTip();
                     Q_EMIT languageChoiceChanged();
@@ -164,6 +165,19 @@ namespace FillLyric {
                 });
 
         connect(m_skipSlur, &QCheckBox::stateChanged, this, [this] {
+            // Skipping slurs changes which notes vote for the derived language,
+            // so the selector follows before the preview is rebuilt. A language
+            // the user picked stays as it is.
+            if (m_languageContext && m_languageContext->refreshChoice(skipSlur())) {
+                const auto index = m_languageComboBox->findData(m_languageContext->choice());
+                {
+                    const QSignalBlocker blocker(m_languageComboBox);
+                    m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
+                }
+                m_previousLanguageChoice = m_languageContext->choice();
+                m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
+                updateLanguageToolTip();
+            }
             Q_EMIT modifyOption();
             Q_EMIT splitOptionChanged();
         });
@@ -277,22 +291,19 @@ namespace FillLyric {
             added.insert(language);
             m_languageComboBox->addItem(LanguageDisplayUtils::displayName(language), language);
         }
-        // A stored choice the singer cannot route stays selectable so the user
-        // sees the mismatch instead of silently dropping it.
-        const auto choice = m_languageContext->choice();
-        if (!choice.isEmpty() && !added.contains(choice))
-            m_languageComboBox->addItem(LanguageDisplayUtils::displayName(choice), choice);
 
+        const auto choice = m_languageContext->choice();
         const auto index = m_languageComboBox->findData(choice);
         m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
         m_previousLanguageChoice = choice;
+        m_previousChoiceIsExplicit = m_languageContext->choiceIsExplicit();
         updateLanguageToolTip();
     }
 
     void LyricBaseWidget::revertLanguageChoice() {
         if (!m_languageContext)
             return;
-        m_languageContext->setChoice(m_previousLanguageChoice);
+        m_languageContext->restoreChoice(m_previousLanguageChoice, m_previousChoiceIsExplicit);
         const auto index = m_languageComboBox->findData(m_previousLanguageChoice);
         {
             const QSignalBlocker blocker(m_languageComboBox);
@@ -304,16 +315,9 @@ namespace FillLyric {
     void LyricBaseWidget::updateLanguageToolTip() {
         if (!m_languageContext || !m_languageComboBox)
             return;
-        if (m_languageContext->choiceUnavailable()) {
-            m_languageComboBox->setToolTip(QCoreApplication::translate(
-                "LyricBaseWidget",
-                "The singer cannot use this language. Pick another one to import lyrics."));
-        } else {
-            m_languageComboBox->setToolTip(QCoreApplication::translate(
-                "LyricBaseWidget",
-                "The chosen language ranks first. Characters the lyric engine cannot identify "
-                "fall back to it."));
-        }
+        m_languageComboBox->setToolTip(QCoreApplication::translate(
+            "LyricBaseWidget", "The chosen language ranks first. Characters the lyric "
+                               "engine cannot identify fall back to it."));
     }
 
     void LyricBaseWidget::onSplitComboBoxCurrentIndexChanged(int index) const {

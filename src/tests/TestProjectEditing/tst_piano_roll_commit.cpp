@@ -43,7 +43,6 @@ namespace {
         clip.properties.length = 1920;
         clip.properties.clipLen = 1920;
         clip.properties.gain = 1.0;
-        clip.inputLanguage = QStringLiteral("en");
         const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
         const auto insertedClip = runtime.project().insertClips(
             commandContext(runtime), {

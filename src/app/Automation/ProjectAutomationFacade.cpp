@@ -33,36 +33,6 @@ namespace Automation {
     namespace {
         constexpr auto kAudioFormatDataKey = "diffscope.audio.formatData";
 
-        template <typename Target>
-        class SetInputLanguageAction final : public IAction {
-        public:
-            SetInputLanguageAction(Target *target, QString previous, QString current)
-                : m_target(target), m_previous(std::move(previous)), m_current(std::move(current)) {
-            }
-
-            void execute() override {
-                m_target->setInputLanguage(m_current);
-            }
-
-            void undo() override {
-                m_target->setInputLanguage(m_previous);
-            }
-
-        private:
-            Target *m_target = nullptr;
-            QString m_previous;
-            QString m_current;
-        };
-
-        class InputLanguageActions final : public ActionSequence {
-        public:
-            template <typename Target>
-            void setInputLanguage(Target *target, const QString &language) {
-                addAction(new SetInputLanguageAction<Target>(target, target->inputLanguage(),
-                                                               language));
-            }
-        };
-
         QByteArray trackInsertFingerprint(const qsizetype index,
                                           const QList<TrackDraftDto> &tracks) {
             QByteArray result;
@@ -219,12 +189,8 @@ namespace Automation {
                     trackSnapshot.data = trackDraftDto(*track);
                     trackSnapshot.data.clips.clear();
                     for (const auto *clip : track->clips()) {
-                        ClipSnapshotDto clipSnapshot{
-                            ClipId(clip->id()), trackSnapshot.id, clipDraftDto(*clip), {}};
-                        if (clip->clipType() == Clip::Singing) {
-                            clipSnapshot.inputLanguage =
-                                static_cast<const SingingClip *>(clip)->inputLanguage();
-                        }
+                        ClipSnapshotDto clipSnapshot{ClipId(clip->id()), trackSnapshot.id,
+                                                     clipDraftDto(*clip)};
                         trackSnapshot.clips.append(std::move(clipSnapshot));
                     }
                     result.tracks.append(std::move(trackSnapshot));
@@ -1747,31 +1713,6 @@ namespace Automation {
                 }
                 return AutomationResult<MutationResult>(
                     cacheMutationResult(session, changed, validateOnly));
-            });
-    }
-
-    AutomationResult<MutationResult> ProjectAutomationFacade::setSingingClipInputLanguage(
-        const CommandContext &context, const ClipId clipId, const QString &language) {
-        return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::clips::set_input_language, context,
-            [this, clipId, language](DocumentSession &session, const bool validateOnly) {
-                auto resolved = m_objects.singingClip(session, clipId);
-                if (!resolved)
-                    return AutomationResult<MutationResult>(resolved.getError());
-                // An empty language is the "follow singer" choice, so it is valid.
-                auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                const bool changed = clip->inputLanguage() != language;
-                const auto affected = QList<ObjectRef>{
-                    {ObjectKind::Clip, clipId.value()}
-                };
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
-                if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                auto actions = std::make_unique<InputLanguageActions>();
-                actions->setInputLanguage(clip, language);
-                return m_committer.commit(session, std::move(actions), affected);
             });
     }
 

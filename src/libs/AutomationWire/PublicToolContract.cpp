@@ -924,7 +924,6 @@ namespace AutomationWire {
                 PublicToolNames::clips_rename,
                 PublicToolNames::clips_set_gain,
                 PublicToolNames::clips_set_mute,
-                PublicToolNames::clips_set_input_language,
                 PublicToolNames::clips_use_track_voice,
                 PublicToolNames::clips_set_voice,
                 PublicToolNames::clips_clear_voice,
@@ -1070,8 +1069,6 @@ namespace AutomationWire {
                  {QStringLiteral("clip_id"), QStringLiteral("gain")}                                                    },
                 {PublicToolNames::clips_set_mute,
                  {QStringLiteral("clip_id"), QStringLiteral("mute")}                                                    },
-                {PublicToolNames::clips_set_input_language,
-                 {QStringLiteral("clip_id"), QStringLiteral("language_id")}                                             },
                 {PublicToolNames::clips_use_track_voice,               {QStringLiteral("clip_id")}                      },
                 {PublicToolNames::clips_set_voice,
                  {QStringLiteral("clip_id"), QStringLiteral("voice")}                                                   },
@@ -2343,25 +2340,19 @@ namespace AutomationWire {
 
         QJsonObject clipSnapshotSchema(const bool includeVoiceContext = false) {
             QJsonObject properties{
-                {QStringLiteral("clip_id"),             identifierSchema()                             },
-                {QStringLiteral("track_id"),            identifierSchema()                             },
-                {QStringLiteral("type"),                stringDomainSchema(PublicValueDomain::ClipType)},
-                {QStringLiteral("name"),                JsonSchema::string()                           },
-                {QStringLiteral("start"),               JsonSchema::integer(0.0)                       },
-                {QStringLiteral("length"),              JsonSchema::integer(1.0)                       },
-                {QStringLiteral("gain"),                JsonSchema::number()                           },
-                {QStringLiteral("mute"),                JsonSchema::boolean()                          },
-                {QStringLiteral("input_language_id"),   JsonSchema::string()                           },
+                {QStringLiteral("clip_id"),  identifierSchema()                             },
+                {QStringLiteral("track_id"), identifierSchema()                             },
+                {QStringLiteral("type"),     stringDomainSchema(PublicValueDomain::ClipType)},
+                {QStringLiteral("name"),     JsonSchema::string()                           },
+                {QStringLiteral("start"),    JsonSchema::integer(0.0)                       },
+                {QStringLiteral("length"),   JsonSchema::integer(1.0)                       },
+                {QStringLiteral("gain"),     JsonSchema::number()                           },
+                {QStringLiteral("mute"),     JsonSchema::boolean()                          },
             };
-            QStringList required{QStringLiteral("clip_id"),
-                                 QStringLiteral("track_id"),
-                                 QStringLiteral("type"),
-                                 QStringLiteral("name"),
-                                 QStringLiteral("start"),
-                                 QStringLiteral("length"),
-                                 QStringLiteral("gain"),
-                                 QStringLiteral("mute"),
-                                 QStringLiteral("input_language_id")};
+            QStringList required{QStringLiteral("clip_id"), QStringLiteral("track_id"),
+                                 QStringLiteral("type"),    QStringLiteral("name"),
+                                 QStringLiteral("start"),   QStringLiteral("length"),
+                                 QStringLiteral("gain"),    QStringLiteral("mute")};
             if (includeVoiceContext) {
                 properties.insert(QStringLiteral("voice_context"),
                                   JsonSchema::oneOf(QJsonArray{voiceContextSnapshotSchema(),
@@ -2374,20 +2365,17 @@ namespace AutomationWire {
         QJsonObject voiceContextSnapshotSchema() {
             const auto nullableVoice =
                 JsonSchema::oneOf(QJsonArray{voiceSelectionSchema(), JsonSchema::null()});
-            const auto nullableLanguage =
-                JsonSchema::oneOf(QJsonArray{languageSelectionSchema(), JsonSchema::null()});
             return JsonSchema::object(
                 {
                     {QStringLiteral("own_voice"),          nullableVoice        },
                     {QStringLiteral("effective_voice"),    nullableVoice        },
                     {QStringLiteral("inherits_track"),     JsonSchema::boolean()},
-                    {QStringLiteral("input_language"),     nullableLanguage     },
                     {QStringLiteral("available"),          JsonSchema::boolean()},
                     {QStringLiteral("unavailable_reason"), JsonSchema::string() },
             },
                 {QStringLiteral("own_voice"), QStringLiteral("effective_voice"),
-                 QStringLiteral("inherits_track"), QStringLiteral("input_language"),
-                 QStringLiteral("available"), QStringLiteral("unavailable_reason")});
+                 QStringLiteral("inherits_track"), QStringLiteral("available"),
+                 QStringLiteral("unavailable_reason")});
         }
 
         QJsonObject audioClipSnapshotSchema() {
@@ -4139,10 +4127,6 @@ namespace AutomationWire {
                 add(QStringLiteral("/voice/singer"), PublicToolNames::voices_list);
                 add(QStringLiteral("/voice/speaker"), PublicToolNames::voices_describe,
                     {QStringLiteral("/voice/singer")});
-            }
-            if (id == PublicToolNames::clips_set_input_language) {
-                add(QStringLiteral("/language_id"), PublicToolNames::voices_describe,
-                    {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }
             if (id == PublicToolNames::clips_set_voice) {
                 add(QStringLiteral("/voice/singer"), PublicToolNames::voices_list);

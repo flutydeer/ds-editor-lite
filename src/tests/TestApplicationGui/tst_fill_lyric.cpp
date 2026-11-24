@@ -26,6 +26,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
@@ -722,16 +723,158 @@ void ApplicationGuiTests::unroutableDetectedLanguageSurvivesTheConversion() {
     QCOMPARE(results.first().language, QStringLiteral("eng"));
     QCOMPARE(results.first().pronunciation, QStringLiteral("abc"));
 }
-void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
-    // A singer change can leave the stored clip language without a route. The
-    // choice stays visible, but it must neither feed resolution nor be imported.
+
+void ApplicationGuiTests::fillLyricDerivesLanguageFromSlurFreeNotes() {
+    // A slur keeps its own declaration but is not rewritten, so it must not vote
+    // for the language Fill Lyrics starts on.
+    createLyricSelection(0, true);
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    const auto routes = LanguageCompatibility::supportedLanguages(singingClip->singerInfo());
+    QVERIFY2(routes.size() >= 2, "The fixture singer needs two conversion routes");
+    const auto primary = routes.first();
+    const auto other = routes.at(1);
+    const QList<Note *> notes(singingClip->notes().cbegin(), singingClip->notes().cend());
+    QCOMPARE(notes.size(), 3);
+    notes.at(0)->setLanguage(primary);
+    notes.at(1)->setLanguage(other);
+    QCOMPARE(notes.at(1)->lyric(), QStringLiteral("-"));
+    appStatus->selectedNotes = QList<int>{notes.at(0)->id(), notes.at(1)->id()};
+    const auto before = runtime.documentVersion();
+
+    bool settingsApplied = false;
+    bool interacted = false;
+    const auto initialChoice = [&](const bool skipSlur) {
+        auto settings = original;
+        settings.skipSlur = skipSlur;
+        settingsApplied = static_cast<bool>(runtime.settings().updateFillLyric({}, settings));
+        QString choice;
+        interacted = false;
+        QTimer operateDialog;
+        operateDialog.setInterval(10);
+        connect(&operateDialog, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<LyricDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            operateDialog.stop();
+            auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
+            const auto combos = base ? base->findChildren<QComboBox *>() : QList<QComboBox *>{};
+            for (const auto *combo : combos) {
+                if (combo->findData(primary) < 0)
+                    continue;
+                choice = combo->currentData().toString();
+                interacted = true;
+                break;
+            }
+            dialog->reject();
+        });
+        operateDialog.start();
+        clipController->onFillLyric(view.get());
+        operateDialog.stop();
+        return choice;
+    };
+
+    // Skipping the slur leaves the other note as the only voter.
+    QCOMPARE(initialChoice(true), primary);
+    QVERIFY(interacted);
+    QVERIFY(settingsApplied);
+    // Without the skip the two declarations tie, so detection takes over.
+    QVERIFY(initialChoice(false).isEmpty());
+    QVERIFY(interacted);
+    QVERIFY(settingsApplied);
+
+    // Turning Skip Slur on inside the dialog drops the slur from the vote, so the
+    // selector re-derives before the preview is rebuilt.
+    bool toggled = false;
+    QString beforeToggle;
+    QString afterToggle;
+    QTimer operateToggle;
+    operateToggle.setInterval(10);
+    connect(&operateToggle, &QTimer::timeout, this, [&] {
+        auto *dialog = qobject_cast<LyricDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        operateToggle.stop();
+        auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
+        QComboBox *language = nullptr;
+        const auto combos = base ? base->findChildren<QComboBox *>() : QList<QComboBox *>{};
+        for (auto *combo : combos) {
+            if (combo->findData(primary) >= 0)
+                language = combo;
+        }
+        const auto checks = base ? base->findChildren<QCheckBox *>() : QList<QCheckBox *>{};
+        auto *skipSlur = checks.isEmpty() ? nullptr : checks.first();
+        if (language && skipSlur) {
+            beforeToggle = language->currentData().toString();
+            skipSlur->setChecked(true);
+            // Rebuilding the preview can ask for confirmation first.
+            if (QApplication::activeModalWidget() != dialog) {
+                if (auto *child = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                    child->reject();
+            }
+            afterToggle = language->currentData().toString();
+            toggled = true;
+        }
+        dialog->reject();
+    });
+    operateToggle.start();
+    clipController->onFillLyric(view.get());
+    operateToggle.stop();
+    QVERIFY(toggled);
+    QVERIFY2(beforeToggle.isEmpty(), "the saved skip state still lets the slur vote");
+    QCOMPARE(afterToggle, primary);
+    QCOMPARE(runtime.documentVersion(), before);
+}
+
+void ApplicationGuiTests::lyricLanguageContextKeepsTheDerivedChoiceImplicit() {
+    using FillLyric::LyricLanguageContext;
+    // The derived choice follows the notes being filled, so changing the skip
+    // state refreshes it while a selection the user made does not move.
+    LyricLanguageContext context({QStringLiteral("cmn"), QStringLiteral("yue")},
+                                 QStringLiteral("cmn"), QString(),
+                                 [](const bool skipSlur) {
+                                     return skipSlur ? QStringLiteral("cmn") : QString();
+                                 });
+    QVERIFY(!context.choiceIsExplicit());
+    QVERIFY(context.choice().isEmpty());
+    QVERIFY(context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    QVERIFY(!context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    context.setChoice(QStringLiteral("yue"));
+    QVERIFY(context.choiceIsExplicit());
+    QVERIFY(!context.refreshChoice(false));
+    QCOMPARE(context.choice(), QStringLiteral("yue"));
+    // A canceled change restores the derived choice as derived.
+    context.restoreChoice(QString(), false);
+    QVERIFY(!context.choiceIsExplicit());
+    QVERIFY(context.refreshChoice(true));
+    QCOMPARE(context.choice(), QStringLiteral("cmn"));
+    // Restoring an explicit choice keeps it explicit.
+    context.setChoice(QStringLiteral("yue"));
+    context.restoreChoice(QStringLiteral("yue"), true);
+    QVERIFY(context.choiceIsExplicit());
+    QVERIFY(!context.refreshChoice(false));
+    QCOMPARE(context.choice(), QStringLiteral("yue"));
+}
+
+void ApplicationGuiTests::lyricLanguageSelectorOffersOnlySingerRoutes() {
+    // The selector is the only source of the fill language, so it offers exactly
+    // automatic detection plus the singer routes, and nothing can block the
+    // import.
     auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
-        QStringList{QStringLiteral("cmn")}, QStringLiteral("cmn"), QStringLiteral("eng"));
-    QVERIFY(languageContext->choiceUnavailable());
-    QVERIFY(!languageContext->priorityLanguages().contains(QStringLiteral("eng")));
-    QCOMPARE(languageContext->priorityLanguages().first(), QStringLiteral("cmn"));
-    QVERIFY2(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")).isEmpty(),
-             "an unavailable choice must not act as the fallback");
+        QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}, QStringLiteral("cmn"),
+        QStringLiteral("eng"));
+    QCOMPARE(languageContext->selectableLanguages(),
+             (QStringList{QStringLiteral("cmn"), QStringLiteral("eng")}));
+    QCOMPARE(languageContext->priorityLanguages().first(), QStringLiteral("eng"));
+    QCOMPARE(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")),
+             QStringLiteral("eng"));
     QCOMPARE(languageContext->resolvedNoteLanguage(QStringLiteral("cmn")), QStringLiteral("cmn"));
 
     createLyricSelection();
@@ -746,7 +889,7 @@ void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
     QTRY_VERIFY(dialog.isActiveWindow());
     auto *import = buttonWithText(&dialog, LyricDialog::tr("&Import"));
     QVERIFY(import);
-    QVERIFY2(!import->isEnabled(), "an unavailable language must block the import");
+    QVERIFY2(import->isEnabled(), "a routable choice must not block the import");
 
     auto *base = dialog.findChild<FillLyric::LyricBaseWidget *>();
     QVERIFY(base);
@@ -756,13 +899,13 @@ void ApplicationGuiTests::unavailableLyricLanguageChoiceBlocksTheImport() {
             language = combo;
     }
     QVERIFY(language);
+    QCOMPARE(language->count(), 3);
+    QCOMPARE(language->itemData(0).toString(), QString());
     QCOMPARE(language->currentData().toString(), QStringLiteral("eng"));
     language->setCurrentIndex(language->findData(QStringLiteral("cmn")));
     QCOMPARE(languageContext->choice(), QStringLiteral("cmn"));
     QVERIFY(import->isEnabled());
-    QVERIFY(!languageContext->choiceUnavailable());
-    QVERIFY(languageContext->resolvedNoteLanguage(QStringLiteral("unknown")) ==
-            QStringLiteral("cmn"));
+    QTest::mouseClick(buttonWithText(&dialog, LyricDialog::tr("&Cancel")), Qt::LeftButton);
 }
 
 void ApplicationGuiTests::changingTheLyricLanguageKeepsTheEditedPreview() {
@@ -923,11 +1066,10 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     for (auto *note : singingClip->notes())
         notes.append(note);
     {
-        LyricDialog dialog(
-            singingClip, notes, singingClip->singerIdentifier(),
-            std::make_shared<FillLyric::LyricLanguageContext>(
-                QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
-                singingClip->inputLanguage()));
+        LyricDialog dialog(singingClip, notes, singingClip->singerIdentifier(),
+                           std::make_shared<FillLyric::LyricLanguageContext>(
+                               QStringList{TestSupport::fixtureLanguage()},
+                               TestSupport::fixtureLanguage(), QString()));
         dialog.show();
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isVisible());
@@ -1011,11 +1153,10 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QVERIFY(!saved.first().toObject().value(QStringLiteral("enabled")).toBool());
     QCOMPARE(saved.first().toObject().value(QStringLiteral("ruleId")).toString(), ruleId);
     file.close();
-    LyricDialog reopened(
-        singingClip, notes, singingClip->singerIdentifier(),
-        std::make_shared<FillLyric::LyricLanguageContext>(
-            QStringList{TestSupport::fixtureLanguage()}, TestSupport::fixtureLanguage(),
-            singingClip->inputLanguage()));
+    LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
+                         std::make_shared<FillLyric::LyricLanguageContext>(
+                             QStringList{TestSupport::fixtureLanguage()},
+                             TestSupport::fixtureLanguage(), QString()));
     reopened.show();
     reopened.activateWindow();
     selectLyricTab(reopened, LyricDialog::tr("Splitter"));

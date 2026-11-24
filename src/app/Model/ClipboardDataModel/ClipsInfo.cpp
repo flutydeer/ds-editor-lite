@@ -226,7 +226,6 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
         if (clip->clipType() == IClip::Singing) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             obj["type"] = "singing";
-            obj["inputLanguage"] = singingClip->inputLanguage();
             const bool useTrackInfo = singingClip->usesTrackVoiceContext();
             obj["useTrackSingerInfo"] = useTrackInfo;
             // An unresolved source route is unknown, not an authoritative empty
@@ -289,9 +288,6 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
         Clip *clip = nullptr;
         if (type == "singing") {
             auto singingClip = new SingingClip;
-            singingClip->setInputLanguage(obj.contains("inputLanguage")
-                                              ? obj["inputLanguage"].toString()
-                                              : obj["defaultLanguage"].toString());
 
             const auto notesArr = obj["notes"].toArray();
             for (const auto &noteVal : notesArr) {

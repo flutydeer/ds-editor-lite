@@ -14,7 +14,6 @@ namespace Automation {
         ClipId id;
         TrackId trackId;
         ClipDraftDto data;
-        QString inputLanguage;
     };
 
     struct TrackSnapshotDto {
@@ -170,9 +169,6 @@ namespace Automation {
         AutomationResult<MutationResult>
             setAudioClipHash(const CommandContext &context, ClipId clipId,
                              const AudioAssetSnapshotDto &expectedAsset, const QString &sha512);
-        AutomationResult<MutationResult>
-            setSingingClipInputLanguage(const CommandContext &context, ClipId clipId,
-                                          const QString &language);
 
     private:
         AutomationResult<MutationResult> patchTrackProperties(const OperationId &operationId,

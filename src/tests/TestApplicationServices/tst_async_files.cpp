@@ -36,7 +36,6 @@ namespace {
         clip.properties.length = 960;
         clip.properties.clipLen = 960;
         clip.properties.gain = 1.0;
-        clip.inputLanguage = QStringLiteral("en");
         track.clips.append(clip);
         return track;
     }

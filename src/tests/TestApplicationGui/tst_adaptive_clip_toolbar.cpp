@@ -112,19 +112,23 @@ namespace {
         return -1;
     }
 
-    const QStringList priorityOrder{
-        QStringLiteral("cbClipLanguage"),     QStringLiteral("cbClipSinger"),
-        QStringLiteral("leClipName"),         QStringLiteral("btnPitchModulation"),
-        QStringLiteral("btnPitchTrace"),      QStringLiteral("btnPitchEraser"),
-        QStringLiteral("btnPitchPencil"),     QStringLiteral("btnPitchAnchor"),
-        QStringLiteral("btnNoteSplit"),       QStringLiteral("btnNoteEraser"),
-        QStringLiteral("btnNotePencil"),      QStringLiteral("btnBeam"),
-        QStringLiteral("btnArrow"),           QStringLiteral("btnAutoPageTurn"),
-        QStringLiteral("cbPianoRollQuantize")};
+    const QStringList priorityOrder{QStringLiteral("cbClipSinger"),
+                                    QStringLiteral("leClipName"),
+                                    QStringLiteral("btnPitchModulation"),
+                                    QStringLiteral("btnPitchTrace"),
+                                    QStringLiteral("btnPitchEraser"),
+                                    QStringLiteral("btnPitchPencil"),
+                                    QStringLiteral("btnPitchAnchor"),
+                                    QStringLiteral("btnNoteSplit"),
+                                    QStringLiteral("btnNoteEraser"),
+                                    QStringLiteral("btnNotePencil"),
+                                    QStringLiteral("btnBeam"),
+                                    QStringLiteral("btnArrow"),
+                                    QStringLiteral("btnAutoPageTurn"),
+                                    QStringLiteral("cbPianoRollQuantize")};
 
     int toolbarGroup(const QString &name) {
-        if (name == QStringLiteral("leClipName") || name == QStringLiteral("cbClipSinger") ||
-            name == QStringLiteral("cbClipLanguage"))
+        if (name == QStringLiteral("leClipName") || name == QStringLiteral("cbClipSinger"))
             return 0;
         if (name == QStringLiteral("cbPianoRollQuantize"))
             return 2;
@@ -380,17 +384,7 @@ void ApplicationGuiTests::adaptiveClipToolbarApplicabilityAndPriorities() {
         QCOMPARE(adaptive->isItemApplicable(item), applicable);
         QCOMPARE(item->isVisible(), applicable);
         if (applicable) {
-            if (name == QStringLiteral("cbClipLanguage")) {
-                // The language control offers the routes the singer can convert,
-                // so it is only enabled when the clip resolves to such a singer.
-                const auto *singing = clipState == 0 ? dynamic_cast<SingingClip *>(clip) : nullptr;
-                QCOMPARE(item->isEnabled(),
-                         LanguageCompatibility::conversionSupport(singing ? singing->singerInfo()
-                                                                          : SingerInfo{})
-                             .isKnown());
-            } else {
-                QVERIFY2(item->isEnabled(), qPrintable(name));
-            }
+            QVERIFY2(item->isEnabled(), qPrintable(name));
             QVERIFY(qobject_cast<ControlGroup *>(item->parentWidget()));
         } else if (name != QStringLiteral("btnAutoPageTurn")) {
             QVERIFY(!item->isEnabled());

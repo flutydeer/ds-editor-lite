@@ -104,9 +104,6 @@ namespace Automation {
         ClipPropertiesDto properties;
         QMap<QString, QJsonObject> workspace;
 
-        // Language preselected when filling in lyrics. It never takes part in
-        // inference, so changing it does not touch any note.
-        QString inputLanguage;
         QList<NoteDraftDto> notes;
         QList<ParamCurvesDraftDto> params;
         bool usesTrackVoiceContext = true;

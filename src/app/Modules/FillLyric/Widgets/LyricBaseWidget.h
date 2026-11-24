@@ -94,6 +94,7 @@ namespace FillLyric {
 
         LyricLanguageContextPtr m_languageContext;
         QString m_previousLanguageChoice;
+        bool m_previousChoiceIsExplicit = false;
     };
 
 

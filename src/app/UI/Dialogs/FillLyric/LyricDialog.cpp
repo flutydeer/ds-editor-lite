@@ -5,7 +5,6 @@
 #include <QApplication>
 
 #include <lite/ProjectModel/AppModel/Note.h>
-#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/FillLyric/Widgets/SplitterConfigTab.h"
 #include "Modules/FillLyric/Widgets/TaggerConfigTab.h"
@@ -110,9 +109,6 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
             &LyricDialog::_on_modifyOption);
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::onCurrentTabChanged);
-    connect(m_lyricWidget, &FillLyric::LyricTab::languageChoiceChanged, this,
-            &LyricDialog::updateAcceptState);
-    connect(m_clip, &SingingClip::voiceContextChanged, this, &LyricDialog::updateAcceptState);
     connect(m_clip, &SingingClip::voiceContextChanged, this,
             [this](const VoiceContextChange &change) {
                 // A new singer or refreshed route metadata invalidates the preview.
@@ -120,7 +116,6 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
                 if (isVisible() && change.before.singer != change.after.singer)
                     reject();
             });
-    updateAcceptState();
 }
 
 LyricDialog::~LyricDialog() = default;
@@ -198,32 +193,9 @@ void LyricDialog::keyPressEvent(QKeyEvent *event) {
     QDialog::keyPressEvent(event);
 }
 
-bool LyricDialog::choiceRoutable() const {
-    if (!m_dialogLanguageContext || m_dialogLanguageContext->choiceUnavailable())
-        return m_dialogLanguageContext == nullptr;
-    const auto choice = m_dialogLanguageContext->choice();
-    if (choice.isEmpty())
-        return true;
-    // The route list is a snapshot, so the current singer decides at the moment
-    // the choice is about to be written back.
-    const auto support = LanguageCompatibility::conversionSupport(m_clip->singerInfo());
-    return !support.isKnown() || support.supports(choice);
-}
-
 void LyricDialog::accept() {
-    // An unavailable stored choice must be reselected before the notes are
-    // rewritten with a route that does not exist.
-    if (!choiceRoutable())
-        return;
     this->m_noteResult = exportLangNotes();
     Dialog::accept();
-}
-
-void LyricDialog::updateAcceptState() {
-    const bool unavailable = !choiceRoutable();
-    m_btnOk->setEnabled(!unavailable);
-    m_btnOk->setToolTip(unavailable ? tr("Pick Auto Detect or a language the singer can convert.")
-                                    : QString());
 }
 
 void LyricDialog::noteToPhonic() {
@@ -259,10 +231,6 @@ void LyricDialog::expandWindowRight() {
 
 LyricResult LyricDialog::noteResult() const {
     return m_noteResult;
-}
-
-QString LyricDialog::inputLanguage() const {
-    return m_dialogLanguageContext ? m_dialogLanguageContext->choice() : QString();
 }
 
 LyricResult LyricDialog::exportLangNotes() const {

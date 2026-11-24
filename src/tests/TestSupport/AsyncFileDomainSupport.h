@@ -543,7 +543,6 @@ namespace AutomationAsyncFileTests {
             singing.properties.length = 1920;
             singing.properties.clipLen = 1920;
             singing.properties.gain = 1.0;
-            singing.inputLanguage = QStringLiteral("en");
 
             Automation::ClipDraftDto audio;
             audio.clientRef = QStringLiteral("async-file-audio");

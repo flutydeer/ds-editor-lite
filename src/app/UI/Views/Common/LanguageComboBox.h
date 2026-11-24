@@ -4,8 +4,6 @@
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 
-#include <QIcon>
-
 class LanguageInfo;
 class QEvent;
 
@@ -24,13 +22,6 @@ public:
                          const QString &preferredLanguage = {});
     QString setLanguageCodes(const QStringList &languageCodes, const QString &currentLanguage,
                              bool preserveUnknownCurrent = true);
-    /// Fills the combo with the "follow singer" entry plus the conversion routes
-    /// the singer can actually address. A non-empty `currentLanguage` outside
-    /// that set stays selected and flagged as unavailable instead of being
-    /// silently replaced.
-    QString setConversionLanguages(const QStringList &languageIds, const QString &currentLanguage);
-    /// True when the selected entry is an unavailable language kept for display.
-    [[nodiscard]] bool currentLanguageUnavailable() const;
 
 signals:
     void currentLanguageChanged(const QString &language);
@@ -41,7 +32,6 @@ protected:
 private:
     void refreshDisplayNames();
     void adjustWidthToContent();
-    [[nodiscard]] QIcon unavailableIcon() const;
 
     QList<LanguageInfo> m_languages;
 };

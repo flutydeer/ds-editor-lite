@@ -64,6 +64,48 @@ void VoiceAndInferenceTests::languageCompatibilityRoutesAndConflicts() {
     QVERIFY(!LanguageCompatibility::conversionSupport(pending).isKnown());
     QVERIFY(LanguageCompatibility::conflicts({&mandarin}, pending).isEmpty());
 }
+
+void VoiceAndInferenceTests::dominantLanguagePicksTheRoutableMajority() {
+    using LanguageCompatibility::dominantLanguage;
+    const QStringList routes{QStringLiteral("cmn"), QStringLiteral("yue"), QStringLiteral("eng")};
+
+    // The notes agree, so filling lyrics starts from what they already declare.
+    QCOMPARE(dominantLanguage({QStringLiteral("yue"), QStringLiteral("yue"), QStringLiteral("cmn")},
+                              routes),
+             QStringLiteral("yue"));
+    // Silent notes leave the decision to automatic detection.
+    QVERIFY(dominantLanguage({}, routes).isEmpty());
+    QVERIFY(dominantLanguage({QString(), QString()}, routes).isEmpty());
+    // Mixed content of equal weight is better detected per token.
+    QVERIFY(dominantLanguage({QStringLiteral("cmn"), QStringLiteral("eng")}, routes).isEmpty());
+    QVERIFY(dominantLanguage({QStringLiteral("cmn"), QStringLiteral("eng"), QStringLiteral("cmn"),
+                              QStringLiteral("eng")},
+                             routes)
+                .isEmpty());
+    // A declaration the singer cannot route is not a candidate, so it cannot win
+    // and it does not tie.
+    QCOMPARE(dominantLanguage({QStringLiteral("jpn"), QStringLiteral("jpn"), QStringLiteral("cmn")},
+                              routes),
+             QStringLiteral("cmn"));
+    QVERIFY(dominantLanguage({QStringLiteral("jpn"), QStringLiteral("jpn")}, routes).isEmpty());
+    // An unroutable minority does not break the winner either.
+    QCOMPARE(dominantLanguage({QStringLiteral("yue"), QStringLiteral("yue"), QStringLiteral("jpn")},
+                              routes),
+             QStringLiteral("yue"));
+
+    // A slur carries no syllable, so Fill Lyrics ignores it when slurs are
+    // skipped, while keeping the declaration it already has. Without the skip a
+    // Mandarin note and a Cantonese slur split evenly and detection takes over.
+    const QStringList lyrics{QStringLiteral("a"), QStringLiteral("-")};
+    const QStringList declared{QStringLiteral("cmn"), QStringLiteral("yue")};
+    QVERIFY(dominantLanguage(lyrics, declared, false, routes).isEmpty());
+    QCOMPARE(dominantLanguage(lyrics, declared, true, routes), QStringLiteral("cmn"));
+    // A non-slur keeps voting either way.
+    QCOMPARE(dominantLanguage({QStringLiteral("-"), QStringLiteral("b")},
+                              {QStringLiteral("yue"), QStringLiteral("yue")}, true, routes),
+             QStringLiteral("yue"));
+}
+
 void VoiceAndInferenceTests::voiceChangeClearsStaleInferenceErrors() {
     // Missing phonemes make the slicer exclude the phrase, which publishes both a
     // per-note error and a skipped range on the clip.

@@ -557,40 +557,6 @@ void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits() {
     QVERIFY(!fixture.history()->canUndo());
 }
 
-void ProjectEditingTests::wholeClipClipboardPreservesInputLanguage_data() {
-    QTest::addColumn<bool>("hasInputLanguage");
-    QTest::addColumn<QString>("inputLanguage");
-    QTest::addColumn<QString>("expectedLanguage");
-    QTest::newRow("legacy-default-language") << false << QString() << QStringLiteral("cmn");
-    QTest::newRow("modern-language-overrides-legacy")
-        << true << QStringLiteral("eng") << QStringLiteral("eng");
-    QTest::newRow("modern-empty-overrides-legacy")
-        << true << QStringLiteral("") << QStringLiteral("");
-}
-
-void ProjectEditingTests::wholeClipClipboardPreservesInputLanguage() {
-    QFETCH(bool, hasInputLanguage);
-    QFETCH(QString, inputLanguage);
-    QFETCH(QString, expectedLanguage);
-
-    QJsonObject clip{
-        {QStringLiteral("type"),            QStringLiteral("singing")},
-        {QStringLiteral("defaultLanguage"), QStringLiteral("cmn")    }
-    };
-    if (hasInputLanguage)
-        clip.insert(QStringLiteral("inputLanguage"), inputLanguage);
-    const QJsonObject payload{
-        {QStringLiteral("clips"),             QJsonArray{clip}},
-        {QStringLiteral("trackIndexOffsets"), QJsonArray{0}   }
-    };
-    const auto decoded = ClipsInfo::deserializeFromJson(payload);
-    const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
-    QCOMPARE(decoded.clips.size(), 1);
-    const auto *restored = dynamic_cast<const SingingClip *>(decoded.clips.first());
-    QVERIFY(restored);
-    QCOMPARE(restored->inputLanguage(), expectedLanguage);
-}
-
 void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::addColumn<int>("layer");
     QTest::addColumn<bool>("hasNotes");

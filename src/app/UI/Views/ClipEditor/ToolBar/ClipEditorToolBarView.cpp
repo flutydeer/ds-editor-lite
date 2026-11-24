@@ -27,7 +27,6 @@
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Utils/QuantizeOptions.h"
-#include "UI/Views/Common/LanguageComboBox.h"
 #include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QButtonGroup>
@@ -174,12 +173,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             d->refreshSingerComboPresentation();
     });
 
-    d->m_cbClipLanguage = new LanguageComboBox(QString(), WheelEventPolicy::Handle);
-    d->m_cbClipLanguage->setObjectName("cbClipLanguage");
-    d->m_cbClipLanguage->setFixedHeight(d->m_contentHeight);
-    d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
-    d->m_cbClipLanguage->setToolTip(tr("Input Language"));
-
     d->m_cbPianoRollQuantize = new ComboBox(WheelEventPolicy::Handle);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
     QStringList quantizeItems{tr("(No Quantize)")};
@@ -290,7 +283,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_adaptiveToolBar->addWidget(d->m_leClipName, {0, 0, 2});
     d->m_adaptiveToolBar->addWidget(d->m_cbSinger, {0, 1, 1});
-    d->m_adaptiveToolBar->addWidget(d->m_cbClipLanguage, {0, 2, 0});
     d->m_adaptiveToolBar->addWidget(d->m_btnArrow, {1, 0, 12});
     d->m_adaptiveToolBar->addWidget(d->m_btnBeam, {1, 1, 11});
     d->m_adaptiveToolBar->addWidget(d->m_btnNotePencil, {1, 2, 10});
@@ -458,19 +450,6 @@ void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_leClipName->setText(m_clip->name());
 }
 
-void ClipEditorToolBarViewPrivate::onClipInputLanguageChanged(const QString &language) const {
-    m_cbClipLanguage->setCurrentLanguage(language);
-    refreshLanguageComboPresentation();
-}
-
-void ClipEditorToolBarViewPrivate::onInputLanguageEdited(const QString &language) const {
-    if (!m_singingClip || m_singingClip->inputLanguage() == language)
-        return;
-    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->project().setSingingClipInputLanguage(
-            commandContext(*runtime), Automation::ClipId(m_singingClip->id()), language);
-}
-
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setEnabled(false);
     m_leClipName->setText(QString());
@@ -500,7 +479,6 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
 void ClipEditorToolBarViewPrivate::setItemsApplicable(const bool name, const bool singing) const {
     m_adaptiveToolBar->setItemApplicable(m_leClipName, name);
     m_adaptiveToolBar->setItemApplicable(m_cbSinger, singing);
-    m_adaptiveToolBar->setItemApplicable(m_cbClipLanguage, singing);
     for (auto *button : m_toolButtonGroup->buttons())
         m_adaptiveToolBar->setItemApplicable(button, singing);
     m_adaptiveToolBar->setItemApplicable(m_cbPianoRollQuantize, singing);
@@ -569,7 +547,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         btn->setEnabled(on);
 
     m_cbSinger->setEnabled(on && appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready);
-    m_cbClipLanguage->setEnabled(on);
     m_cbPianoRollQuantize->setEnabled(on);
     updateToolShortcuts();
 
@@ -579,24 +556,12 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                 &ClipEditorToolBarViewPrivate::onSingerEdited, Qt::UniqueConnection);
         connect(m_singingClip, &SingingClip::voiceContextChanged, this,
                 [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
-
-        connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
-                &ClipEditorToolBarViewPrivate::onInputLanguageEdited, Qt::UniqueConnection);
-        connect(m_singingClip, &SingingClip::inputLanguageChanged, this,
-                &ClipEditorToolBarViewPrivate::onClipInputLanguageChanged);
     } else {
         disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
         if (m_singingClip) {
             disconnect(m_singingClip, &SingingClip::voiceContextChanged, this, nullptr);
-            disconnect(m_singingClip, &SingingClip::inputLanguageChanged, this,
-                       &ClipEditorToolBarViewPrivate::onClipInputLanguageChanged);
         }
-
-        disconnect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
-                   &ClipEditorToolBarViewPrivate::onInputLanguageEdited);
-        m_cbClipLanguage->setConversionLanguages({}, QString());
-        m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
     }
 }
 
@@ -703,28 +668,6 @@ void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
     m_cbSinger->setToolTip(m_cbSinger->currentText());
     populatePresetMenus();
     m_adaptiveToolBar->invalidateItemSize(m_cbSinger);
-    refreshLanguageComboPresentation();
-}
-
-void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
-    if (!m_singingClip || !m_cbClipLanguage)
-        return;
-
-    // Only the routes the singer can actually address are offered. The stored
-    // value is never rewritten here: an unavailable one stays selected and
-    // flagged so the user can see the mismatch and reselect.
-    const auto support = LanguageCompatibility::conversionSupport(m_singingClip->singerInfo());
-    m_cbClipLanguage->setConversionLanguages(support.languageIds,
-                                             m_singingClip->inputLanguage());
-    m_cbClipLanguage->setEnabled(support.isKnown());
-    if (m_cbClipLanguage->currentLanguageUnavailable()) {
-        m_cbClipLanguage->setToolTip(
-            tr("The singer cannot use this input language. Lyrics will be filled with another "
-               "language."));
-    } else {
-        m_cbClipLanguage->setToolTip(tr("Input Language"));
-    }
-    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
 }
 
 void ClipEditorToolBarViewPrivate::populatePresetMenus() const {
@@ -850,7 +793,6 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
         m_cbSinger->setLoadingText(ClipEditorToolBarView::tr("(Scanning packages...)"));
     else
         m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-    m_cbClipLanguage->setToolTip(ClipEditorToolBarView::tr("Input Language"));
     m_cbPianoRollQuantize->setToolTip(ClipEditorToolBarView::tr("Piano Roll Quantize"));
 
     const auto setToolTip = [](Button *button, const QString &title,
@@ -890,7 +832,6 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
     }
     refreshSingerComboPresentation();
     m_adaptiveToolBar->invalidateItemSize(m_cbSinger);
-    m_adaptiveToolBar->invalidateItemSize(m_cbClipLanguage);
     m_adaptiveToolBar->invalidateItemSize(m_cbPianoRollQuantize);
 }
 

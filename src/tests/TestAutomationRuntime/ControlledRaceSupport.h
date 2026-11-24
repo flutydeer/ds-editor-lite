@@ -202,7 +202,6 @@ namespace AutomationTaskRaceTests {
             singing.properties.length = 960;
             singing.properties.clipLen = 960;
             singing.properties.gain = 1.0;
-            singing.inputLanguage = QStringLiteral("unknown");
 
             Automation::ClipDraftDto audio;
             audio.type = Automation::ClipDraftDto::Type::Audio;

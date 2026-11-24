@@ -283,7 +283,6 @@ namespace Automation {
             addInteger(hash, draft.properties.clipLen);
             addDouble(hash, draft.properties.gain);
             addInteger(hash, draft.properties.mute);
-            addString(hash, draft.inputLanguage);
             addString(hash, draft.audioPath);
             addString(hash, draft.audioPathInfo.relativeDir);
             addString(hash, draft.audioPathInfo.sha512);
@@ -469,7 +468,6 @@ namespace Automation {
 
         const auto &singing = static_cast<const SingingClip &>(clip);
         result.type = ClipDraftDto::Type::Singing;
-        result.inputLanguage = singing.inputLanguage();
         result.usesTrackVoiceContext = singing.usesTrackVoiceContext();
         // An unresolved or missing source route says nothing about the language
         // the notes were built for, so only a known route is recorded. A known
@@ -553,7 +551,6 @@ namespace Automation {
         } else {
             auto singing = std::make_unique<SingingClip>();
             appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, singing->id());
-            singing->setInputLanguage(draft.inputLanguage);
             for (const auto &noteDraft : draft.notes) {
                 auto note = buildNote(noteDraft, singing.get(), createdObjects);
                 singing->insertNote(note.release());

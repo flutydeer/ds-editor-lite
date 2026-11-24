@@ -116,6 +116,41 @@ namespace LanguageCompatibility {
         return support.languageIds.first();
     }
 
+    QString dominantLanguage(const QStringList &declaredLanguages,
+                             const QStringList &supportedLanguages) {
+        // Only routable declarations are candidates, so an unroutable majority
+        // never wins. A tie stays empty: mixed content is better served by
+        // detecting each token.
+        qsizetype bestCount = 0;
+        bool tied = false;
+        QString best;
+        for (const auto &language : supportedLanguages) {
+            const auto count = declaredLanguages.count(language);
+            if (count == 0)
+                continue;
+            if (count > bestCount) {
+                bestCount = count;
+                best = language;
+                tied = false;
+            } else if (count == bestCount) {
+                tied = true;
+            }
+        }
+        return tied ? QString() : best;
+    }
+
+    QString dominantLanguage(const QStringList &lyrics, const QStringList &declaredLanguages,
+                             const bool skipSlur, const QStringList &supportedLanguages) {
+        QStringList voters;
+        const auto count = qMin(lyrics.size(), declaredLanguages.size());
+        for (qsizetype index = 0; index < count; ++index) {
+            if (skipSlur && Note::isSlurLyric(lyrics.at(index)))
+                continue;
+            voters.append(declaredLanguages.at(index));
+        }
+        return dominantLanguage(voters, supportedLanguages);
+    }
+
     QList<LanguageConflict> conflicts(const QList<Note *> &notes, const SingerInfo &singer) {
         const auto support = conversionSupport(singer);
         if (!support.isKnown())
