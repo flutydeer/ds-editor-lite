@@ -4710,16 +4710,15 @@ namespace Automation {
             }
             const bool skipSlur = options.value(QStringLiteral("skip_slur")).toBool(false);
             // Without an explicit request the notes being filled decide the
-            // language, the same way the interactive dialog preselects it. A slur
-            // note is not rewritten, so its declaration does not vote.
+            // language, the same way the interactive dialog preselects it.
+            QStringList noteLyrics;
             QStringList declaredLanguages;
             for (const auto &note : ordered) {
-                if (skipSlur && Note::isSlurLyric(note.data.lyric))
-                    continue;
+                noteLyrics.append(note.data.lyric);
                 declaredLanguages.append(note.data.language);
             }
-            const auto initialLanguage =
-                LanguageCompatibility::dominantLanguage(declaredLanguages, supported);
+            const auto initialLanguage = LanguageCompatibility::dominantLanguage(
+                noteLyrics, declaredLanguages, skipSlur, supported);
             const auto languageSelection = options.value(QStringLiteral("language")).toObject();
             const auto languageOverride =
                 options.contains(QStringLiteral("language"))

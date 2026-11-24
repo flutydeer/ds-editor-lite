@@ -16,6 +16,7 @@
 #include <lite/ProjectModel/Utils/NoteResizeUtils.h>
 #include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/AppOptions/AppOptions.h"
 #include <lite/History/HistoryFocus.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -636,12 +637,17 @@ void ClipController::onFillLyric(QWidget *parent) {
     // The selector offers the routes the singer can address and preselects the
     // language the notes being filled already agree on. Nothing is stored: a
     // mixed or silent selection starts from automatic detection.
+    QStringList lyrics;
     QStringList declaredLanguages;
-    for (const auto &note : selectedNotes)
+    for (const auto &note : selectedNotes) {
+        lyrics.append(note->lyric());
         declaredLanguages.append(note->language());
+    }
     auto languageContext = std::make_shared<FillLyric::LyricLanguageContext>(
         supportedLanguages, LanguageCompatibility::fallbackLanguage(singerInfo),
-        LanguageCompatibility::dominantLanguage(declaredLanguages, supportedLanguages));
+        LanguageCompatibility::dominantLanguage(lyrics, declaredLanguages,
+                                                appOptions->fillLyric()->skipSlur,
+                                                supportedLanguages));
 
     const auto singer = singerInfo.resolutionState() == ResolutionState::Resolved
                             ? singerInfo.identifier()

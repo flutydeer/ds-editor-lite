@@ -92,6 +92,18 @@ void VoiceAndInferenceTests::dominantLanguagePicksTheRoutableMajority() {
     QCOMPARE(dominantLanguage({QStringLiteral("yue"), QStringLiteral("yue"), QStringLiteral("jpn")},
                               routes),
              QStringLiteral("yue"));
+
+    // A slur carries no syllable, so Fill Lyrics ignores it when slurs are
+    // skipped, while keeping the declaration it already has. Without the skip a
+    // Mandarin note and a Cantonese slur split evenly and detection takes over.
+    const QStringList lyrics{QStringLiteral("a"), QStringLiteral("-")};
+    const QStringList declared{QStringLiteral("cmn"), QStringLiteral("yue")};
+    QVERIFY(dominantLanguage(lyrics, declared, false, routes).isEmpty());
+    QCOMPARE(dominantLanguage(lyrics, declared, true, routes), QStringLiteral("cmn"));
+    // A non-slur keeps voting either way.
+    QCOMPARE(dominantLanguage({QStringLiteral("-"), QStringLiteral("b")},
+                              {QStringLiteral("yue"), QStringLiteral("yue")}, true, routes),
+             QStringLiteral("yue"));
 }
 
 void VoiceAndInferenceTests::voiceChangeClearsStaleInferenceErrors() {

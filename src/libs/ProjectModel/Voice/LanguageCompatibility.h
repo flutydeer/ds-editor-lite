@@ -74,6 +74,13 @@ namespace LanguageCompatibility {
     QString dominantLanguage(const QStringList &declaredLanguages,
                              const QStringList &supportedLanguages);
 
+    /// The same preference restricted to the notes Fill Lyrics will rewrite.
+    /// `lyrics` and `declaredLanguages` are parallel per-note lists. A slur
+    /// carries no syllable of its own, so it does not vote when the caller skips
+    /// slurs, even though it keeps its declaration.
+    QString dominantLanguage(const QStringList &lyrics, const QStringList &declaredLanguages,
+                             bool skipSlur, const QStringList &supportedLanguages);
+
     /// Groups the specified-language notes the singer cannot route. Notes are
     /// visited in clip order, so the result and every id list are stable.
     QList<LanguageConflict> conflicts(const QList<Note *> &notes, const SingerInfo &singer);

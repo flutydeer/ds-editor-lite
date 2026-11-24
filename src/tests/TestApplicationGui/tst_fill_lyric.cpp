@@ -26,6 +26,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Voice/LanguageCompatibility.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
@@ -721,6 +722,72 @@ void ApplicationGuiTests::unroutableDetectedLanguageSurvivesTheConversion() {
     QCOMPARE(results.size(), 1);
     QCOMPARE(results.first().language, QStringLiteral("eng"));
     QCOMPARE(results.first().pronunciation, QStringLiteral("abc"));
+}
+
+void ApplicationGuiTests::fillLyricDerivesLanguageFromSlurFreeNotes() {
+    // A slur keeps its own declaration but is not rewritten, so it must not vote
+    // for the language Fill Lyrics starts on.
+    createLyricSelection(0, true);
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto original = snapshot.get().fillLyric;
+    const auto restore = qScopeGuard([&] { runtime.settings().updateFillLyric({}, original); });
+    const auto routes = LanguageCompatibility::supportedLanguages(singingClip->singerInfo());
+    QVERIFY2(routes.size() >= 2, "The fixture singer needs two conversion routes");
+    const auto primary = routes.first();
+    const auto other = routes.at(1);
+    const QList<Note *> notes(singingClip->notes().cbegin(), singingClip->notes().cend());
+    QCOMPARE(notes.size(), 3);
+    notes.at(0)->setLanguage(primary);
+    notes.at(1)->setLanguage(other);
+    QCOMPARE(notes.at(1)->lyric(), QStringLiteral("-"));
+    appStatus->selectedNotes = QList<int>{notes.at(0)->id(), notes.at(1)->id()};
+    const auto before = runtime.documentVersion();
+
+    bool settingsApplied = false;
+    bool interacted = false;
+    const auto initialChoice = [&](const bool skipSlur) {
+        auto settings = original;
+        settings.skipSlur = skipSlur;
+        settingsApplied = static_cast<bool>(runtime.settings().updateFillLyric({}, settings));
+        QString choice;
+        interacted = false;
+        QTimer operateDialog;
+        operateDialog.setInterval(10);
+        connect(&operateDialog, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<LyricDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            operateDialog.stop();
+            auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
+            const auto combos = base ? base->findChildren<QComboBox *>() : QList<QComboBox *>{};
+            for (const auto *combo : combos) {
+                if (combo->findData(primary) < 0)
+                    continue;
+                choice = combo->currentData().toString();
+                interacted = true;
+                break;
+            }
+            dialog->reject();
+        });
+        operateDialog.start();
+        clipController->onFillLyric(view.get());
+        operateDialog.stop();
+        return choice;
+    };
+
+    // Skipping the slur leaves the other note as the only voter.
+    QCOMPARE(initialChoice(true), primary);
+    QVERIFY(interacted);
+    QVERIFY(settingsApplied);
+    // Without the skip the two declarations tie, so detection takes over.
+    QVERIFY(initialChoice(false).isEmpty());
+    QVERIFY(interacted);
+    QVERIFY(settingsApplied);
+    QCOMPARE(runtime.documentVersion(), before);
 }
 
 void ApplicationGuiTests::lyricLanguageSelectorOffersOnlySingerRoutes() {
