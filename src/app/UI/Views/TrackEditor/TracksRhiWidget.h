@@ -243,6 +243,8 @@ private:
     // gesture anchor active. Returns false when the model created nothing.
     bool selectDuplicatedClips(const QList<ClipGeometryEdit> &edits, const QList<int> &copies);
     void updateRubberBandSelection(const QPointF &position);
+    [[nodiscard]] QRectF rubberBandPhysicalRect(double dpr) const;
+    void commitRubberBandSelection();
     void commitDrag();
     void discardDrag();
     void finishDragSession(EditSessionEndReason reason);
