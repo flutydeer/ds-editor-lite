@@ -493,7 +493,7 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
     m_viewport.stopAnimation();
     disarmDragAutoScroll();
-    const auto *hit = hitTest(event->position());
+    const auto hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {
         if (hit) {
             // A right press only decides what the menu acts on: plain semantics, so a group that
@@ -572,7 +572,7 @@ void TracksRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
 
 EditorTouchTarget::ContentHit
     TracksRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
-    const auto *hit = hitTest(viewportPosition);
+    const auto hit = hitTest(viewportPosition);
     if (!hit)
         return ContentHit::None;
     // A finger has to select a clip before it can move or resize it, so that
@@ -696,7 +696,7 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
 }
 
 void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (const auto *hit = hitTest(event->position())) {
+    if (const auto hit = hitTest(event->position())) {
         // The title band renames the clip in place, the body keeps opening it
         // in the clip editor.
         if (event->button() == Qt::LeftButton && !hit->pastePreview &&
@@ -750,7 +750,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     context.rawTick = tickAt(event->pos());
     context.snappedTick = TimelineSnapUtils::snapDown(context.rawTick, snapStep(context.rawTick),
                                                       appModel->timeline());
-    if (const auto *hit = hitTest(event->pos())) {
+    if (const auto hit = hitTest(event->pos())) {
         updateClipSelection(*hit, Qt::NoModifier);
         context.trackIndex = hit->trackIndex;
         context.clipId = hit->id;
@@ -1547,13 +1547,15 @@ void TracksRhiWidget::clearTrackSplitPreview() {
     scheduleSnapshot();
 }
 
-const TracksRhiWidget::ClipSnapshot *
+std::optional<TracksRhiWidget::ClipSnapshot>
     TracksRhiWidget::hitTest(const QPointF &viewportPosition) const {
+    // Input may arrive between a viewport or model change and the queued paint.
+    ensureSnapshot();
     const auto physicalScene = m_viewport.viewportToScene(viewportPosition) * devicePixelRatioF();
     for (auto iterator = m_clipSnapshots.crbegin(); iterator != m_clipSnapshots.crend(); ++iterator)
         if (iterator->modelPhysicalRect.contains(physicalScene))
-            return &*iterator;
-    return nullptr;
+            return *iterator;
+    return std::nullopt;
 }
 
 int TracksRhiWidget::trackIndexAt(const QPointF &viewportPosition) const {
@@ -1946,7 +1948,7 @@ void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTr
 }
 
 void TracksRhiWidget::updateCursor(const QPointF &position) {
-    const auto *clip = hitTest(position);
+    const auto clip = hitTest(position);
     if (!clip) {
         unsetCursor();
         return;

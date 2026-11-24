@@ -110,6 +110,7 @@ signals:
 
 protected:
     void requestSnapshot();
+    void ensureSnapshot() const;
     virtual void rebuildSnapshot(EditorRhiFrameData &frame) = 0;
     virtual void appendPlaybackOverlay(QVector<EditorRhiOverlayRect> &rects) const = 0;
     [[nodiscard]] QPointF physicalWindowOffset() const;

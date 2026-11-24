@@ -319,6 +319,14 @@ public:
         return true;
     }
 
+    void ensureSnapshot() {
+        if (!snapshotDirty)
+            return;
+        snapshotDirty = false;
+        q->rebuildSnapshot(frame);
+        frameDirty = true;
+    }
+
     void render(QRhiCommandBuffer *cb) {
         if (!resourcesReady || !cb)
             return;
@@ -330,11 +338,7 @@ public:
         }
 
         // Consume viewport changes in the same paint as the adjacent rulers.
-        if (snapshotDirty) {
-            snapshotDirty = false;
-            q->rebuildSnapshot(frame);
-            frameDirty = true;
-        }
+        ensureSnapshot();
         overlayRects.clear();
         q->appendPlaybackOverlay(overlayRects);
 
@@ -694,6 +698,10 @@ void EditorRhiWidget::requestSnapshot() {
     d->snapshotDirty = true;
     d->updateRequestedNs = d->clock.nsecsElapsed();
     update();
+}
+
+void EditorRhiWidget::ensureSnapshot() const {
+    d->ensureSnapshot();
 }
 
 QPointF EditorRhiWidget::physicalWindowOffset() const {

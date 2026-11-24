@@ -1722,8 +1722,7 @@ void NativeDesktopTests::rhiTrackClipTitleRenamesInline() {
     TrackFixture fixture;
     QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
     auto &canvas = *fixture.canvas;
-    // The clip snapshots are rebuilt on a zero timer; hit testing needs them.
-    QCoreApplication::processEvents();
+    QVERIFY(QTest::qWaitForWindowActive(fixture.host.get()));
 
     auto *clip = fixture.clip();
     QVERIFY(clip);
@@ -1856,8 +1855,7 @@ void NativeDesktopTests::rhiTrackClipTitleSurvivesDocumentReplacement() {
     TrackFixture fixture;
     QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
     auto &canvas = *fixture.canvas;
-    // The clip snapshots are rebuilt on a zero timer; hit testing needs them.
-    QCoreApplication::processEvents();
+    QVERIFY(QTest::qWaitForWindowActive(fixture.host.get()));
 
     const auto titleBandPoint = [&] {
         auto point = fixture.point(960, 0);
@@ -1866,7 +1864,10 @@ void NativeDesktopTests::rhiTrackClipTitleSurvivesDocumentReplacement() {
         return point;
     };
 
-    // Open a rename and type into it, then replace the whole document.
+    // Input can arrive at the new scale before the next frame.
+    QVERIFY(canvas.setViewScale(4.0, 1.0));
+    QVERIFY(canvas.centerAt(960, 0.5));
+    QVERIFY(canvas.rect().contains(titleBandPoint()));
     QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, titleBandPoint());
     QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));

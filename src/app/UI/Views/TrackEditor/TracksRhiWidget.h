@@ -222,7 +222,7 @@ private:
                                                                    const AudioInfoModel &audioInfo,
                                                                    const ClipSnapshot &clip,
                                                                    double dpr) const;
-    [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
+    [[nodiscard]] std::optional<ClipSnapshot> hitTest(const QPointF &viewportPosition) const;
     // The band that carries the clip title, in viewport coordinates. Empty when
     // the clip is too short to draw its title as its own strip.
     [[nodiscard]] QRectF titleBandViewportRect(const ClipSnapshot &clip) const;
