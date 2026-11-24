@@ -805,6 +805,8 @@ void ApplicationGuiTests::ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources
     QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    // The opaque copies replace the translucent previews instead of stacking on top.
+    QCOMPARE(sceneNoteCount(-1), 0);
     const auto *source = singingClip->findNoteById(noteId);
     QVERIFY(source);
     QCOMPARE(source->localStart(), 480);
@@ -852,6 +854,7 @@ void ApplicationGuiTests::ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources
     QVERIFY(appStatus->selectedNotes.get().first() != noteId);
     QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
     QCOMPARE(singingClip->notes().count(), 2);
+    QCOMPARE(sceneNoteCount(-1), 0);
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContents);
 }

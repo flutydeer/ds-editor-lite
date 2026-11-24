@@ -1448,6 +1448,10 @@ void PianoRollGraphicsView::commitAction() {
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
     setSceneLengthExtension(0);
+    // The copies now live in the model, so the translucent previews have to go
+    // with the rest of the gesture state.
+    clearCopyGhosts();
+    m_copyDrag = false;
     d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
