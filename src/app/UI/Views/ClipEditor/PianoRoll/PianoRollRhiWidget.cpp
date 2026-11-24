@@ -672,7 +672,7 @@ public:
         if (!step.isNull())
             viewport.scrollBy(step);
         continueEdgeDragAt(EdgeAutoScroller::clampToRect(pointerPosition, viewportRect),
-                           QGuiApplication::queryKeyboardModifiers());
+                           dragModifiers);
         updateEdgeAutoScrollState(pointerPosition);
     }
 
@@ -1768,10 +1768,22 @@ public:
         if (interaction == Interaction::Draw) {
             preview.append({-1, drawStart, drawEnd - drawStart, drawKey});
         } else if (interaction == Interaction::Move) {
-            for (const auto id : appStatus->selectedNotes.get()) {
-                if (const auto *note = clip->findNoteById(id)) {
-                    preview.append({id, note->localStart() + interactionDeltaTick, note->length(),
-                                    note->keyIndex() + interactionDeltaKey});
+            if (copyDrag) {
+                // The sources stay where they are, so the thumbnails get the
+                // duplicates as transient notes under their own negative ids.
+                auto ghostId = -2;
+                for (const auto id : appStatus->selectedNotes.get()) {
+                    if (const auto *note = clip->findNoteById(id)) {
+                        preview.append({ghostId--, note->localStart() + interactionDeltaTick,
+                                        note->length(), note->keyIndex() + interactionDeltaKey});
+                    }
+                }
+            } else {
+                for (const auto id : appStatus->selectedNotes.get()) {
+                    if (const auto *note = clip->findNoteById(id)) {
+                        preview.append({id, note->localStart() + interactionDeltaTick,
+                                        note->length(), note->keyIndex() + interactionDeltaKey});
+                    }
                 }
             }
         } else if (interaction == Interaction::ResizeLeft ||
@@ -1811,6 +1823,7 @@ public:
         interactionDeltaKey = 0;
         interactionMinimumLength = 1;
         interactionMoved = false;
+        copyDrag = false;
         jointResizeActive = false;
         jointNeighborId = -1;
         drawStart = 0;
@@ -2102,6 +2115,7 @@ public:
             finishNoteErase(EditSessionEndReason::Commit);
             return;
         }
+        auto assignedCopies = false;
         if (interaction == Interaction::Draw) {
             const auto committed =
                 PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
@@ -2110,7 +2124,21 @@ public:
                                             : EditSessionEndReason::Discard);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
-            if (interactionMoved && interaction == Interaction::Move) {
+            if (interactionMoved && interaction == Interaction::Move && copyDrag) {
+                // One command for the whole gesture: the copies land together
+                // and one undo takes them back. A gesture that stayed on the
+                // same tick and key changed nothing, so it creates no copy.
+                if (interactionDeltaTick != 0 || interactionDeltaKey != 0) {
+                    const auto copies = clipController->onDuplicateNotes(
+                        appStatus->selectedNotes.get(), interactionDeltaTick, interactionDeltaKey);
+                    if (!copies.isEmpty()) {
+                        // Duplicating a selection replaces it with the copies it
+                        // produced, so the next gesture grabs the new notes.
+                        syncNoteSelection(copies);
+                        assignedCopies = true;
+                    }
+                }
+            } else if (interactionMoved && interaction == Interaction::Move) {
                 if (interactionDeltaTick != 0 || interactionDeltaKey != 0)
                     clipController->onMoveNotes(appStatus->selectedNotes.get(),
                                                 interactionDeltaTick, interactionDeltaKey);
@@ -2139,15 +2167,34 @@ public:
             finishNoteEditSession(interactionMoved ? EditSessionEndReason::Commit
                                                    : EditSessionEndReason::Discard);
         }
-        syncNoteSelection(noteSelection.release(appStatus->selectedNotes.get(), interactionMoved));
+        if (!assignedCopies)
+            syncNoteSelection(
+                noteSelection.release(appStatus->selectedNotes.get(), interactionMoved));
         resetNoteInteraction();
         updateNoteCursor(event->position(), event->modifiers());
+        scheduleSnapshot();
+    }
+
+    // A modifier change arrives with no pointer event, so the gesture replays its
+    // last known pointer position to refresh the preview.
+    void onModifierChange(const Qt::KeyboardModifiers modifiers) {
+        if (interaction != Interaction::Move && interaction != Interaction::ResizeLeft &&
+            interaction != Interaction::ResizeRight)
+            return;
+        updateInteractionDelta(lastPointerPosition, modifiers);
         scheduleSnapshot();
     }
 
     void updateInteractionDelta(const QPointF &position, const Qt::KeyboardModifiers modifiers) {
         if (interaction == Interaction::None || interaction == Interaction::Draw)
             return;
+        // Ctrl turns a move into a copy, the way the office suites do it: the
+        // selected notes stay where they are and a duplicate follows the pointer.
+        // Resizing has no duplicate form, so the flag only follows move gestures.
+        copyDrag = interaction == Interaction::Move && modifiers.testFlag(Qt::ControlModifier);
+        // Alt suspends snapping for the gesture, so the two combine: a Ctrl drag
+        // parks the copies on unsnapped positions while Alt is held.
+        dragModifiers = modifiers;
         if (!interactionMoved) {
             interactionMoved = true;
             QList<int> ids = interaction == Interaction::Move ? appStatus->selectedNotes.get()
@@ -2251,6 +2298,7 @@ public:
                 noteHeight * verticalScale(), dpr, localStart, localEnd, sceneTop,
                 sceneBottom));
             appendNotes(localStart, localEnd);
+            appendCopyGhosts(localStart, localEnd);
             appendPastePreview(localStart, localEnd);
             appendPitch(localStart, localEnd);
             appendAnchors(localStart, localEnd);
@@ -2597,7 +2645,8 @@ private:
         auto noteLength = note->length();
         auto noteKey = note->keyIndex();
         const auto selected = appStatus->selectedNotes.get().contains(note->id());
-        if (selected && interaction == Interaction::Move) {
+        // A copy gesture leaves the notes where they are: only the ghosts follow.
+        if (selected && interaction == Interaction::Move && !copyDrag) {
             noteStart += interactionDeltaTick;
             noteKey += interactionDeltaKey;
         } else if (note->id() == interactionNoteId && interaction == Interaction::ResizeLeft) {
@@ -2741,6 +2790,40 @@ private:
             appendNoteText(rect, note.lyric, note.pronunciation, noteForeground,
                            note.pronunciationEdited ? pronunciationEdited : pronunciationNormal,
                            false, false);
+        }
+    }
+
+    // The duplicates a Ctrl drag paints under the pointer. They have no model
+    // identity: the copies only exist once the gesture commits.
+    void appendCopyGhosts(const double localStart, const double localEnd) {
+        if (!copyDrag || !interactionMoved || interaction != Interaction::Move)
+            return;
+        const auto *palette = AppColorPalette::instance();
+        auto fill = palette->noteBackground(trackColorIndex);
+        auto border = palette->noteBorder(trackColorIndex);
+        auto foreground = palette->noteForeground(trackColorIndex);
+        auto pronunciation = q->pronunciationTextColor();
+        constexpr double opacity = 0.35;
+        for (auto *color : {&fill, &border, &foreground, &pronunciation})
+            color->setAlphaF(color->alphaF() * opacity);
+        const auto compact = NoteLyricPresentation::usesCompactRendering(horizontalScale());
+        for (const auto id : appStatus->selectedNotes.get()) {
+            const auto *note = clip->findNoteById(id);
+            if (!note)
+                continue;
+            const auto start = note->localStart() + interactionDeltaTick;
+            if (start + note->length() < localStart || start > localEnd)
+                continue;
+            const QRectF rect(viewport.tickToSceneX(start),
+                              viewport.unitToSceneY(127 - note->keyIndex() - interactionDeltaKey),
+                              note->length() * pixelsPerTick(), noteHeight * verticalScale());
+            if (compact) {
+                appendCompactNoteShape(rect, fill);
+                continue;
+            }
+            appendFullNoteShape(rect, fill, border);
+            appendNoteText(rect, note->lyric(), note->pronunciation().result(), foreground,
+                           pronunciation, false, false);
         }
     }
 
@@ -3247,6 +3330,12 @@ public:
     int interactionDeltaKey = 0;
     int interactionMinimumLength = 1;
     bool interactionMoved = false;
+    // A Ctrl drag copies the selected notes: they keep their places and the
+    // duplicates follow the pointer.
+    bool copyDrag = false;
+    // Last modifier state of the note gesture. Edge auto scroll repaints without
+    // a pointer event, so it replays this instead of querying the keyboard.
+    Qt::KeyboardModifiers dragModifiers;
     // Joint boundary resize (Shift + edge drag): the timeline neighbor sharing the
     // dragged boundary follows it for the whole interaction
     bool jointResizeActive = false;
@@ -3379,6 +3468,11 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
         d->updateAutoPageTurnAvailability();
         d->scheduleSnapshot();
     });
+    // Ctrl pressed or released mid-gesture has to reach the preview even when
+    // the canvas does not hold the keyboard focus.
+    m_modifierWatcher = new EditorModifierWatcher(
+        this, [this](const Qt::KeyboardModifiers modifiers) { d->onModifierChange(modifiers); });
+    m_modifierWatcher->setEnabled(true);
 }
 
 PianoRollRhiWidget::~PianoRollRhiWidget() {

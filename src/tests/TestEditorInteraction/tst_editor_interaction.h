@@ -84,6 +84,7 @@ private slots:
     void clipSelectionGroupMove();
     void clipSelectionGroupMoveClamps();
     void clipSelectionGroupMoveReachesAppendRow();
+    void clipSelectionGroupMoveHonorsRowLimit();
     void clipSelectionGroupTrim();
     void clipSelectionGroupTrimClampsPerClip();
     void clipSelectionRealTimeAnchorKeepsTruth();

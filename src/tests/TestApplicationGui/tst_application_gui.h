@@ -70,6 +70,8 @@ private slots:
     void pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit();
     void draggingExistingNoteCommitsOrCancels_data();
     void draggingExistingNoteCommitsOrCancels();
+    void ctrlDraggingANoteCopiesTheSelectionAndLeavesTheSources();
+    void ctrlBeforeTheFirstMoveKeepsTheNoteInPlace();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
     void activeClipMoveRebindsThePianoTrackColor_data();
@@ -78,6 +80,8 @@ private slots:
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
     void trackClipGroupDragCommitsAtomically_data();
     void trackClipGroupDragCommitsAtomically();
+    void trackCtrlDragDuplicatesTheSelection();
+    void trackCtrlDragStopsCopiesAtTheLastRealTrack();
     void trackClipGroupTrimCommitsAtomically_data();
     void trackClipGroupTrimCommitsAtomically();
     void trackClipSelectionModifiersAndNudge_data();

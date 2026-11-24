@@ -107,6 +107,14 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this, this);
     m_touchController = new EditorTouchController(this, this);
     m_penController = new EditorPenController(this, this);
+    // Ctrl pressed or released mid-gesture has to reach the preview even when
+    // the canvas does not hold the keyboard focus. The watcher is enabled only
+    // while a clip gesture owns the pointer, so the session guard is enough.
+    m_modifierWatcher =
+        new EditorModifierWatcher(this, [this](const Qt::KeyboardModifiers modifiers) {
+            if (m_dragSession.active())
+                updateDrag(m_lastPointerPosition, modifiers);
+        });
 
     m_scrollBars = new EditorRhiScrollBarController(this, this);
     connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
@@ -690,7 +698,7 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
     if (m_dragMode == DragMode::RectSelect)
         updateRubberBandSelection(clamped);
     else if (m_dragMode != DragMode::None)
-        updateDrag(clamped, QGuiApplication::queryKeyboardModifiers());
+        updateDrag(clamped, m_dragModifiers);
     updateDragAutoScrollState(pointerPosition);
 }
 
@@ -1108,6 +1116,7 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
 
 void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     m_clipSnapshots.clear();
+    m_copyGhostSnapshots.clear();
     QSet<int> sampledAudioClipIds;
     const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
                                         m_viewport.visibleSceneRect().size() * dpr)
@@ -1115,6 +1124,24 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     const auto &tracks = appModel->tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
+            // The copy preview is culled on its own rect: scrolling can take the
+            // source out of the viewport while the copy stays under the pointer.
+            if (auto ghost = buildCopyGhostSnapshot(clip, trackIndex, dpr);
+                ghost && visiblePhysical.intersects(ghost->paintPhysicalRect)) {
+                // The ghost stands where the copy will land, so an audio copy has
+                // to sample its own waveform instead of reusing the source shape.
+                if (const auto audio = qobject_cast<const AudioClip *>(clip);
+                    audio && ghost->loadState == AppGlobal::AudioClipLoadState::Loaded) {
+                    sampledAudioClipIds.insert(ghost->id);
+                    auto &sampler = m_audioWaveformSamplers[ghost->id];
+                    if (!sampler)
+                        sampler = std::make_shared<AudioWaveformSampler>();
+                    sampler->setPath(audio->path());
+                    ghost->waveform =
+                        sampleAudioWaveform(*sampler, audio->audioInfo(), *ghost, dpr);
+                }
+                m_copyGhostSnapshots.append(*ghost);
+            }
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
             if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
@@ -1133,6 +1160,9 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
             appendClip(frame, m_clipSnapshots.constLast(), dpr);
         }
     }
+    // The copies sit above every clip they came from, the way the paste preview does.
+    for (const auto &ghost : m_copyGhostSnapshots)
+        appendClip(frame, ghost, dpr);
     for (const auto &preview : m_pastePreviewSnapshots) {
         if (visiblePhysical.intersects(preview.paintPhysicalRect))
             appendClip(frame, preview, dpr);
@@ -1338,11 +1368,23 @@ void TracksRhiWidget::updatePlaybackOverlay() {
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
+                                                                const int trackIndex,
+                                                                const double dpr) const {
+    return buildClipSnapshot(clip, trackIndex, dpr, ClipDisplay{});
+}
+
+TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
                                                                  const int trackIndex,
-                                                                 const double dpr) const {
-    const auto props = previewOrModelProperties(clip);
-    const auto placement = m_placements.constFind(clip->id());
-    const auto displayTrack = placement != m_placements.cend() ? placement->trackIndex : trackIndex;
+                                                                 const double dpr,
+                                                                 const ClipDisplay &display) const {
+    const auto props = display.properties ? *display.properties : previewOrModelProperties(clip);
+    // A copy gesture keeps the placements for its ghosts, so the originals must
+    // not read them here.
+    const auto placement = m_copyDrag ? m_placements.cend() : m_placements.constFind(clip->id());
+    const auto displayTrack = display.trackIndex >= 0
+                                  ? display.trackIndex
+                                  : (placement != m_placements.cend() ? placement->trackIndex
+                                                                     : trackIndex);
     ClipSnapshot result;
     result.id = clip->id();
     result.trackIndex = displayTrack;
@@ -1355,12 +1397,14 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.contentStartTick = props.start;
     result.visibleStartTick = props.start + props.clipStart;
     result.visibleEndTick = result.visibleStartTick + props.clipLen;
-    result.selected = appStatus->selectedClips.get().contains(clip->id());
-    result.active = appStatus->activeClipId == clip->id();
+    result.selected =
+        display.pastePreview ? false : appStatus->selectedClips.get().contains(clip->id());
+    result.active = display.pastePreview ? false : appStatus->activeClipId == clip->id();
+    result.pastePreview = display.pastePreview;
     result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
     result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
-    result.titleEditing = clip->id() == m_titleEditingClipId;
+    result.titleEditing = display.pastePreview ? false : clip->id() == m_titleEditingClipId;
     if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
         result.loadState = audioDecodingController->loadState(audio);
     }
@@ -1381,6 +1425,22 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
                                                         appStatus->pianoRollNoteErasePreview.get());
     }
     return result;
+}
+
+// The duplicate a Ctrl drag paints under the pointer. It has no model identity:
+// the copies only exist once the gesture commits.
+std::optional<TracksRhiWidget::ClipSnapshot>
+    TracksRhiWidget::buildCopyGhostSnapshot(const Clip *clip, const int trackIndex,
+                                            const double dpr) const {
+    if (!m_copyDrag)
+        return std::nullopt;
+    const auto placement = m_placements.constFind(clip->id());
+    if (placement == m_placements.cend())
+        return std::nullopt;
+    return buildClipSnapshot(clip, trackIndex, dpr,
+                             {.properties = &placement->properties,
+                              .trackIndex = placement->trackIndex,
+                              .pastePreview = true});
 }
 
 QRectF TracksRhiWidget::clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,
@@ -1622,6 +1682,9 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     m_dragSession.begin(gesture, m_dragAnchorId, states, environment,
                         m_viewport.sceneXToTick(pressScene.x()), m_dragTrackIndex);
     m_dragMoved = false;
+    m_dragModifiers = event->modifiers();
+    m_copyDrag = false;
+    m_modifierWatcher->setEnabled(true);
     clearDragPlacements();
 
     auto clipIds = appStatus->selectedClips.get();
@@ -1635,20 +1698,64 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
 void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModifiers modifiers) {
     if (!m_dragSession.active())
         return;
+    m_lastPointerPosition = position;
+    m_dragModifiers = modifiers;
     const auto scene = m_viewport.viewportToScene(position);
+    // Ctrl turns a move into a copy, the way the office suites do it: the
+    // selection stays where it is and a duplicate follows the pointer. Resizing
+    // has no duplicate form, so the flag only follows move gestures.
+    const auto copyDrag = m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move &&
+                          modifiers.testFlag(Qt::ControlModifier);
     // A pointer above the lanes keeps the last row it was over, so the block
     // stops at the track range instead of jumping to the opposite end. Below
     // the last track the virtual append row is a real target: the block may
-    // enter it, and the commit creates that track.
-    const auto trackIndex = dragRowAt(position);
+    // enter it, and the commit creates that track. A copy has no row to create,
+    // so it stops at the last real track instead.
+    auto trackIndex = dragRowAt(position);
+    if (copyDrag && trackIndex >= appModel->tracks().size())
+        trackIndex = static_cast<int>(appModel->tracks().size()) - 1;
     if (trackIndex >= 0)
         m_dragTrackIndex = trackIndex;
+    // Alt suspends snapping for the gesture, so the two modifiers combine: a
+    // Ctrl drag parks the copies on unsnapped positions while Alt is held.
+    const auto copyRowLimit =
+        copyDrag ? static_cast<int>(appModel->tracks().size()) : -1;
     if (!m_dragSession.update(m_viewport.sceneXToTick(scene.x()), m_dragTrackIndex,
-                              modifiers == Qt::AltModifier))
+                              modifiers.testFlag(Qt::AltModifier), copyRowLimit))
         return;
+    setCopyDrag(copyDrag);
     applyDragPlacements(m_dragSession.placements());
     m_dragMoved = m_dragSession.moved();
     scheduleSnapshot();
+}
+
+void TracksRhiWidget::setCopyDrag(const bool copy) {
+    if (m_copyDrag == copy)
+        return;
+    m_copyDrag = copy;
+    // The originals are back on their model geometry and the anchor track keeps
+    // the colour it started on until the copies actually land.
+    if (copy)
+        restoreAnchorTrackColor();
+    scheduleSnapshot();
+}
+
+bool TracksRhiWidget::selectDuplicatedClips(const QList<ClipGeometryEdit> &edits,
+                                            const QList<int> &copies) {
+    if (copies.isEmpty())
+        return false;
+    // The anchor's copy keeps the bottom panel on what the gesture created.
+    auto anchorIndex = -1;
+    for (qsizetype index = 0; index < edits.size() && index < copies.size(); ++index) {
+        if (edits.at(index).clipId == m_dragAnchorId) {
+            anchorIndex = static_cast<int>(index);
+            break;
+        }
+    }
+    const auto anchorCopy = anchorIndex >= 0 ? copies.at(anchorIndex) : copies.constFirst();
+    syncSelection(copies, anchorIndex >= 0 ? edits.at(anchorIndex).trackIndex : -1);
+    trackController->setActiveClip(anchorCopy);
+    return true;
 }
 
 QList<int> TracksRhiWidget::orderedClipIds() const {
@@ -1694,6 +1801,10 @@ void TracksRhiWidget::applyDragPlacements(const QList<ClipSelectionDrag::Placeme
     m_placements.clear();
     for (const auto &placement : placements)
         m_placements.insert(placement.clipId, placement);
+    // A copy gesture leaves every clip on its own track, so the anchor keeps the
+    // track colour it started on.
+    if (m_copyDrag)
+        return;
     for (const auto &placement : placements) {
         if (placement.clipId != m_dragAnchorId)
             continue;
@@ -1740,6 +1851,8 @@ void TracksRhiWidget::nudgeSelection(const int deltaTicks, const int deltaTracks
 
 void TracksRhiWidget::commitDrag() {
     const auto committed = m_dragSession.active() && m_dragMoved;
+    const auto copyDrag = committed && m_copyDrag;
+    auto selectionAssigned = false;
     if (committed) {
         const auto placements = m_dragSession.placements();
         QList<ClipGeometryEdit> edits;
@@ -1747,21 +1860,40 @@ void TracksRhiWidget::commitDrag() {
         for (const auto &placement : placements)
             edits.append({placement.clipId, placement.trackIndex, placement.properties});
         if (!edits.isEmpty()) {
-            if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move)
+            if (copyDrag) {
+                // One command for the whole gesture: the copies land together
+                // and one undo takes them back.
+                const auto copies = trackController->onDuplicateClips(edits);
+                if (copies.size() == edits.size()) {
+                    // Duplicating a selection replaces it with the copies it
+                    // produced, so the next gesture grabs the new clips.
+                    selectionAssigned = selectDuplicatedClips(edits, copies);
+                } else {
+                    syncSelection(appStatus->selectedClips.get());
+                }
+            } else if (m_dragSession.gesture() == ClipSelectionDrag::Gesture::Move) {
                 trackController->onMoveClips(edits);
-            else
+            } else {
                 trackController->onResizeClips(edits);
+            }
         }
         // The committed track colour stays on the bottom panel: the active clip now lives there.
     } else {
         restoreAnchorTrackColor();
     }
     finishDragSession(committed ? EditSessionEndReason::Commit : EditSessionEndReason::Discard);
-    // A plain click on a clip that was already part of the selection collapses it to that clip,
-    // matching how notes and parameter anchors behave.
-    const auto collapsed = m_selectionModel.release(appStatus->selectedClips.get(), committed);
-    if (collapsed != appStatus->selectedClips.get())
-        syncSelection(collapsed);
+    if (selectionAssigned) {
+        m_selectionModel.cancelPress();
+    } else {
+        // A plain click on a clip that was already part of the selection collapses it to that clip,
+        // matching how notes and parameter anchors behave.
+        const auto collapsed =
+            m_selectionModel.release(appStatus->selectedClips.get(), committed);
+        if (collapsed != appStatus->selectedClips.get())
+            syncSelection(collapsed);
+    }
+    m_copyDrag = false;
+    m_modifierWatcher->setEnabled(false);
     clearDragPlacements();
     m_dragSession.reset();
     m_dragMode = DragMode::None;
@@ -1770,12 +1902,15 @@ void TracksRhiWidget::commitDrag() {
     m_dragTrackIndex = -1;
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
+    scheduleSnapshot();
 }
 
 void TracksRhiWidget::discardDrag() {
     restoreAnchorTrackColor();
     finishDragSession(EditSessionEndReason::Discard);
     m_selectionModel.cancelPress();
+    m_copyDrag = false;
+    m_modifierWatcher->setEnabled(false);
     clearDragPlacements();
     m_dragSession.reset();
     m_dragMode = DragMode::None;
@@ -1805,7 +1940,9 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip,
     syncSelection(result.selection, targetSelected ? clip.trackIndex : -1);
     if (!targetSelected)
         return false;
-    trackController->setActiveClip(clip.id);
+    // A Ctrl press that only deselects on release must not move the active clip.
+    if (!result.deselectOnRelease)
+        trackController->setActiveClip(clip.id);
     return true;
 }
 
@@ -1876,6 +2013,10 @@ void TracksRhiWidget::updateAutoPageTurnAvailability() {
 }
 
 Clip::ClipCommonProperties TracksRhiWidget::previewOrModelProperties(const Clip *clip) const {
+    // A copy gesture leaves the originals on their model geometry: only the
+    // ghosts follow the pointer.
+    if (m_copyDrag)
+        return Clip::ClipCommonProperties(*clip);
     const auto placement = m_placements.constFind(clip->id());
     if (placement != m_placements.cend())
         return placement->properties;

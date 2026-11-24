@@ -159,6 +159,14 @@ void NoteView::setPronunciation(const QString &pronunciation, const bool edited)
     update();
 }
 
+QString NoteView::pronunciation() const {
+    return m_pronunciation;
+}
+
+bool NoteView::pronunciationEdited() const {
+    return m_pronunciationEdited;
+}
+
 bool NoteView::editingPitch() const {
     return m_editingPitch;
 }

@@ -1239,6 +1239,62 @@ void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void NativeDesktopTests::rhiCtrlDraggingANoteCopiesTheSelection() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    QVERIFY(canvas.setViewScale(2, 1));
+    QVERIFY(canvas.centerAt(960, 60));
+    auto *note = fixture.clip->findNoteById(fixture.noteId);
+    QVERIFY(note);
+    const auto press = fixture.pointFor(720, 60);
+    const auto release = fixture.pointFor(1200, 62);
+    QVERIFY(canvas.rect().contains(press));
+    QVERIFY(canvas.rect().contains(release));
+    const auto before = fixture.runtime().documentVersion();
+    const auto original = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    fixture.moveTo(release);
+    // With no pointer event in between, holding Ctrl has to turn the running move
+    // into a copy: the note stays put and the preview shows where the copy lands.
+    QTest::keyPress(&canvas, Qt::Key_Control);
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+    QCOMPARE(note->localStart(), 480);
+    QCOMPARE(note->keyIndex(), 60);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().rStart, 960);
+    QCOMPARE(appStatus->pianoRollNoteEditPreview.get().first().keyIndex, 62);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), original);
+
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QTest::keyRelease(&canvas, Qt::Key_Control);
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    QCOMPARE(note->localStart(), 480);
+    QCOMPARE(note->keyIndex(), 60);
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    // The copies replace the selection, so the next gesture grabs them.
+    QCOMPARE(appStatus->selectedNotes.get().size(), 1);
+    const auto copyId = appStatus->selectedNotes.get().first();
+    QVERIFY(copyId != fixture.noteId);
+    const auto *copy = fixture.clip->findNoteById(copyId);
+    QVERIFY(copy);
+    QCOMPARE(copy->localStart(), 960);
+    QCOMPARE(copy->length(), 480);
+    QCOMPARE(copy->keyIndex(), 62);
+
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(fixture.clip->notes().count(), 1);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), original);
+}
+
 void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted_data() {
     QTest::addColumn<bool>("platformRenderer");
     QTest::newRow("null-renderer") << false;

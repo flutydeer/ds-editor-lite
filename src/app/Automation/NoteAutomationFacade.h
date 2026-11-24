@@ -54,9 +54,13 @@ namespace Automation {
                         const QString &mode, bool caseSensitive, bool regularExpression);
         AutomationResult<MutationResult> insertNotes(const CommandContext &context, ClipId clipId,
                                                      const QList<NoteDraftDto> &notes);
+        // Deep-copies the notes onto `targetStart`, optionally transposing them by
+        // `deltaKey`. Keys are validated against the model range before anything
+        // is written, so an out-of-range transpose writes nothing.
         AutomationResult<MutationResult> duplicateNotes(const CommandContext &context,
                                                         ClipId sourceClipId, QList<NoteId> noteIds,
-                                                        ClipId targetClipId, int targetStart);
+                                                        ClipId targetClipId, int targetStart,
+                                                        int deltaKey = 0);
         AutomationResult<MutationResult> pasteNotes(const CommandContext &context,
                                                     ClipId targetClipId, int targetStart,
                                                     const NoteTransferPayload &payload);

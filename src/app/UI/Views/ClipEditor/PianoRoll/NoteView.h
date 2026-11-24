@@ -39,6 +39,8 @@ public:
     void setLyric(const QString &lyric);
     [[nodiscard]] bool isLyricElided(const QRectF &visibleSceneRect) const;
     void setPronunciation(const QString &pronunciation, bool edited);
+    [[nodiscard]] QString pronunciation() const;
+    [[nodiscard]] bool pronunciationEdited() const;
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
     [[nodiscard]] PronunciationView *pronunciationView() const;
