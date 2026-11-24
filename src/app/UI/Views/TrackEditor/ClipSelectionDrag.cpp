@@ -70,13 +70,13 @@ namespace ClipSelectionDrag {
         m_environment = {};
     }
 
-    bool Session::update(const double pointerTick, const int pointerTrackIndex,
-                         const bool snapOff) {
+    bool Session::update(const double pointerTick, const int pointerTrackIndex, const bool snapOff,
+                         const int rowLimit) {
         if (!m_active)
             return false;
         const auto rawTicks = static_cast<int>(std::llround(pointerTick - m_pressTick));
         if (m_gesture == Gesture::Move)
-            planMove(rawTicks, pointerTrackIndex - m_pressTrackIndex, snapOff);
+            planMove(rawTicks, pointerTrackIndex - m_pressTrackIndex, snapOff, rowLimit);
         else
             planResize(rawTicks, snapOff);
 
@@ -114,13 +114,14 @@ namespace ClipSelectionDrag {
                                               *m_environment.timeline);
     }
 
-    void Session::planMove(const int rawTicks, const int rawTracks, const bool snapOff) {
+    void Session::planMove(const int rawTicks, const int rawTracks, const bool snapOff,
+                           const int rowLimit) {
         const auto *anchor = originalFor(m_anchorClipId);
         if (!anchor) {
             reset();
             return;
         }
-        const auto rowCount = std::max(0, m_environment.rowCount);
+        const auto rowCount = std::max(0, rowLimit >= 0 ? rowLimit : m_environment.rowCount);
         if (rowCount <= 0) {
             m_placements.clear();
             return;

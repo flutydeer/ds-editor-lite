@@ -480,6 +480,30 @@ void EditorInteractionTests::clipSelectionGroupMoveReachesAppendRow() {
     }
 }
 
+void EditorInteractionTests::clipSelectionGroupMoveHonorsRowLimit() {
+    const Timeline timeline;
+    const auto environment = groupEnvironment(timeline, 4);
+    const QList<ClipSelectionDrag::ClipState> clips{
+        groupClipState(1, 1, 480, 0, 960),
+        groupClipState(2, 2, 480, 0, 960),
+    };
+    ClipSelectionDrag::Session session;
+    session.begin(ClipSelectionDrag::Gesture::Move, 1, clips, environment, 480.0, 1);
+
+    // A move may take the bottom clip into the virtual append row.
+    QVERIFY(session.update(480.0, 2, false));
+    QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 2);
+    QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 3);
+    QVERIFY(session.moved());
+
+    // A copy has no row to create, so a lower limit keeps the whole block on the
+    // real tracks instead of letting the bottom clip out of range.
+    QVERIFY(session.update(480.0, 2, false, 3));
+    QCOMPARE(groupPlacement(session.placements(), 1)->trackIndex, 1);
+    QCOMPARE(groupPlacement(session.placements(), 2)->trackIndex, 2);
+    QVERIFY(!session.moved());
+}
+
 void EditorInteractionTests::clipSelectionGroupTrim() {
     const Timeline timeline;
     const auto environment = groupEnvironment(timeline, 3);

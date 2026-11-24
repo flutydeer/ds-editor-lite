@@ -81,6 +81,7 @@ private slots:
     void trackClipGroupDragCommitsAtomically_data();
     void trackClipGroupDragCommitsAtomically();
     void trackCtrlDragDuplicatesTheSelection();
+    void trackCtrlDragStopsCopiesAtTheLastRealTrack();
     void trackClipGroupTrimCommitsAtomically_data();
     void trackClipGroupTrimCommitsAtomically();
     void trackClipSelectionModifiersAndNudge_data();

@@ -349,11 +349,13 @@ QList<int> TrackController::onDuplicateClips(const QList<ClipGeometryEdit> &edit
         // entry is re-resolved instead of trusted.
         if (!appModel->findClipById(edit.clipId))
             continue;
-        std::optional<Automation::TrackId> targetTrackId;
-        if (edit.trackIndex >= 0 && edit.trackIndex < trackCount)
-            targetTrackId = Automation::TrackId(appModel->tracks().at(edit.trackIndex)->id());
-        targets.append(
-            {Automation::ClipId(edit.clipId), targetTrackId, clipPropertiesDto(edit.properties)});
+        // A copy has to land on a real track. An out-of-range row has no destination, and
+        // duplicating onto the source track instead would put the copy under the original.
+        if (edit.trackIndex < 0 || edit.trackIndex >= trackCount)
+            continue;
+        targets.append({Automation::ClipId(edit.clipId),
+                        Automation::TrackId(appModel->tracks().at(edit.trackIndex)->id()),
+                        clipPropertiesDto(edit.properties)});
     }
     if (targets.isEmpty())
         return {};

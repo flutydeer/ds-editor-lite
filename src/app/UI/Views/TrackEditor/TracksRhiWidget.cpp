@@ -1712,8 +1712,10 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
         m_dragTrackIndex = trackIndex;
     // Alt suspends snapping for the gesture, so the two modifiers combine: a
     // Ctrl drag parks the copies on unsnapped positions while Alt is held.
+    const auto copyRowLimit =
+        copyDrag ? static_cast<int>(appModel->tracks().size()) : -1;
     if (!m_dragSession.update(m_viewport.sceneXToTick(scene.x()), m_dragTrackIndex,
-                              modifiers.testFlag(Qt::AltModifier)))
+                              modifiers.testFlag(Qt::AltModifier), copyRowLimit))
         return;
     setCopyDrag(copyDrag);
     applyDragPlacements(m_dragSession.placements());

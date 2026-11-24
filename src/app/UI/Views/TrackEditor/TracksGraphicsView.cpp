@@ -287,8 +287,10 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         setCopyDrag(copyDrag);
     // Alt suspends snapping for the gesture, so the two modifiers combine: a
     // Ctrl drag parks the copies on unsnapped positions while Alt is held.
+    const auto copyRowLimit =
+        m_copyDrag ? static_cast<int>(appModel->tracks().size()) : -1;
     if (!m_dragSession.update(tickAtSceneX(scenePos.x()), m_dragTrackIndex,
-                              modifiers.testFlag(Qt::AltModifier)))
+                              modifiers.testFlag(Qt::AltModifier), copyRowLimit))
         return;
 
     if (m_copyDrag) {

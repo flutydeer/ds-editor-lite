@@ -60,8 +60,10 @@ namespace ClipSelectionDrag {
         void begin(Gesture gesture, int anchorClipId, const QList<ClipState> &clips,
                    const Environment &environment, double pressTick, int pressTrackIndex);
         // Translates one pointer position into per-clip targets. Returns true when the targets
-        // changed since the previous call, so a view can skip a repaint.
-        bool update(double pointerTick, int pointerTrackIndex, bool snapOff);
+        // changed since the previous call, so a view can skip a repaint. `rowLimit` overrides the
+        // row count of the environment for this update, which lets a copy gesture stop the whole
+        // block at the last real track while a move may still enter the virtual append row.
+        bool update(double pointerTick, int pointerTrackIndex, bool snapOff, int rowLimit = -1);
         void reset();
 
         [[nodiscard]] bool active() const {
@@ -93,7 +95,7 @@ namespace ClipSelectionDrag {
         [[nodiscard]] const ClipState *originalFor(int clipId) const;
         [[nodiscard]] int gridStep(int tick, bool snapOff) const;
         [[nodiscard]] int snapTick(int tick, bool snapOff) const;
-        void planMove(int appliedTicks, int appliedTracks, bool snapOff);
+        void planMove(int appliedTicks, int appliedTracks, bool snapOff, int rowLimit);
         void planResize(int appliedTicks, bool snapOff);
 
         bool m_active = false;
