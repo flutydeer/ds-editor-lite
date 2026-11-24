@@ -787,6 +787,47 @@ void ApplicationGuiTests::fillLyricDerivesLanguageFromSlurFreeNotes() {
     QVERIFY(initialChoice(false).isEmpty());
     QVERIFY(interacted);
     QVERIFY(settingsApplied);
+
+    // Turning Skip Slur on inside the dialog drops the slur from the vote, so the
+    // selector re-derives before the preview is rebuilt.
+    bool toggled = false;
+    QString beforeToggle;
+    QString afterToggle;
+    QTimer operateToggle;
+    operateToggle.setInterval(10);
+    connect(&operateToggle, &QTimer::timeout, this, [&] {
+        auto *dialog = qobject_cast<LyricDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        operateToggle.stop();
+        auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
+        QComboBox *language = nullptr;
+        const auto combos = base ? base->findChildren<QComboBox *>() : QList<QComboBox *>{};
+        for (auto *combo : combos) {
+            if (combo->findData(primary) >= 0)
+                language = combo;
+        }
+        const auto checks = base ? base->findChildren<QCheckBox *>() : QList<QCheckBox *>{};
+        auto *skipSlur = checks.isEmpty() ? nullptr : checks.first();
+        if (language && skipSlur) {
+            beforeToggle = language->currentData().toString();
+            skipSlur->setChecked(true);
+            // Rebuilding the preview can ask for confirmation first.
+            if (QApplication::activeModalWidget() != dialog) {
+                if (auto *child = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
+                    child->reject();
+            }
+            afterToggle = language->currentData().toString();
+            toggled = true;
+        }
+        dialog->reject();
+    });
+    operateToggle.start();
+    clipController->onFillLyric(view.get());
+    operateToggle.stop();
+    QVERIFY(toggled);
+    QVERIFY2(beforeToggle.isEmpty(), "the saved skip state still lets the slur vote");
+    QCOMPARE(afterToggle, primary);
     QCOMPARE(runtime.documentVersion(), before);
 }
 

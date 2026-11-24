@@ -4,9 +4,10 @@
 
 namespace FillLyric {
     LyricLanguageContext::LyricLanguageContext(QStringList supportedLanguages,
-                                               QString fallbackLanguage, QString choice)
+                                               QString fallbackLanguage, QString choice,
+                                               ChoiceResolver choiceResolver)
         : m_supported(std::move(supportedLanguages)), m_fallback(std::move(fallbackLanguage)),
-          m_choice(std::move(choice)) {
+          m_choice(std::move(choice)), m_choiceResolver(std::move(choiceResolver)) {
     }
 
     const QStringList &LyricLanguageContext::supportedLanguages() const {
@@ -23,6 +24,17 @@ namespace FillLyric {
 
     void LyricLanguageContext::setChoice(const QString &choice) {
         m_choice = choice;
+        m_choiceIsExplicit = true;
+    }
+
+    bool LyricLanguageContext::refreshChoice(const bool skipSlur) {
+        if (m_choiceIsExplicit || !m_choiceResolver)
+            return false;
+        auto derived = m_choiceResolver(skipSlur);
+        if (derived == m_choice)
+            return false;
+        m_choice = std::move(derived);
+        return true;
     }
 
     QStringList LyricLanguageContext::priorityLanguages() const {

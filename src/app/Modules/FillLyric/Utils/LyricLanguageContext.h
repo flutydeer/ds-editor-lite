@@ -4,6 +4,7 @@
 #include <QString>
 #include <QStringList>
 
+#include <functional>
 #include <memory>
 
 namespace FillLyric {
@@ -18,9 +19,13 @@ namespace FillLyric {
     /// languages, so a choice is either empty or convertible.
     class LyricLanguageContext {
     public:
+        /// Re-derives the initial choice for a new skip-slur state. Empty skips
+        /// the derivation, leaving the choice as given.
+        using ChoiceResolver = std::function<QString(bool skipSlur)>;
+
         LyricLanguageContext() = default;
         LyricLanguageContext(QStringList supportedLanguages, QString fallbackLanguage,
-                             QString choice);
+                             QString choice, ChoiceResolver choiceResolver = {});
 
         /// Addressable conversion routes of the singer, in route order.
         [[nodiscard]] const QStringList &supportedLanguages() const;
@@ -28,7 +33,15 @@ namespace FillLyric {
         [[nodiscard]] const QString &fallbackLanguage() const;
         /// The selected language. Empty means automatic detection.
         [[nodiscard]] const QString &choice() const;
+        /// Records a selection made in the language control, which the derived
+        /// choice then never overwrites.
         void setChoice(const QString &choice);
+
+        /// Re-derives the choice for a new skip-slur state and reports whether it
+        /// changed. A derived choice follows the notes being filled, so skipping
+        /// slurs can drop a language from the vote. A selection the user made
+        /// stays untouched.
+        bool refreshChoice(bool skipSlur);
 
         /// Tagger priority: the choice first, then the singer's route order.
         [[nodiscard]] QStringList priorityLanguages() const;
@@ -46,6 +59,8 @@ namespace FillLyric {
         QStringList m_supported;
         QString m_fallback;
         QString m_choice;
+        ChoiceResolver m_choiceResolver;
+        bool m_choiceIsExplicit = false;
     };
 
     using LyricLanguageContextPtr = std::shared_ptr<LyricLanguageContext>;

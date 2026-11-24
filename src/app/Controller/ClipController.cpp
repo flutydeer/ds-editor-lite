@@ -647,7 +647,11 @@ void ClipController::onFillLyric(QWidget *parent) {
         supportedLanguages, LanguageCompatibility::fallbackLanguage(singerInfo),
         LanguageCompatibility::dominantLanguage(lyrics, declaredLanguages,
                                                 appOptions->fillLyric()->skipSlur,
-                                                supportedLanguages));
+                                                supportedLanguages),
+        [lyrics, declaredLanguages, supportedLanguages](const bool skipSlur) {
+            return LanguageCompatibility::dominantLanguage(lyrics, declaredLanguages, skipSlur,
+                                                           supportedLanguages);
+        });
 
     const auto singer = singerInfo.resolutionState() == ResolutionState::Resolved
                             ? singerInfo.identifier()

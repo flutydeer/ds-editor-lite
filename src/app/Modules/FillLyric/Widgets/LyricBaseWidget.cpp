@@ -164,6 +164,18 @@ namespace FillLyric {
                 });
 
         connect(m_skipSlur, &QCheckBox::stateChanged, this, [this] {
+            // Skipping slurs changes which notes vote for the derived language,
+            // so the selector follows before the preview is rebuilt. A language
+            // the user picked stays as it is.
+            if (m_languageContext && m_languageContext->refreshChoice(skipSlur())) {
+                const auto index = m_languageComboBox->findData(m_languageContext->choice());
+                {
+                    const QSignalBlocker blocker(m_languageComboBox);
+                    m_languageComboBox->setCurrentIndex(index >= 0 ? index : 0);
+                }
+                m_previousLanguageChoice = m_languageContext->choice();
+                updateLanguageToolTip();
+            }
             Q_EMIT modifyOption();
             Q_EMIT splitOptionChanged();
         });
