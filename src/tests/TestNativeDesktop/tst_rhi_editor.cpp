@@ -3,6 +3,7 @@
 #include "../TestSupport/VoicebankFixture.h"
 #include "../TestSupport/PointerEvents.h"
 #include "../TestSupport/PointerInput.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -28,6 +29,7 @@
 #include "UI/Views/TrackEditor/InfoLane/InfoLaneView.h"
 #include "UI/Views/Common/TimelineView.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/BottomPanelView.h"
@@ -45,6 +47,7 @@
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -780,6 +783,85 @@ void NativeDesktopTests::rhiThemeAndDockingPreserveBothEditorsAndTheirDocument()
     if (QTest::currentTestFailed())
         return;
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
+}
+
+void NativeDesktopTests::rhiTrackWaveformAndTitleStayAlignedAtHighZoom() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen") || !platformRhiAvailable())
+        QSKIP("A native graphics backend is required for framebuffer validation");
+    const auto restoreSoftware = preferSoftwareRhi(true);
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const auto path = fixture.directory.filePath(QStringLiteral("waveform.wav"));
+    QVector<float> samples(48000);
+    for (int i = 0; i < samples.size(); ++i)
+        samples[i] = static_cast<float>(0.5 * std::sin(i * 0.05));
+    QVERIFY(TestSupport::writeWave(path, samples));
+
+    // Both placements show the same samples and have the same phase on the bar grid.
+    constexpr int farStart = 96000;
+    Automation::ClipDraftDto clip;
+    clip.type = Automation::ClipDraftDto::Type::Audio;
+    clip.audioPath = path;
+    clip.properties.name = QStringLiteral("Vocals");
+    clip.properties.length = clip.properties.clipLen = 960;
+    clip.properties.materialLengthMs = clip.properties.playLengthMs = 1000;
+    Automation::TrackDraftDto track;
+    track.clips.append(clip);
+    clip.properties.start = farStart;
+    track.clips.append(clip);
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {track};
+    auto &runtime = *fixture.context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument({.expected = runtime.documentVersion(),
+                                                   .source = Automation::InvocationSource::Test},
+                                                  document));
+    for (const auto *modelClip : fixture.context->m_appModel->tracks().first()->clips()) {
+        const auto *audio = qobject_cast<const AudioClip *>(modelClip);
+        QVERIFY(audio);
+        QTRY_COMPARE(audio->audioInfo().frames, samples.size());
+    }
+
+    TracksRhiWidget canvas;
+    TestSupport::placeWindowOnScreen(canvas, {800, 320});
+    canvas.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&canvas));
+    constexpr auto localTick = 253.0;
+    QVERIFY(canvas.setViewScale(10000, 2));
+    QCOMPARE(canvas.scaleX(), 10000.0);
+    QVERIFY(canvas.centerAt(localTick, 0));
+    const auto referenceTick = canvas.viewState().centerTick;
+    const auto reference = canvas.grabFramebuffer();
+    QVERIFY(!reference.isNull());
+    const auto dpr = canvas.devicePixelRatioF();
+    const auto titleBottom = qRound(EditorItemGeometry::clipTitleHeight * dpr);
+    const QRect title(0, qRound(2 * dpr), qRound(150 * dpr), titleBottom - qRound(4 * dpr));
+    const QRect waveform(qRound(8 * dpr), titleBottom + qRound(3 * dpr),
+                         reference.width() - qRound(16 * dpr),
+                         qRound(2 * TracksEditorGlobal::trackHeight * dpr) - titleBottom -
+                             qRound(6 * dpr));
+    const auto hasInk = [&](const QRect &region) {
+        auto blank = reference.copy(region);
+        blank.fill(reference.pixelColor(region.topLeft()));
+        return reference.copy(region) != blank;
+    };
+    QVERIFY(hasInk(title));
+    QVERIFY(hasInk(waveform));
+
+    QVERIFY(canvas.centerAt(farStart + localTick, 0));
+    QCOMPARE(canvas.viewState().centerTick, farStart + referenceTick);
+    const auto direct = canvas.grabFramebuffer();
+    QCOMPARE(direct.copy(waveform), reference.copy(waveform));
+    QCOMPARE(direct.copy(title), reference.copy(title));
+    QVERIFY(canvas.setViewScale(0.0001, 2));
+    QVERIFY(!canvas.grabFramebuffer().isNull());
+    QVERIFY(canvas.setViewScale(9999, 2));
+    QVERIFY(canvas.centerAt(farStart + localTick, 0));
+    QCOMPARE(canvas.grabFramebuffer().copy(title), reference.copy(title));
+    QVERIFY(canvas.setViewScale(10000, 2));
+    QVERIFY(canvas.centerAt(farStart + localTick, 0));
+    const auto roundTrip = canvas.grabFramebuffer();
+    QCOMPARE(roundTrip.copy(waveform), reference.copy(waveform));
+    QCOMPARE(roundTrip.copy(title), reference.copy(title));
 }
 
 void NativeDesktopTests::rhiPianoViewportChangesReachTheNextFrame() {

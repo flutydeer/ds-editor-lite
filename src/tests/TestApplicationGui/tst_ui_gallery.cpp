@@ -5,6 +5,7 @@
 #include "../TestSupport/WaveFixture.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Controller/PlaybackController.h"
 #include "Model/Utils/ParamUtils.h"
 #include "Modules/Audio/AudioExporter.h"
 #include "Modules/ProjectConverters/MidiBatchImportDialog.h"
@@ -36,10 +37,17 @@
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
+#include "UI/Views/TrackEditor/InfoLane/TimeAxisLaneView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/GhostNoteOverlay.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
+#include "UI/Views/MainTitleBar/TimeComboBox.h"
+#include "UI/Views/MainTitleBar/TimePopupWidget.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/LogWindow.h"
@@ -49,6 +57,7 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
@@ -70,6 +79,8 @@
 #include <QListWidget>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPainter>
 #include <QScopeGuard>
@@ -154,7 +165,7 @@ namespace {
 
     class Gallery {
     public:
-        enum class Capture { NativeWindow, WidgetContent };
+        enum class Capture { NativeWindow, WindowsVisibleFrame, WidgetContent };
 
         explicit Gallery(const QString &outputDirectory) : m_output(outputDirectory) {
         }
@@ -195,7 +206,7 @@ namespace {
                   const Capture capture = Capture::NativeWindow) {
             // QWidget::grab renders the panel directly, even when its native host
             // is occluded. Only compositor captures require an exposed window.
-            if (capture == Capture::NativeWindow)
+            if (capture != Capture::WidgetContent)
                 requireCapture(QTest::qWaitForWindowExposed(widget.window()),
                                QStringLiteral("Screenshot operation failed: %1").arg(title));
             requireCapture(QTest::qWaitFor([&] { return widget.isVisible(); }),
@@ -221,8 +232,12 @@ namespace {
             } else {
                 requireCapture(widget.isWindow(),
                                QStringLiteral("Screenshot operation failed: %1").arg(title));
-                requireCapture(WindowFrameUtils::captureWindowChrome(&widget, path, &method),
-                               QStringLiteral("Screenshot operation failed: %1").arg(title));
+                const auto bounds = capture == Capture::WindowsVisibleFrame
+                                        ? WindowFrameUtils::CaptureBounds::WindowsVisibleFrame
+                                        : WindowFrameUtils::CaptureBounds::Default;
+                requireCapture(
+                    WindowFrameUtils::captureWindowChrome(&widget, path, &method, bounds),
+                    QStringLiteral("Screenshot operation failed: %1").arg(title));
             }
             qInfo().noquote() << "Captured" << title << "using" << method << "to" << path;
             addImage(module, title, path, method);
@@ -735,6 +750,7 @@ void ApplicationGuiTests::captureUiGallery() try {
         qScopeGuard([&] { runtime.settings().updateAppearance({}, originalAppearance); });
     auto appearance = originalAppearance;
     appearance.showGhostNotes = true;
+    appearance.showTimeLane = true;
     QVERIFY(runtime.settings().updateAppearance({}, appearance));
 
     // Seed the same model layers used by generated, hand-drawn and anchor data.
@@ -818,7 +834,8 @@ void ApplicationGuiTests::captureUiGallery() try {
     };
 
     QVERIFY(window.setEditorPanelVisibility(true, false));
-    for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
+    const auto laneActions = {"actionTimeLane", "actionTempoLane", "actionTimeSignatureLane"};
+    for (const auto *name : laneActions) {
         auto *action = window.findChild<QAction *>(name);
         QVERIFY(action);
         if (action->isChecked())
@@ -827,19 +844,38 @@ void ApplicationGuiTests::captureUiGallery() try {
     }
     gallery.take(*trackEditor, Module::Tracks, QStringLiteral("Track arrangement"),
                  Gallery::Capture::WidgetContent);
+    {
+        auto *canvas = trackEditor->findChild<TracksGraphicsView *>();
+        auto *clip = trackEditor->findClipItemById(audioClip->id());
+        QVERIFY(canvas && clip && !clip->titleBandRect().isEmpty());
+        const auto point = canvas->mapFromScene(clip->mapToScene(clip->titleBandRect().center()));
+        QVERIFY(canvas->viewport()->rect().contains(point));
+        QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+        QTRY_VERIFY(clip->isTitleEditing());
+        auto *input = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+        QVERIFY(input && input->text() == audioClip->name());
+        gallery.take(*trackEditor, Module::Tracks, QStringLiteral("Rename a clip in place"),
+                     Gallery::Capture::WidgetContent);
+        QTest::keyClick(input, Qt::Key_Escape);
+        QTRY_VERIFY(!clip->isTitleEditing());
+    }
     auto *projectTitle = window.findChild<TitleBarComboBox *>();
     QVERIFY(projectTitle && projectTitle->popupWidget());
     projectTitle->showPopup();
     gallery.take(*projectTitle->popupWidget(), Module::Workspace,
                  QStringLiteral("Project switcher"), Gallery::Capture::WidgetContent);
     projectTitle->hidePopup();
-    for (const auto *name : {"actionTempoLane", "actionTimeSignatureLane"}) {
+    for (const auto *name : laneActions) {
         auto *action = window.findChild<QAction *>(name);
         QVERIFY(action);
         if (!action->isChecked())
             action->trigger();
     }
-    gallery.take(*trackEditor, Module::Tracks, QStringLiteral("Tempo and time signature lanes"),
+    auto *trackTimeLane = trackEditor->findChild<TimeAxisLaneView *>();
+    QTRY_VERIFY(trackTimeLane && trackTimeLane->isVisible());
+    gallery.take(*trackEditor, Module::Tracks,
+                 QStringLiteral("Time, tempo and time signature lanes"),
                  Gallery::Capture::WidgetContent);
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     editor->onActiveClipChanged(singingClip->id());
@@ -849,6 +885,8 @@ void ApplicationGuiTests::captureUiGallery() try {
     QVERIFY(editor->setParameterBackground(ParamInfo::Tension));
     auto *piano = editor->findChild<PianoRollGraphicsView *>();
     QVERIFY(piano);
+    auto *pianoTimeLane = editor->findChild<TimeAxisLaneView *>();
+    QTRY_VERIFY(pianoTimeLane && pianoTimeLane->isVisible());
     GhostNoteOverlay *ghostNotes = nullptr;
     for (auto *item : piano->scene()->items()) {
         if (auto *ghost = dynamic_cast<GhostNoteOverlay *>(item))
@@ -870,7 +908,23 @@ void ApplicationGuiTests::captureUiGallery() try {
         return piano->bottomKeyIndex() <= 58.5 && piano->topKeyIndex() >= 64.5;
     };
     QVERIFY(framePitchCurves());
-    gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"));
+    gallery.take(window, Module::Workspace, QStringLiteral("Editing workspace"),
+                 Gallery::Capture::WindowsVisibleFrame);
+    {
+        auto *timecode = window.findChild<TimeComboBox *>(QStringLiteral("elTime"));
+        QVERIFY(timecode && timecode->isVisible());
+        auto *popup = timecode->findChild<TimePopupWidget *>();
+        QVERIFY(popup);
+        const auto position = playbackController->position();
+        playbackController->setPosition(1200);
+        QTest::mouseClick(timecode, Qt::LeftButton);
+        QTRY_VERIFY(popup->isVisible());
+        gallery.take(*popup, Module::Workspace, QStringLiteral("Timecode popup"),
+                     Gallery::Capture::WidgetContent);
+        QTest::mouseClick(timecode, Qt::LeftButton);
+        QTRY_VERIFY(!popup->isVisible());
+        playbackController->setPosition(position);
+    }
     QVERIFY(window.setEditorPanelVisibility(false, true));
     QVERIFY(framePitchCurves());
     auto *parameters = editor->findChild<ParamEditorView *>();
@@ -943,6 +997,45 @@ void ApplicationGuiTests::captureUiGallery() try {
     gallery.take(*bottom, Module::Notes, QStringLiteral("Pitch and parameter transform ranges"),
                  Gallery::Capture::WidgetContent);
     QVERIFY(editor->setEditMode(EditorViewGlobal::Select));
+    {
+        const auto *note = *singingClip->notes().begin();
+        const auto point = piano->mapFromScene(
+            QPointF(piano->tickToSceneX(note->localStart() + note->length() / 2.0),
+                    PianoRollCoord::keyIndexToCenterY(
+                        note->keyIndex(), ClipEditorGlobal::noteHeight * piano->scaleY())));
+        QVERIFY(piano->viewport()->rect().contains(point));
+        std::exception_ptr captureFailure;
+        bool captured = false;
+        QTimer captureLanguageMenu;
+        captureLanguageMenu.setSingleShot(true);
+        connect(&captureLanguageMenu, &QTimer::timeout, piano, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto closeMenu = qScopeGuard([&] { menu->close(); });
+            try {
+                const auto title = PianoRollContextMenuController::tr("Language");
+                const auto actions = menu->actions();
+                const auto action = std::find_if(actions.cbegin(), actions.cend(),
+                                                 [&](auto *item) { return item->text() == title; });
+                QVERIFY(action != actions.cend() && (*action)->menu());
+                auto *submenu = (*action)->menu();
+                const auto closeSubmenu = qScopeGuard([&] { submenu->close(); });
+                submenu->popup(menu->mapToGlobal(menu->actionGeometry(*action).topRight()));
+                gallery.take(*submenu, Module::Notes, QStringLiteral("Note language menu"),
+                             Gallery::Capture::WidgetContent);
+                captured = true;
+            } catch (...) {
+                captureFailure = std::current_exception();
+            }
+        });
+        QContextMenuEvent event(QContextMenuEvent::Mouse, point,
+                                piano->viewport()->mapToGlobal(point));
+        captureLanguageMenu.start(0);
+        QApplication::sendEvent(piano->viewport(), &event);
+        if (captureFailure)
+            std::rethrow_exception(captureFailure);
+        QVERIFY(captured);
+    }
     QVERIFY(editor->setParameterEditMode(EditorViewGlobal::ParameterEditMode::Anchor));
     editor->onActiveClipChanged(audioClip->id());
     gallery.take(*bottom, Module::Audio, QStringLiteral("Audio waveform"),
@@ -1000,6 +1093,13 @@ void ApplicationGuiTests::captureUiGallery() try {
                 sidebar->setCurrentRow(page);
                 gallery.take(*dialog, Module::Settings,
                              QStringLiteral("%1").arg(sidebar->item(page)->text()));
+                if (page == AppOptionsGlobal::Midi - 1) {
+                    auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
+                    QVERIFY(keyboard);
+                    gallery.take(*keyboard, Module::Settings,
+                                 QStringLiteral("MIDI preview keyboard"),
+                                 Gallery::Capture::WidgetContent);
+                }
             }
             sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
             auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");

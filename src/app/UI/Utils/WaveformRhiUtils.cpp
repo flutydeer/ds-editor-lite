@@ -10,12 +10,13 @@ namespace WaveformRhiUtils {
     void appendWaveform(QVector<EditorRhiSolidVertex> &vertices,
                         const WaveformRenderUtils::SampledWaveform &waveform,
                         const QRectF &physicalRect, const QColor &color,
-                        const double devicePixelRatio, const QPointF &physicalCameraOffset) {
+                        const double devicePixelRatio, const QPointF &physicalCameraOffset,
+                        const QPointF &logicalOrigin) {
         if (waveform.geometry == WaveformRenderUtils::Geometry::None || physicalRect.isEmpty())
             return;
 
-        const auto physicalPoint = [devicePixelRatio](const QPointF &point) {
-            return point * devicePixelRatio + QPointF(0.0, -0.5);
+        const auto physicalPoint = [&](const QPointF &point) {
+            return (point - logicalOrigin) * devicePixelRatio + QPointF(0.0, -0.5);
         };
         QVector<EditorRhiSolidVertex> waveformVertices;
         auto writtenDirectly = false;
