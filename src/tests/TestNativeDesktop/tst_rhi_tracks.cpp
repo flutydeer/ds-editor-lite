@@ -239,7 +239,7 @@ void NativeDesktopTests::rhiTrackNavigationKeepsTheCanvasAndTrackListAligned() {
 
     const auto center = canvas->rect().center();
     auto *device = QTest::createTouchDevice();
-    auto touch = QTest::touchEvent(canvas, device, false);
+    TestSupport::WidgetTouchSequence touch(*canvas, device);
     bool fingersDown = false;
     const auto releaseFingers = qScopeGuard([&] {
         if (fingersDown) {

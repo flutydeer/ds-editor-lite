@@ -1,5 +1,6 @@
 #include "tst_application_gui.h"
 #include "../TestSupport/PointerEvents.h"
+#include "../TestSupport/PointerInput.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -70,7 +71,7 @@ void ApplicationGuiTests::pianoTouchInlineLyricsKeepsEditingAndRecovers() {
     auto *overlay = view->findChild<InlineTextEditOverlay *>();
     QVERIFY(overlay);
     auto *device = QTest::createTouchDevice();
-    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence sequence(*view->viewport(), device);
     const auto cleanup = qScopeGuard([&] {
         if (auto *popup = QApplication::activePopupWidget())
             popup->close();
@@ -269,7 +270,7 @@ void ApplicationGuiTests::pianoTouchpadContactsDoNotEditOrNavigate() {
                                           QInputDevice::Capability::Position |
                                               QInputDevice::Capability::MouseEmulation);
     view->viewport()->setAttribute(Qt::WA_TouchPadAcceptSingleTouchEvents);
-    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence sequence(*view->viewport(), device);
     bool menuShown = false;
     QTimer dismissUnexpectedMenu;
     connect(&dismissUnexpectedMenu, &QTimer::timeout, this, [&] {
@@ -323,7 +324,7 @@ void ApplicationGuiTests::pianoTouchDrawingCommitsOrCancels() {
         return;
     auto &runtime = *context->m_coreRuntime;
     auto *device = QTest::createTouchDevice();
-    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence sequence(*view->viewport(), device);
     const auto cleanup = qScopeGuard([&] { deactivate(*view); });
     const auto before = runtime.documentVersion();
     const auto original = TestSupport::projectSnapshot(*context->m_appModel);
@@ -443,7 +444,7 @@ void ApplicationGuiTests::pianoTouchSelectionAndNavigationStayIndependent() {
     const auto before = runtime.documentVersion();
     const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     auto *device = QTest::createTouchDevice();
-    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence sequence(*view->viewport(), device);
     const auto cleanup = qScopeGuard([&] { deactivate(*view); });
 
     const auto *noteItem = sceneNote(id);
@@ -558,7 +559,7 @@ void ApplicationGuiTests::pianoTouchLongPressDefersMenus() {
         connect(view.get(), &PianoRollGraphicsView::contextMenuRequested, view.get(),
                 [&](const PianoRollMenuContext &menu) { menus.append(menu); });
     auto *device = QTest::createTouchDevice();
-    auto sequence = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence sequence(*view->viewport(), device);
     const auto cleanup = qScopeGuard([&] {
         deactivate(*view);
         disconnect(connection);
