@@ -541,6 +541,7 @@ void TracksRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
         if (m_dragMode == DragMode::RectSelect) {
             m_dragMode = DragMode::None;
             m_selectionModel.cancelPress();
+            commitRubberBandSelection();
         } else if (m_dragMode != DragMode::None) {
             commitDrag();
         }
@@ -622,8 +623,16 @@ void TracksRhiWidget::touchRelayTextCancel() {
 
 void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
     m_rubberBandEnd = m_viewport.viewportToScene(position);
+    scheduleSnapshot();
+}
+
+QRectF TracksRhiWidget::rubberBandPhysicalRect(const double dpr) const {
+    return QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+}
+
+void TracksRhiWidget::commitRubberBandSelection() {
     const auto dpr = devicePixelRatioF();
-    const QRectF selection = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+    const auto selection = rubberBandPhysicalRect(dpr);
     QList<int> ids;
     const auto &tracks = appModel->tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
@@ -634,8 +643,9 @@ void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
             }
         }
     }
+    // The first selected clip owns the current track. Both canvases pick front to back.
+    std::reverse(ids.begin(), ids.end());
     syncSelection(ids);
-    scheduleSnapshot();
 }
 
 Qt::Orientations TracksRhiWidget::dragAutoScrollAxes() const {
@@ -1022,9 +1032,7 @@ void TracksRhiWidget::rebuildSnapshot(EditorRhiFrameData &frame) {
     appendDropOverlay(frame, dpr);
     appendSplitPreviewOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
-        const auto offset = m_viewport.offset();
-        const auto rect = QRectF((m_rubberBandStart - offset) * dpr,
-                                 (m_rubberBandEnd - offset) * dpr).normalized();
+        const auto rect = rubberBandPhysicalRect(dpr).translated(-m_viewport.offset() * dpr);
         const auto radius = EditorItemGeometry::adaptiveCornerRadius(rect, 6.0 * dpr);
         EditorRhiGeometry::appendRoundedRect(frame.solidVertices, rect, radius,
                                              m_rubberBandFillColor);
@@ -1370,11 +1378,13 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.contentStartTick = props.start;
     result.visibleStartTick = props.start + props.clipStart;
     result.visibleEndTick = result.visibleStartTick + props.clipLen;
-    result.selected =
-        display.pastePreview ? false : appStatus->selectedClips.get().contains(clip->id());
+    result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
+    result.selected = !display.pastePreview &&
+                      (m_dragMode == DragMode::RectSelect
+                           ? rubberBandPhysicalRect(dpr).intersects(result.modelPhysicalRect)
+                           : appStatus->selectedClips.get().contains(clip->id()));
     result.active = display.pastePreview ? false : appStatus->activeClipId == clip->id();
     result.pastePreview = display.pastePreview;
-    result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
     result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
     result.titleEditing = display.pastePreview ? false : clip->id() == m_titleEditingClipId;
@@ -1922,19 +1932,11 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip,
 }
 
 void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) {
-    trackController->setSelectedClips(ids);
+    trackController->selectClipsAndTrack(ids, preferredTrack);
     // Keep the range anchor in step with the platform selection. Clearing the selection through the
     // blank canvas has to drop the anchor too, otherwise a later Shift click ranges from a clip
     // that is not selected any more.
     m_selectionModel.synchronize(ids);
-    auto trackIndex = preferredTrack;
-    if (trackIndex < 0 && !ids.isEmpty()) {
-        Track *track = nullptr;
-        if (appModel->findClipById(ids.constFirst(), track) && track)
-            trackIndex = appModel->tracks().indexOf(track);
-    }
-    if (trackIndex >= 0)
-        trackController->setSelectedTrackIndex(trackIndex);
 }
 
 void TracksRhiWidget::updateCursor(const QPointF &position) {

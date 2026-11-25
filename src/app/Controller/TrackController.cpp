@@ -165,6 +165,14 @@ void TrackController::setSelectedClips(const QList<int> &clipIds) {
     runtime->facade().setSelectedClips(guiDocumentContext(*runtime), ids);
 }
 
+void TrackController::selectClipsAndTrack(const QList<int> &clipIds, int preferredTrack) {
+    setSelectedClips(clipIds);
+    if (preferredTrack < 0 && !clipIds.isEmpty())
+        appModel->findClipById(clipIds.constFirst(), preferredTrack);
+    if (preferredTrack >= 0)
+        setSelectedTrackIndex(preferredTrack);
+}
+
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     qDebug() << "TrackController::changeTrackProperty" << args.gain << args.pan;
     auto *runtime = automationRuntime();

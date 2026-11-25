@@ -300,6 +300,92 @@ void NativeDesktopTests::rhiTrackNavigationKeepsTheCanvasAndTrackListAligned() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::trackRubberBandScrollsPastPartiallyVisibleClips_data() {
+    QTest::addColumn<bool>("useRhi");
+    QTest::newRow("graphics-view") << false;
+    QTest::newRow("rhi") << true;
+}
+
+void NativeDesktopTests::trackRubberBandScrollsPastPartiallyVisibleClips() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("Track selection requires a native window backend");
+    QFETCH(bool, useRhi);
+    GuiDocumentFixture application;
+    QVERIFY2(application.initialize(), qPrintable(application.error));
+    const auto backend = appOptions->developer()->editorRenderBackend;
+    const auto originalCursor = QCursor::pos();
+    const auto restore = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        appOptions->developer()->editorRenderBackend = backend;
+        QCursor::setPos(originalCursor);
+    });
+    appOptions->developer()->editorRenderBackend =
+        useRhi ? DeveloperOption::EditorRenderBackend::RhiExperimental
+               : DeveloperOption::EditorRenderBackend::Legacy;
+    TrackEditorView editor;
+    auto *rhi = editor.findChild<TracksRhiWidget *>();
+    auto *graphics = editor.findChild<TracksGraphicsView *>();
+    auto *list = editor.findChild<TrackListView *>();
+    QVERIFY(list && (useRhi ? rhi != nullptr : graphics != nullptr));
+    if (rhi)
+        rhi->setApi(QRhiWidget::Api::Null);
+    QWidget *surface = useRhi ? static_cast<QWidget *>(rhi) : graphics->viewport();
+    const EditorTouchTarget *hitTarget = useRhi ? static_cast<EditorTouchTarget *>(rhi) : graphics;
+
+    Automation::ClipDraftDto clip;
+    clip.properties.length = clip.properties.clipLen = 7680;
+    Automation::TrackDraftDto track;
+    track.clips.append(clip);
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = QList<Automation::TrackDraftDto>(12, track);
+    auto &runtime = *application.context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test},
+        document));
+    TestSupport::placeWindowOnScreen(editor, {1000, 480});
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    trackController->setSelectedTrackIndex(0);
+    QVERIFY(editor.setViewScale(2.0, 2.0));
+    QVERIFY(editor.centerAt(clip.properties.clipLen, 6));
+    // Leave half a row visible. Extending the rectangle into it must not reveal the whole row.
+    constexpr int firstVisibleRow = 5;
+    const auto rowHeight = list->visualItemRect(list->item(firstVisibleRow)).height();
+    auto *scroll = list->verticalScrollBar();
+    const int initialOffset = firstVisibleRow * rowHeight + rowHeight / 2;
+    scroll->setValue(initialOffset);
+    QCOMPARE(scroll->value(), initialOffset);
+    auto *window = editor.windowHandle();
+    const auto clipEnd = surface->width() / 2;
+    const QPoint start(clipEnd + 35, surface->height() - 28);
+    const auto pressRow = list->indexAt(QPoint(1, start.y())).row();
+    const auto press = surface->mapTo(&editor, start);
+    const auto inside = surface->mapTo(&editor, QPoint(clipEnd - 35, rowHeight / 2 - 5));
+    const auto edge = surface->mapTo(&editor, QPoint(clipEnd - 35, 24));
+    QSignalSpy trackChanges(appStatus, &AppStatus::selectedTrackIndexChanged);
+    QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, press);
+    const auto release = qScopeGuard([&] {
+        if (QGuiApplication::mouseButtons().testFlag(Qt::LeftButton))
+            QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, edge);
+    });
+    QTest::mouseMove(window, inside);
+    QCOMPARE(scroll->value(), initialOffset);
+    QCursor::setPos(editor.mapToGlobal(edge));
+    QTest::mouseMove(window, edge);
+    QTRY_COMPARE_WITH_TIMEOUT(scroll->value(), 0, 7000);
+    QCOMPARE(hitTarget->touchContentAt({clipEnd - 10.0, 40.0}),
+             EditorTouchTarget::ContentHit::Selected);
+    QVERIFY(trackChanges.isEmpty());
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
+    QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, edge);
+    const auto &tracks = appModel->tracks();
+    const auto selected = appStatus->selectedClips.get();
+    QVERIFY(selected.contains((*tracks.at(firstVisibleRow)->clips().begin())->id()));
+    QVERIFY(selected.contains((*tracks.constFirst()->clips().begin())->id()));
+    QCOMPARE(list->currentRow(), pressRow);
+}
+
 void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel_data() {
     QTest::addColumn<bool>("atProjectTail");
     QTest::newRow("inside-project") << false;
@@ -929,19 +1015,27 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         moveWithButton(canvas, selectTo);
     if (edgeScroll) {
         const auto initialOffset = canvas.startTick();
-        QVERIFY(!appStatus->selectedClips.get().contains(offscreenClipId));
+        const auto *offscreenClip = appModel->findClipById(offscreenClipId);
+        QVERIFY(offscreenClip);
+        const auto targetTick = offscreenClip->start() + offscreenClip->clipLen() / 2;
+        const EditorTouchTarget &hitTarget = canvas;
+        const auto previewIncludesClip = [&] {
+            const auto point = fixture.point(targetTick, 0);
+            return canvas.rect().contains(point) &&
+                   hitTarget.touchContentAt(point) == EditorTouchTarget::ContentHit::Selected;
+        };
         QTRY_VERIFY2_WITH_TIMEOUT(
-            appStatus->selectedClips.get().contains(offscreenClipId),
+            previewIncludesClip(),
             qPrintable(QStringLiteral("Edge selection stalled: touch=%1, active=%2, ticks=%3..%4, "
-                                      "initial=%5, selected=%6")
+                                      "target=%5")
                            .arg(EditorPointer::isTouchStreamActive())
                            .arg(fixture.host->isActiveWindow())
                            .arg(canvas.startTick())
                            .arg(canvas.endTick())
-                           .arg(initialOffset)
-                           .arg(appStatus->selectedClips.get().size())),
+                           .arg(targetTick)),
             3000);
         QVERIFY(canvas.startTick() > initialOffset);
+        QVERIFY(appStatus->selectedClips.get().isEmpty());
     }
     QCOMPARE(fixture.runtime().documentVersion(), beforeSelection);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel),
@@ -959,13 +1053,18 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     }
     selecting = false;
     const auto selection = appStatus->selectedClips.get();
-    QCOMPARE(selection.size(), edgeScroll ? 3 : 2);
-    QVERIFY(selection.contains(fixture.clipId) && selection.contains(pastedId));
+    if (touchSelection) {
+        QVERIFY(selection.isEmpty());
+    } else {
+        QCOMPARE(selection.size(), edgeScroll ? 3 : 2);
+        QVERIFY(selection.contains(fixture.clipId) && selection.contains(pastedId));
+        if (edgeScroll)
+            QVERIFY(selection.contains(offscreenClipId));
+    }
     if (edgeScroll) {
         const auto stoppedAt = canvas.startTick();
         QTest::qWait(80);
         QCOMPARE(canvas.startTick(), stoppedAt);
-        QVERIFY(selection.contains(offscreenClipId));
         QVERIFY(!editSessionManager->hasActiveTransaction());
     }
     QCOMPARE(historyManager->nextUndoEntry(), pasteUndo);
