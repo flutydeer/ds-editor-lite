@@ -203,8 +203,9 @@ namespace {
                    taskManager->tasks().isEmpty() &&
                    std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
                                [](const InferPiece *piece) {
-                                   return piece->state == QStringLiteral("Acoustic.Awaiting") ||
-                                          piece->state == QStringLiteral("Ready");
+                                   return !piece->dirty &&
+                                          (piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                           piece->state == QStringLiteral("Ready"));
                                });
         }
 
@@ -3365,7 +3366,7 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         QVERIFY(canvas.rect().contains(point));
     const auto selectRange = [&] {
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
-        fixture.moveTo(end);
+        QTest::mouseMove(&canvas, end);
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
         for (const auto &boundary :
              {qMakePair(fixture.pointFor(545, 60), start),
@@ -3374,11 +3375,8 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
               qMakePair(start, fixture.pointFor(520, 60)),
               qMakePair(end, fixture.pointFor(920, 60))}) {
             QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, boundary.first);
-            fixture.moveTo(boundary.second);
+            QTest::mouseMove(&canvas, boundary.second);
             QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, boundary.second);
-            fixture.waitForFrame();
-            if (QTest::currentTestFailed())
-                return;
         }
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QCOMPARE(runtime.documentVersion(), before);
@@ -3427,9 +3425,6 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         const auto changed = runtime.documentVersion();
         QVERIFY(changed.revision > before.revision);
         QCOMPARE(snapshot(), initial);
-        fixture.waitForFrame();
-        if (QTest::currentTestFailed())
-            return;
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, press);
@@ -3446,16 +3441,13 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         QCOMPARE(snapshot(), initial);
         before = runtime.documentVersion();
         QVERIFY(!historyManager->canUndo());
-        fixture.waitForFrame();
-        if (QTest::currentTestFailed())
-            return;
     }
     for (const bool rightButton : {false, true}) {
         selectRange();
         if (QTest::currentTestFailed())
             return;
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
-        fixture.moveTo(release);
+        QTest::mouseMove(&canvas, release);
         QVERIFY(editSessionManager->hasActiveTransaction());
         QCOMPARE(snapshot(), initial);
         QCOMPARE(runtime.documentVersion(), before);
@@ -3468,9 +3460,6 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         QCOMPARE(snapshot(), initial);
         QCOMPARE(runtime.documentVersion(), before);
         QVERIFY(!historyManager->canUndo());
-        fixture.waitForFrame();
-        if (QTest::currentTestFailed())
-            return;
     }
 
     selectRange();
@@ -3479,7 +3468,7 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     const auto factorHandle = QPoint(press.x(), 20);
     const auto factorRelease = factorHandle + QPoint(0, 100);
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, factorHandle);
-    fixture.moveTo(factorRelease);
+    QTest::mouseMove(&canvas, factorRelease);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, factorRelease);
     QVERIFY(!editSessionManager->hasActiveTransaction());
     QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
@@ -3505,12 +3494,10 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     }
     QCOMPARE(sampleAt(200), std::optional<int>(6200));
     QCOMPARE(sampleAt(1500), std::optional<int>(6200));
-    fixture.waitForFrame();
-    if (QTest::currentTestFailed())
-        return;
     historyManager->undo();
     QCOMPARE(snapshot(), initial);
     QVERIFY(!historyManager->canUndo());
     QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
     QCOMPARE(snapshot(), initial);
+    QVERIFY2(fixture.backendError.isEmpty(), qPrintable(fixture.backendError));
 }
