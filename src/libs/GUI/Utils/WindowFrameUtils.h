@@ -9,6 +9,7 @@ class QWidget;
 class WindowFrameUtils {
 public:
     enum class CornerPreference { Default = 0, DoNotRound = 1, Round = 2, RoundSmall = 3 };
+    enum class CaptureBounds { Default, WindowsVisibleFrame };
 
     static void applyFrameEffects(QWidget *widget);
     static void applyPopupEffects(QWidget *widget,
@@ -26,9 +27,11 @@ public:
     // client grab (windows-printwindow-frame-qt-client) when desktop capture is
     // unavailable. This mixed-source image does not guarantee DWM effects. The
     // final fallback is Qt client content. captureMethod reports the source.
+    // WindowsVisibleFrame crops a Windows desktop capture to the DWM frame bounds.
     // No screen-recording permission is requested.
     [[nodiscard]] static bool captureWindowChrome(QWidget *widget, const QString &filePath,
-                                                  QString *captureMethod = nullptr);
+                                                  QString *captureMethod = nullptr,
+                                                  CaptureBounds bounds = CaptureBounds::Default);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
