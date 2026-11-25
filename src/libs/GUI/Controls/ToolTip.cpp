@@ -233,6 +233,7 @@ QPoint ToolTip::clampToScreen(const QPoint &screenPos, const QScreen *screen) co
 }
 
 void ToolTip::showAt(const QPoint &screenPos) {
+    resizeToContentHint();
     showAt(screenPos, QApplication::screenAt(screenPos));
 }
 

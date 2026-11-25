@@ -44,6 +44,7 @@ private slots:
     void toastContextLifetime_data();
     void toastContextLifetime();
     void tooltipHoverRestoresUpdatedContent();
+    void tooltipHoverFitsNearScreenEdge();
     void tooltipPointerAnchorsFollowContentAndVisibility_data();
     void tooltipPointerAnchorsFollowContentAndVisibility();
     void tooltipYieldsToPopups();
