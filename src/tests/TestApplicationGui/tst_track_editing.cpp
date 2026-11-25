@@ -8,6 +8,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "TestSupport/WaveFixture.h"
 #include "TestSupport/MainWindowFixture.h"
+#include "TestSupport/PointerInput.h"
 #include "Global/TracksEditorGlobal.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
 #include "UI/Views/Common/ClipTitleInlineEdit.h"
@@ -336,22 +337,23 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     historyManager->reset();
 
     auto *touchDevice = touch ? QTest::createTouchDevice() : nullptr;
+    TestSupport::WidgetTouchSequence touchSequence(*canvas->viewport(), touchDevice);
     const auto before = runtime.documentVersion();
     if (touch) {
         const auto beforePan = TestSupport::projectSnapshot(*context->m_appModel);
         const auto from = canvas->viewport()->rect().center() + QPoint(0, 100);
         const auto to = from + QPoint(-60, 0);
         const auto left = canvas->horizontalBarValue();
-        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, from);
-        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, from + QPoint(-25, 0));
+        touchSequence.press(0, from).commit();
+        touchSequence.move(0, from + QPoint(-25, 0)).commit();
         QTest::qWait(20);
-        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, to);
+        touchSequence.move(0, to).commit();
         QTRY_VERIFY(canvas->horizontalBarValue() > left);
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforePan);
         QVERIFY(!historyManager->canUndo());
-        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, to);
+        touchSequence.release(0, to).commit();
         QEvent deactivate(QEvent::WindowDeactivate);
         QApplication::sendEvent(canvas, &deactivate);
         QVERIFY(!EditorPointer::isTouchStreamActive());
@@ -383,21 +385,21 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QVERIFY(!item->isSelected());
 
     if (touch) {
-        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, press);
-        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, press);
+        touchSequence.press(0, press).commit();
+        touchSequence.release(0, press).commit();
         QTRY_VERIFY(item->isSelected());
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(clipState(), originalProperties);
         QVERIFY(!historyManager->canUndo());
     }
     if (touch)
-        QTest::touchEvent(canvas->viewport(), touchDevice).press(0, press);
+        touchSequence.press(0, press).commit();
     else
         QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(runtime.documentVersion(), before);
 
     if (touch) {
-        QTest::touchEvent(canvas->viewport(), touchDevice).move(0, release);
+        touchSequence.move(0, release).commit();
     } else {
         QMouseEvent move(QEvent::MouseMove, QPointF(release),
                          QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
@@ -425,7 +427,7 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
             QEvent deactivate(QEvent::WindowDeactivate);
             QApplication::sendEvent(canvas, &deactivate);
         }
-        QTest::touchEvent(canvas->viewport(), touchDevice).release(0, release);
+        touchSequence.release(0, release).commit();
         QVERIFY(!EditorPointer::isTouchStreamActive());
     } else {
         if (cancel)

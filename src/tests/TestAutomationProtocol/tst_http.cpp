@@ -29,6 +29,7 @@
 
 #include <stdexcept>
 #include <atomic>
+#include <functional>
 #include <utility>
 #include <thread>
 
@@ -1755,18 +1756,22 @@ void AutomationProtocolTests::crossConnectionCancellation_data() {
 
 void AutomationProtocolTests::crossConnectionCancellation() {
     QFETCH(bool, legacy);
-    QNetworkAccessManager manager;
-    manager.setProxy(QNetworkProxy::NoProxy);
     const Mcp::ImplementationInfo serverInfo{
         QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
-    HandlerThreadFixture executor;
-    auto &handlerContext = executor.context;
-    QSemaphore cancellationContextEntered;
-    QSemaphore cancellationContextRelease;
-    QSemaphore canceledHandlerEntered;
+    struct HandlerContext : QObject {
+        std::function<void()> beforeNextDispatch;
+
+        bool event(QEvent *event) override {
+            if (event->type() == QEvent::MetaCall && beforeNextDispatch) {
+                const auto callback = std::exchange(beforeNextDispatch, {});
+                callback();
+            }
+            return QObject::event(event);
+        }
+    } handlerContext;
+    bool toolCalled = false;
     Automation::McpHttpLimits cancellationLimits;
     cancellationLimits.maximumGlobalInFlight = 1;
-    cancellationLimits.requestDeadlineMs = 2000;
     Automation::McpHttpServer cancellationServer(
         &handlerContext,
         [&](const Mcp::RequestEnvelope &request, const QString &) {
@@ -1775,7 +1780,7 @@ void AutomationProtocolTests::crossConnectionCancellation() {
                     request.id, Mcp::makeInitializeResult(request.protocolVersion, serverInfo), {},
                     request.protocolVersion);
             }
-            canceledHandlerEntered.release();
+            toolCalled = true;
             return Mcp::makeResultResponse(request.id,
                                            Mcp::makeToolCallResult(
                                                QJsonObject{
@@ -1818,19 +1823,6 @@ void AutomationProtocolTests::crossConnectionCancellation() {
         QCOMPARE(ready.status, 202);
     }
 
-    bool gateReleased = false;
-    const auto releaseGate = qScopeGuard([&] {
-        if (!gateReleased)
-            cancellationContextRelease.release();
-    });
-    QMetaObject::invokeMethod(
-        &handlerContext,
-        [&] {
-            cancellationContextEntered.release();
-            cancellationContextRelease.acquire();
-        },
-        Qt::QueuedConnection);
-    QVERIFY(acquireWhileProcessing(cancellationContextEntered, 2000));
     const QString requestId = QStringLiteral("cancel-before-dispatch");
     const QJsonObject params{
         {QStringLiteral("name"),      QStringLiteral("mutating.test")},
@@ -1846,9 +1838,6 @@ void AutomationProtocolTests::crossConnectionCancellation() {
         legacy ? legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion, sessionId)
                : baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
                              QStringLiteral("mutating.test"));
-    auto *reply = startRequest(cancellationRequestManager, requestHeaders,
-                               QJsonDocument(request).toJson(QJsonDocument::Compact));
-    QTest::qWait(100);
     const QJsonObject cancellationParams{
         {QStringLiteral("requestId"), requestId                          },
         {QStringLiteral("reason"),    QStringLiteral("test cancellation")}
@@ -1863,9 +1852,14 @@ void AutomationProtocolTests::crossConnectionCancellation() {
     const auto notificationHeaders =
         legacy ? legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion, sessionId)
                : baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification));
-    const auto canceled = send(cancellationNotificationManager, notificationHeaders,
-                               QJsonDocument(notification).toJson(QJsonDocument::Compact));
-    const auto result = finishRequest(reply, 2000);
+    HttpResult canceled;
+    // Send the notification once the request is queued, before the tool can run.
+    handlerContext.beforeNextDispatch = [&] {
+        canceled = send(cancellationNotificationManager, notificationHeaders,
+                        QJsonDocument(notification).toJson(QJsonDocument::Compact));
+    };
+    const auto result = send(cancellationRequestManager, requestHeaders,
+                             QJsonDocument(request).toJson(QJsonDocument::Compact));
     QCOMPARE(canceled.status, 202);
     QVERIFY(canceled.body.isEmpty());
     if (result.status != 204)
@@ -1873,8 +1867,6 @@ void AutomationProtocolTests::crossConnectionCancellation() {
                    << "network error:" << result.networkError << "body:" << result.body;
     QCOMPARE(result.status, 204);
     QVERIFY(result.body.isEmpty());
-    cancellationContextRelease.release();
-    gateReleased = true;
-    QVERIFY(!canceledHandlerEntered.tryAcquire(1, 250));
+    QVERIFY(!toolCalled);
     cancellationServer.stop();
 }

@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/PointerInput.h"
 
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 
@@ -25,7 +26,7 @@ void ApplicationGuiTests::pianoTouchpadInterruptedPinchDropsPendingZoom() {
     auto *device = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
                                           QInputDevice::Capability::Position |
                                               QInputDevice::Capability::MouseEmulation);
-    auto touch = QTest::touchEvent(view->viewport(), device, false);
+    TestSupport::WidgetTouchSequence touch(*view->viewport(), device);
     const QPoint first(250, 120);
     const QPoint second(450, 320);
     const auto global = view->viewport()->mapToGlobal(first);
@@ -97,7 +98,7 @@ void ApplicationGuiTests::pianoTouchpadPinchUsesTouchAxisLock() {
     auto *device = QTest::createTouchDevice(QInputDevice::DeviceType::TouchPad,
                                           QInputDevice::Capability::Position |
                                               QInputDevice::Capability::MouseEmulation);
-    auto touch = QTest::touchEvent(view.viewport(), device, false);
+    TestSupport::WidgetTouchSequence touch(*view.viewport(), device);
     const auto cleanup = qScopeGuard([&] {
         QTouchEvent cancel(QEvent::TouchCancel, device);
         QApplication::sendEvent(view.viewport(), &cancel);

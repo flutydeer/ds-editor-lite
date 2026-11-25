@@ -1,4 +1,5 @@
 #include "tst_gui_components.h"
+#include "../TestSupport/PointerInput.h"
 
 #include <lite/GUI/Controls/DragHandle.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
@@ -104,18 +105,19 @@ namespace {
                               .arg(scroller->velocity().x())
                               .arg(scroller->velocity().y()));
         };
-        QTest::touchEvent(viewport, device).press(0, from);
+        TestSupport::WidgetTouchSequence touch(*viewport, device);
+        touch.press(0, from).commit();
         QApplication::processEvents();
         record();
         // Carry the final motion in the release; an idle pause at the endpoint is not a flick.
         for (int i = 1; i < steps; ++i) {
-            QTest::touchEvent(viewport, device).move(0, from + (to - from) * i / steps);
+            touch.move(0, from + (to - from) * i / steps).commit();
             QApplication::processEvents();
             record();
             QTest::qWait(15);
         }
         record();
-        QTest::touchEvent(viewport, device).release(0, to);
+        touch.release(0, to).commit();
         QApplication::processEvents();
         record();
     }
@@ -298,18 +300,19 @@ void GuiComponentTests::itemViewTouchKeepsScrollingAndSelectionSeparate() {
     const auto from = QPoint(viewport->width() / 2, viewport->height() - 16);
     const auto to = QPoint(from.x(), 16);
     const auto beforeScroll = view.verticalScrollBar()->value();
-    QTest::touchEvent(viewport, device).press(0, from);
+    TestSupport::WidgetTouchSequence touch(*viewport, device);
+    touch.press(0, from).commit();
     send(QEvent::MouseButtonPress, from, Qt::MouseEventSynthesizedBySystem);
     for (int step = 1; step <= 8; ++step) {
         const auto position = from + (to - from) * step / 8;
-        QTest::touchEvent(viewport, device).move(0, position);
+        touch.move(0, position).commit();
         send(QEvent::MouseMove, position, Qt::MouseEventSynthesizedBySystem);
         if (step == 4)
             send(QEvent::MouseButtonPress, position, Qt::MouseEventSynthesizedByQt);
         QTest::qWait(15);
     }
     send(QEvent::MouseButtonRelease, to, Qt::MouseEventSynthesizedBySystem);
-    QTest::touchEvent(viewport, device).release(0, to);
+    touch.release(0, to).commit();
     QTRY_VERIFY(view.verticalScrollBar()->value() > beforeScroll);
     QTRY_COMPARE(scroller->state(), QScroller::Inactive);
     QCOMPARE(view.currentRow(), 3);
@@ -635,11 +638,12 @@ void GuiComponentTests::touchClaimsKeepControlsIndependentOfPageScrolling() {
 
     // Control: while the inner widget does not own the touch, the page scroller
     // engages as usual - so the assertion below cannot pass for lack of a client.
-    QTest::touchEvent(inner->viewport(), touchDevice).press(0, QPoint(190, 180));
+    TestSupport::WidgetTouchSequence innerTouch(*inner->viewport(), touchDevice);
+    innerTouch.press(0, QPoint(190, 180)).commit();
     QApplication::processEvents();
     QVERIFY2((pageHandle->state() != QScroller::Inactive),
              "an unclaimed touch engages the page's scroller");
-    QTest::touchEvent(inner->viewport(), touchDevice).release(0, QPoint(190, 180));
+    innerTouch.release(0, QPoint(190, 180)).commit();
     QApplication::processEvents();
     pageHandle->stop();
     page.verticalScrollBar()->setValue(0);
@@ -647,19 +651,19 @@ void GuiComponentTests::touchClaimsKeepControlsIndependentOfPageScrolling() {
     // Owned: every ancestor scroller has to be pinned back to Inactive, or the
     // page keeps dragging while the claimed widget is dragged.
     claimOwnsTouches = true;
-    QTest::touchEvent(inner->viewport(), touchDevice).press(0, QPoint(190, 180));
+    innerTouch.press(0, QPoint(190, 180)).commit();
     QApplication::processEvents();
     QVERIFY2((pageHandle->state() == QScroller::Inactive),
              "a claim on an inner viewport pins the page's scroller back to Inactive");
     for (int i = 1; i <= 6; ++i) {
-        QTest::touchEvent(inner->viewport(), touchDevice).move(0, QPoint(190, 180 - i * 20));
+        innerTouch.move(0, QPoint(190, 180 - i * 20)).commit();
         QApplication::processEvents();
     }
     QVERIFY2((pageHandle->state() == QScroller::Inactive),
              "the page's scroller stays out of the claimed drag");
     QVERIFY2((page.verticalScrollBar()->value() == 0),
              "a claim on an inner viewport keeps the page from scrolling too");
-    QTest::touchEvent(inner->viewport(), touchDevice).release(0, QPoint(190, 60));
+    innerTouch.release(0, QPoint(190, 60)).commit();
     QApplication::processEvents();
 }
 

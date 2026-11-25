@@ -480,7 +480,7 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
 
     const auto previousFingerDrawing = appOptions->general()->drawParamWithFinger;
     auto *device = QTest::createTouchDevice();
-    auto touch = QTest::touchEvent(editor.view.viewport(), device, false);
+    TestSupport::WidgetTouchSequence touch(*editor.view.viewport(), device);
     bool touchPressed = false;
     const auto restoreInput = qScopeGuard([&] {
         if (touchPressed) {
