@@ -53,6 +53,7 @@ public slots:
     static void setActiveClip(int clipId);
     static void setSelectedTrackIndex(int trackIndex);
     static void setSelectedClips(const QList<int> &clipIds);
+    static void selectClipsAndTrack(const QList<int> &clipIds, int preferredTrack = -1);
     static void changeTrackProperty(const Track::TrackProperties &args);
     static void changeTrackColor(int trackId, int colorIndex);
     void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,

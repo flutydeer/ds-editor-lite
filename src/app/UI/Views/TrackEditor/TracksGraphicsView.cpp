@@ -884,15 +884,7 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
 }
 
 void TracksGraphicsView::syncClipSelectionToAppStatus() const {
-    const auto ids = selectedClipsId();
-    trackController->setSelectedClips(ids);
-    if (!ids.isEmpty()) {
-        Track *track;
-        appModel->findClipById(ids.first(), track);
-        const auto trackIndex = appModel->tracks().indexOf(track);
-        if (trackIndex >= 0)
-            trackController->setSelectedTrackIndex(trackIndex);
-    }
+    trackController->selectClipsAndTrack(selectedClipsId());
 }
 
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
