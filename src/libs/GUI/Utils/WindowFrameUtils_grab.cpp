@@ -30,6 +30,13 @@
 
 namespace {
 #  if defined(Q_OS_WIN)
+    QRect visibleWindowsFrame(HWND hwnd) {
+        RECT frame{};
+        if (FAILED(DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &frame, sizeof(frame))))
+            return {};
+        return QRect(frame.left, frame.top, frame.right - frame.left, frame.bottom - frame.top);
+    }
+
     QPixmap capturePrintedWindow(QWidget *widget, QString &reason) {
         if (!widget->isWindow() || !widget->isVisible() || widget->isMinimized()) {
             reason = QStringLiteral("PrintWindow requires a visible top-level window");
@@ -177,15 +184,10 @@ namespace {
             return {};
         }
         QRect crop = buffer.rect();
-        RECT visible{};
-        if (SUCCEEDED(DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &visible,
-                                            sizeof(visible)))) {
-            const QRect visiblePixels(visible.left - frame.left, visible.top - frame.top,
-                                      visible.right - visible.left, visible.bottom - visible.top);
-            if (!visiblePixels.isEmpty() && crop.contains(visiblePixels) &&
-                visiblePixels.contains(clientPixels))
-                crop = visiblePixels;
-        }
+        const auto visiblePixels = visibleWindowsFrame(hwnd).translated(-frame.left, -frame.top);
+        if (!visiblePixels.isEmpty() && crop.contains(visiblePixels) &&
+            visiblePixels.contains(clientPixels))
+            crop = visiblePixels;
         // A genuine native caption lies above the Win32 client. Its wide black
         // stripe cannot be repaired with a Qt grab. Reject that failure while
         // leaving ordinary one-pixel dark borders alone. App-drawn captions are
@@ -468,7 +470,9 @@ namespace {
         QColor m_color;
     };
 
-    QPixmap captureDesktopWindow(QWidget *widget, QString &reason) {
+    QPixmap captureDesktopWindow(QWidget *widget,
+                                 [[maybe_unused]] WindowFrameUtils::CaptureBounds bounds,
+                                 QString &reason) {
         // Root capture can contain overlapping windows. It is deliberately
         // opt-in for the isolated screenshot CI process, never a local default.
         if (qEnvironmentVariable("LITE_SCREENSHOT_DESKTOP_CAPTURE") != QStringLiteral("1")) {
@@ -589,14 +593,41 @@ namespace {
         const QPoint origin = captureRect.topLeft() - screen->geometry().topLeft();
         const auto image = screen->grabWindow(0, origin.x(), origin.y(), captureRect.width(),
                                               captureRect.height());
-        if (image.isNull())
+        if (image.isNull()) {
             reason = QStringLiteral("desktop pixel capture returned no image");
+            return {};
+        }
+#  if defined(Q_OS_WIN)
+        if (bounds == WindowFrameUtils::CaptureBounds::WindowsVisibleFrame) {
+            const auto hwnd = reinterpret_cast<HWND>(target->internalWinId());
+            const auto frame = visibleWindowsFrame(hwnd);
+            MONITORINFO monitor{};
+            monitor.cbSize = sizeof(monitor);
+            if (frame.isEmpty() ||
+                !GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL), &monitor)) {
+                reason = QStringLiteral("visible Windows frame geometry is unavailable");
+                return {};
+            }
+            // DWM's bounds and the captured bitmap use physical pixels. QScreen
+            // scales its screen-relative logical origin before reading the desktop.
+            const auto desktopOrigin = QPoint(monitor.rcMonitor.left, monitor.rcMonitor.top) +
+                                       origin * image.devicePixelRatio();
+            const auto crop = frame.translated(-desktopOrigin);
+            if (!image.rect().contains(crop)) {
+                reason = QStringLiteral("visible Windows frame is outside the captured pixels");
+                return {};
+            }
+            qInfo("Windows desktop frame: (%d,%d %dx%d) within %dx%d capture", crop.x(), crop.y(),
+                  crop.width(), crop.height(), image.width(), image.height());
+            return image.copy(crop);
+        }
+#  endif
         return image;
     }
 }
 
 bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath,
-                                           QString *captureMethod) {
+                                           QString *captureMethod, CaptureBounds bounds) {
     if (captureMethod)
         *captureMethod = QStringLiteral("failed");
     if (!widget || !qApp || QThread::currentThread() != qApp->thread()) {
@@ -605,7 +636,7 @@ bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &fileP
     }
     QString reason;
     const QPointer<QWidget> target(widget);
-    const auto desktopImage = captureDesktopWindow(widget, reason);
+    const auto desktopImage = captureDesktopWindow(widget, bounds, reason);
     if (!desktopImage.isNull()) {
         const bool saved = desktopImage.save(filePath);
         const auto method = QGuiApplication::platformName() == QStringLiteral("windows")

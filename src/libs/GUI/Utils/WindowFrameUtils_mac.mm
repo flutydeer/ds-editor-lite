@@ -210,7 +210,7 @@ void WindowFrameUtils::mergeTitleBarIntoContent(QWidget *widget) {
 }
 
 bool WindowFrameUtils::captureWindowChrome(QWidget *widget, const QString &filePath,
-                                           QString *captureMethod) {
+                                           QString *captureMethod, CaptureBounds) {
     if (captureMethod)
         *captureMethod = QStringLiteral("failed");
     if (!widget)
