@@ -66,6 +66,7 @@ private slots:
     void rhiTrackNavigationKeepsTheCanvasAndTrackListAligned();
     void trackRubberBandScrollsPastPartiallyVisibleClips_data();
     void trackRubberBandScrollsPastPartiallyVisibleClips();
+    void rhiTrackWaveformAndTitleStayAlignedAtHighZoom();
     void rhiTrackClipTitleRenamesInline();
     void rhiTrackClipTitleSurvivesDocumentReplacement();
     void rhiPitchModulationUsesTheInferredBaseline();
