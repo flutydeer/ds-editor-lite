@@ -20,6 +20,22 @@ namespace {
     }
 }
 
+void GuiComponentTests::tooltipHoverFitsNearScreenEdge() {
+    const auto *screen = QApplication::primaryScreen();
+    if (!screen)
+        QSKIP("Hover tooltip placement requires a screen");
+
+    const auto available = screen->availableGeometry();
+    QWidget host;
+    ToolTip toolTip(QStringLiteral("Maximize or restore"), &host);
+    toolTip.setAttribute(Qt::WA_DontShowOnScreen);
+    toolTip.setAnimationEnabled(false);
+    toolTip.showAt(QPoint(available.right() - 16, available.center().y()));
+
+    QVERIFY(toolTip.isVisible());
+    QVERIFY(available.contains(visibleCard(toolTip)));
+}
+
 void GuiComponentTests::tooltipPointerAnchorsFollowContentAndVisibility_data() {
     QTest::addColumn<bool>("flipAtTop");
     QTest::newRow("placement-content-and-visibility") << false;
