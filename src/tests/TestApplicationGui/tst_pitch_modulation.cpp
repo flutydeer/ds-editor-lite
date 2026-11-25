@@ -15,6 +15,8 @@
 #include <lite/Tasking/Task.h>
 #include <lite/Tasking/TaskManager.h>
 
+#include "../TestSupport/ParameterValues.h"
+
 #include <QApplication>
 #include <QMouseEvent>
 #include <QScopeGuard>
@@ -35,7 +37,7 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     draft.type = Automation::CurveDraftDto::Type::Draw;
     draft.localStart = 240;
     draft.step = 5;
-    draft.values = QList<int>((1200 - draft.localStart) / draft.step, 6200);
+    draft.values = QList<int>((1200 - draft.localStart) / draft.step, TestSupport::pitchValue(6200));
     QVERIFY(runtime.parameters().replaceParameter(commandContext(),
                                                   Automation::ClipId(singingClip->id()),
                                                   ParamInfo::Pitch, Param::Edited, {draft}));
@@ -94,7 +96,7 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
         return -1;
     };
     const auto pointAt = [&](const int tick) {
-        return view->mapFromScene(QPointF(view->tickToSceneX(tick), editor->sceneYForValue(6000)));
+        return view->mapFromScene(QPointF(view->tickToSceneX(tick), editor->sceneYForValue(TestSupport::pitchValue(6000))));
     };
     const auto moveWithLeftButton = [&](const QPoint &position) {
         QMouseEvent event(QEvent::MouseMove, QPointF(position),
@@ -131,9 +133,9 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     moveWithLeftButton(release);
     QVERIFY(editSessionManager->hasActiveTransaction());
     // A zero modulation factor follows the actual C4 notes, not the edited D4 curve.
-    QCOMPARE(valueAt(editor->editedCurves(), 720), 6000);
-    QCOMPARE(valueAt(editor->editedCurves(), 240), 6200);
-    QCOMPARE(valueAt(editor->editedCurves(), 1195), 6200);
+    QCOMPARE(valueAt(editor->editedCurves(), 720), TestSupport::pitchValue(6000));
+    QCOMPARE(valueAt(editor->editedCurves(), 240), TestSupport::pitchValue(6200));
+    QCOMPARE(valueAt(editor->editedCurves(), 1195), TestSupport::pitchValue(6200));
     QCOMPARE(snapshot(), original);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
@@ -143,7 +145,7 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     QCOMPARE(discarded.count(), 1);
     QCOMPARE(committed.count(), 0);
     QVERIFY(!editSessionManager->hasActiveTransaction());
-    QCOMPARE(valueAt(editor->editedCurves(), 720), 6200);
+    QCOMPARE(valueAt(editor->editedCurves(), 720), TestSupport::pitchValue(6200));
     QCOMPARE(snapshot(), original);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
@@ -177,14 +179,14 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     const auto after = runtime.documentVersion();
     QCOMPARE(after.documentId, before.documentId);
     QVERIFY(after.revision > before.revision);
-    QCOMPARE(valueAt(parameter->curves(Param::Edited), 720), 6000);
-    QCOMPARE(valueAt(parameter->curves(Param::Edited), 240), 6200);
-    QCOMPARE(valueAt(parameter->curves(Param::Edited), 1195), 6200);
+    QCOMPARE(valueAt(parameter->curves(Param::Edited), 720), TestSupport::pitchValue(6000));
+    QCOMPARE(valueAt(parameter->curves(Param::Edited), 240), TestSupport::pitchValue(6200));
+    QCOMPARE(valueAt(parameter->curves(Param::Edited), 1195), TestSupport::pitchValue(6200));
     QVERIFY(historyManager->canUndo());
 
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(snapshot(), original);
-    QCOMPARE(valueAt(editor->editedCurves(), 720), 6200);
+    QCOMPARE(valueAt(editor->editedCurves(), 720), TestSupport::pitchValue(6200));
     QVERIFY(historyManager->canUndo());
     QVERIFY(runtime.history().undo(commandContext()));
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);

@@ -11,6 +11,7 @@
 #include <QtTest/QTest>
 #include <QScopeGuard>
 #include "../TestSupport/TestAssertions.h"
+#include "../TestSupport/ParameterValues.h"
 
 #include <algorithm>
 #include <cmath>
@@ -51,15 +52,20 @@ void ParametersTests::curveTransformMappings() {
     TensionParamProperties tension;
     MouthOpeningParamProperties mouth;
 
-    QVERIFY(expectNear(decibel.valueToNormalized(-96000), 0.0, 1e-12, "decibel lower endpoint"));
-    QVERIFY(expectNear(decibel.valueToNormalized(0), 1.0, 1e-12, "decibel upper endpoint"));
-    QVERIFY(expectNear(decibel.valueFromNormalizedDouble(0.0), -96000.0, 1e-9,
+    QVERIFY(expectNear(decibel.valueToNormalized(decibel.minimum), 0.0, 1e-12,
+                       "decibel lower endpoint"));
+    QVERIFY(expectNear(decibel.valueToNormalized(decibel.maximum), 1.0, 1e-12,
+                       "decibel upper endpoint"));
+    QVERIFY(expectNear(decibel.valueFromNormalizedDouble(0.0), decibel.minimum, 1e-9,
                        "decibel inverse lower endpoint"));
-    QVERIFY(expectNear(tension.valueToNormalized(-10000), 0.0, 1e-12, "tension lower endpoint"));
-    QVERIFY(expectNear(tension.valueToNormalized(0), 0.5, 1e-12, "tension center"));
-    QVERIFY(expectNear(tension.valueFromNormalizedDouble(0.0), -10000.0, 1e-9,
-                       "tension zero percent is minus ten"));
-    QVERIFY(expectNear(mouth.valueToNormalized(250), 0.25, 1e-12, "mouth identity mapping"));
+    QVERIFY(expectNear(tension.valueToNormalized(tension.minimum), 0.0, 1e-12,
+                       "tension lower endpoint"));
+    QVERIFY(expectNear(tension.valueToNormalized(tension.defaultValue), 0.5, 1e-12,
+                       "tension center"));
+    QVERIFY(expectNear(tension.valueFromNormalizedDouble(0.0), tension.minimum, 1e-9,
+                       "tension zero percent is minimum"));
+    QVERIFY(expectNear(mouth.valueToNormalized(mouth.maximum / 4), 0.25, 1e-12,
+                       "mouth identity mapping"));
 
     double previousDb = -std::numeric_limits<double>::infinity();
     double previousTension = -std::numeric_limits<double>::infinity();
@@ -72,13 +78,14 @@ void ParametersTests::curveTransformMappings() {
         previousDb = db;
         previousTension = tensionValue;
     }
-    for (const int db : {-96000, -72000, -48000, -24000, 0}) {
-        const auto roundTrip = decibel.valueFromNormalizedDouble(decibel.valueToNormalized(db));
-        QVERIFY(expectNear(roundTrip, db, 1e-7, "decibel mapping round trip"));
-    }
-    for (const int value : {-10000, -5000, 0, 5000, 10000}) {
-        const auto roundTrip = tension.valueFromNormalizedDouble(tension.valueToNormalized(value));
-        QVERIFY(expectNear(roundTrip, value, 1e-7, "tension mapping round trip"));
+    for (const int value : {0, TestSupport::ParameterMaximum / 4,
+                            TestSupport::ParameterMaximum / 2,
+                            3 * TestSupport::ParameterMaximum / 4,
+                            TestSupport::ParameterMaximum}) {
+        QVERIFY(expectNear(decibel.valueFromNormalizedDouble(decibel.valueToNormalized(value)),
+                           value, 1e-7, "decibel mapping round trip"));
+        QVERIFY(expectNear(tension.valueFromNormalizedDouble(tension.valueToNormalized(value)),
+                           value, 1e-7, "tension mapping round trip"));
     }
 }
 
@@ -227,7 +234,10 @@ void ParametersTests::curveTransformShouldersAndBoundaries() {
 void ParametersTests::curveTransformShapeAndScale() {
     using namespace CurveTransform;
     MouthOpeningParamProperties properties;
-    auto source = curve(0, {0, 250, 1000, 1000});
+    const auto quarter = TestSupport::parameterValue(0.25);
+    const auto half = TestSupport::parameterValue(0.5);
+    const auto maximum = TestSupport::parameterValue(1.0);
+    auto source = curve(0, {0, quarter, maximum, maximum});
 
     Session shape;
     Config shapeConfig;
@@ -242,7 +252,7 @@ void ParametersTests::curveTransformShapeAndScale() {
     shape.updateTransform(100.0);
     auto preview = shape.buildEditedPreview();
     const auto cleanupPreview = qScopeGuard([&preview] { qDeleteAll(preview); });
-    QCOMPARE((valueAt(preview, 5)), (500));
+    QCOMPARE((valueAt(preview, 5)), (half));
     QVERIFY2((shape.hasEffectiveChange()), "shape reports rounded change");
     qDeleteAll(preview);
     preview.clear();
@@ -253,7 +263,7 @@ void ParametersTests::curveTransformShapeAndScale() {
     qDeleteAll(preview);
     preview.clear();
 
-    auto scaleSource = curve(0, {500, 500, 500, 500, 500, 500, 500});
+    auto scaleSource = curve(0, {half, half, half, half, half, half, half});
     Session scale;
     Config scaleConfig;
     scaleConfig.kind = Kind::Scale;
@@ -270,19 +280,19 @@ void ParametersTests::curveTransformShapeAndScale() {
     QVERIFY2((scale.beginTransform()), "scale transform starts");
     scale.updateTransform(100.0);
     preview = scale.buildEditedPreview();
-    QCOMPARE((valueAt(preview, 0)), (500));
-    QCOMPARE((valueAt(preview, 5)), (250));
+    QCOMPARE((valueAt(preview, 0)), (half));
+    QCOMPARE((valueAt(preview, 5)), (quarter));
     QCOMPARE((valueAt(preview, 15)), (0));
     qDeleteAll(preview);
     preview.clear();
 
     scale.updateTransform(-100.0);
     preview = scale.buildEditedPreview();
-    QCOMPARE((valueAt(preview, 15)), (1000));
+    QCOMPARE((valueAt(preview, 15)), (maximum));
     qDeleteAll(preview);
     preview.clear();
 
-    auto editedSource = curve(0, {250, 750});
+    auto editedSource = curve(0, {quarter, maximum - quarter});
     Session unchanged;
     unchanged.setSource({}, {&editedSource}, scaleConfig);
     unchanged.beginSelection(0);
@@ -295,7 +305,7 @@ void ParametersTests::curveTransformScaleMappingsAndSessionPhases() {
     using namespace CurveTransform;
 
     DecibelParamProperties decibel;
-    auto dbSource = curve(0, {-24000, -24000, -24000});
+    auto dbSource = curve(0, {TestSupport::decibelValue(-24), TestSupport::decibelValue(-24), TestSupport::decibelValue(-24)});
     Config dbConfig;
     dbConfig.kind = Kind::Scale;
     dbConfig.properties = &decibel;
@@ -315,7 +325,7 @@ void ParametersTests::curveTransformScaleMappingsAndSessionPhases() {
     QVERIFY(expectNear(dbScale.factor(), 0.0, 1e-12, "factor clamps at zero percent"));
     auto preview = dbScale.buildEditedPreview();
     const auto cleanupPreview = qScopeGuard([&preview] { qDeleteAll(preview); });
-    QCOMPARE((valueAt(preview, 5)), (-96000));
+    QCOMPARE((valueAt(preview, 5)), (decibel.minimum));
     qDeleteAll(preview);
     preview.clear();
     dbScale.updateTransform(-1000.0);
@@ -324,7 +334,7 @@ void ParametersTests::curveTransformScaleMappingsAndSessionPhases() {
     QCOMPARE((dbScale.phase()), (Phase::Idle));
 
     TensionParamProperties tension;
-    auto tensionSource = curve(0, {0, 0, 0});
+    auto tensionSource = curve(0, {TestSupport::tensionValue(0), TestSupport::tensionValue(0), TestSupport::tensionValue(0)});
     Config tensionConfig;
     tensionConfig.kind = Kind::Scale;
     tensionConfig.properties = &tension;
@@ -335,7 +345,7 @@ void ParametersTests::curveTransformScaleMappingsAndSessionPhases() {
     QVERIFY2((tensionScale.beginTransform()), "tension scale starts");
     tensionScale.updateTransform(100.0);
     preview = tensionScale.buildEditedPreview();
-    QCOMPARE((valueAt(preview, 5)), (-10000));
+    QCOMPARE((valueAt(preview, 5)), (tension.minimum));
     qDeleteAll(preview);
     preview.clear();
 }
@@ -344,7 +354,7 @@ void ParametersTests::curveTransformOutOfRangeParamSamples() {
     using namespace CurveTransform;
 
     DecibelParamProperties decibel;
-    auto decibelSource = curve(0, {-120000, -48000, 12000, -24000});
+    auto decibelSource = curve(0, {decibel.minimum - 1000, TestSupport::decibelValue(-48), decibel.maximum + 1000, decibel.minimum - 1000});
     Config shapeConfig;
     shapeConfig.kind = Kind::Shape;
     shapeConfig.properties = &decibel;
@@ -362,7 +372,7 @@ void ParametersTests::curveTransformOutOfRangeParamSamples() {
     QVERIFY2((shape.hasEffectiveChange()), "neutral factor can commit normalization changes");
 
     TensionParamProperties tension;
-    auto tensionSource = curve(0, {-12000, 12000, 0});
+    auto tensionSource = curve(0, {tension.minimum - 1000, tension.maximum + 1000, tension.defaultValue});
     Config scaleConfig;
     scaleConfig.kind = Kind::Scale;
     scaleConfig.properties = &tension;
@@ -379,10 +389,10 @@ void ParametersTests::curveTransformOutOfRangeParamSamples() {
 
 void ParametersTests::curveTransformPitchAndEditedOnlySource() {
     using namespace CurveTransform;
-    auto edited = curve(0, {6100, 6200, 6300});
+    auto edited = curve(0, {TestSupport::pitchValue(6100), TestSupport::pitchValue(6200), TestSupport::pitchValue(6300)});
     Config config;
     config.kind = Kind::ModulatePitch;
-    config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
+    config.pitchBaselineAtTick = [](int) { return std::optional<double>(TestSupport::pitchValue(6000)); };
     Session session;
     session.setSource({}, {&edited}, config);
     QVERIFY2((session.hasSource()), "edited-only source supports transforms");
@@ -392,14 +402,14 @@ void ParametersTests::curveTransformPitchAndEditedOnlySource() {
     session.updateTransform(100.0);
     auto preview = session.buildEditedPreview();
     const auto cleanupPreview = qScopeGuard([&preview] { qDeleteAll(preview); });
-    QVERIFY2((valueAt(preview, 0) == 6000 && valueAt(preview, 5) == 6000 &&
-              valueAt(preview, 10) == 6300),
+    QVERIFY2((valueAt(preview, 0) == TestSupport::pitchValue(6000) && valueAt(preview, 5) == TestSupport::pitchValue(6000) &&
+              valueAt(preview, 10) == TestSupport::pitchValue(6300)),
              "pitch transform uses the drawing tool's half-open range");
     qDeleteAll(preview);
     preview.clear();
     session.updateTransform(-100.0);
     preview = session.buildEditedPreview();
-    QCOMPARE((valueAt(preview, 5)), (6400));
+    QCOMPARE((valueAt(preview, 5)), (TestSupport::pitchValue(6400)));
     qDeleteAll(preview);
     preview.clear();
 

@@ -1,8 +1,21 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 
-#include <lite/Support/MathUtils.h>
-
 #include <QLocale>
+
+#include <algorithm>
+#include <cmath>
+
+namespace {
+    constexpr double PitchDisplayMaximum = 12'800.0;
+
+    QString formatValue(const double value, const QString &unit, const bool withUnit,
+                        const int precision) {
+        const auto strValue = QLocale().toString(value, 'f', precision);
+        if (withUnit)
+            return QString("%1 %2").arg(strValue, unit);
+        return strValue;
+    }
+}
 
 ParamProperties::ParamProperties() = default;
 
@@ -12,72 +25,62 @@ bool ParamProperties::hasUnit() const {
 
 QString ParamProperties::valueToString(const int value, const bool withUnit,
                                        const int precision) const {
-    const auto strValue = QLocale().toString(value / 1000.0, 'f', precision);
-    if (withUnit)
-        return QString("%1 %2").arg(strValue, unit);
-    return strValue;
+    return formatValue(valueToNormalized(value), unit, withUnit, precision);
 }
 
 int ParamProperties::valueFromNormalized(const double normalized) const {
-    return static_cast<int>(valueFromNormalizedDouble(normalized));
+    return static_cast<int>(std::lround(valueFromNormalizedDouble(normalized)));
 }
 
 double ParamProperties::valueFromNormalizedDouble(const double normalized) const {
-    return normalized * (maximum - minimum) + minimum;
+    return minimum +
+           std::clamp(normalized, 0.0, 1.0) * static_cast<double>(maximum - minimum);
 }
 
 double ParamProperties::valueToNormalized(const int value) const {
-    return 1.0 * (value - minimum) / (maximum - minimum);
+    const auto bounded = std::clamp(value, minimum, maximum);
+    return static_cast<double>(bounded - minimum) / (maximum - minimum);
 }
 
 PitchParamProperties::PitchParamProperties() {
-    minimum = 0;
-    maximum = 12'700;
     unit = "cent";
     showDivision = false;
     displayMode = DisplayMode::CurveOnly;
 }
 
+QString PitchParamProperties::valueToString(const int value, const bool withUnit,
+                                            const int precision) const {
+    return formatValue(valueToNormalized(value) * PitchDisplayMaximum, unit, withUnit, precision);
+}
+
 ExprParamProperties::ExprParamProperties() {
     valueType = ValueType::Relative;
-    defaultValue = 1000;
-    divisionValue = 100;
+    defaultValue = NormalizedMaximum;
+    divisionValue = NormalizedMaximum / 10;
 }
 
 DecibelParamProperties::DecibelParamProperties() {
     unit = "dB";
-    minimum = -96'000;
-    maximum = 0;
-    divisionValue = 12'000; // 12 dB
+    defaultValue = NormalizedMaximum;
+    divisionValue = NormalizedMaximum / 8;
 }
 
-double DecibelParamProperties::valueFromNormalizedDouble(const double normalized) const {
-    return (MathUtils::inPowerCurveValueAt(normalized, 0.8) - 1) * (maximum - minimum);
-}
-
-double DecibelParamProperties::valueToNormalized(const int value) const {
-    const auto normalizedValue = 1.0 * (value - minimum) / (maximum - minimum);
-    return MathUtils::inPowerCurveXAt(normalizedValue, 0.8);
+QString DecibelParamProperties::valueToString(const int value, const bool withUnit,
+                                              const int precision) const {
+    const auto decibel = -96.0 * std::pow(1.0 - valueToNormalized(value), 0.8);
+    return formatValue(decibel, unit, withUnit, precision);
 }
 
 TensionParamProperties::TensionParamProperties() {
-    minimum = -10'000;
-    maximum = 10'000;
-    divisionValue = 2'000;
+    defaultValue = NormalizedMaximum / 2;
+    divisionValue = NormalizedMaximum / 10;
 }
 
-double TensionParamProperties::valueFromNormalizedDouble(const double normalized) const {
-    const auto base = (normalized - 0.5) * 2;
-    const auto input = qAbs(base);
-    const auto absValue = MathUtils::inPowerCurveValueAt(input, 0.7) * maximum;
-    return base >= 0 ? absValue : -absValue;
-}
-
-double TensionParamProperties::valueToNormalized(const int value) const {
-    const auto normalized = 1.0 * value / maximum;
-    const auto inputValue = qAbs(normalized);
-    const auto scaled = MathUtils::inPowerCurveXAt(inputValue, 0.7);
-    return scaled / 2 * (normalized > 0 ? 1 : -1) + 0.5;
+QString TensionParamProperties::valueToString(const int value, const bool withUnit,
+                                              const int precision) const {
+    const auto axis = valueToNormalized(value) * 2.0 - 1.0;
+    const auto tension = std::copysign(10.0 * (1.0 - std::pow(1.0 - std::abs(axis), 0.7)), axis);
+    return formatValue(tension, unit, withUnit, precision);
 }
 
 MouthOpeningParamProperties::MouthOpeningParamProperties() = default;
@@ -85,44 +88,32 @@ MouthOpeningParamProperties::MouthOpeningParamProperties() = default;
 GenderParamProperties::GenderParamProperties() {
     valueType = ValueType::Relative;
     displayMode = DisplayMode::FillFromDefault;
-    minimum = -1'000;
-    defaultValue = 0;
+    defaultValue = NormalizedMaximum / 2;
     showDefaultValue = true;
+}
+
+QString GenderParamProperties::valueToString(const int value, const bool withUnit,
+                                             const int precision) const {
+    return formatValue(valueToNormalized(value) * 2.0 - 1.0, unit, withUnit, precision);
 }
 
 VelocityParamProperties::VelocityParamProperties() {
     valueType = ValueType::Relative;
     displayMode = DisplayMode::FillFromDefault;
-    minimum = -1000;
-    maximum = 1000;
-    defaultValue = 0;
-    divisionValue = 250;
+    defaultValue = NormalizedMaximum / 2;
+    divisionValue = NormalizedMaximum / 8;
     showDefaultValue = true;
 }
 
-int VelocityParamProperties::valueFromNormalized(const double normalized) const {
-    const auto value = (2 * normalized - 1) * 1000;
-    return static_cast<int>(value);
-}
-
-double VelocityParamProperties::valueToNormalized(const int value) const {
-    const auto num = value / 1000.0 + 1;
-    return num / 2;
-}
-
-QString VelocityParamProperties::valueToString(int value, bool withUnit, int precision) const {
-    const auto strValue = QLocale().toString(std::exp2(value / 1000.0), 'f', precision);
-    if (withUnit)
-        return QString("%1 %2").arg(strValue, unit);
-    return strValue;
+QString VelocityParamProperties::valueToString(const int value, const bool withUnit,
+                                               const int precision) const {
+    return formatValue(std::exp2(valueToNormalized(value) * 2.0 - 1.0), unit, withUnit, precision);
 }
 
 ToneShiftParamProperties::ToneShiftParamProperties() {
     valueType = ValueType::Relative;
     displayMode = DisplayMode::FillFromDefault;
-    minimum = -1'200;
-    maximum = 1'200;
-    defaultValue = 0;
+    defaultValue = NormalizedMaximum / 2;
     showDefaultValue = true;
     unit = "cent";
 }
@@ -130,7 +121,7 @@ ToneShiftParamProperties::ToneShiftParamProperties() {
 QString ToneShiftParamProperties::valueToString(const int value, const bool withUnit,
                                                 const int precision) const {
     Q_UNUSED(precision);
-    const auto strValue = QLocale().toString(value);
+    const auto strValue = QLocale().toString(std::lround(valueToNormalized(value) * 2400.0 - 1200.0));
     if (withUnit)
         return QString("%1 %2").arg(strValue, unit);
     return strValue;
