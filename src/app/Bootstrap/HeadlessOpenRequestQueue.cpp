@@ -75,7 +75,6 @@ void HeadlessOpenRequestQueue::dispatchNext() {
             .source = Automation::InvocationSource::InternalAutomation,
         };
         request.canonicalPath = path;
-        request.unsavedPolicy = Automation::PublicUnsavedPolicy::Reject;
         const auto accepted = m_openDocument(request);
         if (!accepted) {
             qWarning() << "Headless external project open was rejected:" << path

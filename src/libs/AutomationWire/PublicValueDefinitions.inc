@@ -49,8 +49,6 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(AudioSourceKind, Clip, "clip")
 
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(FailurePolicy, Atomic, "atomic")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(FailurePolicy, BestEffort, "best_effort")
-AUTOMATION_WIRE_PUBLIC_STRING_VALUE(UnsavedPolicy, Reject, "reject")
-AUTOMATION_WIRE_PUBLIC_STRING_VALUE(UnsavedPolicy, Discard, "discard")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(DocumentTemplate, Empty, "empty")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(DocumentTemplate, Default, "default")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(DocumentImportMergeMode, Append, "append")

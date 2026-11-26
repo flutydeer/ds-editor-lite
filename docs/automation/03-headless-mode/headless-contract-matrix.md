@@ -110,7 +110,7 @@ DocumentId、revision 或单文档替换契约。
 | GUI-only operation on Headless | Host gate 直接拒绝 | 不读取、不校验、不要求伪造 |
 | application-scoped Task | 按既有契约可为 null | 不生成 |
 
-Headless 的 `documents.new/open` 用 `current_document_id` 指定替换目标。`documents.close` 关闭该文档后创建空白工程，调用方可用返回的 `current.document_id` 继续工作。
+Headless 的 `documents.new/open` 用 `current_document_id` 指定替换目标。替换有未保存改动的工程须传 `discard_changes: true`，默认值为 `false`。`documents.close` 关闭该文档后创建空白工程，调用方可用返回的 `current.document_id` 继续工作。
 
 `SingleWindowContext` 在 Headless 为 `std::nullopt`。实现和 codec 不允许使用 null UUID、全零
 UUID、固定 UUID、DocumentId 转换或任何 sentinel 代替窗口。

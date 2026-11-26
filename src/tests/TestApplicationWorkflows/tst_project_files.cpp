@@ -506,7 +506,7 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
                                    {"current_document_id", version.documentId.toString()        },
                                    {"expected_revision",   static_cast<qint64>(version.revision)},
                                    {"path",                incomingPath                         },
-                                   {"unsaved_policy",      "reject"                             }
+                                   {"discard_changes",     false                                }
         });
     };
     const auto dirtyOpen = open();
@@ -514,7 +514,7 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
     QVERIFY2(dirtyOpen.getError().code == Automation::AutomationErrorCode::InvalidArgument,
              qPrintable(dirtyOpen.getError().message + QStringLiteral(" at ") +
                         dirtyOpen.getError().fieldPath));
-    QCOMPARE(dirtyOpen.getError().fieldPath, QStringLiteral("unsaved_policy"));
+    QCOMPARE(dirtyOpen.getError().fieldPath, QStringLiteral("discard_changes"));
     QVERIFY(guard.setConfiguredRoots({incomingDirectory}));
     const auto denied = registry.invoke(QStringLiteral("documents.save"), saveArguments());
     QVERIFY(!denied);
@@ -731,7 +731,7 @@ void ApplicationWorkflowTests::publicProjectLoadChecksPlansAndParserFailures() {
     if (!digest.isEmpty())
         arguments.insert(QStringLiteral("plan_digest"), digest);
     if (opening)
-        arguments.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
+        arguments.insert(QStringLiteral("discard_changes"), true);
     const bool cancelRunning = changeAfterAdmission == "cancel-running";
     ProjectParsePause parsePause(cancelRunning);
     const auto load = [&] {

@@ -292,8 +292,8 @@ private slots:
         QJsonObject result;
         QVERIFY2(client.call(QStringLiteral("documents.new"),
                              {
-                                 {QStringLiteral("current_document_id"), client.documentId        },
-                                 {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")}
+                                 {QStringLiteral("current_document_id"), client.documentId},
+                                 {QStringLiteral("discard_changes"),     true             }
         },
                              result),
                  qPrintable(client.error));
@@ -625,8 +625,8 @@ private slots:
 
         QVERIFY2(client.call(QStringLiteral("documents.new"),
                              {
-                                 {QStringLiteral("current_document_id"), client.documentId        },
-                                 {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")}
+                                 {QStringLiteral("current_document_id"), client.documentId},
+                                 {QStringLiteral("discard_changes"),     true             }
         },
                              result),
                  qPrintable(client.error));

@@ -1998,13 +1998,13 @@ namespace Automation {
                        : nullptr;
         };
         services.openDocument = [&runtime](const PublicDocumentOpenRequest &request) {
-            if (request.unsavedPolicy == PublicUnsavedPolicy::Reject) {
+            if (!request.newWindow && !request.discardChanges) {
                 auto state = runtime.history().getState(request.command.expected.documentId);
                 if (!state)
                     return AutomationResult<TaskAcceptedResult>(state.getError());
                 if (!state.get().onSavePoint) {
                     return AutomationResult<TaskAcceptedResult>(AutomationError::invalidArgument(
-                        QStringLiteral("unsaved_policy"),
+                        QStringLiteral("discard_changes"),
                         QStringLiteral("The current document has unsaved changes")));
                 }
             }

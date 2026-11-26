@@ -1311,7 +1311,7 @@ namespace {
                      blank.value(QStringLiteral("document_id"))                                    },
                     {QStringLiteral("expected_revision"),   blank.value(QStringLiteral("revision"))},
                     {QStringLiteral("path"),                roundTripPath                          },
-                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")               },
+                    {QStringLiteral("discard_changes"),     false                                  },
         }),
             exchangeError, 10000);
         const auto openTaskId = opened ? opened->value(QStringLiteral("result"))
@@ -1972,7 +1972,7 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
             {QStringLiteral("current_document_id"),
              initialStatus->value("documents").toArray().first().toObject().value("document_id")},
             {QStringLiteral("template"),            QStringLiteral("empty")                     },
-            {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")                   }
+            {QStringLiteral("discard_changes"),     true                                        }
     });
     QVERIFY2(created, qPrintable(fixture.error));
     const auto version = created->value(QStringLiteral("current")).toObject();

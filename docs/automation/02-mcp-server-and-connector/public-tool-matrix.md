@@ -82,6 +82,8 @@
 
 从新建结果或打开任务成功结果的 `current` 取得实际工程版本。新开窗口时 `previous` 为 `null`。严格校验输出的客户端应刷新 `tools/list` 或 Native OpenRPC 的 Schema。使用 v1 固定契约的 Connector 可通过 `editor.tools.describe` 和 `editor.tools.invoke` 使用编辑器公布的实际契约。原先省略目标来替换工程的脚本需先从状态列表取得工程 ID。
 
+`documents.new` 和 `documents.open` 在 v2 中使用可选布尔参数 `discard_changes`，默认值为 `false`。替换有未保存改动的工程须显式传 `true`。新开窗口时会忽略该参数，已有工程的改动会保留。迁移 v1 脚本时，将 `unsaved_policy: "discard"` 改为 `discard_changes: true`，将 `unsaved_policy: "reject"` 改为 `discard_changes: false` 或省略该参数。
+
 ### 3.3 格式（2）
 
 | 工具 | 控制层级 | 类型 | 契约要点 |

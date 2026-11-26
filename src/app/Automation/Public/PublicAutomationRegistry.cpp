@@ -3371,12 +3371,11 @@ namespace Automation {
             if (!current)
                 return AutomationResult<QJsonObject>(current.getError());
             if (!invocation.newWindow && !current.get().saved &&
-                arguments.value(QStringLiteral("unsaved_policy")).toString() !=
-                    QStringLiteral("discard")) {
+                !arguments.value(QStringLiteral("discard_changes")).toBool(false)) {
                 return AutomationResult<QJsonObject>(
                     error(AutomationErrorCode::Busy,
                           QStringLiteral("The current document has unsaved changes"),
-                          QStringLiteral("unsaved_policy")));
+                          QStringLiteral("discard_changes")));
             }
             const auto document = DocumentAutomationFacade::newDocumentDraft(
                 arguments.value(QStringLiteral("template")).toString() ==
@@ -3453,10 +3452,7 @@ namespace Automation {
                     planRevalidator(m_runtime, m_fileGuard, formats.get(), path,
                                     QStringLiteral("open"), format.get().id, planDigest,
                                     QStringLiteral("path"), QStringLiteral("plan_digest")),
-                .unsavedPolicy = arguments.value(QStringLiteral("unsaved_policy")).toString() ==
-                                         QStringLiteral("discard")
-                                     ? PublicUnsavedPolicy::Discard
-                                     : PublicUnsavedPolicy::Reject,
+                .discardChanges = arguments.value(QStringLiteral("discard_changes")).toBool(false),
                 .newWindow = invocation.newWindow,
             };
             return taskAcceptedResult(m_hostServices.openDocument(request));

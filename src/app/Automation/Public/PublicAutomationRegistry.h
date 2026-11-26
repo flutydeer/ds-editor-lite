@@ -29,11 +29,6 @@ namespace Automation {
 
     class CoreRuntime;
 
-    enum class PublicUnsavedPolicy {
-        Reject,
-        Discard,
-    };
-
     enum class PublicBatchFailurePolicy {
         Atomic,
         BestEffort,
@@ -59,7 +54,7 @@ namespace Automation {
         bool importTimeSignature = true;
         QString planDigest;
         PublicProjectInputRevalidator revalidatePlan;
-        PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
+        bool discardChanges = false;
         bool newWindow = false;
     };
 

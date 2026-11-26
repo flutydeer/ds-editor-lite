@@ -1323,14 +1323,13 @@ namespace {
                 {
                     {QStringLiteral("current_document_id"), current.documentId.toString()        },
                     {QStringLiteral("expected_revision"),   static_cast<qint64>(current.revision)},
-                    {QStringLiteral("template"),            QStringLiteral("empty")              },
-                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")             }
+                    {QStringLiteral("template"),            QStringLiteral("empty")              }
             });
         };
         const auto replace = newDocument();
         QVERIFY(!replace);
         QCOMPARE(replace.getError().code, Automation::AutomationErrorCode::Busy);
-        QCOMPARE(replace.getError().fieldPath, QStringLiteral("unsaved_policy"));
+        QCOMPARE(replace.getError().fieldPath, QStringLiteral("discard_changes"));
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
         QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
@@ -1427,9 +1426,9 @@ namespace {
         const auto opened =
             registry.invoke(QStringLiteral("documents.open"),
                             QJsonObject{
-                                {QStringLiteral("path"),                projectPath             },
-                                {QStringLiteral("current_document_id"), target.toString()       },
-                                {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+                                {QStringLiteral("path"),                projectPath      },
+                                {QStringLiteral("current_document_id"), target.toString()},
+                                {QStringLiteral("discard_changes"),     false            },
         },
                             {.clientId = QStringLiteral("project-input"),
                              .source = Automation::InvocationSource::PublicJsonRpc});
@@ -1482,11 +1481,11 @@ namespace {
             const auto plannedOpen =
                 registry.invoke(QStringLiteral("documents.open"),
                                 QJsonObject{
-                                    {QStringLiteral("path"),                plannedPath             },
-                                    {QStringLiteral("current_document_id"), target.toString()       },
+                                    {QStringLiteral("path"),                plannedPath      },
+                                    {QStringLiteral("current_document_id"), target.toString()},
                                     {QStringLiteral("plan_digest"),
-                                     plan.get().value(QStringLiteral("plan_digest"))                },
-                                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+                                     plan.get().value(QStringLiteral("plan_digest"))         },
+                                    {QStringLiteral("discard_changes"),     false            },
             });
             expect(!plannedOpen && bool(control.revalidateOpen),
                    QStringLiteral("planned open must retain its input snapshot revalidator"));
@@ -2637,9 +2636,9 @@ namespace {
             nativeRequest(QStringLiteral("source"), QStringLiteral("documents.open"),
                           QJsonObject{
                               {QStringLiteral("current_document_id"),
-                               runtime.documentVersion().documentId.toString()                },
-                              {QStringLiteral("path"),                openPath                },
-                              {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+                               runtime.documentVersion().documentId.toString()},
+                              {QStringLiteral("path"),                openPath},
+                              {QStringLiteral("discard_changes"),     false   },
         }),
             QStringLiteral("native-source"));
         expect(openFileCreated && nativeErrorCode(sourceError) == -32000 &&
@@ -3633,7 +3632,10 @@ void AutomationProtocolTests::rejectedInputs_data() {
         << QJsonObject{{"track_id", 1}, {"name", "After"}, {"validate_only", true}} << true;
     QTest::newRow("replacement-idempotency-is-unsupported")
         << QStringLiteral("documents.new")
-        << QJsonObject{{"unsaved_policy", "discard"}, {"idempotency_key", "unsupported"}} << false;
+        << QJsonObject{{"discard_changes", true}, {"idempotency_key", "unsupported"}} << false;
+    QTest::newRow("replacement-rejects-string-boolean")
+        << QStringLiteral("documents.new")
+        << QJsonObject{{"discard_changes", "true"}} << false;
     QTest::newRow("exit-rejects-string-boolean")
         << QStringLiteral("application.request_exit")
         << QJsonObject{{"discard_changes", "true"}} << false;

@@ -663,8 +663,6 @@ namespace AutomationWire {
             }
             if (name == QStringLiteral("partial_arguments"))
                 return JsonSchema::objectWithAdditionalSchema({}, {}, QJsonValue(true));
-            if (name == QStringLiteral("unsaved_policy"))
-                return stringDomainSchema(PublicValueDomain::UnsavedPolicy);
             if (name == QStringLiteral("template"))
                 return stringDomainSchema(PublicValueDomain::DocumentTemplate);
             if (name == QStringLiteral("language_repair"))
@@ -1336,7 +1334,6 @@ namespace AutomationWire {
             if (lifecycle) {
                 add(QStringLiteral("current_document_id"), false);
                 add(QStringLiteral("expected_revision"), false);
-                add(QStringLiteral("unsaved_policy"), false);
             } else if (documentQueryOperations().contains(id) ||
                        documentWriteOperations().contains(id) || playbackWrite) {
                 add(QStringLiteral("document_id"), true);
@@ -1344,7 +1341,7 @@ namespace AutomationWire {
             if (documentWriteOperations().contains(id)) {
                 add(QStringLiteral("expected_revision"), true);
             }
-            if (id == PublicToolNames::documents_close)
+            if (lifecycle || id == PublicToolNames::documents_close)
                 add(QStringLiteral("discard_changes"), false);
             if (documentIdempotencyKeyOperations().contains(id)) {
                 add(QStringLiteral("idempotency_key"), false);
@@ -4015,6 +4012,8 @@ namespace AutomationWire {
                            "Run the GUI-equivalent %1 lifecycle flow without modal prompts. "
                            "A GUI request without current_document_id creates a window. "
                            "Headless requires an explicit replacement target. "
+                           "discard_changes defaults to false and only applies when replacing "
+                           "a target. Set it to true to discard that target's unsaved changes. "
                            "Use current in the completed result to address the document.")
                     .arg(action);
             }
