@@ -143,10 +143,32 @@ void EditorInteractionTests::ghostNotesFollowDocumentChangesAndOptions() {
     scene.initialize();
     if (QTest::currentTestFailed())
         return;
+    AppContext other(*scene.document.context);
+    std::unique_ptr<GhostNoteSource> otherSource;
     GhostNoteSource source;
     QSignalSpy changes(&source, &GhostNoteSource::changed);
     source.setHostClip(scene.host);
-    flushGhostChanges(source);
+    {
+        const SingletonRegistry::Scope scope(other.services());
+        TrackDraftDto host, reference;
+        host.clips = {singingDraft(0, 0, 240, 70)};
+        reference.colorIndex = 3;
+        reference.resolveColorIndex = false;
+        reference.clips = {singingDraft(0, 720, 120, 76)};
+        DocumentDraftDto draft;
+        draft.tracks = {host, reference};
+        auto &runtime = *other.m_coreRuntime;
+        QVERIFY(
+            runtime.documents().commitNewDocument({.expected = runtime.documentVersion()}, draft));
+        otherSource = std::make_unique<GhostNoteSource>();
+        otherSource->setHostClip(
+            qobject_cast<SingingClip *>(*other.m_appModel->tracks().first()->clips().begin()));
+        flushGhostChanges(source);
+        QTRY_VERIFY_WITH_TIMEOUT(!other.hasPendingTasks(), 15000);
+    }
+    flushGhostChanges(*otherSource);
+    const QList<GhostNote> otherNotes{{720, 120, 76, 3}};
+    QCOMPARE(otherSource->notes(), otherNotes);
     QVERIFY(source.enabled());
     const QList<GhostNote> initial{
         {480,  960, 60, 4},
@@ -180,6 +202,9 @@ void EditorInteractionTests::ghostNotesFollowDocumentChangesAndOptions() {
     const auto versionBeforeOptions = scene.runtime().documentVersion();
     scene.setEnabled(false);
     flushGhostChanges(source);
+    flushGhostChanges(*otherSource);
+    QVERIFY(!otherSource->enabled());
+    QVERIFY(otherSource->notes().isEmpty());
     QVERIFY(!source.enabled());
     QVERIFY(source.notes().isEmpty());
     QCOMPARE(source.maxLength(), 0);
@@ -191,6 +216,9 @@ void EditorInteractionTests::ghostNotesFollowDocumentChangesAndOptions() {
     QVERIFY(source.notes().isEmpty());
     scene.setEnabled(true);
     flushGhostChanges(source);
+    flushGhostChanges(*otherSource);
+    QVERIFY(otherSource->enabled());
+    QCOMPARE(otherSource->notes(), otherNotes);
     QCOMPARE(source.notes(), (QList<GhostNote>{
                                  {480,  960, 60, 4},
                                  {2280, 240, 65, 6}
@@ -223,51 +251,6 @@ void EditorInteractionTests::ghostNotesFollowDocumentChangesAndOptions() {
     QVERIFY(!source.enabled());
     QVERIFY(source.notes().isEmpty());
     QCOMPARE(source.maxLength(), 0);
-}
-
-void EditorInteractionTests::ghostNotesStayInTheirProject() {
-    GhostScene first;
-    first.initialize();
-    if (QTest::currentTestFailed())
-        return;
-    AppContext second(*first.document.context);
-    std::unique_ptr<GhostNoteSource> secondSource;
-    GhostNoteSource firstSource;
-    firstSource.setHostClip(first.host);
-    {
-        const SingletonRegistry::Scope scope(second.services());
-        auto &runtime = *second.m_coreRuntime;
-        TrackDraftDto host, reference;
-        host.clips = {singingDraft(0, 0, 240, 70)};
-        reference.colorIndex = 3;
-        reference.resolveColorIndex = false;
-        reference.clips = {singingDraft(0, 720, 120, 76)};
-        DocumentDraftDto draft;
-        draft.tracks = {host, reference};
-        QVERIFY(
-            runtime.documents().commitNewDocument({.expected = runtime.documentVersion()}, draft));
-        secondSource = std::make_unique<GhostNoteSource>();
-        secondSource->setHostClip(
-            qobject_cast<SingingClip *>(*second.m_appModel->tracks().first()->clips().begin()));
-        flushGhostChanges(firstSource);
-        QTRY_VERIFY_WITH_TIMEOUT(!second.hasPendingTasks(), 15000);
-    }
-    flushGhostChanges(*secondSource);
-    QCOMPARE(firstSource.notes(), (QList<GhostNote>{
-                                      {480,  960, 60, 4},
-                                      {2160, 240, 64, 8}
-    }));
-    QCOMPARE(secondSource->notes(), (QList<GhostNote>{
-                                        {720, 120, 76, 3}
-    }));
-    first.setEnabled(false);
-    flushGhostChanges(*secondSource);
-    QVERIFY(secondSource->notes().isEmpty());
-    first.setEnabled(true);
-    flushGhostChanges(*secondSource);
-    QCOMPARE(secondSource->notes(), (QList<GhostNote>{
-                                        {720, 120, 76, 3}
-    }));
 }
 
 void EditorInteractionTests::ghostNoteGeometryFollowsTheVisibleReferenceRange() {
