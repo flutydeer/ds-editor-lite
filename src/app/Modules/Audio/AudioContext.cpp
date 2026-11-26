@@ -60,17 +60,12 @@ public:
     ~AudioFormatIOObject() override = default;
 };
 
-static AudioContext *m_instance = nullptr;
-
-static AudioExporter *m_exporter = nullptr;
-
-static qint64 tickToSample(const double tick) {
-    const auto sr =
-        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
+qint64 AudioContext::tickToSample(const double tick) const {
+    const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
     // Piecewise mapping over the tempo map: anchor on the governing tempo
     // point and extrapolate linearly inside the segment. With a single tempo
     // point this reduces exactly to the old constant-tempo formula.
-    const auto &timeline = appModel->timeline();
+    const auto &timeline = m_model->timeline();
     const int refTick =
         timeline.nearestTickWithTempoTo(static_cast<int>(std::floor(qMax(0.0, tick))));
     const auto tempo = timeline.tempoAt(refTick);
@@ -79,18 +74,20 @@ static qint64 tickToSample(const double tick) {
                                                 AppGlobal::ticksPerQuarterNote);
 }
 
-static double sampleToTick(const qint64 sample) {
-    const auto sr =
-        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return appModel->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
+double AudioContext::sampleToTick(const qint64 sample) const {
+    const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+    return m_model->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
 }
 
-AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
-    m_instance = this;
+AudioContext::AudioContext(QObject *parent, bool attachToOutput)
+    : DspxProjectContext(parent), m_model(appModel), m_attachedToOutput(attachToOutput) {
+    SingletonRegistry::add(this);
+    ObjectContext::bind(this);
 
-    AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
+    if (m_attachedToOutput)
+        AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
 
-    setTimeConverter(&tickToSample);
+    setTimeConverter([this](int tick) { return tickToSample(tick); });
 
     const auto formatManager = new talcs::FormatManager(this);
     formatManager->addEntry(new talcs::StandardFormatEntry);
@@ -203,21 +200,47 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         handleMasterControlChanged(control);
     });
 
+    const auto services = SingletonRegistry::current();
+    connect(AudioSystem::outputSystem(), &OutputSystem::deviceSwitchStarting, this,
+            [this, services] {
+                const SingletonRegistry::Scope scope(services);
+                m_switchingDevice = true;
+                if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+                    m_resumePosition = playbackController->position();
+                    playbackController->pause();
+                }
+            });
+    connect(AudioSystem::outputSystem(), &OutputSystem::deviceSwitchFinished, this,
+            [this, services](bool ok) {
+                const SingletonRegistry::Scope scope(services);
+                m_switchingDevice = false;
+                if (m_resumePosition && ok) {
+                    playbackController->setPosition(*m_resumePosition);
+                    playbackController->play();
+                }
+                m_resumePosition.reset();
+            });
+    const auto stopOnExternalChange = [this, services] {
+        const SingletonRegistry::Scope scope(services);
+        if (!m_switchingDevice)
+            playbackController->stop();
+    };
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::bufferSizeChanged, this,
-            [this] { playbackController->stop(); });
+            &talcs::AbstractOutputContext::bufferSizeChanged, this, stopOnExternalChange);
 
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
+            &talcs::AbstractOutputContext::sampleRateChanged, this,
+            [this, services, stopOnExternalChange] {
+                const SingletonRegistry::Scope scope(services);
                 DEVICE_LOCKER;
                 handleTimeChanged();
                 // The loop sample range depends on the sample rate
                 updateLoopingRange();
-                playbackController->stop();
+                stopOnExternalChange();
             });
 
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
-            this, [this] { playbackController->stop(); });
+            this, stopOnExternalChange);
 
     connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged,
             this, &AudioContext::setBufferingReadAheadSize);
@@ -256,17 +279,17 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(m_levelMeterTimer, &QTimer::timeout, this, &AudioContext::tickLevelMeters);
 
     new PseudoSingerConfigNotifier(this);
-
-    AudioExporter::registerListener(this);
 }
 
 AudioContext::~AudioContext() {
     playbackController->setPlaybackStartGuard({});
-    m_instance = nullptr;
+    if (m_attachedToOutput)
+        AudioSystem::outputSystem()->context()->preMixer()->removeSource(preMixer());
+    SingletonRegistry::remove<AudioContext>();
 }
 
 AudioContext *AudioContext::instance() {
-    return m_instance;
+    return SingletonRegistry::instance<AudioContext>();
 }
 
 AudioContext::ExportInferenceStatus AudioContext::exportInferenceStatus() const {
@@ -347,8 +370,8 @@ void AudioContext::handleMasterGainSliderMoved(const double gain) const {
 }
 
 void AudioContext::handleInferPieceFailed() {
-    if (m_exporter)
-        m_exporter->cancel(true, tr("Inference failed"));
+    if (auto *context = instance(); context && context->m_exporter)
+        context->m_exporter->cancel(true, tr("Inference failed"));
 }
 
 void AudioContext::resetDocumentScopedState() {

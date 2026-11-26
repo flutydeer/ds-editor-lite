@@ -360,11 +360,19 @@ quint64 InferEngine::publishSingerSelection(const QSet<SingerIdentifier> &identi
     return m_selectionGeneration.fetch_add(1, std::memory_order_acq_rel) + 1;
 }
 
-void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers) {
+void InferEngine::retainSingerSessions(const QObject *owner,
+                                       const QSet<SingerIdentifier> &identifiers) {
     // Publish the selection only. retainOnly() takes the same cache mutex that
     // a background acquire() holds across the whole model factory, so calling
     // it here would stall the GUI behind package loading and model creation.
-    publishSingerSelection(identifiers);
+    if (identifiers.isEmpty())
+        m_documentSingers.remove(owner);
+    else
+        m_documentSingers.insert(owner, identifiers);
+    QSet<SingerIdentifier> selected;
+    for (const auto &singers : std::as_const(m_documentSingers))
+        selected.unite(singers);
+    publishSingerSelection(selected);
     scheduleSessionMaintenance();
 }
 

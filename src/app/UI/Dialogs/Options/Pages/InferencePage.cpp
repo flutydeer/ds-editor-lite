@@ -193,7 +193,7 @@ void InferencePage::confirmCleanCache() {
 
     auto *dlg =
         new MessageDialog(tr("Clean Up Cache"),
-                          tr("This will delete %L1 cache file(s) not used by the current project. "
+                          tr("This will delete %L1 cache file(s) not used by open projects. "
                              "Files used by undo history and current playback will be kept.")
                               .arg(deletableCount),
                           this);

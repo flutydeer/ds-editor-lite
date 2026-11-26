@@ -23,11 +23,13 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
+#include "Modules/Import/DocumentImportController.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
@@ -64,13 +66,13 @@ struct AudioSystemContext {
         AudioSystem::midiSystem()->initialize();
         // Managed by Qt Object System. No need for manual memory management.
         new DeviceTester(&audioSystem);
-        new AudioContext(&audioSystem);
     }
 
     AudioSystem audioSystem;
 };
 
 struct AppContext::GuiContext {
+    Toast *toast = nullptr;
     LevelMeterManager *levelMeterInstance = nullptr;
     ClipboardController *clipboardInstance = nullptr;
     TrackController *trackInstance = nullptr;
@@ -82,13 +84,24 @@ struct AppContext::GuiContext {
     ProjectStatusController *projectStatusInstance = nullptr;
     AppController *appInstance = nullptr;
     DocumentWorkflowController *documentWorkflowInstance = nullptr;
+    DocumentImportController *importInstance = nullptr;
 };
 
 AppContext *AppContext::s_self = nullptr;
 
 AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode hostMode)
-    : m_hostMode(hostMode) {
-    s_self = this;
+    : AppContext(std::move(options), hostMode, nullptr) {}
+
+AppContext::AppContext(AppContext &process)
+    : AppContext(nullptr, process.hostMode(), &process) {}
+
+AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode, AppContext *process)
+    : m_services(process ? SingletonRegistry::createContext() : SingletonRegistry::current()),
+      m_process(process), m_hostMode(hostMode) {
+    const SingletonRegistry::Scope scope(m_services);
+    SingletonRegistry::add(this);
+    if (!process)
+        s_self = this;
 
     // SingletonRegistry::create constructs each service (bypassing its private ctor via
     // the SingletonRegistry friendship) and registers it immediately, so that a later
@@ -98,17 +111,19 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
     // via SingletonRegistry::destroy in the destructor.
 
     // L0: Basic data models (no dependencies)
-    m_appStatus = SingletonRegistry::create<AppStatus>();
+    m_appStatus = ObjectContext::create<AppStatus>();
     // AppOptions is constructed by main() and handed in; just register it.
-    m_appOptions = options.release();
+    m_appOptions = process ? process->m_appOptions : options.release();
     SingletonRegistry::add(m_appOptions);
-    m_appModel = SingletonRegistry::create<AppModel>();
-    m_paramUtils = SingletonRegistry::create<ParamUtils>();
+    m_appModel = ObjectContext::create<AppModel>();
+    InferCacheUtils::observeModel(m_appModel);
+    m_paramUtils = ObjectContext::create<ParamUtils>();
 
     // L1: Independent modules
     TaskManager::instance(); // force early construction on the main thread
-    m_historyManager = SingletonRegistry::create<HistoryManager>();
-    m_packageManager = SingletonRegistry::create<PackageManager>();
+    m_historyManager = ObjectContext::create<HistoryManager>();
+    m_packageManager = process ? process->m_packageManager : ObjectContext::create<PackageManager>();
+    SingletonRegistry::add(m_packageManager);
     Automation::DocumentRuntimeServices documentServices;
     documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
         status->loopSettings.set(settings);
@@ -395,47 +410,70 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
         Automation::createParameterAutomationServices());
 
     // L3: Runtime host must outlive the inference facade.
-    m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
-    m_inferEngine = SingletonRegistry::create<InferEngine>();
-    m_inferEngine->startInitialization();
+    SingletonRegistry::add(m_coreRuntime.get());
+    ObjectContext::bind(m_coreRuntime.get());
+    if (process) {
+        m_synthrtEngine = process->m_synthrtEngine;
+        m_inferEngine = process->m_inferEngine;
+        SingletonRegistry::add(m_synthrtEngine);
+        SingletonRegistry::add(m_inferEngine);
+        const auto syncStatus = [this, source = process->m_appStatus] {
+            const SingletonRegistry::Scope scope(m_services);
+            m_appStatus->packageModuleStatus = source->packageModuleStatus.get();
+            m_appStatus->languageModuleStatus = source->languageModuleStatus.get();
+            m_appStatus->languageModuleError = source->languageModuleError.get();
+            m_appStatus->inferEngineEnvStatus = source->inferEngineEnvStatus.get();
+        };
+        QObject::connect(process->m_appStatus, &AppStatus::moduleStatusChanged, m_appStatus,
+                         syncStatus);
+        syncStatus();
+    } else {
+        m_synthrtEngine = ObjectContext::create<SynthrtEngine>();
+        m_inferEngine = ObjectContext::create<InferEngine>();
+        m_inferEngine->startInitialization();
+    }
 
     // L4: Core controllers (no construction-time cross-deps)
-    m_audioDecodingController = SingletonRegistry::create<AudioDecodingController>();
-    m_editSessionManager = SingletonRegistry::create<EditSessionManager>();
+    m_audioDecodingController = ObjectContext::create<AudioDecodingController>();
+    m_editSessionManager = ObjectContext::create<EditSessionManager>();
 
     // L5: Core controllers with construction-time deps
-    m_playbackController = SingletonRegistry::create<PlaybackController>();
+    m_playbackController = ObjectContext::create<PlaybackController>();
     m_playbackController->setLoopPreviewHandler(
         [status = m_appStatus](const LoopSettings &settings) {
             status->loopSettings.set(settings);
         });
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
-    m_projectPackageResolver = SingletonRegistry::create<ProjectPackageResolver>();
+    m_projectPackageResolver = ObjectContext::create<ProjectPackageResolver>();
 
     // L6: InferController connects to AppOptions, AppStatus, EditSessionManager, PlaybackController
-    m_inferController = SingletonRegistry::create<InferController>();
+    m_inferController = ObjectContext::create<InferController>();
 
     // Audio system (replaces old AudioSystemContext)
-    m_audio = std::make_unique<AudioSystemContext>();
+    if (!process)
+        m_audio = std::make_unique<AudioSystemContext>();
+    m_projectAudio = std::make_unique<AudioContext>(nullptr, !process || m_hostMode == AppHostMode::Gui);
 
     initializeCommonWiring();
 
     if (m_hostMode == AppHostMode::Gui) {
         m_guiContext = std::make_unique<GuiContext>();
+        m_guiContext->toast = ObjectContext::create<Toast>();
 
         // GUI composition is deliberately created only after every core service is available.
-        m_guiContext->levelMeterInstance = SingletonRegistry::create<LevelMeterManager>(m_appModel);
-        m_guiContext->clipboardInstance = SingletonRegistry::create<ClipboardController>();
-        m_guiContext->trackInstance = SingletonRegistry::create<TrackController>();
-        m_guiContext->clipInstance = SingletonRegistry::create<ClipController>();
-        m_guiContext->editorViewInstance = SingletonRegistry::create<EditorViewController>();
-        m_guiContext->undoRedoInstance = SingletonRegistry::create<UndoRedoController>();
-        m_guiContext->pitchExtractInstance = SingletonRegistry::create<PitchExtractController>();
-        m_guiContext->midiExtractInstance = SingletonRegistry::create<MidiExtractController>();
-        m_guiContext->projectStatusInstance = SingletonRegistry::create<ProjectStatusController>();
-        m_guiContext->appInstance = SingletonRegistry::create<AppController>();
+        m_guiContext->levelMeterInstance = ObjectContext::create<LevelMeterManager>(m_appModel);
+        m_guiContext->clipboardInstance = ObjectContext::create<ClipboardController>();
+        m_guiContext->trackInstance = ObjectContext::create<TrackController>();
+        m_guiContext->clipInstance = ObjectContext::create<ClipController>();
+        m_guiContext->editorViewInstance = ObjectContext::create<EditorViewController>();
+        m_guiContext->undoRedoInstance = ObjectContext::create<UndoRedoController>();
+        m_guiContext->pitchExtractInstance = ObjectContext::create<PitchExtractController>();
+        m_guiContext->midiExtractInstance = ObjectContext::create<MidiExtractController>();
+        m_guiContext->projectStatusInstance = ObjectContext::create<ProjectStatusController>();
+        m_guiContext->appInstance = ObjectContext::create<AppController>(!process);
         m_guiContext->documentWorkflowInstance =
-            SingletonRegistry::create<DocumentWorkflowController>();
+            ObjectContext::create<DocumentWorkflowController>();
+        m_guiContext->importInstance = ObjectContext::create<DocumentImportController>();
         m_audioDecodingController->setGuiServices(
             m_guiContext->documentWorkflowInstance,
             [](const QString &message) { Toast::show(message); });
@@ -484,7 +522,8 @@ void AppContext::initializeCommonWiring() {
     m_appModel->setPaletteColorCount(AppGlobal::paletteColorCount);
 
     // Map the package library lifecycle onto AppStatus without involving GUI composition.
-    QObject::connect(m_packageManager, &PackageManager::moduleStatusChanged, m_appStatus,
+    if (!m_process)
+        QObject::connect(m_packageManager, &PackageManager::moduleStatusChanged, m_appStatus,
                      [status = m_appStatus](const PackageManager::ModuleStatus moduleStatus) {
                          status->packageModuleStatus = [moduleStatus] {
                              switch (moduleStatus) {
@@ -529,16 +568,23 @@ bool AppContext::shutdownCommitted() const {
 }
 
 AppContext::~AppContext() {
+    const SingletonRegistry::Scope scope(m_services);
     // Fallback for an exit that never went through a host commit entry: a bootstrap
     // failure unwinds before any termination request, and a host exit that skipped
     // the composition-root callback still has to be bounded. The call is a no-op
     // after a formal commit and it runs before the first blocking teardown step.
-    commitShutdown();
+    if (!m_process)
+        commitShutdown();
+    else
+        m_coreRuntime->commitShutdown();
     auto &shutdownMonitor = ShutdownMonitor::instance();
-    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardown);
+    if (!m_process)
+        shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardown);
     // Reverse order of construction. GUI services are absent in the QCore host.
     if (m_guiContext) {
         m_audioDecodingController->setGuiServices(nullptr);
+        SingletonRegistry::destroy(m_guiContext->importInstance);
+        SingletonRegistry::destroy(m_guiContext->toast);
         SingletonRegistry::destroy(m_guiContext->documentWorkflowInstance);
 
         // GUI controllers outlive MainWindow teardown and are released before core services.
@@ -556,15 +602,17 @@ AppContext::~AppContext() {
         }
     };
     const auto taskThread = TaskManager::instance()->thread();
-    if (taskThread == QThread::currentThread() || !taskThread->isRunning()) {
+    if (!m_process && (taskThread == QThread::currentThread() || !taskThread->isRunning())) {
         drainTasks();
-    } else {
+    } else if (!m_process) {
         QMetaObject::invokeMethod(TaskManager::instance(), drainTasks,
                                   Qt::BlockingQueuedConnection);
     }
-    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTasksDrained);
+    if (!m_process)
+        shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTasksDrained);
 
     // Audio system
+    m_projectAudio.reset();
     m_audio.reset();
 
     // L6
@@ -593,8 +641,10 @@ AppContext::~AppContext() {
     m_coreRuntime.reset();
 
     // L3
-    SingletonRegistry::destroy(m_inferEngine);
-    SingletonRegistry::destroy(m_synthrtEngine);
+    if (!m_process) {
+        SingletonRegistry::destroy(m_inferEngine);
+        SingletonRegistry::destroy(m_synthrtEngine);
+    }
 
     // Level meter manager (depends on AppModel, must die before L0)
     if (m_guiContext)
@@ -602,149 +652,20 @@ AppContext::~AppContext() {
     m_guiContext.reset();
 
     // L1 (reverse)
-    SingletonRegistry::destroy(m_packageManager);
+    if (!m_process)
+        SingletonRegistry::destroy(m_packageManager);
     SingletonRegistry::destroy(m_historyManager);
 
     // L0 (reverse)
     SingletonRegistry::destroy(m_paramUtils);
     SingletonRegistry::destroy(m_appModel);
-    SingletonRegistry::destroy(m_appOptions);
+    if (!m_process)
+        SingletonRegistry::destroy(m_appOptions);
     SingletonRegistry::destroy(m_appStatus);
 
-    shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardownDone);
+    if (!m_process) {
+        shutdownMonitor.setStage(ShutdownMonitor::Stage::ContextTeardownDone);
+        s_self = nullptr;
+    }
     SingletonRegistry::clear();
-    s_self = nullptr;
-}
-
-// instance<T>() specializations — one per business singleton
-// Returns nullptr when s_self is not set (e.g. in tests); callers fall back to Meyers static.
-template <>
-AppStatus *AppContext::instance() {
-    return s_self ? s_self->m_appStatus : nullptr;
-}
-
-template <>
-AppOptions *AppContext::instance() {
-    return s_self ? s_self->m_appOptions : nullptr;
-}
-
-template <>
-AppModel *AppContext::instance() {
-    return s_self ? s_self->m_appModel : nullptr;
-}
-
-template <>
-ParamUtils *AppContext::instance() {
-    return s_self ? s_self->m_paramUtils : nullptr;
-}
-
-template <>
-HistoryManager *AppContext::instance() {
-    return s_self ? s_self->m_historyManager : nullptr;
-}
-
-template <>
-PackageManager *AppContext::instance() {
-    return s_self ? s_self->m_packageManager : nullptr;
-}
-
-template <>
-LangSetting::ILangSetManager *AppContext::instance() {
-    return s_self ? s_self->m_iLangSetManager : nullptr;
-}
-
-template <>
-SynthrtEngine *AppContext::instance() {
-    return s_self ? s_self->m_synthrtEngine : nullptr;
-}
-
-template <>
-InferEngine *AppContext::instance() {
-    return s_self ? s_self->m_inferEngine : nullptr;
-}
-
-template <>
-AudioDecodingController *AppContext::instance() {
-    return s_self ? s_self->m_audioDecodingController : nullptr;
-}
-
-template <>
-ClipboardController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->clipboardInstance : nullptr;
-}
-
-template <>
-TrackController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->trackInstance : nullptr;
-}
-
-template <>
-ClipController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->clipInstance : nullptr;
-}
-
-template <>
-EditorViewController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->editorViewInstance : nullptr;
-}
-
-template <>
-UndoRedoController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->undoRedoInstance : nullptr;
-}
-
-template <>
-PitchExtractController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->pitchExtractInstance : nullptr;
-}
-
-template <>
-MidiExtractController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->midiExtractInstance : nullptr;
-}
-
-template <>
-EditSessionManager *AppContext::instance() {
-    return s_self ? s_self->m_editSessionManager : nullptr;
-}
-
-template <>
-PlaybackController *AppContext::instance() {
-    return s_self ? s_self->m_playbackController : nullptr;
-}
-
-template <>
-ProjectStatusController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->projectStatusInstance : nullptr;
-}
-
-template <>
-ProjectPackageResolver *AppContext::instance() {
-    return s_self ? s_self->m_projectPackageResolver : nullptr;
-}
-
-template <>
-InferController *AppContext::instance() {
-    return s_self ? s_self->m_inferController : nullptr;
-}
-
-template <>
-AppController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->appInstance : nullptr;
-}
-
-template <>
-DocumentWorkflowController *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->documentWorkflowInstance
-                                          : nullptr;
-}
-
-template <>
-LevelMeterManager *AppContext::instance() {
-    return s_self && s_self->m_guiContext ? s_self->m_guiContext->levelMeterInstance : nullptr;
-}
-
-template <>
-Automation::CoreRuntime *AppContext::instance() {
-    return s_self ? s_self->m_coreRuntime.get() : nullptr;
 }

@@ -137,7 +137,6 @@ namespace Audio {
         static void addPreset(const QString &name, const AudioExporterConfig &config);
         static bool removePreset(const QString &name);
 
-        static void registerListener(AudioExporterListener *listener);
 
         void setConfig(const AudioExporterConfig &config);
         AudioExporterConfig config() const;

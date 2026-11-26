@@ -572,12 +572,6 @@ namespace Audio {
         return static_cast<bool>(result);
     }
 
-    static QList<AudioExporterListener *> m_listeners;
-
-    void AudioExporter::registerListener(AudioExporterListener *listener) {
-        m_listeners.append(listener);
-    }
-
     void AudioExporter::setConfig(const AudioExporterConfig &config) {
         Q_D(AudioExporter);
         d->config = config;
@@ -826,20 +820,16 @@ namespace Audio {
             }
 
             // call listeners
-            QList<AudioExporterListener *> listenerToCallFinishList;
+            auto *listener = dynamic_cast<AudioExporterListener *>(projectContext);
             auto callFinish = [&](void *) {
-                for (const auto listener : listenerToCallFinishList) {
+                if (listener)
                     listener->willFinishCallback(this);
-                }
             };
             std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
             // Restore the original mixer state before notifying listeners.
             std::unique_ptr<void, decltype(restoreMixer)> _4 = std::move(_2);
-            for (const auto listener : m_listeners) {
-                if (!listener->willStartCallback(this))
-                    return R_Fail;
-                listenerToCallFinishList.prepend(listener);
-            }
+            if (listener && !listener->willStartCallback(this))
+                return R_Fail;
 
             // start exporting
             connect(

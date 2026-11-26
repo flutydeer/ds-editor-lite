@@ -1,4 +1,5 @@
 #include "TimelineView.h"
+#include <lite/Support/ObjectContext.h>
 
 #include <QPainter>
 #include <numbers>
@@ -57,10 +58,11 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
-    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
-        if (option == AppOptionsGlobal::DeveloperOptions)
-            update();
-    });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::DeveloperOptions)
+                                   update();
+                           });
 }
 
 void TimelineView::setCanEditLoop(bool canEdit) {

@@ -19,6 +19,7 @@
 
 
 class TrackInferenceHandler;
+class AppModel;
 
 namespace talcs {
     class DspxAudioClipContext;
@@ -35,7 +36,7 @@ public:
         Failed,
     };
 
-    explicit AudioContext(QObject *parent = nullptr);
+    explicit AudioContext(QObject *parent = nullptr, bool attachToOutput = true);
     ~AudioContext() override;
 
     static AudioContext *instance();
@@ -70,6 +71,13 @@ signals:
     void exporterCausedTimeChanged();
 
 private:
+    AppModel *m_model;
+    bool m_attachedToOutput;
+    bool m_switchingDevice = false;
+    std::optional<double> m_resumePosition;
+    AudioExporter *m_exporter = nullptr;
+    qint64 tickToSample(double tick) const;
+    double sampleToTick(qint64 sample) const;
     enum PlayheadBehavior {
         ReturnToStart,
         KeepAtCurrent,

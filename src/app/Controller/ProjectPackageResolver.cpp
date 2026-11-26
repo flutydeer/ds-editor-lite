@@ -13,8 +13,8 @@
 
 ProjectPackageResolver::ProjectPackageResolver(QObject *parent) : QObject(parent) {
     connect(appModel, &AppModel::modelChanged, this, &ProjectPackageResolver::scheduleResolve);
-    connect(packageManager, &PackageManager::packagesRefreshed, this,
-            [this](const QList<PackageInfo> &) { scheduleResolve(); });
+    ObjectContext::connect(packageManager, &PackageManager::packagesRefreshed, this,
+                           [this](const QList<PackageInfo> &) { scheduleResolve(); });
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
             [this](const AppStatus::ModuleType module, const AppStatus::ModuleStatus status) {
                 if (module == AppStatus::ModuleType::Package &&

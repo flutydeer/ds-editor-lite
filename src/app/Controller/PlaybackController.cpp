@@ -19,6 +19,7 @@
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
+    ObjectContext::bind(&d->m_visualPositionTimer);
     d->m_visualPositionTimer.setTimerType(Qt::PreciseTimer);
     connect(&d->m_visualPositionTimer, &QChronoTimer::timeout, this,
             &PlaybackController::requestVisualPositionUpdate);

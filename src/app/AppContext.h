@@ -2,6 +2,7 @@
 #define APPCONTEXT_H
 
 #include "Bootstrap/AppHostMode.h"
+#include <lite/Support/ObjectContext.h>
 
 #include <memory>
 
@@ -35,6 +36,7 @@ class InferController;
 class AppController;
 class DocumentWorkflowController;
 class LevelMeterManager;
+class AudioContext;
 
 namespace Automation {
     class CoreRuntime;
@@ -48,13 +50,15 @@ public:
     AppContext &operator=(const AppContext &) = delete;
 
     template <typename T>
-    static T *instance(); // Returns nullptr if AppContext is not constructed
+    static T *instance() { return SingletonRegistry::instance<T>(); }
 
     // Public so main() can construct, but conceptually private to the app entry point.
     // Making it a friend of main() is not possible (main is a C runtime symbol).
     explicit AppContext(std::unique_ptr<AppOptions> options,
                         AppHostMode hostMode = AppHostMode::Gui);
+    explicit AppContext(AppContext &process);
     ~AppContext();
+    const SingletonRegistry::Context &services() const { return m_services; }
 
     [[nodiscard]] AppHostMode hostMode() const;
     [[nodiscard]] bool hasGui() const;
@@ -103,6 +107,10 @@ public:
 
 private:
     struct GuiContext;
+    AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode, AppContext *process);
+    SingletonRegistry::Context m_services;
+    AppContext *m_process;
+    std::unique_ptr<AudioContext> m_projectAudio;
 
     void initializeCommonWiring();
     // Resets the document-scoped state of the host (playback, editor selection and

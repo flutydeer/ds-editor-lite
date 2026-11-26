@@ -1,4 +1,5 @@
 #include "TracksRhiWidget.h"
+#include <lite/Support/ObjectContext.h>
 
 #include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "SingingClipPreviewLayout.h"
@@ -211,13 +212,13 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::DeveloperOptions ||
-                    option == AppOptionsGlobal::All) {
-                    scheduleSnapshot();
-                }
-            });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](const AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::DeveloperOptions ||
+                                   option == AppOptionsGlobal::All) {
+                                   scheduleSnapshot();
+                               }
+                           });
     rebuildModelConnections();
     m_hintTicker.setInterval(16);
     connect(&m_hintTicker, &QTimer::timeout, this, &TracksRhiWidget::scheduleSnapshot);

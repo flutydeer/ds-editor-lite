@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Support/Log.h>
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -19,9 +20,8 @@ namespace InferCacheUtils {
             QStringLiteral("^infer-(acoustic|duration|pitch|variance)-(input|output)-"
                            "[0-9a-f]{40}\\.(json|wav)$"));
 
-        // 进程级登记集合：主线程专用（任务完成回调 + 清理确认时收集），无需锁
-        QSet<QString> &registeredFiles() {
-            static QSet<QString> files;
+        QHash<AppModel *, QSet<QString>> &registrations() {
+            static QHash<AppModel *, QSet<QString>> files;
             return files;
         }
 
@@ -30,6 +30,14 @@ namespace InferCacheUtils {
         }
 
     } // namespace
+
+    void observeModel(AppModel *model) {
+        if (registrations().contains(model))
+            return;
+        registrations().insert(model, {});
+        QObject::connect(model, &QObject::destroyed, QCoreApplication::instance(),
+                         [model] { registrations().remove(model); });
+    }
 
     CacheStats scanCache(const QString &cacheDir) {
         CacheStats stats;
@@ -56,20 +64,24 @@ namespace InferCacheUtils {
     void registerCacheFile(const QString &absolutePath) {
         if (absolutePath.isEmpty())
             return;
-        registeredFiles().insert(normalizePath(absolutePath));
+        observeModel(appModel);
+        registrations()[appModel].insert(normalizePath(absolutePath));
     }
 
     QSet<QString> registeredCacheFiles() {
-        return registeredFiles();
+        QSet<QString> files;
+        for (const auto &entries : std::as_const(registrations()))
+            files.unite(entries);
+        return files;
     }
 
     void clearRegisteredCacheFiles() {
-        registeredFiles().clear();
+        observeModel(appModel);
+        registrations()[appModel].clear();
     }
 
-    QSet<QString> collectActiveCacheFiles() {
-        QSet<QString> active = registeredCacheFiles();
-        for (const auto *track : appModel->tracks()) {
+    static void collectModelFiles(QSet<QString> &active, const AppModel &model) {
+        for (const auto *track : model.tracks()) {
             for (const auto *clip : track->clips()) {
                 const auto *singingClip = dynamic_cast<const SingingClip *>(clip);
                 if (!singingClip)
@@ -96,6 +108,13 @@ namespace InferCacheUtils {
                 }
             }
         }
+    }
+
+    QSet<QString> collectActiveCacheFiles() {
+        observeModel(appModel);
+        auto active = registeredCacheFiles();
+        for (const auto *model : registrations().keys())
+            collectModelFiles(active, *model);
         return active;
     }
 

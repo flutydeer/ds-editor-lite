@@ -1,4 +1,5 @@
 #include "InferPipeline.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "States/InferDurationState.h"
 #include "States/UpdateDurationState.h"
@@ -27,7 +28,8 @@ InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
     initStates();
     initTransitions();
 
-    connect(appOptions, &AppOptions::optionsChanged, this, &InferPipeline::onAppOptionsChanged);
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           &InferPipeline::onAppOptionsChanged);
 }
 
 InferPipeline::~InferPipeline() {

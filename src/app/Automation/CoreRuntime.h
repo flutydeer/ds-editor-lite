@@ -27,7 +27,7 @@ class HistoryManager;
 
 namespace Automation {
 
-    class CoreRuntime final {
+    class CoreRuntime final : public QObject {
     public:
         CoreRuntime(AppModel *model, HistoryManager *historyManager,
                     DocumentRuntimeServices documentServices = {},

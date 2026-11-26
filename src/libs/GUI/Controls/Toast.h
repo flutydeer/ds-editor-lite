@@ -63,7 +63,7 @@ private:
 
     bool m_isShowingToast = false;
     const int animationDurationBase = 300;
-    static QPointer<QWidget> m_globalContext;
+    QPointer<QWidget> m_globalContext;
     QPointer<ToastWidget> m_toastWidget;
     Queue<QString> m_queue;
     QTimer m_keepOnScreenTimer;

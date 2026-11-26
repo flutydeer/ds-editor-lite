@@ -1,4 +1,5 @@
 #include "GhostNoteSource.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
@@ -30,11 +31,12 @@ QRectF GhostNoteStyle::barRect(const double left, const double right, const doub
 }
 
 GhostNoteSource::GhostNoteSource(QObject *parent) : QObject(parent) {
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::Appearance || option == AppOptionsGlobal::All)
-                    scheduleRebuild();
-            });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](const AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::Appearance ||
+                                   option == AppOptionsGlobal::All)
+                                   scheduleRebuild();
+                           });
     connect(appModel, &AppModel::modelChanged, this, &GhostNoteSource::scheduleRebuild);
     connect(appModel, &AppModel::trackChanged, this, &GhostNoteSource::scheduleRebuild);
 }
