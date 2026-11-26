@@ -1,4 +1,12 @@
 #include "tst_native_desktop.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <QJsonDocument>
+#include <QMimeData>
+#include <QClipboard>
+#include "Global/ControllerGlobal.h"
+#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/TrackController.h"
 #include "Bootstrap/WindowPlacement.h"
 #include "../TestSupport/GuiAppFixture.h"
 
@@ -313,4 +321,58 @@ void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
              TerminationRequestResult::Accepted);
     QCOMPARE(appOptions->window()->mainWindowGeometry(), expected);
     QCOMPARE(appOptions->window()->detachedPanelGeometry(), detached);
+}
+
+void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
+    GuiDocumentFixture fixture;
+    QVERIFY(fixture.initialize(false));
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    auto &b = windows.createWindow();
+    QTRY_VERIFY(b.window->isVisible());
+    auto &first = *a.context->m_coreRuntime;
+    auto &second = *b.context->m_coreRuntime;
+    QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
+    auto *sourceTrack = a.context->m_appModel->tracks().first();
+    auto *targetTrack = b.context->m_appModel->tracks().first();
+    auto *clip = sourceTrack->clips().toList().first();
+    const SingerIdentifier sourceVoice{"lead", "source", QVersionNumber(1, 0)};
+    sourceTrack->setSingerAndSpeakerInfo(SingerInfo(sourceVoice), {});
+    const auto sourceCount = sourceTrack->clips().count();
+    const auto targetCount = targetTrack->clips().count();
+    TrackController::setSelectedClips({clip->id()});
+    TrackController::copySelectedClips();
+    const auto bytes = QApplication::clipboard()->mimeData()->data(
+        ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+    QVERIFY(!bytes.isEmpty());
+    const auto versionA = first.documentVersion();
+    {
+        const SingletonRegistry::Scope scope(b.context->services());
+        DecodedClipsPayload copy(QJsonDocument::fromJson(bytes).object());
+        TrackController::pasteClips(copy.info(), 1920, 0);
+        QCOMPARE(targetTrack->clips().count(), targetCount + 1);
+        auto *pasted = qobject_cast<SingingClip *>(targetTrack->clips().toList().last());
+        QVERIFY(pasted);
+        QCOMPARE(pasted->start(), 1920);
+        QCOMPARE(pasted->singerIdentifier(), sourceVoice);
+        QVERIFY(!pasted->usesTrackVoiceContext());
+        QVERIFY(second.history().undo({.expected = second.documentVersion()}));
+        QCOMPARE(targetTrack->clips().count(), targetCount);
+    }
+    QCOMPARE(sourceTrack->clips().count(), sourceCount);
+    QCOMPARE(first.documentVersion(), versionA);
+    QVERIFY(first.playback().play({.expected = first.documentVersion()}));
+    QCOMPARE(a.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+    {
+        const SingletonRegistry::Scope scope(b.context->services());
+        QVERIFY(second.playback().play({.expected = second.documentVersion()}));
+        windows.activate(b);
+        QTRY_COMPARE(QApplication::activeWindow(), b.window.get());
+        QCOMPARE(b.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+        QTest::keyClick(b.window.get(), Qt::Key_Space);
+        QTRY_COMPARE(b.context->m_playbackController->playbackStatus(), PlaybackGlobal::Paused);
+        QVERIFY(second.playback().seek({.expected = second.documentVersion()}, 2400));
+    }
+    QCOMPARE(a.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+    QVERIFY(first.playback().stop({.expected = first.documentVersion()}));
 }

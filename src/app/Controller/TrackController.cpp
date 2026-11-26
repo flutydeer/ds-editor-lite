@@ -492,6 +492,8 @@ void TrackController::copySelectedClips() {
         return;
 
     ClipsInfo info;
+    if (auto *runtime = automationRuntime())
+        info.sourceDocument = runtime->documentVersion().documentId;
     info.clips = clips;
     info.trackIndexOffsets = trackIndexOffsets;
 
@@ -512,7 +514,8 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
     if (!runtime)
         return;
 
-    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex);
+    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex,
+                                           runtime->documentVersion().documentId);
     if (inserts.isEmpty())
         return;
     runtime->project().insertClips(commandContext(*runtime), inserts);

@@ -19,12 +19,14 @@ public:
     // target track's language, including a route that resolved to no language.
     QList<QString> sourceFallbackLanguages;
     QList<bool> sourceFallbackKnown;
+    Automation::DocumentId sourceDocument;
 
     static QJsonObject serializeToJson(const ClipsInfo &info);
     static ClipsInfo deserializeFromJson(const QJsonObject &obj);
 
-    [[nodiscard]] QList<Automation::ClipInsertDto> preparePaste(const QList<Track *> &tracks,
-                                                                int tick, int trackIndex) const;
+    [[nodiscard]] QList<Automation::ClipInsertDto>
+        preparePaste(const QList<Track *> &tracks, int tick, int trackIndex,
+                     Automation::DocumentId targetDocument = {}) const;
 };
 
 #endif // CLIPSINFO_H

@@ -44,6 +44,7 @@ namespace {
     }
 
     std::optional<Automation::CurveDraftDto> deserializeCurve(const ParamInfo::Name name,
+                                                              const Param::Type layer,
                                                               const QJsonObject &object) {
         Automation::CurveDraftDto result;
         const auto type = object.value(QStringLiteral("type")).toString();
@@ -82,7 +83,7 @@ namespace {
         } else {
             return std::nullopt;
         }
-        if (!Automation::validCurveDraft(name, result, 0, std::numeric_limits<int>::max()))
+        if (!Automation::validWholeClipCurve(name, layer, result))
             return std::nullopt;
         return result;
     }
@@ -127,7 +128,7 @@ namespace ClipboardDataModel {
             bool valid = true;
             for (const auto curveValue :
                  parameterObject.value(QStringLiteral("curves")).toArray()) {
-                auto curve = deserializeCurve(parameter.name, curveValue.toObject());
+                auto curve = deserializeCurve(parameter.name, parameter.type, curveValue.toObject());
                 if (!curve) {
                     valid = false;
                     break;

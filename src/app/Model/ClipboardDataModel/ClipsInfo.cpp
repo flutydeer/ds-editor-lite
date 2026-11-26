@@ -235,10 +235,9 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             obj["sourceFallbackLanguage"] =
                 sourceSupport.isKnown() ? singingClip->fallbackLanguage() : QString();
             obj["sourceFallbackRecorded"] = sourceSupport.isKnown();
-            obj["singer"] = serializeSingerInfo(singingClip->ownSingerInfo());
-            obj["speaker"] = serializeSpeakerInfo(singingClip->ownSpeakerInfo());
-            if (!useTrackInfo)
-                obj["speakerMix"] = serializeSpeakerMixData(singingClip->ownSpeakerMixData());
+            obj["singer"] = serializeSingerInfo(singingClip->singerInfo());
+            obj["speaker"] = serializeSpeakerInfo(singingClip->speakerInfo());
+            obj["speakerMix"] = serializeSpeakerMixData(singingClip->speakerMixData());
 
             QJsonArray notesArr;
             const auto notes = singingClip->notes().toList();
@@ -272,6 +271,8 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
         offsetsArr.append(offset);
 
     QJsonObject root;
+    if (!info.sourceDocument.isNull())
+        root["sourceDocument"] = info.sourceDocument.toString();
     root["clips"] = clipList;
     root["trackIndexOffsets"] = offsetsArr;
     return root;
@@ -279,6 +280,7 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
 
 ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
     ClipsInfo info;
+    info.sourceDocument = Automation::DocumentId::fromString(root["sourceDocument"].toString());
 
     const auto clipList = root["clips"].toArray();
     for (const auto &val : clipList) {
@@ -306,14 +308,14 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
                 param->setCurves(parameter.type, curves, singingClip);
             }
             const bool useTrackInfo = obj["useTrackSingerInfo"].toBool(true);
-            if (!useTrackInfo) {
-                const auto singerInfo = deserializeSingerInfo(obj["singer"].toObject());
-                const auto speakerInfo = resolveSpeakerInfo(
-                    singerInfo, deserializeSpeakerInfo(obj["speaker"].toObject()));
-                singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
-                singingClip->setOwnSpeakerMixData(
-                    deserializeSpeakerMixData(obj["speakerMix"].toObject(), singerInfo));
-            }
+            const auto singer = deserializeSingerInfo(obj["singer"].toObject());
+            const auto speaker =
+                resolveSpeakerInfo(singer, deserializeSpeakerInfo(obj["speaker"].toObject()));
+            const auto mix = deserializeSpeakerMixData(obj["speakerMix"].toObject(), singer);
+            if (useTrackInfo)
+                singingClip->setTrackVoiceContext(singer, speaker, mix);
+            else
+                singingClip->setOwnVoiceContext(singer, speaker, mix);
             clip = singingClip;
 
         } else if (type == "audio") {
@@ -344,8 +346,9 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
     return info;
 }
 
-QList<Automation::ClipInsertDto> ClipsInfo::preparePaste(const QList<Track *> &tracks, int tick,
-                                                         int trackIndex) const {
+QList<Automation::ClipInsertDto>
+    ClipsInfo::preparePaste(const QList<Track *> &tracks, int tick, int trackIndex,
+                            Automation::DocumentId targetDocument) const {
     if (clips.isEmpty() || trackIndex < 0 || trackIndex >= tracks.size())
         return {};
 
@@ -362,6 +365,15 @@ QList<Automation::ClipInsertDto> ClipsInfo::preparePaste(const QList<Track *> &t
         const auto targetIndex = static_cast<int>(qBound<qint64>(
             0, static_cast<qint64>(trackIndex) + trackIndexOffsets.value(i, 0), tracks.size() - 1));
         auto draft = Automation::clipDraftDto(*clip);
+        if (draft.usesTrackVoiceContext && clip->clipType() == IClip::Singing &&
+            !sourceDocument.isNull() && !targetDocument.isNull() &&
+            sourceDocument != targetDocument) {
+            const auto *singing = static_cast<const SingingClip *>(clip);
+            draft.usesTrackVoiceContext = false;
+            draft.ownSingerInfo = singing->singerInfo();
+            draft.ownSpeakerInfo = singing->speakerInfo();
+            draft.ownSpeakerMixData = singing->speakerMixData();
+        }
         // The detached clipboard clip has no voice context, so the derived value
         // is not a source state. Only a payload that recorded the route may
         // drive the cascade, otherwise an older payload would look like a clip
