@@ -10,16 +10,24 @@ namespace WindowDialogs {
         return false;
     }
 
-    bool blocks(const QWidget *window) {
-        if (!window || !window->isEnabled())
-            return true;
+    QWidget *blockingDialog(const QWidget *window) {
+        auto *active = QApplication::activeModalWidget();
+        QWidget *blocker = nullptr;
         for (auto *dialog : QApplication::topLevelWidgets()) {
             if (!dialog->isVisible() || !dialog->isModal() || owns(dialog, window))
                 continue;
-            if (dialog->windowModality() == Qt::ApplicationModal || owns(window, dialog))
-                return true;
+            if (dialog->windowModality() != Qt::ApplicationModal && !owns(window, dialog))
+                continue;
+            if (owns(dialog, active))
+                return active;
+            if (!blocker || owns(blocker, dialog))
+                blocker = dialog;
         }
-        return false;
+        return blocker;
+    }
+
+    bool blocks(const QWidget *window) {
+        return !window || !window->isEnabled() || blockingDialog(window);
     }
 
     static QStringList choose(QWidget *parent, const QString &caption, const QString &dir,

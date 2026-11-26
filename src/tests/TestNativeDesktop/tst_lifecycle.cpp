@@ -347,15 +347,24 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QVERIFY(rename(b, "Edited B"));
     QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
     QTRY_VERIFY(a.window->detachedPanelWindow()->isVisible());
+    a.window->setWorkflowWindow(a.window->detachedPanelWindow());
     bool projectScope = false;
+    bool returnedToPrompt = false;
     QTimer::singleShot(0, this, [&] {
+        auto *prompt = QApplication::activeModalWidget();
         projectScope = WindowDialogs::blocks(a.window.get()) &&
                        WindowDialogs::blocks(a.window->detachedPanelWindow()) &&
                        !WindowDialogs::blocks(b.window.get());
+        windows.activate(b);
+        const bool editingB = QTest::qWaitFor([&] { return b.window->isActiveWindow(); }, 2000);
+        windows.activate(a);
+        returnedToPrompt = editingB && prompt &&
+                           QTest::qWaitFor([&] { return prompt->isActiveWindow(); }, 2000);
         answerSavePrompt(MainWindow::tr("Cancel"));
     });
     QVERIFY(!windows.close(a, TerminationSavePolicy::Prompt));
     QVERIFY(projectScope);
+    QVERIFY(returnedToPrompt);
     QVERIFY(a.window->detachedPanelWindow()->isVisible());
     const auto previousGeometry = appOptions->window()->mainWindowGeometry();
     int decisions = 0;

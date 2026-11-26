@@ -254,12 +254,17 @@ DocumentWindowManager::Document *DocumentWindowManager::active() const {
 }
 
 void DocumentWindowManager::activate(Document &document) const {
-    auto &window = *document.window;
-    if (window.isMinimized())
-        window.setWindowState(window.windowState() & ~Qt::WindowMinimized);
-    window.show();
-    window.raise();
-    window.activateWindow();
+    QWidget *window = document.window.get();
+    if (window->isMinimized())
+        window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
+    auto *dialog = WindowDialogs::blockingDialog(window);
+    if (!dialog && !window->isEnabled() && document.window->detachedPanelWindow())
+        dialog = WindowDialogs::blockingDialog(document.window->detachedPanelWindow());
+    if (dialog)
+        window = dialog;
+    window->show();
+    window->raise();
+    window->activateWindow();
 }
 
 bool DocumentWindowManager::eventFilter(QObject *watched, QEvent *event) {

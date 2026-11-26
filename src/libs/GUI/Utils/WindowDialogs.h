@@ -6,6 +6,7 @@
 #include <QMessageBox>
 
 namespace WindowDialogs {
+    QWidget *blockingDialog(const QWidget *window);
     bool blocks(const QWidget *window);
     QString getOpenFileName(QWidget *parent, const QString &caption, const QString &dir,
                             const QString &filter);
