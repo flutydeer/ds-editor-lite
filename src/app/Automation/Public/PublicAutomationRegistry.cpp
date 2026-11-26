@@ -2094,42 +2094,31 @@ namespace Automation {
     AutomationResult<QJsonObject>
         PublicAutomationRegistry::invoke(const QString &operationId, const QJsonObject &arguments,
                                          const PublicInvocationContext &context) {
+        const auto reject = [&operationId](AutomationError failure) {
+            failure.operationId = operationId;
+            return failure;
+        };
         const auto *contract = AutomationWire::findPublicTool(operationId);
-        if (!contract) {
-            auto result = error(AutomationErrorCode::ToolUnavailable,
-                                QStringLiteral("Public operation is not registered"));
-            result.operationId = operationId;
-            return result;
-        }
-        if (!AutomationWire::isToolAvailableOnHost(*contract, m_hostServices.hostMode)) {
-            auto result =
+        if (!contract)
+            return reject(error(AutomationErrorCode::ToolUnavailable,
+                                QStringLiteral("Public operation is not registered")));
+        if (!AutomationWire::isToolAvailableOnHost(*contract, m_hostServices.hostMode))
+            return reject(
                 error(AutomationErrorCode::HostCapabilityUnavailable,
-                      QStringLiteral("Public operation is unavailable in the current host"));
-            result.operationId = operationId;
-            return result;
-        }
-        const auto handler = m_handlers.constFind(operationId);
-        if (handler == m_handlers.cend()) {
-            auto result = error(AutomationErrorCode::ToolUnavailable,
-                                QStringLiteral("Public operation is not registered"));
-            result.operationId = operationId;
-            return result;
-        }
-        if (!m_accessPolicy.isAllowed(*contract)) {
-            auto result =
+                      QStringLiteral("Public operation is unavailable in the current host")));
+        if (!m_handlers.contains(operationId))
+            return reject(error(AutomationErrorCode::ToolUnavailable,
+                                QStringLiteral("Public operation is not registered")));
+        if (!m_accessPolicy.isAllowed(*contract))
+            return reject(
                 error(AutomationErrorCode::PermissionDenied,
-                      QStringLiteral("Public operation is disabled by the active control level"));
-            result.operationId = operationId;
-            return result;
-        }
+                      QStringLiteral("Public operation is disabled by the active control level")));
         const auto inputValidation =
             AutomationWire::validateJsonValue(arguments, contract->inputSchema);
         if (!inputValidation.valid()) {
             const auto &issue = inputValidation.issues.constFirst();
-            auto result =
-                error(AutomationErrorCode::InvalidArgument, issue.message, issue.instancePath);
-            result.operationId = operationId;
-            return result;
+            return reject(
+                error(AutomationErrorCode::InvalidArgument, issue.message, issue.instancePath));
         }
         auto targetContext = context;
         const bool replacement =
@@ -2141,36 +2130,37 @@ namespace Automation {
         if (replacement && id.isNull() &&
             (m_hostServices.hostMode == QStringLiteral("headless") ||
              arguments.contains(QStringLiteral("expected_revision"))))
-            return AutomationError::invalidArgument(
+            return reject(AutomationError::invalidArgument(
                 QStringLiteral("current_document_id"),
-                QStringLiteral("An explicit replacement target is required"));
+                QStringLiteral("An explicit replacement target is required")));
         CoreRuntime *target = &m_runtime;
         if (replacement && id.isNull() && !m_hostServices.createDocumentWindow)
-            return unavailable(QStringLiteral("Cannot create a project window"));
+            return reject(unavailable(QStringLiteral("Cannot create a project window")));
         if (m_hostServices.findDocument && !id.isNull()) {
             target = m_hostServices.findDocument(id);
             if (!target && operationId.startsWith(QStringLiteral("tasks.")) &&
                 m_runtime.automationTasks().detachedExportVersion(id))
                 target = &m_runtime;
             if (!target)
-                return AutomationError::documentChanged(id, {});
+                return reject(AutomationError::documentChanged(id, {}));
         }
         bool created = false;
         if (replacement && (m_hostServices.createDocumentWindow || m_hostServices.findOpenPath)) {
             if (!id.isNull() && target->documentVersion().documentId != id)
-                return AutomationError::documentChanged(id, target->documentVersion().documentId);
+                return reject(
+                    AutomationError::documentChanged(id, target->documentVersion().documentId));
             if (!id.isNull() && arguments.contains(QStringLiteral("expected_revision")) &&
                 target->documentVersion().revision !=
                     static_cast<Revision>(
                         arguments.value(QStringLiteral("expected_revision")).toInteger()))
-                return AutomationError::revisionConflict(
+                return reject(AutomationError::revisionConflict(
                     id, arguments.value(QStringLiteral("expected_revision")).toInteger(),
-                    target->documentVersion().revision);
+                    target->documentVersion().revision));
             CoreRuntime *existing = nullptr;
-            if (operationId == ToolNames::documents_open) {
+            if (operationId == ToolNames::documents_open && m_hostServices.findOpenPath) {
                 auto authorized = validateFileArguments(m_fileGuard, *contract, arguments);
                 if (!authorized)
-                    return authorized.getError();
+                    return reject(authorized.getError());
                 existing = m_hostServices.findOpenPath(
                     authorized.get().value(QStringLiteral("path")).toString());
             }
@@ -2182,13 +2172,15 @@ namespace Automation {
                         m_hostServices.pendingOpen(*existing, arguments.value("path").toString());
                 if (targetContext.pendingOpen.isNull() &&
                     existing->documentBusy(existing->documentVersion().documentId))
-                    return AutomationError::documentBusy(existing->documentVersion().documentId);
+                    return reject(
+                        AutomationError::documentBusy(existing->documentVersion().documentId));
             } else if (id.isNull()) {
                 targetContext.newWindow = true;
                 if (!arguments.value(QStringLiteral("validate_only")).toBool()) {
                     target = m_hostServices.createDocumentWindow();
                     if (!target)
-                        return unavailable(QStringLiteral("Cannot create a project window"));
+                        return reject(
+                            unavailable(QStringLiteral("Cannot create a project window")));
                     created = true;
                 }
             }

@@ -1285,14 +1285,33 @@ namespace {
                             .arg(savedAs ? compactJson(*savedAs) : exchangeError));
         }
 
+        const auto closedRoundTrip = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("close-before-reopen"), QStringLiteral("documents.close"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       combinedDocumentId},
+                              {QStringLiteral("expected_revision"), savedRevision     }
+        }),
+            exchangeError, 10000);
+        const auto blank = closedRoundTrip ? closedRoundTrip->value(QStringLiteral("result"))
+                                                 .toObject()
+                                                 .value(QStringLiteral("current"))
+                                                 .toObject()
+                                           : QJsonObject{};
+        if (!blank.value(QStringLiteral("document_id")).isString())
+            return fail(
+                QStringLiteral("Closing the saved project did not leave a blank document: %1")
+                    .arg(closedRoundTrip ? compactJson(*closedRoundTrip) : exchangeError));
         const auto opened = nativeExchange(
             manager, combinedNativeEndpoint,
-            nativeRequest(QStringLiteral("open-round-trip"), QStringLiteral("documents.open"),
-                          QJsonObject{
-                              {QStringLiteral("current_document_id"), combinedDocumentId      },
-                              {QStringLiteral("expected_revision"),   savedRevision           },
-                              {QStringLiteral("path"),                roundTripPath           },
-                              {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+            nativeRequest(
+                QStringLiteral("open-round-trip"), QStringLiteral("documents.open"),
+                QJsonObject{
+                    {QStringLiteral("current_document_id"),
+                     blank.value(QStringLiteral("document_id"))                                    },
+                    {QStringLiteral("expected_revision"),   blank.value(QStringLiteral("revision"))},
+                    {QStringLiteral("path"),                roundTripPath                          },
+                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")               },
         }),
             exchangeError, 10000);
         const auto openTaskId = opened ? opened->value(QStringLiteral("result"))
@@ -1364,6 +1383,7 @@ namespace {
         const auto reopenedStatistics =
             reopenedSnapshot.value(QStringLiteral("statistics")).toObject();
         if (openTask.value(QStringLiteral("state")) != QStringLiteral("succeeded") ||
+            openMutation.value(QStringLiteral("previous")).toObject() != blank ||
             openedDocumentId.isEmpty() || openedDocumentId == combinedDocumentId ||
             openedDocument.value(QStringLiteral("revision")).toInteger(-1) != 0 ||
             !reopenedDocument || reopenedDocument->contains(QStringLiteral("error")) ||
