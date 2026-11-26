@@ -1,4 +1,9 @@
 #include "tst_native_desktop.h"
+#include <lite/ProjectModel/AppModel/Note.h>
+#include "Model/AppStatus/AppStatus.h"
+#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
+#include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Controller/DocumentMidiInput.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <QJsonDocument>
 #include <QMimeData>
@@ -375,4 +380,44 @@ void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
     }
     QCOMPARE(a.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
     QVERIFY(first.playback().stop({.expected = first.documentVersion()}));
+}
+
+void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
+    GuiDocumentFixture fixture;
+    QVERIFY(fixture.initialize(false));
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    QVERIFY(QTest::qWaitForWindowActive(a.window.get()));
+    auto *clip = qobject_cast<SingingClip *>(
+        a.context->m_appModel->tracks().first()->clips().toList().first());
+    QVERIFY(clip);
+    a.context->m_appStatus->activeClipId = clip->id();
+    const auto previousNotes = clip->notes().count();
+    windows.midiInput().setRecording(*a.context, true);
+    QVERIFY(windows.midiInput().recording(*a.context));
+    auto &b = windows.createWindow();
+    QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
+    const auto otherVersion = b.context->m_coreRuntime->documentVersion();
+    windows.midiInput().setRecording(*b.context, true);
+    auto *input = AudioSystem::midiSystem()->hardwareNotes();
+    QDialog prompt(b.window.get());
+    prompt.setWindowModality(Qt::WindowModal);
+    prompt.show();
+    QTRY_VERIFY(prompt.isVisible());
+    emit input->notePressed(64);
+    emit input->noteReleased(64);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
+    QCOMPARE(clip->notes().toList().last()->keyIndex(), 64);
+    QCOMPARE(b.context->m_coreRuntime->documentVersion(), otherVersion);
+    prompt.hide();
+    prompt.setWindowModality(Qt::ApplicationModal);
+    prompt.show();
+    emit input->notePressed(65);
+    emit input->noteReleased(65);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
+    prompt.hide();
+    windows.midiInput().setRecording(*a.context, false);
+    emit input->notePressed(67);
+    emit input->noteReleased(67);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
 }

@@ -9,6 +9,7 @@
 #include "DetachedPanelWindow.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
+#include "Controller/DocumentMidiInput.h"
 #include <lite/History/HistoryManager.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/Tasking/Task.h>
@@ -32,6 +33,7 @@ DocumentWindowManager::Document::~Document() {
 DocumentWindowManager::DocumentWindowManager(AppContext &process) : m_process(process) {
     Q_ASSERT(!manager);
     manager = this;
+    m_midiInput = std::make_unique<DocumentMidiInput>(*this);
     qApp->installEventFilter(this);
 }
 

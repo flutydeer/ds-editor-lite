@@ -77,6 +77,9 @@ void PianoKeyboardView::paintKeyboard(QPainter &painter) const {
         drawWhiteKeyOverlay(painter, m_hoveredKeyIndex, hoverAlpha);
     if (m_pressedKeyIndex >= 0 && PianoPaintUtils::isWhiteKey(m_pressedKeyIndex))
         drawWhiteKeyOverlay(painter, m_pressedKeyIndex, pressedAlpha);
+    for (int key : heldKeys())
+        if (PianoPaintUtils::isWhiteKey(key))
+            drawWhiteKeyOverlay(painter, key, pressedAlpha);
 
     for (int i = prevKeyIndex; i > m_bottom; i--) {
         if (PianoPaintUtils::isWhiteKey(i))
@@ -112,6 +115,9 @@ void PianoKeyboardView::paintKeyboard(QPainter &painter) const {
         drawBlackKeyOverlay(painter, m_hoveredKeyIndex, hoverAlpha);
     if (m_pressedKeyIndex >= 0 && !PianoPaintUtils::isWhiteKey(m_pressedKeyIndex))
         drawBlackKeyOverlay(painter, m_pressedKeyIndex, pressedAlpha);
+    for (int key : heldKeys())
+        if (!PianoPaintUtils::isWhiteKey(key))
+            drawBlackKeyOverlay(painter, key, pressedAlpha);
 }
 
 void PianoKeyboardView::drawWhiteKeyOverlay(QPainter &painter, const int keyIndex,

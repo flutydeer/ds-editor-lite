@@ -1,4 +1,5 @@
 #include "MidiSystem.h"
+#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
 
 #include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsCore/MixerAudioSource.h>
@@ -50,6 +51,7 @@ static qint64 msecToSample(const int msec, double sampleRate = {}) {
 }
 
 MidiSystem::MidiSystem(QObject *parent) : QObject(parent) {
+    m_hardwareNotes = new MidiInputNoteMonitor(this);
     m_integrator = std::make_unique<talcs::MidiMessageIntegrator>();
     m_synthesizer = new talcs::MidiNoteSynthesizer;
     m_integrator->setStream(m_synthesizer, true);
@@ -59,6 +61,7 @@ MidiSystem::MidiSystem(QObject *parent) : QObject(parent) {
 }
 
 MidiSystem::~MidiSystem() {
+    m_hardwareNotes->attachTo(nullptr);
     if (m_refreshTimer)
         m_refreshTimer->stop();
     m_device.reset(); // due to delete order issue
@@ -168,6 +171,7 @@ bool MidiSystem::setDeviceId(const QString &deviceId) {
         return false;
     }
     qDebug() << "Audio::MidiSystem: MIDI device opened" << dev->name();
+    m_hardwareNotes->attachTo(nullptr);
     m_device = std::move(dev);
     m_deviceId = deviceId;
     m_error.clear();
@@ -230,6 +234,7 @@ void MidiSystem::attachDevice() {
     m_errorListener->setGeneration(m_deviceGeneration);
     m_device->listener()->addFilter(m_integrator.get());
     m_device->listener()->addFilter(m_errorListener.get());
+    m_hardwareNotes->attachTo(m_device->listener());
 }
 
 void MidiSystem::handleDeviceError(const QString &errorString, const quint64 generation) {
@@ -241,6 +246,7 @@ void MidiSystem::handleDeviceError(const QString &errorString, const quint64 gen
 }
 
 void MidiSystem::dropDevice() {
+    m_hardwareNotes->attachTo(nullptr);
     ++m_deviceGeneration;
     m_device.reset();
     emit deviceChanged();

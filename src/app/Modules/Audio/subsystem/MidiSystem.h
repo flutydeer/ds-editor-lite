@@ -14,6 +14,7 @@
 #include <Modules/Audio/utils/MidiPortList.h>
 
 class QTimer;
+class MidiInputNoteMonitor;
 
 namespace talcs {
 
@@ -36,6 +37,10 @@ public:
     static std::optional<QStringList> availableDevices();
 
     talcs::MidiInputDevice *device() const;
+
+    MidiInputNoteMonitor *hardwareNotes() const {
+        return m_hardwareNotes;
+    }
     bool isDeviceReady() const;
     /// The port this system keeps open. It is remembered while the port is
     /// unplugged, so the device is reopened once the port comes back.
@@ -102,6 +107,7 @@ private:
     talcs::MidiNoteSynthesizer *m_synthesizer;
     std::unique_ptr<talcs::MixerAudioSource> m_synthesizerMixer;
     std::unique_ptr<ErrorListener> m_errorListener;
+    MidiInputNoteMonitor *m_hardwareNotes;
     QTimer *m_refreshTimer = nullptr;
     MidiPortList m_ports;
     QString m_deviceId;

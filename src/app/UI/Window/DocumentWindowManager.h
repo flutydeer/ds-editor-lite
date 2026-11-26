@@ -9,6 +9,7 @@
 class AppContext;
 class MainWindow;
 class WindowPlacement;
+class DocumentMidiInput;
 namespace Automation { struct PublicAutomationHostServices; }
 
 class DocumentWindowManager final : public QObject {
@@ -42,6 +43,8 @@ public:
     void configureAutomation(Automation::PublicAutomationHostServices &services);
     bool terminating() const { return m_terminating; }
 
+    DocumentMidiInput &midiInput() { return *m_midiInput; }
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
@@ -51,6 +54,7 @@ private:
     void retire(Document &document);
     void releaseRetired(Document *document);
     AppContext &m_process;
+    std::unique_ptr<DocumentMidiInput> m_midiInput;
     std::list<std::unique_ptr<Document>> m_documents;
     Document *m_active = nullptr;
     bool m_terminating = false;

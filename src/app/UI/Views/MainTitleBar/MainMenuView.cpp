@@ -1,6 +1,7 @@
 #include "MainMenuView.h"
 #include "AppContext.h"
 #include "UI/Window/DocumentWindowManager.h"
+#include "Controller/DocumentMidiInput.h"
 #include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "MainMenuView_p.h"
@@ -80,7 +81,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
             [=] { d->onEditCommandCapabilitiesChanged(); });
 
     ObjectContext::connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
-            [this] { d_ptr->updatePasteActionState(); });
+                           [this] { d_ptr->updatePasteActionState(); });
 
     d->initActions();
     d->onActiveEditTargetChanged(editorViewController->activeEditTarget());
@@ -292,14 +293,16 @@ void MainMenuViewPrivate::onOpen(bool replace) {
     if (!namedFilters.isEmpty())
         filter += QStringLiteral(";;") + namedFilters.join(QStringLiteral(";;"));
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto files = replace ? QStringList{WindowDialogs::getOpenFileName(q, tr("Open"), lastDir, filter)}
-                               : WindowDialogs::getOpenFileNames(q, tr("Open"), lastDir, filter);
+    const auto files =
+        replace ? QStringList{WindowDialogs::getOpenFileName(q, tr("Open"), lastDir, filter)}
+                : WindowDialogs::getOpenFileNames(q, tr("Open"), lastDir, filter);
     if (files.isEmpty() || files.first().isEmpty())
         return;
     m_mainWindow->setWorkflowWindow(q);
     if (auto *manager = DocumentWindowManager::instance()) {
         for (const auto &file : files)
-            manager->open(file, files.size() > 1, replace ? manager->find(AppContext::instance<AppContext>()) : nullptr);
+            manager->open(file, files.size() > 1,
+                          replace ? manager->find(AppContext::instance<AppContext>()) : nullptr);
     } else
         documentWorkflowController->requestOpen(files.first());
 }
@@ -361,7 +364,7 @@ void MainMenuViewPrivate::onImportMidiFile() {
     m_mainWindow->setWorkflowWindow(q);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
     const auto fileNames = WindowDialogs::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
-                                                         tr("MIDI File (*.mid *.midi)"));
+                                                           tr("MIDI File (*.mid *.midi)"));
     if (fileNames.isEmpty())
         return;
     if (fileNames.size() == 1) {
@@ -411,7 +414,7 @@ void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
     auto fileName = WindowDialogs::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
-                                                 tr("MIDI File (*.mid *.midi)"));
+                                                   tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;
     appController->exportMidiFile(fileName);
@@ -852,10 +855,10 @@ void MainMenuViewPrivate::initEditActions() {
 void MainMenuViewPrivate::initEditShortcuts() {
     Q_Q(MainMenuView);
     const auto addShortcut = [q](const QKeySequence &key,
-                                                 const EditorInteraction::Command command) {
-        auto *shortcut = EditorShortcutUtils::addWindow(
-            q, key, editorViewController,
-            [command] { editorViewController->requestEditCommand(command); });
+                                 const EditorInteraction::Command command) {
+        auto *shortcut = EditorShortcutUtils::addWindow(q, key, editorViewController, [command] {
+            editorViewController->requestEditCommand(command);
+        });
         const auto updateEnabled = [shortcut, command] {
             shortcut->setEnabled(editorViewController->supportsEditCommand(command));
         };
@@ -956,6 +959,17 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
     menuEdit->addSeparator();
 
     menuEdit->addAction(actionExtractPitchParam);
+    if (auto *windows = DocumentWindowManager::instance()) {
+        actionRecordMidi = menuEdit->addAction(tr("Record MIDI Input"));
+        actionRecordMidi->setCheckable(true);
+        auto *context = AppContext::instance<AppContext>();
+        connect(menuEdit, &QMenu::aboutToShow, this, [this, windows, context] {
+            actionRecordMidi->setChecked(windows->midiInput().recording(*context));
+        });
+        connect(actionRecordMidi, &QAction::triggered, this, [windows, context](bool checked) {
+            windows->midiInput().setRecording(*context, checked);
+        });
+    }
     return menuEdit;
 }
 
@@ -1054,6 +1068,8 @@ void MainMenuViewPrivate::retranslateUi() {
     actionNewHere->setText(tr("New in Current Window"));
     actionOpenHere->setText(tr("Open in Current Window..."));
     actionClose->setText(tr("Close Project"));
+    if (actionRecordMidi)
+        actionRecordMidi->setText(tr("Record MIDI Input"));
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
@@ -1108,8 +1124,8 @@ void MainMenuViewPrivate::retranslateUi() {
 
 void MainMenuViewPrivate::initOverflowUi() {
     Q_Q(MainMenuView);
-    m_topLevelMenus = {menuFile->menuAction(), menuEdit->menuAction(),
-                       menuOptions->menuAction(), menuWindow->menuAction(), menuHelp->menuAction()};
+    m_topLevelMenus = {menuFile->menuAction(), menuEdit->menuAction(), menuOptions->menuAction(),
+                       menuWindow->menuAction(), menuHelp->menuAction()};
 
     // A plain QAction with an icon is measured and drawn by QMenuBar itself.
     // The mnemonic stays available for Alt navigation even though the icon

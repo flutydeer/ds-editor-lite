@@ -22,6 +22,7 @@ public:
 
 private slots:
     void initTestCase();
+    void midiRecordingFollowsItsProjectAcrossWindowFocus();
     void detachedPlaybackAndProjectClipboard();
     void exitRemembersTheLastEditorGeometry_data();
     void exitRemembersTheLastEditorGeometry();

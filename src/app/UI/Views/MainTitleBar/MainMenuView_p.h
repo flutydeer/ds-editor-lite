@@ -46,6 +46,7 @@ public:
     QAction *actionNewHere = nullptr;
     QAction *actionOpenHere = nullptr;
     QAction *actionClose = nullptr;
+    QAction *actionRecordMidi = nullptr;
     QAction *actionClearRecentProjects = nullptr;
     QAction *actionImportMidi = nullptr;
     QAction *actionImportDspx = nullptr;
