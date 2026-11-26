@@ -14,7 +14,7 @@
 
 namespace AutomationWire {
 
-    inline constexpr quint64 PublicToolsetVersion = 1;
+    inline constexpr quint64 PublicToolsetVersion = 2;
 
     enum class OperationKind {
         Query,

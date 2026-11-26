@@ -294,6 +294,7 @@ int main(int argc, char *argv[]) {
         if (hostMode == AppHostMode::Gui) {
             DocumentWindowManager windows(appContext);
             auto &w = *windows.createWindow().window;
+            windows.configureAutomation(hostServices);
             logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,

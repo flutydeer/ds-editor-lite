@@ -45,6 +45,9 @@ namespace Automation {
                                const MidiExportOptionsDto &) = default;
     };
 
+    using MidiWriter =
+        std::function<bool(AppModel *, const QString &, const MidiExportOptionsDto &, QString &)>;
+
     struct PreparedMidiExportDto {
         DocumentVersion document;
         QString path;
@@ -52,13 +55,13 @@ namespace Automation {
         MidiExportOptionsDto options;
         DocumentDraftDto modelSnapshot;
         bool validatedOnly = false;
+        MidiWriter writer;
     };
 
     struct FileRuntimeServices {
         std::function<QList<ProjectFormatDto>()> listProjectFormats;
         std::function<AutomationResult<QByteArray>(const QString &)> convertLibreSvipToDspx;
-        std::function<bool(AppModel *, const QString &, const MidiExportOptionsDto &, QString &)>
-            exportMidi;
+        MidiWriter exportMidi;
     };
 
     class FileAutomationFacade final {
@@ -78,9 +81,9 @@ namespace Automation {
         AutomationResult<PreparedMidiExportDto>
             prepareMidiExport(const CommandContext &context, const QString &path,
                               bool allowOverwrite, MidiExportOptionsDto options = {});
-        AutomationResult<FileWriteResultDto> writePreparedMidiExport(
-            const PreparedMidiExportDto &prepared,
-            std::function<AutomationResult<bool>()> beforePublish = {}) const;
+        static AutomationResult<FileWriteResultDto>
+            writePreparedMidiExport(const PreparedMidiExportDto &prepared,
+                                    std::function<AutomationResult<bool>()> beforePublish = {});
 
     private:
         AutomationDispatcher &m_dispatcher;

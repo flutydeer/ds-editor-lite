@@ -3,7 +3,7 @@
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "application", L0,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_status, "application.get_status", "application", L0,
-                            Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
+                            Query, Synchronous, 2, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_request_exit, "application.request_exit", "application", L0,
                             Command, Synchronous, 1, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_request_restart, "application.request_restart", "application",
@@ -17,11 +17,13 @@ AUTOMATION_WIRE_PUBLIC_TOOL(documents_get, "documents.get", "documents", L1, Que
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_list_recent, "documents.list_recent", "documents", L2, Query,
                             Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_new, "documents.new", "documents", L2, Command, Synchronous,
-                            1, Destructive, NonIdempotent, ClosedWorld)
+                            2, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_open, "documents.open", "documents", L2, Command,
-                            Asynchronous, 1, Destructive, NonIdempotent, ClosedWorld)
+                            Asynchronous, 2, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_save, "documents.save", "documents", L2, Command, Synchronous,
                             1, Destructive, NonIdempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(documents_close, "documents.close", "documents", L2, Command, Synchronous,
+                            2, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_save_as, "documents.save_as", "documents", L2, Command,
                             Synchronous, 1, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_import, "documents.import", "documents", L2, Command,

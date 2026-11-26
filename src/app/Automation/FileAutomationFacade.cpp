@@ -174,6 +174,7 @@ namespace Automation {
                     .allowOverwrite = allowOverwrite,
                     .options = options,
                     .modelSnapshot = snapshotDocument(*session.model(), options),
+                    .writer = m_services.exportMidi,
                 });
             });
     }
@@ -199,6 +200,7 @@ namespace Automation {
                     .modelSnapshot = validateOnly ? DocumentDraftDto{}
                                                   : snapshotDocument(*session.model(), options),
                     .validatedOnly = validateOnly,
+                    .writer = m_services.exportMidi,
                 });
             });
     }
@@ -226,7 +228,7 @@ namespace Automation {
 
     AutomationResult<FileWriteResultDto> FileAutomationFacade::writePreparedMidiExport(
         const PreparedMidiExportDto &prepared,
-        std::function<AutomationResult<bool>()> beforePublish) const {
+        std::function<AutomationResult<bool>()> beforePublish) {
         if (prepared.validatedOnly) {
             return FileWriteResultDto{
                 .path = prepared.path,
@@ -236,7 +238,7 @@ namespace Automation {
         auto validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
         if (!validatedPath)
             return validatedPath.getError();
-        if (!m_services.exportMidi)
+        if (!prepared.writer)
             return unavailable();
 
         QString stagingPath;
@@ -255,7 +257,7 @@ namespace Automation {
         AppModel snapshot;
         snapshot.replaceProject(buildProjectModelData(prepared.modelSnapshot));
         QString errorMessage;
-        if (!m_services.exportMidi(&snapshot, stagingPath, prepared.options, errorMessage))
+        if (!prepared.writer(&snapshot, stagingPath, prepared.options, errorMessage))
             return midiIoError(errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
                                                       : std::move(errorMessage));
 

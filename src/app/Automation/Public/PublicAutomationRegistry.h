@@ -22,6 +22,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <map>
 #include <optional>
 
 namespace Automation {
@@ -41,6 +42,9 @@ namespace Automation {
     struct PublicInvocationContext {
         QString clientId;
         InvocationSource source = InvocationSource::PublicMcp;
+        bool newWindow = false;
+        bool alreadyOpen = false;
+        TaskId pendingOpen;
     };
 
     using PublicProjectInputRevalidator =
@@ -56,6 +60,7 @@ namespace Automation {
         QString planDigest;
         PublicProjectInputRevalidator revalidatePlan;
         PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
+        bool newWindow = false;
     };
 
     struct PublicDocumentImportRequest {
@@ -148,6 +153,14 @@ namespace Automation {
         QString hostMode = QStringLiteral("gui");
         std::function<QJsonArray()> documentStatus;
         std::function<QJsonArray()> windowStatus;
+        std::function<CoreRuntime *(const DocumentId &)> findDocument;
+        std::function<CoreRuntime *(const QString &)> findOpenPath;
+        std::function<CoreRuntime *()> createDocumentWindow;
+        std::function<void(CoreRuntime &)> activateWindow;
+        std::function<TaskId(CoreRuntime &, const QString &)> pendingOpen;
+        std::function<void(CoreRuntime &, const QString &, const TaskId &)> trackOpen;
+        std::function<AutomationResult<DocumentVersion>(CoreRuntime &, bool)> closeDocument;
+        std::function<PublicAutomationHostServices(CoreRuntime &)> bindDocument;
 
         std::function<AutomationResult<TaskAcceptedResult>(const PublicDocumentOpenRequest &)>
             openDocument;
@@ -202,6 +215,10 @@ namespace Automation {
             const QJsonObject &, const PublicInvocationContext &)>;
 
         void registerBindings();
+        AutomationResult<QJsonObject> invokeForTarget(const AutomationWire::ToolContract &contract,
+                                                      const QJsonObject &arguments,
+                                                      const PublicInvocationContext &context);
+        PublicAutomationRegistry &bindingsFor(CoreRuntime &runtime);
         void registerAdvancedGuiBindings();
         void registerAdvancedApplicationBindings();
         void addBinding(QLatin1StringView toolName, Handler handler);
@@ -217,6 +234,9 @@ namespace Automation {
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
         AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
         QThreadPool m_exportThreadPool;
+        QThreadPool *m_processExportPool = &m_exportThreadPool;
+        std::map<CoreRuntime *, std::unique_ptr<PublicAutomationRegistry>> m_documentRegistries;
+        QObject m_connections;
     };
 
 } // namespace Automation

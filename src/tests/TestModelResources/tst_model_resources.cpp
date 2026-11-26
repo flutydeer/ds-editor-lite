@@ -73,8 +73,13 @@ namespace {
             while (deadline.elapsed() < 60000 && editor.state() != QProcess::NotRunning) {
                 if (call(QStringLiteral("application.get_status"), {}, status, 1000) &&
                     status.value(QStringLiteral("host_mode")).toString() ==
-                        QStringLiteral("headless"))
-                    return true;
+                        QStringLiteral("headless")) {
+                    const auto documents = status.value("documents").toArray();
+                    if (documents.size() == 1) {
+                        documentId = documents.first().toObject().value("document_id").toString();
+                        return !documentId.isEmpty();
+                    }
+                }
                 QTest::qWait(100);
             }
             error = QStringLiteral("Headless startup failed: ") + error;
@@ -287,7 +292,8 @@ private slots:
         QJsonObject result;
         QVERIFY2(client.call(QStringLiteral("documents.new"),
                              {
-                                 {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+                                 {QStringLiteral("current_document_id"), client.documentId        },
+                                 {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")}
         },
                              result),
                  qPrintable(client.error));
@@ -619,7 +625,8 @@ private slots:
 
         QVERIFY2(client.call(QStringLiteral("documents.new"),
                              {
-                                 {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+                                 {QStringLiteral("current_document_id"), client.documentId        },
+                                 {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")}
         },
                              result),
                  qPrintable(client.error));

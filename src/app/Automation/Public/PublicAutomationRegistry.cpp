@@ -1,4 +1,5 @@
 #include "PublicAutomationRegistry.h"
+#include <lite/Support/ObjectContext.h>
 #include "PublicAutomationCodecs.h"
 #include "PublicCollectionPagination.h"
 
@@ -561,6 +562,8 @@ namespace Automation {
             };
             if (snapshot.mutation)
                 result.insert(QStringLiteral("result"), encodeMutation(*snapshot.mutation));
+            else if (snapshot.operationId == OperationIds::documents::open)
+                result.insert(QStringLiteral("document"), QJsonValue::Null);
             if (snapshot.applicationResult) {
                 result.insert(QStringLiteral("application_result"), *snapshot.applicationResult);
             }
@@ -607,7 +610,7 @@ namespace Automation {
                                                  const PublicInvocationContext &invocation) {
             auto context = commandContext(arguments, invocation);
             context.expected = runtime.documentVersion();
-            if (arguments.contains(QStringLiteral("current_document_id"))) {
+            if (arguments.value(QStringLiteral("current_document_id")).isString()) {
                 context.expected.documentId = DocumentId::fromString(
                     arguments.value(QStringLiteral("current_document_id")).toString());
             }
@@ -2128,6 +2131,107 @@ namespace Automation {
             result.operationId = operationId;
             return result;
         }
+        auto targetContext = context;
+        const bool replacement =
+            operationId == ToolNames::documents_new || operationId == ToolNames::documents_open;
+        const auto id = replacement
+                            ? DocumentId::fromString(
+                                  arguments.value(QStringLiteral("current_document_id")).toString())
+                            : documentId(arguments);
+        if (replacement && id.isNull() &&
+            (m_hostServices.hostMode == QStringLiteral("headless") ||
+             arguments.contains(QStringLiteral("expected_revision"))))
+            return AutomationError::invalidArgument(
+                QStringLiteral("current_document_id"),
+                QStringLiteral("An explicit replacement target is required"));
+        CoreRuntime *target = &m_runtime;
+        if (replacement && id.isNull() && !m_hostServices.createDocumentWindow)
+            return unavailable(QStringLiteral("Cannot create a project window"));
+        if (m_hostServices.findDocument && !id.isNull()) {
+            target = m_hostServices.findDocument(id);
+            if (!target && operationId.startsWith(QStringLiteral("tasks.")) &&
+                m_runtime.automationTasks().detachedExportVersion(id))
+                target = &m_runtime;
+            if (!target)
+                return AutomationError::documentChanged(id, {});
+        }
+        bool created = false;
+        if (replacement && (m_hostServices.createDocumentWindow || m_hostServices.findOpenPath)) {
+            if (!id.isNull() && target->documentVersion().documentId != id)
+                return AutomationError::documentChanged(id, target->documentVersion().documentId);
+            if (!id.isNull() && arguments.contains(QStringLiteral("expected_revision")) &&
+                target->documentVersion().revision !=
+                    static_cast<Revision>(
+                        arguments.value(QStringLiteral("expected_revision")).toInteger()))
+                return AutomationError::revisionConflict(
+                    id, arguments.value(QStringLiteral("expected_revision")).toInteger(),
+                    target->documentVersion().revision);
+            CoreRuntime *existing = nullptr;
+            if (operationId == ToolNames::documents_open) {
+                auto authorized = validateFileArguments(m_fileGuard, *contract, arguments);
+                if (!authorized)
+                    return authorized.getError();
+                existing = m_hostServices.findOpenPath(
+                    authorized.get().value(QStringLiteral("path")).toString());
+            }
+            if (existing) {
+                target = existing;
+                targetContext.alreadyOpen = true;
+                if (m_hostServices.pendingOpen)
+                    targetContext.pendingOpen =
+                        m_hostServices.pendingOpen(*existing, arguments.value("path").toString());
+                if (targetContext.pendingOpen.isNull() &&
+                    existing->documentBusy(existing->documentVersion().documentId))
+                    return AutomationError::documentBusy(existing->documentVersion().documentId);
+            } else if (id.isNull()) {
+                targetContext.newWindow = true;
+                if (!arguments.value(QStringLiteral("validate_only")).toBool()) {
+                    target = m_hostServices.createDocumentWindow();
+                    if (!target)
+                        return unavailable(QStringLiteral("Cannot create a project window"));
+                    created = true;
+                }
+            }
+        }
+        const SingletonRegistry::Scope scope(ObjectContext::of(target));
+        auto result = bindingsFor(*target).invokeForTarget(*contract, arguments, targetContext);
+        if (!result && created)
+            m_hostServices.closeDocument(*target, true);
+        if (result && targetContext.alreadyOpen && m_hostServices.activateWindow &&
+            !arguments.value(QStringLiteral("validate_only")).toBool())
+            m_hostServices.activateWindow(*target);
+        else if (result && operationId == ToolNames::documents_open && m_hostServices.trackOpen &&
+                 result.get().contains("task_id"))
+            m_hostServices.trackOpen(*target, arguments.value("path").toString(),
+                                     TaskId::fromString(result.get().value("task_id").toString()));
+        return result;
+    }
+
+    PublicAutomationRegistry &PublicAutomationRegistry::bindingsFor(CoreRuntime &runtime) {
+        if (&runtime == &m_runtime)
+            return *this;
+        auto &entry = m_documentRegistries[&runtime];
+        if (!entry) {
+            auto services = m_hostServices.bindDocument(runtime);
+            services.editorInstanceId = m_hostServices.editorInstanceId;
+            services.hostMode = m_hostServices.hostMode;
+            services.closeDocument = m_hostServices.closeDocument;
+            entry = std::make_unique<PublicAutomationRegistry>(
+                runtime, m_accessPolicy, m_fileGuard, m_admissionController, std::move(services));
+            entry->m_processExportPool = m_processExportPool;
+            QObject::connect(&runtime, &QObject::destroyed, &m_connections,
+                             [this, key = &runtime] { m_documentRegistries.erase(key); });
+        }
+        return *entry;
+    }
+
+    AutomationResult<QJsonObject>
+        PublicAutomationRegistry::invokeForTarget(const AutomationWire::ToolContract &definition,
+                                                  const QJsonObject &arguments,
+                                                  const PublicInvocationContext &context) {
+        const auto *contract = &definition;
+        const auto &operationId = contract->operationId;
+        const auto handler = m_handlers.constFind(operationId);
         auto effectiveArguments = arguments;
         const auto saveCurrent = operationId == OperationIds::documents::save &&
                                  !effectiveArguments.contains(QStringLiteral("path"));
@@ -2187,7 +2291,7 @@ namespace Automation {
                 TaskId::fromString(result.get().value(QStringLiteral("task_id")).toString());
             if (!taskId.isNull()) {
                 auto retainedLease = std::make_shared<AdmissionLease>(lease.get());
-                m_runtime.automationTasks().setTerminalCallback(
+                m_runtime.automationTasks().addTerminalCallback(
                     taskId, [retainedLease](const AutomationTaskSnapshot &) {});
             }
         }
@@ -2217,8 +2321,6 @@ namespace Automation {
                 if (!version.documentId.isNull())
                     documents.append(encodeDocumentVersion(version));
             }
-            while (documents.size() > 1)
-                documents.removeLast();
             QJsonArray windows;
             if (m_hostServices.hostMode == QStringLiteral("gui")) {
                 if (m_hostServices.windowStatus) {
@@ -2234,8 +2336,6 @@ namespace Automation {
                     }
                 }
             }
-            while (windows.size() > 1)
-                windows.removeLast();
             return AutomationResult<QJsonObject>(QJsonObject{
                 {QStringLiteral("editor_instance_id"),
                  m_hostServices.editorInstanceId.toString(QUuid::WithoutBraces)},
@@ -3278,9 +3378,9 @@ namespace Automation {
             auto current = m_runtime.documents().getDocument(context.expected.documentId);
             if (!current)
                 return AutomationResult<QJsonObject>(current.getError());
-            if (!current.get().saved &&
-                arguments.value(QStringLiteral("unsaved_policy")).toString() ==
-                    QStringLiteral("reject")) {
+            if (!invocation.newWindow && !current.get().saved &&
+                arguments.value(QStringLiteral("unsaved_policy")).toString() !=
+                    QStringLiteral("discard")) {
                 return AutomationResult<QJsonObject>(
                     error(AutomationErrorCode::Busy,
                           QStringLiteral("The current document has unsaved changes"),
@@ -3302,8 +3402,11 @@ namespace Automation {
                     dirty = !current.get().saved;
                 }
             }
+            auto mutation = committed.get();
+            if (invocation.newWindow)
+                mutation.previous = {};
             return AutomationResult<QJsonObject>(
-                encodeDocumentLifecycleResult(committed.get(), path, dirty));
+                encodeDocumentLifecycleResult(mutation, path, dirty));
         });
         addBinding(ToolNames::documents_open, [this](const QJsonObject &arguments,
                                                      const PublicInvocationContext &invocation) {
@@ -3334,6 +3437,17 @@ namespace Automation {
                         QStringLiteral("The open plan digest is stale or invalid")));
                 }
             }
+            if (invocation.alreadyOpen) {
+                const auto version = m_runtime.documentVersion();
+                if (!invocation.pendingOpen.isNull())
+                    return taskAcceptedResult(TaskAcceptedResult{invocation.pendingOpen, {}});
+                const auto task = m_runtime.automationTasks().createTask(
+                    OperationIds::documents::open, version, std::nullopt, {}, invocation.clientId);
+                m_runtime.automationTasks().markRunning(task.taskId);
+                m_runtime.automationTasks().beginCommitting(task.taskId);
+                m_runtime.automationTasks().succeed(task.taskId, {.current = version});
+                return taskAcceptedResult(TaskAcceptedResult{task.taskId, version});
+            }
             PublicDocumentOpenRequest request{
                 .command = replacementCommandContext(m_runtime, arguments, invocation),
                 .canonicalPath = path,
@@ -3351,9 +3465,44 @@ namespace Automation {
                                          QStringLiteral("discard")
                                      ? PublicUnsavedPolicy::Discard
                                      : PublicUnsavedPolicy::Reject,
+                .newWindow = invocation.newWindow,
             };
             return taskAcceptedResult(m_hostServices.openDocument(request));
         });
+        addBinding(
+            ToolNames::documents_close,
+            [this](const QJsonObject &arguments,
+                   const PublicInvocationContext &invocation) -> AutomationResult<QJsonObject> {
+                const auto context = commandContext(arguments, invocation);
+                const auto snapshot =
+                    m_runtime.documents().getDocument(context.expected.documentId);
+                if (!snapshot)
+                    return snapshot.getError();
+                if (snapshot.get().document.revision != context.expected.revision)
+                    return AutomationError::revisionConflict(context.expected.documentId,
+                                                             context.expected.revision,
+                                                             snapshot.get().document.revision);
+                const bool discard = arguments.value(QStringLiteral("discard_changes")).toBool();
+                if (snapshot.get().busy || (!snapshot.get().saved && !discard))
+                    return AutomationError::documentBusy(context.expected.documentId);
+                DocumentVersion blank;
+                if (m_hostServices.closeDocument) {
+                    const auto closed = m_hostServices.closeDocument(m_runtime, discard);
+                    if (!closed)
+                        return closed.getError();
+                    blank = closed.get();
+                } else {
+                    const auto reset = m_runtime.documents().commitNewDocument(
+                        context, DocumentAutomationFacade::newDocumentDraft(true));
+                    if (!reset)
+                        return reset.getError();
+                    blank = reset.get().current;
+                }
+                return QJsonObject{
+                    {QStringLiteral("closed_document_id"), context.expected.documentId.toString()},
+                    {QStringLiteral("current"),            encodeNullableDocumentVersion(blank)  }
+                };
+            });
         addBinding(ToolNames::documents_import, [this](const QJsonObject &arguments,
                                                        const PublicInvocationContext &invocation) {
             if (!m_hostServices.importDocument)
@@ -3622,11 +3771,10 @@ namespace Automation {
                 OperationIds::exports::midi::start, context.expected, std::nullopt, {},
                 invocation.clientId);
             const auto taskId = snapshot.taskId;
-            auto *tasks = &m_runtime.automationTasks();
-            auto *files = &m_runtime.files();
+            const auto tasks = m_runtime.sharedTasks();
             auto *fileGuard = &m_fileGuard;
             const AuthorizedPath authorizedPath{path, FileAccessPurpose::Write};
-            auto execute = [tasks, files, fileGuard, authorizedPath, taskId, context,
+            auto execute = [tasks, fileGuard, authorizedPath, taskId, context,
                             prepared = prepared.get()] {
                 if (!tasks->markRunning(taskId)) {
                     tasks->beginCommitting(taskId);
@@ -3639,7 +3787,7 @@ namespace Automation {
                     tasks->fail(taskId, std::move(error));
                     return;
                 }
-                auto exported = files->writePreparedMidiExport(
+                auto exported = FileAutomationFacade::writePreparedMidiExport(
                     prepared, [tasks, fileGuard, authorizedPath, taskId] {
                         auto authorized = fileGuard->reauthorize(authorizedPath);
                         if (!authorized) {
@@ -3664,7 +3812,7 @@ namespace Automation {
                 completed.validatedOnly = context.validateOnly;
                 tasks->succeed(taskId, completed);
             };
-            m_exportThreadPool.start(std::move(execute));
+            m_processExportPool->start(std::move(execute));
             return AutomationResult<QJsonObject>(
                 encodeTaskAccepted({snapshot.taskId, context.expected, context.validateOnly}));
         });
@@ -3913,6 +4061,9 @@ namespace Automation {
             const auto applicationScope = arguments.value(QStringLiteral("scope")).toString() ==
                                           QStringLiteral("application");
             QList<AutomationTaskSnapshot> filtered;
+            const auto targetVersion = m_runtime.automationTasks()
+                                           .detachedExportVersion(documentId(arguments))
+                                           .value_or(m_runtime.documentVersion());
             if (applicationScope) {
                 filtered = m_runtime.automationTasks().listApplication();
             } else {
@@ -3940,9 +4091,8 @@ namespace Automation {
                     {QStringLiteral("scope"),
                      applicationScope ? QStringLiteral("application") : QStringLiteral("document")},
                     {QStringLiteral("document"),
-                     applicationScope
-                         ? QJsonValue(QJsonValue::Null)
-                         : QJsonValue(m_runtime.documentVersion().documentId.toString())          },
+                     applicationScope ? QJsonValue(QJsonValue::Null)
+                                      : QJsonValue(targetVersion.documentId.toString())           },
                     {QStringLiteral("state"),      stateFilter                                    },
                     {QStringLiteral("kind"),       kindFilter                                     },
                     {QStringLiteral("task_order"), taskOrder                                      },
@@ -3975,11 +4125,11 @@ namespace Automation {
                 resultItems.append(encodeTaskSnapshot(filtered.at(static_cast<qsizetype>(index))));
             QJsonObject result{
                 {QStringLiteral("scope"),
-                 applicationScope ? QStringLiteral("application") : QStringLiteral("document")    },
+                 applicationScope ? QStringLiteral("application") : QStringLiteral("document")},
                 {QStringLiteral("document"),
                  applicationScope ? QJsonValue(QJsonValue::Null)
-                                  : QJsonValue(encodeDocumentVersion(m_runtime.documentVersion()))},
-                {QStringLiteral("tasks"),    resultItems                                          },
+                                  : QJsonValue(encodeDocumentVersion(targetVersion))          },
+                {QStringLiteral("tasks"),    resultItems                                      },
             };
             if (end < filtered.size()) {
                 const auto nextCursor = m_taskCursorCodec.issue(
@@ -4028,6 +4178,8 @@ namespace Automation {
             AutomationResult<AutomationTaskSnapshot> result =
                 applicationScope ? m_runtime.automationTasks().requestCancelApplication(taskId)
                                  : [&]() -> AutomationResult<AutomationTaskSnapshot> {
+                if (m_runtime.automationTasks().detachedExportVersion(documentId(arguments)))
+                    return m_runtime.automationTasks().requestCancel(documentId(arguments), taskId);
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
                     return context.getError();

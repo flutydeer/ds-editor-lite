@@ -9,6 +9,7 @@
 class AppContext;
 class MainWindow;
 class WindowPlacement;
+namespace Automation { struct PublicAutomationHostServices; }
 
 class DocumentWindowManager final : public QObject {
     Q_OBJECT
@@ -23,6 +24,7 @@ public:
         std::unique_ptr<MainWindow> window;
         std::unique_ptr<WindowPlacement> placement;
         QString openingPath;
+        Automation::TaskId openingTask;
         bool closing = false;
         ~Document();
     };
@@ -37,6 +39,7 @@ public:
     void open(const QString &path, bool reuseBlank = false, Document *replace = nullptr);
     bool close(Document &document, TerminationSavePolicy policy);
     TerminationRequestResult terminate(TerminationMode mode, TerminationSavePolicy policy);
+    void configureAutomation(Automation::PublicAutomationHostServices &services);
     bool terminating() const { return m_terminating; }
 
 protected:

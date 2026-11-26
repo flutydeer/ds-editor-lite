@@ -415,7 +415,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
         m_hostMode == AppHostMode::Gui
             ? std::optional<Automation::WindowId>(Automation::WindowId::create())
             : std::nullopt,
-        Automation::createParameterAutomationServices());
+        Automation::createParameterAutomationServices(),
+        process ? process->m_coreRuntime->sharedTasks() : nullptr);
 
     // L3: Runtime host must outlive the inference facade.
     SingletonRegistry::add(m_coreRuntime.get());

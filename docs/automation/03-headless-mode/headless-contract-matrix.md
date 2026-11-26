@@ -103,12 +103,14 @@ DocumentId、revision 或单文档替换契约。
 
 | 场景 | `document_id` | `window_id` |
 |---|---|---|
-| GUI status | 一个真实活动文档 | 一个真实窗口 |
+| GUI status | 每个打开的工程有独立 ID | 每个工程对应一个主窗口 ID |
 | Headless status | 一个真实活动文档 | 不存在；`windows: []` |
 | both 文档 operation | 按契约显式提供 | 不接受、不推导 |
 | GUI-only operation on GUI | 涉及工程状态时显式提供 | 显式真实 ID |
 | GUI-only operation on Headless | Host gate 直接拒绝 | 不读取、不校验、不要求伪造 |
 | application-scoped Task | 按既有契约可为 null | 不生成 |
+
+Headless 的 `documents.new/open` 用 `current_document_id` 指定替换目标。`documents.close` 关闭该文档后创建空白工程，调用方可用返回的 `current.document_id` 继续工作。
 
 `SingleWindowContext` 在 Headless 为 `std::nullopt`。实现和 codec 不允许使用 null UUID、全零
 UUID、固定 UUID、DocumentId 转换或任何 sentinel 代替窗口。

@@ -29,9 +29,11 @@ namespace Automation {
         FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
         ExtractionRuntimeServices extractionServices,
         ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId,
-        ParameterRuntimeServices parameterServices)
+        ParameterRuntimeServices parameterServices, std::shared_ptr<AutomationTaskManager> sharedTasks)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
+          m_sharedTasks(sharedTasks ? std::move(sharedTasks) : std::make_shared<AutomationTaskManager>()),
+          m_taskManager(*m_sharedTasks),
           m_applicationFacade(m_dispatcher, std::move(applicationServices)),
           m_parameterFacade(m_dispatcher, m_committer, m_objectResolver,
                             std::move(parameterServices)),

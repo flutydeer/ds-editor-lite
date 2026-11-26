@@ -2,6 +2,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/WindowPlacement.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 #include "MainWindow.h"
@@ -42,6 +43,75 @@ DocumentWindowManager::~DocumentWindowManager() {
 
 DocumentWindowManager *DocumentWindowManager::instance() { return manager; }
 
+void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHostServices &services) {
+    using namespace Automation;
+    const auto status = [this](bool windows) {
+        QJsonArray result;
+        for (const auto &entry : m_documents) {
+            if (entry->closing)
+                continue;
+            auto &runtime = *entry->context->m_coreRuntime;
+            const auto version = runtime.documentVersion();
+            QJsonObject item{{QStringLiteral("document_id"), version.documentId.toString()},
+                             {QStringLiteral("active"), entry.get() == m_active}};
+            if (windows)
+                item.insert(QStringLiteral("window_id"), runtime.windowId()->toString());
+            else
+                item.insert(QStringLiteral("revision"), static_cast<qint64>(version.revision));
+            result.append(item);
+        }
+        return result;
+    };
+    services.documentStatus = [status] { return status(false); };
+    services.windowStatus = [status] { return status(true); };
+    services.findDocument = [this](const DocumentId &id) {
+        auto *entry = find(id);
+        return entry ? entry->context->m_coreRuntime.get() : nullptr;
+    };
+    services.findOpenPath = [this](const QString &path) {
+        auto *entry = findPath(path);
+        return entry ? entry->context->m_coreRuntime.get() : nullptr;
+    };
+    services.activateWindow = [this](CoreRuntime &runtime) {
+        if (auto *entry = find(runtime.documentVersion().documentId))
+            activate(*entry);
+    };
+    services.pendingOpen = [this](CoreRuntime &runtime, const QString &path) {
+        auto *entry = find(runtime.documentVersion().documentId);
+        return entry && DocumentWorkflowPathUtils::projectPathsEqual(entry->openingPath,
+                   DocumentWorkflowPathUtils::normalizedProjectPath(path)) ? entry->openingTask : TaskId{};
+    };
+    services.trackOpen = [this](CoreRuntime &runtime, const QString &path, const TaskId &task) {
+        auto *entry = find(runtime.documentVersion().documentId);
+        if (!entry)
+            return;
+        entry->openingPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
+        entry->openingTask = task;
+        runtime.automationTasks().addTerminalCallback(task,
+            [entry, owner = QPointer(entry->window.get()), task](const AutomationTaskSnapshot &) {
+                if (owner && entry->openingTask == task) {
+                    entry->openingTask = {};
+                    entry->openingPath.clear();
+                }
+            });
+    };
+    services.bindDocument = [this](CoreRuntime &runtime) {
+        auto *entry = find(runtime.documentVersion().documentId);
+        return createPublicAutomationHostServices(runtime, entry->context->m_appModel,
+                                                  m_process.m_synthrtEngine);
+    };
+    services.createDocumentWindow = [this] {
+        return m_terminating ? nullptr : createWindow().context->m_coreRuntime.get();
+    };
+    services.closeDocument = [this](CoreRuntime &runtime, bool discard) -> AutomationResult<DocumentVersion> {
+        auto *entry = find(runtime.documentVersion().documentId);
+        if (!entry || !close(*entry, discard ? TerminationSavePolicy::Discard
+                                             : TerminationSavePolicy::RejectUnsaved))
+            return AutomationError::documentBusy(runtime.documentVersion().documentId);
+        return entry->closing ? DocumentVersion{} : runtime.documentVersion();
+    };
+}
+
 DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
     auto entry = std::make_unique<Document>();
     if (!m_documents.empty())
@@ -59,7 +129,7 @@ DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, timer, schedule);
     connect(documentWorkflowController, &DocumentWorkflowController::busyChanged,
             document.window.get(), [&document](bool busy) {
-                if (!busy)
+                if (!busy && document.openingTask.isNull())
                     document.openingPath.clear();
             });
     activate(document);

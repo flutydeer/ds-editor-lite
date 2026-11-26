@@ -1,4 +1,5 @@
 #include "AutomationTaskManager.h"
+#include "OperationIds.h"
 
 #include <algorithm>
 #include <utility>
@@ -100,6 +101,38 @@ namespace Automation {
         AutomationTaskManager::get(const DocumentId &documentId, const TaskId &taskId) const {
         const QMutexLocker locker(&m_mutex);
         return findLocked(documentId, taskId);
+    }
+
+    bool AutomationTaskManager::addTerminalCallback(const TaskId &id, TerminalCallback callback) {
+        QMutexLocker lock(&m_mutex);
+        auto it = m_records.find(id);
+        if (it == m_records.end())
+            return false;
+        if (isTerminal(it->snapshot.state)) {
+            const auto snapshot = it->snapshot;
+            lock.unlock();
+            callback(snapshot);
+        } else if (it->terminal) {
+            it->terminal = [previous = std::move(it->terminal),
+                            callback = std::move(callback)](const auto &snapshot) {
+                previous(snapshot);
+                callback(snapshot);
+            };
+        } else
+            it->terminal = std::move(callback);
+        return true;
+    }
+
+    std::optional<DocumentVersion>
+        AutomationTaskManager::detachedExportVersion(const DocumentId &id) const {
+        const QMutexLocker lock(&m_mutex);
+        std::optional<DocumentVersion> version;
+        for (const auto &record : m_records) {
+            if (record.detachedExport && record.snapshot.baseDocument.documentId == id &&
+                (!version || record.snapshot.baseDocument.revision > version->revision))
+                version = record.snapshot.baseDocument;
+        }
+        return version;
     }
 
     AutomationResult<AutomationTaskSnapshot>
@@ -390,6 +423,14 @@ namespace Automation {
                     ++it;
                     continue;
                 }
+                if (it->snapshot.operationId == OperationIds::exports::audio::start ||
+                    it->snapshot.operationId == OperationIds::exports::midi::start) {
+                    it->detachedExport = true;
+                    if (isTerminal(it->snapshot.state))
+                        m_terminalDetachedExports.append(it.key());
+                    ++it;
+                    continue;
+                }
                 if (!preservedTaskId.isNull() && it.key() == preservedTaskId) {
                     it->snapshot.baseDocument = newDocument;
                     ++it;
@@ -408,6 +449,8 @@ namespace Automation {
                 it = m_records.erase(it);
             }
             m_terminalDocumentOrder.remove(oldDocumentId);
+            while (m_terminalDetachedExports.size() > MaximumRetainedDocumentTasks)
+                m_records.remove(m_terminalDetachedExports.takeFirst());
         }
         notifyRemovedTasks(removedTasks);
     }
@@ -434,7 +477,9 @@ namespace Automation {
         const auto record = m_records.constFind(taskId);
         if (record == m_records.cend())
             return;
-        auto &order = m_terminalDocumentOrder[record->snapshot.baseDocument.documentId];
+        auto &order = record->detachedExport
+                          ? m_terminalDetachedExports
+                          : m_terminalDocumentOrder[record->snapshot.baseDocument.documentId];
         order.append(taskId);
         while (order.size() > MaximumRetainedDocumentTasks)
             m_records.remove(order.takeFirst());

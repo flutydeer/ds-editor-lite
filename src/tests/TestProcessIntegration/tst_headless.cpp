@@ -1914,7 +1914,8 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
                                    QStringLiteral("--control-level"), QStringLiteral("l3"),
                                    QStringLiteral("--control-port"),
                                    QString::number(fixture.controlPort)}));
-    QVERIFY(fixture.waitForStatus(editor, fixture.nativeEndpoint));
+    const auto initialStatus = fixture.waitForStatus(editor, fixture.nativeEndpoint);
+    QVERIFY(initialStatus);
     int sequence = 0;
     const auto call = [&](const QString &operation,
                           const QJsonObject &arguments) -> std::optional<QJsonObject> {
@@ -1936,6 +1937,9 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     };
     const auto created = call(QStringLiteral("documents.new"),
                               {
+                                  {QStringLiteral("current_document_id"),
+                                   initialStatus->value("documents")
+                                       .toArray().first().toObject().value("document_id")},
                                   {QStringLiteral("template"),       QStringLiteral("empty")  },
                                   {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
     });
@@ -2162,4 +2166,130 @@ void ProcessIntegrationTests::isolatedPrimaries() {
 void ProcessIntegrationTests::crossHost() {
     QVERIFY(!platformPluginDirectory.isEmpty());
     QVERIFY(runCrossHostForwarding(editorPath, platformPluginDirectory));
+}
+
+void ProcessIntegrationTests::targetedDocumentLifecycle_data() {
+    QTest::addColumn<bool>("gui");
+    QTest::newRow("gui") << true;
+    QTest::newRow("headless") << false;
+}
+
+void ProcessIntegrationTests::targetedDocumentLifecycle() {
+    QFETCH(bool, gui);
+    HeadlessProcessFixture fixture(editorPath, QStringLiteral("document-routing"));
+    QVERIFY(fixture.prepare());
+    QStringList args{"--rpc", "--no-mcp", "--control-level", "l3", "--control-port",
+                     QString::number(fixture.controlPort)};
+    if (gui) {
+        fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
+        fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
+    } else
+        args.prepend("--headless");
+    auto &editor = fixture.storage.process("editor");
+    QVERIFY(fixture.start(editor, args));
+    auto status = fixture.waitForStatus(editor, fixture.nativeEndpoint);
+    QVERIFY2(status, qPrintable(fixture.error));
+    auto initial = status->value("documents").toArray().first().toObject();
+    const auto id = [](const QJsonObject &version) { return version.value("document_id"); };
+    auto original = id(initial);
+    int sequence = 0;
+    const auto call = [&](const QString &method, const QJsonObject &params = QJsonObject{}) {
+        const auto response = nativeExchange(fixture.manager, fixture.nativeEndpoint,
+            nativeRequest(QString::number(++sequence), method, params), fixture.error);
+        return response.value_or(QJsonObject{});
+    };
+    const auto snapshot = [&] { return call("application.get_status").value("result").toObject(); };
+    const auto create = [&](QJsonObject params) {
+        params.insert("template", "default");
+        return call("documents.new", params);
+    };
+    const auto target = [](const QJsonObject &version) {
+        return QJsonObject{{"document_id", version.value("document_id")},
+                           {"expected_revision", version.value("revision")}};
+    };
+    QJsonObject second;
+    const auto added = create({});
+    if (gui) {
+        second = added.value("result").toObject().value("current").toObject();
+        QVERIFY2(id(second).isString(), qPrintable(compactJson(added)));
+        QVERIFY(id(second) != original);
+        QVERIFY(added.value("result").toObject().value("previous").isNull());
+        QCOMPARE(snapshot().value("windows").toArray().size(), 2);
+        const auto extra = create({{"current_document_id", QJsonValue::Null}}).value("result").toObject();
+        const auto transient = extra.value("current").toObject();
+        QCOMPARE(snapshot().value("documents").toArray().size(), 3);
+        QCOMPARE(call("documents.close", target(transient)).value("result").toObject().value("closed_document_id"),
+                 id(transient));
+    } else {
+        QVERIFY(added.contains("error"));
+        QCOMPARE(snapshot().value("documents").toArray().size(), 1);
+    }
+    auto replaced = create({{"current_document_id", original}, {"expected_revision", initial.value("revision")}});
+    auto replacement = replaced.value("result").toObject().value("current").toObject();
+    QVERIFY2(id(replacement).isString(), qPrintable(compactJson(replaced)));
+    QVERIFY(id(replacement) != original);
+    QVERIFY(call("documents.get", {{"document_id", original}}).contains("error"));
+    QVERIFY(create({{"current_document_id", original}}).contains("error"));
+    if (gui) {
+        QVERIFY(call("documents.get", {{"document_id", id(second)}}).contains("result"));
+        auto save = target(second);
+        const auto path = fixture.storage.filePath("second.dspx");
+        save.insert("path", path);
+        save.insert("overwrite_policy", "overwrite");
+        QVERIFY(call("documents.save_as", save).contains("result"));
+        auto collision = target(replacement);
+        collision.insert("path", path);
+        collision.insert("overwrite_policy", "overwrite");
+        QVERIFY(call("documents.save_as", collision).contains("error"));
+        const auto duplicate = call("documents.open", {{"current_document_id", id(replacement)}, {"path", path}});
+        QVERIFY2(duplicate.contains("result"), qPrintable(compactJson(duplicate)));
+        QCOMPARE(snapshot().value("documents").toArray().size(), 2);
+        QVERIFY(call("documents.close", target(replacement)).contains("result"));
+        QVERIFY(call("documents.get", {{"document_id", id(replacement)}}).contains("error"));
+        const auto remaining = snapshot().value("documents").toArray();
+        QCOMPARE(remaining.size(), 1);
+        replacement = remaining.first().toObject();
+        QCOMPARE(id(replacement), id(second));
+    } else {
+        const auto path = fixture.storage.filePath("headless.dspx");
+        auto save = target(replacement);
+        save.insert("path", path);
+        save.insert("overwrite_policy", "reject");
+        const auto saved = call("documents.save_as", save);
+        QVERIFY2(saved.contains("result"), qPrintable(compactJson(saved)));
+        const auto duplicate =
+            call("documents.open", {
+                                       {"current_document_id", id(replacement)},
+                                       {"path",                path           }
+        });
+        const auto accepted = duplicate.value("result").toObject();
+        QVERIFY2(accepted.value("task_id").isString(), qPrintable(compactJson(duplicate)));
+        const auto task = call("tasks.get",
+                               {
+                                   {"scope",       "document"               },
+                                   {"document_id", id(replacement)          },
+                                   {"task_id",     accepted.value("task_id")}
+        })
+                              .value("result")
+                              .toObject();
+        QCOMPARE(task.value("state").toString(), QStringLiteral("succeeded"));
+        QCOMPARE(id(task.value("result").toObject().value("current").toObject()), id(replacement));
+    }
+    auto edit = target(replacement);
+    edit.insert("index", 0);
+    edit.insert("tracks", QJsonArray{QJsonObject{{"name", "Unsaved track"}}});
+    const auto changed = call("tracks.insert", edit).value("result").toObject().value("current").toObject();
+    QVERIFY(id(changed).isString());
+    auto close = target(changed);
+    QVERIFY(call("documents.close", close).contains("error"));
+    close.insert("discard_changes", true);
+    const auto closed = call("documents.close", close).value("result").toObject();
+    QCOMPARE(closed.value("closed_document_id"), id(changed));
+    const auto blank = closed.value("current").toObject();
+    QVERIFY(id(blank).isString() && id(blank) != id(changed));
+    QCOMPARE(snapshot().value("documents").toArray().first().toObject().value("document_id"), id(blank));
+    QVERIFY(call("documents.get", {{"document_id", id(blank)}}).contains("result"));
+    QVERIFY(call("application.request_exit").contains("result"));
+    QVERIFY(editor.waitForFinished(15000));
+    QCOMPARE(editor.exitCode(), 0);
 }

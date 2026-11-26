@@ -558,8 +558,9 @@ namespace AutomationWire {
                     return nonNegativeModelIntegerSchema();
                 }
             }
+            if (name == QStringLiteral("current_document_id"))
+                return JsonSchema::oneOf(QJsonArray{uuidSchema(), JsonSchema::null()});
             if (name == QStringLiteral("document_id") ||
-                name == QStringLiteral("current_document_id") ||
                 name == QStringLiteral("task_id")) {
                 return uuidSchema();
             }
@@ -896,6 +897,7 @@ namespace AutomationWire {
 
         const QSet<QString> &documentWriteOperations() {
             static const QSet<QString> ids{
+                PublicToolNames::documents_close,
                 PublicToolNames::documents_save,
                 PublicToolNames::documents_save_as,
                 PublicToolNames::documents_import,
@@ -1017,9 +1019,8 @@ namespace AutomationWire {
 
         QHash<QString, QStringList> requiredInputFields() {
             return {
-                {PublicToolNames::documents_new,                       {QStringLiteral("unsaved_policy")}               },
                 {PublicToolNames::documents_open,
-                 {QStringLiteral("unsaved_policy"), QStringLiteral("path")}                                             },
+                 {QStringLiteral("path")}                                                                               },
                 {PublicToolNames::documents_save_as,
                  {QStringLiteral("path"), QStringLiteral("overwrite_policy")}                                           },
                 {PublicToolNames::documents_import,
@@ -1335,6 +1336,7 @@ namespace AutomationWire {
             if (lifecycle) {
                 add(QStringLiteral("current_document_id"), false);
                 add(QStringLiteral("expected_revision"), false);
+                add(QStringLiteral("unsaved_policy"), false);
             } else if (documentQueryOperations().contains(id) ||
                        documentWriteOperations().contains(id) || playbackWrite) {
                 add(QStringLiteral("document_id"), true);
@@ -1342,6 +1344,8 @@ namespace AutomationWire {
             if (documentWriteOperations().contains(id)) {
                 add(QStringLiteral("expected_revision"), true);
             }
+            if (id == PublicToolNames::documents_close)
+                add(QStringLiteral("discard_changes"), false);
             if (documentIdempotencyKeyOperations().contains(id)) {
                 add(QStringLiteral("idempotency_key"), false);
             }
@@ -1692,9 +1696,7 @@ namespace AutomationWire {
             },
                 {QStringLiteral("window_id"), QStringLiteral("document_id")});
             auto documents = JsonSchema::array(document);
-            documents.insert(QStringLiteral("maxItems"), 1);
             auto windows = JsonSchema::array(window);
-            windows.insert(QStringLiteral("maxItems"), 1);
             return JsonSchema::document(JsonSchema::object(
                 {
                     {QStringLiteral("editor_instance_id"), uuidSchema()},
@@ -3841,6 +3843,12 @@ namespace AutomationWire {
                     return applicationTerminationSchema(QStringLiteral("restart"));
                 if (id == PublicToolNames::documents_new)
                     return documentLifecycleResultSchema();
+                if (id == PublicToolNames::documents_close)
+                    return JsonSchema::document(JsonSchema::object(
+                        {{QStringLiteral("closed_document_id"), uuidSchema()},
+                         {QStringLiteral("current"), JsonSchema::oneOf(
+                             QJsonArray{documentVersionSchema(), JsonSchema::null()})}},
+                        {QStringLiteral("closed_document_id"), QStringLiteral("current")}));
                 if (isPersistentPlaybackOperation(id))
                     return persistentPlaybackMutationSchema();
                 if (id.startsWith(QStringLiteral("playback.")))
@@ -4005,8 +4013,9 @@ namespace AutomationWire {
                 operationId == PublicToolNames::documents_open) {
                 return QStringLiteral(
                            "Run the GUI-equivalent %1 lifecycle flow without modal prompts. "
-                           "The unsaved-document policy and defaults are explicit, and the "
-                           "result reports the replacement document identity.")
+                           "A GUI request without current_document_id creates a window. "
+                           "Headless requires an explicit replacement target. "
+                           "Use current in the completed result to address the document.")
                     .arg(action);
             }
             if (operationId == PublicToolNames::documents_save ||

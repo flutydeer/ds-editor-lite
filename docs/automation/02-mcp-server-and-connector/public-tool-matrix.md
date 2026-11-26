@@ -64,7 +64,7 @@
 繁忙或存在未授权丢弃的改动时返回结构化错误，绝不进入 GUI 保存确认；菜单、窗口关闭等 GUI 路径
 仍保留原有保存询问。两项均为不可禁用、不可排除的 L0 固有能力，在 Custom 设置页只读展示且开关置灰常开。
 
-### 3.2 文档与工程（8）
+### 3.2 文档与工程
 
 | 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
@@ -72,10 +72,15 @@
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
 | `documents.open` | L2 | C/A | 受控读路径、已验证输入快照、格式选项与异步换代 |
+| `documents.close` | L2 | C/S | 指定 `document_id` 和 `expected_revision`。有改动时须先保存或显式传 `discard_changes: true`。返回 `closed_document_id`，最后一个工程关闭后 `current` 给出新空白工程的版本 |
 | `documents.save` | L2 | C/S | 当前路径保存；显式覆盖策略优先，省略时使用默认覆盖行为并更新 savepoint |
 | `documents.save_as` | L2 | C/S | 受控写路径、扩展名与同目录排他发布 |
 | `documents.import` | L2 | C/A | 单文件导入计划、已验证输入快照、格式选项与任务写回 |
 | `documents.import_batch` | L2 | C/A | 逐项输入快照、失败策略与任务写回 |
+
+工具集 v2 的 `application.get_status` 列出所有打开的工程及其主窗口。分离钢琴窗使用所属工程的窗口身份。GUI 调用 `documents.new/open` 时，省略 `current_document_id` 或传 `null` 会新开窗口。替换已有工程须传入它的 ID，可同时传入 `expected_revision`。Headless 的新建和打开都需要明确的工程 ID。打开已加载的路径会返回该工程。
+
+从新建结果或打开任务成功结果的 `current` 取得实际工程版本。新开窗口时 `previous` 为 `null`。严格校验输出的客户端应刷新 `tools/list` 或 Native OpenRPC 的 Schema。使用 v1 固定契约的 Connector 可通过 `editor.tools.describe` 和 `editor.tools.invoke` 使用编辑器公布的实际契约。原先省略目标来替换工程的脚本需先从状态列表取得工程 ID。
 
 ### 3.3 格式（2）
 
