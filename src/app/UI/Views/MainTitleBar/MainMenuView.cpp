@@ -1,4 +1,5 @@
 #include "MainMenuView.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
@@ -268,7 +269,7 @@ void MainMenuViewPrivate::onOpen() {
     if (!namedFilters.isEmpty())
         filter += QStringLiteral(";;") + namedFilters.join(QStringLiteral(";;"));
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(q, tr("Open"), lastDir, filter);
+    const auto fileName = WindowDialogs::getOpenFileName(q, tr("Open"), lastDir, filter);
     if (fileName.isNull()) {
         qDebug() << "User cancelled open";
         return;
@@ -328,7 +329,7 @@ void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileNames = QFileDialog::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
+    const auto fileNames = WindowDialogs::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
                                                          tr("MIDI File (*.mid *.midi)"));
     if (fileNames.isEmpty())
         return;
@@ -344,7 +345,7 @@ void MainMenuViewPrivate::onImportMidiFile() {
 void MainMenuViewPrivate::onImportDspxFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(
+    const auto fileName = WindowDialogs::getOpenFileName(
         q, tr("Select DiffScope Project File"), lastDir, tr("DiffScope Project File (*.dspx)"));
     if (fileName.isNull())
         return;
@@ -365,7 +366,7 @@ void MainMenuViewPrivate::onImportLibreSVIPFile() {
     if (patterns.isEmpty())
         return;
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(
+    const auto fileName = WindowDialogs::getOpenFileName(
         q, tr("Select Project File"), lastDir,
         tr("Singing Project Files (%1)").arg(patterns.join(QLatin1Char(' '))));
     if (fileName.isNull())
@@ -376,7 +377,7 @@ void MainMenuViewPrivate::onImportLibreSVIPFile() {
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
+    auto fileName = WindowDialogs::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
                                                  tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;

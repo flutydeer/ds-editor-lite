@@ -1,4 +1,5 @@
 #include "Modules/FillLyric/Widgets/LyricBaseWidget.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QCoreApplication>
 #include <QFileDialog>
@@ -239,7 +240,7 @@ namespace FillLyric {
     }
 
     void LyricBaseWidget::onBtnImportLrcClicked() {
-        const QString fileName = QFileDialog::getOpenFileName(
+        const QString fileName = WindowDialogs::getOpenFileName(
             this, QCoreApplication::translate("LyricBaseWidget", "Open Lrc File"), "",
             QCoreApplication::translate("LyricBaseWidget", "Lrc Files (*.lrc)"));
         if (fileName.isEmpty()) {
@@ -248,7 +249,7 @@ namespace FillLyric {
 
         LrcTools::LrcDecoder decoder;
         if (!decoder.decode(fileName)) {
-            QMessageBox::warning(
+            WindowDialogs::warning(
                 this, QCoreApplication::translate("LyricBaseWidget", "Error"),
                 QCoreApplication::translate("LyricBaseWidget", "Failed to decode lrc file."));
             return;

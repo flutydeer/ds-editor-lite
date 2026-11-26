@@ -115,6 +115,8 @@ namespace {
                 if (preview && preview->isVisible())
                     preview->reject();
             });
+            QCOMPARE(preview->parentWidget(), &dialog);
+            QCOMPARE(preview->windowModality(), Qt::WindowModal);
             QListWidget *files = nullptr;
             QListWidget *warnings = nullptr;
             for (auto *group : preview->findChildren<QGroupBox *>()) {
@@ -671,6 +673,8 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
         });
         auto *choice =
             exportButton(warning, AudioExportDialog::tr(allowOverwrite ? "Continue" : "Cancel"));
+        QCOMPARE(warning->parentWidget(), &dialog);
+        QCOMPARE(warning->windowModality(), Qt::WindowModal);
         QVERIFY(choice);
         QCOMPARE(readExisting(), existingContents);
         QTest::mouseClick(choice, Qt::LeftButton);

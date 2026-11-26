@@ -1,4 +1,5 @@
 #include "Modules/FillLyric/LyricTab.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "Modules/FillLyric/Controls/CellList.h"
 #include "Modules/FillLyric/Controls/LyricCell.h"
@@ -180,8 +181,8 @@ namespace FillLyric {
     bool LyricTab::confirmPreviewRebuild() const {
         if (!m_lyricExtWidget->isVisible() || !previewHasRevisions())
             return true;
-        const auto answer = QMessageBox::question(
-            nullptr, tr("Preview Lyric"),
+        const auto answer = WindowDialogs::question(
+            window(), tr("Preview Lyric"),
             tr("Changing the language rebuilds the preview and discards your revisions. "
                "Continue?"),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
@@ -203,8 +204,8 @@ namespace FillLyric {
 
         bool setLangNotes = false;
         if (warn) {
-            const QMessageBox::StandardButton res = QMessageBox::question(
-                nullptr, tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
+            const QMessageBox::StandardButton res = WindowDialogs::question(
+                window(), tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
             if (res == QMessageBox::Yes)
                 setLangNotes = true;
@@ -306,8 +307,8 @@ namespace FillLyric {
         const QString text = m_lyricBaseWidget->lyricText();
         const auto splitRes = m_lyricBaseWidget->splitLyric(text);
 
-        const QMessageBox::StandardButton res = QMessageBox::question(
-            nullptr, tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
+        const QMessageBox::StandardButton res = WindowDialogs::question(
+            window(), tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
 
         if (res == QMessageBox::Yes) {

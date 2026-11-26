@@ -1,4 +1,5 @@
 #include "MidiPage.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <cmath>
 
@@ -203,7 +204,7 @@ QWidget *MidiPage::createContentWidget() {
                     return;
                 const auto deviceId = m_deviceComboBox->itemData(index).toString();
                 if (!AudioSystem::midiSystem()->setDeviceId(deviceId)) {
-                    QMessageBox::critical(
+                    WindowDialogs::critical(
                         this, {},
                         tr("Cannot open MIDI device %1").arg(m_deviceComboBox->itemText(index)));
                 }

@@ -1,4 +1,5 @@
 #include "AppearancePage.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -78,7 +79,7 @@ void AppearancePage::changeTheme(const int index) {
     if (!applied) {
         const QSignalBlocker blocker(m_cbxTheme);
         m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(previousThemePreferenceId));
-        QMessageBox::critical(this, tr("Theme switch failed"), applied.getError().message);
+        WindowDialogs::critical(this, tr("Theme switch failed"), applied.getError().message);
     }
 }
 

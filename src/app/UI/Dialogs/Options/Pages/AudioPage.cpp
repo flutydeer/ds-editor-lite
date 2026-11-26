@@ -1,4 +1,5 @@
 #include "AudioPage.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QApplication>
 #include <QBoxLayout>
@@ -165,6 +166,7 @@ QWidget *AudioPage::createContentWidget() {
     connect(m_testDeviceButton, &QPushButton::clicked, this, [outputSys, this] {
         if (!outputSys->isReady()) {
             QMessageBox msgBox(this);
+            msgBox.setWindowModality(Qt::WindowModal);
             msgBox.setIcon(QMessageBox::Critical);
             msgBox.setText(tr("Cannot start audio playback"));
             msgBox.setInformativeText(
@@ -243,10 +245,9 @@ void AudioPage::updateDriverComboBox() {
             if (!outputSys->setDriver(newDrvName)) {
                 const auto *driver =
                     outputSys->outputContext()->driverManager()->driver(newDrvName);
-                QMessageBox::warning(
-                    this, {},
-                    tr("Cannot initialize %1 driver")
-                        .arg(driver ? driver->displayName() : newDrvName));
+                WindowDialogs::warning(this, {},
+                                       tr("Cannot initialize %1 driver")
+                                           .arg(driver ? driver->displayName() : newDrvName));
                 if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
                     m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
                 } else {
@@ -343,7 +344,7 @@ void AudioPage::updateDeviceComboBox() {
                         QSignalBlocker blocker(m_deviceComboBox);
                         m_deviceComboBox->setCurrentIndex(revertIndex);
                     }
-                    QMessageBox::warning(
+                    WindowDialogs::warning(
                         this, {},
                         tr("Audio device %1 is not available")
                             .arg(newDevName.isEmpty() ? tr("Default device") : newDevName));

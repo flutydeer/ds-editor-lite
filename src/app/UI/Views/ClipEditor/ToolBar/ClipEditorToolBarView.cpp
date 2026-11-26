@@ -68,7 +68,7 @@ namespace {
             const bool ownPopup = popup && window->isAncestorOf(popup);
             if (popup && !ownPopup)
                 return false;
-            if (auto *modal = QApplication::activeModalWidget(); modal && modal != window)
+            if (WindowDialogs::blocks(window))
                 return false;
             if (QApplication::activeWindow() != window && !ownPopup)
                 return false;

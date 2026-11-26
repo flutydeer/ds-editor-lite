@@ -1,4 +1,5 @@
 #include "Modules/FillLyric/Controls/LyricCell.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QCoreApplication>
 #include <QMenu>
@@ -146,6 +147,7 @@ namespace FillLyric {
             const auto editRect = QRectF(lRect.x() - horizontalOffset, lRect.y() - verticalOffset,
                                          lRect.width(), lRect.height());
             EditDialog dlg(lyric(), editRect, m_font, m_view);
+            dlg.setWindowModality(Qt::WindowModal);
             dlg.show();
             dlg.activateWindow();
             dlg.exec();
@@ -280,7 +282,7 @@ namespace FillLyric {
         menu->addAction(inputAction);
         connect(inputAction, &QAction::triggered, this, [this] {
             bool ok;
-            const QString syllable = QInputDialog::getText(
+            const QString syllable = WindowDialogs::getText(
                 m_view, QCoreApplication::translate("LyricCell", "Custom Syllables"),
                 QCoreApplication::translate("LyricCell", "Please input syllables"),
                 QLineEdit::Normal, "", &ok);

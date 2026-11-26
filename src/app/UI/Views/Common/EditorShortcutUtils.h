@@ -14,6 +14,7 @@
 #include <QTextEdit>
 #include <QVariant>
 #include <QWidget>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <functional>
 #include <utility>
@@ -74,7 +75,7 @@ namespace EditorShortcutUtils {
                     return false;
 
                 if (isTextInput(QApplication::focusWidget()) || QApplication::activePopupWidget() ||
-                    QApplication::activeModalWidget()) {
+                    WindowDialogs::blocks(QApplication::activeWindow())) {
                     event->accept();
                     return true;
                 }

@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #ifdef Q_OS_WIN
 #  include <Windows.h>
@@ -412,7 +413,7 @@ SaveDecision MainWindow::askDocumentSaveDecision() {
 }
 
 QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
-    return QFileDialog::getSaveFileName(this, tr("Save project"), suggestedPath,
+    return WindowDialogs::getSaveFileName(this, tr("Save project"), suggestedPath,
                                         tr("DiffScope Project File (*.dspx)"));
 }
 
@@ -742,7 +743,7 @@ EditorViewGlobal::Region MainWindow::focusedEditorRegion() const {
 }
 
 bool MainWindow::editorFocusControlBlocked() const {
-    return QApplication::activeModalWidget() != nullptr;
+    return WindowDialogs::blocks(this);
 }
 
 bool MainWindow::revealFocus(const HistoryFocus &focus) {

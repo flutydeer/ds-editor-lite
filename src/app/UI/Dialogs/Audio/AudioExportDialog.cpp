@@ -1,4 +1,5 @@
 #include "AudioExportDialog.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include "AudioExportProgressDialog.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -403,11 +404,11 @@ namespace Audio::Internal {
         connect(presetSaveAsButton, &QAbstractButton::clicked, this, [this] {
             QString result = m_presetComboBox->currentText();
             while (true) {
-                result = QInputDialog::getText(this, {}, tr("Preset name"), {}, result);
+                result = WindowDialogs::getText(this, {}, tr("Preset name"), {}, result);
                 if (result.isEmpty())
                     return;
                 if (AudioExporter::presets().contains(result)) {
-                    if (QMessageBox::question(
+                    if (WindowDialogs::question(
                             this, {},
                             tr("Preset \"%1\" already exists. Overwrite it?").arg(result)) ==
                         QMessageBox::Yes)
@@ -487,7 +488,7 @@ namespace Audio::Internal {
         };
         QString selectedFilter = filters.at(m_fileTypeComboBox->currentIndex());
         const auto path =
-            QFileDialog::getSaveFileName(this, {},
+            WindowDialogs::getSaveFileName(this, {},
                                          QDir(m_audioExporter->d_func()->projectDirectory())
                                              .absoluteFilePath(m_fileDirectoryEdit->text()),
                                          filters.join(";;"), &selectedFilter);
@@ -505,12 +506,13 @@ namespace Audio::Internal {
     }
 
     void AudioExportDialog::showWarnings() {
-        QMessageBox::warning(this, {},
+        WindowDialogs::warning(this, {},
                              AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
     }
 
     void AudioExportDialog::showDryRunResult() {
         QDialog dlg(this);
+        dlg.setWindowModality(Qt::WindowModal);
         const auto layout = new QVBoxLayout;
         const auto fileListGroupBox = new QGroupBox(tr("File List"));
         const auto fileListLayout = new QVBoxLayout;
@@ -762,6 +764,7 @@ namespace Audio::Internal {
             tr("Warning"),
             AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"), this);
         constexpr int continueButtonId = 0;
+        dialog.setWindowModality(Qt::WindowModal);
         constexpr int cancelButtonId = 1;
         dialog.addAccentButton(tr("Continue"), continueButtonId, QDialogButtonBox::AcceptRole);
         dialog.addButton(tr("Cancel"), cancelButtonId, QDialogButtonBox::RejectRole);

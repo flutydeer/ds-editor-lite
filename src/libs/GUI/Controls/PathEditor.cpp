@@ -1,6 +1,7 @@
 // ReSharper disable CppUseRangeAlgorithm
 
 #include <lite/GUI/Controls/PathEditor.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <algorithm>
 
@@ -185,7 +186,7 @@ void PathEditor::editRowWithEmptyCheck(int row) {
 
 void PathEditor::onAddClicked() {
     const auto dir =
-        QDir::toNativeSeparators(QFileDialog::getExistingDirectory(this, tr("Browse directory")));
+        QDir::toNativeSeparators(WindowDialogs::getExistingDirectory(this, tr("Browse directory")));
     if (!dir.isEmpty()) {
         m_listWidget->addItem(createEditableItem(dir));
         Q_EMIT pathsChanged();
