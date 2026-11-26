@@ -54,8 +54,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <future>
 #include <utility>
 
 namespace {
@@ -770,7 +772,22 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QCOMPARE(runtime().documentVersion(), version);
 }
 
-void ApplicationWorkflowTests::concurrentMandarinPronunciationsStayWithTheirLyrics() {
+void ApplicationWorkflowTests::builtInG2pKeepsConcurrentLyricsAligned_data() {
+    QTest::addColumn<QString>("languageId");
+    QTest::addColumn<QStringList>("words");
+    QTest::addColumn<QStringList>("pronunciations");
+    QTest::addColumn<int>("repeats");
+    QTest::newRow("english-dictionary-and-unlisted-word")
+        << QStringLiteral("eng") << QStringList{"hello", "codexarium"} << QStringList{} << 1;
+    QTest::newRow("mandarin-syllables")
+        << QStringLiteral("cmn") << QStringList{"八", "妈"} << QStringList{"ba", "ma"} << 16;
+}
+
+void ApplicationWorkflowTests::builtInG2pKeepsConcurrentLyricsAligned() {
+    QFETCH(QString, languageId);
+    QFETCH(QStringList, words);
+    QFETCH(QStringList, pronunciations);
+    QFETCH(int, repeats);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
@@ -784,7 +801,7 @@ void ApplicationWorkflowTests::concurrentMandarinPronunciationsStayWithTheirLyri
                           std::filesystem::u8path(root.toUtf8().constData()),
                           std::filesystem::copy_options::recursive, error);
     QVERIFY2(!error, error.message().c_str());
-    // Both workers must enter the Mandarin plugin through the singer's language route.
+    // Use the shipped plugin through the singer route used by both editing and export.
     QFile descriptor(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
     QVERIFY(descriptor.open(QIODevice::ReadOnly));
     auto character = QJsonDocument::fromJson(descriptor.readAll()).object();
@@ -793,11 +810,12 @@ void ApplicationWorkflowTests::concurrentMandarinPronunciationsStayWithTheirLyri
     const auto languages = configuration.value(QStringLiteral("languages")).toArray();
     for (const auto &entry : languages) {
         auto language = entry.toObject();
-        if (language.value(QStringLiteral("id")).toString() != QStringLiteral("cmn"))
+        if (language.value(QStringLiteral("id")).toString() != languageId)
             continue;
-        language.insert(QStringLiteral("g2p"), QStringLiteral("g2p-cmn-official"));
+        language.insert(QStringLiteral("g2p"), QStringLiteral("g2p-%1-official").arg(languageId));
         language.remove(QStringLiteral("g2pPackages"));
         language.remove(QStringLiteral("g2pPackageVersion"));
+        configuration.insert(QStringLiteral("defaultLanguage"), languageId);
         configuration.insert(QStringLiteral("languages"), QJsonArray{language});
         break;
     }
@@ -814,69 +832,54 @@ void ApplicationWorkflowTests::concurrentMandarinPronunciationsStayWithTheirLyri
     });
     const auto refreshed = packageManager->refreshInstalledPackages({root});
     QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
-    auto identifier = SynthrtEngine::instance().findSinger(QStringLiteral("fixture"));
+    auto &engine = SynthrtEngine::instance();
+    auto identifier = engine.findSinger(QStringLiteral("fixture"));
     QVERIFY(identifier);
-    const auto singer = packageManager->findSingerByIdentifier(*identifier);
-    QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
-
-    constexpr auto phraseLength = 32;
-    const auto phrase = [](const QString &lyric) {
-        NoteInferenceSnapshot note;
-        note.language = QStringLiteral("cmn");
-        note.lyric = lyric;
-        return QList<NoteInferenceSnapshot>(phraseLength, note);
-    };
-    const auto version = runtime().documentVersion();
-    GetPronunciationTask first(version, clip->id(), 0, phrase(QStringLiteral("八")), singer);
-    GetPronunciationTask second(version, otherClip->id(), 0, phrase(QStringLiteral("妈")), singer);
-    QSemaphore ready, start;
-    QThreadPool workers;
-    workers.setMaxThreadCount(2);
-    for (QRunnable *task : {&first, &second}) {
-        workers.start([&, task] {
-            ready.release();
-            start.acquire();
-            task->run();
-        });
-    }
-    const bool bothReady = ready.tryAcquire(2, 5000);
-    start.release(2);
-    QVERIFY(bothReady);
-    QVERIFY(workers.waitForDone(10000));
-
-    QCOMPARE(first.result.size(), phraseLength);
-    QCOMPARE(second.result.size(), phraseLength);
-    for (int i = 0; i < phraseLength; ++i) {
-        QCOMPARE(first.result[i].pronunciation, QStringLiteral("ba"));
-        QCOMPARE(second.result[i].pronunciation, QStringLiteral("ma"));
-    }
-}
-
-void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
-    prepareVoicebankTarget();
-    if (QTest::currentTestFailed())
-        return;
-    const auto &service = SynthrtEngine::instance().languageService();
-    QVERIFY(service.modelsReady());
     const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
     const auto *undo = HistoryManager::instance()->nextUndoEntry();
-    const std::vector<srt::g2p::G2pInput> inputs{
-        {"hello",      "g2p-eng-official"},
-        {"codexarium", "g2p-eng-official"},
+    std::vector<srt::g2p::G2pInput> inputs;
+    for (int n = 0; n < repeats; ++n)
+        for (const auto &word : words)
+            inputs.push_back({word.toStdString(), {}});
+    auto reversed = inputs;
+    std::reverse(reversed.begin(), reversed.end());
+    QSemaphore ready, start;
+    const auto convert = [&](const auto &phrase) {
+        return std::async(std::launch::async, [&, phrase] {
+            ready.release();
+            start.acquire();
+            return engine.convertG2p(*identifier, languageId, phrase);
+        });
     };
-    const auto converted = service.convertLyric(inputs);
-    QCOMPARE(converted.size(), inputs.size());
-    for (size_t index = 0; index < converted.size(); ++index) {
-        const auto &result = converted[index];
-        QCOMPARE(result.lyric, inputs[index].lyric);
-        QCOMPARE(result.errorType, srt::g2p::NoError);
-        QCOMPARE(result.mode, std::string(srt::g2p::kG2pModeConvert));
-        QVERIFY(!result.pronunciation.empty());
-        QVERIFY(result.pronunciation != inputs[index].lyric);
-        QVERIFY(!result.candidates.empty());
-    }
-    QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    auto first = convert(inputs);
+    auto second = convert(reversed);
+    const bool bothReady = ready.tryAcquire(2, 5000);
+    start.release(2);
+    QVERIFY(bothReady);
+    const auto verify = [&](auto &worker, const auto &phrase) {
+        QVERIFY(worker.wait_for(std::chrono::seconds(15)) == std::future_status::ready);
+        auto result = worker.get();
+        if (!result)
+            QFAIL(qPrintable(QString::fromUtf8(result.error().message())));
+        const auto &converted = *result;
+        QCOMPARE(converted.size(), phrase.size());
+        for (size_t i = 0; i < phrase.size(); ++i) {
+            const auto &item = converted[i];
+            QCOMPARE(item.lyric, phrase[i].lyric);
+            QCOMPARE(item.errorType, srt::g2p::NoError);
+            QCOMPARE(item.mode, std::string(srt::g2p::kG2pModeConvert));
+            QVERIFY(!item.candidates.empty());
+            QVERIFY(!item.pronunciation.empty() && item.pronunciation != item.lyric);
+            if (!pronunciations.isEmpty()) {
+                const auto index = words.indexOf(QString::fromStdString(item.lyric));
+                QCOMPARE(QString::fromStdString(item.pronunciation), pronunciations.at(index));
+            }
+        }
+        QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    };
+    verify(first, inputs);
+    verify(second, reversed);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);

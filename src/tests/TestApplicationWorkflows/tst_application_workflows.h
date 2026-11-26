@@ -73,8 +73,8 @@ private slots:
     void inferenceFailureAndCancellationAllowRetry_data();
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
-    void concurrentMandarinPronunciationsStayWithTheirLyrics();
-    void builtInG2pConvertsDictionaryAndUnlistedWords();
+    void builtInG2pKeepsConcurrentLyricsAligned_data();
+    void builtInG2pKeepsConcurrentLyricsAligned();
     void g2pOnnxSessionTranslatesInputsAndRecoversAfterFailure();
     void publicAudioPathUpdatesPrepareCommitAndUndo_data();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
