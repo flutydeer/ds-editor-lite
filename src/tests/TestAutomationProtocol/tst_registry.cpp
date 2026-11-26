@@ -1222,9 +1222,12 @@ namespace {
                                          Automation::AutomationFileGuard &fileGuard,
                                          const QString &directoryPath,
                                          MidiExportTestControl &control) {
-        const auto document = runtime.documentVersion();
-        for (const auto &outcome : {QStringLiteral("succeeded"), QStringLiteral("canceled"),
-                                    QStringLiteral("revoked"), QStringLiteral("discarded")}) {
+        for (const auto &outcome :
+             {QStringLiteral("succeeded"), QStringLiteral("canceled"), QStringLiteral("revoked"),
+              QStringLiteral("closed"), QStringLiteral("replaced")}) {
+            const auto document = runtime.documentVersion();
+            const bool close = outcome == QStringLiteral("closed");
+            const bool retire = close || outcome == QStringLiteral("replaced");
             const auto path =
                 QDir(directoryPath).absoluteFilePath(outcome + QStringLiteral(".mid"));
             bool released = false;
@@ -1260,8 +1263,16 @@ namespace {
                 QCOMPARE(canceled.get().state, Automation::AutomationTaskState::CancelRequested);
             } else if (outcome == QStringLiteral("revoked")) {
                 QVERIFY(fileGuard.setConfiguredRoots({}));
-            } else if (outcome == QStringLiteral("discarded")) {
-                runtime.automationTasks().discardDocumentGeneration(document.documentId);
+            } else if (retire) {
+                const auto retired = registry.invoke(
+                    close ? "documents.close" : "documents.new",
+                    {
+                        {close ? "document_id" : "current_document_id",
+                         document.documentId.toString()                                                       },
+                        {"expected_revision",                           static_cast<qint64>(document.revision)},
+                        {"discard_changes",                             true                                  }
+                });
+                QVERIFY2(retired, qPrintable(retired ? QString{} : retired.getError().message));
             }
             unblock();
             QVERIFY2(waitUntil([&] {
@@ -1272,11 +1283,12 @@ namespace {
                                     .isEmpty();
                      }),
                      qPrintable(outcome));
-            QCOMPARE(runtime.documentVersion(), document);
-            if (outcome == QStringLiteral("discarded")) {
+            if (retire) {
+                QVERIFY(runtime.documentVersion().documentId != document.documentId);
                 QVERIFY(!QFileInfo::exists(path));
                 continue;
             }
+            QCOMPARE(runtime.documentVersion(), document);
             const auto result = runtime.automationTasks().get(document.documentId, taskId);
             QVERIFY(result);
             if (outcome == QStringLiteral("succeeded")) {

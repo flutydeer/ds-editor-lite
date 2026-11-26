@@ -2138,9 +2138,6 @@ namespace Automation {
             return reject(unavailable(QStringLiteral("Cannot create a project window")));
         if (m_hostServices.findDocument && !id.isNull()) {
             target = m_hostServices.findDocument(id);
-            if (!target && operationId.startsWith(QStringLiteral("tasks.")) &&
-                m_runtime.automationTasks().detachedExportVersion(id))
-                target = &m_runtime;
             if (!target)
                 return reject(AutomationError::documentChanged(id, {}));
         }
@@ -4049,9 +4046,7 @@ namespace Automation {
             const auto applicationScope = arguments.value(QStringLiteral("scope")).toString() ==
                                           QStringLiteral("application");
             QList<AutomationTaskSnapshot> filtered;
-            const auto targetVersion = m_runtime.automationTasks()
-                                           .detachedExportVersion(documentId(arguments))
-                                           .value_or(m_runtime.documentVersion());
+            const auto targetVersion = m_runtime.documentVersion();
             if (applicationScope) {
                 filtered = m_runtime.automationTasks().listApplication();
             } else {
@@ -4166,8 +4161,6 @@ namespace Automation {
             AutomationResult<AutomationTaskSnapshot> result =
                 applicationScope ? m_runtime.automationTasks().requestCancelApplication(taskId)
                                  : [&]() -> AutomationResult<AutomationTaskSnapshot> {
-                if (m_runtime.automationTasks().detachedExportVersion(documentId(arguments)))
-                    return m_runtime.automationTasks().requestCancel(documentId(arguments), taskId);
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
                     return context.getError();

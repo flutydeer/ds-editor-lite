@@ -5,13 +5,16 @@
 namespace Automation {
     namespace {
         DocumentRuntimeServices bindGenerationLifecycle(DocumentRuntimeServices services,
+                                                        AudioExportAutomationFacade *audioExports,
                                                         ExtractionAutomationFacade *extractions) {
+            Q_ASSERT(audioExports);
             Q_ASSERT(extractions);
             auto existing = std::move(services.beforeReplaceGeneration);
-            services.beforeReplaceGeneration = [existing = std::move(existing),
+            services.beforeReplaceGeneration = [existing = std::move(existing), audioExports,
                                                 extractions](const DocumentId &documentId) {
                 if (existing)
                     existing(documentId);
+                audioExports->discardDocumentGeneration(documentId);
                 extractions->discardDocumentGeneration(documentId);
             };
             return services;
@@ -41,9 +44,9 @@ namespace Automation {
           m_audioExportFacade(m_dispatcher, m_taskManager, std::move(audioExportServices)),
           m_extractionFacade(m_dispatcher, m_taskManager, m_objectResolver, m_parameterFacade,
                              m_projectFacade, m_noteFacade, std::move(extractionServices)),
-          m_documentFacade(
-              m_dispatcher, m_committer, m_taskManager,
-              bindGenerationLifecycle(std::move(documentServices), &m_extractionFacade)),
+          m_documentFacade(m_dispatcher, m_committer, m_taskManager,
+                           bindGenerationLifecycle(std::move(documentServices),
+                                                   &m_audioExportFacade, &m_extractionFacade)),
           m_facade(m_dispatcher, m_objectResolver, std::move(editorServices)),
           m_fileFacade(m_dispatcher, std::move(fileServices)),
           m_historyFacade(m_dispatcher, m_committer),
@@ -73,6 +76,7 @@ namespace Automation {
         // Closing is sticky inside the session, so an operation that was already in
         // flight cannot reopen the document through a replacement commit.
         m_session.commitClosing();
+        m_taskManager.discardDocumentGeneration(m_session.documentId());
         // Diagnostics only, and deliberately after the fence: a log call that blocks on
         // a stuck process must not be able to delay the freeze itself.
         qInfo().noquote() << QStringLiteral(

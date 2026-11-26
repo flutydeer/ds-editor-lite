@@ -16,8 +16,6 @@ namespace Automation {
 
     AutomationResult<AutomationTaskSnapshot>
         TaskAutomationFacade::getTask(const DocumentId &documentId, const TaskId &taskId) {
-        if (m_tasks.detachedExportVersion(documentId))
-            return m_tasks.get(documentId, taskId);
         return m_dispatcher.dispatchDocumentQuery<AutomationTaskSnapshot>(
             OperationIds::tasks::get, documentId, [this, taskId](DocumentSession &session) {
                 return m_tasks.get(session.documentId(), taskId);
@@ -26,8 +24,6 @@ namespace Automation {
 
     AutomationResult<QList<AutomationTaskSnapshot>>
         TaskAutomationFacade::listTasks(const DocumentId &documentId) {
-        if (m_tasks.detachedExportVersion(documentId))
-            return m_tasks.list(documentId);
         return m_dispatcher.dispatchDocumentQuery<QList<AutomationTaskSnapshot>>(
             OperationIds::tasks::list, documentId, [this](DocumentSession &session) {
                 return AutomationResult<QList<AutomationTaskSnapshot>>(

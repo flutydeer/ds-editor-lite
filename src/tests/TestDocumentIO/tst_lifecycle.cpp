@@ -806,12 +806,14 @@ void DocumentIOTests::generationCleanup() {
         (!oldDocument &&
          oldDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
          !oldTaskFromOldGeneration &&
-         oldTaskFromOldGeneration.getError().code == Automation::AutomationErrorCode::NotFound &&
+         oldTaskFromOldGeneration.getError().code ==
+             Automation::AutomationErrorCode::DocumentChanged &&
          !oldTaskFromNewGeneration &&
          oldTaskFromNewGeneration.getError().code == Automation::AutomationErrorCode::NotFound),
         "old document/task identities must not be observable from the new generation");
-    const auto retained = runtime.tasks().getTask(oldVersion.documentId, terminalTask.taskId);
-    QVERIFY(retained && retained.get().state == Automation::AutomationTaskState::Succeeded);
+    const auto expired = runtime.tasks().getTask(oldVersion.documentId, terminalTask.taskId);
+    QVERIFY(!expired);
+    QCOMPARE(expired.getError().code, Automation::AutomationErrorCode::DocumentChanged);
     QVERIFY(!runtime.tasks().getTask(newVersion.documentId, terminalTask.taskId));
 
     const auto reusedKey = runtime.project().insertTrack(

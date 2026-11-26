@@ -345,8 +345,8 @@ namespace Automation {
                 std::make_shared<AudioExportJobAdapter>(model, projectPath, config));
         };
         services.schedule = [](std::function<void()> execute) {
-            if (auto *application = QCoreApplication::instance()) {
-                QTimer::singleShot(0, application,
+            if (auto *runtime = AppContext::instance<CoreRuntime>()) {
+                QTimer::singleShot(0, runtime,
                                    [context = SingletonRegistry::current(),
                                     execute = std::move(execute)]() mutable {
                                        const SingletonRegistry::Scope scope(context);

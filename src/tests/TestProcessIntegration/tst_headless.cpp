@@ -1896,12 +1896,15 @@ void ProcessIntegrationTests::nativeEditingAndFiles() {
 }
 
 void ProcessIntegrationTests::audioImportAndWaveExport_data() {
+    QTest::addColumn<bool>("gui");
     QTest::addColumn<bool>("closeSource");
-    QTest::newRow("headless") << false;
-    QTest::newRow("close-source-with-another-project-open") << true;
+    QTest::newRow("headless") << false << false;
+    QTest::newRow("another-project-active") << true << false;
+    QTest::newRow("close-source-with-another-project-open") << true << true;
 }
 
 void ProcessIntegrationTests::audioImportAndWaveExport() {
+    QFETCH(bool, gui);
     QFETCH(bool, closeSource);
     HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-audio-export"));
     QVERIFY(fixture.prepare());
@@ -1939,7 +1942,7 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     auto &editor = fixture.storage.process(QStringLiteral("editor"));
     QStringList args{"--rpc", "--no-mcp",       "--control-level",
                      "l3",    "--control-port", QString::number(fixture.controlPort)};
-    if (closeSource) {
+    if (gui) {
         fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
         fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
     } else
@@ -2044,7 +2047,7 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     const auto beforeExport = call(QStringLiteral("documents.get"), documentArguments);
     QVERIFY2(beforeExport, qPrintable(fixture.error));
     QJsonObject other;
-    if (closeSource) {
+    if (gui) {
         const auto created = call("documents.new", {
                                                        {"template", "default"}
         });
@@ -2084,6 +2087,23 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
                                {"tracks",            QJsonArray{QJsonObject{{"name", "Other document"}}}}
         });
         QVERIFY2(edited, qPrintable(fixture.error));
+        for (const auto &method : {"tasks.get", "tasks.list", "tasks.cancel"}) {
+            QJsonObject args{
+                {"scope",       "document"},
+                {"document_id", documentId}
+            };
+            if (QLatin1StringView(method) != QLatin1StringView("tasks.list"))
+                args.insert("task_id", exported->value("task_id"));
+            const auto response = nativeExchange(
+                fixture.manager, fixture.nativeEndpoint,
+                nativeRequest(QString::number(++sequence), QString::fromLatin1(method), args),
+                fixture.error);
+            QVERIFY2(response, qPrintable(fixture.error));
+            const auto error = response->value("error").toObject().value("data").toObject();
+            QCOMPARE(error.value("code").toString(), QStringLiteral("document_changed"));
+        }
+        QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
+        return;
     }
     QVERIFY2(waitForTask(*exported), qPrintable(fixture.error));
 
@@ -2113,12 +2133,10 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     QCOMPARE(total, outputInfo.frames);
     QVERIFY2(energy > 0.001 * total, "Audio-only export must preserve audible source content");
     output.reset();
-    if (!closeSource) {
-        const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
-        QVERIFY2(afterExport, qPrintable(fixture.error));
-        QCOMPARE(afterExport->value(QStringLiteral("document")),
-                 beforeExport->value(QStringLiteral("document")));
-    }
+    const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
+    QVERIFY2(afterExport, qPrintable(fixture.error));
+    QCOMPARE(afterExport->value(QStringLiteral("document")),
+             beforeExport->value(QStringLiteral("document")));
     QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
 }
 

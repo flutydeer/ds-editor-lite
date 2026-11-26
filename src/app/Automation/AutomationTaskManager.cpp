@@ -1,5 +1,4 @@
 #include "AutomationTaskManager.h"
-#include "OperationIds.h"
 
 #include <algorithm>
 #include <utility>
@@ -121,18 +120,6 @@ namespace Automation {
         } else
             it->terminal = std::move(callback);
         return true;
-    }
-
-    std::optional<DocumentVersion>
-        AutomationTaskManager::detachedExportVersion(const DocumentId &id) const {
-        const QMutexLocker lock(&m_mutex);
-        std::optional<DocumentVersion> version;
-        for (const auto &record : m_records) {
-            if (record.detachedExport && record.snapshot.baseDocument.documentId == id &&
-                (!version || record.snapshot.baseDocument.revision > version->revision))
-                version = record.snapshot.baseDocument;
-        }
-        return version;
     }
 
     AutomationResult<AutomationTaskSnapshot>
@@ -423,14 +410,6 @@ namespace Automation {
                     ++it;
                     continue;
                 }
-                if (it->snapshot.operationId == OperationIds::exports::audio::start ||
-                    it->snapshot.operationId == OperationIds::exports::midi::start) {
-                    it->detachedExport = true;
-                    if (isTerminal(it->snapshot.state))
-                        m_terminalDetachedExports.append(it.key());
-                    ++it;
-                    continue;
-                }
                 if (!preservedTaskId.isNull() && it.key() == preservedTaskId) {
                     it->snapshot.baseDocument = newDocument;
                     ++it;
@@ -449,8 +428,6 @@ namespace Automation {
                 it = m_records.erase(it);
             }
             m_terminalDocumentOrder.remove(oldDocumentId);
-            while (m_terminalDetachedExports.size() > MaximumRetainedDocumentTasks)
-                m_records.remove(m_terminalDetachedExports.takeFirst());
         }
         notifyRemovedTasks(removedTasks);
     }
@@ -477,9 +454,7 @@ namespace Automation {
         const auto record = m_records.constFind(taskId);
         if (record == m_records.cend())
             return;
-        auto &order = record->detachedExport
-                          ? m_terminalDetachedExports
-                          : m_terminalDocumentOrder[record->snapshot.baseDocument.documentId];
+        auto &order = m_terminalDocumentOrder[record->snapshot.baseDocument.documentId];
         order.append(taskId);
         while (order.size() > MaximumRetainedDocumentTasks)
             m_records.remove(order.takeFirst());

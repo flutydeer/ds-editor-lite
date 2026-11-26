@@ -1037,9 +1037,18 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     };
     if (replaceDocument) {
         QTRY_VERIFY_WITH_TIMEOUT(runtime().documentVersion().documentId != previousDocument, 15000);
-        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
-                                  15000);
+        const auto expired = runtime().tasks().getTask(previousDocument, exportId);
+        QVERIFY(!expired);
+        QCOMPARE(expired.getError().code, Automation::AutomationErrorCode::DocumentChanged);
+        QTRY_VERIFY_WITH_TIMEOUT(!runtime().audioExports().hasActiveJobs(), 15000);
+        QVERIFY(canceledDuringInference);
+        QVERIFY(!renderedBeforeCancellation);
         QVERIFY(!HistoryManager::instance()->canUndo());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), original);
+        QCOMPARE(QDir(materials.path()).entryList(QDir::Files | QDir::Hidden),
+                 QStringList{QStringLiteral("voice.wav")});
+        return;
     } else if (removeSourceTrack) {
         QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
                                   15000);

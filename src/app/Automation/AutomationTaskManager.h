@@ -102,7 +102,6 @@ namespace Automation {
         bool setUnsuccessfulCallback(const TaskId &taskId, UnsuccessfulCallback callback);
         bool setTerminalCallback(const TaskId &taskId, TerminalCallback callback);
         bool addTerminalCallback(const TaskId &taskId, TerminalCallback callback);
-        std::optional<DocumentVersion> detachedExportVersion(const DocumentId &documentId) const;
         bool markRunning(const TaskId &taskId);
         bool updateProgress(const TaskId &taskId, AutomationTaskProgress progress,
                             QString message = {});
@@ -124,7 +123,6 @@ namespace Automation {
             CancelCallback cancel;
             UnsuccessfulCallback unsuccessful;
             TerminalCallback terminal;
-            bool detachedExport = false;
         };
 
         static bool isTerminal(AutomationTaskState state);
@@ -139,7 +137,6 @@ namespace Automation {
         QHash<TaskId, Record> m_records;
         QHash<DocumentId, QList<TaskId>> m_terminalDocumentOrder;
         QList<TaskId> m_terminalApplicationOrder;
-        QList<TaskId> m_terminalDetachedExports;
     };
 
 } // namespace Automation

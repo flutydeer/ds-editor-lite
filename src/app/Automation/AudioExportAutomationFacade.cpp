@@ -562,25 +562,17 @@ namespace Automation {
     }
 
     void AudioExportAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {
-        QList<std::shared_ptr<JobRecord>> removed;
+        QList<std::shared_ptr<PendingJobState>> pending;
         {
             const QMutexLocker locker(&m_jobsMutex);
-            for (auto it = m_jobs.begin(); it != m_jobs.end();) {
-                const auto record = it.value();
-                if (!record || !record->state) {
-                    it = m_jobs.erase(it);
-                    continue;
-                }
-                if (record->baseDocument.documentId != documentId) {
-                    ++it;
-                    continue;
-                }
-                removed.append(record);
-                it = m_jobs.erase(it);
+            // Retired windows keep the facade alive until scheduled jobs finish cleanup.
+            for (const auto &record : std::as_const(m_jobs)) {
+                if (record->baseDocument.documentId == documentId)
+                    pending.append(record->state);
             }
         }
-        for (const auto &record : std::as_const(removed))
-            record->state->requestCancel();
+        for (const auto &state : std::as_const(pending))
+            state->requestCancel();
     }
 
 } // namespace Automation
