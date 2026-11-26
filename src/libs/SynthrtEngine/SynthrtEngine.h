@@ -27,6 +27,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <filesystem>
 #include <shared_mutex>
 #include <vector>
@@ -149,9 +150,8 @@ public:
 
     // === VoicebankSession (synthrt v2 chokepoint) ===
     //
-    // VoicebankSession provides ensureModelSet() / ensureLanguageReady() /
-    // convertG2p() / convertS2p() with version-aware routing. InferEngine,
-    // G2pService and the DiffSinger S2P/G2P tasks delegate to session().
+    // VoicebankSession routes model and language requests by package version.
+    // Lyric callers use convertG2p() below to coordinate access to shared plugins.
     // The session borrows m_runtime and m_langSvc via SessionResources;
     // SynthrtEngine owns their lifetime.
     ds::session::VoicebankSession &session();
@@ -165,6 +165,10 @@ public:
         resolveLanguageRoute(const SingerIdentifier &identifier, const QString &languageId) const;
 
     const srt::g2p::LanguageService &languageService() const noexcept;
+
+    srt::core::Expected<std::vector<srt::g2p::G2pRes>>
+        convertG2p(const SingerIdentifier &singer, const QString &language,
+                   const std::vector<srt::g2p::G2pInput> &inputs);
 
     // Resolve the S2P LanguageResource independently (cached). Use this when
     // the user edits pronunciation after G2P has already run and only S2P

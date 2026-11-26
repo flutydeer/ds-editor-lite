@@ -770,6 +770,88 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QCOMPARE(runtime().documentVersion(), version);
 }
 
+void ApplicationWorkflowTests::concurrentMandarinPronunciationsStayWithTheirLyrics() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY_WITH_TIMEOUT(SynthrtEngine::instance().languageService().modelsReady(), 10000);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture@1.0.0"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY2(!error, error.message().c_str());
+    // Both workers must enter the Mandarin plugin through the singer's language route.
+    QFile descriptor(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
+    QVERIFY(descriptor.open(QIODevice::ReadOnly));
+    auto character = QJsonDocument::fromJson(descriptor.readAll()).object();
+    descriptor.close();
+    auto configuration = character.value(QStringLiteral("configuration")).toObject();
+    const auto languages = configuration.value(QStringLiteral("languages")).toArray();
+    for (const auto &entry : languages) {
+        auto language = entry.toObject();
+        if (language.value(QStringLiteral("id")).toString() != QStringLiteral("cmn"))
+            continue;
+        language.insert(QStringLiteral("g2p"), QStringLiteral("g2p-cmn-official"));
+        language.remove(QStringLiteral("g2pPackages"));
+        language.remove(QStringLiteral("g2pPackageVersion"));
+        configuration.insert(QStringLiteral("languages"), QJsonArray{language});
+        break;
+    }
+    character.insert(QStringLiteral("configuration"), configuration);
+    QVERIFY(descriptor.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto contents = QJsonDocument(character).toJson();
+    QCOMPARE(descriptor.write(contents), contents.size());
+    descriptor.close();
+
+    const auto originalRoots = appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        const auto result = packageManager->refreshInstalledPackages(originalRoots);
+        QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+    });
+    const auto refreshed = packageManager->refreshInstalledPackages({root});
+    QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
+    auto identifier = SynthrtEngine::instance().findSinger(QStringLiteral("fixture"));
+    QVERIFY(identifier);
+    const auto singer = packageManager->findSingerByIdentifier(*identifier);
+    QCOMPARE(singer.resolutionState(), ResolutionState::Resolved);
+
+    constexpr auto phraseLength = 32;
+    const auto phrase = [](const QString &lyric) {
+        NoteInferenceSnapshot note;
+        note.language = QStringLiteral("cmn");
+        note.lyric = lyric;
+        return QList<NoteInferenceSnapshot>(phraseLength, note);
+    };
+    const auto version = runtime().documentVersion();
+    GetPronunciationTask first(version, clip->id(), 0, phrase(QStringLiteral("八")), singer);
+    GetPronunciationTask second(version, otherClip->id(), 0, phrase(QStringLiteral("妈")), singer);
+    QSemaphore ready, start;
+    QThreadPool workers;
+    workers.setMaxThreadCount(2);
+    for (QRunnable *task : {&first, &second}) {
+        workers.start([&, task] {
+            ready.release();
+            start.acquire();
+            task->run();
+        });
+    }
+    const bool bothReady = ready.tryAcquire(2, 5000);
+    start.release(2);
+    QVERIFY(bothReady);
+    QVERIFY(workers.waitForDone(10000));
+
+    QCOMPARE(first.result.size(), phraseLength);
+    QCOMPARE(second.result.size(), phraseLength);
+    for (int i = 0; i < phraseLength; ++i) {
+        QCOMPARE(first.result[i].pronunciation, QStringLiteral("ba"));
+        QCOMPARE(second.result[i].pronunciation, QStringLiteral("ma"));
+    }
+}
+
 void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())
