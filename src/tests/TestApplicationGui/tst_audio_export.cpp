@@ -8,6 +8,7 @@
 #include "UI/Dialogs/Base/MessageDialog.h"
 
 #include <lite/GUI/Controls/ProgressIndicator.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -624,6 +625,7 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     const auto contentBefore = TestSupport::projectSnapshot(*context->m_appModel);
 
     AudioExportDialog dialog;
+    ThemeManager::instance()->addStyleRoot(&dialog);
     ExportControls controls(dialog);
     QVERIFY(controls.valid());
     auto *start = exportButton(&dialog, AudioExportDialog::tr("Export"));
@@ -804,6 +806,7 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QVERIFY(!dialog.isVisible());
     QVERIFY(progress->isVisible());
     QVERIFY(!progress->isModal());
+    QCOMPARE(progress->palette().color(QPalette::Window), dialog.palette().color(QPalette::Window));
     QVERIFY(progress->windowTitle().contains(AudioExportProgressDialog::tr("Export finished")));
     auto *indicator = progress->findChild<ProgressIndicator *>();
     QVERIFY(indicator);

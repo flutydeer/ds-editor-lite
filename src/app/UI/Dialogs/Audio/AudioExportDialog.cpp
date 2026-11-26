@@ -34,6 +34,7 @@
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/Support/ShellUtils.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
@@ -695,6 +696,7 @@ namespace Audio::Internal {
         const auto progressDialog = new AudioExportProgressDialog(m_audioExporter, parentWidget());
         progressDialog->setParent(nullptr, progressDialog->windowFlags());
         ObjectContext::bind(progressDialog);
+        ThemeManager::instance()->addStyleRoot(progressDialog);
         progressDialog->setAttribute(Qt::WA_ShowWithoutActivating);
         progressDialog->setAttribute(Qt::WA_DeleteOnClose);
         m_progressDialog = progressDialog;
