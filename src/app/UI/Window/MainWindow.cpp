@@ -930,9 +930,11 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (!m_documentCloseApproved) {
         event->ignore();
+        setWorkflowWindow(this);
         if (auto *manager = DocumentWindowManager::instance()) {
             if (auto *entry = manager->find(AppContext::instance<AppContext>()))
-                manager->close(*entry, TerminationSavePolicy::Prompt);
+                manager->close(*entry, TerminationSavePolicy::Prompt,
+                               DocumentWindowManager::CloseTarget::MainWindow);
             return;
         }
         documentWorkflowController->requestTermination(TerminationMode::Exit);

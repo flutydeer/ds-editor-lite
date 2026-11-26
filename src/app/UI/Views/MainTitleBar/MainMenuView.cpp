@@ -702,10 +702,16 @@ void MainMenuViewPrivate::initFileActions() {
     actionOpenHere = new QAction(tr("Open in Current Window..."), this);
     connect(actionOpenHere, &QAction::triggered, this, [this] { onOpen(true); });
     actionClose = new QAction(tr("Close Project"), this);
-    connect(actionClose, &QAction::triggered, this, [this, q] {
-        m_mainWindow->setWorkflowWindow(q);
-        m_mainWindow->close();
-    });
+    connect(actionClose, &QAction::triggered, this,
+            [this, q, context = AppContext::instance<AppContext>()] {
+                m_mainWindow->setWorkflowWindow(q);
+                if (auto *manager = DocumentWindowManager::instance()) {
+                    if (auto *document = manager->find(context))
+                        manager->close(*document, TerminationSavePolicy::Prompt);
+                } else {
+                    documentWorkflowController->requestNew();
+                }
+            });
     actionNew = new QAction(tr("&New"), this);
     setMenuIcon(actionNew, QStringLiteral(":/svg/icons/document_add_16_regular.svg"));
     setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::WindowShortcut);

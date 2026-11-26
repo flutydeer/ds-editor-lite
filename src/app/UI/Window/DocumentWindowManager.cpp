@@ -361,16 +361,26 @@ void DocumentWindowManager::releaseRetired(Document *document) {
     m_documents.remove_if([document](const auto &entry) { return entry.get() == document; });
 }
 
-bool DocumentWindowManager::close(Document &document, TerminationSavePolicy policy) {
-    if (m_terminating || !confirmClose(document, policy))
+bool DocumentWindowManager::close(Document &document, TerminationSavePolicy policy,
+                                  CloseTarget target) {
+    if (m_terminating || document.closing)
         return false;
-    const SingletonRegistry::Scope scope(document.context->services());
-    const auto others =
-        std::any_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
+    const auto hasOtherProject = [&] {
+        return std::any_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
             return entry.get() != &document && !entry->closing;
         });
-    if (others) {
+    };
+    if (target == CloseTarget::MainWindow && !hasOtherProject())
+        return terminate(TerminationMode::Exit, policy) == TerminationRequestResult::Accepted;
+    if (!confirmClose(document, policy))
+        return false;
+    const SingletonRegistry::Scope scope(document.context->services());
+    if (hasOtherProject()) {
         retire(document);
+    } else if (target == CloseTarget::MainWindow) {
+        // The other windows closed during the prompt, which already approved this last project.
+        return terminate(TerminationMode::Exit, TerminationSavePolicy::Discard) ==
+               TerminationRequestResult::Accepted;
     } else {
         DocumentRecovery::remove(document.recoveryKey);
         document.recoveryKey.clear();

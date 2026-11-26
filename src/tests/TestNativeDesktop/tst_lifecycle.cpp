@@ -27,6 +27,7 @@
 #include <QMimeData>
 #include <QJsonDocument>
 #include <QMessageBox>
+#include <QMenu>
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
@@ -191,6 +192,101 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     QTRY_VERIFY(!window.isVisible() && !progress->isVisible());
     QCOMPARE(qApp->property("restart").toBool(), restart);
     QVERIFY(taskManager->tasks().isEmpty());
+}
+
+void NativeDesktopTests::closingLastProjectWindowExitsTheApplication_data() {
+    QTest::addColumn<bool>("dirty");
+    QTest::newRow("blank-project") << false;
+    QTest::newRow("cancel-then-discard") << true;
+}
+
+void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    appOptions->appearance()->useNativeFrame = false;
+    appOptions->developer()->enablePanelDetach = true;
+    DocumentWindowManager windows(*fixture.context);
+    auto &first = windows.createWindow();
+    auto &last = windows.createWindow();
+    const auto firstId = first.context->m_coreRuntime->documentVersion().documentId;
+    first.window->close();
+    QVERIFY(!windows.find(firstId));
+    QVERIFY(last.window->isVisible());
+    QVERIFY(!windows.terminating());
+
+    auto *button = last.window->findChild<QAbstractButton *>("CloseButton");
+#ifdef Q_OS_WIN
+    QVERIFY(button);
+#endif
+    const auto closeLastWindow = [&] {
+        if (button)
+            button->click();
+        else
+            last.window->close();
+    };
+    QFETCH(bool, dirty);
+    auto &runtime = *last.context->m_coreRuntime;
+    if (!dirty) {
+        const auto closeText = QCoreApplication::translate("MainMenuViewPrivate", "Close Project");
+        QAction *closeProject = nullptr;
+        for (auto *menu : last.window->findChildren<QMenu *>()) {
+            for (auto *action : menu->actions()) {
+                if (action->text() == closeText)
+                    closeProject = action;
+            }
+        }
+        QVERIFY(closeProject);
+        const auto previousId = runtime.documentVersion().documentId;
+        closeProject->trigger();
+        QVERIFY(runtime.documentVersion().documentId != previousId);
+        QVERIFY(last.window->isVisible());
+        QVERIFY(!windows.terminating());
+    } else {
+        {
+            const SingletonRegistry::Scope scope(last.context->services());
+            QVERIFY(runtime.project().renameTrack(
+                {.expected = runtime.documentVersion()},
+                Automation::TrackId(last.context->m_appModel->tracks().first()->id()),
+                "Unsaved track"));
+            QVERIFY(QMetaObject::invokeMethod(last.window.get(), "detachBottomPanel"));
+        }
+        const auto version = runtime.documentVersion();
+        auto *detached = last.window->detachedPanelWindow();
+        QVERIFY(detached && detached->isVisible());
+        bool canceled = false;
+        QTimer::singleShot(0, last.window.get(), [&] {
+            auto *prompt = QApplication::activeModalWidget();
+            const bool applicationModal =
+                prompt && prompt->windowModality() == Qt::ApplicationModal;
+            canceled = answerSavePrompt(MainWindow::tr("Cancel")) && applicationModal;
+        });
+        closeLastWindow();
+        QVERIFY(canceled);
+        QVERIFY(!windows.terminating());
+        QCOMPARE(runtime.documentVersion(), version);
+        QVERIFY(detached->isVisible());
+        QVERIFY(!last.context->m_historyManager->isOnSavePoint());
+    }
+
+    bool discarded = false;
+    QTimer::singleShot(0, last.window.get(), [&] {
+        if (dirty)
+            QTimer::singleShot(0, last.window.get(),
+                               [&] { discarded = answerSavePrompt(MainWindow::tr("Don't save")); });
+        closeLastWindow();
+    });
+    QTimer deadline;
+    deadline.setSingleShot(true);
+    connect(&deadline, &QTimer::timeout, this, [] { QCoreApplication::exit(1); });
+    deadline.start(8000);
+    QCOMPARE(QCoreApplication::exec(), 0);
+    QCOMPARE(discarded, dirty);
+    QVERIFY(windows.terminating());
+    QVERIFY(!last.window->isVisible());
 }
 
 void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {

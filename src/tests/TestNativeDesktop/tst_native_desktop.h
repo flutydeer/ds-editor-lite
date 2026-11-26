@@ -29,6 +29,8 @@ private slots:
     void mainWindowSplitterDragRestoresPanelSizes();
     void closingMainWindowWaitsForBackgroundTasks_data();
     void closingMainWindowWaitsForBackgroundTasks();
+    void closingLastProjectWindowExitsTheApplication_data();
+    void closingLastProjectWindowExitsTheApplication();
     void detachedPanelDiesWithItsMainWindow();
     void cancelingExitKeepsTheRemainingProject_data();
     void cancelingExitKeepsTheRemainingProject();
