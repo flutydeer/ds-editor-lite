@@ -22,6 +22,7 @@ private slots:
     void isolatedPrimaries();
     void crossHost();
     void editingWorkflow();
+    void newProjectWindowSynthesizesItsFirstNote();
     void secondaryStartup();
     void legacyConnector();
     void legacyEditor();

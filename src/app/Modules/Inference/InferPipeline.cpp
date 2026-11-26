@@ -23,7 +23,10 @@
 #include <QFinalState>
 
 InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
-    : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested) {
+    : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested),
+      stateMachine(this) {
+    // Queued transitions and task completions must resolve services in this piece's document.
+    ObjectContext::bind(this);
     qDebug() << "InferPipeline created: pieceId =" << m_piece.id();
     initStates();
     initTransitions();
