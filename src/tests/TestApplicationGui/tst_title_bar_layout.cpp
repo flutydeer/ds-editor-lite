@@ -113,13 +113,13 @@ void ApplicationGuiTests::titleBarLayoutPlanFollowsPlatformChrome() {
     QVERIFY(frameless != macFrameless);
     QVERIFY(frameless != nativeFrame);
 
-    // Detached editors reuse the same platform chrome, only omitting the
-    // document identity and actions. Keep all platform/frame combinations equal.
+    // Both editor windows use the same platform window controls.
     for (const auto platform : {ChromePlatform::Windows, ChromePlatform::MacOS,
                                 ChromePlatform::Other}) {
         for (const bool native : {false, true}) {
             auto reduced = TitleBarSections::forMainWindow(native, platform);
             reduced.projectSelector = false;
+            reduced.windowCaption = !native;
             reduced.documentActions = false;
             QCOMPARE(TitleBarSections::forDetachedPanel(native, platform), reduced);
         }

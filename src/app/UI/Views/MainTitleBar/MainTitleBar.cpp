@@ -16,6 +16,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QStyle>
 #include <QVariantAnimation>
 
@@ -29,6 +30,20 @@
 namespace {
     constexpr int kTitleBarHeight = 40;
     constexpr int kTrafficLightAreaWidth = 74;
+
+    class WindowCaption final : public QLabel {
+    public:
+        using QLabel::QLabel;
+
+    protected:
+        void paintEvent(QPaintEvent *) override {
+            QPainter painter(this);
+            const auto area = contentsRect();
+            style()->drawItemText(&painter, area, Qt::AlignCenter, palette(), isEnabled(),
+                                  fontMetrics().elidedText(text(), Qt::ElideRight, area.width()),
+                                  QPalette::WindowText);
+        }
+    };
 
     // QApplication delivers a resize to the layout before the widget, so the
     // width budget of the selector has to be refreshed here, right before the
@@ -68,6 +83,14 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
         m_playbackView = new PlaybackView(this);
     if (sections.projectSelector)
         m_titleComboBox = new TitleBarComboBox;
+    if (sections.windowCaption) {
+        m_windowCaption = new WindowCaption(parent->windowTitle(), this);
+        m_windowCaption->setTextFormat(Qt::PlainText);
+        m_windowCaption->setAttribute(Qt::WA_TransparentForMouseEvents);
+        m_windowCaption->setContentsMargins(6, 0, 6, 0);
+        m_windowCaption->setMinimumWidth(88);
+        m_windowCaption->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    }
     if (sections.documentActions) {
         m_actionButtonsView = new ActionButtonsView(this);
         if (menuView)
@@ -186,7 +209,10 @@ void MainTitleBar::buildSections() {
     if (m_actionButtonsView)
         addLeadingSection(m_actionButtonsView);
 
-    m_layout->addStretch();
+    if (m_windowCaption)
+        m_layout->addWidget(m_windowCaption, 1);
+    else
+        m_layout->addStretch();
     if (m_playbackView)
         m_layout->addWidget(m_playbackView);
     m_layout->addSpacing(6);
@@ -263,6 +289,8 @@ TitleBarComboBox *MainTitleBar::titleComboBox() const {
 }
 
 void MainTitleBar::setTitle(const QString &title) const {
+    if (m_windowCaption)
+        m_windowCaption->setText(title);
     if (!m_titleComboBox)
         return;
     m_titleComboBox->setTitle(title);

@@ -17,6 +17,7 @@ struct TitleBarSections {
     bool mainMenu = true;
     bool trafficLightArea = false;
     bool projectSelector = false;
+    bool windowCaption = false;
     bool documentActions = false;
     bool playback = true;
     bool systemButtons = false;
@@ -46,13 +47,13 @@ struct TitleBarSections {
                 .leftMargin = trafficLightArea ? 0 : 6};
     }
 
-    // The detached panel keeps the menu, the transport and the window chrome,
-    // but has no document identity or document actions of its own.
+    // Native frames already show the owning project's title above the panel.
     [[nodiscard]] static TitleBarSections
         forDetachedPanel(const bool useNativeFrame,
                          const ChromePlatform platform = currentPlatform()) {
         auto sections = forMainWindow(useNativeFrame, platform);
         sections.projectSelector = false;
+        sections.windowCaption = !useNativeFrame;
         sections.documentActions = false;
         return sections;
     }

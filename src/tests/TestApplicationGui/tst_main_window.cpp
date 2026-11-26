@@ -2392,6 +2392,14 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QVERIFY(chrome->menuView() && chrome->playbackView());
     QVERIFY(!chrome->titleComboBox());
     QVERIFY(!chrome->actionButtonsView());
+    if (!useNativeFrame) {
+        window.setWindowTitle(QStringLiteral("Glass Piano"));
+        const auto labels = chrome->findChildren<QLabel *>(Qt::FindDirectChildrenOnly);
+        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
+            return label->isVisible() && label->text() == detached->windowTitle() &&
+                   label->width() >= label->fontMetrics().horizontalAdvance(window.windowTitle());
+        }));
+    }
     const auto expected = TitleBarSections::forDetachedPanel(useNativeFrame);
     QCOMPARE(chrome->trafficLightArea() != nullptr, expected.trafficLightArea);
     QCOMPARE(chrome->minimizeButton() != nullptr, expected.systemButtons);

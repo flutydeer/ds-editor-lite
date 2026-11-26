@@ -10,6 +10,7 @@
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
 class QHBoxLayout;
+class QLabel;
 class DividerLine;
 class TitleBarComboBox;
 class ActionButtonsView;
@@ -82,6 +83,7 @@ private:
     SystemWindowButton *m_btnMax = nullptr;
     SystemWindowButton *m_btnClose = nullptr;
     TitleBarComboBox *m_titleComboBox = nullptr;
+    QLabel *m_windowCaption = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
     bool m_targetActive = true;
