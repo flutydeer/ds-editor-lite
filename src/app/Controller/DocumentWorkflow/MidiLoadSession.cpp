@@ -55,7 +55,7 @@ void MidiLoadSession::startConfiguration() {
         materialize(input);
         return;
     }
-    auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
+    auto *dialog = new ProjectImportConfigDialog(m_dialogParent);
     dialog->setWindowTitle(tr("Configure MIDI Import"));
     auto *page = m_formatHandler->createConfigPage(dialog);
     auto *midiPage = qobject_cast<MidiConfigPage *>(page ? page->widget() : nullptr);

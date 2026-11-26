@@ -31,6 +31,7 @@ public:
 ProjectImportConfigDialog::ProjectImportConfigDialog(QWidget *parent)
     : Dialog(parent), d_ptr(new ProjectImportConfigDialogPrivate(this)) {
     Q_D(ProjectImportConfigDialog);
+    setProjectModal();
     d->init();
 }
 

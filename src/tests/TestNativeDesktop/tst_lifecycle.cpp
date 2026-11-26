@@ -1,4 +1,5 @@
 #include "tst_native_desktop.h"
+#include "Bootstrap/WindowPlacement.h"
 #include "../TestSupport/GuiAppFixture.h"
 
 #include "Automation/CoreRuntime.h"
@@ -10,6 +11,9 @@
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
@@ -27,6 +31,20 @@
 #include <QtTest/QTest>
 
 namespace {
+    bool answerSavePrompt(const QString &text) {
+        auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return false;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == text) {
+                button->click();
+                return true;
+            }
+        }
+        dialog->reject();
+        return false;
+    }
+
     class PendingExitTask final : public Task {
     public:
         QSemaphore entered;
@@ -187,4 +205,112 @@ void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
     // explicitly instead of relying on the QObject tree.
     window.reset();
     QVERIFY(detached.isNull());
+}
+
+void NativeDesktopTests::cancelingExitKeepsTheRemainingProject_data() {
+    QTest::addColumn<bool>("save");
+    QTest::newRow("save-then-cancel") << true;
+    QTest::newRow("discard-then-cancel") << false;
+}
+
+void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
+    QFETCH(bool, save);
+    GuiDocumentFixture fixture;
+    QVERIFY(fixture.initialize());
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    auto &b = windows.createWindow();
+    const auto documentA = a.context->m_coreRuntime->documentVersion().documentId;
+    const auto documentB = b.context->m_coreRuntime->documentVersion().documentId;
+    const auto path = fixture.directory.filePath("first.dspx");
+    auto &runtime = *a.context->m_coreRuntime;
+    QVERIFY(runtime.documents().saveDocument({.expected = runtime.documentVersion()}, path));
+    const auto rename = [](auto &entry, const QString &name) {
+        const SingletonRegistry::Scope scope(entry.context->services());
+        auto &target = *entry.context->m_coreRuntime;
+        return target.project().renameTrack({.expected = target.documentVersion()},
+            Automation::TrackId(entry.context->m_appModel->tracks().first()->id()), name);
+    };
+    QVERIFY(rename(a, "Edited A"));
+    QVERIFY(rename(b, "Edited B"));
+    QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
+    QTRY_VERIFY(a.window->detachedPanelWindow()->isVisible());
+    bool projectScope = false;
+    QTimer::singleShot(0, this, [&] {
+        projectScope = WindowDialogs::blocks(a.window.get()) &&
+                       WindowDialogs::blocks(a.window->detachedPanelWindow()) &&
+                       !WindowDialogs::blocks(b.window.get());
+        answerSavePrompt(MainWindow::tr("Cancel"));
+    });
+    QVERIFY(!windows.close(a, TerminationSavePolicy::Prompt));
+    QVERIFY(projectScope);
+    QVERIFY(a.window->detachedPanelWindow()->isVisible());
+    const auto previousGeometry = appOptions->window()->mainWindowGeometry();
+    int decisions = 0;
+    bool applicationScope = true;
+    QTimer answer;
+    connect(&answer, &QTimer::timeout, this, [&] {
+        auto *prompt = QApplication::activeModalWidget();
+        if (!prompt)
+            return;
+        applicationScope &= prompt->windowModality() == Qt::ApplicationModal;
+        ++decisions;
+        answerSavePrompt(decisions == 1 ? MainWindow::tr(save ? "Save" : "Don't save")
+                                        : MainWindow::tr("Cancel"));
+    });
+    answer.start(10);
+    QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Prompt),
+             TerminationRequestResult::Busy);
+    answer.stop();
+    QCOMPARE(decisions, 2);
+    QVERIFY(applicationScope);
+    QVERIFY(!windows.find(documentA));
+    QCOMPARE(windows.find(documentB), &b);
+    QCOMPARE(b.context->m_appModel->tracks().first()->name(), QStringLiteral("Edited B"));
+    QVERIFY(!b.context->m_historyManager->isOnSavePoint());
+    QVERIFY(!qApp->property("restart").toBool());
+    QCOMPARE(appOptions->window()->mainWindowGeometry(), previousGeometry);
+    AppModel disk;
+    DspxProjectConverterUi converter;
+    QString error;
+    QVERIFY2(converter.load(path, &disk, error, IProjectConverter::NewProject), qPrintable(error));
+    QCOMPARE(disk.tracks().first()->name() == QStringLiteral("Edited A"), save);
+}
+
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
+    QTest::addColumn<bool>("detach");
+    QTest::newRow("main-window") << false;
+    QTest::newRow("detached-window") << true;
+}
+
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
+    QFETCH(bool, detach);
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY(fixture.initialize());
+    DocumentWindowManager windows(*fixture.context);
+    auto &first = windows.createWindow();
+    auto &second = windows.createWindow();
+    TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
+    TestSupport::placeWindowOnScreen(*second.window, {1250, 730});
+    const auto oldDetached = appOptions->window()->detachedPanelGeometry();
+    QWidget *lastEditor = first.window.get();
+    if (detach) {
+        QVERIFY(QMetaObject::invokeMethod(first.window.get(), "detachBottomPanel"));
+        lastEditor = first.window->detachedPanelWindow();
+    }
+    lastEditor->raise();
+    lastEditor->activateWindow();
+    QTRY_VERIFY(lastEditor->isActiveWindow());
+    QCOMPARE(windows.active(), &first);
+    const auto expected = first.placement->saveGeometry();
+    QVERIFY(expected != second.placement->saveGeometry());
+    const auto detached = detach ? first.window->detachedGeometry() : oldDetached;
+    QCOMPARE(windows.terminate(TerminationMode::Exit, TerminationSavePolicy::Discard),
+             TerminationRequestResult::Accepted);
+    QCOMPARE(appOptions->window()->mainWindowGeometry(), expected);
+    QCOMPARE(appOptions->window()->detachedPanelGeometry(), detached);
 }

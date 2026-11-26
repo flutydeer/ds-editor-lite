@@ -1,4 +1,6 @@
 #include "TaskWindow.h"
+#include "AppContext.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 
 #include <QListWidget>
 #include <QVBoxLayout>
@@ -45,13 +47,23 @@ void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 }
 
 void TaskWindow::addTaskToView(Task *task) {
+    const SingletonRegistry::Scope scope(ObjectContext::of(task));
+    const auto *workflow = AppContext::instance<DocumentWorkflowController>();
+    const auto name = workflow ? workflow->projectName() : QString();
+    const auto labeled = [name](TaskStatus status) {
+        if (!name.isEmpty())
+            status.title = QStringLiteral("%1 — %2").arg(name, status.title);
+        return status;
+    };
     auto item = new QListWidgetItem;
-    auto taskView = new TaskView(task->status(), this);
+    auto taskView = new TaskView(labeled(task->status()), this);
     item->setSizeHint(QSize(m_taskList->width() - 4, 72));
     m_taskList->addItem(item);
     m_taskList->setItemWidget(item, taskView);
 
-    connect(task, &Task::statusUpdated, taskView, &TaskView::onTaskStatusChanged);
+    connect(task, &Task::statusUpdated, taskView, [taskView, labeled](const TaskStatus &status) {
+        taskView->onTaskStatusChanged(labeled(status));
+    });
 }
 
 void TaskWindow::removeTaskFromView(qsizetype index) {

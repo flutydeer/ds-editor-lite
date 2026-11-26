@@ -1,4 +1,5 @@
 #include "PlaybackView.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "MainTitleBarIconPalette.h"
 #include <lite/GUI/Controls/ControlGroup.h>
@@ -48,7 +49,7 @@ namespace {
     }
 }
 
-PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(parent) {
+PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     // Apply music font to time-related UI elements
@@ -113,12 +114,8 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
     });
     m_btnPlayPause->setFixedSize(0, 0);
 
-    if (role == TitleBarRole::Primary) {
-        EditorShortcutUtils::addApplication(
-            this, QKeySequence(Qt::Key_Space),
-            [](const QWidget *window) { return EditorShortcutUtils::isEditorWindow(window); },
-            m_btnPlayPause, &QPushButton::click);
-    }
+    EditorShortcutUtils::addWindow(this, QKeySequence(Qt::Key_Space), m_btnPlayPause,
+                                   &QPushButton::click);
 
     m_btnLoop = new QPushButton;
     m_btnLoop->setObjectName("btnLoop");
@@ -128,11 +125,8 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
                                        playAccentColor()));
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
-    if (role == TitleBarRole::Primary) {
-        auto loopShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this);
-        loopShortcut->setContext(Qt::ApplicationShortcut);
-        connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::click);
-    }
+    EditorShortcutUtils::addWindow(this, QKeySequence(Qt::ALT | Qt::Key_L), m_btnLoop,
+                                   &QPushButton::click);
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;
@@ -281,13 +275,14 @@ PlaybackView::PlaybackView(QWidget *parent, const TitleBarRole role) : QWidget(p
             [this] { updateAutoPageTurnButtonView(); });
     connect(appStatus, &AppStatus::trackAutoPageTurnAvailabilityChanged, this,
             [this] { updateAutoPageTurnButtonView(); });
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
-                    return;
-                m_elTime->setFormat(timecodeFormat());
-                updateTimeView();
-            });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](const AppOptionsGlobal::Option option) {
+                               if (option != AppOptionsGlobal::All &&
+                                   option != AppOptionsGlobal::Appearance)
+                                   return;
+                               m_elTime->setFormat(timecodeFormat());
+                               updateTimeView();
+                           });
     updateAutoPageTurnButtonView();
 }
 

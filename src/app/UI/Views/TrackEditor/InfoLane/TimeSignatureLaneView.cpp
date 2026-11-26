@@ -59,6 +59,7 @@ void TimeSignatureLaneView::openEditorFor(const int barIndex) {
     // point when none exists exactly at the bar yet, or edits the existing one
     const auto signature = appModel->timeline().timeSignatureAt(barIndex);
     EditTimeSignatureDialog dialog(barIndex, signature.numerator, signature.denominator, window());
+    dialog.setProjectModal();
     if (dialog.exec() != QDialog::Accepted)
         return;
     appController->onSetTimeSignatureAt(barIndex, dialog.numerator(), dialog.denominator());

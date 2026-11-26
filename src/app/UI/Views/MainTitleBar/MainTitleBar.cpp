@@ -51,7 +51,7 @@ namespace {
 }
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
-                           const TitleBarSections &sections, const TitleBarRole role)
+                           const TitleBarSections &sections)
     : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections),
       m_layout(new TitleBarLayout(this)) {
     setAttribute(Qt::WA_StyledBackground);
@@ -65,7 +65,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
         m_trafficLightArea->setFixedSize(kTrafficLightAreaWidth, kTitleBarHeight);
     }
     if (sections.playback)
-        m_playbackView = new PlaybackView(this, role);
+        m_playbackView = new PlaybackView(this);
     if (sections.projectSelector)
         m_titleComboBox = new TitleBarComboBox;
     if (sections.documentActions) {

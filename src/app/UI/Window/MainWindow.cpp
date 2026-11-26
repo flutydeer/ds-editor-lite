@@ -1,4 +1,6 @@
 #include "MainWindow.h"
+#include "AppContext.h"
+#include "DocumentWindowManager.h"
 #include <lite/GUI/Utils/WindowDialogs.h>
 
 #ifdef Q_OS_WIN
@@ -69,6 +71,9 @@
 #include <utility>
 
 MainWindow::MainWindow() {
+    ObjectContext::bind(this);
+    setProperty("dsMainWindow", true);
+    setProperty("dsProjectWindow", QVariant::fromValue<QObject *>(this));
     setAcceptDrops(true);
 
     m_useNativeFrame = appOptions->appearance()->effectiveUseNativeFrame();
@@ -192,7 +197,7 @@ MainWindow::MainWindow() {
                 QTimer::singleShot(0, this, [this] { close(); });
             });
 
-    connect(appOptions, &AppOptions::optionsChanged, this,
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
             [this](const AppOptionsGlobal::Option option) {
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updateDiagnosticFilter();
@@ -330,8 +335,7 @@ void MainWindow::updateWindowTitle() {
         return;
     const auto displayName =
         !document->path.isEmpty()         ? QFileInfo(document->path).completeBaseName()
-        : document->projectName.isEmpty() ? DocumentWorkflowController::tr("New Project")
-                                          : document->projectName;
+                                          : documentWorkflowController->projectName();
     setWindowTitle((document->saved ? QString() : QStringLiteral("● ")) + displayName);
     updateShutdownBlockReason();
 }
@@ -341,8 +345,10 @@ bool MainWindow::event(QEvent *event) {
     // re-installing it whenever the native window is recreated (e.g. by
     // setWindowFlag calls).
     if (event->type() == QEvent::WinIdChange) {
-        if (auto *window = windowHandle())
+        if (auto *window = windowHandle()) {
+            ObjectContext::bind(window);
             window->installEventFilter(this);
+        }
     } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
         // Show arrives before AppKit attaches the NSWindow to the NSView, so the
         // first merge attempt can find [nsview window] nil and return without
@@ -378,15 +384,28 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option,
 }
 
 QWidget *MainWindow::documentWorkflowParentWidget() {
-    return this;
+    return m_workflowWindow ? m_workflowWindow.data() : this;
+}
+
+void MainWindow::setWorkflowWindow(QWidget *origin) {
+    m_workflowWindow = origin ? origin->window() : this;
 }
 
 SaveDecision MainWindow::askDocumentSaveDecision() {
+    return askCloseDecision({}, false);
+}
+
+SaveDecision MainWindow::askCloseDecision(const QString &progress, bool applicationModal) {
     SaveDecision decision = SaveDecision::Cancel;
-    Dialog dialog(this);
+    Dialog dialog(documentWorkflowParentWidget());
     dialog.setWindowTitle(tr("Warning"));
-    dialog.setTitle(tr("Do you want to save changes?"));
-    dialog.setModal(true);
+    const auto name = documentWorkflowController->projectName();
+    const auto title = tr("Save changes to %1?").arg(name.isEmpty() ? windowTitle() : name);
+    dialog.setTitle(progress.isEmpty() ? title : QStringLiteral("(%1) %2").arg(progress, title));
+    if (applicationModal)
+        dialog.setWindowModality(Qt::ApplicationModal);
+    else
+        dialog.setProjectModal();
 
     auto btnSave = new AccentButton(tr("Save"));
     connect(btnSave, &AccentButton::clicked, &dialog, [&] {
@@ -413,13 +432,17 @@ SaveDecision MainWindow::askDocumentSaveDecision() {
 }
 
 QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
-    return WindowDialogs::getSaveFileName(this, tr("Save project"), suggestedPath,
-                                        tr("DiffScope Project File (*.dspx)"));
+    const auto *manager = DocumentWindowManager::instance();
+    return WindowDialogs::getSaveFileName(documentWorkflowParentWidget(), tr("Save project"), suggestedPath,
+                                        tr("DiffScope Project File (*.dspx)"), nullptr,
+                                        manager && manager->terminating() ? Qt::ApplicationModal : Qt::WindowModal);
 }
 
 bool MainWindow::confirmOpenWithoutPackageMetadata() {
     MessageDialog dialog(tr("Package scan failed"),
-                         tr("Singer package metadata is not available. Open the project anyway?"));
+                         tr("Singer package metadata is not available. Open the project anyway?"),
+                         documentWorkflowParentWidget());
+    dialog.setProjectModal();
     dialog.setTitle(tr("Package scan failed"));
     dialog.addAccentButton(tr("Open Anyway"), 1, QDialogButtonBox::AcceptRole);
     dialog.addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
@@ -427,7 +450,8 @@ bool MainWindow::confirmOpenWithoutPackageMetadata() {
 }
 
 void MainWindow::showDocumentWorkflowError(const ProjectOperationError &error) {
-    MessageDialog dialog;
+    MessageDialog dialog({}, {}, documentWorkflowParentWidget());
+    dialog.setProjectModal();
     dialog.setWindowTitle(tr("Error"));
     dialog.setTitle(error.title);
     dialog.setMessage(error.message);
@@ -598,7 +622,8 @@ bool MainWindow::showBottomPanelPage(const QString &pageId) {
 }
 
 bool MainWindow::showEditorRegion(const EditorViewGlobal::Region region) {
-    if (editorFocusControlBlocked())
+    if (WindowDialogs::blocks(region == EditorViewGlobal::Region::TrackPanel ? this
+                                                                            : m_bottomPanelView->window()))
         return false;
     if (region == EditorViewGlobal::Region::TrackPanel) {
         if (appStatus->trackPanelCollapsed &&
@@ -653,8 +678,6 @@ bool MainWindow::setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode 
 }
 
 bool MainWindow::setParameterForeground(const ParamInfo::Name name) {
-    if (editorFocusControlBlocked())
-        return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
     if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
         !clipEditor->setParameterForeground(name)) {
@@ -665,8 +688,6 @@ bool MainWindow::setParameterForeground(const ParamInfo::Name name) {
 }
 
 bool MainWindow::setParameterBackground(const ParamInfo::Name name) {
-    if (editorFocusControlBlocked())
-        return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
     if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
         !clipEditor->setParameterBackground(name)) {
@@ -677,8 +698,6 @@ bool MainWindow::setParameterBackground(const ParamInfo::Name name) {
 }
 
 bool MainWindow::swapParameters() {
-    if (editorFocusControlBlocked())
-        return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
     if (!showEditorRegion(EditorViewGlobal::Region::Parameters) || !clipEditor->swapParameters())
         return false;
@@ -687,8 +706,6 @@ bool MainWindow::swapParameters() {
 }
 
 bool MainWindow::setParameterEditMode(const EditorViewGlobal::ParameterEditMode mode) {
-    if (editorFocusControlBlocked())
-        return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
     if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
         !clipEditor->setParameterEditMode(mode)) {
@@ -699,8 +716,6 @@ bool MainWindow::setParameterEditMode(const EditorViewGlobal::ParameterEditMode 
 }
 
 bool MainWindow::setParameterValueViewport(const double centerRatio, const double verticalScale) {
-    if (editorFocusControlBlocked())
-        return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
     if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
         !clipEditor->setParameterValueViewport(centerRatio, verticalScale)) {
@@ -740,10 +755,6 @@ EditorViewGlobal::Region MainWindow::focusedEditorRegion() const {
     if (focused == m_trackEditorView || m_trackEditorView->isAncestorOf(focused))
         return EditorViewGlobal::Region::TrackPanel;
     return m_bottomPanelView->clipEditorView()->focusedRegion();
-}
-
-bool MainWindow::editorFocusControlBlocked() const {
-    return WindowDialogs::blocks(this);
 }
 
 bool MainWindow::revealFocus(const HistoryFocus &focus) {
@@ -857,11 +868,7 @@ void MainWindow::attachBottomPanel() {
 
     // The window object survives for the next detach, so remember where the user
     // left it. A failure here must not block docking the panel back.
-    if (m_detachedPlacement) {
-        appOptions->window()->setDetachedPanelGeometry(m_detachedPlacement->saveGeometry());
-        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
-            qWarning("Failed to save the detached panel placement");
-    }
+    m_detachedGeometry = m_detachedPlacement->saveGeometry();
 
     m_bottomPanelView->removeEventFilter(this);
     m_bottomPanelView->titleBar()->setDetached(false);
@@ -919,14 +926,17 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-    if (m_bottomPanelDetached)
-        attachBottomPanel();
-
     if (!m_documentCloseApproved) {
         event->ignore();
+        if (auto *manager = DocumentWindowManager::instance()) {
+            if (auto *entry = manager->find(AppContext::instance<AppContext>()))
+                manager->close(*entry, TerminationSavePolicy::Prompt);
+            return;
+        }
         documentWorkflowController->requestTermination(TerminationMode::Exit);
         return;
     }
+    dockPanel();
     if (m_isAllDone) {
         ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::ClosingWindow);
         if (m_waitDoneDialog)
@@ -947,6 +957,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::CloseRequested);
         qDebug() << "Terminating background tasks...";
         m_waitDoneDialog = new TaskDialog(nullptr, false, false, this);
+        m_waitDoneDialog->setWindowModality(Qt::ApplicationModal);
         m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
         m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));
 
@@ -982,6 +993,22 @@ void MainWindow::updateShutdownBlockReason() {
         ShutdownBlockReasonCreate(hwnd, reinterpret_cast<LPCWSTR>(reason.utf16()));
     }
 #endif
+}
+
+void MainWindow::finishApplicationExit(TerminationMode mode) {
+    m_documentCloseApproved = true;
+    m_restartRequested = mode == TerminationMode::Restart;
+    QTimer::singleShot(0, this, [this] { close(); });
+}
+
+void MainWindow::dockPanel() {
+    if (m_bottomPanelDetached)
+        attachBottomPanel();
+    m_workflowWindow = this;
+}
+
+QByteArray MainWindow::detachedGeometry() const {
+    return m_bottomPanelDetached ? m_detachedPlacement->saveGeometry() : m_detachedGeometry;
 }
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
@@ -1060,6 +1087,11 @@ void MainWindow::dropEvent(QDropEvent *event) {
             importPaths.append(path);
     }
 
+    if (!projectPaths.isEmpty() && importPaths.isEmpty() && DocumentWindowManager::instance()) {
+        for (const auto &path : projectPaths)
+            DocumentWindowManager::instance()->open(path, true);
+        return;
+    }
     if (projectPaths.size() == 1 && importPaths.isEmpty()) {
         documentWorkflowController->requestOpen(projectPaths.first());
         return;

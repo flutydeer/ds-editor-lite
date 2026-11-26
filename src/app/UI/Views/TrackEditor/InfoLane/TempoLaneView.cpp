@@ -50,6 +50,7 @@ void TempoLaneView::rebuildChips() {
 
 void TempoLaneView::openEditorFor(const int tick) {
     EditTempoDialog dialog(tick, appModel->timeline().tempoAt(tick), window());
+    dialog.setProjectModal();
     if (dialog.exec() != QDialog::Accepted)
         return;
     appController->onSetTempoAt(tick, dialog.tempo());

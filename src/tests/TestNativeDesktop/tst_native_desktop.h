@@ -22,6 +22,8 @@ public:
 
 private slots:
     void initTestCase();
+    void exitRemembersTheLastEditorGeometry_data();
+    void exitRemembersTheLastEditorGeometry();
     void cleanupTestCase();
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
@@ -30,6 +32,8 @@ private slots:
     void closingMainWindowWaitsForBackgroundTasks_data();
     void closingMainWindowWaitsForBackgroundTasks();
     void detachedPanelDiesWithItsMainWindow();
+    void cancelingExitKeepsTheRemainingProject_data();
+    void cancelingExitKeepsTheRemainingProject();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();

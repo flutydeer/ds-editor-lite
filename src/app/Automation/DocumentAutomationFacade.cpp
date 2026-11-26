@@ -196,6 +196,15 @@ namespace Automation {
                     return AutomationResult<MutationResult>(
                         missingRuntime(QStringLiteral("Project saving is unavailable")));
                 }
+                if (m_services.pathOwnedByAnotherDocument &&
+                    m_services.pathOwnedByAnotherDocument(path)) {
+                    return AutomationResult<MutationResult>(AutomationError{
+                        .code = AutomationErrorCode::OverwriteDenied,
+                        .message = QObject::tr(
+                            "Another open project uses this file. Choose a different path."),
+                        .fieldPath = QStringLiteral("path"),
+                    });
+                }
                 if (!allowOverwrite && QFileInfo::exists(path)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::OverwriteDenied;

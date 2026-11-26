@@ -51,6 +51,7 @@ public:
         requestTermination(TerminationMode mode,
                            TerminationSavePolicy savePolicy = TerminationSavePolicy::Prompt);
     void cancelCurrentOperation();
+    void setCloseDecisionPending(bool pending);
 
     // Commits the host exit: arms the process watchdog first, then freezes the
     // document so no queued or later workflow can touch it. Idempotent. The GUI
@@ -63,6 +64,10 @@ public:
     [[nodiscard]] std::optional<Automation::DocumentSnapshotDto> documentSnapshot() const;
     [[nodiscard]] QString projectPath() const;
     [[nodiscard]] QString projectName() const;
+
+    void setWindowNumber(int number) {
+        m_windowNumber = number;
+    }
     [[nodiscard]] QString lastProjectFolder() const;
     [[nodiscard]] QStringList recentProjectFiles() const;
     void clearRecentProjectFiles();
@@ -143,6 +148,7 @@ private:
     void rejectBusyRequest();
 
     IDocumentWorkflowUi *m_ui = nullptr;
+    int m_windowNumber = 0;
     QStateMachine *m_machine = nullptr;
     QState *m_idleState = nullptr;
     QState *m_validatingState = nullptr;

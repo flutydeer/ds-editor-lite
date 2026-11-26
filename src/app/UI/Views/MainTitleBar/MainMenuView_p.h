@@ -24,12 +24,10 @@ class MainMenuViewPrivate : QObject {
 
     Q_DECLARE_PUBLIC(MainMenuView)
 public:
-    explicit MainMenuViewPrivate(MainWindow *window, const TitleBarRole role)
-        : m_mainWindow(window), m_role(role) {
+    explicit MainMenuViewPrivate(MainWindow *window) : m_mainWindow(window) {
     }
 
     MainWindow *m_mainWindow;
-    TitleBarRole m_role = TitleBarRole::Primary;
 
     // Theme colors for tinted menu icons (exposed as QSS properties on MainMenuView)
     QColor m_iconColor = {0xE0, 0xE0, 0xE0};
@@ -45,6 +43,9 @@ public:
 
     QAction *actionNew = nullptr;
     QAction *actionOpen = nullptr;
+    QAction *actionNewHere = nullptr;
+    QAction *actionOpenHere = nullptr;
+    QAction *actionClose = nullptr;
     QAction *actionClearRecentProjects = nullptr;
     QAction *actionImportMidi = nullptr;
     QAction *actionImportDspx = nullptr;
@@ -89,6 +90,7 @@ public:
     Menu *menuEdit = nullptr;
     Menu *menuOptions = nullptr;
     Menu *menuHelp = nullptr;
+    Menu *menuWindow = nullptr;
 
     // All geometry decisions are made from the full menu set. Qt's private
     // extension button is never used or styled.
@@ -122,7 +124,7 @@ public:
     QMetaObject::Connection m_clipSelectionConnection;
 
     void onNew() const;
-    void onOpen();
+    void onOpen(bool replace = false);
     void onOpenRecentProject(const QString &filePath);
     void onClearRecentProjects();
     void refreshRecentProjectsMenu();
@@ -161,8 +163,6 @@ public:
     void initFileActions();
     void initEditActions();
     void initEditShortcuts();
-    // Registers a key sequence only on the primary window's menu. Secondary
-    // menus show the same actions without claiming a second global shortcut.
     void setActionShortcut(QAction *action, const QKeySequence &key,
                            Qt::ShortcutContext context);
 

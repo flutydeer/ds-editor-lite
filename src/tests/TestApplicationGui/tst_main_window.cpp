@@ -2496,6 +2496,10 @@ void ApplicationGuiTests::detachedPanelRestoresSavedGeometry() {
         QVERIFY(expectedSize.isValid());
         detached->close();
         QTRY_VERIFY(!detached->isVisible());
+        QCOMPARE(appOptions->window()->detachedPanelGeometry(), previousGeometry);
+        const auto remembered = first.window->detachedGeometry();
+        QVERIFY(!remembered.isEmpty());
+        appOptions->window()->setDetachedPanelGeometry(remembered);
     }
     if (QTest::currentTestFailed())
         return;
@@ -2570,24 +2574,26 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
     auto *secondaryMenu = detached->menuView();
     QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
 
-    // Save / Save As used to be wired only from MainWindow, so a second menu's
-    // actions silently did nothing. disconnect() doubles as the only public
-    // probe for an existing connection. Both menus live inside this fixture and
-    // are destroyed with it, so probing never starts a real document workflow.
-    const auto ownsSaveWiring = [](MainMenuView *menu) {
-        if (!menu || !menu->actionSave() || !menu->actionSaveAs())
-            return false;
-        const bool save = QObject::disconnect(menu->actionSave(), &QAction::triggered,
-                                              documentWorkflowController,
-                                              &DocumentWorkflowController::requestSave);
-        const bool saveAs = QObject::disconnect(menu->actionSaveAs(), &QAction::triggered,
-                                                documentWorkflowController,
-                                                &DocumentWorkflowController::requestSaveAs);
-        return save && saveAs;
-    };
-    QVERIFY2(ownsSaveWiring(primaryMenu), "the primary menu lost its save wiring");
-    QVERIFY2(ownsSaveWiring(secondaryMenu),
-             "the detached menu's Save / Save As are not wired to the document workflow");
+    const auto nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restore = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
+    for (auto *menu : {primaryMenu, secondaryMenu}) {
+        for (auto *action : {menu->actionSave(), menu->actionSaveAs()}) {
+            QPointer<QWidget> origin;
+            QTimer cancel;
+            connect(&cancel, &QTimer::timeout, &window, [&] {
+                if (auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
+                    origin = picker->parentWidget()->window();
+                    picker->reject();
+                }
+            });
+            cancel.start(10);
+            action->trigger();
+            QTRY_COMPARE(origin.data(), menu->window());
+            QTRY_VERIFY(!documentWorkflowController->busy());
+        }
+    }
 }
 
 void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog_data() {

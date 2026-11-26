@@ -18,8 +18,7 @@ class MainMenuView : public QMenuBar {
     Q_PROPERTY(QColor iconDisabledColor READ iconDisabledColor WRITE setIconDisabledColor)
 
 public:
-    explicit MainMenuView(MainWindow *mainWindow,
-                          TitleBarRole role = TitleBarRole::Primary);
+    explicit MainMenuView(MainWindow *mainWindow);
     ~MainMenuView() override;
 
     [[nodiscard]] QAction *actionNew();

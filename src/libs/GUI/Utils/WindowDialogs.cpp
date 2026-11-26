@@ -3,14 +3,20 @@
 #include <QApplication>
 
 namespace WindowDialogs {
+    static bool owns(const QWidget *owner, const QWidget *child) {
+        for (; child; child = child->parentWidget())
+            if (child == owner)
+                return true;
+        return false;
+    }
+
     bool blocks(const QWidget *window) {
         if (!window || !window->isEnabled())
             return true;
         for (auto *dialog : QApplication::topLevelWidgets()) {
-            if (!dialog->isVisible() || !dialog->isModal() || dialog == window ||
-                dialog->isAncestorOf(window))
+            if (!dialog->isVisible() || !dialog->isModal() || owns(dialog, window))
                 continue;
-            if (dialog->windowModality() == Qt::ApplicationModal || window->isAncestorOf(dialog))
+            if (dialog->windowModality() == Qt::ApplicationModal || owns(window, dialog))
                 return true;
         }
         return false;
@@ -18,7 +24,8 @@ namespace WindowDialogs {
 
     static QStringList choose(QWidget *parent, const QString &caption, const QString &dir,
                               const QString &filter, QFileDialog::FileMode mode,
-                              QFileDialog::AcceptMode accept, QString *selectedFilter = nullptr) {
+                              QFileDialog::AcceptMode accept, QString *selectedFilter = nullptr,
+                              Qt::WindowModality modality = Qt::WindowModal) {
         QFileDialog dialog(parent, caption, dir, filter);
         dialog.setFileMode(mode);
         dialog.setAcceptMode(accept);
@@ -26,7 +33,7 @@ namespace WindowDialogs {
             dialog.setOption(QFileDialog::ShowDirsOnly);
         if (selectedFilter)
             dialog.selectNameFilter(*selectedFilter);
-        dialog.setWindowModality(Qt::WindowModal);
+        dialog.setWindowModality(modality);
         if (dialog.exec() != QDialog::Accepted)
             return {};
         if (selectedFilter)
@@ -37,7 +44,8 @@ namespace WindowDialogs {
     QString getOpenFileName(QWidget *parent, const QString &caption, const QString &dir,
                             const QString &filter) {
         return choose(parent, caption, dir, filter, QFileDialog::ExistingFile,
-                      QFileDialog::AcceptOpen).value(0);
+                      QFileDialog::AcceptOpen)
+            .value(0);
     }
 
     QStringList getOpenFileNames(QWidget *parent, const QString &caption, const QString &dir,
@@ -47,9 +55,11 @@ namespace WindowDialogs {
     }
 
     QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,
-                            const QString &filter, QString *selectedFilter) {
-        return choose(parent, caption, dir, filter, QFileDialog::AnyFile,
-                      QFileDialog::AcceptSave, selectedFilter).value(0);
+                            const QString &filter, QString *selectedFilter,
+                            Qt::WindowModality modality) {
+        return choose(parent, caption, dir, filter, QFileDialog::AnyFile, QFileDialog::AcceptSave,
+                      selectedFilter, modality)
+            .value(0);
     }
 
     QString getExistingDirectory(QWidget *parent, const QString &caption, const QString &dir) {
@@ -71,9 +81,10 @@ namespace WindowDialogs {
         return accepted ? dialog.textValue() : QString();
     }
 
-    static QMessageBox::StandardButton message(QWidget *parent, QMessageBox::Icon icon,
-        const QString &title, const QString &text, QMessageBox::StandardButtons buttons,
-        QMessageBox::StandardButton defaultButton = QMessageBox::NoButton) {
+    static QMessageBox::StandardButton
+        message(QWidget *parent, QMessageBox::Icon icon, const QString &title, const QString &text,
+                QMessageBox::StandardButtons buttons,
+                QMessageBox::StandardButton defaultButton = QMessageBox::NoButton) {
         QMessageBox dialog(icon, title, text, buttons, parent);
         dialog.setDefaultButton(defaultButton);
         dialog.setWindowModality(Qt::WindowModal);
@@ -82,7 +93,8 @@ namespace WindowDialogs {
     }
 
     QMessageBox::StandardButton question(QWidget *parent, const QString &title, const QString &text,
-        QMessageBox::StandardButtons buttons, QMessageBox::StandardButton defaultButton) {
+                                         QMessageBox::StandardButtons buttons,
+                                         QMessageBox::StandardButton defaultButton) {
         return message(parent, QMessageBox::Question, title, text, buttons, defaultButton);
     }
 

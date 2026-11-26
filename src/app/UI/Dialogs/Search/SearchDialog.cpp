@@ -17,7 +17,8 @@
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip) {
-    setModal(true);
+    if (singingClip)
+        connect(singingClip, &QObject::destroyed, this, &QDialog::reject);
     setWindowTitle(tr("Search Lyrics"));
     resize(150, 300);
 
@@ -118,7 +119,7 @@ void SearchDialog::onSearchTextChanged() {
     const auto mode = startWithRadioButton->isChecked()    ? QStringLiteral("starts_with")
                       : fullSearchRadioButton->isChecked() ? QStringLiteral("exact")
                                                            : QStringLiteral("contains");
-    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>(); runtime && m_clip) {
         const auto matches = runtime->notes().searchNotes(
             runtime->documentVersion().documentId, Automation::ClipId(m_clip->id()),
             lineEditSearch->text(), mode, caseSensitiveCheckBox->isChecked(),
@@ -142,9 +143,11 @@ void SearchDialog::onSearchTextChanged() {
 
 void SearchDialog::onItemSelectionChanged(const int row) const {
     const QListWidgetItem *item = resultListWidget->item(row);
-    if (item) {
+    if (item && m_clip) {
         const int noteId = item->data(Qt::UserRole).toInt();
         const auto &note = m_clip->findNoteById(noteId);
+        if (!note)
+            return;
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
         editorViewController->centerPianoRollAt(note->globalStart(), note->keyIndex());
         clipController->selectNotes({note->id()}, true);

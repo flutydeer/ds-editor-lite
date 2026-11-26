@@ -23,6 +23,7 @@
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Window/MainWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "Utils/UiLanguageManager.h"
 #include "Utils/WindowChromeCapture.h"
 #include <lite/ProductMetadata.h>
@@ -291,13 +292,12 @@ int main(int argc, char *argv[]) {
             *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine);
 
         if (hostMode == AppHostMode::Gui) {
-            MainWindow w;
+            DocumentWindowManager windows(appContext);
+            auto &w = *windows.createWindow().window;
             logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
                 parsedArguments.automation, hostServices);
-            WindowPlacement windowPlacement(w);
-            windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
             ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
             const auto startupAdmission = requestQueue.take(startupRequest, true);
             if (!startupAdmission.taken)
@@ -329,10 +329,6 @@ int main(int argc, char *argv[]) {
             result = application->exec();
             qInfo() << "Event loop finished";
             coordinator.stopAcceptingRequests();
-            const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
-                {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
-            if (!saveWindow)
-                qWarning("Failed to save main-window placement");
         } else {
             HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
                                                   hostServices.openDocument);

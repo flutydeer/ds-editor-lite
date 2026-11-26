@@ -5,7 +5,13 @@
 
 namespace DocumentWorkflowPathUtils {
     QString normalizedProjectPath(const QString &path) {
-        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+        const QFileInfo info(path);
+        const auto canonical = info.canonicalFilePath();
+        if (!canonical.isEmpty())
+            return canonical;
+        const auto directory = info.dir().canonicalPath();
+        return directory.isEmpty() ? QDir::cleanPath(info.absoluteFilePath())
+                                   : QDir(directory).filePath(info.fileName());
     }
 
     bool projectPathsEqual(const QString &lhs, const QString &rhs) {

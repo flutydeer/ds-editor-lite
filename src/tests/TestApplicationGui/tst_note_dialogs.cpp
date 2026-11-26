@@ -649,7 +649,7 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     QTimer search;
     search.setInterval(10);
     connect(&search, &QTimer::timeout, &window, [&] {
-        auto *dialog = qobject_cast<SearchDialog *>(QApplication::activeModalWidget());
+        auto *dialog = window.findChild<SearchDialog *>();
         if (!dialog)
             return;
         search.stop();
@@ -726,8 +726,8 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     });
     search.start();
     clipController->onSearchLyric(&window);
+    QTRY_VERIFY(interacted);
     search.stop();
-    QVERIFY(interacted);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

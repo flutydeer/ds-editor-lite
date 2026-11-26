@@ -1,4 +1,5 @@
 #include "ExternalOpenRequestQueue.h"
+#include "UI/Window/DocumentWindowManager.h"
 
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
@@ -21,7 +22,8 @@ namespace {
 
 AdmissionResult ExternalOpenRequestQueue::take(const SingleInstanceRequest &request,
                                                const bool localStartup) {
-    if (m_workflow->shutdownCommitted())
+    auto *manager = DocumentWindowManager::instance();
+    if (manager ? manager->terminating() : m_workflow->shutdownCommitted())
         return AdmissionResult::rejected(QStringLiteral("primary_shutting_down"));
     const auto incoming = request.command == SingleInstanceCommand::OpenProjects ||
                                   request.command == SingleInstanceCommand::ApplicationHandoff
@@ -43,6 +45,16 @@ AdmissionResult ExternalOpenRequestQueue::take(const SingleInstanceRequest &requ
 }
 
 void ExternalOpenRequestQueue::dispatchNext() {
+    if (auto *manager = DocumentWindowManager::instance()) {
+        if (!manager->terminating()) {
+            if (m_activatePending && m_paths.isEmpty() && manager->active())
+                manager->activate(*manager->active());
+            m_activatePending = false;
+            while (!m_paths.isEmpty())
+                manager->open(m_paths.dequeue(), true);
+        }
+        return;
+    }
     if (m_activatePending) {
         m_activatePending = false;
         activateWindow();

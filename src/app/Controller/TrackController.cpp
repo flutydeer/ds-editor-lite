@@ -542,7 +542,8 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
-        dlg->setModal(true);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setAttribute(Qt::WA_ShowWithoutActivating);
 
         const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);

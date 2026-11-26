@@ -58,9 +58,4 @@ struct TitleBarSections {
     }
 };
 
-// Menu and transport controls are duplicated per window, but the application
-// level key sequences must have exactly one owner. The secondary window still
-// shows the same controls and receives the same controller updates.
-enum class TitleBarRole { Primary, Secondary };
-
 #endif // TITLEBARSECTIONS_H

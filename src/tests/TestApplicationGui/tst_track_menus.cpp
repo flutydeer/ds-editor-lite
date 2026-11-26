@@ -318,8 +318,14 @@ void ApplicationGuiTests::trackAudioMenuPreparesClipOrCancels() {
     if (failFirstDecode) {
         QVERIFY(backendReplaced);
         QPointer<Dialog> failure;
-        QTRY_VERIFY((failure = qobject_cast<Dialog *>(QApplication::activeModalWidget())) &&
-                    failure->windowTitle() == TrackController::tr("Error"));
+        const auto findFailure = []() -> Dialog * {
+            for (auto *window : QApplication::topLevelWidgets())
+                if (window->isVisible() && window->windowTitle() == TrackController::tr("Error"))
+                    return qobject_cast<Dialog *>(window);
+            return nullptr;
+        };
+        QTRY_VERIFY((failure = findFailure()));
+        QVERIFY(!failure->isModal());
         const auto closeFailure = qScopeGuard([&] {
             if (failure)
                 failure->reject();

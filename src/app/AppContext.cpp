@@ -30,6 +30,7 @@
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "Modules/Import/DocumentImportController.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
@@ -127,6 +128,13 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
     Automation::DocumentRuntimeServices documentServices;
     documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
         status->loopSettings.set(settings);
+    };
+    documentServices.pathOwnedByAnotherDocument = [this](const QString &path) {
+        if (auto *manager = DocumentWindowManager::instance()) {
+            auto *owner = manager->findPath(path);
+            return owner && owner->context != this;
+        }
+        return false;
     };
     documentServices.saveProject = [this](const QString &path, AppModel *model, QString &error) {
         DspxProjectConverterUi converter(m_appStatus->loopSettings);

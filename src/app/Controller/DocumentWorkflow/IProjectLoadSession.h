@@ -4,6 +4,8 @@
 #include "ProjectLoadTypes.h"
 
 #include <QObject>
+#include <QPointer>
+#include <QWidget>
 
 class IProjectLoadSession : public QObject {
     Q_OBJECT
@@ -21,8 +23,13 @@ public:
         m_sourcePath = path;
     }
 
+    void setDialogParent(QWidget *widget) {
+        m_dialogParent = widget;
+    }
+
 protected:
     QString m_sourcePath;
+    QPointer<QWidget> m_dialogParent;
 
 signals:
     void progressChanged(const ProjectLoadProgress &progress);

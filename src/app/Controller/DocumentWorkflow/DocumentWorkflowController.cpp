@@ -1,4 +1,5 @@
 #include "DocumentWorkflowController.h"
+#include "UI/Window/DocumentWindowManager.h"
 
 #include "DocumentWorkflowPathUtils.h"
 #include "IDocumentWorkflowUi.h"
@@ -154,6 +155,8 @@ void DocumentWorkflowController::requestSaveAs() {
 TerminationRequestResult
     DocumentWorkflowController::requestTermination(const TerminationMode mode,
                                                    const TerminationSavePolicy savePolicy) {
+    if (auto *manager = DocumentWindowManager::instance())
+        return manager->terminate(mode, savePolicy);
     // The host is already exiting after a committed shutdown, so a repeated request
     // is satisfied rather than started again: starting a workflow here would show a
     // busy error to a user who already agreed to close.
@@ -199,6 +202,13 @@ void DocumentWorkflowController::cancelCurrentOperation() {
     emit cancelSessionRequested();
 }
 
+void DocumentWorkflowController::setCloseDecisionPending(bool pending) {
+    auto *runtime = automationRuntime();
+    runtime->setDocumentBusy(runtime->documentVersion().documentId, pending);
+    m_busy = pending;
+    emit busyChanged(pending);
+}
+
 void DocumentWorkflowController::commitShutdown() {
     // Arm the process watchdog first. The exit decision is final at this point, so
     // the absolute budget has to start before the next synchronous log, dialog or
@@ -234,7 +244,7 @@ QString DocumentWorkflowController::projectPath() const {
 QString DocumentWorkflowController::projectName() const {
     const auto document = documentSnapshot();
     if (!document || (document->path.isEmpty() && document->projectName.isEmpty()))
-        return tr("New Project");
+        return m_windowNumber > 0 ? tr("New Project %1").arg(m_windowNumber) : tr("New Project");
     return document->projectName;
 }
 
@@ -310,7 +320,7 @@ void DocumentWorkflowController::initializeStateMachine() {
                                     m_saveResult == SaveResult::SucceededAndResume;
                          });
     addGuardedTransition(m_awaitingSaveDecisionState, this, SIGNAL(saveDecisionCompleted()),
-                         m_awaitingSaveDecisionState, [this] {
+                         m_idleState, [this] {
                              return m_saveDecisionResult == SaveDecisionResult::SaveWithPath &&
                                     m_saveResult == SaveResult::FailedAndResume;
                          });
@@ -335,7 +345,7 @@ void DocumentWorkflowController::initializeStateMachine() {
                                     m_saveResult == SaveResult::SucceededAndFinish;
                          });
     addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
-                         m_awaitingSaveDecisionState, [this] {
+                         m_idleState, [this] {
                              return m_savePathResult == SavePathResult::Selected &&
                                     m_saveResult == SaveResult::FailedAndResume;
                          });
@@ -409,6 +419,10 @@ void DocumentWorkflowController::initializeStateMachine() {
 }
 
 void DocumentWorkflowController::begin(const DocumentOperation operation, const QString &filePath) {
+    if (!m_machine->isRunning()) {
+        QTimer::singleShot(0, this, [this, operation, filePath] { begin(operation, filePath); });
+        return;
+    }
     // Once the host has committed the exit, no new document decision may start: it
     // would hand out a workflow lease and reopen a document that is already frozen.
     // Queued external open requests and menu actions both end up here.
@@ -601,6 +615,8 @@ void DocumentWorkflowController::createSession() {
     if (const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath)) {
         ProjectLoadRequest request{m_pending.filePath, purpose, m_pending.requestId};
         m_session = handler->createSession(request, m_ui, this);
+        if (m_session && m_ui)
+            m_session->setDialogParent(m_ui->documentWorkflowParentWidget());
     }
     if (!m_session) {
         m_error = {tr("Unsupported file"), tr("This operation is not supported.")};

@@ -10,7 +10,7 @@ class ExtractPitchParamDialog : public OKCancelDialog {
     Q_OBJECT
 
 public:
-    explicit ExtractPitchParamDialog(const QList<AudioClip *> &clips);
+    explicit ExtractPitchParamDialog(const QList<AudioClip *> &clips, QWidget *parent = nullptr);
     int selectedClipId = -1;
 
 private slots:

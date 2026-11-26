@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "Bootstrap/AppEnvironment.h"
+#include "Bootstrap/EditorApplication.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
@@ -121,4 +122,5 @@ void NativeDesktopTests::cleanupTestCase() {
     qApp->removeEventFilter(this);
 }
 
-QTEST_MAIN(NativeDesktopTests)
+QTEST_MAIN_WRAPPER(NativeDesktopTests,
+                   QTEST_QAPP_SETUP(EditorApplication) QTEST_DISABLE_KEYPAD_NAVIGATION)

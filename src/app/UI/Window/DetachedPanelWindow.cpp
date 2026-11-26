@@ -1,6 +1,7 @@
 #include "DetachedPanelWindow.h"
 
 #include "MainWindow.h"
+#include <lite/Support/ObjectContext.h>
 #include "UI/Views/Common/EditorShortcutUtils.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
@@ -31,6 +32,8 @@ namespace {
 DetachedPanelWindow::DetachedPanelWindow(MainWindow *mainWindow, const bool useNativeFrame)
     : Window(nullptr, Qt::Window), m_mainWindow(mainWindow),
       m_useNativeFrame(useNativeFrame) {
+    ObjectContext::bind(this);
+    setProperty("dsProjectWindow", QVariant::fromValue<QObject *>(mainWindow));
 #ifdef Q_OS_MAC
     if (!m_useNativeFrame) {
         // Match the main window: the native traffic lights share our title bar,
@@ -67,10 +70,9 @@ DetachedPanelWindow::~DetachedPanelWindow() {
 }
 
 void DetachedPanelWindow::buildChrome(MainWindow *mainWindow, const bool useNativeFrame) {
-    m_menuView = new MainMenuView(mainWindow, TitleBarRole::Secondary);
-    m_titleBar = new MainTitleBar(m_menuView, this,
-                                  TitleBarSections::forDetachedPanel(useNativeFrame),
-                                  TitleBarRole::Secondary);
+    m_menuView = new MainMenuView(mainWindow);
+    m_titleBar =
+        new MainTitleBar(m_menuView, this, TitleBarSections::forDetachedPanel(useNativeFrame));
 
     auto *rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins({});
@@ -165,8 +167,10 @@ bool DetachedPanelWindow::event(QEvent *event) {
     // Keep the right-edge workaround filter attached to the platform window.
     // Re-installing is idempotent and covers a recreated native window.
     if (event->type() == QEvent::WinIdChange) {
-        if (auto *window = windowHandle())
+        if (auto *window = windowHandle()) {
+            ObjectContext::bind(window);
             window->installEventFilter(this);
+        }
     } else if (event->type() == QEvent::Show && !m_useNativeFrame) {
         // As in MainWindow, AppKit may attach the NSWindow after Show. Repeat
         // the idempotent merge once it is on screen, including re-detach flows.

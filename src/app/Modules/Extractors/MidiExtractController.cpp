@@ -13,14 +13,15 @@ namespace {
     }
 
     void showExtractionError(const QString &message) {
-        Dialog dialog;
-        dialog.setTitle(MidiExtractController::tr("Task Failed"));
-        dialog.setMessage(message);
-        dialog.setModal(true);
+        auto *dialog = new Dialog(Dialog::globalParent());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setAttribute(Qt::WA_ShowWithoutActivating);
+        dialog->setTitle(MidiExtractController::tr("Task Failed"));
+        dialog->setMessage(message);
         const auto close = new AccentButton(MidiExtractController::tr("Close"));
-        QObject::connect(close, &Button::clicked, &dialog, &Dialog::accept);
-        dialog.setPositiveButton(close, QDialogButtonBox::RejectRole);
-        dialog.exec();
+        QObject::connect(close, &Button::clicked, dialog, &Dialog::accept);
+        dialog->setPositiveButton(close, QDialogButtonBox::RejectRole);
+        dialog->show();
     }
 }
 
