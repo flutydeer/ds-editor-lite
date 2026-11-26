@@ -12,6 +12,7 @@
 
 #include "UI/Utils/AppColorPalette.h"
 
+class AppModel;
 class SingingClip;
 class Track;
 
@@ -87,6 +88,7 @@ private:
     void rebuildConnections(const Track *hostTrack);
     void clearConnections();
 
+    AppModel &m_model;
     QPointer<SingingClip> m_hostClip;
     QList<GhostNote> m_notes;
     int m_maxLength = 0;
