@@ -1,6 +1,7 @@
 #include "tst_foundation.h"
 
 #include <lite/Core/SingletonRegistry.h>
+#include <lite/Support/ObjectContext.h>
 
 #include <QtTest>
 
@@ -47,4 +48,25 @@ void FoundationTests::registeredServicesRemainVisibleDuringConcurrentRegistratio
     SingletonRegistry::remove<StableService>();
     QVERIFY(!lookupFailed);
     QVERIFY(!SingletonRegistry::instance<StableService>());
+}
+
+void FoundationTests::sharedSignalUsesTheReceiversDocument() {
+    StableService first, second;
+    QObject sender, receiver;
+    const auto a = SingletonRegistry::createContext();
+    const auto b = SingletonRegistry::createContext();
+    StableService *observed = nullptr;
+    {
+        const SingletonRegistry::Scope scope(a);
+        SingletonRegistry::add(&first);
+        ObjectContext::connect(&sender, &QObject::objectNameChanged, &receiver,
+                               [&] { observed = SingletonRegistry::instance<StableService>(); });
+    }
+    {
+        const SingletonRegistry::Scope scope(b);
+        SingletonRegistry::add(&second);
+        sender.setObjectName("from another document");
+        QCOMPARE(observed, &first);
+        QCOMPARE(SingletonRegistry::instance<StableService>(), &second);
+    }
 }

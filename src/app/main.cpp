@@ -3,6 +3,7 @@
 #include "Automation/Mcp/EditorMcpController.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/AppEnvironment.h"
+#include "Bootstrap/EditorApplication.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
 #include "Bootstrap/HeadlessOpenRequestQueue.h"
@@ -47,9 +48,9 @@ int main(int argc, char *argv[]) {
     AppEnvironment::preInit(hostMode);
     std::unique_ptr<QCoreApplication> application;
     if (hostMode == AppHostMode::Gui)
-        application = std::make_unique<QApplication>(argc, argv);
+        application = std::make_unique<EditorApplication>(argc, argv);
     else
-        application = std::make_unique<QCoreApplication>(argc, argv);
+        application = std::make_unique<HeadlessApplication>(argc, argv);
     AppEnvironment::postInit(hostMode);
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     if (!parsedArguments.isValid()) {

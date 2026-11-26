@@ -13,6 +13,7 @@
 
 #include "TaskGlobal.h"
 #include <lite/Core/UniqueObject.h>
+#include <lite/Support/ObjectContext.h>
 
 class TaskStatus {
 public:
@@ -37,10 +38,12 @@ public:
     using FlagType = std::underlying_type_t<Flags>;
 
     explicit Task(QObject *parent = nullptr) : QObject(parent) {
+        ObjectContext::bind(this);
         setAutoDelete(false);
     }
 
     explicit Task(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
+        ObjectContext::bind(this);
         setAutoDelete(false);
     }
 
@@ -106,6 +109,7 @@ private:
     }
 
     void run() override {
+        const SingletonRegistry::Scope scope(m_context);
         // CAS
         FlagType expected = m_taskFlags.load(std::memory_order_acquire);
         FlagType desired;
@@ -127,6 +131,7 @@ private:
             qCritical("Unhandled non-standard exception in task '%s'", qPrintable(m_status.title));
         }
         const auto publishCompletion = [this] {
+            const SingletonRegistry::Scope scope(m_context);
             setFlag(TaskStopped);
             emit finished();
         };
@@ -137,6 +142,7 @@ private:
             QMetaObject::invokeMethod(this, publishCompletion, Qt::QueuedConnection);
     }
 
+    SingletonRegistry::Context m_context = SingletonRegistry::current();
     TaskStatus m_status;
     mutable QReadWriteLock m_statusLock;
     std::atomic<FlagType> m_taskFlags{0};

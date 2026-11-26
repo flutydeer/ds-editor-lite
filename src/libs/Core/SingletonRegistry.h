@@ -2,6 +2,7 @@
 #define LITE_CORE_SINGLETONREGISTRY_H
 
 #include <utility>
+#include <memory>
 
 // A tiny, type-keyed service registry. It decouples singleton *lookup* from any
 // concrete composition root: an owner (e.g. the application's AppContext)
@@ -14,6 +15,22 @@
 // before destroying a registered object; lookup does not extend its lifetime.
 class SingletonRegistry {
 public:
+    struct Services;
+    using Context = std::shared_ptr<Services>;
+    static Context createContext();
+    static Context current();
+
+    class Scope {
+    public:
+        explicit Scope(const Context &context);
+        ~Scope();
+        Scope(const Scope &) = delete;
+        Scope &operator=(const Scope &) = delete;
+
+    private:
+        Context m_previous;
+    };
+
     template <typename T>
     static T *instance() {
         return static_cast<T *>(get(key<T>()));
