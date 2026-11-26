@@ -2,7 +2,15 @@ diff --git a/src/core/source/TransportAudioSource.cpp b/src/core/source/Transpor
 index 514565d..e6834fd 100644
 --- a/src/core/source/TransportAudioSource.cpp
 +++ b/src/core/source/TransportAudioSource.cpp
-@@ -85,9 +85,9 @@ namespace talcs {
+@@ -62,4 +62,6 @@ namespace talcs {
+     static inline void safeRead(IAudioSampleContainer *dest, qint64 destPos, qint64 length,
+                                 PositionableAudioSource *src) {
+-        src->read({dest, destPos, qBound(0ll, src->length() - src->nextReadPosition(), length)});
++        const auto count = qBound(0ll, src->length() - src->nextReadPosition(), length);
++        if (count > 0)
++            src->read({dest, destPos, count});
+     }
+@@ -85,9 +87,9 @@ namespace talcs {
          }
          if (d->bufferingCounter)
              return readData.length;
@@ -13,7 +21,7 @@ index 514565d..e6834fd 100644
              qint64 srcPos = d->position;
              d->src->setNextReadPosition(srcPos);
              while (curBufPos + d->loopingEnd - srcPos < readData.startPos + readData.length &&
-@@ -102,7 +102,7 @@ namespace talcs {
+@@ -102,7 +104,7 @@ namespace talcs {
              }
              safeRead(readData.buffer, curBufPos, lengthToRead, d->src);
          }
@@ -22,3 +30,13 @@ index 514565d..e6834fd 100644
          if (readData.length != 0)
              d->_q_positionAboutToChange(d->position);
          if (d->playbackStatus == AboutToPause) {
+diff --git a/src/core/source/AudioSourceClipSeries_p.h b/src/core/source/AudioSourceClipSeries_p.h
+--- a/src/core/source/AudioSourceClipSeries_p.h
++++ b/src/core/source/AudioSourceClipSeries_p.h
+@@ -77,5 +77,5 @@ namespace talcs {
+             return {clipReadPosition, {
+                     &buf,
+-                    readStart + seriesReadData.startPos,
++                    readStart,
+                     qMax(0ll, corrLen - headCut - tailCut),
+                     seriesReadData.silentFlags,
