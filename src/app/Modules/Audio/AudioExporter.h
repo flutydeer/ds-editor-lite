@@ -161,6 +161,7 @@ namespace Audio {
         };
 
         Result exec();
+        void start(std::function<void(Result)> finished);
         void cleanUp();
 
         void cancel(bool isFail = false, const QString &message = {});

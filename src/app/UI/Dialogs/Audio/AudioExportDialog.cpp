@@ -46,6 +46,8 @@ namespace Audio::Internal {
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent)
         : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)),
           m_stateMachine(nullptr) {
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            m_documentId = runtime->documentVersion().documentId;
         setWindowTitle(tr("Export Audio"));
         auto mainLayout = new QVBoxLayout(body());
 
@@ -489,9 +491,9 @@ namespace Audio::Internal {
         QString selectedFilter = filters.at(m_fileTypeComboBox->currentIndex());
         const auto path =
             WindowDialogs::getSaveFileName(this, {},
-                                         QDir(m_audioExporter->d_func()->projectDirectory())
-                                             .absoluteFilePath(m_fileDirectoryEdit->text()),
-                                         filters.join(";;"), &selectedFilter);
+                                           QDir(m_audioExporter->d_func()->projectDirectory())
+                                               .absoluteFilePath(m_fileDirectoryEdit->text()),
+                                           filters.join(";;"), &selectedFilter);
         if (path.isEmpty())
             return;
         const QFileInfo fileInfo(path);
@@ -507,7 +509,7 @@ namespace Audio::Internal {
 
     void AudioExportDialog::showWarnings() {
         WindowDialogs::warning(this, {},
-                             AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
+                               AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
     }
 
     void AudioExportDialog::showDryRunResult() {
@@ -653,6 +655,11 @@ namespace Audio::Internal {
     }
 
     void AudioExportDialog::showConfiguration() {
+        const auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime || runtime->documentVersion().documentId != m_documentId) {
+            reject();
+            return;
+        }
         updateView();
         setWindowModality(Qt::WindowModal);
         open();
@@ -685,23 +692,23 @@ namespace Audio::Internal {
 
         m_exportedFiles = m_audioExporter->dryRun();
         m_exportOutcome = ExportOutcome::None;
-        const auto progressDialog =
-            new AudioExportProgressDialog(m_audioExporter, Dialog::globalParent());
+        const auto progressDialog = new AudioExportProgressDialog(m_audioExporter, parentWidget());
+        progressDialog->setParent(nullptr, progressDialog->windowFlags());
+        ObjectContext::bind(progressDialog);
+        progressDialog->setAttribute(Qt::WA_ShowWithoutActivating);
         progressDialog->setAttribute(Qt::WA_DeleteOnClose);
         m_progressDialog = progressDialog;
 
         connect(progressDialog, &AudioExportProgressDialog::cancelRequested, this,
                 [this] { m_audioExporter->cancel(); });
-        connect(progressDialog, &AudioExportProgressDialog::openFolderRequested, this,
+        connect(progressDialog, &AudioExportProgressDialog::openFolderRequested, progressDialog,
                 [](const QStringList &files) { ShellUtils::revealFiles(files); });
         connect(progressDialog, &AudioExportProgressDialog::dismissed, this,
                 &AudioExportDialog::handleProgressDismissed);
 
         emit exportStarted();
         progressDialog->show();
-        QTimer::singleShot(0, progressDialog, [this, progressDialog] {
-            QCoreApplication::processEvents();
-            const auto ret = m_audioExporter->exec();
+        m_audioExporter->start([this, progressDialog](AudioExporter::Result ret) {
             m_audioExporter->cleanUp();
             saveExporterSettings();
             saveTemporaryPreset();

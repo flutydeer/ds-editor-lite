@@ -2,6 +2,7 @@
 #define AUDIO_AUDIOEXPORTDIALOG_H
 
 #include "Modules/Audio/AudioExporter.h"
+#include "Automation/AutomationTypes.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 
@@ -73,6 +74,7 @@ namespace Audio::Internal {
         QString m_warningText;
 
         AudioExporter *m_audioExporter;
+        Automation::DocumentId m_documentId;
         QStateMachine *m_stateMachine;
         QPointer<AudioExportProgressDialog> m_progressDialog;
         QStringList m_exportedFiles;

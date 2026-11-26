@@ -767,7 +767,8 @@ void DocumentIOTests::generationCleanup() {
     Automation::MutationResult terminalMutation;
     terminalMutation.previous = runtime.documentVersion();
     terminalMutation.current = runtime.documentVersion();
-    runtime.automationTasks().succeed(terminalTask.taskId, terminalMutation);
+    QVERIFY(runtime.automationTasks().beginCommitting(terminalTask.taskId));
+    QVERIFY(runtime.automationTasks().succeed(terminalTask.taskId, terminalMutation));
 
     const auto oldVersion = runtime.documentVersion();
     const auto notificationCount = fixture.host.replacementNotifications.size();
@@ -796,8 +797,7 @@ void DocumentIOTests::generationCleanup() {
     QVERIFY2((replacement && newVersion.documentId != oldVersion.documentId &&
               newVersion.revision == 0 && historyAfter && !historyAfter.get().canUndo &&
               !historyAfter.get().canRedo && historyAfter.get().onSavePoint && idempotencyAfter &&
-              idempotencyAfter.get() == 0 && runtime.automationTasks().size() == 0 &&
-              runningTaskCancelCount == 1 &&
+              idempotencyAfter.get() == 0 && runningTaskCancelCount == 1 &&
               fixture.host.replacementNotifications.size() == notificationCount + 1 &&
               fixture.host.replacementNotifications.last() == oldVersion.documentId),
              "successful replacement must clear History, idempotency, and task generation "
@@ -806,11 +806,13 @@ void DocumentIOTests::generationCleanup() {
         (!oldDocument &&
          oldDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
          !oldTaskFromOldGeneration &&
-         oldTaskFromOldGeneration.getError().code ==
-             Automation::AutomationErrorCode::DocumentChanged &&
+         oldTaskFromOldGeneration.getError().code == Automation::AutomationErrorCode::NotFound &&
          !oldTaskFromNewGeneration &&
          oldTaskFromNewGeneration.getError().code == Automation::AutomationErrorCode::NotFound),
         "old document/task identities must not be observable from the new generation");
+    const auto retained = runtime.tasks().getTask(oldVersion.documentId, terminalTask.taskId);
+    QVERIFY(retained && retained.get().state == Automation::AutomationTaskState::Succeeded);
+    QVERIFY(!runtime.tasks().getTask(newVersion.documentId, terminalTask.taskId));
 
     const auto reusedKey = runtime.project().insertTrack(
         commandContext(runtime, QStringLiteral("generation-key")), 0, idempotentTrack);

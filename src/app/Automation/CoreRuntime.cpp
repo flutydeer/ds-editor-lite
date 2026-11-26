@@ -5,16 +5,13 @@
 namespace Automation {
     namespace {
         DocumentRuntimeServices bindGenerationLifecycle(DocumentRuntimeServices services,
-                                                        AudioExportAutomationFacade *audioExports,
                                                         ExtractionAutomationFacade *extractions) {
-            Q_ASSERT(audioExports);
             Q_ASSERT(extractions);
             auto existing = std::move(services.beforeReplaceGeneration);
-            services.beforeReplaceGeneration = [existing = std::move(existing), audioExports,
+            services.beforeReplaceGeneration = [existing = std::move(existing),
                                                 extractions](const DocumentId &documentId) {
                 if (existing)
                     existing(documentId);
-                audioExports->discardDocumentGeneration(documentId);
                 extractions->discardDocumentGeneration(documentId);
             };
             return services;
@@ -29,10 +26,12 @@ namespace Automation {
         FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
         ExtractionRuntimeServices extractionServices,
         ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId,
-        ParameterRuntimeServices parameterServices, std::shared_ptr<AutomationTaskManager> sharedTasks)
+        ParameterRuntimeServices parameterServices,
+        std::shared_ptr<AutomationTaskManager> sharedTasks)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
-          m_sharedTasks(sharedTasks ? std::move(sharedTasks) : std::make_shared<AutomationTaskManager>()),
+          m_sharedTasks(sharedTasks ? std::move(sharedTasks)
+                                    : std::make_shared<AutomationTaskManager>()),
           m_taskManager(*m_sharedTasks),
           m_applicationFacade(m_dispatcher, std::move(applicationServices)),
           m_parameterFacade(m_dispatcher, m_committer, m_objectResolver,
@@ -42,9 +41,9 @@ namespace Automation {
           m_audioExportFacade(m_dispatcher, m_taskManager, std::move(audioExportServices)),
           m_extractionFacade(m_dispatcher, m_taskManager, m_objectResolver, m_parameterFacade,
                              m_projectFacade, m_noteFacade, std::move(extractionServices)),
-          m_documentFacade(m_dispatcher, m_committer, m_taskManager,
-                           bindGenerationLifecycle(std::move(documentServices),
-                                                   &m_audioExportFacade, &m_extractionFacade)),
+          m_documentFacade(
+              m_dispatcher, m_committer, m_taskManager,
+              bindGenerationLifecycle(std::move(documentServices), &m_extractionFacade)),
           m_facade(m_dispatcher, m_objectResolver, std::move(editorServices)),
           m_fileFacade(m_dispatcher, std::move(fileServices)),
           m_historyFacade(m_dispatcher, m_committer),

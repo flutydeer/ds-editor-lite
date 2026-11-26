@@ -76,6 +76,10 @@ namespace Automation {
         virtual ~IAudioExportJob() = default;
 
         [[nodiscard]] virtual AudioExportPreviewDto preview() const = 0;
+
+        virtual AutomationResult<AutomationUnit> captureSnapshot() {
+            return AutomationUnit{};
+        }
         virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
         virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
                                                  bool deferPublish) = 0;
@@ -124,6 +128,7 @@ namespace Automation {
         [[nodiscard]] static AudioExportCapabilitiesDto capabilities();
 
         void discardDocumentGeneration(const DocumentId &documentId);
+        bool hasActiveJobs();
 
     private:
         struct PendingJobState;

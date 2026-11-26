@@ -41,6 +41,7 @@ namespace Audio {
         talcs::DspxProjectContext *context = nullptr;
         bool automationBackend = false;
         Automation::TaskId lastTaskId;
+        Automation::DocumentId exportDocument;
 
         QString projectName() const;
         QString projectDirectory() const;

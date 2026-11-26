@@ -990,10 +990,6 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     const auto previousContent = TestSupport::projectSnapshot(*context->m_appModel);
     auto interruptedVersion = runtime().documentVersion();
     auto interruptedContent = previousContent;
-    auto replacement = Automation::DocumentAutomationFacade::newDocumentDraft(false);
-    replacement.timeline = context->m_appModel->timeline();
-    for (const auto *track : context->m_appModel->tracks())
-        replacement.tracks.append(Automation::trackDraftDto(*track));
     const auto target = materials.filePath(QStringLiteral("voice.wav"));
     QFile file(target);
     const QByteArray original("previous export");
@@ -1021,7 +1017,8 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QVERIFY(active.get().progress.indeterminate);
         canceledDuringInference = true;
         if (replaceDocument) {
-            QVERIFY(runtime().documents().commitNewDocument(commandContext(), replacement));
+            QVERIFY(runtime().documents().commitNewDocument(
+                commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
         } else if (removeSourceTrack) {
             QVERIFY(runtime().project().removeTracks(commandContext(), {trackId}));
             interruptedVersion = runtime().documentVersion();
@@ -1035,21 +1032,17 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
     exportId = accepted.get().taskId;
     const auto terminalState = [&] {
-        const auto result =
-            runtime().tasks().getTask(runtime().documentVersion().documentId, exportId);
+        const auto result = runtime().tasks().getTask(previousDocument, exportId);
         return result ? result.get().state : Automation::AutomationTaskState::Failed;
     };
     if (replaceDocument) {
         QTRY_VERIFY_WITH_TIMEOUT(runtime().documentVersion().documentId != previousDocument, 15000);
-        QVERIFY(!runtime().tasks().getTask(previousDocument, exportId));
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
+                                  15000);
         QVERIFY(!HistoryManager::instance()->canUndo());
     } else if (removeSourceTrack) {
-        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Failed, 15000);
-        const auto failed = runtime().tasks().getTask(previousDocument, exportId);
-        QVERIFY(failed && failed.get().error);
-        QCOMPARE(failed.get().error->code, Automation::AutomationErrorCode::IoError);
-        QCOMPARE(failed.get().error->taskId, exportId);
-        QVERIFY(!failed.get().error->message.isEmpty());
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
+                                  15000);
         QCOMPARE(runtime().documentVersion(), interruptedVersion);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), interruptedContent);
         QVERIFY(runtime().history().undo(commandContext()));
@@ -1063,11 +1056,11 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), previousUndo);
     }
     QVERIFY(canceledDuringInference);
-    QVERIFY(!renderedBeforeCancellation);
-    QVERIFY(file.open(QIODevice::ReadOnly));
-    QCOMPARE(file.readAll(), original);
-    file.close();
     if (checkOtherTrack) {
+        QVERIFY(!renderedBeforeCancellation);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), original);
+        file.close();
         QVERIFY(blockedBackground && queuedBackground);
         QTRY_COMPARE_WITH_TIMEOUT(piece->state.get(), QStringLiteral("Acoustic.Awaiting"), 10000);
         QCOMPARE(queuedBackground->state.get(), queuedBackgroundState);
@@ -1085,10 +1078,13 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QVERIFY(QFileInfo::exists(blockedBackground->audioPath));
         QVERIFY(QFileInfo::exists(queuedBackground->audioPath));
     }
-    const auto retry = runtime().audioExports().start(commandContext(), config, policy);
-    QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
-    exportId = retry.get().taskId;
-    QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded, 15000);
+    if (checkOtherTrack) {
+        const auto retry = runtime().audioExports().start(commandContext(), config, policy);
+        QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
+        exportId = retry.get().taskId;
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
+                                  15000);
+    }
     QVERIFY(file.open(QIODevice::ReadOnly));
     talcs::AudioFormatIO reader(&file);
     QVERIFY(reader.open(talcs::AbstractAudioFormatIO::Read));

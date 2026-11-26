@@ -50,15 +50,23 @@ public:
     AppContext &operator=(const AppContext &) = delete;
 
     template <typename T>
-    static T *instance() { return SingletonRegistry::instance<T>(); }
+    static T *instance() {
+        return SingletonRegistry::instance<T>();
+    }
 
     // Public so main() can construct, but conceptually private to the app entry point.
     // Making it a friend of main() is not possible (main is a C runtime symbol).
     explicit AppContext(std::unique_ptr<AppOptions> options,
                         AppHostMode hostMode = AppHostMode::Gui);
     explicit AppContext(AppContext &process);
+    static std::unique_ptr<AppContext> createRenderContext();
+    [[nodiscard]] bool hasPendingTasks() const;
+    [[nodiscard]] QString taskProjectName() const;
     ~AppContext();
-    const SingletonRegistry::Context &services() const { return m_services; }
+
+    const SingletonRegistry::Context &services() const {
+        return m_services;
+    }
 
     [[nodiscard]] AppHostMode hostMode() const;
     [[nodiscard]] bool hasGui() const;
@@ -110,6 +118,7 @@ private:
     AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode, AppContext *process);
     SingletonRegistry::Context m_services;
     AppContext *m_process;
+    QString m_renderProjectName;
     std::unique_ptr<AudioContext> m_projectAudio;
 
     void initializeCommonWiring();

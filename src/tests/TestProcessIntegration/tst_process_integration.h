@@ -13,6 +13,7 @@ public:
 
 private slots:
     void nativeEditingAndFiles();
+    void audioImportAndWaveExport_data();
     void audioImportAndWaveExport();
     void consoleTermination_data();
     void consoleTermination();

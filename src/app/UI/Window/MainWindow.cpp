@@ -197,17 +197,18 @@ MainWindow::MainWindow() {
                 QTimer::singleShot(0, this, [this] { close(); });
             });
 
-    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
-                    updateDiagnosticFilter();
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
-                    updatePanelDetachEnabled();
-                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All) {
-                    updateLogWindowVisible();
-                    m_titleBar->setInWindowMenu(mainMenuInWindow());
-                }
-            });
+    ObjectContext::connect(
+        appOptions, &AppOptions::optionsChanged, this,
+        [this](const AppOptionsGlobal::Option option) {
+            if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                updateDiagnosticFilter();
+            if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                updatePanelDetachEnabled();
+            if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All) {
+                updateLogWindowVisible();
+                m_titleBar->setInWindowMenu(mainMenuInWindow());
+            }
+        });
     updateDiagnosticFilter();
     updateLogWindowVisible();
 
@@ -333,9 +334,9 @@ void MainWindow::updateWindowTitle() {
     const auto document = documentWorkflowController->documentSnapshot();
     if (!document)
         return;
-    const auto displayName =
-        !document->path.isEmpty()         ? QFileInfo(document->path).completeBaseName()
-                                          : documentWorkflowController->projectName();
+    const auto displayName = !document->path.isEmpty()
+                                 ? QFileInfo(document->path).completeBaseName()
+                                 : documentWorkflowController->projectName();
     setWindowTitle((document->saved ? QString() : QStringLiteral("● ")) + displayName);
     updateShutdownBlockReason();
 }
@@ -433,9 +434,10 @@ SaveDecision MainWindow::askCloseDecision(const QString &progress, bool applicat
 
 QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
     const auto *manager = DocumentWindowManager::instance();
-    return WindowDialogs::getSaveFileName(documentWorkflowParentWidget(), tr("Save project"), suggestedPath,
-                                        tr("DiffScope Project File (*.dspx)"), nullptr,
-                                        manager && manager->terminating() ? Qt::ApplicationModal : Qt::WindowModal);
+    return WindowDialogs::getSaveFileName(
+        documentWorkflowParentWidget(), tr("Save project"), suggestedPath,
+        tr("DiffScope Project File (*.dspx)"), nullptr,
+        manager && manager->terminating() ? Qt::ApplicationModal : Qt::WindowModal);
 }
 
 bool MainWindow::confirmOpenWithoutPackageMetadata() {
@@ -622,8 +624,8 @@ bool MainWindow::showBottomPanelPage(const QString &pageId) {
 }
 
 bool MainWindow::showEditorRegion(const EditorViewGlobal::Region region) {
-    if (WindowDialogs::blocks(region == EditorViewGlobal::Region::TrackPanel ? this
-                                                                            : m_bottomPanelView->window()))
+    if (WindowDialogs::blocks(
+            region == EditorViewGlobal::Region::TrackPanel ? this : m_bottomPanelView->window()))
         return false;
     if (region == EditorViewGlobal::Region::TrackPanel) {
         if (appStatus->trackPanelCollapsed &&
@@ -944,6 +946,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         if (m_restartRequested)
             restartApp();
         QMainWindow::closeEvent(event);
+        if (DocumentWindowManager::instance())
+            QCoreApplication::quit();
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
         ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::WaitingForBackgroundTasks);

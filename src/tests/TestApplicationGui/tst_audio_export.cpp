@@ -772,7 +772,8 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
             QCOMPARE(failed.size(), 1);
             QVERIFY(canceled.isEmpty());
             QVERIFY(!controls.exporter->errorString().isEmpty());
-            QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export failed"));
+            QVERIFY(
+                progress->windowTitle().contains(AudioExportProgressDialog::tr("Export failed")));
             auto *indicator = progress->findChild<ProgressIndicator *>();
             QVERIFY(indicator);
             QCOMPARE(indicator->taskStatus(), TaskGlobal::Error);
@@ -803,7 +804,7 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QVERIFY(!dialog.isVisible());
     QVERIFY(progress->isVisible());
     QVERIFY(!progress->isModal());
-    QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export finished"));
+    QVERIFY(progress->windowTitle().contains(AudioExportProgressDialog::tr("Export finished")));
     auto *indicator = progress->findChild<ProgressIndicator *>();
     QVERIFY(indicator);
     QCOMPARE(indicator->value(), 100.0);

@@ -166,4 +166,10 @@ Automation::CommandContext ApplicationGuiTests::commandContext() const {
             .source = Automation::InvocationSource::Test};
 }
 
-QTEST_MAIN(ApplicationGuiTests)
+#include "Bootstrap/EditorApplication.h"
+
+int main(int argc, char **argv) {
+    EditorApplication application(argc, argv);
+    ApplicationGuiTests tests;
+    return QTest::qExec(&tests, argc, argv);
+}

@@ -1875,7 +1875,14 @@ void ProcessIntegrationTests::nativeEditingAndFiles() {
     QVERIFY(runNativeWorkflow(editorPath));
 }
 
+void ProcessIntegrationTests::audioImportAndWaveExport_data() {
+    QTest::addColumn<bool>("closeSource");
+    QTest::newRow("headless") << false;
+    QTest::newRow("close-source-with-another-project-open") << true;
+}
+
 void ProcessIntegrationTests::audioImportAndWaveExport() {
+    QFETCH(bool, closeSource);
     HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-audio-export"));
     QVERIFY(fixture.prepare());
     QVERIFY(fixture.storage.writeConfig({
@@ -1910,10 +1917,14 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     const auto inputDuration = double(inputInfo.frames) / inputInfo.samplerate;
 
     auto &editor = fixture.storage.process(QStringLiteral("editor"));
-    QVERIFY(fixture.start(editor, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
-                                   QStringLiteral("--control-level"), QStringLiteral("l3"),
-                                   QStringLiteral("--control-port"),
-                                   QString::number(fixture.controlPort)}));
+    QStringList args{"--rpc", "--no-mcp",       "--control-level",
+                     "l3",    "--control-port", QString::number(fixture.controlPort)};
+    if (closeSource) {
+        fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
+        fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
+    } else
+        args.prepend("--headless");
+    QVERIFY(fixture.start(editor, args));
     const auto initialStatus = fixture.waitForStatus(editor, fixture.nativeEndpoint);
     QVERIFY(initialStatus);
     int sequence = 0;
@@ -1935,13 +1946,13 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
         }
         return response->value(QStringLiteral("result")).toObject();
     };
-    const auto created = call(QStringLiteral("documents.new"),
-                              {
-                                  {QStringLiteral("current_document_id"),
-                                   initialStatus->value("documents")
-                                       .toArray().first().toObject().value("document_id")},
-                                  {QStringLiteral("template"),       QStringLiteral("empty")  },
-                                  {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+    const auto created = call(
+        QStringLiteral("documents.new"),
+        {
+            {QStringLiteral("current_document_id"),
+             initialStatus->value("documents").toArray().first().toObject().value("document_id")},
+            {QStringLiteral("template"),            QStringLiteral("empty")                     },
+            {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")                   }
     });
     QVERIFY2(created, qPrintable(fixture.error));
     const auto version = created->value(QStringLiteral("current")).toObject();
@@ -2012,6 +2023,14 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     };
     const auto beforeExport = call(QStringLiteral("documents.get"), documentArguments);
     QVERIFY2(beforeExport, qPrintable(fixture.error));
+    QJsonObject other;
+    if (closeSource) {
+        const auto created = call("documents.new", {
+                                                       {"template", "default"}
+        });
+        QVERIFY2(created, qPrintable(fixture.error));
+        other = created->value("current").toObject();
+    }
     const auto outputPath = fixture.storage.filePath(QStringLiteral("mix.wav"));
     const auto exported =
         call(QStringLiteral("exports.audio.start"),
@@ -2027,6 +2046,25 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
                               {QStringLiteral("source"), QStringLiteral("all")}}}
     });
     QVERIFY2(exported, qPrintable(fixture.error));
+    if (closeSource) {
+        const auto closed = call(
+            "documents.close",
+            {
+                {"document_id",       documentId                                                  },
+                {"expected_revision", beforeExport->value("document").toObject().value("revision")},
+                {"discard_changes",   true                                                        }
+        });
+        QVERIFY2(closed, qPrintable(fixture.error));
+        QVERIFY(closed->value("current").isNull());
+        auto edited = call("tracks.insert",
+                           {
+                               {"document_id",       other.value("document_id")                         },
+                               {"expected_revision", other.value("revision")                            },
+                               {"index",             0                                                  },
+                               {"tracks",            QJsonArray{QJsonObject{{"name", "Other document"}}}}
+        });
+        QVERIFY2(edited, qPrintable(fixture.error));
+    }
     QVERIFY2(waitForTask(*exported), qPrintable(fixture.error));
 
     SF_INFO outputInfo{};
@@ -2055,10 +2093,12 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     QCOMPARE(total, outputInfo.frames);
     QVERIFY2(energy > 0.001 * total, "Audio-only export must preserve audible source content");
     output.reset();
-    const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
-    QVERIFY2(afterExport, qPrintable(fixture.error));
-    QCOMPARE(afterExport->value(QStringLiteral("document")),
-             beforeExport->value(QStringLiteral("document")));
+    if (!closeSource) {
+        const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
+        QVERIFY2(afterExport, qPrintable(fixture.error));
+        QCOMPARE(afterExport->value(QStringLiteral("document")),
+                 beforeExport->value(QStringLiteral("document")));
+    }
     QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
 }
 
@@ -2178,8 +2218,8 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
     QFETCH(bool, gui);
     HeadlessProcessFixture fixture(editorPath, QStringLiteral("document-routing"));
     QVERIFY(fixture.prepare());
-    QStringList args{"--rpc", "--no-mcp", "--control-level", "l3", "--control-port",
-                     QString::number(fixture.controlPort)};
+    QStringList args{"--rpc", "--no-mcp",       "--control-level",
+                     "l3",    "--control-port", QString::number(fixture.controlPort)};
     if (gui) {
         fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
         fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
@@ -2194,7 +2234,8 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
     auto original = id(initial);
     int sequence = 0;
     const auto call = [&](const QString &method, const QJsonObject &params = QJsonObject{}) {
-        const auto response = nativeExchange(fixture.manager, fixture.nativeEndpoint,
+        const auto response = nativeExchange(
+            fixture.manager, fixture.nativeEndpoint,
             nativeRequest(QString::number(++sequence), method, params), fixture.error);
         return response.value_or(QJsonObject{});
     };
@@ -2204,8 +2245,10 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
         return call("documents.new", params);
     };
     const auto target = [](const QJsonObject &version) {
-        return QJsonObject{{"document_id", version.value("document_id")},
-                           {"expected_revision", version.value("revision")}};
+        return QJsonObject{
+            {"document_id",       version.value("document_id")},
+            {"expected_revision", version.value("revision")   }
+        };
     };
     QJsonObject second;
     const auto added = create({});
@@ -2215,23 +2258,44 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
         QVERIFY(id(second) != original);
         QVERIFY(added.value("result").toObject().value("previous").isNull());
         QCOMPARE(snapshot().value("windows").toArray().size(), 2);
-        const auto extra = create({{"current_document_id", QJsonValue::Null}}).value("result").toObject();
+        const auto extra = create({
+                                      {"current_document_id", QJsonValue::Null}
+        })
+                               .value("result")
+                               .toObject();
         const auto transient = extra.value("current").toObject();
         QCOMPARE(snapshot().value("documents").toArray().size(), 3);
-        QCOMPARE(call("documents.close", target(transient)).value("result").toObject().value("closed_document_id"),
+        QCOMPARE(call("documents.close", target(transient))
+                     .value("result")
+                     .toObject()
+                     .value("closed_document_id"),
                  id(transient));
     } else {
         QVERIFY(added.contains("error"));
         QCOMPARE(snapshot().value("documents").toArray().size(), 1);
     }
-    auto replaced = create({{"current_document_id", original}, {"expected_revision", initial.value("revision")}});
+    auto replaced = create({
+        {"current_document_id", original                 },
+        {"expected_revision",   initial.value("revision")}
+    });
     auto replacement = replaced.value("result").toObject().value("current").toObject();
     QVERIFY2(id(replacement).isString(), qPrintable(compactJson(replaced)));
     QVERIFY(id(replacement) != original);
-    QVERIFY(call("documents.get", {{"document_id", original}}).contains("error"));
-    QVERIFY(create({{"current_document_id", original}}).contains("error"));
+    QVERIFY(call("documents.get",
+                 {
+                     {"document_id", original}
+    })
+                .contains("error"));
+    QVERIFY(create({
+                       {"current_document_id", original}
+    })
+                .contains("error"));
     if (gui) {
-        QVERIFY(call("documents.get", {{"document_id", id(second)}}).contains("result"));
+        QVERIFY(call("documents.get",
+                     {
+                         {"document_id", id(second)}
+        })
+                    .contains("result"));
         auto save = target(second);
         const auto path = fixture.storage.filePath("second.dspx");
         save.insert("path", path);
@@ -2241,11 +2305,19 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
         collision.insert("path", path);
         collision.insert("overwrite_policy", "overwrite");
         QVERIFY(call("documents.save_as", collision).contains("error"));
-        const auto duplicate = call("documents.open", {{"current_document_id", id(replacement)}, {"path", path}});
+        const auto duplicate =
+            call("documents.open", {
+                                       {"current_document_id", id(replacement)},
+                                       {"path",                path           }
+        });
         QVERIFY2(duplicate.contains("result"), qPrintable(compactJson(duplicate)));
         QCOMPARE(snapshot().value("documents").toArray().size(), 2);
         QVERIFY(call("documents.close", target(replacement)).contains("result"));
-        QVERIFY(call("documents.get", {{"document_id", id(replacement)}}).contains("error"));
+        QVERIFY(call("documents.get",
+                     {
+                         {"document_id", id(replacement)}
+        })
+                    .contains("error"));
         const auto remaining = snapshot().value("documents").toArray();
         QCOMPARE(remaining.size(), 1);
         replacement = remaining.first().toObject();
@@ -2278,7 +2350,8 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
     auto edit = target(replacement);
     edit.insert("index", 0);
     edit.insert("tracks", QJsonArray{QJsonObject{{"name", "Unsaved track"}}});
-    const auto changed = call("tracks.insert", edit).value("result").toObject().value("current").toObject();
+    const auto changed =
+        call("tracks.insert", edit).value("result").toObject().value("current").toObject();
     QVERIFY(id(changed).isString());
     auto close = target(changed);
     QVERIFY(call("documents.close", close).contains("error"));
@@ -2287,8 +2360,13 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
     QCOMPARE(closed.value("closed_document_id"), id(changed));
     const auto blank = closed.value("current").toObject();
     QVERIFY(id(blank).isString() && id(blank) != id(changed));
-    QCOMPARE(snapshot().value("documents").toArray().first().toObject().value("document_id"), id(blank));
-    QVERIFY(call("documents.get", {{"document_id", id(blank)}}).contains("result"));
+    QCOMPARE(snapshot().value("documents").toArray().first().toObject().value("document_id"),
+             id(blank));
+    QVERIFY(call("documents.get",
+                 {
+                     {"document_id", id(blank)}
+    })
+                .contains("result"));
     QVERIFY(call("application.request_exit").contains("result"));
     QVERIFY(editor.waitForFinished(15000));
     QCOMPARE(editor.exitCode(), 0);

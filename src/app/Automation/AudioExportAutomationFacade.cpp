@@ -1,5 +1,6 @@
 #include "AudioExportAutomationFacade.h"
 #include "OperationIds.h"
+#include <lite/Core/SingletonRegistry.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -313,6 +314,9 @@ namespace Automation {
                     });
                 }
 
+                const auto captured = validationJob.get()->captureSnapshot();
+                if (!captured)
+                    return AutomationResult<TaskAcceptedResult>(captured.getError());
                 auto state = std::make_shared<PendingJobState>();
                 {
                     const QMutexLocker locker(&state->mutex);
@@ -428,8 +432,11 @@ namespace Automation {
         }
         QStringList warnings;
         AudioExportObserver taskObserver;
-        taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
-                                    const double progress, const int sourceIndex) {
+        const auto sourceContext = SingletonRegistry::current();
+        taskObserver.progress = [this, taskId, sourceContext,
+                                 callback = std::move(observer.progress)](const double progress,
+                                                                          const int sourceIndex) {
+            const SingletonRegistry::Scope scope(sourceContext);
             m_tasks.updateProgress(taskId,
                                    {.minimum = 0,
                                     .maximum = 100,
@@ -438,9 +445,10 @@ namespace Automation {
             if (callback)
                 callback(progress, sourceIndex);
         };
-        taskObserver.inferenceProgress = [this, taskId,
+        taskObserver.inferenceProgress = [this, taskId, sourceContext,
                                           callback = std::move(observer.inferenceProgress)](
                                              const double progress) {
+            const SingletonRegistry::Scope scope(sourceContext);
             m_tasks.updateProgress(taskId,
                                    {.minimum = 0,
                                     .maximum = 100,
@@ -449,8 +457,9 @@ namespace Automation {
             if (callback)
                 callback(progress);
         };
-        taskObserver.clipping = [&warnings,
+        taskObserver.clipping = [&warnings, sourceContext,
                                  callback = std::move(observer.clipping)](const int sourceIndex) {
+            const SingletonRegistry::Scope scope(sourceContext);
             warnings.append(
                 sourceIndex < 0
                     ? QStringLiteral("Clipping detected")
@@ -458,8 +467,9 @@ namespace Automation {
             if (callback)
                 callback(sourceIndex);
         };
-        taskObserver.warning = [&warnings, callback = std::move(observer.warning)](
+        taskObserver.warning = [&warnings, sourceContext, callback = std::move(observer.warning)](
                                    const QString &message, const int sourceIndex) {
+            const SingletonRegistry::Scope scope(sourceContext);
             warnings.append(message);
             if (callback)
                 callback(message, sourceIndex);
@@ -544,6 +554,11 @@ namespace Automation {
     void AudioExportAutomationFacade::removeJobRecord(const TaskId &taskId) {
         const QMutexLocker locker(&m_jobsMutex);
         m_jobs.remove(taskId);
+    }
+
+    bool AudioExportAutomationFacade::hasActiveJobs() {
+        const QMutexLocker lock(&m_jobsMutex);
+        return !m_jobs.isEmpty();
     }
 
     void AudioExportAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {

@@ -1,6 +1,5 @@
 #include "TaskWindow.h"
 #include "AppContext.h"
-#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 
 #include <QListWidget>
 #include <QVBoxLayout>
@@ -48,8 +47,8 @@ void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 
 void TaskWindow::addTaskToView(Task *task) {
     const SingletonRegistry::Scope scope(ObjectContext::of(task));
-    const auto *workflow = AppContext::instance<DocumentWorkflowController>();
-    const auto name = workflow ? workflow->projectName() : QString();
+    const auto *context = AppContext::instance<AppContext>();
+    const auto name = context ? context->taskProjectName() : QString();
     const auto labeled = [name](TaskStatus status) {
         if (!name.isEmpty())
             status.title = QStringLiteral("%1 — %2").arg(name, status.title);

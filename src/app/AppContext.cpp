@@ -19,6 +19,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
 #include <lite/Tasking/TaskManager.h>
+#include <lite/Tasking/Task.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
@@ -91,12 +92,32 @@ struct AppContext::GuiContext {
 AppContext *AppContext::s_self = nullptr;
 
 AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode hostMode)
-    : AppContext(std::move(options), hostMode, nullptr) {}
+    : AppContext(std::move(options), hostMode, nullptr) {
+}
 
-AppContext::AppContext(AppContext &process)
-    : AppContext(nullptr, process.hostMode(), &process) {}
+AppContext::AppContext(AppContext &process) : AppContext(nullptr, process.hostMode(), &process) {
+}
 
-AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode, AppContext *process)
+std::unique_ptr<AppContext> AppContext::createRenderContext() {
+    auto context =
+        std::unique_ptr<AppContext>(new AppContext(nullptr, AppHostMode::Headless, s_self));
+    context->m_renderProjectName = instance<AppContext>()->taskProjectName();
+    return context;
+}
+
+QString AppContext::taskProjectName() const {
+    const auto *workflow = guiDocumentWorkflowController();
+    return workflow ? workflow->projectName() : m_renderProjectName;
+}
+
+bool AppContext::hasPendingTasks() const {
+    const auto &tasks = TaskManager::instance()->tasks();
+    return std::any_of(tasks.cbegin(), tasks.cend(),
+                       [this](const Task *task) { return ObjectContext::of(task) == m_services; });
+}
+
+AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode,
+                       AppContext *process)
     : m_services(process ? SingletonRegistry::createContext() : SingletonRegistry::current()),
       m_process(process), m_hostMode(hostMode) {
     const SingletonRegistry::Scope scope(m_services);
@@ -123,7 +144,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
     // L1: Independent modules
     TaskManager::instance(); // force early construction on the main thread
     m_historyManager = ObjectContext::create<HistoryManager>();
-    m_packageManager = process ? process->m_packageManager : ObjectContext::create<PackageManager>();
+    m_packageManager =
+        process ? process->m_packageManager : ObjectContext::create<PackageManager>();
     SingletonRegistry::add(m_packageManager);
     Automation::DocumentRuntimeServices documentServices;
     documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
@@ -142,6 +164,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
     };
     documentServices.resetDocumentScopedState = [this] { resetDocumentScopedState(); };
     documentServices.afterCommit = [this](const Automation::DocumentCommitInfo &info) {
+        if (m_process && m_hostMode == AppHostMode::Headless)
+            return;
         bool recentFilesChanged = false;
         if (!info.current.path.isEmpty() &&
             QFileInfo(info.current.path)
@@ -461,7 +485,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
     // Audio system (replaces old AudioSystemContext)
     if (!process)
         m_audio = std::make_unique<AudioSystemContext>();
-    m_projectAudio = std::make_unique<AudioContext>(nullptr, !process || m_hostMode == AppHostMode::Gui);
+    m_projectAudio =
+        std::make_unique<AudioContext>(nullptr, !process || m_hostMode == AppHostMode::Gui);
 
     initializeCommonWiring();
 
@@ -533,19 +558,19 @@ void AppContext::initializeCommonWiring() {
     // Map the package library lifecycle onto AppStatus without involving GUI composition.
     if (!m_process)
         QObject::connect(m_packageManager, &PackageManager::moduleStatusChanged, m_appStatus,
-                     [status = m_appStatus](const PackageManager::ModuleStatus moduleStatus) {
-                         status->packageModuleStatus = [moduleStatus] {
-                             switch (moduleStatus) {
-                                 case PackageManager::ModuleStatus::Loading:
-                                     return AppStatus::ModuleStatus::Loading;
-                                 case PackageManager::ModuleStatus::Ready:
-                                     return AppStatus::ModuleStatus::Ready;
-                                 case PackageManager::ModuleStatus::Error:
-                                     return AppStatus::ModuleStatus::Error;
-                             }
-                             return AppStatus::ModuleStatus::Unknown;
-                         }();
-                     });
+                         [status = m_appStatus](const PackageManager::ModuleStatus moduleStatus) {
+                             status->packageModuleStatus = [moduleStatus] {
+                                 switch (moduleStatus) {
+                                     case PackageManager::ModuleStatus::Loading:
+                                         return AppStatus::ModuleStatus::Loading;
+                                     case PackageManager::ModuleStatus::Ready:
+                                         return AppStatus::ModuleStatus::Ready;
+                                     case PackageManager::ModuleStatus::Error:
+                                         return AppStatus::ModuleStatus::Error;
+                                 }
+                                 return AppStatus::ModuleStatus::Unknown;
+                             }();
+                         });
 
     QObject::connect(m_appModel, &AppModel::modelChanged, m_audioDecodingController,
                      &AudioDecodingController::onModelChanged);

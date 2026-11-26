@@ -267,11 +267,8 @@ void DocumentWindowManager::retire(Document &document) {
 }
 
 void DocumentWindowManager::releaseRetired(Document *document) {
-    const auto &tasks = TaskManager::instance()->tasks();
-    const auto hasWorkers = std::any_of(tasks.cbegin(), tasks.cend(), [document](const Task *task) {
-        return ObjectContext::of(task) == document->context->services() && !task->stopped();
-    });
-    if (hasWorkers) {
+    if (document->context->hasPendingTasks() ||
+        document->context->m_coreRuntime->audioExports().hasActiveJobs()) {
         QTimer::singleShot(50, this, [this, document] { releaseRetired(document); });
         return;
     }
