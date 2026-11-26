@@ -1,22 +1,10 @@
 #include "tst_native_desktop.h"
-#include <lite/ProjectModel/AppModel/Note.h>
-#include "Model/AppStatus/AppStatus.h"
-#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
-#include "Modules/Audio/subsystem/MidiSystem.h"
-#include "Controller/DocumentMidiInput.h"
-#include <lite/ProjectModel/AppModel/SingingClip.h>
-#include <QJsonDocument>
-#include <QMimeData>
-#include <QClipboard>
-#include "Global/ControllerGlobal.h"
-#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
-#include "Controller/PlaybackController.h"
-#include "Controller/TrackController.h"
-#include "Bootstrap/WindowPlacement.h"
 #include "../TestSupport/GuiAppFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/DocumentWorkflow/DocumentRecovery.h"
+#include "Bootstrap/WindowPlacement.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
@@ -25,13 +13,27 @@
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/DocumentWindowManager.h"
+#include "Controller/TrackController.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/DocumentMidiInput.h"
+#include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
+#include "Global/ControllerGlobal.h"
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include <lite/GUI/Utils/WindowDialogs.h>
+#include <QClipboard>
+#include <QMimeData>
+#include <QJsonDocument>
+#include <QMessageBox>
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/Task.h>
 
 #include <QPointer>
@@ -241,7 +243,8 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     const auto rename = [](auto &entry, const QString &name) {
         const SingletonRegistry::Scope scope(entry.context->services());
         auto &target = *entry.context->m_coreRuntime;
-        return target.project().renameTrack({.expected = target.documentVersion()},
+        return target.project().renameTrack(
+            {.expected = target.documentVersion()},
             Automation::TrackId(entry.context->m_appModel->tracks().first()->id()), name);
     };
     QVERIFY(rename(a, "Edited A"));
@@ -288,44 +291,6 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QString error;
     QVERIFY2(converter.load(path, &disk, error, IProjectConverter::NewProject), qPrintable(error));
     QCOMPARE(disk.tracks().first()->name() == QStringLiteral("Edited A"), save);
-}
-
-void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
-    QTest::addColumn<bool>("detach");
-    QTest::newRow("main-window") << false;
-    QTest::newRow("detached-window") << true;
-}
-
-void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
-    QFETCH(bool, detach);
-    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
-        runIsolatedDesktopCase();
-        return;
-    }
-    GuiAppFixture fixture;
-    QVERIFY(fixture.initialize());
-    DocumentWindowManager windows(*fixture.context);
-    auto &first = windows.createWindow();
-    auto &second = windows.createWindow();
-    TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
-    TestSupport::placeWindowOnScreen(*second.window, {1250, 730});
-    const auto oldDetached = appOptions->window()->detachedPanelGeometry();
-    QWidget *lastEditor = first.window.get();
-    if (detach) {
-        QVERIFY(QMetaObject::invokeMethod(first.window.get(), "detachBottomPanel"));
-        lastEditor = first.window->detachedPanelWindow();
-    }
-    lastEditor->raise();
-    lastEditor->activateWindow();
-    QTRY_VERIFY(lastEditor->isActiveWindow());
-    QCOMPARE(windows.active(), &first);
-    const auto expected = first.placement->saveGeometry();
-    QVERIFY(expected != second.placement->saveGeometry());
-    const auto detached = detach ? first.window->detachedGeometry() : oldDetached;
-    QCOMPARE(windows.terminate(TerminationMode::Exit, TerminationSavePolicy::Discard),
-             TerminationRequestResult::Accepted);
-    QCOMPARE(appOptions->window()->mainWindowGeometry(), expected);
-    QCOMPARE(appOptions->window()->detachedPanelGeometry(), detached);
 }
 
 void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
@@ -382,6 +347,12 @@ void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
     QVERIFY(first.playback().stop({.expected = first.documentVersion()}));
 }
 
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
+    QTest::addColumn<bool>("detach");
+    QTest::newRow("main-window") << false;
+    QTest::newRow("detached-window") << true;
+}
+
 void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     GuiDocumentFixture fixture;
     QVERIFY(fixture.initialize(false));
@@ -420,4 +391,101 @@ void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     emit input->notePressed(67);
     emit input->noteReleased(67);
     QCOMPARE(clip->notes().count(), previousNotes + 1);
+}
+
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
+    QFETCH(bool, detach);
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY(fixture.initialize());
+    DocumentWindowManager windows(*fixture.context);
+    auto &first = windows.createWindow();
+    auto &second = windows.createWindow();
+    TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
+    TestSupport::placeWindowOnScreen(*second.window, {1250, 730});
+    const auto oldDetached = appOptions->window()->detachedPanelGeometry();
+    QWidget *lastEditor = first.window.get();
+    if (detach) {
+        QVERIFY(QMetaObject::invokeMethod(first.window.get(), "detachBottomPanel"));
+        lastEditor = first.window->detachedPanelWindow();
+    }
+    lastEditor->raise();
+    lastEditor->activateWindow();
+    QTRY_VERIFY(lastEditor->isActiveWindow());
+    QCOMPARE(windows.active(), &first);
+    const auto expected = first.placement->saveGeometry();
+    QVERIFY(expected != second.placement->saveGeometry());
+    const auto detached = detach ? first.window->detachedGeometry() : oldDetached;
+    QCOMPARE(windows.terminate(TerminationMode::Exit, TerminationSavePolicy::Discard),
+             TerminationRequestResult::Accepted);
+    QCOMPARE(appOptions->window()->mainWindowGeometry(), expected);
+    QCOMPARE(appOptions->window()->detachedPanelGeometry(), detached);
+}
+
+void NativeDesktopTests::recoveryRecordsKeepEachProjectsUnsavedChanges() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY(fixture.initialize());
+    const auto path = fixture.directory.filePath("original.dspx");
+    QString error;
+    {
+        DocumentWindowManager windows(*fixture.context);
+        auto &a = windows.createWindow();
+        auto &b = windows.createWindow();
+        QVERIFY(a.context->m_coreRuntime->documents().saveDocument(
+            {.expected = a.context->m_coreRuntime->documentVersion()}, path));
+        for (const auto &entry : windows.documents()) {
+            const SingletonRegistry::Scope scope(entry->context->services());
+            auto &runtime = *entry->context->m_coreRuntime;
+            QVERIFY(runtime.project().renameTrack(
+                {.expected = runtime.documentVersion()},
+                Automation::TrackId(entry->context->m_appModel->tracks().first()->id()),
+                entry.get() == &a ? "Recovered A" : "Recovered B"));
+        }
+        QTRY_COMPARE(DocumentRecovery::pending().size(), 2);
+        for (const auto &record : DocumentRecovery::pending()) {
+            Automation::DocumentDraftDto recovered;
+            QVERIFY2(DocumentRecovery::read(record, recovered, error), qPrintable(error));
+            QCOMPARE(recovered.tracks.first().name, record.path == path
+                                                        ? QStringLiteral("Recovered A")
+                                                        : QStringLiteral("Recovered B"));
+        }
+        AppModel saved;
+        DspxProjectConverterUi converter;
+        QVERIFY2(converter.load(path, &saved, error, IProjectConverter::NewProject),
+                 qPrintable(error));
+        QVERIFY(saved.tracks().first()->name() != QStringLiteral("Recovered A"));
+        QVERIFY(windows.close(b, TerminationSavePolicy::Discard));
+        QTRY_COMPARE(DocumentRecovery::pending().size(), 1);
+        QCOMPARE(DocumentRecovery::pending().first().path, path);
+    }
+
+    DocumentWindowManager reopened(*fixture.context);
+    reopened.createWindow();
+    qApp->removeEventFilter(this);
+    const auto reinstall = qScopeGuard([this] { qApp->installEventFilter(this); });
+    QTimer::singleShot(0, this, [&] {
+        auto *prompt = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        QVERIFY(prompt);
+        auto *button = prompt->button(QMessageBox::Yes);
+        QVERIFY(button);
+        button->click();
+    });
+    reopened.offerRecovery();
+    auto *restored = reopened.findPath(path);
+    QVERIFY(restored);
+    QCOMPARE(restored->context->m_appModel->tracks().first()->name(),
+             QStringLiteral("Recovered A"));
+    QVERIFY(!restored->context->m_historyManager->isOnSavePoint());
+    AppModel onDisk;
+    DspxProjectConverterUi converter;
+    QVERIFY2(converter.load(path, &onDisk, error, IProjectConverter::NewProject),
+             qPrintable(error));
+    QVERIFY(onDisk.tracks().first()->name() != QStringLiteral("Recovered A"));
 }

@@ -18,6 +18,7 @@ struct ProjectModelData {
     ProjectModelData(const ProjectModelData &) = delete;
     ProjectModelData &operator=(const ProjectModelData &) = delete;
 
+    void setAudioReferenceDirectory(const QString &directory);
     Timeline timeline;
     TrackControl masterControl;
     std::vector<std::unique_ptr<Track>> tracks;

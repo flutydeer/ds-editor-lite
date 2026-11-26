@@ -5,6 +5,8 @@
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/WindowPlacement.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
+#include "Controller/DocumentWorkflow/DocumentRecovery.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "MainWindow.h"
 #include "DetachedPanelWindow.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -43,9 +45,12 @@ DocumentWindowManager::~DocumentWindowManager() {
     manager = nullptr;
 }
 
-DocumentWindowManager *DocumentWindowManager::instance() { return manager; }
+DocumentWindowManager *DocumentWindowManager::instance() {
+    return manager;
+}
 
-void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHostServices &services) {
+void DocumentWindowManager::configureAutomation(
+    Automation::PublicAutomationHostServices &services) {
     using namespace Automation;
     const auto status = [this](bool windows) {
         QJsonArray result;
@@ -54,8 +59,10 @@ void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHost
                 continue;
             auto &runtime = *entry->context->m_coreRuntime;
             const auto version = runtime.documentVersion();
-            QJsonObject item{{QStringLiteral("document_id"), version.documentId.toString()},
-                             {QStringLiteral("active"), entry.get() == m_active}};
+            QJsonObject item{
+                {QStringLiteral("document_id"), version.documentId.toString()},
+                {QStringLiteral("active"),      entry.get() == m_active      }
+            };
             if (windows)
                 item.insert(QStringLiteral("window_id"), runtime.windowId()->toString());
             else
@@ -80,8 +87,11 @@ void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHost
     };
     services.pendingOpen = [this](CoreRuntime &runtime, const QString &path) {
         auto *entry = find(runtime.documentVersion().documentId);
-        return entry && DocumentWorkflowPathUtils::projectPathsEqual(entry->openingPath,
-                   DocumentWorkflowPathUtils::normalizedProjectPath(path)) ? entry->openingTask : TaskId{};
+        return entry && DocumentWorkflowPathUtils::projectPathsEqual(
+                            entry->openingPath,
+                            DocumentWorkflowPathUtils::normalizedProjectPath(path))
+                   ? entry->openingTask
+                   : TaskId{};
     };
     services.trackOpen = [this](CoreRuntime &runtime, const QString &path, const TaskId &task) {
         auto *entry = find(runtime.documentVersion().documentId);
@@ -89,7 +99,8 @@ void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHost
             return;
         entry->openingPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
         entry->openingTask = task;
-        runtime.automationTasks().addTerminalCallback(task,
+        runtime.automationTasks().addTerminalCallback(
+            task,
             [entry, owner = QPointer(entry->window.get()), task](const AutomationTaskSnapshot &) {
                 if (owner && entry->openingTask == task) {
                     entry->openingTask = {};
@@ -105,7 +116,8 @@ void DocumentWindowManager::configureAutomation(Automation::PublicAutomationHost
     services.createDocumentWindow = [this] {
         return m_terminating ? nullptr : createWindow().context->m_coreRuntime.get();
     };
-    services.closeDocument = [this](CoreRuntime &runtime, bool discard) -> AutomationResult<DocumentVersion> {
+    services.closeDocument = [this](CoreRuntime &runtime,
+                                    bool discard) -> AutomationResult<DocumentVersion> {
         auto *entry = find(runtime.documentVersion().documentId);
         if (!entry || !close(*entry, discard ? TerminationSavePolicy::Discard
                                              : TerminationSavePolicy::RejectUnsaved))
@@ -128,7 +140,15 @@ DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
     m_documents.push_back(std::move(entry));
     if (!m_active)
         m_active = &document;
-    connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, timer, schedule);
+    auto *timer = new QTimer(document.window.get());
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, document.window.get(),
+            [this, &document] { updateRecovery(document); });
+    const auto schedule = [timer] { timer->start(0); };
+    connect(document.context->m_historyManager, &HistoryManager::undoRedoChanged, timer, schedule);
+    connect(document.context->m_historyManager, &HistoryManager::savePointChanged, timer, schedule);
+    connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, timer,
+            schedule);
     connect(documentWorkflowController, &DocumentWorkflowController::busyChanged,
             document.window.get(), [&document](bool busy) {
                 if (!busy && document.openingTask.isNull())
@@ -138,7 +158,68 @@ DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
     return document;
 }
 
-DocumentWindowManager::Document *DocumentWindowManager::find(const Automation::DocumentId &id) const {
+void DocumentWindowManager::updateRecovery(Document &document) {
+    if (document.closing || document.context->m_coreRuntime->shutdownCommitted())
+        return;
+    const SingletonRegistry::Scope scope(document.context->services());
+    const auto version = document.context->m_coreRuntime->documentVersion();
+    const auto key = version.documentId.toString();
+    if (document.recoveryKey != key || document.context->m_historyManager->isOnSavePoint()) {
+        DocumentRecovery::remove(document.recoveryKey);
+        document.recoveryKey.clear();
+    }
+    if (document.context->m_historyManager->isOnSavePoint())
+        return;
+    QString error;
+    if (DocumentRecovery::write(key, documentWorkflowController->projectPath(),
+                                documentWorkflowController->projectName(),
+                                document.context->m_appModel,
+                                document.context->m_appStatus->loopSettings.get(), error))
+        document.recoveryKey = key;
+    else
+        qWarning() << "Cannot write project recovery record:" << error;
+}
+
+void DocumentWindowManager::offerRecovery() {
+    const auto records = DocumentRecovery::pending();
+    for (const auto &record : records) {
+        auto *owner = active() ? active()->window.get() : m_documents.front()->window.get();
+        const auto answer = WindowDialogs::question(
+            owner, tr("Recover project"),
+            tr("Restore unsaved changes to %1?")
+                .arg(record.name.isEmpty() ? tr("Untitled") : record.name),
+            QMessageBox::Yes | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Yes);
+        if (answer == QMessageBox::Discard) {
+            DocumentRecovery::remove(record.file);
+            continue;
+        }
+        if (answer != QMessageBox::Yes)
+            continue;
+        Automation::DocumentDraftDto draft;
+        QString error;
+        if (!DocumentRecovery::read(record, draft, error)) {
+            WindowDialogs::warning(owner, tr("Recover project"), error);
+            continue;
+        }
+        auto &entry = createWindow();
+        const SingletonRegistry::Scope scope(entry.context->services());
+        auto &runtime = *entry.context->m_coreRuntime;
+        const auto path = findPath(record.path) ? QString{} : record.path;
+        const auto restored = runtime.documents().commitOpenedDocument(
+            {.expected = runtime.documentVersion(),
+             .source = Automation::InvocationSource::TrustedGui},
+            draft, path, record.name, false);
+        if (restored) {
+            updateRecovery(entry);
+            if (!entry.recoveryKey.isEmpty())
+                DocumentRecovery::remove(record.file);
+        } else
+            WindowDialogs::warning(owner, tr("Recover project"), restored.getError().message);
+    }
+}
+
+DocumentWindowManager::Document *
+    DocumentWindowManager::find(const Automation::DocumentId &id) const {
     for (const auto &entry : m_documents)
         if (!entry->closing && entry->context->m_coreRuntime->documentVersion().documentId == id)
             return entry.get();
@@ -184,8 +265,8 @@ void DocumentWindowManager::activate(Document &document) const {
 bool DocumentWindowManager::eventFilter(QObject *watched, QEvent *event) {
     if (!m_terminating && event->type() == QEvent::WindowActivate) {
         for (const auto &entry : m_documents) {
-            if (!entry->closing &&
-                (watched == entry->window.get() || watched == entry->window->detachedPanelWindow())) {
+            if (!entry->closing && (watched == entry->window.get() ||
+                                    watched == entry->window->detachedPanelWindow())) {
                 m_active = entry.get();
                 break;
             }
@@ -204,7 +285,8 @@ void DocumentWindowManager::open(const QString &path, bool reuseBlank, Document 
     if (!replace && reuseBlank) {
         for (const auto &entry : m_documents) {
             const auto &runtime = *entry->context->m_coreRuntime;
-            if (!entry->closing && entry->openingPath.isEmpty() && runtime.documentPath().isEmpty() &&
+            if (!entry->closing && entry->openingPath.isEmpty() &&
+                runtime.documentPath().isEmpty() &&
                 !runtime.documentBusy(runtime.documentVersion().documentId) &&
                 entry->context->m_historyManager->isOnSavePoint()) {
                 replace = entry.get();
@@ -227,7 +309,8 @@ bool DocumentWindowManager::confirmClose(Document &document, TerminationSavePoli
     auto version = runtime.documentVersion();
     if (document.closing || runtime.documentBusy(version.documentId))
         return false;
-    if (document.context->m_historyManager->isOnSavePoint() || policy == TerminationSavePolicy::Discard)
+    if (document.context->m_historyManager->isOnSavePoint() ||
+        policy == TerminationSavePolicy::Discard)
         return true;
     if (policy == TerminationSavePolicy::RejectUnsaved)
         return false;
@@ -235,29 +318,32 @@ bool DocumentWindowManager::confirmClose(Document &document, TerminationSavePoli
     workflow->setCloseDecisionPending(true);
     const auto release = qScopeGuard([workflow] { workflow->setCloseDecisionPending(false); });
     switch (document.window->askCloseDecision(progress, m_terminating)) {
-    case SaveDecision::Cancel:
-        return false;
-    case SaveDecision::Discard:
-        return runtime.documentVersion() == version;
-    case SaveDecision::Save:
-        break;
+        case SaveDecision::Cancel:
+            return false;
+        case SaveDecision::Discard:
+            return runtime.documentVersion() == version;
+        case SaveDecision::Save:
+            break;
     }
     QString path = runtime.documentPath();
     if (path.isEmpty())
         path = document.window->chooseDocumentSavePath(DocumentWorkflowPathUtils::suggestedSavePath(
-            {}, documentWorkflowController->lastProjectFolder(), documentWorkflowController->projectName()));
+            {}, documentWorkflowController->lastProjectFolder(),
+            documentWorkflowController->projectName()));
     if (path.isEmpty())
         return false;
     const auto result = runtime.documents().saveDocument(
         {.expected = version, .source = Automation::InvocationSource::TrustedGui}, path);
     if (!result)
-        document.window->showDocumentWorkflowError({tr("Failed to save project"), result.getError().message});
+        document.window->showDocumentWorkflowError(
+            {tr("Failed to save project"), result.getError().message});
     return bool(result);
 }
 
 void DocumentWindowManager::retire(Document &document) {
     const SingletonRegistry::Scope scope(document.context->services());
     document.closing = true;
+    DocumentRecovery::remove(document.recoveryKey);
     if (m_active == &document)
         m_active = nullptr;
     document.window->dockPanel();
@@ -279,19 +365,23 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
     if (m_terminating || !confirmClose(document, policy))
         return false;
     const SingletonRegistry::Scope scope(document.context->services());
-    const auto others = std::any_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
-        return entry.get() != &document && !entry->closing;
-    });
+    const auto others =
+        std::any_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
+            return entry.get() != &document && !entry->closing;
+        });
     if (others) {
         retire(document);
     } else {
+        DocumentRecovery::remove(document.recoveryKey);
+        document.recoveryKey.clear();
         document.window->dockPanel();
         documentWorkflowController->initializeNewDocument();
     }
     return true;
 }
 
-TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode, TerminationSavePolicy policy) {
+TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
+                                                          TerminationSavePolicy policy) {
     if (m_terminating)
         return TerminationRequestResult::Busy;
     QList<Document *> remaining;
@@ -332,6 +422,7 @@ TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode, 
             retire(*entry);
     }
     auto *last = remaining.back();
+    DocumentRecovery::remove(last->recoveryKey);
     const SingletonRegistry::Scope scope(last->context->services());
     m_process.commitShutdown();
     last->context->m_coreRuntime->commitShutdown();

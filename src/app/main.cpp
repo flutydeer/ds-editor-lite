@@ -295,6 +295,7 @@ int main(int argc, char *argv[]) {
             DocumentWindowManager windows(appContext);
             auto &w = *windows.createWindow().window;
             windows.configureAutomation(hostServices);
+            QTimer::singleShot(0, &windows, [&windows] { windows.offerRecovery(); });
             logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,

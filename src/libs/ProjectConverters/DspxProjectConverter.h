@@ -20,6 +20,8 @@ public:
     bool loadParsedProject(const opendspx::Model &dspxModel, AppModel *model,
                            LoopSettings &loopSettings, QString &errMsg, ImportMode mode);
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
+    bool saveSnapshot(const QString &destination, const QString &referencePath,
+                      const AppModel *model, QString &errMsg);
     // The intended save path anchors relative audio references in the encoded project.
     opendspx::Model encodeProject(const QString &path, const AppModel *model) const;
 

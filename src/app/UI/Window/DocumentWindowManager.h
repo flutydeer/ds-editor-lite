@@ -10,7 +10,10 @@ class AppContext;
 class MainWindow;
 class WindowPlacement;
 class DocumentMidiInput;
-namespace Automation { struct PublicAutomationHostServices; }
+
+namespace Automation {
+    struct PublicAutomationHostServices;
+}
 
 class DocumentWindowManager final : public QObject {
     Q_OBJECT
@@ -26,12 +29,17 @@ public:
         std::unique_ptr<WindowPlacement> placement;
         QString openingPath;
         Automation::TaskId openingTask;
+        QString recoveryKey;
         bool closing = false;
         ~Document();
     };
 
     Document &createWindow();
-    const auto &documents() const { return m_documents; }
+
+    const auto &documents() const {
+        return m_documents;
+    }
+
     Document *find(const Automation::DocumentId &id) const;
     Document *find(const AppContext *context) const;
     Document *findPath(const QString &path) const;
@@ -40,10 +48,17 @@ public:
     void open(const QString &path, bool reuseBlank = false, Document *replace = nullptr);
     bool close(Document &document, TerminationSavePolicy policy);
     TerminationRequestResult terminate(TerminationMode mode, TerminationSavePolicy policy);
-    void configureAutomation(Automation::PublicAutomationHostServices &services);
-    bool terminating() const { return m_terminating; }
 
-    DocumentMidiInput &midiInput() { return *m_midiInput; }
+    bool terminating() const {
+        return m_terminating;
+    }
+
+    void configureAutomation(Automation::PublicAutomationHostServices &services);
+    void offerRecovery();
+
+    DocumentMidiInput &midiInput() {
+        return *m_midiInput;
+    }
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -53,6 +68,7 @@ private:
                       const QString &progress = {});
     void retire(Document &document);
     void releaseRetired(Document *document);
+    void updateRecovery(Document &document);
     AppContext &m_process;
     std::unique_ptr<DocumentMidiInput> m_midiInput;
     std::list<std::unique_ptr<Document>> m_documents;

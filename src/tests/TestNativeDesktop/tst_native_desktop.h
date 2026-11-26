@@ -22,10 +22,6 @@ public:
 
 private slots:
     void initTestCase();
-    void midiRecordingFollowsItsProjectAcrossWindowFocus();
-    void detachedPlaybackAndProjectClipboard();
-    void exitRemembersTheLastEditorGeometry_data();
-    void exitRemembersTheLastEditorGeometry();
     void cleanupTestCase();
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
@@ -36,6 +32,11 @@ private slots:
     void detachedPanelDiesWithItsMainWindow();
     void cancelingExitKeepsTheRemainingProject_data();
     void cancelingExitKeepsTheRemainingProject();
+    void detachedPlaybackAndProjectClipboard();
+    void midiRecordingFollowsItsProjectAcrossWindowFocus();
+    void exitRemembersTheLastEditorGeometry_data();
+    void exitRemembersTheLastEditorGeometry();
+    void recoveryRecordsKeepEachProjectsUnsavedChanges();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();
