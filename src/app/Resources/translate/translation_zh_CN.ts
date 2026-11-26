@@ -2121,6 +2121,10 @@ Right drag: Erase</source>
 <context>
     <name>DocumentWorkflowController</name>
     <message>
+        <source>New Project %1</source>
+        <translation>新工程 %1</translation>
+    </message>
+    <message>
         <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="237"/>
         <location filename="../../UI/Window/MainWindow.cpp" line="332"/>
         <source>New Project</source>
@@ -3358,8 +3362,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="196"/>
-        <source>This will delete %L1 cache file(s) not used by the current project. Files used by undo history and current playback will be kept.</source>
-        <translation>将删除当前工程未使用的 %L1 个缓存文件。撤销历史与当前播放所用的文件将保留。</translation>
+        <source>This will delete %L1 cache file(s) not used by open projects. Files used by undo history and current playback will be kept.</source>
+        <translation>将删除所有已打开工程均未使用的 %L1 个缓存文件。撤销历史与当前播放所用的文件将保留。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="200"/>
@@ -3957,6 +3961,10 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuView</name>
     <message>
+        <source>&amp;Window</source>
+        <translation>窗口(&amp;W)</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="267"/>
         <source>All Supported Files (%1)</source>
         <translation>所有支持的文件 (%1)</translation>
@@ -3974,6 +3982,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainMenuViewPrivate</name>
+    <message>
+        <source>New in Current Window</source>
+        <translation>在当前窗口新建</translation>
+    </message>
+    <message>
+        <source>Open in Current Window...</source>
+        <translation>在当前窗口打开...</translation>
+    </message>
+    <message>
+        <source>Close Project</source>
+        <translation>关闭工程</translation>
+    </message>
+    <message>
+        <source>Record MIDI Input</source>
+        <translation>录制 MIDI 输入</translation>
+    </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="271"/>
         <source>Open</source>
@@ -4155,8 +4179,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="719"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1014"/>
-        <source>E&amp;xit</source>
-        <translation>退出(&amp;X)</translation>
+        <source>E&amp;xit Application</source>
+        <translation>退出应用(&amp;X)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="744"/>
@@ -4304,6 +4328,10 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>Save changes to %1?</source>
+        <translation>要保存对「%1」的更改吗？</translation>
+    </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="416"/>
         <source>DiffScope Project File (*.dspx)</source>
@@ -5753,6 +5781,10 @@ type: %L1</source>
 <context>
     <name>QObject</name>
     <message>
+        <source>Another open project uses this file. Choose a different path.</source>
+        <translation>另一个已打开的工程正在使用此文件。请选择其他保存位置。</translation>
+    </message>
+    <message>
         <location filename="../../Modules/Extractors/ExtractorUtils.cpp" line="21"/>
         <source>Failed to probe audio file: </source>
         <translation>解析音频文件失败：</translation>
@@ -6750,6 +6782,25 @@ All current mix settings will be lost.</source>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="166"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
+    </message>
+</context>
+<context>
+    <name>DocumentWindowManager</name>
+    <message>
+        <source>Recover project</source>
+        <translation>恢复工程</translation>
+    </message>
+    <message>
+        <source>Restore unsaved changes to %1?</source>
+        <translation>要恢复「%1」中未保存的更改吗？</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>未命名工程</translation>
+    </message>
+    <message>
+        <source>Failed to save project</source>
+        <translation>工程保存失败</translation>
     </message>
 </context>
 </TS>
