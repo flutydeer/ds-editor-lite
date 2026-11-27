@@ -16,7 +16,6 @@
 #include "Bootstrap/SingleInstanceIdentity.h"
 #include "Bootstrap/StartupArguments.h"
 #include "Bootstrap/WindowPlacement.h"
-#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -293,20 +292,17 @@ int main(int argc, char *argv[]) {
 
         if (hostMode == AppHostMode::Gui) {
             DocumentWindowManager windows(appContext);
-            auto &w = *windows.createWindow().window;
+            auto &first = windows.createWindow();
+            auto &w = *first.window;
             windows.configureAutomation(hostServices);
+            if (!startupPaths.isEmpty())
+                windows.open(startupPaths, &first);
             QTimer::singleShot(0, &windows, [&windows] { windows.offerRecovery(); });
             logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
                 parsedArguments.automation, hostServices);
-            ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
-            const auto startupAdmission = requestQueue.take(startupRequest, true);
-            if (!startupAdmission.taken)
-                qWarning().noquote()
-                    << QStringLiteral("Local startup request was not admitted: %1. Command-line "
-                                      "project paths may not be opened.")
-                           .arg(startupAdmission.error);
+            ExternalOpenRequestQueue requestQueue(windows);
             coordinator.setAdmissionHandler(
                 [&requestQueue](const SingleInstanceRequest &request) {
                     return requestQueue.take(request);

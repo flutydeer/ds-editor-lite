@@ -2405,6 +2405,35 @@ void ProcessIntegrationTests::targetedDocumentLifecycle() {
                      {"document_id", id(blank)}
     })
                 .contains("result"));
+    if (gui) {
+        const auto path = fixture.storage.filePath("second.dspx");
+        auto &secondary = fixture.storage.process("gui-secondary");
+        QVERIFY(fixture.start(secondary, {path, path}));
+        QVERIFY(secondary.waitForFinished(10000));
+        QCOMPARE(secondary.exitCode(), 0);
+        const auto expectedPath = QFileInfo(path).canonicalFilePath();
+        QVERIFY(!expectedPath.isEmpty());
+        const auto openedBesideBlank = [&] {
+            const auto windows = snapshot().value("windows").toArray();
+            if (windows.size() != 2)
+                return false;
+            bool hasBlank = false;
+            bool hasProject = false;
+            for (const auto &window : windows) {
+                const auto document = id(window.toObject());
+                if (document == id(blank)) {
+                    hasBlank = true;
+                    continue;
+                }
+                const auto result = call("documents.get", {{"document_id", document}})
+                                        .value("result").toObject();
+                const auto openedPath = result.value("snapshot").toObject().value("path").toString();
+                hasProject = QFileInfo(openedPath).canonicalFilePath() == expectedPath;
+            }
+            return hasBlank && hasProject;
+        };
+        QTRY_VERIFY(openedBesideBlank());
+    }
     QVERIFY(call("application.request_exit").contains("result"));
     QVERIFY(editor.waitForFinished(15000));
     QCOMPARE(editor.exitCode(), 0);

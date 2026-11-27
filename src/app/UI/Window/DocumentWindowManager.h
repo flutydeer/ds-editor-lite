@@ -3,6 +3,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 
 #include <QPointer>
+#include <QStringList>
 #include <list>
 #include <memory>
 
@@ -45,7 +46,7 @@ public:
     Document *findPath(const QString &path) const;
     Document *active() const;
     void activate(Document &document) const;
-    void open(const QString &path, bool reuseBlank = false, Document *replace = nullptr);
+    void open(const QStringList &paths, Document *firstTarget = nullptr);
     enum class CloseTarget { Project, MainWindow };
     bool close(Document &document, TerminationSavePolicy policy,
                CloseTarget target = CloseTarget::Project);

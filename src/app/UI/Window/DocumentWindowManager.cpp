@@ -280,31 +280,24 @@ bool DocumentWindowManager::eventFilter(QObject *watched, QEvent *event) {
     return false;
 }
 
-void DocumentWindowManager::open(const QString &path, bool reuseBlank, Document *replace) {
-    if (m_terminating || path.isEmpty())
+void DocumentWindowManager::open(const QStringList &paths, Document *firstTarget) {
+    if (m_terminating)
         return;
-    if (auto *existing = findPath(path)) {
-        activate(*existing);
-        return;
-    }
-    if (!replace && reuseBlank) {
-        for (const auto &entry : m_documents) {
-            const auto &runtime = *entry->context->m_coreRuntime;
-            if (!entry->closing && entry->openingPath.isEmpty() &&
-                runtime.documentPath().isEmpty() &&
-                !runtime.documentBusy(runtime.documentVersion().documentId) &&
-                entry->context->m_historyManager->isOnSavePoint()) {
-                replace = entry.get();
-                break;
-            }
+    for (const auto &path : paths) {
+        if (path.isEmpty())
+            continue;
+        if (auto *existing = findPath(path)) {
+            activate(*existing);
+            continue;
         }
+        auto &document = firstTarget ? *firstTarget : createWindow();
+        firstTarget = nullptr;
+        const SingletonRegistry::Scope scope(document.context->services());
+        if (documentWorkflowController->busy())
+            continue;
+        document.openingPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
+        documentWorkflowController->requestOpen(document.openingPath);
     }
-    auto &document = replace ? *replace : createWindow();
-    const SingletonRegistry::Scope scope(document.context->services());
-    if (documentWorkflowController->busy())
-        return;
-    document.openingPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
-    documentWorkflowController->requestOpen(document.openingPath);
 }
 
 bool DocumentWindowManager::confirmClose(Document &document, TerminationSavePolicy policy,

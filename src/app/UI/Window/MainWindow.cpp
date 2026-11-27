@@ -460,7 +460,7 @@ void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths) {
         return !manager->findPath(path);
     });
     if (!paths.isEmpty() && firstNew == paths.cend()) {
-        manager->open(paths.last());
+        manager->open({paths.last()});
         return;
     }
     auto *source = manager->find(AppContext::instance<AppContext>());
@@ -486,8 +486,7 @@ void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths) {
             manager->createWindow();
         return;
     }
-    for (auto it = paths.cbegin(); it != paths.cend(); ++it)
-        manager->open(*it, false, useCurrent && it == firstNew ? source : nullptr);
+    manager->open(paths, useCurrent ? source : nullptr);
 }
 
 SaveDecision MainWindow::askDocumentSaveDecision() {
