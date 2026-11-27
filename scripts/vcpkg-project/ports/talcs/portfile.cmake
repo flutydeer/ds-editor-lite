@@ -5,6 +5,7 @@ vcpkg_from_github(
     SHA512 91856e3f2446218841f8724f3db2a23eddf12284a4df50ce921bf5ef2798075004116b016dd45f8bc7a5d0e8df8c236da87ee65e63bdaff7cc7ef5788713c6e2
     PATCHES
         fix-loop-position.patch
+        report-transport-loop-boundaries.patch
         fix-clip-series-read-serialization.patch
         fix-finished-audio-source.patch
 )
