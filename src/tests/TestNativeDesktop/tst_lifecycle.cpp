@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/FixtureAudioDriver.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -36,6 +37,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/Task.h>
+#include <TalcsDevice/AudioDriverManager.h>
 
 #include <QPointer>
 #include <QScopeGuard>
@@ -47,6 +49,16 @@
 #include <QtTest/QTest>
 
 namespace {
+    bool selectFixtureAudioOutput() {
+        auto *output = AudioSystem::outputSystem()->outputContext();
+        auto driver = std::make_unique<TestSupport::FixtureAudioDriver>(true);
+        const auto name = driver->name();
+        if (!output->driverManager()->addAudioDriver(driver.get()))
+            return false;
+        driver.release(); // The driver manager owns registered drivers.
+        return output->setDriver(name);
+    }
+
     bool answerSavePrompt(const QString &text) {
         auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
         if (!dialog)
@@ -399,8 +411,13 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
 }
 
 void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
-    GuiDocumentFixture fixture;
-    QVERIFY(fixture.initialize(false));
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    QVERIFY(selectFixtureAudioOutput());
     DocumentWindowManager windows(*fixture.context);
     auto &a = windows.createWindow();
     auto &b = windows.createWindow();
@@ -459,8 +476,13 @@ void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
 }
 
 void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
-    GuiDocumentFixture fixture;
-    QVERIFY(fixture.initialize(false));
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    QVERIFY(selectFixtureAudioOutput());
     DocumentWindowManager windows(*fixture.context);
     auto &a = windows.createWindow();
     QVERIFY(QTest::qWaitForWindowActive(a.window.get()));
