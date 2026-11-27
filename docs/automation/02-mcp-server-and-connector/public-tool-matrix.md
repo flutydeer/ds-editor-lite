@@ -80,6 +80,8 @@
 
 工具集 v2 的 `application.get_status` 列出所有打开的工程及其主窗口。分离钢琴窗使用所属工程的窗口身份。GUI 调用 `documents.new/open` 时，省略 `current_document_id` 或传 `null` 会新开窗口。替换已有工程须传入它的 ID，可同时传入 `expected_revision`。Headless 的新建和打开都需要明确的工程 ID。打开已加载的路径会返回该工程。
 
+目标工程正在等待填词、文件选择等交互完成时，关闭或替换该工程会返回 `busy`。关闭相应对话框后可重试，其他工程仍可独立操作。
+
 从新建结果或打开任务成功结果的 `current` 取得实际工程版本。新开窗口时 `previous` 为 `null`。严格校验输出的客户端应刷新 `tools/list` 或 Native OpenRPC 的 Schema。使用 v1 固定契约的 Connector 可通过 `editor.tools.describe` 和 `editor.tools.invoke` 使用编辑器公布的实际契约。原先省略目标来替换工程的脚本需先从状态列表取得工程 ID。
 
 `documents.new` 和 `documents.open` 在 v2 中使用可选布尔参数 `discard_changes`，默认值为 `false`。替换有未保存改动的工程须显式传 `true`。新开窗口时会忽略该参数，已有工程的改动会保留。迁移 v1 脚本时，将 `unsaved_policy: "discard"` 改为 `discard_changes: true`，将 `unsaved_policy: "reject"` 改为 `discard_changes: false` 或省略该参数。

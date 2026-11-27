@@ -1080,44 +1080,29 @@ void ApplicationGuiTests::captureUiGallery() try {
         gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list"));
     }
 
-    // Use the real modal wrapper, then step through its sidebar before dismissing it.
-    std::exception_ptr settingsCaptureFailure;
-    QTimer::singleShot(0, &window, [&] {
-        try {
-            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-            QVERIFY(dialog);
-            const auto dismiss = qScopeGuard([&] { dialog->reject(); });
-            auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
-            QVERIFY(sidebar && sidebar->count() > 0);
-            for (int page = 0; page < sidebar->count(); ++page) {
-                sidebar->setCurrentRow(page);
-                gallery.take(*dialog, Module::Settings,
-                             QStringLiteral("%1").arg(sidebar->item(page)->text()));
-                if (page == AppOptionsGlobal::Midi - 1) {
-                    auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
-                    QVERIFY(keyboard);
-                    gallery.take(*keyboard, Module::Settings,
-                                 QStringLiteral("MIDI preview keyboard"),
-                                 Gallery::Capture::WidgetContent);
-                }
+    {
+        window.openAppOptions(AppOptionsGlobal::General);
+        auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        const auto dismiss = qScopeGuard([&] { dialog->reject(); });
+        auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
+        QVERIFY(sidebar && sidebar->count() > 0);
+        for (int page = 0; page < sidebar->count(); ++page) {
+            sidebar->setCurrentRow(page);
+            gallery.take(*dialog, Module::Settings, sidebar->item(page)->text());
+            if (page == AppOptionsGlobal::Midi - 1) {
+                auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
+                QVERIFY(keyboard);
+                gallery.take(*keyboard, Module::Settings, QStringLiteral("MIDI preview keyboard"),
+                             Gallery::Capture::WidgetContent);
             }
-            sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
-            auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
-            QVERIFY(toolset && toolset->isEnabled());
-            toolset->click();
-            gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
-        } catch (...) {
-            // Never let a capture exception escape through Qt's event dispatcher.
-            settingsCaptureFailure = std::current_exception();
-            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                dialog->reject();
         }
-    });
-    window.openAppOptions(AppOptionsGlobal::General);
-    if (settingsCaptureFailure)
-        std::rethrow_exception(settingsCaptureFailure);
-    if (QTest::currentTestFailed())
-        return;
+        sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
+        auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
+        QVERIFY(toolset && toolset->isEnabled());
+        toolset->click();
+        gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
+    }
 
     const auto show = [&](QWidget &&dialog, const Module module, const QString &title) {
         gallery.show(dialog, module, title);

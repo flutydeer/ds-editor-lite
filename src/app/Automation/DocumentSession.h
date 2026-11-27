@@ -3,6 +3,7 @@
 
 #include "AutomationTypes.h"
 #include "IdempotencyStore.h"
+#include <functional>
 
 class AppModel;
 class HistoryManager;
@@ -17,7 +18,8 @@ namespace Automation {
 
     class DocumentSession final {
     public:
-        DocumentSession(AppModel *model, HistoryManager *historyManager);
+        DocumentSession(AppModel *model, HistoryManager *historyManager,
+                        std::function<bool()> hasPendingDialog = {});
 
         [[nodiscard]] DocumentVersion version() const;
         [[nodiscard]] const DocumentId &documentId() const;
@@ -28,6 +30,7 @@ namespace Automation {
         [[nodiscard]] const QString &projectName() const;
         [[nodiscard]] DocumentLifecycleState lifecycleState() const;
         [[nodiscard]] bool isBusy() const;
+        [[nodiscard]] bool hasPendingDialog() const;
 
         void setPathAndProjectName(QString path, QString projectName);
         void setLifecycleState(DocumentLifecycleState state);
@@ -53,6 +56,7 @@ namespace Automation {
         QString m_projectName;
         DocumentLifecycleState m_lifecycleState = DocumentLifecycleState::Active;
         bool m_busy = false;
+        std::function<bool()> m_hasPendingDialog;
         bool m_closingCommitted = false;
         IdempotencyStore m_idempotencyStore;
     };

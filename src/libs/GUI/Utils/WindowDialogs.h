@@ -4,8 +4,18 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <lite/Core/SingletonRegistry.h>
 
 namespace WindowDialogs {
+    // Keep the owning document busy until the synchronous widget call returns.
+    class DialogExecution {
+    public:
+        explicit DialogExecution(const QWidget *dialog);
+        ~DialogExecution();
+        Q_DISABLE_COPY_MOVE(DialogExecution)
+        static bool activeFor(const SingletonRegistry::Context &context);
+    };
+
     QWidget *blockingDialog(const QWidget *window);
     bool blocks(const QWidget *window);
     QString getOpenFileName(QWidget *parent, const QString &caption, const QString &dir,

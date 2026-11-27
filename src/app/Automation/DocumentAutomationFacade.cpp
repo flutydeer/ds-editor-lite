@@ -83,6 +83,10 @@ namespace Automation {
             operationId, context,
             [this, operationId, context, document, path, projectName, savedBaseline,
              sourcePath](DocumentSession &session, const bool validateOnly) {
+                // A file read may have started before an editor dialog began using the model.
+                if (session.hasPendingDialog())
+                    return AutomationResult<MutationResult>(
+                        AutomationError::documentBusy(session.documentId()));
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());

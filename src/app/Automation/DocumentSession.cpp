@@ -2,8 +2,10 @@
 
 namespace Automation {
 
-    DocumentSession::DocumentSession(AppModel *model, HistoryManager *historyManager)
-        : m_model(model), m_historyManager(historyManager), m_documentId(DocumentId::create()) {
+    DocumentSession::DocumentSession(AppModel *model, HistoryManager *historyManager,
+                                     std::function<bool()> hasPendingDialog)
+        : m_model(model), m_historyManager(historyManager), m_documentId(DocumentId::create()),
+          m_hasPendingDialog(std::move(hasPendingDialog)) {
     }
 
     DocumentVersion DocumentSession::version() const {
@@ -39,7 +41,11 @@ namespace Automation {
     }
 
     bool DocumentSession::isBusy() const {
-        return m_busy;
+        return m_busy || hasPendingDialog();
+    }
+
+    bool DocumentSession::hasPendingDialog() const {
+        return m_hasPendingDialog && m_hasPendingDialog();
     }
 
     void DocumentSession::setPathAndProjectName(QString path, QString projectName) {

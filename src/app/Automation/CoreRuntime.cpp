@@ -31,7 +31,8 @@ namespace Automation {
         ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId,
         ParameterRuntimeServices parameterServices,
         std::shared_ptr<AutomationTaskManager> sharedTasks)
-        : m_session(model, historyManager), m_documentResolver(m_session),
+        : m_session(model, historyManager, std::move(documentServices.hasPendingDialog)),
+          m_documentResolver(m_session),
           m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
           m_sharedTasks(sharedTasks ? std::move(sharedTasks)
                                     : std::make_shared<AutomationTaskManager>()),

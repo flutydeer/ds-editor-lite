@@ -1,8 +1,24 @@
 #include "WindowDialogs.h"
 
 #include <QApplication>
+#include <lite/Support/ObjectContext.h>
 
 namespace WindowDialogs {
+    static thread_local QList<SingletonRegistry::Context> executingDialogs;
+
+    DialogExecution::DialogExecution(const QWidget *dialog) {
+        const auto owner = ObjectContext::of(dialog);
+        executingDialogs.append(owner ? owner : SingletonRegistry::current());
+    }
+
+    DialogExecution::~DialogExecution() {
+        executingDialogs.removeLast();
+    }
+
+    bool DialogExecution::activeFor(const SingletonRegistry::Context &context) {
+        return executingDialogs.contains(context);
+    }
+
     static bool owns(const QWidget *owner, const QWidget *child) {
         for (; child; child = child->parentWidget())
             if (child == owner)
@@ -42,6 +58,7 @@ namespace WindowDialogs {
         if (selectedFilter)
             dialog.selectNameFilter(*selectedFilter);
         dialog.setWindowModality(modality);
+        const DialogExecution execution(&dialog);
         if (dialog.exec() != QDialog::Accepted)
             return {};
         if (selectedFilter)
@@ -83,6 +100,7 @@ namespace WindowDialogs {
         dialog.setTextEchoMode(mode);
         dialog.setTextValue(text);
         dialog.setWindowModality(Qt::WindowModal);
+        const DialogExecution execution(&dialog);
         const bool accepted = dialog.exec() == QDialog::Accepted;
         if (ok)
             *ok = accepted;
@@ -96,6 +114,7 @@ namespace WindowDialogs {
         QMessageBox dialog(icon, title, text, buttons, parent);
         dialog.setDefaultButton(defaultButton);
         dialog.setWindowModality(Qt::WindowModal);
+        const DialogExecution execution(&dialog);
         dialog.exec();
         return dialog.standardButton(dialog.clickedButton());
     }

@@ -361,6 +361,14 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
             if (!interacted)
                 dialog->reject();
         });
+        for (const auto source : {Automation::InvocationSource::PublicJsonRpc,
+                                  Automation::InvocationSource::PublicTaskContinuation}) {
+            const auto replacement = runtime.documents().commitNewDocument(
+                {.expected = before, .source = source},
+                Automation::DocumentAutomationFacade::newDocumentDraft(false));
+            QVERIFY(!replacement);
+            QCOMPARE(replacement.getError().code, Automation::AutomationErrorCode::Busy);
+        }
         if (fromLrc) {
             auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
             QVERIFY(base);

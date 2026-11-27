@@ -51,6 +51,7 @@ class Dialog : public QDialog {
 public:
     explicit Dialog(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     ~Dialog() override;
+    int exec() override;
 
     void setTitle(const QString &title) const;
     void setMessage(const QString &msg) const;

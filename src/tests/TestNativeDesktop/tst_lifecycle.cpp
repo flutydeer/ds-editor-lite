@@ -4,6 +4,7 @@
 #include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/DocumentRecovery.h"
 #include "Bootstrap/WindowPlacement.h"
@@ -241,6 +242,23 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     QPointer<MainWindow> importingWindow = first.window.get();
     {
         const SingletonRegistry::Scope scope(first.context->services());
+        Automation::PublicAutomationHostServices host;
+        windows.configureAutomation(host);
+        bool checked = false;
+        QTimer::singleShot(0, this, [&] {
+            auto *input = qobject_cast<QInputDialog *>(QApplication::activeModalWidget());
+            QVERIFY(input);
+            const auto dismiss = qScopeGuard([&] { input->reject(); });
+            const auto closed = host.closeDocument(*first.context->m_coreRuntime, true);
+            QVERIFY(!closed);
+            QCOMPARE(closed.getError().code, Automation::AutomationErrorCode::Busy);
+            QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Discard),
+                     TerminationRequestResult::Busy);
+            QVERIFY(!last.context->m_coreRuntime->documentBusy(kept.documentId));
+            checked = true;
+        });
+        WindowDialogs::getText(first.window.get(), "Track", "Name", QLineEdit::Normal, {});
+        QVERIFY(checked);
         const auto audio = fixture.directory.filePath("import.wav");
         QVERIFY(TestSupport::writeWave(audio, QVector<float>(4800, 0.25f)));
         documentImportController->requestImport({audio});

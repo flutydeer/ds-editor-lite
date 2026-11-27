@@ -1,4 +1,5 @@
 #include "AppContext.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "Bootstrap/ShutdownMonitor.h"
 #include "Automation/CoreRuntime.h"
@@ -148,6 +149,11 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
         process ? process->m_packageManager : ObjectContext::create<PackageManager>();
     SingletonRegistry::add(m_packageManager);
     Automation::DocumentRuntimeServices documentServices;
+    if (hostMode == AppHostMode::Gui) {
+        documentServices.hasPendingDialog = [owner = m_services] {
+            return WindowDialogs::DialogExecution::activeFor(owner);
+        };
+    }
     documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
         status->loopSettings.set(settings);
     };

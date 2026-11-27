@@ -19,6 +19,7 @@
 #include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/WindowFrameUtils.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 QPointer<QWidget> Dialog::m_globalParent;
 
@@ -154,6 +155,11 @@ Dialog::~Dialog() {
     // Let QWidget tear down the button bar after QDialog clears focus. Deleting
     // it here can send an auto-default button's focus event into a partially
     // destroyed child tree.
+}
+
+int Dialog::exec() {
+    const WindowDialogs::DialogExecution execution(this);
+    return QDialog::exec();
 }
 
 bool Dialog::event(QEvent *event) {
