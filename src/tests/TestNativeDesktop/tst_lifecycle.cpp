@@ -39,6 +39,8 @@
 #include <lite/GUI/Utils/WindowDialogs.h>
 #include <QClipboard>
 #include <QCheckBox>
+#include <QDialogButtonBox>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QJsonDocument>
 #include <QMessageBox>
@@ -155,8 +157,16 @@ namespace {
                 dockReopen();
                 QVERIFY(!windows.active());
                 if (accept) {
-                    picker->selectFile(path);
-                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                    auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+                    auto *buttons = picker->findChild<QDialogButtonBox *>();
+                    QVERIFY(name && buttons);
+                    QTest::mouseClick(name, Qt::LeftButton);
+                    name->selectAll();
+                    name->insert(QDir::toNativeSeparators(path));
+                    QCOMPARE(picker->selectedFiles(), QStringList{path});
+                    auto *open = buttons->button(QDialogButtonBox::Open);
+                    QVERIFY(open && open->isEnabled());
+                    QTest::mouseClick(open, Qt::LeftButton);
                 } else {
                     picker->reject();
                 }
