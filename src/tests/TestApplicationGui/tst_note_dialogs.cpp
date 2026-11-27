@@ -628,6 +628,13 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     }
     QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
                                         drafts));
+    Automation::ClipDraftDto otherClip;
+    otherClip.properties.start = 14400;
+    otherClip.properties.length = otherClip.properties.clipLen = 480;
+    const auto inserted = runtime.project().insertClips(
+        commandContext(), {{.trackId = trackId, .clip = otherClip}});
+    QVERIFY(inserted);
+    const auto otherId = inserted.get().affectedObjects.first().value;
     QList<int> expected;
     for (const auto *note : singingClip->notes()) {
         if (note->lyric().startsWith(QStringLiteral("find")))
@@ -676,6 +683,14 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
         QTRY_VERIFY(window.captureEditorViewState().pianoRoll.centerTick > firstCenter + 3000);
         QTest::mouseClick(previous, Qt::LeftButton);
         QCOMPARE(appStatus->selectedNotes.get(), QList<int>{expected.first()});
+        trackController->setActiveClip(otherId);
+        QCOMPARE(appStatus->activeClipId.get(), otherId);
+        QTest::mouseClick(results->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          results->visualItemRect(results->item(0)).center());
+        QCOMPARE(appStatus->activeClipId.get(), singingClip->id());
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{expected.first()});
+        QTRY_VERIFY(qAbs(window.captureEditorViewState().pianoRoll.centerTick - 6000.0) <=
+                    tickPerPixel);
         QTest::mouseClick(results->viewport(), Qt::LeftButton, Qt::NoModifier,
                           results->visualItemRect(results->item(1)).center());
         QCOMPARE(appStatus->selectedNotes.get(), QList<int>{expected.last()});
