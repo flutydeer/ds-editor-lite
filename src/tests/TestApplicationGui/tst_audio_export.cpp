@@ -104,6 +104,9 @@ namespace {
 
     void inspectExportPlan(AudioExportDialog &dialog, const QStringList &expectedFiles,
                            AudioExporter::Warning expectedWarnings) {
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        QVERIFY(runtime);
+        const auto document = runtime->documentVersion().documentId;
         bool inspected = false;
         QTimer inspect;
         inspect.setInterval(10);
@@ -118,6 +121,7 @@ namespace {
             });
             QCOMPARE(preview->parentWidget(), &dialog);
             QCOMPARE(preview->windowModality(), Qt::WindowModal);
+            QVERIFY(runtime->documentBusy(document));
             QListWidget *files = nullptr;
             QListWidget *warnings = nullptr;
             for (auto *group : preview->findChildren<QGroupBox *>()) {
@@ -153,6 +157,7 @@ namespace {
         inspect.start();
         QTest::mouseClick(dryRun, Qt::LeftButton);
         QVERIFY(inspected);
+        QVERIFY(!runtime->documentBusy(document));
     }
 }
 
