@@ -399,10 +399,6 @@ void MainWindow::setWorkflowWindow(QWidget *origin) {
 std::optional<AppOptionsGlobal::ProjectWindowMode>
     MainWindow::chooseProjectWindow(const QString &path, bool multiple) {
     using AppOptionsGlobal::ProjectWindowMode;
-    const auto preference = appOptions->general()->projectWindowMode;
-    if (preference != ProjectWindowMode::Ask)
-        return preference;
-
     QString message;
     if (path.isEmpty())
         message = tr("Where would you like to create the new project?");
@@ -443,7 +439,8 @@ std::optional<AppOptionsGlobal::ProjectWindowMode>
     return selected;
 }
 
-void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths) {
+void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths,
+                                  std::optional<AppOptionsGlobal::ProjectWindowMode> windowMode) {
     const SingletonRegistry::Scope scope(ObjectContext::of(this));
     auto *manager = DocumentWindowManager::instance();
     if (!manager) {
@@ -474,11 +471,15 @@ void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths) {
     }
 
     setWorkflowWindow(origin);
-    const auto choice =
-        chooseProjectWindow(paths.isEmpty() ? QString{} : *firstNew, paths.size() > 1);
-    if (!choice)
-        return;
-    const bool useCurrent = *choice == AppOptionsGlobal::ProjectWindowMode::CurrentWindow;
+    auto mode = windowMode.value_or(appOptions->general()->projectWindowMode);
+    if (mode == AppOptionsGlobal::ProjectWindowMode::Ask) {
+        const auto choice = chooseProjectWindow(paths.isEmpty() ? QString{} : *firstNew,
+                                                paths.size() > 1);
+        if (!choice)
+            return;
+        mode = *choice;
+    }
+    const bool useCurrent = mode == AppOptionsGlobal::ProjectWindowMode::CurrentWindow;
     if (paths.isEmpty()) {
         if (useCurrent)
             documentWorkflowController->requestNew();
@@ -1162,42 +1163,24 @@ void MainWindow::restartApp() {
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasUrls()) {
-        for (const QUrl &url : event->mimeData()->urls()) {
-            if (!url.isLocalFile())
-                continue;
-            const auto kind = ExternalFileClassifier::classify(url.toLocalFile()).kind;
-            if (kind != ExternalFileKind::Unsupported) {
-                event->acceptProposedAction();
-                return;
-            }
-        }
-    }
-    event->ignore();
+    const auto files = ExternalFileClassifier::classifyDrop(event->mimeData()->urls());
+    if (files.projects.isEmpty() && files.imports.isEmpty())
+        event->ignore();
+    else
+        event->acceptProposedAction();
 }
 
 void MainWindow::dropEvent(QDropEvent *event) {
-    QStringList projectPaths;
-    QStringList importPaths;
-    for (const QUrl &url : event->mimeData()->urls()) {
-        if (!url.isLocalFile())
-            continue;
-        const auto path = url.toLocalFile();
-        const auto kind = ExternalFileClassifier::classify(path).kind;
-        if (kind == ExternalFileKind::Project)
-            projectPaths.append(path);
-        else if (kind != ExternalFileKind::Unsupported)
-            importPaths.append(path);
-    }
-
-    if (!projectPaths.isEmpty() && importPaths.isEmpty() &&
-        (projectPaths.size() == 1 || DocumentWindowManager::instance())) {
-        newOrOpenProject(this, projectPaths);
+    auto files = ExternalFileClassifier::classifyDrop(event->mimeData()->urls());
+    if (files.projectsOnly() && (files.projects.size() == 1 || DocumentWindowManager::instance())) {
+        event->acceptProposedAction();
+        newOrOpenProject(this, files.projects, AppOptionsGlobal::ProjectWindowMode::CurrentWindow);
         return;
     }
-    // Mixing a project with other files rejects the whole batch inside the
-    // import controller; canvas-outside drops import at the project end.
-    importPaths.append(projectPaths);
-    if (!importPaths.isEmpty())
-        documentImportController->requestImport(importPaths);
+    // The import controller handles mixed batches and media dropped outside the canvas.
+    files.imports.append(files.projects);
+    if (!files.imports.isEmpty()) {
+        event->acceptProposedAction();
+        documentImportController->requestImport(files.imports);
+    }
 }

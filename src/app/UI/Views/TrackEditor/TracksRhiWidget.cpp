@@ -14,6 +14,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Import/ExternalFileClassifier.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformRhiUtils.h"
 #include "UI/Views/Common/TimelineLineEmitter.h"
@@ -783,7 +784,8 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
 }
 
 void TracksRhiWidget::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasUrls()) {
+    if (event->mimeData()->hasUrls() &&
+        !ExternalFileClassifier::classifyDrop(event->mimeData()->urls()).projectsOnly()) {
         m_wheelController->stop();
         event->acceptProposedAction();
         m_edgeAutoScroller.stopDrag();

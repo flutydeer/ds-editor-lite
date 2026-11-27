@@ -1,6 +1,7 @@
 #include "DetachedPanelWindow.h"
 
 #include "MainWindow.h"
+#include "Modules/Import/ExternalFileClassifier.h"
 #include <lite/Support/ObjectContext.h>
 #include "UI/Views/Common/EditorShortcutUtils.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
@@ -13,8 +14,11 @@
 
 #include <QCloseEvent>
 #include <QCoreApplication>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -44,6 +48,7 @@ DetachedPanelWindow::DetachedPanelWindow(MainWindow *mainWindow, const bool useN
     }
 #endif
     setAttribute(Qt::WA_StyledBackground);
+    setAcceptDrops(true);
     setProperty(EditorShortcutUtils::kEditorWindowProperty, true);
     refreshWindowTitle();
     if (mainWindow) {
@@ -159,6 +164,23 @@ void DetachedPanelWindow::refreshWindowTitle() {
     if (base.isEmpty())
         base = QGuiApplication::applicationDisplayName();
     setWindowTitle(WindowFrameUtils::composeWindowTitle(base, m_titleSuffix));
+}
+
+void DetachedPanelWindow::dragEnterEvent(QDragEnterEvent *event) {
+    const auto files = ExternalFileClassifier::classifyDrop(event->mimeData()->urls());
+    if (m_mainWindow && files.projectsOnly())
+        event->acceptProposedAction();
+    else
+        event->ignore();
+}
+
+void DetachedPanelWindow::dropEvent(QDropEvent *event) {
+    const auto files = ExternalFileClassifier::classifyDrop(event->mimeData()->urls());
+    if (m_mainWindow && files.projectsOnly()) {
+        event->acceptProposedAction();
+        m_mainWindow->newOrOpenProject(this, files.projects,
+                                       AppOptionsGlobal::ProjectWindowMode::CurrentWindow);
+    }
 }
 
 bool DetachedPanelWindow::event(QEvent *event) {

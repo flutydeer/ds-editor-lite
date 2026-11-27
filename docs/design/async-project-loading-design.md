@@ -61,7 +61,7 @@ LanguageEngine init          ┘
 - `.dspx` 且包在 `Unknown` / `Loading`：显示 `ProgressDialog` 等待（indeterminate），包 ready 后继续打开工程
 - 包扫描进入 `Error`：通过 `IDocumentWorkflowUi::confirmOpenWithoutPackageMetadata()` 询问用户，**允许降级打开**（保留 fallback singer identity，不阻塞用户）
 
-`.dspx` 打开**不等待** `InferEngine Ready`。`main.cpp` 命令行工程路径在事件循环开始后调用 `documentWorkflowController->requestOpen(filePath)`（`main.cpp:69`）；"打开成功后自动选中第一条轨道第一个 clip 并切到 ClipEditor"由 `DocumentWorkflowController::activateFirstClip()` 执行。
+包元数据就绪后，即使推理引擎仍在初始化，也可以打开 `.dspx`。命令行、菜单和窗口拖放按各自的规则确定目标窗口，由该工程的 `DocumentWorkflowController::requestOpen()` 启动加载。打开成功后，`activateFirstClip()` 会选中第一条轨道的首个剪辑并切到剪辑编辑器。[工程与窗口交互](detached-panel-window.md#生命周期)
 
 **ProgressDialog** 从 `TaskDialog` 中抽出：只负责标题、消息、进度条、取消按钮、隐藏/关闭控制等 UI 能力，不依赖 `Task` / `TaskManager`；`TaskDialog` 改为继承 `ProgressDialog`，只保留 Task 状态适配与取消终止任务逻辑。等待连接建立后会立即复查当前 Package 状态（避免错过 Ready/Error）；pending dialog 在完成、替换请求、控制器析构时集中关闭并删除，避免泄漏；取消走 `DocumentWorkflowController::cancelCurrentOperation()`（对应 AppController 时代的 `cancelPendingOpen()`），清空 pending 请求和 dialog，确保取消后不会在 Package Ready 时误打开工程。
 
@@ -127,7 +127,6 @@ fallback `SingerInfo` 构造逻辑保留，仅作为**降级路径**：包扫描
 - 缺包 UI 显示 `packageId/packageVersion/singerId`，而不是笼统 `No singer`
 - 包搜索路径变更后自动刷新并重解析当前工程
 - 打开工程时显示更详细的多阶段进度：扫描包、加载工程、校验资源、初始化推理引擎
-- 将菜单、最近文件、拖放等所有 UI 打开入口统一迁移到 `DocumentWorkflowController::requestOpen(...)`，让运行中打开 `.dspx` 也复用 Package Ready 等待逻辑（批量 / 拖放目前仍走 `DocumentImportController` 独立管线）
 - `ProgressDialog` 中仍暴露的 `TaskGlobal::Status` 替换为更通用的进度状态类型，减少 Task 语义泄漏
 - 清理 `requestOpenFile(...)` / `openFile(...)` 的重复文件检查和后缀判断；优化打开成功后激活首个 clip 的容器访问
 - 为 fallback → resolved 的模型恢复过程增加自动测试

@@ -40,7 +40,9 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Window/DetachedPanelWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
@@ -84,6 +86,7 @@
 #include <QMouseEvent>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QScopedValueRollback>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QTemporaryDir>
@@ -194,15 +197,16 @@ namespace {
         QVERIFY2(converter.save(path, &source, error), qPrintable(error));
     }
 
-    void dropFiles(MainWindow &window, const QList<QUrl> &urls) {
+    void dropFiles(QWidget &receiver, const QList<QUrl> &urls) {
         QMimeData mime;
         mime.setUrls(urls);
         const QPoint position(20, 20);
         QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&window, &enter);
+        QApplication::sendEvent(&receiver, &enter);
         QVERIFY(enter.isAccepted());
         QDropEvent drop(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&window, &drop);
+        QApplication::sendEvent(&receiver, &drop);
+        QVERIFY(drop.isAccepted());
     }
 
     void clickPanelButton(BottomPanelView &panel, const char *name) {
@@ -2107,16 +2111,35 @@ void ApplicationGuiTests::clipDoubleClickRestoresAndActivatesTheDetachedEditor()
 }
 
 void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
+    using AppOptionsGlobal::ProjectWindowMode;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto path = directory.filePath(QStringLiteral("拖入工程.dspx"));
     createDroppedProject(path);
     if (QTest::currentTestFailed())
         return;
-    MainWindowFixture host;
-    host.show();
-    if (QTest::currentTestFailed())
-        return;
+    const auto additional = directory.filePath(QStringLiteral("additional.dspx"));
+    QVERIFY(QFile::copy(path, additional));
+    const QScopedValueRollback preference(appOptions->general()->projectWindowMode);
+    using Backend = DeveloperOption::EditorRenderBackend;
+    const QScopedValueRollback backend(appOptions->developer()->editorRenderBackend,
+                                       QGuiApplication::platformName() == QStringLiteral("offscreen")
+                                           ? Backend::Legacy : Backend::RhiExperimental);
+    DocumentWindowManager windows(*context);
+    auto &host = windows.createWindow();
+    auto &other = windows.createWindow();
+    const auto otherPath = directory.filePath(QStringLiteral("other.dspx"));
+    auto &otherRuntime = *other.context->m_coreRuntime;
+    {
+        const SingletonRegistry::Scope scope(other.context->services());
+        QVERIFY(otherRuntime.documents().saveDocument({.expected = otherRuntime.documentVersion()},
+                                                     otherPath));
+    }
+    const auto otherVersion = otherRuntime.documentVersion();
+    QVERIFY(QMetaObject::invokeMethod(host.window.get(), "detachBottomPanel"));
+    auto *detached = host.window->detachedPanelWindow();
+    QVERIFY(detached);
+    QVERIFY(host.window->setEditorPanelVisibility(true, true));
     auto &runtime = *context->m_coreRuntime;
     Automation::TrackDraftDto unsaved;
     unsaved.name = QStringLiteral("Unsaved track");
@@ -2125,6 +2148,18 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
     const auto before = runtime.documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
     for (bool discard : {false, true}) {
+        QWidget *receiver = detached;
+        if (discard) {
+            if (auto *rhi = host.window->findChild<TracksRhiWidget *>(); rhi && rhi->isVisible()) {
+                receiver = rhi;
+            } else {
+                auto *tracks = host.window->findChild<TracksGraphicsView *>();
+                QVERIFY(tracks);
+                receiver = tracks->viewport();
+            }
+        }
+        const auto mode = discard ? ProjectWindowMode::NewWindow : ProjectWindowMode::Ask;
+        appOptions->general()->projectWindowMode = mode;
         bool answered = false;
         QTimer answer;
         answer.setInterval(10);
@@ -2137,6 +2172,8 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
                 if (dialog && !answered)
                     dialog->reject();
             });
+            QVERIFY(!qobject_cast<MessageDialog *>(dialog.data()));
+            QCOMPARE(dialog->parentWidget(), receiver->window());
             const auto text = discard ? MainWindow::tr("Don't save") : MainWindow::tr("Cancel");
             Button *choice = nullptr;
             for (auto *button : dialog->findChildren<Button *>()) {
@@ -2148,12 +2185,21 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
             answered = true;
         });
         answer.start();
-        dropFiles(*host.window, {QUrl::fromLocalFile(path)});
+        QList<QUrl> urls{QUrl::fromLocalFile(path)};
+        if (discard) {
+            urls.prepend(QUrl::fromLocalFile(otherPath));
+            urls.append(QUrl::fromLocalFile(additional));
+            urls.append(QUrl::fromLocalFile(path));
+        }
+        dropFiles(*receiver, urls);
         if (QTest::currentTestFailed())
             return;
         QTRY_VERIFY(answered && !documentWorkflowController->busy());
         answer.stop();
+        QCOMPARE(otherRuntime.documentVersion(), otherVersion);
+        QCOMPARE(appOptions->general()->projectWindowMode, mode);
         if (!discard) {
+            QCOMPARE(windows.documents().size(), 2U);
             QCOMPARE(runtime.documentVersion(), before);
             QCOMPARE(historyManager->nextUndoEntry(), undo);
             QCOMPARE(context->m_appModel->tracks().first()->name(), unsaved.name);
@@ -2162,6 +2208,10 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
         QVERIFY(runtime.documentVersion().documentId != before.documentId);
         QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
                  QFileInfo(path).canonicalFilePath());
+        const auto *extra = windows.findPath(additional);
+        QVERIFY(extra);
+        QTRY_COMPARE(extra->context->m_coreRuntime->documentPath(), additional);
+        QCOMPARE(windows.documents().size(), 3U);
         QCOMPARE(context->m_appModel->tracks().size(), 1);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
         auto *list = host.window->findChild<TrackListView *>();

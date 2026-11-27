@@ -75,8 +75,9 @@ public:
     QByteArray detachedGeometry() const;
     void finishApplicationExit(TerminationMode mode);
     void setWorkflowWindow(QWidget *origin);
-    // An empty path list creates a project. A file selection shares one window choice.
-    void newOrOpenProject(QWidget *origin, const QStringList &paths = {});
+    // An empty file selection creates a project. Menu commands use the configured window mode.
+    void newOrOpenProject(QWidget *origin, const QStringList &paths = {},
+                          std::optional<AppOptionsGlobal::ProjectWindowMode> windowMode = {});
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
