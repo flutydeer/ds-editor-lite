@@ -14,6 +14,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QElapsedTimer>
+#include <QSignalSpy>
 #include <QTimer>
 
 #include <QtTest/QTest>
@@ -35,9 +36,11 @@ void NativeDesktopTests::runIsolatedDesktopCase(const QString &audioDriver) {
     QElapsedTimer elapsed;
     elapsed.start();
     qInfo() << "Starting isolated desktop case:" << testCase;
+    QSignalSpy finished(&child, &QProcess::finished);
     child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
     QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
-    const auto completed = child.waitForFinished(20000);
+    // An X11 clipboard owner must process events while its child requests clipboard data.
+    const auto completed = !finished.isEmpty() || finished.wait(20000);
     if (!completed) {
         child.kill();
         child.waitForFinished(5000);
@@ -45,11 +48,13 @@ void NativeDesktopTests::runIsolatedDesktopCase(const QString &audioDriver) {
     const auto output = child.readAll();
     qInfo() << "Isolated desktop case finished:" << testCase << "elapsed ms:" << elapsed.elapsed()
             << "completed:" << completed << "exit code:" << child.exitCode();
-    QVERIFY2(completed, output.constData());
+    const auto failure = output.indexOf("FAIL!");
+    const auto diagnostic = failure < 0 ? output.right(3500) : output.mid(failure, 3500);
+    QVERIFY2(completed, diagnostic.constData());
     QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
              qPrintable(QStringLiteral("Child exit code %1:\n%2")
                             .arg(child.exitCode())
-                            .arg(QString::fromUtf8(output))));
+                            .arg(QString::fromUtf8(diagnostic))));
 }
 
 bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
