@@ -687,6 +687,16 @@ void MainMenuViewPrivate::initFileActions() {
     setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::WindowShortcut);
     connect(actionNew, &QAction::triggered, this, [this, q] { m_mainWindow->newOrOpenProject(q); });
 
+    actionNewWindow = new QAction(tr("New Window"), this);
+    if (auto *windows = DocumentWindowManager::instance()) {
+        connect(actionNewWindow, &QAction::triggered, windows, [windows] {
+            if (!windows->terminating())
+                windows->createWindow();
+        });
+    } else {
+        actionNewWindow->setEnabled(false);
+    }
+
     actionOpen = new QAction(tr("&Open..."));
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
     setActionShortcut(actionOpen, QKeySequence("Ctrl+O"), Qt::WindowShortcut);
@@ -858,6 +868,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     Q_Q(MainMenuView);
     menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
+    menuFile->addAction(actionNewWindow);
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
@@ -1045,6 +1056,7 @@ void MainMenuViewPrivate::retranslateUi() {
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
+    actionNewWindow->setText(tr("New Window"));
     actionOpen->setText(tr("&Open..."));
     actionClearRecentProjects->setText(tr("Clear Recent Projects"));
     actionSave->setText(tr("&Save"));

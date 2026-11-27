@@ -90,6 +90,20 @@ namespace {
         return false;
     }
 
+    QAction *fileMenuAction(MainMenuView &bar, const char *label) {
+        const auto text = QCoreApplication::translate("MainMenuViewPrivate", label);
+        for (auto *top : bar.topLevelMenuActions()) {
+            auto *menu = top->menu();
+            if (!menu || !menu->actions().contains(bar.actionNew()))
+                continue;
+            for (auto *action : menu->actions()) {
+                if (action->text() == text)
+                    return action;
+            }
+        }
+        return nullptr;
+    }
+
     class PendingExitTask final : public Task {
     public:
         QSemaphore entered;
@@ -288,14 +302,9 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     QFETCH(bool, dirty);
     auto &runtime = *last.context->m_coreRuntime;
     if (!dirty) {
-        const auto closeText = QCoreApplication::translate("MainMenuViewPrivate", "Close Project");
-        QAction *closeProject = nullptr;
-        for (auto *menu : last.window->findChildren<QMenu *>()) {
-            for (auto *action : menu->actions()) {
-                if (action->text() == closeText)
-                    closeProject = action;
-            }
-        }
+        auto *bar = last.window->findChild<MainMenuView *>();
+        QVERIFY(bar);
+        auto *closeProject = fileMenuAction(*bar, "Close Project");
         QVERIFY(closeProject);
         const auto previousId = runtime.documentVersion().documentId;
         closeProject->trigger();
@@ -488,7 +497,7 @@ void NativeDesktopTests::newAndOpenFollowTheProjectWindowPreference() {
         bool asked = false;
         QTimer response;
         connect(&response, &QTimer::timeout, this, [&] {
-            auto *dialog = qobject_cast<MessageDialog *>(QApplication::activeModalWidget());
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!dialog)
                 return;
             response.stop();
@@ -497,6 +506,7 @@ void NativeDesktopTests::newAndOpenFollowTheProjectWindowPreference() {
                 if (dialog->isVisible())
                     dialog->reject();
             });
+            QVERIFY(qobject_cast<MessageDialog *>(dialog));
             QCOMPARE(dialog->parentWidget(), detached);
             auto *check = dialog->findChild<QCheckBox *>();
             QVERIFY(check && !check->isChecked());
@@ -567,6 +577,26 @@ void NativeDesktopTests::newAndOpenFollowTheProjectWindowPreference() {
     invoke({}, false, newProject);
     QCOMPARE(windows.documents().size(), 5U);
     QCOMPARE(runtime.documentVersion(), edited);
+
+    const auto newWindow = [&](MainMenuView &bar, ProjectWindowMode mode) {
+        general.projectWindowMode = mode;
+        QVERIFY(runtime.settings().updateGeneral({}, general));
+        auto *action = fileMenuAction(bar, "New Window");
+        QVERIFY(action && action->isEnabled());
+        const auto before = windows.documents().size();
+        invoke({}, false, [&] { action->trigger(); });
+        QCOMPARE(windows.documents().size(), before + 1);
+        const auto &created = *windows.documents().back();
+        QVERIFY(created.window->isVisible());
+        QVERIFY(created.context->m_coreRuntime->documentPath().isEmpty());
+        QVERIFY(created.context->m_historyManager->isOnSavePoint());
+        QCOMPARE(runtime.documentVersion(), edited);
+        QCOMPARE(AppOptions().general()->projectWindowMode, mode);
+    };
+    auto *mainMenu = source.window->findChild<MainMenuView *>();
+    QVERIFY(mainMenu);
+    newWindow(*mainMenu, ProjectWindowMode::Ask);
+    newWindow(*menu, ProjectWindowMode::CurrentWindow);
 }
 
 void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {

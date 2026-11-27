@@ -3999,6 +3999,10 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
+        <source>New Window</source>
+        <translation>新建窗口</translation>
+    </message>
+    <message>
         <source>Close Project</source>
         <translation>关闭工程</translation>
     </message>

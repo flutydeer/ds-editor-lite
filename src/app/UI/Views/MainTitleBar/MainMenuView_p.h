@@ -42,6 +42,7 @@ public:
     void rebuildIcons();
 
     QAction *actionNew = nullptr;
+    QAction *actionNewWindow = nullptr;
     QAction *actionOpen = nullptr;
     QAction *actionClose = nullptr;
     QAction *actionRecordMidi = nullptr;
