@@ -24,7 +24,7 @@ private slots:
     void uiLanguageEffectiveLanguage_data();
     void uiLanguageEffectiveLanguage();
     void uiLanguageNumberFormattingPreservesDecimalSeparator();
-    void uiLanguagePreferencePersistence();
+    void generalPreferencePersistence();
     void uiLanguageEquivalentPreferenceDoesNotNotify();
     void windowOptionRoundTrip();
     void windowOptionRejectsDamagedGeometry();

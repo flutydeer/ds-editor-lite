@@ -53,15 +53,23 @@ void PreferencesTests::uiLanguageNumberFormattingPreservesDecimalSeparator() {
     QVERIFY(locale.numberOptions().testFlag(QLocale::RejectGroupSeparator));
 }
 
-void PreferencesTests::uiLanguagePreferencePersistence() {
+void PreferencesTests::generalPreferencePersistence() {
+    using AppOptionsGlobal::ProjectWindowMode;
     GeneralOption option;
     option.load(QJsonObject{
         {QStringLiteral("uiLanguage"), QStringLiteral("invalid")}
     });
     QCOMPARE(option.uiLanguage, UiLanguageManager::System);
+    QCOMPARE(option.projectWindowMode, ProjectWindowMode::Ask);
     option.uiLanguage = UiLanguageManager::English;
     QCOMPARE(option.value().value(QStringLiteral("uiLanguage")).toString(),
              UiLanguageManager::English);
+    option.projectWindowMode = ProjectWindowMode::NewWindow;
+    GeneralOption reopened;
+    reopened.load(option.value());
+    QCOMPARE(reopened.projectWindowMode, ProjectWindowMode::NewWindow);
+    reopened.load({{QStringLiteral("projectWindowMode"), QStringLiteral("unknown")}});
+    QCOMPARE(reopened.projectWindowMode, ProjectWindowMode::Ask);
 }
 
 void PreferencesTests::uiLanguageEquivalentPreferenceDoesNotNotify() {

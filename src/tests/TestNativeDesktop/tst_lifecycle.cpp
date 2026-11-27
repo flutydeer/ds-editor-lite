@@ -8,8 +8,11 @@
 #include "Bootstrap/WindowPlacement.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
+#include "UI/Dialogs/Options/Pages/GeneralPage.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
@@ -25,12 +28,14 @@
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include <lite/GUI/Utils/WindowDialogs.h>
 #include <QClipboard>
+#include <QCheckBox>
 #include <QMimeData>
 #include <QJsonDocument>
 #include <QMessageBox>
 #include <QMenu>
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -59,7 +64,7 @@ namespace {
         return output->setDriver(name);
     }
 
-    bool answerSavePrompt(const QString &text) {
+    bool clickDialogButton(const QString &text) {
         auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
         if (!dialog)
             return false;
@@ -274,7 +279,7 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
             auto *prompt = QApplication::activeModalWidget();
             const bool applicationModal =
                 prompt && prompt->windowModality() == Qt::ApplicationModal;
-            canceled = answerSavePrompt(MainWindow::tr("Cancel")) && applicationModal;
+            canceled = clickDialogButton(MainWindow::tr("Cancel")) && applicationModal;
         });
         closeLastWindow();
         QVERIFY(canceled);
@@ -288,7 +293,7 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     QTimer::singleShot(0, last.window.get(), [&] {
         if (dirty)
             QTimer::singleShot(0, last.window.get(),
-                               [&] { discarded = answerSavePrompt(MainWindow::tr("Don't save")); });
+                               [&] { discarded = clickDialogButton(MainWindow::tr("Don't save")); });
         closeLastWindow();
     });
     QTimer deadline;
@@ -364,7 +369,7 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QVERIFY(detached && QTest::qWaitForWindowExposed(detached));
     a.window->setWorkflowWindow(detached);
     QTimer::singleShot(0, this, [&] {
-        const auto cancel = qScopeGuard([] { answerSavePrompt(MainWindow::tr("Cancel")); });
+        const auto cancel = qScopeGuard([] { clickDialogButton(MainWindow::tr("Cancel")); });
         auto *prompt = QApplication::activeModalWidget();
         QVERIFY(prompt && QTest::qWaitForWindowFocused(prompt));
         QVERIFY(WindowDialogs::blocks(a.window.get()));
@@ -389,7 +394,7 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
             return;
         applicationScope &= prompt->windowModality() == Qt::ApplicationModal;
         ++decisions;
-        answerSavePrompt(decisions == 1 ? MainWindow::tr(save ? "Save" : "Don't save")
+        clickDialogButton(decisions == 1 ? MainWindow::tr(save ? "Save" : "Don't save")
                                         : MainWindow::tr("Cancel"));
     });
     answer.start(10);
@@ -409,6 +414,119 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QString error;
     QVERIFY2(converter.load(path, &disk, error, IProjectConverter::NewProject), qPrintable(error));
     QCOMPARE(disk.tracks().first()->name() == QStringLiteral("Edited A"), save);
+}
+
+void NativeDesktopTests::newAndOpenFollowTheProjectWindowPreference() {
+    using AppOptionsGlobal::ProjectWindowMode;
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto &runtime = *fixture.context->m_coreRuntime;
+    const auto initial = runtime.settings().getSettings();
+    QVERIFY(initial);
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, initial.get().general)); });
+    auto general = initial.get().general;
+    general.projectWindowMode = ProjectWindowMode::Ask;
+    QVERIFY(runtime.settings().updateGeneral({}, general));
+
+    DocumentWindowManager windows(*fixture.context);
+    auto &source = windows.createWindow();
+    const auto original = fixture.directory.filePath("original.dspx");
+    QVERIFY(runtime.documents().saveDocument({.expected = runtime.documentVersion()}, original));
+    const auto first = fixture.directory.filePath("first.dspx");
+    const auto second = fixture.directory.filePath("second.dspx");
+    const auto third = fixture.directory.filePath("third.dspx");
+    for (const auto &path : {first, second, third})
+        QVERIFY(QFile::copy(original, path));
+    QVERIFY(QMetaObject::invokeMethod(source.window.get(), "detachBottomPanel"));
+    auto *detached = source.window->detachedPanelWindow();
+    QVERIFY(detached);
+    auto *menu = detached->findChild<MainMenuView *>();
+    QVERIFY(menu);
+
+    const auto invoke = [&](const QString &button, bool remember, auto command) {
+        bool asked = false;
+        QTimer response;
+        connect(&response, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<MessageDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            response.stop();
+            asked = true;
+            const auto dismiss = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            QCOMPARE(dialog->parentWidget(), detached);
+            auto *check = dialog->findChild<QCheckBox *>();
+            QVERIFY(check && !check->isChecked());
+            if (remember)
+                check->click();
+            if (!button.isEmpty())
+                QVERIFY(clickDialogButton(button));
+        });
+        response.start(5);
+        command();
+        QCOMPARE(asked, !button.isEmpty());
+    };
+    const auto newProject = [&] { menu->actionNew()->trigger(); };
+    const auto originalId = runtime.documentVersion().documentId;
+    invoke(MainWindow::tr("Cancel"), true, newProject);
+    QCOMPARE(windows.documents().size(), 1U);
+    QCOMPARE(runtime.documentVersion().documentId, originalId);
+    QCOMPARE(appOptions->general()->projectWindowMode, ProjectWindowMode::Ask);
+    invoke(MainWindow::tr("New Window"), false, newProject);
+    QCOMPARE(windows.documents().size(), 2U);
+    QCOMPARE(runtime.documentVersion().documentId, originalId);
+    QCOMPARE(appOptions->general()->projectWindowMode, ProjectWindowMode::Ask);
+    auto *other = windows.documents().back().get();
+    const auto otherId = other->context->m_coreRuntime->documentVersion().documentId;
+
+    invoke(MainWindow::tr("Current Window"), true, [&] {
+        source.window->newOrOpenProject(detached, {original, first, second});
+    });
+    QTRY_COMPARE(runtime.documentPath(), first);
+    QTRY_VERIFY(windows.findPath(second) &&
+                windows.findPath(second)->context->m_coreRuntime->documentPath() == second);
+    QCOMPARE(windows.documents().size(), 3U);
+    QCOMPARE(windows.find(otherId), other);
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::CurrentWindow);
+
+    // A remembered current-window choice still needs the ordinary unsaved-changes decision.
+    const auto track = Automation::TrackId(fixture.context->m_appModel->tracks().first()->id());
+    QVERIFY(runtime.project().renameTrack({.expected = runtime.documentVersion()}, track,
+                                          QStringLiteral("Unsaved")));
+    const auto edited = runtime.documentVersion();
+    bool savePrompt = false;
+    QTimer cancelSave;
+    connect(&cancelSave, &QTimer::timeout, this, [&] {
+        if (auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget())) {
+            cancelSave.stop();
+            savePrompt =
+                !qobject_cast<MessageDialog *>(dialog) && dialog->parentWidget() == detached;
+            dialog->reject();
+        }
+    });
+    cancelSave.start(5);
+    newProject();
+    QTRY_VERIFY(savePrompt);
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QCOMPARE(runtime.documentVersion(), edited);
+
+    GeneralPage page;
+    auto *setting = page.findChild<ComboBox *>("projectWindowMode");
+    QVERIFY(setting);
+    setting->setCurrentIndex(setting->findData(QVariant::fromValue(ProjectWindowMode::Ask)));
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::Ask);
+    invoke({}, false, [&] { menu->openRecentProject(second); });
+    QCOMPARE(windows.documents().size(), 3U);
+    invoke(MainWindow::tr("New Window"), true, [&] { menu->openRecentProject(third); });
+    QTRY_VERIFY(windows.findPath(third) &&
+                windows.findPath(third)->context->m_coreRuntime->documentPath() == third);
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::NewWindow);
+    invoke({}, false, newProject);
+    QCOMPARE(windows.documents().size(), 5U);
+    QCOMPARE(runtime.documentVersion(), edited);
 }
 
 void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
