@@ -1,6 +1,7 @@
 #pragma once
 
 #include <TalcsWidgets/AudioFileDialog.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include <QApplication>
 #include <QDialog>
 #include <QEvent>
@@ -39,6 +40,7 @@ namespace AudioFilePicker {
                                                             QString &entry, QWidget *parent,
                                                             const QString &caption,
                                                             const QString &directory) {
+        const WindowDialogs::DialogExecution execution(parent);
         DialogScope scope(parent);
         return talcs::AudioFileDialog::getOpenAudioFileIO(formats, path, data, entry, parent,
                                                           caption, directory);

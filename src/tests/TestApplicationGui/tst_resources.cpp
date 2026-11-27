@@ -419,6 +419,7 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
                 if (QTest::currentTestFailed())
                     picker->reject();
             });
+            QVERIFY(runtime.documentBusy(before.documentId));
             auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
             enterResourceText(name, QDir::toNativeSeparators(replacementPath));
             if (QTest::currentTestFailed())
@@ -446,6 +447,7 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     chooseReplacement(false);
     if (QTest::currentTestFailed())
         return;
+    QVERIFY(!runtime.documentBusy(before.documentId));
     QCOMPARE(audio->path(), missingPath);
     QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
     QCOMPARE(row->text(3), AudioResourcePage::tr("Missing"));
