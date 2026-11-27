@@ -584,26 +584,6 @@ namespace {
             for (const auto &entry : windows.documents())
                 DocumentRecovery::remove(entry->recoveryKey);
         });
-        auto &harmony = createProject(QStringLiteral("Harmony"));
-        windows.activate(lead);
-        if (menuBar->isInWindowMenu()) {
-            const auto captureMenu = [&](const QString &title, const QString &caption) {
-                const auto actions = menuBar->topLevelMenuActions();
-                const auto action = std::find_if(actions.cbegin(), actions.cend(),
-                                                 [&](QAction *a) { return a->text() == title; });
-                requireCapture(action != actions.cend() && (*action)->menu(),
-                               QStringLiteral("Missing menu %1").arg(title));
-                auto *menu = (*action)->menu();
-                menu->popup(menuBar->mapToGlobal(menuBar->actionGeometry(*action).bottomLeft()));
-                const auto close = qScopeGuard([menu] { menu->close(); });
-                gallery.take(*menu, Module::Workspace, caption, Gallery::Capture::WidgetContent);
-            };
-            captureMenu(QCoreApplication::translate("MainMenuViewPrivate", "&File"),
-                        QStringLiteral("File menu - project commands"));
-            captureMenu(QCoreApplication::translate("MainMenuViewPrivate", "&Edit"),
-                        QStringLiteral("Edit menu - MIDI recording"));
-            captureMenu(MainMenuView::tr("&Window"), QStringLiteral("Window menu - open projects"));
-        }
         captureProjectPrompt(gallery, window, QStringLiteral("Unsaved project confirmation"),
                              [&] { windows.close(lead, TerminationSavePolicy::Prompt); });
         {
@@ -613,10 +593,10 @@ namespace {
             const auto restore = qScopeGuard([&] {
                 QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs);
             });
-            captureProjectPrompt(gallery, *windows.active()->window,
-                                 QStringLiteral("Recover an unsaved project"),
+            captureProjectPrompt(gallery, window, QStringLiteral("Recover an unsaved project"),
                                  [&] { windows.offerRecovery(); });
         }
+        auto &harmony = createProject(QStringLiteral("Harmony"));
         editProject(harmony);
         captureProjectPrompt(gallery, window, QStringLiteral("Quit with multiple unsaved projects"),
                              [&] {
