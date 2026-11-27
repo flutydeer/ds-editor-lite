@@ -151,7 +151,7 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
                            QMessageBox::Ok, this);
     messageBox.setDetailedText(lines.join(QStringLiteral("\n\n")));
     messageBox.setWindowModality(Qt::WindowModal);
-    messageBox.exec();
+    WindowDialogs::exec(messageBox);
 }
 
 void PackageManagerDialog::initUi() {

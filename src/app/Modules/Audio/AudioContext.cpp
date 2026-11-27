@@ -10,6 +10,7 @@
 
 #include <QApplication>
 #include <QMessageBox>
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QPointer>
@@ -464,10 +465,12 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const bool interactive = runtime && runtime->dispatcher().currentInvocationSource() ==
                                            Automation::InvocationSource::TrustedGui;
-    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance()))
-        QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
-    else
+    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance())) {
+        QMessageBox error(QMessageBox::Critical, {}, tr("Cannot open audio device!"), QMessageBox::Ok);
+        WindowDialogs::exec(error);
+    } else {
         qWarning("Cannot open audio device");
+    }
     return false;
 }
 

@@ -571,8 +571,7 @@ namespace Audio::Internal {
         dlg.setWindowTitle(tr("Dry Run"));
         dlg.setWindowFlag(Qt::WindowContextHelpButtonHint, false);
         dlg.resize(600, 400);
-        const WindowDialogs::DialogExecution execution(&dlg);
-        dlg.exec();
+        WindowDialogs::exec(dlg);
     }
 
     void AudioExportDialog::updateConfig() const {

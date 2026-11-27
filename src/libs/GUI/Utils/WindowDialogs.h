@@ -18,6 +18,7 @@ namespace WindowDialogs {
 
     QWidget *blockingDialog(const QWidget *window);
     bool blocks(const QWidget *window);
+    int exec(QDialog &dialog);
     QString getOpenFileName(QWidget *parent, const QString &caption, const QString &dir,
                             const QString &filter);
     QStringList getOpenFileNames(QWidget *parent, const QString &caption, const QString &dir,

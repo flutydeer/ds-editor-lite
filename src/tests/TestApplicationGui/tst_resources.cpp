@@ -186,6 +186,7 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
         auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
         QVERIFY(message);
         const auto close = qScopeGuard([&] { message->close(); });
+        QVERIFY(context->m_coreRuntime->documentBusy(before.documentId));
         if (validation.get().items.isEmpty()) {
             QCOMPARE(message->icon(), QMessageBox::Information);
             QVERIFY(message->text().contains(selectedPackage.path()));
@@ -200,6 +201,7 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
     });
     QTest::mouseClick(verify, Qt::LeftButton);
     QVERIFY(verified);
+    QVERIFY(!context->m_coreRuntime->documentBusy(before.documentId));
     dialog.activateWindow();
     QTRY_VERIFY(dialog.isActiveWindow());
 

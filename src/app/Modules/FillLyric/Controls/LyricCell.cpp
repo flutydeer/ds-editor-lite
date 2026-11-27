@@ -150,7 +150,7 @@ namespace FillLyric {
             dlg.setWindowModality(Qt::WindowModal);
             dlg.show();
             dlg.activateWindow();
-            dlg.exec();
+            WindowDialogs::exec(dlg);
             if (dlg.result() == QDialog::Accepted && dlg.text() != lyric()) {
                 this->setLyric(dlg.text());
                 Q_EMIT this->updateWidth(width());

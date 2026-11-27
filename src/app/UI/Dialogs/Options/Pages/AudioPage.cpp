@@ -171,7 +171,7 @@ QWidget *AudioPage::createContentWidget() {
             msgBox.setText(tr("Cannot start audio playback"));
             msgBox.setInformativeText(
                 tr("Please check the status of the audio driver and device."));
-            msgBox.exec();
+            WindowDialogs::exec(msgBox);
         } else {
             DeviceTester::playTestSound();
         }

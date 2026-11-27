@@ -46,6 +46,11 @@ namespace WindowDialogs {
         return !window || !window->isEnabled() || blockingDialog(window);
     }
 
+    int exec(QDialog &dialog) {
+        const DialogExecution execution(&dialog);
+        return dialog.exec();
+    }
+
     static QStringList choose(QWidget *parent, const QString &caption, const QString &dir,
                               const QString &filter, QFileDialog::FileMode mode,
                               QFileDialog::AcceptMode accept, QString *selectedFilter = nullptr,
@@ -58,8 +63,7 @@ namespace WindowDialogs {
         if (selectedFilter)
             dialog.selectNameFilter(*selectedFilter);
         dialog.setWindowModality(modality);
-        const DialogExecution execution(&dialog);
-        if (dialog.exec() != QDialog::Accepted)
+        if (exec(dialog) != QDialog::Accepted)
             return {};
         if (selectedFilter)
             *selectedFilter = dialog.selectedNameFilter();
@@ -100,8 +104,7 @@ namespace WindowDialogs {
         dialog.setTextEchoMode(mode);
         dialog.setTextValue(text);
         dialog.setWindowModality(Qt::WindowModal);
-        const DialogExecution execution(&dialog);
-        const bool accepted = dialog.exec() == QDialog::Accepted;
+        const bool accepted = exec(dialog) == QDialog::Accepted;
         if (ok)
             *ok = accepted;
         return accepted ? dialog.textValue() : QString();
@@ -114,8 +117,7 @@ namespace WindowDialogs {
         QMessageBox dialog(icon, title, text, buttons, parent);
         dialog.setDefaultButton(defaultButton);
         dialog.setWindowModality(Qt::WindowModal);
-        const DialogExecution execution(&dialog);
-        dialog.exec();
+        exec(dialog);
         return dialog.standardButton(dialog.clickedButton());
     }
 
