@@ -304,7 +304,7 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     if (!dirty) {
         auto *bar = last.window->findChild<MainMenuView *>();
         QVERIFY(bar);
-        auto *closeProject = fileMenuAction(*bar, "Close Project");
+        auto *closeProject = fileMenuAction(*bar, "Close");
         QVERIFY(closeProject);
         const auto previousId = runtime.documentVersion().documentId;
         closeProject->trigger();
@@ -385,12 +385,14 @@ void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
 
 void NativeDesktopTests::cancelingExitKeepsTheRemainingProject_data() {
     QTest::addColumn<bool>("save");
-    QTest::newRow("save-then-cancel") << true;
-    QTest::newRow("discard-then-cancel") << false;
+    QTest::addColumn<bool>("restart");
+    QTest::newRow("save-then-cancel") << true << false;
+    QTest::newRow("discard-then-cancel") << false << true;
 }
 
 void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QFETCH(bool, save);
+    QFETCH(bool, restart);
     GuiDocumentFixture fixture;
     QVERIFY(fixture.initialize());
     DocumentWindowManager windows(*fixture.context);
@@ -447,8 +449,16 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
                                         : MainWindow::tr("Cancel"));
     });
     answer.start(10);
-    QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Prompt),
-             TerminationRequestResult::Busy);
+    if (restart) {
+        QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Prompt),
+                 TerminationRequestResult::Busy);
+    } else {
+        auto *bar = b.window->findChild<MainMenuView *>();
+        QVERIFY(bar);
+        auto *exit = fileMenuAction(*bar, "E&xit");
+        QVERIFY(exit && exit->isEnabled());
+        exit->trigger();
+    }
     answer.stop();
     QCOMPARE(decisions, 2);
     QVERIFY(applicationScope);

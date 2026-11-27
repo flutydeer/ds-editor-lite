@@ -671,7 +671,7 @@ void MainMenuViewPrivate::setActionShortcut(QAction *action, const QKeySequence 
 
 void MainMenuViewPrivate::initFileActions() {
     Q_Q(MainMenuView);
-    actionClose = new QAction(tr("Close Project"), this);
+    actionClose = new QAction(tr("Close"), this);
     connect(actionClose, &QAction::triggered, this,
             [this, q, context = AppContext::instance<AppContext>()] {
                 m_mainWindow->setWorkflowWindow(q);
@@ -697,7 +697,7 @@ void MainMenuViewPrivate::initFileActions() {
         actionNewWindow->setEnabled(false);
     }
 
-    actionOpen = new QAction(tr("&Open..."));
+    actionOpen = new QAction(tr("&Open"), this);
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
     setActionShortcut(actionOpen, QKeySequence("Ctrl+O"), Qt::WindowShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
@@ -719,7 +719,7 @@ void MainMenuViewPrivate::initFileActions() {
         documentWorkflowController->requestSave();
     });
 
-    actionSaveAs = new QAction(tr("Save &as..."), this);
+    actionSaveAs = new QAction(tr("Save &as"), this);
     setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"),
                 QSize(20, 20));
     setActionShortcut(actionSaveAs, QKeySequence("Ctrl+Shift+S"), Qt::WindowShortcut);
@@ -748,7 +748,7 @@ void MainMenuViewPrivate::initFileActions() {
     setMenuIcon(actionExportMidi, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
-    actionOpenPackageManager = new QAction(tr("Manage packages..."), this);
+    actionOpenPackageManager = new QAction(tr("Manage packages"), this);
     setMenuIcon(actionOpenPackageManager, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionOpenPackageManager, &QAction::triggered, this, [q] {
         auto *dialog = new PackageManagerDialog(q->window());
@@ -756,7 +756,7 @@ void MainMenuViewPrivate::initFileActions() {
         dialog->show();
     });
 
-    actionExit = new QAction(tr("E&xit Application"), this);
+    actionExit = new QAction(tr("E&xit"), this);
     setMenuIcon(actionExit, QStringLiteral(":/svg/icons/dismiss_16_regular.svg"));
     connect(actionExit, &QAction::triggered, this, [this] { exitApp(); });
 }
@@ -879,7 +879,9 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
             this, [this] { refreshRecentProjectsMenu(); });
     refreshRecentProjectsMenu();
     menuFile->addMenu(menuRecentProjects);
+    menuFile->addAction(actionClose);
 
+    menuFile->addSeparator();
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
 
@@ -905,7 +907,6 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile->addAction(actionOpenPackageManager);
     menuFile->addSeparator();
 
-    menuFile->addAction(actionClose);
     menuFile->addAction(actionExit);
     return menuFile;
 }
@@ -1050,24 +1051,24 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
 
 void MainMenuViewPrivate::retranslateUi() {
     menuWindow->setTitle(MainMenuView::tr("&Window"));
-    actionClose->setText(tr("Close Project"));
+    actionClose->setText(tr("Close"));
     if (actionRecordMidi)
         actionRecordMidi->setText(tr("Record MIDI Input"));
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
     actionNewWindow->setText(tr("New Window"));
-    actionOpen->setText(tr("&Open..."));
+    actionOpen->setText(tr("&Open"));
     actionClearRecentProjects->setText(tr("Clear Recent Projects"));
     actionSave->setText(tr("&Save"));
-    actionSaveAs->setText(tr("Save &as..."));
+    actionSaveAs->setText(tr("Save &as"));
     actionImportMidi->setText(tr("MIDI file..."));
     actionImportDspx->setText(tr("DiffScope project file..."));
     actionImportLibreSVIP->setText(tr("Project file (LibreSVIP)..."));
     actionExportAudio->setText(tr("Audio file..."));
     actionExportMidi->setText(tr("MIDI file..."));
-    actionOpenPackageManager->setText(tr("Manage packages..."));
-    actionExit->setText(tr("E&xit Application"));
+    actionOpenPackageManager->setText(tr("Manage packages"));
+    actionExit->setText(tr("E&xit"));
 
     actionUndo->setText(tr("&Undo") + " " + m_undoName);
     actionRedo->setText(tr("&Redo") + " " + m_redoName);

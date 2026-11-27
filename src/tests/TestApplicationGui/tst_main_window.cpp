@@ -1843,12 +1843,12 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
         QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy(), 10000);
     };
     const auto initial = runtime.documentVersion();
-    chooseFile("&Open...", sourcePath, false, false);
+    chooseFile("&Open", sourcePath, false, false);
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(runtime.documentVersion(), initial);
     QVERIFY(documentWorkflowController->projectPath().isEmpty());
-    chooseFile("&Open...", sourcePath, false, true);
+    chooseFile("&Open", sourcePath, false, true);
     if (QTest::currentTestFailed())
         return;
     QTRY_COMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
@@ -1865,7 +1865,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
                                           QStringLiteral("Saved from the menu")));
     const auto *edit = historyManager->nextUndoEntry();
     QVERIFY(edit);
-    chooseFile("Save &as...", savedPath, true, false);
+    chooseFile("Save &as", savedPath, true, false);
     if (QTest::currentTestFailed())
         return;
     QVERIFY(!QFileInfo::exists(savedPath));
@@ -1873,7 +1873,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
              QFileInfo(sourcePath).canonicalFilePath());
     QCOMPARE(historyManager->nextUndoEntry(), edit);
     QVERIFY(!historyManager->isOnSavePoint());
-    chooseFile("Save &as...", savedPath, true, true);
+    chooseFile("Save &as", savedPath, true, true);
     if (QTest::currentTestFailed())
         return;
     QTRY_VERIFY(QFileInfo(savedPath).isFile());

@@ -4003,8 +4003,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>新建窗口</translation>
     </message>
     <message>
-        <source>Close Project</source>
-        <translation>关闭工程</translation>
+        <source>Close</source>
+        <translation>关闭</translation>
     </message>
     <message>
         <source>Record MIDI Input</source>
@@ -4054,8 +4054,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="665"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1004"/>
-        <source>&amp;Open...</source>
-        <translation>打开(&amp;O)...</translation>
+        <source>&amp;Open</source>
+        <translation>打开(&amp;O)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="679"/>
@@ -4102,8 +4102,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="685"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1007"/>
-        <source>Save &amp;as...</source>
-        <translation>另存为(&amp;A)...</translation>
+        <source>Save &amp;as</source>
+        <translation>另存为(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="282"/>
@@ -4185,14 +4185,14 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="712"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1013"/>
-        <source>Manage packages...</source>
-        <translation>管理包...</translation>
+        <source>Manage packages</source>
+        <translation>管理包</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="719"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1014"/>
-        <source>E&amp;xit Application</source>
-        <translation>退出应用(&amp;X)</translation>
+        <source>E&amp;xit</source>
+        <translation>退出(&amp;X)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="744"/>
