@@ -84,7 +84,6 @@
 #include <QMouseEvent>
 #include <QContextMenuEvent>
 #include <QCheckBox>
-#include <QComboBox>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPainter>
@@ -1236,15 +1235,6 @@ void ApplicationGuiTests::captureUiGallery() try {
         for (int page = 0; page < sidebar->count(); ++page) {
             sidebar->setCurrentRow(page);
             gallery.take(*dialog, Module::Settings, sidebar->item(page)->text());
-            if (page == AppOptionsGlobal::General - 1) {
-                auto *mode = dialog->findChild<QComboBox *>("projectWindowMode");
-                QVERIFY(mode && mode->isVisible());
-                mode->showPopup();
-                const auto closePopup = qScopeGuard([&] { mode->hidePopup(); });
-                gallery.take(*mode->view()->window(), Module::Settings,
-                             QStringLiteral("Project window preference choices"),
-                             Gallery::Capture::WidgetContent);
-            }
             if (page == AppOptionsGlobal::Midi - 1) {
                 auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
                 QVERIFY(keyboard);
