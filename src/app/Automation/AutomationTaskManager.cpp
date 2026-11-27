@@ -102,6 +102,26 @@ namespace Automation {
         return findLocked(documentId, taskId);
     }
 
+    bool AutomationTaskManager::addTerminalCallback(const TaskId &id, TerminalCallback callback) {
+        QMutexLocker lock(&m_mutex);
+        auto it = m_records.find(id);
+        if (it == m_records.end())
+            return false;
+        if (isTerminal(it->snapshot.state)) {
+            const auto snapshot = it->snapshot;
+            lock.unlock();
+            callback(snapshot);
+        } else if (it->terminal) {
+            it->terminal = [previous = std::move(it->terminal),
+                            callback = std::move(callback)](const auto &snapshot) {
+                previous(snapshot);
+                callback(snapshot);
+            };
+        } else
+            it->terminal = std::move(callback);
+        return true;
+    }
+
     AutomationResult<AutomationTaskSnapshot>
         AutomationTaskManager::getApplication(const TaskId &taskId) const {
         const QMutexLocker locker(&m_mutex);

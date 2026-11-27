@@ -75,6 +75,6 @@ void MessageDialog::handleButtonClicked(const int buttonId) {
 }
 
 int MessageDialog::exec() {
-    QDialog::exec();
+    Dialog::exec();
     return clickedButtonId;
 }

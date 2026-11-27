@@ -16,6 +16,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QStyle>
 #include <QVariantAnimation>
 
@@ -29,6 +30,20 @@
 namespace {
     constexpr int kTitleBarHeight = 40;
     constexpr int kTrafficLightAreaWidth = 74;
+
+    class WindowCaption final : public QLabel {
+    public:
+        using QLabel::QLabel;
+
+    protected:
+        void paintEvent(QPaintEvent *) override {
+            QPainter painter(this);
+            const auto area = contentsRect();
+            const auto title = fontMetrics().elidedText(text(), Qt::ElideRight, area.width());
+            style()->drawItemText(&painter, area, TitleBarSections::titleAlignment, palette(),
+                                  isEnabled(), title, QPalette::WindowText);
+        }
+    };
 
     // QApplication delivers a resize to the layout before the widget, so the
     // width budget of the selector has to be refreshed here, right before the
@@ -51,7 +66,7 @@ namespace {
 }
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
-                           const TitleBarSections &sections, const TitleBarRole role)
+                           const TitleBarSections &sections)
     : QWidget(parent), m_window(parent), m_menuView(menuView), m_sections(sections),
       m_layout(new TitleBarLayout(this)) {
     setAttribute(Qt::WA_StyledBackground);
@@ -65,9 +80,17 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
         m_trafficLightArea->setFixedSize(kTrafficLightAreaWidth, kTitleBarHeight);
     }
     if (sections.playback)
-        m_playbackView = new PlaybackView(this, role);
+        m_playbackView = new PlaybackView(this);
     if (sections.projectSelector)
         m_titleComboBox = new TitleBarComboBox;
+    if (sections.windowCaption) {
+        m_windowCaption = new WindowCaption(parent->windowTitle(), this);
+        m_windowCaption->setTextFormat(Qt::PlainText);
+        m_windowCaption->setAttribute(Qt::WA_TransparentForMouseEvents);
+        m_windowCaption->setContentsMargins(TitleBarSections::titleTextInset, 0, 6, 0);
+        m_windowCaption->setMinimumWidth(88);
+        m_windowCaption->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    }
     if (sections.documentActions) {
         m_actionButtonsView = new ActionButtonsView(this);
         if (menuView)
@@ -170,23 +193,28 @@ void MainTitleBar::buildSections() {
         m_layout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     }
     bool hasLeadingSection = false;
-    const auto addLeadingSection = [&](QWidget *section) {
+    const auto addLeadingSection = [&](QWidget *section, int stretch = 0) {
         if (hasLeadingSection) {
             auto *divider = new DividerLine(Qt::Vertical);
             m_dividers.append(divider);
             m_layout->addWidget(divider);
         }
-        m_layout->addWidget(section);
+        m_layout->addWidget(section, stretch);
         hasLeadingSection = true;
     };
-    if (m_sections.mainMenu && m_menuView)
-        addLeadingSection(m_menuView);
+    if (m_sections.mainMenu && m_menuView) {
+        m_layout->addWidget(m_menuView);
+        hasLeadingSection = m_menuView->isInWindowMenu();
+    }
     if (m_titleComboBox)
         addLeadingSection(m_titleComboBox);
+    if (m_windowCaption)
+        addLeadingSection(m_windowCaption, 1);
     if (m_actionButtonsView)
         addLeadingSection(m_actionButtonsView);
 
-    m_layout->addStretch();
+    if (!m_windowCaption)
+        m_layout->addStretch();
     if (m_playbackView)
         m_layout->addWidget(m_playbackView);
     m_layout->addSpacing(6);
@@ -263,6 +291,8 @@ TitleBarComboBox *MainTitleBar::titleComboBox() const {
 }
 
 void MainTitleBar::setTitle(const QString &title) const {
+    if (m_windowCaption)
+        m_windowCaption->setText(title);
     if (!m_titleComboBox)
         return;
     m_titleComboBox->setTitle(title);

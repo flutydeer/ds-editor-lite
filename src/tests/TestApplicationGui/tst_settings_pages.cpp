@@ -373,6 +373,7 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
         qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, settings.get().general)); });
     auto general = settings.get().general;
     general.uiLanguage = UiLanguageManager::English;
+    general.projectWindowMode = AppOptionsGlobal::ProjectWindowMode::Ask;
     general.defaultLyrics[general.defaultSingingLanguage] = QStringLiteral("retained lyric");
     QVERIFY(runtime.settings().updateGeneral({}, general));
     UiLanguageManager languageManager;
@@ -420,6 +421,13 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
     auto *page = panel.findChild<GeneralPage *>();
     auto *tabs = panel.findChild<QListWidget *>("AppOptionsDialogTabListWidget");
     QVERIFY(page && tabs);
+    auto *projectWindow = page->findChild<ComboBox *>("projectWindowMode");
+    QVERIFY(projectWindow);
+    using AppOptionsGlobal::ProjectWindowMode;
+    QCOMPARE(projectWindow->currentData().value<ProjectWindowMode>(), ProjectWindowMode::Ask);
+    projectWindow->setCurrentIndex(
+        projectWindow->findData(QVariant::fromValue(ProjectWindowMode::CurrentWindow)));
+    QCOMPARE(appOptions->general()->projectWindowMode, ProjectWindowMode::CurrentWindow);
     const auto selectedPage = tabs->currentRow();
     for (const auto &preference :
          {UiLanguageManager::SimplifiedChinese, UiLanguageManager::English}) {
@@ -465,6 +473,7 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         AppOptions reopened;
         QCOMPARE(reopened.general()->uiLanguage, preference);
+        QCOMPARE(reopened.general()->projectWindowMode, ProjectWindowMode::CurrentWindow);
         QCOMPARE(reopened.general()->defaultLyricForLanguage(general.defaultSingingLanguage),
                  QStringLiteral("retained lyric"));
     }

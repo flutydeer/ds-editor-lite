@@ -8,7 +8,7 @@
 
 ProgressDialog::ProgressDialog(const bool cancellable, const bool canHide, QWidget *parent)
     : Dialog(parent), m_canHide(canHide), m_cancellable(cancellable) {
-    setModal(true);
+    setAttribute(Qt::WA_ShowWithoutActivating);
     setMinimumWidth(360);
 
     m_progressBar = new ProgressIndicator(this);

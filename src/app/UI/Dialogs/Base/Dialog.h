@@ -51,6 +51,7 @@ class Dialog : public QDialog {
 public:
     explicit Dialog(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     ~Dialog() override;
+    int exec() override;
 
     void setTitle(const QString &title) const;
     void setMessage(const QString &msg) const;
@@ -68,6 +69,7 @@ public:
 
     [[nodiscard]] static QWidget *globalParent();
     static void setGlobalContext(QWidget *parent);
+    void setProjectModal();
 
 protected:
     bool event(QEvent *event) override;
@@ -77,6 +79,8 @@ private:
     using QDialog::setLayout;
 
     static QPointer<QWidget> m_globalParent;
+    bool m_projectModal = false;
+    QList<QPointer<QWidget>> m_blockedPeers;
     QWK::WidgetWindowAgent *m_agent = nullptr;
     DialogTitleBar *m_dialogTitleBar = nullptr;
     QVBoxLayout *m_mainLayout;

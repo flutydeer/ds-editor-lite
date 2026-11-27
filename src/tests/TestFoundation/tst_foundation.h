@@ -17,6 +17,7 @@ private slots:
     void localizedTextSingleTagOverload();
     void fileLoggingChangesDirectoriesAndRecoversFromWriteFailure();
     void registeredServicesRemainVisibleDuringConcurrentRegistration();
+    void sharedSignalUsesTheReceiversDocument();
     void canceledWorkerCompletionAdvancesTheQueue_data();
     void canceledWorkerCompletionAdvancesTheQueue();
     void cancellationDoesNotDeleteAnEmittingWorker();

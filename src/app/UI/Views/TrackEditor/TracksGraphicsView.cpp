@@ -17,6 +17,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Import/ExternalFileClassifier.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "Utils/UiLanguageManager.h"
@@ -575,7 +576,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 }
 
 void TracksGraphicsView::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasUrls()) {
+    if (event->mimeData()->hasUrls() &&
+        !ExternalFileClassifier::classifyDrop(event->mimeData()->urls()).projectsOnly()) {
         event->acceptProposedAction();
         m_externalDragActive = true;
         updateExternalDropOverlay(event->position().toPoint());

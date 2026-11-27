@@ -117,9 +117,7 @@ namespace Automation {
             auto *task = new ComputeAudioHashTask;
             task->path = path;
             task->snapshotPath = snapshotPath;
-            auto *application = QCoreApplication::instance();
-            QObject *connectionContext = application ? static_cast<QObject *>(application)
-                                                     : static_cast<QObject *>(task);
+            QObject *connectionContext = task;
             QObject::connect(task, &Task::finished, connectionContext,
                              [task, finished = std::move(finished)] { finished(task); },
                              Qt::QueuedConnection);
@@ -198,9 +196,7 @@ namespace Automation {
                 auto *task = new ExtractPitchTask(taskInput(m_input));
                 m_task = task;
                 const auto self = shared_from_this();
-                auto *application = QCoreApplication::instance();
-                QObject *connectionContext = application ? static_cast<QObject *>(application)
-                                                         : static_cast<QObject *>(task);
+                QObject *connectionContext = task;
                 QObject::connect(task, &Task::statusUpdated, connectionContext,
                                  [callback = m_callbacks.progress](const TaskStatus &status) {
                                      if (callback)
@@ -337,9 +333,7 @@ namespace Automation {
                 auto *task = new ExtractMidiTask(taskInput(m_input));
                 m_task = task;
                 const auto self = shared_from_this();
-                auto *application = QCoreApplication::instance();
-                QObject *connectionContext = application ? static_cast<QObject *>(application)
-                                                         : static_cast<QObject *>(task);
+                QObject *connectionContext = task;
                 QObject::connect(task, &Task::statusUpdated, connectionContext,
                                  [callback = m_callbacks.progress](const TaskStatus &status) {
                                      if (callback)
@@ -467,7 +461,11 @@ namespace Automation {
         services.schedule = [](std::function<void()> execute) {
             if (auto *application = QCoreApplication::instance()) {
                 QTimer::singleShot(0, application,
-                                   [execute = std::move(execute)]() mutable { execute(); });
+                                   [context = SingletonRegistry::current(),
+                                    execute = std::move(execute)]() mutable {
+                                       const SingletonRegistry::Scope scope(context);
+                                       execute();
+                                   });
                 return;
             }
             execute();

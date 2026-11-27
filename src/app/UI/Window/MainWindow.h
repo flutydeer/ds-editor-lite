@@ -6,6 +6,7 @@
 #include <QTimer>
 
 #include <memory>
+#include <optional>
 
 #include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
@@ -24,6 +25,7 @@ class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
 class QAction;
+enum class TerminationMode;
 
 class MainWindow final : public QMainWindow,
                          public IMainWindow,
@@ -68,6 +70,14 @@ public:
     [[nodiscard]] DetachedPanelWindow *detachedPanelWindow() const;
     QWidget *documentWorkflowParentWidget() override;
     SaveDecision askDocumentSaveDecision() override;
+    SaveDecision askCloseDecision(const QString &progress, bool applicationModal);
+    void dockPanel();
+    QByteArray detachedGeometry() const;
+    void finishApplicationExit(TerminationMode mode);
+    void setWorkflowWindow(QWidget *origin);
+    // An empty file selection creates a project. Menu commands use the configured window mode.
+    void newOrOpenProject(QWidget *origin, const QStringList &paths = {},
+                          std::optional<AppOptionsGlobal::ProjectWindowMode> windowMode = {});
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
@@ -92,9 +102,10 @@ private slots:
     void attachBottomPanel();
 
 private:
+    std::optional<AppOptionsGlobal::ProjectWindowMode> chooseProjectWindow(const QString &path,
+                                                                         bool multiple);
     bool navigateToFocus(const HistoryFocus &focus, bool animated);
     [[nodiscard]] EditorViewGlobal::Region focusedEditorRegion() const;
-    [[nodiscard]] bool editorFocusControlBlocked() const;
     void updatePanelVisibilityState(bool trackPanelVisible, bool bottomPanelVisible);
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -108,6 +119,8 @@ private:
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
     bool m_documentCloseApproved = false;
+    QPointer<QWidget> m_workflowWindow;
+    QByteArray m_detachedGeometry;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;

@@ -6,7 +6,9 @@
 #include "Utils/FontManager.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
-AppController::AppController(QObject *parent) : QObject(parent) {
+AppController::AppController(bool initializeAppearance) {
+    if (!initializeAppearance)
+        return;
     // Read appearance settings and push them into the theme system, which no
     // longer depends on AppOptions.
     const auto pushAppearance = [] {

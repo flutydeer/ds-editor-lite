@@ -64,7 +64,7 @@
 繁忙或存在未授权丢弃的改动时返回结构化错误，绝不进入 GUI 保存确认；菜单、窗口关闭等 GUI 路径
 仍保留原有保存询问。两项均为不可禁用、不可排除的 L0 固有能力，在 Custom 设置页只读展示且开关置灰常开。
 
-### 3.2 文档与工程（8）
+### 3.2 文档与工程
 
 | 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
@@ -72,10 +72,19 @@
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
 | `documents.open` | L2 | C/A | 受控读路径、已验证输入快照、格式选项与异步换代 |
+| `documents.close` | L2 | C/S | 指定 `document_id` 和 `expected_revision`。有改动时须先保存或显式传 `discard_changes: true`。返回 `closed_document_id`，最后一个工程关闭后 `current` 给出新空白工程的版本 |
 | `documents.save` | L2 | C/S | 当前路径保存；显式覆盖策略优先，省略时使用默认覆盖行为并更新 savepoint |
 | `documents.save_as` | L2 | C/S | 受控写路径、扩展名与同目录排他发布 |
 | `documents.import` | L2 | C/A | 单文件导入计划、已验证输入快照、格式选项与任务写回 |
 | `documents.import_batch` | L2 | C/A | 逐项输入快照、失败策略与任务写回 |
+
+工具集 v2 的 `application.get_status` 列出所有打开的工程及其主窗口。分离钢琴窗使用所属工程的窗口身份。在 macOS 界面中关闭最后一个工程窗后，`documents` 和 `windows` 都为空数组，Connector 仍可连接。GUI 调用 `documents.new/open` 时，省略 `current_document_id` 或传 `null` 会新开窗口。若请求被同步拒绝，编辑器会收回为该请求创建的窗口。替换已有工程须传入它的 ID，可同时传入 `expected_revision`。Headless 的新建和打开都需要明确的工程 ID。打开已加载的路径会返回该工程。
+
+目标工程正在等待填词、文件选择等交互完成时，关闭或替换该工程会返回 `busy`。关闭相应对话框后可重试，其他工程仍可独立操作。
+
+从新建结果或打开任务成功结果的 `current` 取得实际工程版本。新开窗口时 `previous` 为 `null`。严格校验输出的客户端应刷新 `tools/list` 或 Native OpenRPC 的 Schema。使用 v1 固定契约的 Connector 可通过 `editor.tools.describe` 和 `editor.tools.invoke` 使用编辑器公布的实际契约。原先省略目标来替换工程的脚本需先从状态列表取得工程 ID。
+
+`documents.new` 和 `documents.open` 在 v2 中使用可选布尔参数 `discard_changes`，默认值为 `false`。替换有未保存改动的工程须显式传 `true`。新开窗口时会忽略该参数，已有工程的改动会保留。迁移 v1 脚本时，将 `unsaved_policy: "discard"` 改为 `discard_changes: true`，将 `unsaved_policy: "reject"` 改为 `discard_changes: false` 或省略该参数。
 
 ### 3.3 格式（2）
 
@@ -279,6 +288,8 @@
 | `exports.audio.get_capabilities` | L2 | Q/S | 格式、采样率、声道、混音和来源 |
 | `exports.audio.preview` | L2 | Q/S | 目标计划与阻断诊断 |
 | `exports.audio.start` | L2 | C/A | 暂存渲染、发布前取消/写授权检查与失败清理 |
+
+音频和 MIDI 导出使用受理时的工程快照。切换窗口或编辑其他工程时可继续导出。关闭或替换源工程时，尚未进入文件提交阶段的导出会取消，旧工程 ID 随之失效。
 
 ### 3.16 提取（3）
 

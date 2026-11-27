@@ -717,6 +717,20 @@ const srt::g2p::LanguageService &SynthrtEngine::languageService() const noexcept
     return *m_langSvc;
 }
 
+srt::core::Expected<std::vector<srt::g2p::G2pRes>>
+    SynthrtEngine::convertG2p(const SingerIdentifier &singer, const QString &language,
+                              const std::vector<srt::g2p::G2pInput> &inputs) {
+    const auto lang = toUtf8(language);
+    const auto version = VersionUtils::qt_to_stdc(singer.packageVersion);
+    auto ready = m_session.ensureLanguageReady(toUtf8(singer.packageId), version, lang);
+    if (!ready)
+        return ready.error();
+    // The process-wide G2P plugins reuse mutable buffers across documents and render jobs.
+    static std::mutex conversionMutex;
+    const std::lock_guard lock(conversionMutex);
+    return m_session.convertG2p(singer, lang, inputs);
+}
+
 srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
     SynthrtEngine::resolveS2pResource(const SingerIdentifier &identifier,
                                       const QString &languageId) const {

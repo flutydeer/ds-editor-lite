@@ -22,6 +22,7 @@ class TrackInferenceHandler : public talcs::DspxTrackInferenceContext {
 public:
     explicit TrackInferenceHandler(talcs::DspxTrackContext *trackContext, Track *track);
     ~TrackInferenceHandler() override;
+    void updateTimeRanges() const;
 
 private:
     Track *m_track;
@@ -44,7 +45,6 @@ private:
     void syncInferPiecePosition(const InferPiece *inferPiece) const;
     void syncInferPiecePositions(SingingClip *clip) const;
 
-    void handleTimeChanged() const;
 };
 
 

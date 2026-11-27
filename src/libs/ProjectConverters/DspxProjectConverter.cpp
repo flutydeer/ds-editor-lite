@@ -1341,7 +1341,12 @@ opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
 }
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
-    const auto dspxModel = encodeProject(path, model);
+    return saveSnapshot(path, path, model, errMsg);
+}
+
+bool DspxProjectConverter::saveSnapshot(const QString &path, const QString &referencePath,
+                                        const AppModel *model, QString &errMsg) {
+    const auto dspxModel = encodeProject(referencePath, model);
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,
                               QString &msg) -> bool {

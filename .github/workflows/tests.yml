@@ -148,8 +148,10 @@ jobs:
       - name: Linux tests
         if: runner.os == 'Linux'
         run: |
-          xvfb-run -a ctest --preset ci-coverage --output-junit "$PWD/build/test-results/junit.xml" \
-            2>&1 | tee build/test-results/ctest.log
+          xvfb-run -a -s '-screen 0 2560x1600x24' bash -ec '
+            openbox >build/test-results/openbox.log 2>&1 &
+            exec ctest --preset ci-coverage --output-junit "$PWD/build/test-results/junit.xml"
+          ' 2>&1 | tee build/test-results/ctest.log
       - name: Windows and macOS tests
         if: runner.os != 'Linux'
         run: |

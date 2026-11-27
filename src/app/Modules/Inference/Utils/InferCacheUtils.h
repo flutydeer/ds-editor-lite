@@ -5,8 +5,10 @@
 #include <QString>
 
 #include <QList>
+class AppModel;
 
 namespace InferCacheUtils {
+    void observeModel(AppModel *model);
 
     struct CacheFileInfo {
         QString fileName;

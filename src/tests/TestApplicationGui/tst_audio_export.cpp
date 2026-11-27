@@ -8,6 +8,7 @@
 #include "UI/Dialogs/Base/MessageDialog.h"
 
 #include <lite/GUI/Controls/ProgressIndicator.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -103,6 +104,9 @@ namespace {
 
     void inspectExportPlan(AudioExportDialog &dialog, const QStringList &expectedFiles,
                            AudioExporter::Warning expectedWarnings) {
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        QVERIFY(runtime);
+        const auto document = runtime->documentVersion().documentId;
         bool inspected = false;
         QTimer inspect;
         inspect.setInterval(10);
@@ -115,6 +119,9 @@ namespace {
                 if (preview && preview->isVisible())
                     preview->reject();
             });
+            QCOMPARE(preview->parentWidget(), &dialog);
+            QCOMPARE(preview->windowModality(), Qt::WindowModal);
+            QVERIFY(runtime->documentBusy(document));
             QListWidget *files = nullptr;
             QListWidget *warnings = nullptr;
             for (auto *group : preview->findChildren<QGroupBox *>()) {
@@ -150,6 +157,7 @@ namespace {
         inspect.start();
         QTest::mouseClick(dryRun, Qt::LeftButton);
         QVERIFY(inspected);
+        QVERIFY(!runtime->documentBusy(document));
     }
 }
 
@@ -555,17 +563,21 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome_data() {
     QTest::addColumn<bool>("clipping");
     QTest::addColumn<QString>("outcome");
     QTest::addColumn<bool>("closeWindow");
-    QTest::newRow("clean") << false << QStringLiteral("success") << true;
-    QTest::newRow("clipping-warning") << true << QStringLiteral("success") << false;
-    QTest::newRow("cancel-rendering") << false << QStringLiteral("cancel") << false;
-    QTest::newRow("close-during-rendering") << false << QStringLiteral("cancel") << true;
-    QTest::newRow("publication-blocked") << false << QStringLiteral("failure") << false;
+    QTest::addColumn<bool>("separated");
+    QTest::newRow("clean") << false << QStringLiteral("success") << true << false;
+    QTest::newRow("clipping-warning") << true << QStringLiteral("success") << false << false;
+    QTest::newRow("clipping-in-removed-source")
+        << true << QStringLiteral("success") << false << true;
+    QTest::newRow("cancel-rendering") << false << QStringLiteral("cancel") << false << false;
+    QTest::newRow("close-during-rendering") << false << QStringLiteral("cancel") << true << false;
+    QTest::newRow("publication-blocked") << false << QStringLiteral("failure") << false << false;
 }
 
 void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QFETCH(bool, clipping);
     QFETCH(QString, outcome);
     QFETCH(bool, closeWindow);
+    QFETCH(bool, separated);
     using Audio::Internal::AudioExportProgressDialog;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -611,9 +623,13 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     clip.properties.clipLen = 480;
     clip.audioPath = inputPath;
     track.clips.append(clip);
+    if (separated)
+        draft.tracks.append(Automation::TrackDraftDto{.name = QStringLiteral("Unselected")});
     draft.tracks.append(track);
     QVERIFY(runtime.documents().commitNewDocument(commandContext(), draft));
-    auto *audio = qobject_cast<AudioClip *>(*appModel->tracks().first()->clips().begin());
+    auto *sourceTrack = appModel->tracks().last();
+    const Automation::TrackId sourceId(sourceTrack->id());
+    auto *audio = qobject_cast<AudioClip *>(*sourceTrack->clips().begin());
     QVERIFY(audio);
     QTRY_VERIFY(audio->audioInfo().frames > 0 && !audio->audioInfo().peakCache.isEmpty());
     QTRY_VERIFY(taskManager->tasks().isEmpty());
@@ -622,6 +638,7 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     const auto contentBefore = TestSupport::projectSnapshot(*context->m_appModel);
 
     AudioExportDialog dialog;
+    ThemeManager::instance()->addStyleRoot(&dialog);
     ExportControls controls(dialog);
     QVERIFY(controls.valid());
     auto *start = exportButton(&dialog, AudioExportDialog::tr("Export"));
@@ -644,8 +661,15 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     dialog.activateWindow();
     QTRY_VERIFY(dialog.isActiveWindow());
     QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Wav));
-    QVERIFY(chooseOption(controls.mixing, AudioExporterConfig::MO_Mixed));
-    QVERIFY(chooseOption(controls.source, AudioExporterConfig::SO_All));
+    QVERIFY(chooseOption(controls.mixing, separated ? AudioExporterConfig::MO_Separated
+                                                    : AudioExporterConfig::MO_Mixed));
+    QVERIFY(chooseOption(controls.source, separated ? AudioExporterConfig::SO_Custom
+                                                    : AudioExporterConfig::SO_All));
+    if (separated) {
+        QTest::mouseClick(controls.tracks->viewport(), Qt::LeftButton, Qt::NoModifier,
+                          controls.tracks->visualItemRect(controls.tracks->item(1)).center());
+        QCOMPARE(controls.exporter->config().source(), QList<int>{1});
+    }
     pasteText(controls.directory, directory.path());
     pasteText(controls.fileName, QStringLiteral("exported.wav"));
     QVERIFY(controls.exporter->warning() & AudioExporter::W_WillOverwrite);
@@ -671,6 +695,8 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
         });
         auto *choice =
             exportButton(warning, AudioExportDialog::tr(allowOverwrite ? "Continue" : "Cancel"));
+        QCOMPARE(warning->parentWidget(), &dialog);
+        QCOMPARE(warning->windowModality(), Qt::WindowModal);
         QVERIFY(choice);
         QCOMPARE(readExisting(), existingContents);
         QTest::mouseClick(choice, Qt::LeftButton);
@@ -697,6 +723,15 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
         controls.exporter->cancel();
     });
     bool interrupted = false;
+    bool removed = false;
+    if (separated) {
+        connect(controls.exporter, &AudioExporter::clippingDetected, &dialog, [&] {
+            if (!removed) {
+                QVERIFY(runtime.project().removeTracks(commandContext(), {sourceId}));
+                removed = true;
+            }
+        });
+    }
     const auto backupPath = directory.filePath(QStringLiteral("previous-export.wav"));
     connect(controls.exporter, &AudioExporter::progressChanged, &dialog, [&](double value, int) {
         if (outcome == QStringLiteral("success") || interrupted || value <= 0 || value >= 1)
@@ -768,7 +803,8 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
             QCOMPARE(failed.size(), 1);
             QVERIFY(canceled.isEmpty());
             QVERIFY(!controls.exporter->errorString().isEmpty());
-            QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export failed"));
+            QVERIFY(
+                progress->windowTitle().contains(AudioExportProgressDialog::tr("Export failed")));
             auto *indicator = progress->findChild<ProgressIndicator *>();
             QVERIFY(indicator);
             QCOMPARE(indicator->taskStatus(), TaskGlobal::Error);
@@ -799,7 +835,8 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QVERIFY(!dialog.isVisible());
     QVERIFY(progress->isVisible());
     QVERIFY(!progress->isModal());
-    QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export finished"));
+    QCOMPARE(progress->palette().color(QPalette::Window), dialog.palette().color(QPalette::Window));
+    QVERIFY(progress->windowTitle().contains(AudioExportProgressDialog::tr("Export finished")));
     auto *indicator = progress->findChild<ProgressIndicator *>();
     QVERIFY(indicator);
     QCOMPARE(indicator->value(), 100.0);
@@ -808,10 +845,12 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QVERIFY(warnings);
     if (clipping) {
         QVERIFY(warnings->count() > 0);
-        QVERIFY(!warnings
-                     ->findItems(AudioExportProgressDialog::tr("Clipping is detected"),
-                                 Qt::MatchContains)
-                     .isEmpty());
+        const auto message =
+            separated ? AudioExportProgressDialog::tr("Clipping is detected in track %L1 \"%2\"")
+                            .arg(2)
+                            .arg(track.name)
+                      : AudioExportProgressDialog::tr("Clipping is detected");
+        QVERIFY(!warnings->findItems(message, Qt::MatchExactly).isEmpty());
         QAbstractButton *toggle = nullptr;
         for (auto *button : progress->findChildren<QAbstractButton *>()) {
             if (button->isCheckable() && button->isVisible())
@@ -842,7 +881,13 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QCOMPARE(accepted.size(), 1);
     QTRY_VERIFY(progress.isNull());
     QVERIFY(!dialog.isVisible());
-    QCOMPARE(runtime.documentVersion(), before);
+    if (separated) {
+        QVERIFY(removed);
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+    } else {
+        QCOMPARE(runtime.documentVersion(), before);
+    }
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBefore);
     QVERIFY(!historyManager->canUndo());
 }

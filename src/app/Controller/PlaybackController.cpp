@@ -19,6 +19,7 @@
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
+    ObjectContext::bind(&d->m_visualPositionTimer);
     d->m_visualPositionTimer.setTimerType(Qt::PreciseTimer);
     connect(&d->m_visualPositionTimer, &QChronoTimer::timeout, this,
             &PlaybackController::requestVisualPositionUpdate);
@@ -119,14 +120,6 @@ void PlaybackController::pause() {
     }
 }
 
-void PlaybackController::applyPause() {
-    Q_D(PlaybackController);
-    d->m_playbackStatus = Paused;
-    d->m_visualPositionTimer.stop();
-    emit playbackStatusChanged(Paused);
-    emit visualPositionChanged(d->m_position);
-}
-
 void PlaybackController::stop() {
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
         runtime->playback().stop({.expected = runtime->documentVersion(),
@@ -134,11 +127,13 @@ void PlaybackController::stop() {
     }
 }
 
-void PlaybackController::applyStop() {
+void PlaybackController::applyPauseOrStop(const PlaybackStatus status) {
     Q_D(PlaybackController);
-    d->m_playbackStatus = Stopped;
+    if (d->m_playbackStatus == Playing)
+        emit playbackAboutToPauseOrStop();
+    d->m_playbackStatus = status;
     d->m_visualPositionTimer.stop();
-    emit playbackStatusChanged(Stopped);
+    emit playbackStatusChanged(status);
     emit visualPositionChanged(d->m_position);
 }
 
@@ -151,7 +146,7 @@ void PlaybackController::resetForDocumentReplacement() {
     // ReturnToStart re-seeks to the last position when the transport pauses, so the
     // anchor is cleared before stopping. The new document then starts at tick 0.
     applyLastPosition(0.0);
-    applyStop();
+    applyPauseOrStop(Stopped);
     applyPosition(0.0);
     d->m_visualPositionTimer.stop();
     d->m_visualPositionClock.invalidate();

@@ -1,12 +1,13 @@
 #include "AudioExportProgressDialog.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 
 #include "Modules/Audio/AudioExporter.h"
-#include "Modules/Audio/AudioExporter_p.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ProgressIndicator.h>
 #include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -23,10 +24,10 @@ namespace Audio::Internal {
 
     AudioExportProgressDialog::AudioExportProgressDialog(AudioExporter *exporter, QWidget *parent)
         : Dialog(parent), m_sourceCount(qMax(1, exporter->config().source().size())) {
-        setWindowTitle(tr("Export Audio"));
+        m_projectName = documentWorkflowController->projectName();
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export Audio")));
         setTitle(tr("Export Audio"));
         setMinimumWidth(420);
-        setWindowModality(Qt::ApplicationModal);
 
         const auto mainLayout = new QVBoxLayout(body());
         mainLayout->setContentsMargins({});
@@ -101,13 +102,13 @@ namespace Audio::Internal {
                     m_progressIndicator->setValue(ratio * 100.0);
                 });
         connect(exporter, &AudioExporter::clippingDetected, this,
-                [this, exporter](const int sourceIndex) {
-                    if (sourceIndex < 0) {
+                [this](int trackIndex, const QString &trackName) {
+                    if (trackIndex < 0) {
                         appendWarning(tr("Clipping is detected"));
                     } else {
                         appendWarning(tr("Clipping is detected in track %L1 \"%2\"")
-                                          .arg(sourceIndex + 1)
-                                          .arg(exporter->d_func()->trackName(sourceIndex)));
+                                          .arg(trackIndex + 1)
+                                          .arg(trackName));
                     }
                 });
         connect(exporter, &AudioExporter::warningAdded, this,
@@ -132,7 +133,7 @@ namespace Audio::Internal {
         } else {
             m_phaseLabel->setText(tr("Export finished"));
         }
-        setWindowTitle(tr("Export finished"));
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export finished")));
         setTitle(tr("Export finished"));
         enterTerminalState(UiState::Succeeded);
     }
@@ -141,7 +142,7 @@ namespace Audio::Internal {
         m_progressIndicator->setTaskStatus(TaskGlobal::Error);
         m_phaseLabel->setText(errorString.isEmpty() ? tr("Export failed")
                                                     : tr("Export failed\n%1").arg(errorString));
-        setWindowTitle(tr("Export failed"));
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export failed")));
         setTitle(tr("Export failed"));
         QApplication::beep();
         enterTerminalState(UiState::Failed);
@@ -186,10 +187,7 @@ namespace Audio::Internal {
     }
 
     void AudioExportProgressDialog::enterTerminalState(const UiState state) {
-        hide();
         m_uiState = state;
-        setWindowModality(Qt::NonModal);
-        setModal(false);
 
         m_cancelButton->setDefault(false);
         m_cancelButton->setEnabled(false);
@@ -204,9 +202,6 @@ namespace Audio::Internal {
             m_closeButton->setDefault(true);
         }
 
-        show();
-        raise();
-        activateWindow();
     }
 
     void AudioExportProgressDialog::requestCancel() {

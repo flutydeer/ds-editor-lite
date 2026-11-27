@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include <lite/GUI/Controls/ComboPopupTouchFilter.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include <lite/Support/LogBus.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -254,6 +255,7 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
         QMenu menu(m_tableView);
         menu.addAction(tr("Copy"), QKeySequence::Copy, this, &LogWindow::copySelectedRows);
         menu.addAction(tr("Copy Message Only"), this, &LogWindow::copySelectedMessages);
+        const WindowDialogs::DialogExecution execution(&menu);
         menu.exec(m_tableView->viewport()->mapToGlobal(pos));
     });
     m_tableView->setColumnWidth(LogWindowModel::TimeColumn, 100);

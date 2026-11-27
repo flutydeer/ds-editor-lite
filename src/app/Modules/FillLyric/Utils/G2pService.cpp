@@ -10,10 +10,7 @@
 #include <synthrt/G2P/LanguageService.h>
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
-#include <lite/Language/G2pConvertRunner.h>
-#include <lite/Language/G2pInputAdapter.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/VersionUtils.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {
@@ -133,14 +130,7 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // B1b-3: Each language calls session().convertG2p once (internally
-        // routed by SingerRef.version, filling g2pId/g2pContext/
-        // g2pContextVersion). On route or conversion failure an Expected
-        // error is returned and all notes in that language keep the original
-        // lyric (ds-session.md §206: G2P failure preserves lyric).
-        auto &session = SynthrtEngine::instance().session();
-        const auto packageId = m_singer.packageId.toStdString();
-        const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);
+        auto &engine = SynthrtEngine::instance();
         for (const auto &[language, entries] : langGroups) {
             std::vector<srt::g2p::G2pInput> inputs;
             inputs.reserve(entries.size());
@@ -150,18 +140,7 @@ namespace FillLyric {
                 inputs.push_back(std::move(input));
             }
 
-            // Ensure the G2P language module is loaded before conversion.
-            // convertG2p does not auto-initialize models; ensureLanguageReady
-            // loads them lazily on first call (cached internally by the session).
-            const auto langStd = toUtf8(language);
-            auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
-            if (!readyExp) {
-                qCWarning(logFillG2p) << "G2P language ready failed for language" << language << ":"
-                                      << fromUtf8(readyExp.error().message());
-                continue; // Keep original lyric for this language
-            }
-
-            auto exp = session.convertG2p(m_singer, langStd, inputs);
+            auto exp = engine.convertG2p(m_singer, language, inputs);
             if (!exp) {
                 qCWarning(logFillG2p) << "Failed to convert G2P for language" << language << ":"
                                       << fromUtf8(exp.error().message());

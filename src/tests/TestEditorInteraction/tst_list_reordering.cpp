@@ -318,7 +318,10 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     int nextTouchId = 0;
     const auto drag = [&](bool cancelGesture) {
         if (!touch) {
-            dragListItem(*list, source, destination, cancelGesture, verifyPreview);
+            dragListItem(*list, source, destination, cancelGesture, [&] {
+                QVERIFY(runtime.documentBusy(before.documentId));
+                verifyPreview();
+            });
             return;
         }
         auto *window = editor.windowHandle();
@@ -353,6 +356,7 @@ void EditorInteractionTests::trackListDragReordersOrCancels() {
     drag(cancel);
     if (QTest::currentTestFailed())
         return;
+    QVERIFY(!runtime.documentBusy(before.documentId));
     auto reordered = original;
     reordered.move(from, to);
     auto expected = cancel ? original : reordered;

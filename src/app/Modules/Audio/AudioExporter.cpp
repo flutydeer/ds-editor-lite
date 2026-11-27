@@ -572,12 +572,6 @@ namespace Audio {
         return static_cast<bool>(result);
     }
 
-    static QList<AudioExporterListener *> m_listeners;
-
-    void AudioExporter::registerListener(AudioExporterListener *listener) {
-        m_listeners.append(listener);
-    }
-
     void AudioExporter::setConfig(const AudioExporterConfig &config) {
         Q_D(AudioExporter);
         d->config = config;
@@ -662,23 +656,43 @@ namespace Audio {
     }
 
     AudioExporter::Result AudioExporter::exec() {
+        QEventLoop loop;
+        std::optional<Result> result;
+        start([&](Result value) {
+            result = value;
+            loop.quit();
+        });
+        if (!result)
+            loop.exec();
+        return *result;
+    }
+
+    void AudioExporter::start(std::function<void(Result)> finished) {
         Q_D(AudioExporter);
         auto *runtime = AppContext::instance<Automation::CoreRuntime>();
         if (!runtime) {
             setErrorString(tr("Audio export runtime is unavailable"));
-            return R_Fail;
+            finished(R_Fail);
+            return;
         }
 
         Automation::AudioExportObserver observer;
-        observer.progress = [this](const double progress, const int sourceIndex) {
-            emit progressChanged(progress, sourceIndex);
+        const QPointer<AudioExporter> self(this);
+        observer.progress = [self](const double progress, const int sourceIndex) {
+            if (self)
+                emit self->progressChanged(progress, sourceIndex);
         };
-        observer.inferenceProgress = [this](const double progress) {
-            emit inferenceProgressChanged(progress);
+        observer.inferenceProgress = [self](const double progress) {
+            if (self)
+                emit self->inferenceProgressChanged(progress);
         };
-        observer.clipping = [this](const int sourceIndex) { emit clippingDetected(sourceIndex); };
-        observer.warning = [this](const QString &message, const int sourceIndex) {
-            emit warningAdded(message, sourceIndex);
+        observer.clipping = [self](int trackIndex, const QString &trackName) {
+            if (self)
+                emit self->clippingDetected(trackIndex, trackName);
+        };
+        observer.warning = [self](const QString &message, const int sourceIndex) {
+            if (self)
+                emit self->warningAdded(message, sourceIndex);
         };
         const Automation::AudioExportPolicyDto policy{
             .allowNoFiles = true,
@@ -693,34 +707,25 @@ namespace Audio {
             Automation::toAutomationDto(config()), policy, std::move(observer), {}, {});
         if (!accepted) {
             setErrorString(accepted.getError().message);
-            return R_Fail;
+            finished(R_Fail);
+            return;
         }
         d->lastTaskId = accepted.get().taskId;
 
-        while (true) {
-            const auto task =
-                runtime->tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
-            if (!task) {
-                setErrorString(task.getError().message);
-                return R_Fail;
-            }
-            switch (task.get().state) {
-                case Automation::AutomationTaskState::Succeeded:
-                    return R_Ok;
-                case Automation::AutomationTaskState::Failed:
-                    setErrorString(task.get().error ? task.get().error->message
-                                                    : tr("Audio export failed"));
-                    return R_Fail;
-                case Automation::AutomationTaskState::Canceled:
-                    return R_Abort;
-                case Automation::AutomationTaskState::Queued:
-                case Automation::AutomationTaskState::Running:
-                case Automation::AutomationTaskState::CancelRequested:
-                case Automation::AutomationTaskState::Committing:
-                    QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
-                    break;
-            }
-        }
+        d->exportDocument = accepted.get().document.documentId;
+        runtime->automationTasks().setTerminalCallback(
+            d->lastTaskId,
+            [self, finished = std::move(finished), context = SingletonRegistry::current()](
+                const Automation::AutomationTaskSnapshot &task) {
+                if (!self)
+                    return;
+                const SingletonRegistry::Scope scope(context);
+                if (task.error)
+                    self->setErrorString(task.error->message);
+                finished(task.state == Automation::AutomationTaskState::Succeeded  ? R_Ok
+                         : task.state == Automation::AutomationTaskState::Canceled ? R_Abort
+                                                                                   : R_Fail);
+            });
     }
 
     AudioExporter::Result AudioExporter::execInternal(const bool deferPublish) {
@@ -778,15 +783,16 @@ namespace Audio {
             exporter.setMuteSoloEnabled(config.isMuteSoloEnabled());
             const auto [fst, snd] = d->calculateRange();
             exporter.setRange(fst, snd);
+            const auto projectTracks = projectContext->tracks();
             QList<talcs::DspxTrackContext *> tracks;
             switch (config.sourceOption()) {
                 case AudioExporterConfig::SO_All:
-                    tracks = projectContext->tracks();
+                    tracks = projectTracks;
                     break;
                 case AudioExporterConfig::SO_Selected:
                 case AudioExporterConfig::SO_Custom:
                     for (const auto index : config.source()) {
-                        tracks.append(projectContext->tracks().at(index));
+                        tracks.append(projectTracks.at(index));
                     }
                     break;
             }
@@ -798,10 +804,8 @@ namespace Audio {
                 }
             }
             QHash<talcs::DspxTrackContext *, int> sourceIndexMap;
-            sourceIndexMap.insert(nullptr, -1);
-            for (int i = 0; i < tracks.size(); i++) {
-                sourceIndexMap.insert(tracks[i], i);
-            }
+            for (int i = 0; i < projectTracks.size(); ++i)
+                sourceIndexMap.insert(projectTracks.at(i), i);
 
             // deal with audio components
             projectContext->transport()->pause();
@@ -826,30 +830,27 @@ namespace Audio {
             }
 
             // call listeners
-            QList<AudioExporterListener *> listenerToCallFinishList;
+            auto *listener = dynamic_cast<AudioExporterListener *>(projectContext);
             auto callFinish = [&](void *) {
-                for (const auto listener : listenerToCallFinishList) {
+                if (listener)
                     listener->willFinishCallback(this);
-                }
             };
             std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
             // Restore the original mixer state before notifying listeners.
             std::unique_ptr<void, decltype(restoreMixer)> _4 = std::move(_2);
-            for (const auto listener : m_listeners) {
-                if (!listener->willStartCallback(this))
-                    return R_Fail;
-                listenerToCallFinishList.prepend(listener);
-            }
+            if (listener && !listener->willStartCallback(this))
+                return R_Fail;
 
             // start exporting
             connect(
                 &exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
                 [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
-                    emit progressChanged(progressRatio, sourceIndexMap.value(track));
+                    emit progressChanged(progressRatio, sourceIndexMap.value(track, -1));
                 });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
-                    [sourceIndexMap, this](talcs::DspxTrackContext *track) {
-                        emit clippingDetected(sourceIndexMap.value(track));
+                    [sourceIndexMap, this, d](talcs::DspxTrackContext *track) {
+                        const int index = sourceIndexMap.value(track, -1);
+                        emit clippingDetected(index, index < 0 ? QString{} : d->trackName(index));
                     });
             const auto ret = exporter.exec();
             if (ret == talcs::DspxProjectAudioExporter::Fail) {
@@ -914,9 +915,7 @@ namespace Audio {
             return;
         if (isFail && !message.isEmpty())
             setErrorString(message);
-        runtime->tasks().cancelTask({.expected = runtime->documentVersion(),
-                                     .source = Automation::InvocationSource::TrustedGui},
-                                    d->lastTaskId);
+        runtime->automationTasks().requestCancel(d->exportDocument, d->lastTaskId);
     }
 
     void AudioExporter::cancelInternal(const bool isFail, const QString &message) {

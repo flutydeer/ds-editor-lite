@@ -2,6 +2,7 @@
 #define CLIPCONTROLLER_P_H
 
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
+#include <QPointer>
 
 class Note;
 class Clip;
@@ -14,7 +15,7 @@ public:
     explicit ClipControllerPrivate(ClipController *q) : q_ptr(q) {
     }
 
-    Clip *m_clip = nullptr;
+    QPointer<Clip> m_clip;
 
     [[nodiscard]] Automation::AutomationResult<NotesParamsInfo> buildNoteParamsInfo() const;
     [[nodiscard]] static QList<Note *> selectedNotesFromId(const QList<int> &notesId,

@@ -72,7 +72,7 @@ PhonemeEditorDialog::PhonemeEditorDialog(const Note *note, QWidget *parent)
 
     body()->setLayout(mainLayout);
 
-    setModal(true);
+    setProjectModal();
 
     connect(okButton(), &AccentButton::clicked, this, [this] {
         if (validatePhonemes())

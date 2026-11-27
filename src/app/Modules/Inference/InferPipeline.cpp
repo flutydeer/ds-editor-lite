@@ -1,4 +1,5 @@
 #include "InferPipeline.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "States/InferDurationState.h"
 #include "States/UpdateDurationState.h"
@@ -22,12 +23,16 @@
 #include <QFinalState>
 
 InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
-    : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested) {
+    : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested),
+      stateMachine(this) {
+    // Queued transitions and task completions must resolve services in this piece's document.
+    ObjectContext::bind(this);
     qDebug() << "InferPipeline created: pieceId =" << m_piece.id();
     initStates();
     initTransitions();
 
-    connect(appOptions, &AppOptions::optionsChanged, this, &InferPipeline::onAppOptionsChanged);
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           &InferPipeline::onAppOptionsChanged);
 }
 
 InferPipeline::~InferPipeline() {

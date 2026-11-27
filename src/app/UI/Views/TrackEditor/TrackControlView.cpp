@@ -109,7 +109,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         cbSinger->setEnabled(false);
         cbSinger->setLoadingText(tr("(Scanning packages...)"));
     }
-    connect(packageManager, &PackageManager::packagesRefreshed, this, [this] {
+    ObjectContext::connect(packageManager, &PackageManager::packagesRefreshed, this, [this] {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
         refreshSingerComboPresentation();
     });
@@ -198,10 +198,12 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
-    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
-        if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
-            refreshSingerComboPresentation();
-    });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::Option::General ||
+                                   option == AppOptionsGlobal::Option::All)
+                                   refreshSingerComboPresentation();
+                           });
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { updateTrackColor(); });
@@ -475,10 +477,8 @@ bool TrackControlView::confirmVoiceLanguageChange(const SingerInfo &targetSinger
                          .arg(impact.clearedPronunciations));
     }
 
-    auto *dialog = new MessageDialog(tr("Change Singer"), lines.join(u'\n'),
-                                     Dialog::globalParent()
-                                         ? Dialog::globalParent()
-                                         : const_cast<TrackControlView *>(this));
+    auto *dialog = new MessageDialog(tr("Change Singer"), lines.join(u'\n'), window());
+    dialog->setProjectModal();
     dialog->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
     dialog->addAccentButton(tr("Continue"), 1, QDialogButtonBox::AcceptRole);
     const auto choice = dialog->exec();
@@ -493,9 +493,8 @@ void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const
         m_track && m_track->singerInfo().identifier() == singerInfo.identifier()
             ? m_track->speakerMixData()
             : SpeakerMixData();
-    SpeakerMixDialog dialog(singerInfo, initialData,
-                            Dialog::globalParent() ? Dialog::globalParent()
-                                                   : const_cast<TrackControlView *>(this));
+    SpeakerMixDialog dialog(singerInfo, initialData, window());
+    dialog.setProjectModal();
     if (dialog.exec() == QDialog::Accepted && m_track) {
         const auto data = dialog.speakerMixData();
         auto *runtime = AppContext::instance<Automation::CoreRuntime>();

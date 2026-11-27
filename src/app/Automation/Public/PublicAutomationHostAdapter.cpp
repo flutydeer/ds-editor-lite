@@ -3,6 +3,7 @@
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
 #include "Controller/DocumentWorkflow/IProjectLoadSession.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 #include "Controller/Tasks/ComputeAudioHashTask.h"
 #include "Controller/Tasks/DecodeAudioTask.h"
 #include "Modules/Import/AudioFilePreparer.h"
@@ -180,16 +181,17 @@ namespace Automation {
 
         class HeadlessProjectLoadTask final : public QObject {
         public:
-            HeadlessProjectLoadTask(
-                CoreRuntime &runtime, QString path, QString mergeMode,
-                const ProjectLoadPurpose purpose, QByteArray encoding, const bool importTempo,
-                const bool importTimeSignature, CommandContext command,
-                PublicProjectInputRevalidator revalidatePlan, QObject *parent)
+            HeadlessProjectLoadTask(CoreRuntime &runtime, QString path, QString mergeMode,
+                                    const ProjectLoadPurpose purpose, QByteArray encoding,
+                                    const bool importTempo, const bool importTimeSignature,
+                                    CommandContext command,
+                                    PublicProjectInputRevalidator revalidatePlan, QObject *parent,
+                                    bool newWindow)
                 : QObject(parent), m_runtime(runtime), m_path(std::move(path)),
                   m_mergeMode(std::move(mergeMode)), m_purpose(purpose),
                   m_encoding(std::move(encoding)), m_importTempo(importTempo),
                   m_importTimeSignature(importTimeSignature), m_command(std::move(command)),
-                  m_revalidatePlan(std::move(revalidatePlan)) {
+                  m_revalidatePlan(std::move(revalidatePlan)), m_newWindow(newWindow) {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
@@ -239,7 +241,9 @@ namespace Automation {
                     return error;
                 }
                 QTimer::singleShot(0, this, [this] { start(); });
-                return TaskAcceptedResult{m_taskId, base.get(), false};
+                return TaskAcceptedResult{
+                    m_taskId,
+                    m_purpose == ProjectLoadPurpose::Open ? DocumentVersion{} : base.get(), false};
             }
 
         private:
@@ -333,9 +337,12 @@ namespace Automation {
                             m_importTimeSignature && append->importTimeSignature);
                     }
                 }
-                if (result)
-                    m_runtime.automationTasks().succeed(m_taskId, result.get());
-                else
+                if (result) {
+                    auto mutation = result.get();
+                    if (m_newWindow)
+                        mutation.previous = {};
+                    m_runtime.automationTasks().succeed(m_taskId, std::move(mutation));
+                } else
                     m_runtime.automationTasks().fail(m_taskId, result.getError());
                 deleteLater();
             }
@@ -358,6 +365,7 @@ namespace Automation {
             bool m_importTimeSignature = true;
             CommandContext m_command;
             PublicProjectInputRevalidator m_revalidatePlan;
+            bool m_newWindow;
             TaskId m_taskId;
             IProjectFormatHandler *m_handler = nullptr;
             QPointer<IProjectLoadSession> m_session;
@@ -368,12 +376,12 @@ namespace Automation {
             startProjectLoad(CoreRuntime &runtime, const QString &path, const QString &mergeMode,
                              const ProjectLoadPurpose purpose, QByteArray encoding,
                              const bool importTempo, const bool importTimeSignature,
-                             CommandContext command,
-                             PublicProjectInputRevalidator revalidatePlan) {
-            auto *state = new HeadlessProjectLoadTask(
-                runtime, path, mergeMode, purpose, std::move(encoding), importTempo,
-                importTimeSignature, std::move(command), std::move(revalidatePlan),
-                QCoreApplication::instance());
+                             CommandContext command, PublicProjectInputRevalidator revalidatePlan,
+                             bool newWindow = false) {
+            auto *state =
+                new HeadlessProjectLoadTask(runtime, path, mergeMode, purpose, std::move(encoding),
+                                            importTempo, importTimeSignature, std::move(command),
+                                            std::move(revalidatePlan), &runtime, newWindow);
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -672,8 +680,8 @@ namespace Automation {
         AutomationResult<TaskAcceptedResult>
             startProjectBatchLoad(CoreRuntime &runtime, AppModel *model,
                                   PublicDocumentBatchImportRequest request) {
-            auto *state = new HeadlessProjectBatchLoadTask(runtime, model, std::move(request),
-                                                           QCoreApplication::instance());
+            auto *state =
+                new HeadlessProjectBatchLoadTask(runtime, model, std::move(request), &runtime);
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1146,12 +1154,12 @@ namespace Automation {
                                                       clips, validationErrors, failurePolicy);
             const auto context = command;
             auto launch = [&runtime, model, command = std::move(command), clips = std::move(clips),
-                           validationErrors = std::move(validationErrors), failurePolicy, operationId,
-                           requestFingerprint]() mutable {
+                           validationErrors = std::move(validationErrors), failurePolicy,
+                           operationId, requestFingerprint]() mutable {
                 auto *state = new HeadlessAudioImportTask(
                     runtime, model, std::move(command), std::move(clips),
                     std::move(validationErrors), failurePolicy, operationId, requestFingerprint,
-                    QCoreApplication::instance());
+                    &runtime);
                 auto result = state->prepare();
                 if (!result || result.get().validatedOnly)
                     state->deleteLater();
@@ -1301,8 +1309,7 @@ namespace Automation {
 
         AutomationResult<TaskAcceptedResult>
             startAudioPathUpdate(CoreRuntime &runtime, const PublicAudioPathUpdateRequest &request) {
-            auto *state = new HeadlessAudioPathUpdateTask(runtime, request,
-                                                         QCoreApplication::instance());
+            auto *state = new HeadlessAudioPathUpdateTask(runtime, request, &runtime);
             auto result = state->prepare();
             if (!result)
                 state->deleteLater();
@@ -1970,8 +1977,7 @@ namespace Automation {
 
         AutomationResult<TaskAcceptedResult> startInference(CoreRuntime &runtime, AppModel *model,
                                                             PublicInferenceStartRequest request) {
-            auto *state = new HeadlessInferenceTask(runtime, model, std::move(request),
-                                                    QCoreApplication::instance());
+            auto *state = new HeadlessInferenceTask(runtime, model, std::move(request), &runtime);
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1983,21 +1989,29 @@ namespace Automation {
                                                                     AppModel *model,
                                                                     SynthrtEngine *synthrtEngine) {
         PublicAutomationHostServices services;
+        services.findOpenPath = [&runtime](const QString &path) -> CoreRuntime * {
+            using namespace DocumentWorkflowPathUtils;
+            const auto saved = runtime.documentPath();
+            return !saved.isEmpty() && projectPathsEqual(normalizedProjectPath(saved),
+                                                         normalizedProjectPath(path))
+                       ? &runtime
+                       : nullptr;
+        };
         services.openDocument = [&runtime](const PublicDocumentOpenRequest &request) {
-            if (request.unsavedPolicy == PublicUnsavedPolicy::Reject) {
+            if (!request.newWindow && !request.discardChanges) {
                 auto state = runtime.history().getState(request.command.expected.documentId);
                 if (!state)
                     return AutomationResult<TaskAcceptedResult>(state.getError());
                 if (!state.get().onSavePoint) {
                     return AutomationResult<TaskAcceptedResult>(AutomationError::invalidArgument(
-                        QStringLiteral("unsaved_policy"),
+                        QStringLiteral("discard_changes"),
                         QStringLiteral("The current document has unsaved changes")));
                 }
             }
             return startProjectLoad(runtime, request.canonicalPath, {}, ProjectLoadPurpose::Open,
                                     request.encoding.toLatin1(), request.importTempo,
                                     request.importTimeSignature, request.command,
-                                    request.revalidatePlan);
+                                    request.revalidatePlan, request.newWindow);
         };
         services.importDocument = [&runtime](const PublicDocumentImportRequest &request) {
             return startProjectLoad(runtime, request.canonicalPath, request.mergeMode,

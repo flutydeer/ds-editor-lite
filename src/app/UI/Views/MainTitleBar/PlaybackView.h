@@ -24,8 +24,7 @@ class PlaybackView final : public QWidget {
     Q_PROPERTY(QColor playAccentColor READ playAccentColor WRITE setPlayAccentColor)
     Q_PROPERTY(QColor pauseAccentColor READ pauseAccentColor WRITE setPauseAccentColor)
 public:
-    explicit PlaybackView(QWidget *parent = nullptr,
-                          TitleBarRole role = TitleBarRole::Primary);
+    explicit PlaybackView(QWidget *parent = nullptr);
 
 signals:
     void setTempoTriggered(int tick, double tempo);

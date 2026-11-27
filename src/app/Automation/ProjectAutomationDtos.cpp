@@ -778,6 +778,17 @@ namespace Automation {
         return true;
     }
 
+    bool validWholeClipCurve(const ParamInfo::Name name, const Param::Type layer,
+                             const CurveDraftDto &curve) {
+        constexpr int end = std::numeric_limits<int>::max();
+        if (layer == Param::Original && curve.type == CurveDraftDto::Type::Draw) {
+            // Inference includes pre-roll and model outputs beyond the editable parameter range.
+            return curve.step > 0 && !curve.values.isEmpty() &&
+                   curve.localStart + static_cast<qint64>(curve.step) * curve.values.size() <= end;
+        }
+        return validCurveDraft(name, curve, 0, end);
+    }
+
     bool hasOverlappingAnchorCurves(const QList<CurveDraftDto> &curves) {
         QList<QPair<int, int>> ranges;
         for (const auto &curve : curves) {
@@ -858,8 +869,7 @@ namespace Automation {
                             QStringLiteral("clip.parameters.curves.values"),
                             QStringLiteral("Draw curve range exceeds the supported timeline"));
                     }
-                    if (!validCurveDraft(parameter.name, curve, 0,
-                                         std::numeric_limits<int>::max())) {
+                    if (!validWholeClipCurve(parameter.name, parameter.type, curve)) {
                         return AutomationError::invalidArgument(
                             QStringLiteral("clip.parameters.curves"),
                             QStringLiteral("Draw curve position or values are invalid"));

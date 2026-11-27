@@ -118,22 +118,31 @@ namespace {
                      ProjectInputTestControl *projectInputControl = nullptr,
                      AudioPathUpdateTestControl *audioPathUpdateControl = nullptr) {
         Automation::PublicAutomationHostServices services;
-        services.documentStatus = [&runtime] {
+        const auto secondDocument = Automation::DocumentId::create();
+        services.documentStatus = [&runtime, secondDocument] {
             const auto document = runtime.documentVersion();
             const QJsonObject entry{
                 {QStringLiteral("document_id"), document.documentId.toString()        },
                 {QStringLiteral("revision"),    static_cast<qint64>(document.revision)},
                 {QStringLiteral("active"),      true                                  },
             };
-            return QJsonArray{entry, entry};
+            return QJsonArray{
+                entry, QJsonObject{{"document_id", secondDocument.toString()},
+                                   {"revision", 0},
+                                   {"active", false}}
+            };
         };
-        services.windowStatus = [&runtime] {
+        services.windowStatus = [&runtime, secondDocument] {
             const QJsonObject entry{
                 {QStringLiteral("window_id"),   QStringLiteral("registry-window")              },
                 {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
                 {QStringLiteral("active"),      true                                           },
             };
-            return QJsonArray{entry, entry};
+            return QJsonArray{
+                entry, QJsonObject{{"window_id", "second-window"},
+                                   {"document_id", secondDocument.toString()},
+                                   {"active", false}}
+            };
         };
         if (projectInputControl) {
             services.openDocument =
@@ -1213,9 +1222,12 @@ namespace {
                                          Automation::AutomationFileGuard &fileGuard,
                                          const QString &directoryPath,
                                          MidiExportTestControl &control) {
-        const auto document = runtime.documentVersion();
-        for (const auto &outcome : {QStringLiteral("succeeded"), QStringLiteral("canceled"),
-                                    QStringLiteral("revoked"), QStringLiteral("discarded")}) {
+        for (const auto &outcome :
+             {QStringLiteral("succeeded"), QStringLiteral("canceled"), QStringLiteral("revoked"),
+              QStringLiteral("closed"), QStringLiteral("replaced")}) {
+            const auto document = runtime.documentVersion();
+            const bool close = outcome == QStringLiteral("closed");
+            const bool retire = close || outcome == QStringLiteral("replaced");
             const auto path =
                 QDir(directoryPath).absoluteFilePath(outcome + QStringLiteral(".mid"));
             bool released = false;
@@ -1251,8 +1263,16 @@ namespace {
                 QCOMPARE(canceled.get().state, Automation::AutomationTaskState::CancelRequested);
             } else if (outcome == QStringLiteral("revoked")) {
                 QVERIFY(fileGuard.setConfiguredRoots({}));
-            } else if (outcome == QStringLiteral("discarded")) {
-                runtime.automationTasks().discardDocumentGeneration(document.documentId);
+            } else if (retire) {
+                const auto retired = registry.invoke(
+                    close ? "documents.close" : "documents.new",
+                    {
+                        {close ? "document_id" : "current_document_id",
+                         document.documentId.toString()                                                       },
+                        {"expected_revision",                           static_cast<qint64>(document.revision)},
+                        {"discard_changes",                             true                                  }
+                });
+                QVERIFY2(retired, qPrintable(retired ? QString{} : retired.getError().message));
             }
             unblock();
             QVERIFY2(waitUntil([&] {
@@ -1263,11 +1283,12 @@ namespace {
                                     .isEmpty();
                      }),
                      qPrintable(outcome));
-            QCOMPARE(runtime.documentVersion(), document);
-            if (outcome == QStringLiteral("discarded")) {
+            if (retire) {
+                QVERIFY(runtime.documentVersion().documentId != document.documentId);
                 QVERIFY(!QFileInfo::exists(path));
                 continue;
             }
+            QCOMPARE(runtime.documentVersion(), document);
             const auto result = runtime.automationTasks().get(document.documentId, taskId);
             QVERIFY(result);
             if (outcome == QStringLiteral("succeeded")) {
@@ -1314,14 +1335,13 @@ namespace {
                 {
                     {QStringLiteral("current_document_id"), current.documentId.toString()        },
                     {QStringLiteral("expected_revision"),   static_cast<qint64>(current.revision)},
-                    {QStringLiteral("template"),            QStringLiteral("empty")              },
-                    {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")             }
+                    {QStringLiteral("template"),            QStringLiteral("empty")              }
             });
         };
         const auto replace = newDocument();
         QVERIFY(!replace);
         QCOMPARE(replace.getError().code, Automation::AutomationErrorCode::Busy);
-        QCOMPARE(replace.getError().fieldPath, QStringLiteral("unsaved_policy"));
+        QCOMPARE(replace.getError().fieldPath, QStringLiteral("discard_changes"));
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
         QCOMPARE(fixture.history()->nextUndoEntry(), beforeUndo);
@@ -1405,7 +1425,8 @@ namespace {
 
     void verifyProjectInputGuards(Automation::PublicAutomationRegistry &registry,
                                   Automation::AutomationFileGuard &fileGuard,
-                                  const QString &directoryPath, ProjectInputTestControl &control) {
+                                  const QString &directoryPath, ProjectInputTestControl &control,
+                                  const Automation::DocumentId &target) {
         const auto projectPath =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("delayed-open.dspx"));
         QFile project(projectPath);
@@ -1417,8 +1438,9 @@ namespace {
         const auto opened =
             registry.invoke(QStringLiteral("documents.open"),
                             QJsonObject{
-                                {QStringLiteral("path"),           projectPath             },
-                                {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+                                {QStringLiteral("path"),                projectPath      },
+                                {QStringLiteral("current_document_id"), target.toString()},
+                                {QStringLiteral("discard_changes"),     false            },
         },
                             {.clientId = QStringLiteral("project-input"),
                              .source = Automation::InvocationSource::PublicJsonRpc});
@@ -1471,10 +1493,11 @@ namespace {
             const auto plannedOpen =
                 registry.invoke(QStringLiteral("documents.open"),
                                 QJsonObject{
-                                    {QStringLiteral("path"),           plannedPath             },
+                                    {QStringLiteral("path"),                plannedPath      },
+                                    {QStringLiteral("current_document_id"), target.toString()},
                                     {QStringLiteral("plan_digest"),
-                                     plan.get().value(QStringLiteral("plan_digest"))           },
-                                    {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+                                     plan.get().value(QStringLiteral("plan_digest"))         },
+                                    {QStringLiteral("discard_changes"),     false            },
             });
             expect(!plannedOpen && bool(control.revalidateOpen),
                    QStringLiteral("planned open must retain its input snapshot revalidator"));
@@ -2624,8 +2647,10 @@ namespace {
         const auto sourceError = native.dispatch(
             nativeRequest(QStringLiteral("source"), QStringLiteral("documents.open"),
                           QJsonObject{
-                              {QStringLiteral("path"),           openPath                },
-                              {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+                              {QStringLiteral("current_document_id"),
+                               runtime.documentVersion().documentId.toString()},
+                              {QStringLiteral("path"),                openPath},
+                              {QStringLiteral("discard_changes"),     false   },
         }),
             QStringLiteral("native-source"));
         expect(openFileCreated && nativeErrorCode(sourceError) == -32000 &&
@@ -3258,7 +3283,8 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("projectInputGuards")) {
-        verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
+        verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl,
+                                 runtime.documentVersion().documentId);
         return;
     }
     if (scenario == QStringLiteral("midiPublicationGate")) {
@@ -3348,9 +3374,21 @@ void AutomationProtocolTests::routing() {
 
         const auto status = registry.invoke(QStringLiteral("application.get_status"), {},
                                             {.clientId = QStringLiteral("status")});
-        expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
-                   status.get().value(QStringLiteral("windows")).toArray().size() == 1,
-               QStringLiteral("single-document host status must truncate documents and windows"));
+        expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 2 &&
+                   status.get().value(QStringLiteral("windows")).toArray().size() == 2,
+               QStringLiteral("status must enumerate all supplied documents and windows"));
+        const auto *contract =
+            AutomationWire::findPublicTool(QStringLiteral("application.get_status"));
+        QVERIFY(contract && status);
+        QVERIFY(AutomationWire::validateJsonValue(status.get(), contract->outputSchema).valid());
+        auto oldSchema = contract->outputSchema;
+        auto properties = oldSchema.value("properties").toObject();
+        auto documents = properties.value("documents").toObject();
+        documents.insert("maxItems", 1);
+        properties.insert("documents", documents);
+        oldSchema.insert("properties", properties);
+        QVERIFY(!AutomationWire::validateJsonValue(status.get(), oldSchema).valid());
+        QVERIFY(contract->minimumToolsetVersion > 1);
 
         const auto strictInput = registry.invoke(QStringLiteral("application.get_file_access"),
                                                  QJsonObject{
@@ -3606,7 +3644,10 @@ void AutomationProtocolTests::rejectedInputs_data() {
         << QJsonObject{{"track_id", 1}, {"name", "After"}, {"validate_only", true}} << true;
     QTest::newRow("replacement-idempotency-is-unsupported")
         << QStringLiteral("documents.new")
-        << QJsonObject{{"unsaved_policy", "discard"}, {"idempotency_key", "unsupported"}} << false;
+        << QJsonObject{{"discard_changes", true}, {"idempotency_key", "unsupported"}} << false;
+    QTest::newRow("replacement-rejects-string-boolean")
+        << QStringLiteral("documents.new")
+        << QJsonObject{{"discard_changes", "true"}} << false;
     QTest::newRow("exit-rejects-string-boolean")
         << QStringLiteral("application.request_exit")
         << QJsonObject{{"discard_changes", "true"}} << false;

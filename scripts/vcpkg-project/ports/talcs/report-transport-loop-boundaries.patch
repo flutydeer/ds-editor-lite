@@ -1,0 +1,43 @@
+diff --git a/src/core/source/TransportAudioSource.h b/src/core/source/TransportAudioSource.h
+--- a/src/core/source/TransportAudioSource.h
++++ b/src/core/source/TransportAudioSource.h
+@@ -75,4 +75,6 @@
+     signals:
+         void positionAboutToChange(qint64 nextPosition);
++        // A wrap reports the exclusive loop end as well as the new position.
++        void positionReported(qint64 nextPosition, qint64 wrappedFrom);
+         void playbackStatusChanged(PlaybackStatus playbackStatus);
+         void bufferingCounterChanged(int counter);
+diff --git a/src/core/source/TransportAudioSource_p.h b/src/core/source/TransportAudioSource_p.h
+--- a/src/core/source/TransportAudioSource_p.h
++++ b/src/core/source/TransportAudioSource_p.h
+@@ -39,5 +39,5 @@
+         QMutex mutex;
+         QAtomicInt bufferingCounter = 0;
+-
++
+-        void _q_positionAboutToChange(qint64 pos);
++        void _q_positionAboutToChange(qint64 pos, qint64 wrappedFrom = -1);
+     };
+diff --git a/src/core/source/TransportAudioSource.cpp b/src/core/source/TransportAudioSource.cpp
+--- a/src/core/source/TransportAudioSource.cpp
++++ b/src/core/source/TransportAudioSource.cpp
+@@ -99,7 +99,7 @@
+                 lengthToRead -= d->loopingEnd - srcPos;
+                 d->src->setNextReadPosition(d->loopingStart);
+                 d->position = d->loopingStart;
+-                d->_q_positionAboutToChange(d->loopingStart);
++                d->_q_positionAboutToChange(d->loopingStart, d->loopingEnd);
+                 srcPos = d->loopingStart;
+             }
+             safeRead(readData.buffer, curBufPos, lengthToRead, d->src);
+@@ -309,6 +309,7 @@
+     }
+-
++
+-    void TransportAudioSourcePrivate::_q_positionAboutToChange(qint64 pos) {
++    void TransportAudioSourcePrivate::_q_positionAboutToChange(qint64 pos, qint64 wrappedFrom) {
+         Q_Q(TransportAudioSource);
+         emit q->positionAboutToChange(pos);
++        emit q->positionReported(pos, wrappedFrom);
+     }

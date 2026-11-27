@@ -2,6 +2,7 @@
 
 #include "EditorTouchTarget.h"
 #include "EditorViewportController.h"
+#include <lite/Support/ObjectContext.h>
 
 #include <QInputDevice>
 #include <QNativeGestureEvent>
@@ -100,17 +101,20 @@ EditorWheelController::EditorWheelController(EditorViewportController *viewport,
                                .step = 0.3,
                            });
 
-    m_clock.start();
-    m_glideTimer.setInterval(glideIntervalMs);
-    QObject::connect(&m_glideTimer, &QTimer::timeout, [this] { onGlideFrame(); });
+    initializeGlide();
 }
 
 EditorWheelController::EditorWheelController(EditorTouchTarget *touchTarget,
                                              WheelInputController &viewInput, QWidget *widget)
     : m_viewport(nullptr), m_touchTarget(touchTarget), m_widget(widget), m_input(&viewInput) {
+    initializeGlide();
+}
+
+void EditorWheelController::initializeGlide() {
     m_clock.start();
     m_glideTimer.setInterval(glideIntervalMs);
-    QObject::connect(&m_glideTimer, &QTimer::timeout, [this] { onGlideFrame(); });
+    ObjectContext::connect(&m_glideTimer, &QTimer::timeout, &m_glideTimer,
+                           [this] { onGlideFrame(); });
 }
 
 bool EditorWheelController::handleWheel(QWheelEvent *event) {

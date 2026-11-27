@@ -10,6 +10,7 @@
 
 #include <QApplication>
 #include <QMessageBox>
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QPointer>
@@ -47,6 +48,7 @@
 #include "Global/AppGlobal.h"
 #include "AppContext.h"
 #include "UI/Controls/LevelMeterManager.h"
+#include <QScopedValueRollback>
 
 #define DEVICE_LOCKER                                                                              \
     DeviceLocker locker(AudioSystem::outputSystem()->context()->device())
@@ -60,17 +62,18 @@ public:
     ~AudioFormatIOObject() override = default;
 };
 
-static AudioContext *m_instance = nullptr;
+double AudioContext::timeConversionSampleRate() const {
+    if (m_pendingOutputSampleRate > 0)
+        return m_pendingOutputSampleRate;
+    return preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+}
 
-static AudioExporter *m_exporter = nullptr;
-
-static qint64 tickToSample(const double tick) {
-    const auto sr =
-        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
+qint64 AudioContext::tickToSample(const double tick) const {
+    const auto sr = timeConversionSampleRate();
     // Piecewise mapping over the tempo map: anchor on the governing tempo
     // point and extrapolate linearly inside the segment. With a single tempo
     // point this reduces exactly to the old constant-tempo formula.
-    const auto &timeline = appModel->timeline();
+    const auto &timeline = m_model->timeline();
     const int refTick =
         timeline.nearestTickWithTempoTo(static_cast<int>(std::floor(qMax(0.0, tick))));
     const auto tempo = timeline.tempoAt(refTick);
@@ -79,18 +82,20 @@ static qint64 tickToSample(const double tick) {
                                                 AppGlobal::ticksPerQuarterNote);
 }
 
-static double sampleToTick(const qint64 sample) {
-    const auto sr =
-        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return appModel->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
+double AudioContext::sampleToTick(const qint64 sample) const {
+    const auto sr = timeConversionSampleRate();
+    return m_model->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
 }
 
-AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
-    m_instance = this;
+AudioContext::AudioContext(QObject *parent, bool attachToOutput)
+    : DspxProjectContext(parent), m_model(appModel), m_attachedToOutput(attachToOutput) {
+    SingletonRegistry::add(this);
+    ObjectContext::bind(this);
 
-    AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
+    if (m_attachedToOutput)
+        AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
 
-    setTimeConverter(&tickToSample);
+    setTimeConverter([this](int tick) { return tickToSample(tick); });
 
     const auto formatManager = new talcs::FormatManager(this);
     formatManager->addEntry(new talcs::StandardFormatEntry);
@@ -100,14 +105,17 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     setBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
 
-    connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
-            [this](const qint64 positionSample) {
+    connect(transport(), &talcs::TransportAudioSource::positionReported, this,
+            [this](const qint64 positionSample, const qint64 wrappedFrom) {
                 if (m_suppressTransportPositionReports) {
                     // Seek echoes keep arriving while playback stays stopped, so the
                     // episode is reported once, as a count, when the engine is resynced
                     ++m_droppedTransportReportCount;
                     return;
                 }
+                if (wrappedFrom >= 0)
+                    m_completedLoopTicks +=
+                        qRound64(sampleToTick(wrappedFrom)) - qRound64(sampleToTick(positionSample));
                 m_transportPositionFlag = false;
                 // While the hold pins the engine at the start, clamp the over-the-block
                 // position report (emitted before the hold engaged) back to the start
@@ -203,26 +211,54 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         handleMasterControlChanged(control);
     });
 
+    const auto services = SingletonRegistry::current();
+    connect(AudioSystem::outputSystem(), &OutputSystem::deviceSwitchStarting, this,
+            [this, services] {
+                const SingletonRegistry::Scope scope(services);
+                m_switchingDevice = true;
+                if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+                    m_resumePosition = playbackController->position();
+                    playbackController->pause();
+                }
+            });
+    connect(AudioSystem::outputSystem(), &OutputSystem::deviceSwitchFinished, this,
+            [this, services](bool ok) {
+                const SingletonRegistry::Scope scope(services);
+                m_switchingDevice = false;
+                if (m_resumePosition && ok) {
+                    playbackController->setPosition(*m_resumePosition);
+                    playbackController->play();
+                }
+                m_resumePosition.reset();
+            });
+    const auto stopOnExternalChange = [this, services] {
+        const SingletonRegistry::Scope scope(services);
+        if (!m_switchingDevice)
+            playbackController->stop();
+    };
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::bufferSizeChanged, this,
-            [this] { playbackController->stop(); });
+            &talcs::AbstractOutputContext::bufferSizeChanged, this, stopOnExternalChange);
 
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
+            &talcs::AbstractOutputContext::sampleRateChanged, this,
+            [this, services, stopOnExternalChange](double sampleRate) {
+                if (!m_attachedToOutput)
+                    return;
+                const SingletonRegistry::Scope scope(services);
                 DEVICE_LOCKER;
+                // The output announces the new rate before reopening its mixer.
+                const QScopedValueRollback changingRate(m_pendingOutputSampleRate, sampleRate);
                 handleTimeChanged();
                 // The loop sample range depends on the sample rate
                 updateLoopingRange();
-                playbackController->stop();
+                stopOnExternalChange();
             });
 
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
-            this, [this] { playbackController->stop(); });
+            this, stopOnExternalChange);
 
     connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged,
             this, &AudioContext::setBufferingReadAheadSize);
-
-    connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
 
     // Connect loop settings changes to transport
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this](const LoopSettings &settings) {
@@ -256,17 +292,17 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(m_levelMeterTimer, &QTimer::timeout, this, &AudioContext::tickLevelMeters);
 
     new PseudoSingerConfigNotifier(this);
-
-    AudioExporter::registerListener(this);
 }
 
 AudioContext::~AudioContext() {
     playbackController->setPlaybackStartGuard({});
-    m_instance = nullptr;
+    if (m_attachedToOutput)
+        AudioSystem::outputSystem()->context()->preMixer()->removeSource(preMixer());
+    SingletonRegistry::remove<AudioContext>();
 }
 
 AudioContext *AudioContext::instance() {
-    return m_instance;
+    return SingletonRegistry::instance<AudioContext>();
 }
 
 AudioContext::ExportInferenceStatus AudioContext::exportInferenceStatus() const {
@@ -347,8 +383,8 @@ void AudioContext::handleMasterGainSliderMoved(const double gain) const {
 }
 
 void AudioContext::handleInferPieceFailed() {
-    if (m_exporter)
-        m_exporter->cancel(true, tr("Inference failed"));
+    if (auto *context = instance(); context && context->m_exporter)
+        context->m_exporter->cancel(true, tr("Inference failed"));
 }
 
 void AudioContext::resetDocumentScopedState() {
@@ -358,6 +394,7 @@ void AudioContext::resetDocumentScopedState() {
     // deliver stale ones. Dropping them keeps the playhead on tick 0 until playback
     // starts again.
     m_suppressTransportPositionReports = true;
+    m_completedLoopTicks = 0;
     m_droppedTransportReportCount = 0;
     transport()->pause();
     transport()->setPosition(0);
@@ -428,10 +465,12 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const bool interactive = runtime && runtime->dispatcher().currentInvocationSource() ==
                                            Automation::InvocationSource::TrustedGui;
-    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance()))
-        QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
-    else
+    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance())) {
+        QMessageBox error(QMessageBox::Critical, {}, tr("Cannot open audio device!"), QMessageBox::Ok);
+        WindowDialogs::exec(error);
+    } else {
         qWarning("Cannot open audio device");
+    }
     return false;
 }
 
@@ -741,6 +780,8 @@ void AudioContext::handleTimeChanged() const {
     // instead of just re-converting the stale ticks stored inside talcs
     for (auto it = m_audioClipModelDict.constBegin(); it != m_audioClipModelDict.constEnd(); ++it)
         feedCompensatedPosition(it.key(), it.value());
+    for (const auto *track : m_trackInferDict)
+        track->updateTimeRanges();
 }
 
 void AudioContext::updateLoopingRange() const {
@@ -762,7 +803,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
     m_exporter = exporter;
     playbackController->stop();
     setBufferingReadAheadSize(0);
-    emit exporterCausedTimeChanged();
+    handleTimeChanged();
     for (const auto trackInferenceHandler : m_trackInferDict.values()) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Export);
     }
@@ -774,7 +815,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
 
 void AudioContext::willFinishCallback(AudioExporter *exporter) {
     setBufferingReadAheadSize(AudioSystem::outputSystem()->fileBufferingReadAheadSize());
-    emit exporterCausedTimeChanged();
+    handleTimeChanged();
     for (const auto trackInferenceHandler : m_trackInferDict.values()) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Default);
     }

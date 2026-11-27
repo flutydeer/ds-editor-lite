@@ -115,8 +115,13 @@ void WindowPlacement::ensureVisible() {
     if (!geometry.isValid())
         return;
 
+    const bool expanded = m_window.isMaximized() || m_window.isFullScreen();
     for (auto *screen : QApplication::screens()) {
-        if (availableGeometry(screen).contains(geometry))
+        // An expanded window is positioned by the window manager. Its restore rectangle can
+        // exceed the available area when the screen is smaller than its minimum size.
+        if (availableGeometry(screen).contains(geometry) ||
+            (expanded && m_window.isVisible() &&
+             screen->geometry().intersects(m_window.frameGeometry())))
             return;
     }
 

@@ -54,6 +54,7 @@ namespace Audio::Internal {
         Button *m_closeButton;
         Button *m_cancelButton;
         QStringList m_exportedFiles;
+        QString m_projectName;
         QHash<int, double> m_sourceProgress;
         int m_sourceCount;
         bool m_isProgressing = false;

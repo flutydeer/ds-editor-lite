@@ -9,7 +9,8 @@
 
 #include <QVBoxLayout>
 
-ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips) {
+ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips, QWidget *parent)
+    : OKCancelDialog(parent) {
     setWindowTitle(tr("Extract Pitch Parameter"));
     setTitle(tr("Select an audio clip"));
     setMinimumWidth(480);

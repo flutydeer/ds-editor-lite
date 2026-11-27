@@ -1,0 +1,98 @@
+#pragma once
+
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+
+#include <QPointer>
+#include <QStringList>
+#include <list>
+#include <memory>
+
+class AppContext;
+class MainWindow;
+class MainMenuView;
+class WindowPlacement;
+class DocumentMidiInput;
+
+namespace Automation {
+    struct PublicAutomationHostServices;
+}
+
+class DocumentWindowManager final : public QObject {
+    Q_OBJECT
+public:
+    enum class LastWindowBehavior { Quit, KeepRunning };
+#ifdef Q_OS_MACOS
+    static constexpr auto platformLastWindowBehavior = LastWindowBehavior::KeepRunning;
+#else
+    static constexpr auto platformLastWindowBehavior = LastWindowBehavior::Quit;
+#endif
+    explicit DocumentWindowManager(AppContext &process,
+                                   LastWindowBehavior behavior = platformLastWindowBehavior);
+    ~DocumentWindowManager() override;
+    static DocumentWindowManager *instance();
+
+    struct Document {
+        AppContext *context;
+        std::unique_ptr<AppContext> ownedContext;
+        std::unique_ptr<MainWindow> window;
+        std::unique_ptr<WindowPlacement> placement;
+        QString openingPath;
+        Automation::TaskId openingTask;
+        QString recoveryKey;
+        bool closing = false;
+        ~Document();
+    };
+
+    Document &createWindow();
+
+    const auto &documents() const {
+        return m_documents;
+    }
+
+    Document *find(const Automation::DocumentId &id) const;
+    Document *find(const AppContext *context) const;
+    Document *findPath(const QString &path) const;
+    Document *active() const;
+    void activateApplication();
+    void activate(Document &document) const;
+    void open(const QStringList &paths, Document *firstTarget = nullptr);
+    enum class CloseTarget { Project, MainWindow };
+    bool close(Document &document, TerminationSavePolicy policy,
+               CloseTarget target = CloseTarget::Project);
+    TerminationRequestResult terminate(TerminationMode mode, TerminationSavePolicy policy);
+
+    bool terminating() const {
+        return m_terminating;
+    }
+    bool keepsRunningWithoutWindows() const {
+        return m_lastWindowBehavior == LastWindowBehavior::KeepRunning;
+    }
+
+    void configureAutomation(Automation::PublicAutomationHostServices &services);
+    void offerRecovery();
+
+    DocumentMidiInput &midiInput() {
+        return *m_midiInput;
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+    bool isLastProject(const Document &document) const;
+    bool confirmClose(Document &document, TerminationSavePolicy policy,
+                      const QString &progress = {});
+    void retire(Document &document);
+    void releaseRetired(Document *document);
+    void updateRecovery(Document &document);
+    void saveWindowGeometry(const QByteArray &main, const QByteArray &detached);
+    AppContext &m_process;
+    const LastWindowBehavior m_lastWindowBehavior;
+    std::unique_ptr<DocumentMidiInput> m_midiInput;
+    std::unique_ptr<MainMenuView> m_applicationMenu;
+    std::list<std::unique_ptr<Document>> m_documents;
+    Document *m_active = nullptr;
+    bool m_terminating = false;
+    bool m_windowless = false;
+    int m_nextWindowNumber = 1;
+};

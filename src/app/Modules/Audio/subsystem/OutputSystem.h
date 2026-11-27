@@ -25,6 +25,10 @@ public:
     bool setAdoptedSampleRate(double sampleRate) const;
     void setHotPlugNotificationMode(talcs::OutputContext::HotPlugNotificationMode mode) const;
 
+signals:
+    void deviceSwitchStarting() const;
+    void deviceSwitchFinished(bool succeeded) const;
+
 private:
     void postSetDevice() const;
 

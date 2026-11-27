@@ -226,7 +226,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision_data() {
     QTest::newRow("cancel-save-path-preserves-project") << QStringLiteral("cancel-path");
     QTest::newRow("save-before-new") << QStringLiteral("save");
     QTest::newRow("save-existing-file-before-new") << QStringLiteral("save-existing");
-    QTest::newRow("failed-save-can-be-canceled") << QStringLiteral("failed-save");
+    QTest::newRow("failed-save-stops-replacement") << QStringLiteral("failed-save");
 }
 
 void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
@@ -273,7 +273,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     QCOMPARE(busy.count(), 2);
     QCOMPARE(busy.first().first().toBool(), true);
     QCOMPARE(busy.last().first().toBool(), false);
-    QCOMPARE(prompt.decisionCalls, choice == QStringLiteral("failed-save") ? 2 : 1);
+    QCOMPARE(prompt.decisionCalls, 1);
     QCOMPARE(prompt.pathCalls, choice == QStringLiteral("save") ||
                                        choice == QStringLiteral("cancel-path") ||
                                        choice == QStringLiteral("failed-save")

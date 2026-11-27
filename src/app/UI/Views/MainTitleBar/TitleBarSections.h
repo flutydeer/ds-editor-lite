@@ -1,7 +1,7 @@
 #ifndef TITLEBARSECTIONS_H
 #define TITLEBARSECTIONS_H
 
-#include <QtGlobal>
+#include <Qt>
 
 enum class ChromePlatform { Windows, MacOS, Other };
 
@@ -11,12 +11,16 @@ enum class ChromePlatform { Windows, MacOS, Other };
 // leading sections. A reduced title bar is therefore a configuration change,
 // not a second implementation of the chrome.
 struct TitleBarSections {
+    static constexpr auto titleAlignment = Qt::AlignLeft | Qt::AlignVCenter;
+    static constexpr int titleTextInset = 12;
+
     // Reserves the application icon / drag slot at the left edge of a
     // frameless window. Native frames already provide that area.
     bool appIconInset = false;
     bool mainMenu = true;
     bool trafficLightArea = false;
     bool projectSelector = false;
+    bool windowCaption = false;
     bool documentActions = false;
     bool playback = true;
     bool systemButtons = false;
@@ -46,21 +50,16 @@ struct TitleBarSections {
                 .leftMargin = trafficLightArea ? 0 : 6};
     }
 
-    // The detached panel keeps the menu, the transport and the window chrome,
-    // but has no document identity or document actions of its own.
+    // Native frames already show the owning project's title above the panel.
     [[nodiscard]] static TitleBarSections
         forDetachedPanel(const bool useNativeFrame,
                          const ChromePlatform platform = currentPlatform()) {
         auto sections = forMainWindow(useNativeFrame, platform);
         sections.projectSelector = false;
+        sections.windowCaption = !useNativeFrame;
         sections.documentActions = false;
         return sections;
     }
 };
-
-// Menu and transport controls are duplicated per window, but the application
-// level key sequences must have exactly one owner. The secondary window still
-// shows the same controls and receives the same controller updates.
-enum class TitleBarRole { Primary, Secondary };
 
 #endif // TITLEBARSECTIONS_H

@@ -40,7 +40,9 @@
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Window/DetachedPanelWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
@@ -84,6 +86,7 @@
 #include <QMouseEvent>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QScopedValueRollback>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QTemporaryDir>
@@ -194,15 +197,16 @@ namespace {
         QVERIFY2(converter.save(path, &source, error), qPrintable(error));
     }
 
-    void dropFiles(MainWindow &window, const QList<QUrl> &urls) {
+    void dropFiles(QWidget &receiver, const QList<QUrl> &urls) {
         QMimeData mime;
         mime.setUrls(urls);
         const QPoint position(20, 20);
         QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&window, &enter);
+        QApplication::sendEvent(&receiver, &enter);
         QVERIFY(enter.isAccepted());
         QDropEvent drop(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-        QApplication::sendEvent(&window, &drop);
+        QApplication::sendEvent(&receiver, &drop);
+        QVERIFY(drop.isAccepted());
     }
 
     void clickPanelButton(BottomPanelView &panel, const char *name) {
@@ -1843,12 +1847,12 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
         QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy(), 10000);
     };
     const auto initial = runtime.documentVersion();
-    chooseFile("&Open...", sourcePath, false, false);
+    chooseFile("&Open", sourcePath, false, false);
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(runtime.documentVersion(), initial);
     QVERIFY(documentWorkflowController->projectPath().isEmpty());
-    chooseFile("&Open...", sourcePath, false, true);
+    chooseFile("&Open", sourcePath, false, true);
     if (QTest::currentTestFailed())
         return;
     QTRY_COMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
@@ -1865,7 +1869,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
                                           QStringLiteral("Saved from the menu")));
     const auto *edit = historyManager->nextUndoEntry();
     QVERIFY(edit);
-    chooseFile("Save &as...", savedPath, true, false);
+    chooseFile("Save &as", savedPath, true, false);
     if (QTest::currentTestFailed())
         return;
     QVERIFY(!QFileInfo::exists(savedPath));
@@ -1873,7 +1877,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
              QFileInfo(sourcePath).canonicalFilePath());
     QCOMPARE(historyManager->nextUndoEntry(), edit);
     QVERIFY(!historyManager->isOnSavePoint());
-    chooseFile("Save &as...", savedPath, true, true);
+    chooseFile("Save &as", savedPath, true, true);
     if (QTest::currentTestFailed())
         return;
     QTRY_VERIFY(QFileInfo(savedPath).isFile());
@@ -2107,16 +2111,35 @@ void ApplicationGuiTests::clipDoubleClickRestoresAndActivatesTheDetachedEditor()
 }
 
 void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
+    using AppOptionsGlobal::ProjectWindowMode;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto path = directory.filePath(QStringLiteral("拖入工程.dspx"));
     createDroppedProject(path);
     if (QTest::currentTestFailed())
         return;
-    MainWindowFixture host;
-    host.show();
-    if (QTest::currentTestFailed())
-        return;
+    const auto additional = directory.filePath(QStringLiteral("additional.dspx"));
+    QVERIFY(QFile::copy(path, additional));
+    const QScopedValueRollback preference(appOptions->general()->projectWindowMode);
+    using Backend = DeveloperOption::EditorRenderBackend;
+    const QScopedValueRollback backend(appOptions->developer()->editorRenderBackend,
+                                       QGuiApplication::platformName() == QStringLiteral("offscreen")
+                                           ? Backend::Legacy : Backend::RhiExperimental);
+    DocumentWindowManager windows(*context);
+    auto &host = windows.createWindow();
+    auto &other = windows.createWindow();
+    const auto otherPath = directory.filePath(QStringLiteral("other.dspx"));
+    auto &otherRuntime = *other.context->m_coreRuntime;
+    {
+        const SingletonRegistry::Scope scope(other.context->services());
+        QVERIFY(otherRuntime.documents().saveDocument({.expected = otherRuntime.documentVersion()},
+                                                     otherPath));
+    }
+    const auto otherVersion = otherRuntime.documentVersion();
+    QVERIFY(QMetaObject::invokeMethod(host.window.get(), "detachBottomPanel"));
+    auto *detached = host.window->detachedPanelWindow();
+    QVERIFY(detached);
+    QVERIFY(host.window->setEditorPanelVisibility(true, true));
     auto &runtime = *context->m_coreRuntime;
     Automation::TrackDraftDto unsaved;
     unsaved.name = QStringLiteral("Unsaved track");
@@ -2125,6 +2148,18 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
     const auto before = runtime.documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
     for (bool discard : {false, true}) {
+        QWidget *receiver = detached;
+        if (discard) {
+            if (auto *rhi = host.window->findChild<TracksRhiWidget *>(); rhi && rhi->isVisible()) {
+                receiver = rhi;
+            } else {
+                auto *tracks = host.window->findChild<TracksGraphicsView *>();
+                QVERIFY(tracks);
+                receiver = tracks->viewport();
+            }
+        }
+        const auto mode = discard ? ProjectWindowMode::NewWindow : ProjectWindowMode::Ask;
+        appOptions->general()->projectWindowMode = mode;
         bool answered = false;
         QTimer answer;
         answer.setInterval(10);
@@ -2137,6 +2172,8 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
                 if (dialog && !answered)
                     dialog->reject();
             });
+            QVERIFY(!qobject_cast<MessageDialog *>(dialog.data()));
+            QCOMPARE(dialog->parentWidget(), receiver->window());
             const auto text = discard ? MainWindow::tr("Don't save") : MainWindow::tr("Cancel");
             Button *choice = nullptr;
             for (auto *button : dialog->findChildren<Button *>()) {
@@ -2148,12 +2185,21 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
             answered = true;
         });
         answer.start();
-        dropFiles(*host.window, {QUrl::fromLocalFile(path)});
+        QList<QUrl> urls{QUrl::fromLocalFile(path)};
+        if (discard) {
+            urls.prepend(QUrl::fromLocalFile(otherPath));
+            urls.append(QUrl::fromLocalFile(additional));
+            urls.append(QUrl::fromLocalFile(path));
+        }
+        dropFiles(*receiver, urls);
         if (QTest::currentTestFailed())
             return;
         QTRY_VERIFY(answered && !documentWorkflowController->busy());
         answer.stop();
+        QCOMPARE(otherRuntime.documentVersion(), otherVersion);
+        QCOMPARE(appOptions->general()->projectWindowMode, mode);
         if (!discard) {
+            QCOMPARE(windows.documents().size(), 2U);
             QCOMPARE(runtime.documentVersion(), before);
             QCOMPARE(historyManager->nextUndoEntry(), undo);
             QCOMPARE(context->m_appModel->tracks().first()->name(), unsaved.name);
@@ -2162,6 +2208,10 @@ void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
         QVERIFY(runtime.documentVersion().documentId != before.documentId);
         QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
                  QFileInfo(path).canonicalFilePath());
+        const auto *extra = windows.findPath(additional);
+        QVERIFY(extra);
+        QTRY_COMPARE(extra->context->m_coreRuntime->documentPath(), additional);
+        QCOMPARE(windows.documents().size(), 3U);
         QCOMPARE(context->m_appModel->tracks().size(), 1);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
         auto *list = host.window->findChild<TrackListView *>();
@@ -2392,6 +2442,23 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QVERIFY(chrome->menuView() && chrome->playbackView());
     QVERIFY(!chrome->titleComboBox());
     QVERIFY(!chrome->actionButtonsView());
+    window.setWindowTitle(QStringLiteral("Glass Piano"));
+    const auto labels = chrome->findChildren<QLabel *>(Qt::FindDirectChildrenOnly);
+    const auto captionIt = std::find_if(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
+        return label->isVisible() && label->text() == detached->windowTitle();
+    });
+    QCOMPARE(captionIt != labels.cend(), !useNativeFrame);
+    if (!useNativeFrame) {
+        auto *caption = *captionIt;
+        QVERIFY(caption->width() >= caption->fontMetrics().horizontalAdvance(window.windowTitle()));
+
+        const QRect leftEdge(0, 0, caption->width() / 3, caption->height());
+        detached->setWindowTitle(QStringLiteral("I"));
+        const auto firstTitle = caption->grab(leftEdge).toImage();
+        detached->setWindowTitle(QStringLiteral("W"));
+        QVERIFY2(caption->grab(leftEdge).toImage() != firstTitle,
+                 "Short window titles must be painted at the left edge of the caption");
+    }
     const auto expected = TitleBarSections::forDetachedPanel(useNativeFrame);
     QCOMPARE(chrome->trafficLightArea() != nullptr, expected.trafficLightArea);
     QCOMPARE(chrome->minimizeButton() != nullptr, expected.systemButtons);
@@ -2462,7 +2529,11 @@ void ApplicationGuiTests::detachedPanelIsAnIndependentTopLevelWindow() {
     QVERIFY(!detached->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
 
     const auto expectedTitle = [&] {
-        return window.windowTitle() + QStringLiteral(" — ") + bottom->currentPageName();
+#ifdef Q_OS_WIN
+        return QStringLiteral("%1 - %2").arg(window.windowTitle(), bottom->currentPageName());
+#else
+        return QStringLiteral("%1 — %2").arg(window.windowTitle(), bottom->currentPageName());
+#endif
     };
     QCOMPARE(detached->windowTitle(), expectedTitle());
     QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
@@ -2496,6 +2567,10 @@ void ApplicationGuiTests::detachedPanelRestoresSavedGeometry() {
         QVERIFY(expectedSize.isValid());
         detached->close();
         QTRY_VERIFY(!detached->isVisible());
+        QCOMPARE(appOptions->window()->detachedPanelGeometry(), previousGeometry);
+        const auto remembered = first.window->detachedGeometry();
+        QVERIFY(!remembered.isEmpty());
+        appOptions->window()->setDetachedPanelGeometry(remembered);
     }
     if (QTest::currentTestFailed())
         return;
@@ -2570,24 +2645,26 @@ void ApplicationGuiTests::detachedMenuSaveActionsReachDocumentWorkflow() {
     auto *secondaryMenu = detached->menuView();
     QVERIFY(secondaryMenu && secondaryMenu != primaryMenu);
 
-    // Save / Save As used to be wired only from MainWindow, so a second menu's
-    // actions silently did nothing. disconnect() doubles as the only public
-    // probe for an existing connection. Both menus live inside this fixture and
-    // are destroyed with it, so probing never starts a real document workflow.
-    const auto ownsSaveWiring = [](MainMenuView *menu) {
-        if (!menu || !menu->actionSave() || !menu->actionSaveAs())
-            return false;
-        const bool save = QObject::disconnect(menu->actionSave(), &QAction::triggered,
-                                              documentWorkflowController,
-                                              &DocumentWorkflowController::requestSave);
-        const bool saveAs = QObject::disconnect(menu->actionSaveAs(), &QAction::triggered,
-                                                documentWorkflowController,
-                                                &DocumentWorkflowController::requestSaveAs);
-        return save && saveAs;
-    };
-    QVERIFY2(ownsSaveWiring(primaryMenu), "the primary menu lost its save wiring");
-    QVERIFY2(ownsSaveWiring(secondaryMenu),
-             "the detached menu's Save / Save As are not wired to the document workflow");
+    const auto nativeDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restore = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDisabled); });
+    for (auto *menu : {primaryMenu, secondaryMenu}) {
+        for (auto *action : {menu->actionSave(), menu->actionSaveAs()}) {
+            QPointer<QWidget> origin;
+            QTimer cancel;
+            connect(&cancel, &QTimer::timeout, &window, [&] {
+                if (auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
+                    origin = picker->parentWidget()->window();
+                    picker->reject();
+                }
+            });
+            cancel.start(10);
+            action->trigger();
+            QTRY_COMPARE(origin.data(), menu->window());
+            QTRY_VERIFY(!documentWorkflowController->busy());
+        }
+    }
 }
 
 void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog_data() {
@@ -2633,17 +2710,13 @@ void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
     }
     QVERIFY(general);
 
-    // The standalone dialog enters a nested event loop. Close it from inside
-    // that loop so the test does not block.
-    QPointer<QWidget> modal;
-    QTimer::singleShot(0, [&] {
-        modal = QApplication::activeModalWidget();
-        if (modal)
-            modal->close();
-    });
     general->trigger();
-    QCoreApplication::processEvents();
-    QVERIFY2(modal, "Options from the detached menu did not open a modal dialog");
+    QTRY_VERIFY(QApplication::activeModalWidget());
+    QPointer<QWidget> modal = QApplication::activeModalWidget();
+    QCOMPARE(modal->parentWidget(), detached);
+    QCOMPARE(modal->windowModality(), Qt::ApplicationModal);
+    modal->close();
+    QTRY_VERIFY(modal.isNull());
 }
 
 void ApplicationGuiTests::standaloneOptionsDialogBlocksBackgroundInteraction() {
@@ -2704,42 +2777,15 @@ void ApplicationGuiTests::standaloneOptionsDialogBlocksBackgroundInteraction() {
         QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     };
     for (const bool change : {true, false}) {
-        bool handled = false;
-        QPointer<Dialog> observed;
-        QTimer answer;
-        QObject::connect(&answer, &QTimer::timeout, &window, [&] {
-            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-            if (!dialog)
-                return;
-            auto *panel = dialog->findChild<AppOptionsDialog *>();
-            if (!panel)
-                return;
-            answer.stop();
-            handled = true;
-            observed = dialog;
-            const auto closeOnFailure = qScopeGuard([&] {
-                if (observed)
-                    observed->reject();
-            });
-            exercisePanel(panel, change);
-            if (QTest::currentTestFailed())
-                return;
-            QTest::keyClick(panel, Qt::Key_Escape);
-        });
-        QTimer deadline;
-        deadline.setSingleShot(true);
-        QObject::connect(&deadline, &QTimer::timeout, &window, [] {
-            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                dialog->reject();
-        });
-        answer.start(10);
-        deadline.start(10000);
         openAppearanceFromMenu(window);
-        answer.stop();
-        deadline.stop();
+        QTRY_VERIFY(qobject_cast<Dialog *>(QApplication::activeModalWidget()));
+        QPointer<Dialog> observed = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+        auto *panel = observed->findChild<AppOptionsDialog *>();
+        QVERIFY(panel);
+        exercisePanel(panel, change);
         if (QTest::currentTestFailed())
             return;
-        QVERIFY2(handled, "The standalone options dialog did not become available");
+        QTest::keyClick(panel, Qt::Key_Escape);
         QTRY_VERIFY(observed.isNull());
         // Offscreen has no window manager to reactivate the owner after a modal closes.
         if (QGuiApplication::platformName() == QStringLiteral("offscreen"))

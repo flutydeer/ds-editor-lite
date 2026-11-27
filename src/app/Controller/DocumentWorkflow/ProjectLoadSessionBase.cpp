@@ -2,8 +2,6 @@
 
 #include <lite/Tasking/Task.h>
 #include <lite/Tasking/TaskManager.h>
-#include <lite/ProjectModel/AppModel/AudioClip.h>
-#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QFileInfo>
 
@@ -139,12 +137,7 @@ void ProjectLoadSessionBase::finishWithResult(PreparedProject result) {
     const auto directory = QFileInfo(m_sourcePath).absolutePath();
     const auto prepareReferences = [&](auto &payload) {
         payload.sourcePath = m_sourcePath;
-        for (const auto &track : payload.model.tracks) {
-            for (auto *clip : track->clips()) {
-                if (auto *audio = qobject_cast<AudioClip *>(clip))
-                    audio->setReferenceDirectory(directory);
-            }
-        }
+        payload.model.setAudioReferenceDirectory(directory);
     };
     if (auto *payload = std::get_if<ReplaceProjectPayload>(&result))
         prepareReferences(*payload);

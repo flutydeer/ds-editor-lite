@@ -4,6 +4,12 @@
 
 namespace {
     constexpr int maxRecentProjectFiles = 10;
+    using AppOptionsGlobal::ProjectWindowMode;
+    const QMap<QString, ProjectWindowMode> projectWindowModes{
+        {QStringLiteral("ask"), ProjectWindowMode::Ask},
+        {QStringLiteral("currentWindow"), ProjectWindowMode::CurrentWindow},
+        {QStringLiteral("newWindow"), ProjectWindowMode::NewWindow},
+    };
 
     bool recentProjectPathsEqual(const QString &lhs, const QString &rhs) {
 #ifdef Q_OS_WIN
@@ -15,6 +21,8 @@ namespace {
 }
 
 void GeneralOption::load(const QJsonObject &object) {
+    projectWindowMode = projectWindowModes.value(
+        object.value(QStringLiteral("projectWindowMode")).toString(), ProjectWindowMode::Ask);
     if (object.contains(uiLanguageKey)) {
         const auto value = object.value(uiLanguageKey).toString();
         if (value == "en_US" || value == "zh_CN")
@@ -92,6 +100,7 @@ void GeneralOption::save(QJsonObject &object) {
         lyricsObj[it.key()] = it.value();
 
     object = {
+        {QStringLiteral("projectWindowMode"), projectWindowModes.key(projectWindowMode)},
         {uiLanguageKey,             uiLanguage                                    },
         {defaultSingingLanguageKey, defaultSingingLanguage                        },
         {defaultLyricsKey,          lyricsObj                                     },

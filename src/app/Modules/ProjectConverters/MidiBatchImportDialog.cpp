@@ -66,6 +66,7 @@ public:
 MidiBatchImportDialog::MidiBatchImportDialog(const QByteArray &defaultCodec, QWidget *parent)
     : Dialog(parent), d_ptr(new MidiBatchImportDialogPrivate(this, defaultCodec)) {
     Q_D(MidiBatchImportDialog);
+    setProjectModal();
     d->init();
 }
 

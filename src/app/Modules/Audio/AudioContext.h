@@ -19,6 +19,7 @@
 
 
 class TrackInferenceHandler;
+class AppModel;
 
 namespace talcs {
     class DspxAudioClipContext;
@@ -35,10 +36,13 @@ public:
         Failed,
     };
 
-    explicit AudioContext(QObject *parent = nullptr);
+    explicit AudioContext(QObject *parent = nullptr, bool attachToOutput = true);
     ~AudioContext() override;
 
     static AudioContext *instance();
+
+    // Add the ticks traversed by completed loops to unwrap a recorded playhead position.
+    [[nodiscard]] qint64 completedLoopTicks() const { return m_completedLoopTicks; }
 
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
@@ -66,10 +70,16 @@ public:
     // so the playhead leaves the reset position by one audio block.
     void resetDocumentScopedState();
 
-signals:
-    void exporterCausedTimeChanged();
-
 private:
+    AppModel *m_model;
+    bool m_attachedToOutput;
+    double m_pendingOutputSampleRate = 0.0;
+    bool m_switchingDevice = false;
+    std::optional<double> m_resumePosition;
+    AudioExporter *m_exporter = nullptr;
+    double timeConversionSampleRate() const;
+    qint64 tickToSample(double tick) const;
+    double sampleToTick(qint64 sample) const;
     enum PlayheadBehavior {
         ReturnToStart,
         KeepAtCurrent,
@@ -98,6 +108,7 @@ private:
     int m_levelMeterRampLength = 128;
 
     bool m_transportPositionFlag = true;
+    qint64 m_completedLoopTicks = 0;
     // Sample position where the transport was last told to play. When playback
     // stalls (waiting for synthesis) right after starting, the engine still
     // consumes one audio block before the hold engages and then resumes from

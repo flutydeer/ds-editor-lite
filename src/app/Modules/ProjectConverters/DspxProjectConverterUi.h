@@ -8,6 +8,10 @@ class DspxProjectConverterUi final : public DspxProjectConverter {
 public:
     explicit DspxProjectConverterUi(LoopSettings loopSettings = {});
 
+    LoopSettings loadedLoopSettings() const {
+        return m_loopSettings;
+    }
+
 protected:
     void applyLoadedLoopSettings(const LoopSettings &loopSettings) override;
     LoopSettings loopSettingsToSave() const override;

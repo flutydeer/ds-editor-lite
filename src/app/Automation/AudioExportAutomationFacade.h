@@ -64,7 +64,7 @@ namespace Automation {
 
     struct AudioExportObserver {
         std::function<void(double progress, int sourceIndex)> progress;
-        std::function<void(int sourceIndex)> clipping;
+        std::function<void(int trackIndex, const QString &trackName)> clipping;
         std::function<void(const QString &message, int sourceIndex)> warning;
         // Emitted while the backend waits for pending pieces to render, before the
         // actual audio export starts. progress in [0, 1] over renderable pieces.
@@ -76,6 +76,10 @@ namespace Automation {
         virtual ~IAudioExportJob() = default;
 
         [[nodiscard]] virtual AudioExportPreviewDto preview() const = 0;
+
+        virtual AutomationResult<AutomationUnit> captureSnapshot() {
+            return AutomationUnit{};
+        }
         virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
         virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
                                                  bool deferPublish) = 0;
@@ -124,6 +128,7 @@ namespace Automation {
         [[nodiscard]] static AudioExportCapabilitiesDto capabilities();
 
         void discardDocumentGeneration(const DocumentId &documentId);
+        bool hasActiveJobs();
 
     private:
         struct PendingJobState;

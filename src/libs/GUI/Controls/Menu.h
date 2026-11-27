@@ -16,6 +16,9 @@ public:
     explicit Menu(QWidget *parent = nullptr);
     explicit Menu(const QString &title, QWidget *parent = nullptr);
     static Menu *fromLineEdit(QLineEdit *editor, QWidget *parent = nullptr);
+    using CMenu::exec;
+    QAction *exec();
+    QAction *exec(const QPoint &position, QAction *action = nullptr);
 
     QColor shortcutTextColor() const;
     void setShortcutTextColor(const QColor &color);

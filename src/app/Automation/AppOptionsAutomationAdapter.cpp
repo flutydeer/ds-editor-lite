@@ -50,6 +50,7 @@ namespace Automation {
                 .pitchModelPath = value->rmvpePath,
                 .libreSvipPath = value->libreSVIPPath,
                 .drawParamWithFinger = value->drawParamWithFinger,
+                .projectWindowMode = value->projectWindowMode,
             };
         }
 
@@ -64,6 +65,7 @@ namespace Automation {
             target->rmvpePath = value.pitchModelPath;
             target->libreSVIPPath = value.libreSvipPath;
             target->drawParamWithFinger = value.drawParamWithFinger;
+            target->projectWindowMode = value.projectWindowMode;
         }
 
         AppearanceSettingsDto captureAppearance(AppOptions *options) {

@@ -83,6 +83,10 @@ namespace Automation {
             operationId, context,
             [this, operationId, context, document, path, projectName, savedBaseline,
              sourcePath](DocumentSession &session, const bool validateOnly) {
+                // A file read may have started before an editor dialog began using the model.
+                if (session.hasPendingDialog())
+                    return AutomationResult<MutationResult>(
+                        AutomationError::documentBusy(session.documentId()));
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());
@@ -195,6 +199,15 @@ namespace Automation {
                 if (!m_services.saveProject) {
                     return AutomationResult<MutationResult>(
                         missingRuntime(QStringLiteral("Project saving is unavailable")));
+                }
+                if (m_services.pathOwnedByAnotherDocument &&
+                    m_services.pathOwnedByAnotherDocument(path)) {
+                    return AutomationResult<MutationResult>(AutomationError{
+                        .code = AutomationErrorCode::OverwriteDenied,
+                        .message = QObject::tr(
+                            "Another open project uses this file. Choose a different path."),
+                        .fieldPath = QStringLiteral("path"),
+                    });
                 }
                 if (!allowOverwrite && QFileInfo::exists(path)) {
                     AutomationError error;

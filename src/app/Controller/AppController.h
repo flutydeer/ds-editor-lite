@@ -18,7 +18,7 @@ class AppController final : public QObject {
     Q_OBJECT
 
 private:
-    explicit AppController(QObject *parent = nullptr);
+    explicit AppController(bool initializeAppearance = true);
     ~AppController() override = default;
 
 public:

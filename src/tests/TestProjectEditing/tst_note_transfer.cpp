@@ -668,6 +668,10 @@ void ProjectEditingTests::wholeClipParameterRoundTrip() {
          .type = type,
          .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
     };
+    if (type == Param::Original && fault.isEmpty()) {
+        draft.params.first().curves.first() = draw(-120, 120, {-1, 6400, 6420});
+        QVERIFY(Automation::validate(draft));
+    }
     if (fault == QStringLiteral("duplicate-parameter-group") ||
         fault == QStringLiteral("malformed-parameter-discriminators")) {
         draft.params.append({.name = ParamInfo::Pitch,

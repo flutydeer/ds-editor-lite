@@ -1,4 +1,8 @@
 #include "MainMenuView.h"
+#include "AppContext.h"
+#include "UI/Window/DocumentWindowManager.h"
+#include "Controller/DocumentMidiInput.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
@@ -61,10 +65,23 @@ namespace {
 
 } // namespace
 
-MainMenuView::MainMenuView(MainWindow *mainWindow, const TitleBarRole role)
-    : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow, role)) {
+MainMenuView::MainMenuView(MainWindow *mainWindow)
+    : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
     Q_D(MainMenuView);
     d->q_ptr = this;
+    ObjectContext::bind(d);
+
+    if (!mainWindow) {
+        ObjectContext::bind(this);
+        d->m_inWindowMenu = false;
+        d->initApplicationFileActions();
+        auto *file = d->buildApplicationFileMenu();
+        file->addSeparator();
+        file->addAction(d->actionExit);
+        addMenu(file);
+        d->m_topLevelMenus = {file->menuAction()};
+        return;
+    }
 
     // Preferred lets the title bar shrink the menu bar before the other chrome.
     // Our own action-based overflow then decides which trailing menus collapse.
@@ -75,8 +92,8 @@ MainMenuView::MainMenuView(MainWindow *mainWindow, const TitleBarRole role)
     connect(editorViewController, &EditorViewController::editCommandCapabilitiesChanged, this,
             [=] { d->onEditCommandCapabilitiesChanged(); });
 
-    connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
-            [this] { d_ptr->updatePasteActionState(); });
+    ObjectContext::connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
+                           [this] { d_ptr->updatePasteActionState(); });
 
     d->initActions();
     d->onActiveEditTargetChanged(editorViewController->activeEditTarget());
@@ -93,6 +110,22 @@ MainMenuView::MainMenuView(MainWindow *mainWindow, const TitleBarRole role)
     addMenu(d->buildFileMenu());
     addMenu(d->buildEditMenu());
     addMenu(d->buildOptionsMenu());
+    d->menuWindow = new Menu(tr("&Window"), this);
+    connect(d->menuWindow, &QMenu::aboutToShow, this, [d] {
+        d->menuWindow->clear();
+        if (auto *manager = DocumentWindowManager::instance()) {
+            for (const auto &entry : manager->documents()) {
+                if (entry->closing)
+                    continue;
+                auto *action = d->menuWindow->addAction(entry->window->windowTitle());
+                action->setCheckable(true);
+                action->setChecked(entry->window.get() == d->m_mainWindow);
+                connect(action, &QAction::triggered, entry->window.get(),
+                        [manager, target = entry.get()] { manager->activate(*target); });
+            }
+        }
+    });
+    addMenu(d->menuWindow);
     addMenu(d->buildHelpMenu());
     d->initOverflowUi();
 }
@@ -239,8 +272,17 @@ void MainMenuView::changeEvent(QEvent *event) {
     }
 }
 
-void MainMenuViewPrivate::onNew() const {
-    documentWorkflowController->requestNew();
+void MainMenuViewPrivate::newOrOpen(const QStringList &paths) {
+    Q_Q(MainMenuView);
+    if (m_mainWindow) {
+        m_mainWindow->newOrOpenProject(q, paths);
+    } else if (auto *windows = DocumentWindowManager::instance();
+               windows && !windows->terminating()) {
+        if (paths.isEmpty())
+            windows->createWindow();
+        else
+            windows->open(paths);
+    }
 }
 
 void MainMenuViewPrivate::onOpen() {
@@ -268,12 +310,10 @@ void MainMenuViewPrivate::onOpen() {
     if (!namedFilters.isEmpty())
         filter += QStringLiteral(";;") + namedFilters.join(QStringLiteral(";;"));
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(q, tr("Open"), lastDir, filter);
-    if (fileName.isNull()) {
-        qDebug() << "User cancelled open";
-        return;
-    }
-    documentWorkflowController->requestOpen(fileName);
+    const auto files = WindowDialogs::getOpenFileNames(m_mainWindow ? q : nullptr, tr("Open"),
+                                                       lastDir, filter);
+    if (!files.isEmpty())
+        newOrOpen(files);
 }
 
 void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
@@ -282,7 +322,7 @@ void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
         Toast::show(tr("File does not exist: %1").arg(filePath));
         return;
     }
-    documentWorkflowController->requestOpen(filePath);
+    newOrOpen({filePath});
 }
 
 void MainMenuViewPrivate::onClearRecentProjects() {
@@ -321,15 +361,12 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
     menuRecentProjects->addAction(actionClearRecentProjects);
 }
 
-void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    documentWorkflowController->requestOpen(filePath);
-}
-
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
+    m_mainWindow->setWorkflowWindow(q);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileNames = QFileDialog::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
-                                                         tr("MIDI File (*.mid *.midi)"));
+    const auto fileNames = WindowDialogs::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
+                                                           tr("MIDI File (*.mid *.midi)"));
     if (fileNames.isEmpty())
         return;
     if (fileNames.size() == 1) {
@@ -343,8 +380,9 @@ void MainMenuViewPrivate::onImportMidiFile() {
 
 void MainMenuViewPrivate::onImportDspxFile() {
     Q_Q(MainMenuView);
+    m_mainWindow->setWorkflowWindow(q);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(
+    const auto fileName = WindowDialogs::getOpenFileName(
         q, tr("Select DiffScope Project File"), lastDir, tr("DiffScope Project File (*.dspx)"));
     if (fileName.isNull())
         return;
@@ -353,6 +391,7 @@ void MainMenuViewPrivate::onImportDspxFile() {
 
 void MainMenuViewPrivate::onImportLibreSVIPFile() {
     Q_Q(MainMenuView);
+    m_mainWindow->setWorkflowWindow(q);
     // Collect the bridge-layer extensions from the registry so the dialog
     // stays in sync with LibreSVIPFormatHandler::descriptor().
     QStringList patterns;
@@ -365,7 +404,7 @@ void MainMenuViewPrivate::onImportLibreSVIPFile() {
     if (patterns.isEmpty())
         return;
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(
+    const auto fileName = WindowDialogs::getOpenFileName(
         q, tr("Select Project File"), lastDir,
         tr("Singing Project Files (%1)").arg(patterns.join(QLatin1Char(' '))));
     if (fileName.isNull())
@@ -376,8 +415,8 @@ void MainMenuViewPrivate::onImportLibreSVIPFile() {
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
-                                                 tr("MIDI File (*.mid *.midi)"));
+    auto fileName = WindowDialogs::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
+                                                   tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;
     appController->exportMidiFile(fileName);
@@ -469,7 +508,8 @@ void MainMenuViewPrivate::onExtractPitchParam() {
         return;
     }
 
-    ExtractPitchParamDialog dialog(clips);
+    ExtractPitchParamDialog dialog(clips, q_ptr->window());
+    dialog.setWindowModality(Qt::WindowModal);
     if (dialog.exec() != QDialog::Accepted || dialog.selectedClipId == -1) {
         qDebug() << "User canceled get pitch param from audio clip";
         return;
@@ -498,7 +538,8 @@ void MainMenuViewPrivate::onOctaveDown() {
 }
 
 void MainMenuViewPrivate::onQuantize() {
-    QuantizeDialog dialog(m_mainWindow);
+    QuantizeDialog dialog(q_ptr->window());
+    dialog.setProjectModal();
     dialog.setQuantize(appStatus->pianoRollQuantize);
     dialog.exec();
     if (dialog.result() != QDialog::Accepted)
@@ -644,27 +685,34 @@ void MainMenuViewPrivate::updatePasteActionState() {
 void MainMenuViewPrivate::initActions() {
     initFileActions();
     initEditActions();
-    if (m_role == TitleBarRole::Primary)
-        initEditShortcuts();
+    initEditShortcuts();
 }
 
 void MainMenuViewPrivate::setActionShortcut(QAction *action, const QKeySequence &key,
                                             const Qt::ShortcutContext context) {
-    if (m_role != TitleBarRole::Primary)
-        return;
     action->setShortcut(key);
     action->setShortcutContext(context);
 }
 
-void MainMenuViewPrivate::initFileActions() {
+void MainMenuViewPrivate::initApplicationFileActions() {
     actionNew = new QAction(tr("&New"), this);
     setMenuIcon(actionNew, QStringLiteral(":/svg/icons/document_add_16_regular.svg"));
-    setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::ApplicationShortcut);
-    connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
+    setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::WindowShortcut);
+    connect(actionNew, &QAction::triggered, this, [this] { newOrOpen(); });
 
-    actionOpen = new QAction(tr("&Open..."));
+    actionNewWindow = new QAction(tr("New Window"), this);
+    if (auto *windows = DocumentWindowManager::instance()) {
+        connect(actionNewWindow, &QAction::triggered, windows, [windows] {
+            if (!windows->terminating())
+                windows->createWindow();
+        });
+    } else {
+        actionNewWindow->setEnabled(false);
+    }
+
+    actionOpen = new QAction(tr("&Open"), this);
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
-    setActionShortcut(actionOpen, QKeySequence("Ctrl+O"), Qt::ApplicationShortcut);
+    setActionShortcut(actionOpen, QKeySequence("Ctrl+O"), Qt::WindowShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
     actionClearRecentProjects = new QAction(tr("Clear Recent Projects"), this);
@@ -672,22 +720,56 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionClearRecentProjects, &QAction::triggered, this,
             [this] { onClearRecentProjects(); });
 
+    actionExit = new QAction(tr("E&xit"), this);
+    setMenuIcon(actionExit, QStringLiteral(":/svg/icons/dismiss_16_regular.svg"));
+    if (auto *windows = DocumentWindowManager::instance();
+        windows && windows->keepsRunningWithoutWindows()) {
+        actionExit->setMenuRole(QAction::QuitRole);
+        setActionShortcut(actionExit, QKeySequence::Quit, Qt::WindowShortcut);
+    }
+    connect(actionExit, &QAction::triggered, this, [this] { exitApp(); });
+}
+
+void MainMenuViewPrivate::initFileActions() {
+    Q_Q(MainMenuView);
+    initApplicationFileActions();
+    actionClose = new QAction(tr("Close"), this);
+    if (auto *windows = DocumentWindowManager::instance();
+        windows && windows->keepsRunningWithoutWindows())
+        setActionShortcut(actionClose, QKeySequence::Close, Qt::WindowShortcut);
+    connect(actionClose, &QAction::triggered, this,
+            [this, q, context = AppContext::instance<AppContext>()] {
+                m_mainWindow->setWorkflowWindow(q);
+                if (auto *manager = DocumentWindowManager::instance()) {
+                    if (manager->keepsRunningWithoutWindows())
+                        q->window()->close();
+                    else if (auto *document = manager->find(context))
+                        manager->close(*document, TerminationSavePolicy::Prompt);
+                } else {
+                    documentWorkflowController->requestNew();
+                }
+            });
+
     // Every MainMenuView owns its action wiring. A detached panel window hosts
     // a second menu bar, so wiring these from MainWindow would leave its Save
     // commands silently inert. The rest of the file actions follow the same
     // pattern above and below.
     actionSave = new QAction(tr("&Save"), this);
     setMenuIcon(actionSave, QStringLiteral(":/svg/icons/save_16_regular.svg"));
-    setActionShortcut(actionSave, QKeySequence("Ctrl+S"), Qt::ApplicationShortcut);
-    connect(actionSave, &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSave);
+    setActionShortcut(actionSave, QKeySequence("Ctrl+S"), Qt::WindowShortcut);
+    connect(actionSave, &QAction::triggered, this, [this, q] {
+        m_mainWindow->setWorkflowWindow(q);
+        documentWorkflowController->requestSave();
+    });
 
-    actionSaveAs = new QAction(tr("Save &as..."), this);
+    actionSaveAs = new QAction(tr("Save &as"), this);
     setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"),
                 QSize(20, 20));
-    setActionShortcut(actionSaveAs, QKeySequence("Ctrl+Shift+S"), Qt::ApplicationShortcut);
-    connect(actionSaveAs, &QAction::triggered, documentWorkflowController,
-            &DocumentWorkflowController::requestSaveAs);
+    setActionShortcut(actionSaveAs, QKeySequence("Ctrl+Shift+S"), Qt::WindowShortcut);
+    connect(actionSaveAs, &QAction::triggered, this, [this, q] {
+        m_mainWindow->setWorkflowWindow(q);
+        documentWorkflowController->requestSaveAs();
+    });
 
     actionImportMidi = new QAction(tr("MIDI file..."), this);
     setMenuIcon(actionImportMidi, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
@@ -709,16 +791,13 @@ void MainMenuViewPrivate::initFileActions() {
     setMenuIcon(actionExportMidi, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
-    actionOpenPackageManager = new QAction(tr("Manage packages..."), this);
+    actionOpenPackageManager = new QAction(tr("Manage packages"), this);
     setMenuIcon(actionOpenPackageManager, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionOpenPackageManager, &QAction::triggered, this, [] {
-        PackageManagerDialog dialog;
-        dialog.exec();
+    connect(actionOpenPackageManager, &QAction::triggered, this, [q] {
+        auto *dialog = new PackageManagerDialog(q->window());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
     });
-
-    actionExit = new QAction(tr("E&xit"), this);
-    setMenuIcon(actionExit, QStringLiteral(":/svg/icons/dismiss_16_regular.svg"));
-    connect(actionExit, &QAction::triggered, this, [this] { exitApp(); });
 }
 
 void MainMenuViewPrivate::initEditActions() {
@@ -726,14 +805,14 @@ void MainMenuViewPrivate::initEditActions() {
     actionUndo = new QAction(tr("&Undo"), this);
     setMenuIcon(actionUndo, QStringLiteral(":/svg/icons/arrow_undo_16_regular.svg"));
     actionUndo->setEnabled(false);
-    setActionShortcut(actionUndo, QKeySequence("Ctrl+Z"), Qt::ApplicationShortcut);
+    setActionShortcut(actionUndo, QKeySequence("Ctrl+Z"), Qt::WindowShortcut);
     actionUndo->setAutoRepeat(false);
     connect(actionUndo, &QAction::triggered, undoRedoController, &UndoRedoController::requestUndo);
 
     actionRedo = new QAction(tr("&Redo"), this);
     setMenuIcon(actionRedo, QStringLiteral(":/svg/icons/arrow_redo_16_regular.svg"));
     actionRedo->setEnabled(false);
-    setActionShortcut(actionRedo, QKeySequence("Ctrl+Y"), Qt::ApplicationShortcut);
+    setActionShortcut(actionRedo, QKeySequence("Ctrl+Y"), Qt::WindowShortcut);
     actionRedo->setAutoRepeat(false);
     connect(actionRedo, &QAction::triggered, undoRedoController, &UndoRedoController::requestRedo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
@@ -769,23 +848,23 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionPaste, &QAction::triggered, this, [this] { onPaste(); });
 
     actionOctaveUp = new QAction(tr("Move an octave up"), this);
-    setActionShortcut(actionOctaveUp, QKeySequence(Qt::CTRL | Qt::Key_Up), Qt::ApplicationShortcut);
+    setActionShortcut(actionOctaveUp, QKeySequence(Qt::CTRL | Qt::Key_Up), Qt::WindowShortcut);
     connect(actionOctaveUp, &QAction::triggered, this, [this] { onOctaveUp(); });
 
     actionOctaveDown = new QAction(tr("Move an octave down"), this);
-    setActionShortcut(actionOctaveDown, QKeySequence(Qt::CTRL | Qt::Key_Down), Qt::ApplicationShortcut);
+    setActionShortcut(actionOctaveDown, QKeySequence(Qt::CTRL | Qt::Key_Down), Qt::WindowShortcut);
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
     // TODO: 恢复工程文件图标后再补回这里的菜单图标。
-    setActionShortcut(actionFillLyrics, QKeySequence("Ctrl+L"), Qt::ApplicationShortcut);
+    setActionShortcut(actionFillLyrics, QKeySequence("Ctrl+L"), Qt::WindowShortcut);
     actionFillLyrics->setEnabled(false);
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onFillLyric(q); });
 
     actionSearchLyrics = new QAction(tr("Search lyrics..."), this);
     setMenuIcon(actionSearchLyrics, QStringLiteral(":/svg/icons/search_16_regular.svg"));
-    setActionShortcut(actionSearchLyrics, QKeySequence("Ctrl+F"), Qt::ApplicationShortcut);
+    setActionShortcut(actionSearchLyrics, QKeySequence("Ctrl+F"), Qt::WindowShortcut);
     connect(actionSearchLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onSearchLyric(q); });
 
@@ -800,14 +879,11 @@ void MainMenuViewPrivate::initEditActions() {
 
 void MainMenuViewPrivate::initEditShortcuts() {
     Q_Q(MainMenuView);
-    const auto isEditorWindow = [](const QWidget *window) {
-        return EditorShortcutUtils::isEditorWindow(window);
-    };
-    const auto addShortcut = [q, isEditorWindow](const QKeySequence &key,
-                                                 const EditorInteraction::Command command) {
-        auto *shortcut = EditorShortcutUtils::addApplication(
-            q, key, isEditorWindow, editorViewController,
-            [command] { editorViewController->requestEditCommand(command); });
+    const auto addShortcut = [q](const QKeySequence &key,
+                                 const EditorInteraction::Command command) {
+        auto *shortcut = EditorShortcutUtils::addWindow(q, key, editorViewController, [command] {
+            editorViewController->requestEditCommand(command);
+        });
         const auto updateEnabled = [shortcut, command] {
             shortcut->setEnabled(editorViewController->supportsEditCommand(command));
         };
@@ -827,10 +903,11 @@ void MainMenuViewPrivate::initEditShortcuts() {
     addShortcut(QKeySequence(Qt::Key_Backspace), EditorInteraction::Command::DeleteSelection);
 }
 
-Menu *MainMenuViewPrivate::buildFileMenu() {
+Menu *MainMenuViewPrivate::buildApplicationFileMenu() {
     Q_Q(MainMenuView);
     menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
+    menuFile->addAction(actionNewWindow);
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
@@ -841,7 +918,15 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
             this, [this] { refreshRecentProjectsMenu(); });
     refreshRecentProjectsMenu();
     menuFile->addMenu(menuRecentProjects);
+    return menuFile;
+}
 
+Menu *MainMenuViewPrivate::buildFileMenu() {
+    Q_Q(MainMenuView);
+    buildApplicationFileMenu();
+    menuFile->addAction(actionClose);
+
+    menuFile->addSeparator();
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
 
@@ -905,6 +990,17 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
     menuEdit->addSeparator();
 
     menuEdit->addAction(actionExtractPitchParam);
+    if (auto *windows = DocumentWindowManager::instance()) {
+        actionRecordMidi = menuEdit->addAction(tr("Record MIDI Input"));
+        actionRecordMidi->setCheckable(true);
+        auto *context = AppContext::instance<AppContext>();
+        connect(menuEdit, &QMenu::aboutToShow, this, [this, windows, context] {
+            actionRecordMidi->setChecked(windows->midiInput().recording(*context));
+        });
+        connect(actionRecordMidi, &QAction::triggered, this, [windows, context](bool checked) {
+            windows->midiInput().setRecording(*context, checked);
+        });
+    }
     return menuEdit;
 }
 
@@ -975,8 +1071,9 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     actionAbout = new QAction(tr("About..."), this);
     setMenuIcon(actionAbout, QStringLiteral(":/svg/icons/info_16_regular.svg"));
     connect(actionAbout, &QAction::triggered, this, [this] {
-        AboutDialog dlg(m_mainWindow);
-        dlg.exec();
+        auto *dialog = new AboutDialog(q_ptr->window());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
     });
 
     actionOpenLogFolder = new QAction(tr("Open Log Folder..."), this);
@@ -998,20 +1095,30 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
 }
 
 void MainMenuViewPrivate::retranslateUi() {
+    actionNew->setText(tr("&New"));
+    actionNewWindow->setText(tr("New Window"));
+    actionOpen->setText(tr("&Open"));
+    actionClearRecentProjects->setText(tr("Clear Recent Projects"));
+    actionExit->setText(tr("E&xit"));
+    menuFile->setTitle(tr("&File"));
+    menuRecentProjects->setTitle(tr("Recent Projects"));
+    refreshRecentProjectsMenu();
+    if (!m_mainWindow)
+        return;
+    menuWindow->setTitle(MainMenuView::tr("&Window"));
+    actionClose->setText(tr("Close"));
+    if (actionRecordMidi)
+        actionRecordMidi->setText(tr("Record MIDI Input"));
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
-    actionNew->setText(tr("&New"));
-    actionOpen->setText(tr("&Open..."));
-    actionClearRecentProjects->setText(tr("Clear Recent Projects"));
     actionSave->setText(tr("&Save"));
-    actionSaveAs->setText(tr("Save &as..."));
+    actionSaveAs->setText(tr("Save &as"));
     actionImportMidi->setText(tr("MIDI file..."));
     actionImportDspx->setText(tr("DiffScope project file..."));
     actionImportLibreSVIP->setText(tr("Project file (LibreSVIP)..."));
     actionExportAudio->setText(tr("Audio file..."));
     actionExportMidi->setText(tr("MIDI file..."));
-    actionOpenPackageManager->setText(tr("Manage packages..."));
-    actionExit->setText(tr("E&xit"));
+    actionOpenPackageManager->setText(tr("Manage packages"));
 
     actionUndo->setText(tr("&Undo") + " " + m_undoName);
     actionRedo->setText(tr("&Redo") + " " + m_redoName);
@@ -1039,21 +1146,18 @@ void MainMenuViewPrivate::retranslateUi() {
     actionOpenLogFolder->setText(tr("Open Log Folder..."));
     actionOpenDumpFolder->setText(tr("Open Dump Folder..."));
 
-    menuFile->setTitle(tr("&File"));
-    menuRecentProjects->setTitle(tr("Recent Projects"));
     menuImport->setTitle(tr("Import"));
     menuExport->setTitle(tr("Export"));
     menuEdit->setTitle(tr("&Edit"));
     menuOptions->setTitle(tr("&Options"));
     menuHelp->setTitle(tr("&Help"));
-    refreshRecentProjectsMenu();
     retranslateOverflowUi();
 }
 
 void MainMenuViewPrivate::initOverflowUi() {
     Q_Q(MainMenuView);
-    m_topLevelMenus = {menuFile->menuAction(), menuEdit->menuAction(),
-                       menuOptions->menuAction(), menuHelp->menuAction()};
+    m_topLevelMenus = {menuFile->menuAction(), menuEdit->menuAction(), menuOptions->menuAction(),
+                       menuWindow->menuAction(), menuHelp->menuAction()};
 
     // A plain QAction with an icon is measured and drawn by QMenuBar itself.
     // The mnemonic stays available for Alt navigation even though the icon

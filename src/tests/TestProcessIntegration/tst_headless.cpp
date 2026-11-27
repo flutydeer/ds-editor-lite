@@ -1285,14 +1285,33 @@ namespace {
                             .arg(savedAs ? compactJson(*savedAs) : exchangeError));
         }
 
+        const auto closedRoundTrip = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("close-before-reopen"), QStringLiteral("documents.close"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       combinedDocumentId},
+                              {QStringLiteral("expected_revision"), savedRevision     }
+        }),
+            exchangeError, 10000);
+        const auto blank = closedRoundTrip ? closedRoundTrip->value(QStringLiteral("result"))
+                                                 .toObject()
+                                                 .value(QStringLiteral("current"))
+                                                 .toObject()
+                                           : QJsonObject{};
+        if (!blank.value(QStringLiteral("document_id")).isString())
+            return fail(
+                QStringLiteral("Closing the saved project did not leave a blank document: %1")
+                    .arg(closedRoundTrip ? compactJson(*closedRoundTrip) : exchangeError));
         const auto opened = nativeExchange(
             manager, combinedNativeEndpoint,
-            nativeRequest(QStringLiteral("open-round-trip"), QStringLiteral("documents.open"),
-                          QJsonObject{
-                              {QStringLiteral("current_document_id"), combinedDocumentId      },
-                              {QStringLiteral("expected_revision"),   savedRevision           },
-                              {QStringLiteral("path"),                roundTripPath           },
-                              {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")},
+            nativeRequest(
+                QStringLiteral("open-round-trip"), QStringLiteral("documents.open"),
+                QJsonObject{
+                    {QStringLiteral("current_document_id"),
+                     blank.value(QStringLiteral("document_id"))                                    },
+                    {QStringLiteral("expected_revision"),   blank.value(QStringLiteral("revision"))},
+                    {QStringLiteral("path"),                roundTripPath                          },
+                    {QStringLiteral("discard_changes"),     false                                  },
         }),
             exchangeError, 10000);
         const auto openTaskId = opened ? opened->value(QStringLiteral("result"))
@@ -1364,6 +1383,7 @@ namespace {
         const auto reopenedStatistics =
             reopenedSnapshot.value(QStringLiteral("statistics")).toObject();
         if (openTask.value(QStringLiteral("state")) != QStringLiteral("succeeded") ||
+            openMutation.value(QStringLiteral("previous")).toObject() != blank ||
             openedDocumentId.isEmpty() || openedDocumentId == combinedDocumentId ||
             openedDocument.value(QStringLiteral("revision")).toInteger(-1) != 0 ||
             !reopenedDocument || reopenedDocument->contains(QStringLiteral("error")) ||
@@ -1875,7 +1895,17 @@ void ProcessIntegrationTests::nativeEditingAndFiles() {
     QVERIFY(runNativeWorkflow(editorPath));
 }
 
+void ProcessIntegrationTests::audioImportAndWaveExport_data() {
+    QTest::addColumn<bool>("gui");
+    QTest::addColumn<bool>("closeSource");
+    QTest::newRow("headless") << false << false;
+    QTest::newRow("another-project-active") << true << false;
+    QTest::newRow("close-source-with-another-project-open") << true << true;
+}
+
 void ProcessIntegrationTests::audioImportAndWaveExport() {
+    QFETCH(bool, gui);
+    QFETCH(bool, closeSource);
     HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-audio-export"));
     QVERIFY(fixture.prepare());
     QVERIFY(fixture.storage.writeConfig({
@@ -1910,11 +1940,16 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     const auto inputDuration = double(inputInfo.frames) / inputInfo.samplerate;
 
     auto &editor = fixture.storage.process(QStringLiteral("editor"));
-    QVERIFY(fixture.start(editor, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
-                                   QStringLiteral("--control-level"), QStringLiteral("l3"),
-                                   QStringLiteral("--control-port"),
-                                   QString::number(fixture.controlPort)}));
-    QVERIFY(fixture.waitForStatus(editor, fixture.nativeEndpoint));
+    QStringList args{"--rpc", "--no-mcp",       "--control-level",
+                     "l3",    "--control-port", QString::number(fixture.controlPort)};
+    if (gui) {
+        fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
+        fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
+    } else
+        args.prepend("--headless");
+    QVERIFY(fixture.start(editor, args));
+    const auto initialStatus = fixture.waitForStatus(editor, fixture.nativeEndpoint);
+    QVERIFY(initialStatus);
     int sequence = 0;
     const auto call = [&](const QString &operation,
                           const QJsonObject &arguments) -> std::optional<QJsonObject> {
@@ -1934,10 +1969,13 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
         }
         return response->value(QStringLiteral("result")).toObject();
     };
-    const auto created = call(QStringLiteral("documents.new"),
-                              {
-                                  {QStringLiteral("template"),       QStringLiteral("empty")  },
-                                  {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+    const auto created = call(
+        QStringLiteral("documents.new"),
+        {
+            {QStringLiteral("current_document_id"),
+             initialStatus->value("documents").toArray().first().toObject().value("document_id")},
+            {QStringLiteral("template"),            QStringLiteral("empty")                     },
+            {QStringLiteral("discard_changes"),     true                                        }
     });
     QVERIFY2(created, qPrintable(fixture.error));
     const auto version = created->value(QStringLiteral("current")).toObject();
@@ -2008,6 +2046,14 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
     };
     const auto beforeExport = call(QStringLiteral("documents.get"), documentArguments);
     QVERIFY2(beforeExport, qPrintable(fixture.error));
+    QJsonObject other;
+    if (gui) {
+        const auto created = call("documents.new", {
+                                                       {"template", "default"}
+        });
+        QVERIFY2(created, qPrintable(fixture.error));
+        other = created->value("current").toObject();
+    }
     const auto outputPath = fixture.storage.filePath(QStringLiteral("mix.wav"));
     const auto exported =
         call(QStringLiteral("exports.audio.start"),
@@ -2023,6 +2069,42 @@ void ProcessIntegrationTests::audioImportAndWaveExport() {
                               {QStringLiteral("source"), QStringLiteral("all")}}}
     });
     QVERIFY2(exported, qPrintable(fixture.error));
+    if (closeSource) {
+        const auto closed = call(
+            "documents.close",
+            {
+                {"document_id",       documentId                                                  },
+                {"expected_revision", beforeExport->value("document").toObject().value("revision")},
+                {"discard_changes",   true                                                        }
+        });
+        QVERIFY2(closed, qPrintable(fixture.error));
+        QVERIFY(closed->value("current").isNull());
+        auto edited = call("tracks.insert",
+                           {
+                               {"document_id",       other.value("document_id")                         },
+                               {"expected_revision", other.value("revision")                            },
+                               {"index",             0                                                  },
+                               {"tracks",            QJsonArray{QJsonObject{{"name", "Other document"}}}}
+        });
+        QVERIFY2(edited, qPrintable(fixture.error));
+        for (const auto &method : {"tasks.get", "tasks.list", "tasks.cancel"}) {
+            QJsonObject args{
+                {"scope",       "document"},
+                {"document_id", documentId}
+            };
+            if (QLatin1StringView(method) != QLatin1StringView("tasks.list"))
+                args.insert("task_id", exported->value("task_id"));
+            const auto response = nativeExchange(
+                fixture.manager, fixture.nativeEndpoint,
+                nativeRequest(QString::number(++sequence), QString::fromLatin1(method), args),
+                fixture.error);
+            QVERIFY2(response, qPrintable(fixture.error));
+            const auto error = response->value("error").toObject().value("data").toObject();
+            QCOMPARE(error.value("code").toString(), QStringLiteral("document_changed"));
+        }
+        QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
+        return;
+    }
     QVERIFY2(waitForTask(*exported), qPrintable(fixture.error));
 
     SF_INFO outputInfo{};
@@ -2162,4 +2244,197 @@ void ProcessIntegrationTests::isolatedPrimaries() {
 void ProcessIntegrationTests::crossHost() {
     QVERIFY(!platformPluginDirectory.isEmpty());
     QVERIFY(runCrossHostForwarding(editorPath, platformPluginDirectory));
+}
+
+void ProcessIntegrationTests::targetedDocumentLifecycle_data() {
+    QTest::addColumn<bool>("gui");
+    QTest::newRow("gui") << true;
+    QTest::newRow("headless") << false;
+}
+
+void ProcessIntegrationTests::targetedDocumentLifecycle() {
+    QFETCH(bool, gui);
+    HeadlessProcessFixture fixture(editorPath, QStringLiteral("document-routing"));
+    QVERIFY(fixture.prepare());
+    QStringList args{"--rpc", "--no-mcp",       "--control-level",
+                     "l3",    "--control-port", QString::number(fixture.controlPort)};
+    if (gui) {
+        fixture.environment.insert("QT_QPA_PLATFORM", "offscreen");
+        fixture.environment.insert("QT_QPA_PLATFORM_PLUGIN_PATH", platformPluginDirectory);
+    } else
+        args.prepend("--headless");
+    auto &editor = fixture.storage.process("editor");
+    QVERIFY(fixture.start(editor, args));
+    auto status = fixture.waitForStatus(editor, fixture.nativeEndpoint);
+    QVERIFY2(status, qPrintable(fixture.error));
+    auto initial = status->value("documents").toArray().first().toObject();
+    const auto id = [](const QJsonObject &version) { return version.value("document_id"); };
+    auto original = id(initial);
+    int sequence = 0;
+    const auto call = [&](const QString &method, const QJsonObject &params = QJsonObject{}) {
+        const auto response = nativeExchange(
+            fixture.manager, fixture.nativeEndpoint,
+            nativeRequest(QString::number(++sequence), method, params), fixture.error);
+        return response.value_or(QJsonObject{});
+    };
+    const auto snapshot = [&] { return call("application.get_status").value("result").toObject(); };
+    const auto create = [&](QJsonObject params) {
+        params.insert("template", "default");
+        return call("documents.new", params);
+    };
+    const auto target = [](const QJsonObject &version) {
+        return QJsonObject{
+            {"document_id",       version.value("document_id")},
+            {"expected_revision", version.value("revision")   }
+        };
+    };
+    QJsonObject second;
+    const auto added = create({});
+    if (gui) {
+        second = added.value("result").toObject().value("current").toObject();
+        QVERIFY2(id(second).isString(), qPrintable(compactJson(added)));
+        QVERIFY(id(second) != original);
+        QVERIFY(added.value("result").toObject().value("previous").isNull());
+        QCOMPARE(snapshot().value("windows").toArray().size(), 2);
+        const auto extra = create({
+                                      {"current_document_id", QJsonValue::Null}
+        })
+                               .value("result")
+                               .toObject();
+        const auto transient = extra.value("current").toObject();
+        QCOMPARE(snapshot().value("documents").toArray().size(), 3);
+        QCOMPARE(call("documents.close", target(transient))
+                     .value("result")
+                     .toObject()
+                     .value("closed_document_id"),
+                 id(transient));
+    } else {
+        QVERIFY(added.contains("error"));
+        QCOMPARE(snapshot().value("documents").toArray().size(), 1);
+    }
+    auto replaced = create({
+        {"current_document_id", original                 },
+        {"expected_revision",   initial.value("revision")}
+    });
+    auto replacement = replaced.value("result").toObject().value("current").toObject();
+    QVERIFY2(id(replacement).isString(), qPrintable(compactJson(replaced)));
+    QVERIFY(id(replacement) != original);
+    QVERIFY(call("documents.get",
+                 {
+                     {"document_id", original}
+    })
+                .contains("error"));
+    QVERIFY(create({
+                       {"current_document_id", original}
+    })
+                .contains("error"));
+    if (gui) {
+        QVERIFY(call("documents.get",
+                     {
+                         {"document_id", id(second)}
+        })
+                    .contains("result"));
+        auto save = target(second);
+        const auto path = fixture.storage.filePath("second.dspx");
+        save.insert("path", path);
+        save.insert("overwrite_policy", "overwrite");
+        QVERIFY(call("documents.save_as", save).contains("result"));
+        auto collision = target(replacement);
+        collision.insert("path", path);
+        collision.insert("overwrite_policy", "overwrite");
+        QVERIFY(call("documents.save_as", collision).contains("error"));
+        const auto duplicate =
+            call("documents.open", {
+                                       {"current_document_id", id(replacement)},
+                                       {"path",                path           }
+        });
+        QVERIFY2(duplicate.contains("result"), qPrintable(compactJson(duplicate)));
+        QCOMPARE(snapshot().value("documents").toArray().size(), 2);
+        QVERIFY(call("documents.close", target(replacement)).contains("result"));
+        QVERIFY(call("documents.get",
+                     {
+                         {"document_id", id(replacement)}
+        })
+                    .contains("error"));
+        const auto remaining = snapshot().value("documents").toArray();
+        QCOMPARE(remaining.size(), 1);
+        replacement = remaining.first().toObject();
+        QCOMPARE(id(replacement), id(second));
+    } else {
+        const auto path = fixture.storage.filePath("headless.dspx");
+        auto save = target(replacement);
+        save.insert("path", path);
+        save.insert("overwrite_policy", "reject");
+        const auto saved = call("documents.save_as", save);
+        QVERIFY2(saved.contains("result"), qPrintable(compactJson(saved)));
+        const auto duplicate =
+            call("documents.open", {
+                                       {"current_document_id", id(replacement)},
+                                       {"path",                path           }
+        });
+        const auto accepted = duplicate.value("result").toObject();
+        QVERIFY2(accepted.value("task_id").isString(), qPrintable(compactJson(duplicate)));
+        const auto task = call("tasks.get",
+                               {
+                                   {"scope",       "document"               },
+                                   {"document_id", id(replacement)          },
+                                   {"task_id",     accepted.value("task_id")}
+        })
+                              .value("result")
+                              .toObject();
+        QCOMPARE(task.value("state").toString(), QStringLiteral("succeeded"));
+        QCOMPARE(id(task.value("result").toObject().value("current").toObject()), id(replacement));
+    }
+    auto edit = target(replacement);
+    edit.insert("index", 0);
+    edit.insert("tracks", QJsonArray{QJsonObject{{"name", "Unsaved track"}}});
+    const auto changed =
+        call("tracks.insert", edit).value("result").toObject().value("current").toObject();
+    QVERIFY(id(changed).isString());
+    auto close = target(changed);
+    QVERIFY(call("documents.close", close).contains("error"));
+    close.insert("discard_changes", true);
+    const auto closed = call("documents.close", close).value("result").toObject();
+    QCOMPARE(closed.value("closed_document_id"), id(changed));
+    const auto blank = closed.value("current").toObject();
+    QVERIFY(id(blank).isString() && id(blank) != id(changed));
+    QCOMPARE(snapshot().value("documents").toArray().first().toObject().value("document_id"),
+             id(blank));
+    QVERIFY(call("documents.get",
+                 {
+                     {"document_id", id(blank)}
+    })
+                .contains("result"));
+    if (gui) {
+        const auto path = fixture.storage.filePath("second.dspx");
+        auto &secondary = fixture.storage.process("gui-secondary");
+        QVERIFY(fixture.start(secondary, {path, path}));
+        QVERIFY(secondary.waitForFinished(10000));
+        QCOMPARE(secondary.exitCode(), 0);
+        const auto expectedPath = QFileInfo(path).canonicalFilePath();
+        QVERIFY(!expectedPath.isEmpty());
+        const auto openedBesideBlank = [&] {
+            const auto windows = snapshot().value("windows").toArray();
+            if (windows.size() != 2)
+                return false;
+            bool hasBlank = false;
+            bool hasProject = false;
+            for (const auto &window : windows) {
+                const auto document = id(window.toObject());
+                if (document == id(blank)) {
+                    hasBlank = true;
+                    continue;
+                }
+                const auto result = call("documents.get", {{"document_id", document}})
+                                        .value("result").toObject();
+                const auto openedPath = result.value("snapshot").toObject().value("path").toString();
+                hasProject = QFileInfo(openedPath).canonicalFilePath() == expectedPath;
+            }
+            return hasBlank && hasProject;
+        };
+        QTRY_VERIFY(openedBesideBlank());
+    }
+    QVERIFY(call("application.request_exit").contains("result"));
+    QVERIFY(editor.waitForFinished(15000));
+    QCOMPARE(editor.exitCode(), 0);
 }

@@ -9,7 +9,7 @@
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Button.h>
 
-#include <TalcsWidgets/AudioFileDialog.h>
+#include "UI/Utils/AudioFilePicker.h"
 
 #include <QDataStream>
 #include <QFileInfo>
@@ -149,9 +149,9 @@ void AudioResourcePage::onRelocateClicked() {
     QString fileName;
     QVariant userData;
     QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
-                                                         fileName, userData, entryClassName, this,
-                                                         tr("Select an Audio File"), ".");
+    auto io = AudioFilePicker::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
+                                                  fileName, userData, entryClassName, this,
+                                                  tr("Select an Audio File"), ".");
     if (fileName.isNull())
         return;
 

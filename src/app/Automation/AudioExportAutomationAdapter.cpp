@@ -1,4 +1,7 @@
 #include "AudioExportAutomationAdapter.h"
+#include "AppContext.h"
+#include "CoreRuntime.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioExporter.h"
@@ -7,8 +10,8 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
 #include <QPointer>
@@ -57,7 +60,7 @@ namespace Automation {
     class AudioExportJobAdapter final : public IAudioExportJob {
     public:
         AudioExportJobAdapter(AppModel *model, QString projectPath, AudioExportConfigDto config)
-            : m_model(model), m_audioContext(AudioContext::instance()),
+            : m_model(model), m_audioContext(AudioContext::instance()), m_projectPath(projectPath),
               m_exporter(std::make_unique<Audio::AudioExporter>(nullptr)) {
             m_config = std::move(config);
             if (m_config.sourceOption == Audio::AudioExporterConfig::SO_All) {
@@ -75,6 +78,43 @@ namespace Automation {
             m_exporter->setConfigInternal(fromAutomationDto(m_config));
         }
 
+        AutomationResult<AutomationUnit> captureSnapshot() override {
+            DocumentDraftDto draft;
+            draft.timeline = m_model->timeline();
+            draft.masterControl = m_model->masterControl();
+            draft.loopSettings = appStatus->loopSettings.get();
+            for (auto *track : m_model->tracks())
+                draft.tracks.append(trackDraftDto(*track));
+            m_snapshot = AppContext::createRenderContext();
+            const SingletonRegistry::Scope scope(m_snapshot->services());
+            m_model = m_snapshot->m_appModel;
+            m_snapshot->m_appStatus->loopSettings.set(draft.loopSettings);
+            m_model->replaceProject(buildProjectModelData(draft));
+            m_audioContext = AudioContext::instance();
+            m_sourceTracks.clear();
+            for (int index : m_config.sources)
+                m_sourceTracks.append(m_model->tracks().at(index));
+            m_exporter->configureAutomationBackend(m_model, m_projectPath, m_audioContext);
+            m_exporter->setConfigInternal(fromAutomationDto(m_config));
+            return AutomationUnit{};
+        }
+
+        ~AudioExportJobAdapter() override {
+            if (!m_snapshot)
+                return;
+            const SingletonRegistry::Scope scope(m_snapshot->services());
+            m_snapshot->m_appModel->replaceProject({});
+            if (m_snapshot->hasPendingTasks()) {
+                QEventLoop loop;
+                QObject::connect(TaskManager::instance(), &TaskManager::taskChanged, &loop,
+                                 [this, &loop] {
+                                     if (!m_snapshot->hasPendingTasks())
+                                         loop.quit();
+                                 });
+                loop.exec();
+            }
+        }
+
         AudioExportPreviewDto preview() const override {
             return {
                 .baseDirectory = QDir(m_exporter->projectDirectoryInternal())
@@ -85,6 +125,7 @@ namespace Automation {
         }
 
         AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) override {
+            const SingletonRegistry::Scope scope(m_snapshot->services());
             if (!m_audioContext) {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Audio context is unavailable")};
@@ -106,7 +147,15 @@ namespace Automation {
             };
             triggerPendingInference();
 
-            auto inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
+            // Language and decode jobs may still be preparing clips that have no pieces yet.
+            const auto readiness = [&] {
+                const auto status = m_audioContext->exportInferenceStatus(sourceTracks);
+                return status == AudioContext::ExportInferenceStatus::Ready &&
+                               m_snapshot->hasPendingTasks()
+                           ? AudioContext::ExportInferenceStatus::Pending
+                           : status;
+            };
+            auto inferenceStatus = readiness();
             while (inferenceStatus == AudioContext::ExportInferenceStatus::Pending &&
                    !m_cancellationRequested.load(std::memory_order_acquire)) {
                 if (observer.inferenceProgress)
@@ -124,7 +173,7 @@ namespace Automation {
                     return {.state = AudioExportBackendState::Failed,
                             .errorMessage = QStringLiteral("Audio export sources changed")};
                 }
-                inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
+                inferenceStatus = readiness();
             }
             if (observer.inferenceProgress)
                 observer.inferenceProgress(1.0);
@@ -146,18 +195,12 @@ namespace Automation {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Inference failed")};
             }
-            // Drain queued FutureCallOut events before opening the audio graph. The last
-            // piece's promise is already finished (status reports Ready) when the loop
-            // above exits, but FutureAudioSource::d->src is only assigned when its
-            // watcher event is dispatched; opening the graph before that crashes on a
-            // null src in FutureAudioSource::open().
-            QCoreApplication::processEvents();
-
             return {.state = AudioExportBackendState::Succeeded};
         }
 
         AudioExportBackendResult execute(const AudioExportObserver &observer,
                                          const bool deferPublish) override {
+            const SingletonRegistry::Scope scope(m_snapshot->services());
             if (m_cancellationRequested.load(std::memory_order_acquire))
                 return {.state = AudioExportBackendState::Canceled};
             if (!m_audioContext) {
@@ -186,9 +229,9 @@ namespace Automation {
                 });
             const auto clippingConnection =
                 QObject::connect(m_exporter.get(), &Audio::AudioExporter::clippingDetected,
-                                 [callback = observer.clipping](const int sourceIndex) {
+                                 [callback = observer.clipping](int index, const QString &name) {
                                      if (callback)
-                                         callback(sourceIndex);
+                                         callback(index, name);
                                  });
             const auto warningConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::warningAdded,
@@ -262,8 +305,10 @@ namespace Automation {
             return true;
         }
 
+        std::unique_ptr<AppContext> m_snapshot;
         QPointer<AppModel> m_model;
         QPointer<AudioContext> m_audioContext;
+        QString m_projectPath;
         std::unique_ptr<Audio::AudioExporter> m_exporter;
         AudioExportConfigDto m_config;
         QList<QPointer<Track>> m_sourceTracks;
@@ -292,9 +337,13 @@ namespace Automation {
                 std::make_shared<AudioExportJobAdapter>(model, projectPath, config));
         };
         services.schedule = [](std::function<void()> execute) {
-            if (auto *application = QCoreApplication::instance()) {
-                QTimer::singleShot(0, application,
-                                   [execute = std::move(execute)]() mutable { execute(); });
+            if (auto *runtime = AppContext::instance<CoreRuntime>()) {
+                QTimer::singleShot(0, runtime,
+                                   [context = SingletonRegistry::current(),
+                                    execute = std::move(execute)]() mutable {
+                                       const SingletonRegistry::Scope scope(context);
+                                       execute();
+                                   });
                 return;
             }
             execute();

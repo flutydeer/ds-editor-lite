@@ -41,6 +41,8 @@ namespace Automation {
         std::function<void()> resetDocumentScopedState;
         // 此时文档已恢复 Active，接收者可同步查询完整的提交状态。
         std::function<void(const DocumentCommitInfo &)> afterCommit;
+        std::function<bool(const QString &)> pathOwnedByAnotherDocument;
+        std::function<bool()> hasPendingDialog;
     };
 
     class DocumentAutomationFacade final {

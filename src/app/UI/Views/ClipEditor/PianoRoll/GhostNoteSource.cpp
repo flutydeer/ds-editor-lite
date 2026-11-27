@@ -1,4 +1,5 @@
 #include "GhostNoteSource.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
@@ -29,14 +30,15 @@ QRectF GhostNoteStyle::barRect(const double left, const double right, const doub
     return {(left + right - width) * 0.5, top, width, height};
 }
 
-GhostNoteSource::GhostNoteSource(QObject *parent) : QObject(parent) {
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::Appearance || option == AppOptionsGlobal::All)
-                    scheduleRebuild();
-            });
-    connect(appModel, &AppModel::modelChanged, this, &GhostNoteSource::scheduleRebuild);
-    connect(appModel, &AppModel::trackChanged, this, &GhostNoteSource::scheduleRebuild);
+GhostNoteSource::GhostNoteSource(QObject *parent) : QObject(parent), m_model(*appModel) {
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](const AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::Appearance ||
+                                   option == AppOptionsGlobal::All)
+                                   scheduleRebuild();
+                           });
+    connect(&m_model, &AppModel::modelChanged, this, &GhostNoteSource::scheduleRebuild);
+    connect(&m_model, &AppModel::trackChanged, this, &GhostNoteSource::scheduleRebuild);
 }
 
 void GhostNoteSource::setHostClip(SingingClip *clip) {
@@ -76,10 +78,10 @@ void GhostNoteSource::rebuild() {
         // If the host track cannot be resolved, fall back to excluding just the host clip
         // so that no track disappears and the host's own notes are not duplicated
         Track *hostTrack = nullptr;
-        appModel->findClipById(m_hostClip->id(), hostTrack);
+        m_model.findClipById(m_hostClip->id(), hostTrack);
         rebuildConnections(hostTrack);
 
-        for (const auto *track : appModel->tracks()) {
+        for (const auto *track : m_model.tracks()) {
             if (track == hostTrack)
                 continue;
             const auto colorIndex = track->colorIndex();
@@ -115,7 +117,7 @@ void GhostNoteSource::rebuild() {
 }
 
 void GhostNoteSource::rebuildConnections(const Track *hostTrack) {
-    for (const auto *track : appModel->tracks()) {
+    for (const auto *track : m_model.tracks()) {
         if (track == hostTrack)
             continue; // the host track never contributes ghosts, so it is never watched
         if (!m_connectedTracks.contains(track)) {

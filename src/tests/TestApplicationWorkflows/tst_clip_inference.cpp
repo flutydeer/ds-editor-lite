@@ -54,8 +54,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <future>
 #include <utility>
 
 namespace {
@@ -770,31 +772,114 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     QCOMPARE(runtime().documentVersion(), version);
 }
 
-void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
-    prepareVoicebankTarget();
-    if (QTest::currentTestFailed())
-        return;
-    const auto &service = SynthrtEngine::instance().languageService();
-    QVERIFY(service.modelsReady());
+void ApplicationWorkflowTests::builtInG2pKeepsConcurrentLyricsAligned_data() {
+    QTest::addColumn<QString>("languageId");
+    QTest::addColumn<QStringList>("words");
+    QTest::addColumn<QStringList>("pronunciations");
+    QTest::addColumn<int>("repeats");
+    QTest::newRow("english-dictionary-and-unlisted-word")
+        << QStringLiteral("eng") << QStringList{"hello", "codexarium"} << QStringList{} << 1;
+    QTest::newRow("mandarin-syllables")
+        << QStringLiteral("cmn") << QStringList{"八", "妈"} << QStringList{"ba", "ma"} << 16;
+}
+
+void ApplicationWorkflowTests::builtInG2pKeepsConcurrentLyricsAligned() {
+    QFETCH(QString, languageId);
+    QFETCH(QStringList, words);
+    QFETCH(QStringList, pronunciations);
+    QFETCH(int, repeats);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY_WITH_TIMEOUT(SynthrtEngine::instance().languageService().modelsReady(), 10000);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto root = directory.filePath(QStringLiteral("ci-fixture@1.0.0"));
+    std::error_code error;
+    std::filesystem::copy(std::filesystem::u8path(LITE_TEST_VOICEBANK_ROOT),
+                          std::filesystem::u8path(root.toUtf8().constData()),
+                          std::filesystem::copy_options::recursive, error);
+    QVERIFY2(!error, error.message().c_str());
+    // Use the shipped plugin through the singer route used by both editing and export.
+    QFile descriptor(QDir(root).filePath(QStringLiteral("characters/fixture/config.json")));
+    QVERIFY(descriptor.open(QIODevice::ReadOnly));
+    auto character = QJsonDocument::fromJson(descriptor.readAll()).object();
+    descriptor.close();
+    auto configuration = character.value(QStringLiteral("configuration")).toObject();
+    const auto languages = configuration.value(QStringLiteral("languages")).toArray();
+    for (const auto &entry : languages) {
+        auto language = entry.toObject();
+        if (language.value(QStringLiteral("id")).toString() != languageId)
+            continue;
+        language.insert(QStringLiteral("g2p"), QStringLiteral("g2p-%1-official").arg(languageId));
+        language.remove(QStringLiteral("g2pPackages"));
+        language.remove(QStringLiteral("g2pPackageVersion"));
+        configuration.insert(QStringLiteral("defaultLanguage"), languageId);
+        configuration.insert(QStringLiteral("languages"), QJsonArray{language});
+        break;
+    }
+    character.insert(QStringLiteral("configuration"), configuration);
+    QVERIFY(descriptor.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const auto contents = QJsonDocument(character).toJson();
+    QCOMPARE(descriptor.write(contents), contents.size());
+    descriptor.close();
+
+    const auto originalRoots = appOptions->general()->packageSearchPaths;
+    const auto restore = qScopeGuard([&] {
+        const auto result = packageManager->refreshInstalledPackages(originalRoots);
+        QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+    });
+    const auto refreshed = packageManager->refreshInstalledPackages({root});
+    QVERIFY2(refreshed, qPrintable(refreshed ? QString{} : refreshed.getError().message));
+    auto &engine = SynthrtEngine::instance();
+    auto identifier = engine.findSinger(QStringLiteral("fixture"));
+    QVERIFY(identifier);
     const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
     const auto *undo = HistoryManager::instance()->nextUndoEntry();
-    const std::vector<srt::g2p::G2pInput> inputs{
-        {"hello",      "g2p-eng-official"},
-        {"codexarium", "g2p-eng-official"},
+    std::vector<srt::g2p::G2pInput> inputs;
+    for (int n = 0; n < repeats; ++n)
+        for (const auto &word : words)
+            inputs.push_back({word.toStdString(), {}});
+    auto reversed = inputs;
+    std::reverse(reversed.begin(), reversed.end());
+    QSemaphore ready, start;
+    const auto convert = [&](const auto &phrase) {
+        return std::async(std::launch::async, [&, phrase] {
+            ready.release();
+            start.acquire();
+            return engine.convertG2p(*identifier, languageId, phrase);
+        });
     };
-    const auto converted = service.convertLyric(inputs);
-    QCOMPARE(converted.size(), inputs.size());
-    for (size_t index = 0; index < converted.size(); ++index) {
-        const auto &result = converted[index];
-        QCOMPARE(result.lyric, inputs[index].lyric);
-        QCOMPARE(result.errorType, srt::g2p::NoError);
-        QCOMPARE(result.mode, std::string(srt::g2p::kG2pModeConvert));
-        QVERIFY(!result.pronunciation.empty());
-        QVERIFY(result.pronunciation != inputs[index].lyric);
-        QVERIFY(!result.candidates.empty());
-    }
-    QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    auto first = convert(inputs);
+    auto second = convert(reversed);
+    const bool bothReady = ready.tryAcquire(2, 5000);
+    start.release(2);
+    QVERIFY(bothReady);
+    const auto verify = [&](auto &worker, const auto &phrase) {
+        QVERIFY(worker.wait_for(std::chrono::seconds(15)) == std::future_status::ready);
+        auto result = worker.get();
+        if (!result)
+            QFAIL(qPrintable(QString::fromUtf8(result.error().message())));
+        const auto &converted = *result;
+        QCOMPARE(converted.size(), phrase.size());
+        for (size_t i = 0; i < phrase.size(); ++i) {
+            const auto &item = converted[i];
+            QCOMPARE(item.lyric, phrase[i].lyric);
+            QCOMPARE(item.errorType, srt::g2p::NoError);
+            QCOMPARE(item.mode, std::string(srt::g2p::kG2pModeConvert));
+            QVERIFY(!item.candidates.empty());
+            QVERIFY(!item.pronunciation.empty() && item.pronunciation != item.lyric);
+            if (!pronunciations.isEmpty()) {
+                const auto index = words.indexOf(QString::fromStdString(item.lyric));
+                QCOMPARE(QString::fromStdString(item.pronunciation), pronunciations.at(index));
+            }
+        }
+        QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    };
+    verify(first, inputs);
+    verify(second, reversed);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
@@ -990,10 +1075,6 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     const auto previousContent = TestSupport::projectSnapshot(*context->m_appModel);
     auto interruptedVersion = runtime().documentVersion();
     auto interruptedContent = previousContent;
-    auto replacement = Automation::DocumentAutomationFacade::newDocumentDraft(false);
-    replacement.timeline = context->m_appModel->timeline();
-    for (const auto *track : context->m_appModel->tracks())
-        replacement.tracks.append(Automation::trackDraftDto(*track));
     const auto target = materials.filePath(QStringLiteral("voice.wav"));
     QFile file(target);
     const QByteArray original("previous export");
@@ -1021,7 +1102,8 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QVERIFY(active.get().progress.indeterminate);
         canceledDuringInference = true;
         if (replaceDocument) {
-            QVERIFY(runtime().documents().commitNewDocument(commandContext(), replacement));
+            QVERIFY(runtime().documents().commitNewDocument(
+                commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
         } else if (removeSourceTrack) {
             QVERIFY(runtime().project().removeTracks(commandContext(), {trackId}));
             interruptedVersion = runtime().documentVersion();
@@ -1035,21 +1117,26 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
     QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
     exportId = accepted.get().taskId;
     const auto terminalState = [&] {
-        const auto result =
-            runtime().tasks().getTask(runtime().documentVersion().documentId, exportId);
+        const auto result = runtime().tasks().getTask(previousDocument, exportId);
         return result ? result.get().state : Automation::AutomationTaskState::Failed;
     };
     if (replaceDocument) {
         QTRY_VERIFY_WITH_TIMEOUT(runtime().documentVersion().documentId != previousDocument, 15000);
-        QVERIFY(!runtime().tasks().getTask(previousDocument, exportId));
+        const auto expired = runtime().tasks().getTask(previousDocument, exportId);
+        QVERIFY(!expired);
+        QCOMPARE(expired.getError().code, Automation::AutomationErrorCode::DocumentChanged);
+        QTRY_VERIFY_WITH_TIMEOUT(!runtime().audioExports().hasActiveJobs(), 15000);
+        QVERIFY(canceledDuringInference);
+        QVERIFY(!renderedBeforeCancellation);
         QVERIFY(!HistoryManager::instance()->canUndo());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), original);
+        QCOMPARE(QDir(materials.path()).entryList(QDir::Files | QDir::Hidden),
+                 QStringList{QStringLiteral("voice.wav")});
+        return;
     } else if (removeSourceTrack) {
-        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Failed, 15000);
-        const auto failed = runtime().tasks().getTask(previousDocument, exportId);
-        QVERIFY(failed && failed.get().error);
-        QCOMPARE(failed.get().error->code, Automation::AutomationErrorCode::IoError);
-        QCOMPARE(failed.get().error->taskId, exportId);
-        QVERIFY(!failed.get().error->message.isEmpty());
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
+                                  15000);
         QCOMPARE(runtime().documentVersion(), interruptedVersion);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), interruptedContent);
         QVERIFY(runtime().history().undo(commandContext()));
@@ -1063,11 +1150,11 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), previousUndo);
     }
     QVERIFY(canceledDuringInference);
-    QVERIFY(!renderedBeforeCancellation);
-    QVERIFY(file.open(QIODevice::ReadOnly));
-    QCOMPARE(file.readAll(), original);
-    file.close();
     if (checkOtherTrack) {
+        QVERIFY(!renderedBeforeCancellation);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), original);
+        file.close();
         QVERIFY(blockedBackground && queuedBackground);
         QTRY_COMPARE_WITH_TIMEOUT(piece->state.get(), QStringLiteral("Acoustic.Awaiting"), 10000);
         QCOMPARE(queuedBackground->state.get(), queuedBackgroundState);
@@ -1085,10 +1172,13 @@ void ApplicationWorkflowTests::voiceExportPreparationInterruptionsAllowRetry() {
         QVERIFY(QFileInfo::exists(blockedBackground->audioPath));
         QVERIFY(QFileInfo::exists(queuedBackground->audioPath));
     }
-    const auto retry = runtime().audioExports().start(commandContext(), config, policy);
-    QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
-    exportId = retry.get().taskId;
-    QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded, 15000);
+    if (checkOtherTrack) {
+        const auto retry = runtime().audioExports().start(commandContext(), config, policy);
+        QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
+        exportId = retry.get().taskId;
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded,
+                                  15000);
+    }
     QVERIFY(file.open(QIODevice::ReadOnly));
     talcs::AudioFormatIO reader(&file);
     QVERIFY(reader.open(talcs::AbstractAudioFormatIO::Read));
@@ -1539,14 +1629,15 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
     release.release();
     QTRY_VERIFY_WITH_TIMEOUT(
         currentPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(nextPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
-    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
-    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    // Cache probes retire their tasks before posting the transition back to Awaiting.
+    QTRY_COMPARE(nextPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
     QVERIFY(runtime().playback().setPosition(commandContext(), 3840));
     QVERIFY(runtime().playback().play(commandContext()));
     QTRY_VERIFY_WITH_TIMEOUT(
         nextPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
     QTRY_COMPARE(audio->transport()->bufferingCounter(), 0);
     talcs::AudioBuffer buffer(2, 256);
     const auto position = audio->transport()->position();
@@ -1555,7 +1646,7 @@ void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInfer
     QVERIFY(runtime().playback().setPosition(commandContext(), 10080));
     QTRY_VERIFY_WITH_TIMEOUT(
         farPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
-    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
     QVERIFY(!registeredPieces.contains(pastPiece->id()));
 }
 

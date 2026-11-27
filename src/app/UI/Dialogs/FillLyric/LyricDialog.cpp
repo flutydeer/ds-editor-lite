@@ -32,7 +32,7 @@ namespace {
 LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
                          FillLyric::LyricLanguageContextPtr languageContext, QWidget *parent)
     : Dialog(parent), m_clip(clip), m_notes(std::move(note)) {
-    setModal(true);
+    setProjectModal();
     setMinimumSize(720, 450);
     setWindowTitle(tr("Fill Lyric"));
     setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);

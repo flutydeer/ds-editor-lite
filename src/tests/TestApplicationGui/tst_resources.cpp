@@ -186,6 +186,7 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
         auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
         QVERIFY(message);
         const auto close = qScopeGuard([&] { message->close(); });
+        QVERIFY(context->m_coreRuntime->documentBusy(before.documentId));
         if (validation.get().items.isEmpty()) {
             QCOMPARE(message->icon(), QMessageBox::Information);
             QVERIFY(message->text().contains(selectedPackage.path()));
@@ -200,6 +201,7 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
     });
     QTest::mouseClick(verify, Qt::LeftButton);
     QVERIFY(verified);
+    QVERIFY(!context->m_coreRuntime->documentBusy(before.documentId));
     dialog.activateWindow();
     QTRY_VERIFY(dialog.isActiveWindow());
 
@@ -417,6 +419,7 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
                 if (QTest::currentTestFailed())
                     picker->reject();
             });
+            QVERIFY(runtime.documentBusy(before.documentId));
             auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
             enterResourceText(name, QDir::toNativeSeparators(replacementPath));
             if (QTest::currentTestFailed())
@@ -444,6 +447,7 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     chooseReplacement(false);
     if (QTest::currentTestFailed())
         return;
+    QVERIFY(!runtime.documentBusy(before.documentId));
     QCOMPARE(audio->path(), missingPath);
     QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
     QCOMPARE(row->text(3), AudioResourcePage::tr("Missing"));

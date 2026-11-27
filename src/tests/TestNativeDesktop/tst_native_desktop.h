@@ -19,6 +19,9 @@ class NativeDesktopTests final : public QObject {
 public:
     NativeDesktopTests();
     ~NativeDesktopTests() override;
+#ifdef Q_OS_MACOS
+    static void initMain();
+#endif
 
 private slots:
     void initTestCase();
@@ -29,7 +32,18 @@ private slots:
     void mainWindowSplitterDragRestoresPanelSizes();
     void closingMainWindowWaitsForBackgroundTasks_data();
     void closingMainWindowWaitsForBackgroundTasks();
+    void closingLastProjectWindowFollowsPlatformBehavior_data();
+    void closingLastProjectWindowFollowsPlatformBehavior();
     void detachedPanelDiesWithItsMainWindow();
+    void cancelingExitKeepsTheRemainingProject_data();
+    void cancelingExitKeepsTheRemainingProject();
+    void newAndOpenFollowTheProjectWindowPreference();
+    void detachedPlaybackAndProjectClipboard();
+    void midiRecordingFollowsItsProjectAcrossWindowFocus_data();
+    void midiRecordingFollowsItsProjectAcrossWindowFocus();
+    void exitRemembersTheLastEditorGeometry_data();
+    void exitRemembersTheLastEditorGeometry();
+    void recoveryRecordsKeepEachProjectsUnsavedChanges();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();

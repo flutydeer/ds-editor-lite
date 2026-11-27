@@ -173,11 +173,15 @@ void ApplicationGuiTests::pianoTouchpadPinchUsesTouchAxisLock() {
     QCOMPARE(view.scaleY(), caughtY);
     touch.press(0, first).press(1, second).commit();
     const bool nextIsHorizontal = !axes.testFlag(Qt::Horizontal);
-    const QPoint nextDelta(nextIsHorizontal ? 40 : 0, nextIsHorizontal ? 0 : 40);
+    // A diagonal glide can reach maximum zoom on both axes. Pinch inward in that case.
+    const bool diagonal = axes == (Qt::Horizontal | Qt::Vertical);
+    const int spread = diagonal ? -40 : 40;
+    const double nextFactor = diagonal ? 0.8 : 1.25;
+    const QPoint nextDelta(nextIsHorizontal ? spread : 0, nextIsHorizontal ? 0 : spread);
     touch.move(0, first - nextDelta).move(1, second + nextDelta).commit();
-    sendNative(Qt::ZoomNativeGesture, 0.25);
-    QVERIFY(qAbs(view.scaleX() - caughtX * (nextIsHorizontal ? 1.25 : 1.0)) < 1e-9);
-    QVERIFY(qAbs(view.scaleY() - caughtY * (nextIsHorizontal ? 1.0 : 1.25)) < 1e-9);
+    sendNative(Qt::ZoomNativeGesture, nextFactor - 1.0);
+    QCOMPARE(view.scaleX(), caughtX * (nextIsHorizontal ? nextFactor : 1.0));
+    QCOMPARE(view.scaleY(), caughtY * (nextIsHorizontal ? 1.0 : nextFactor));
     touch.release(0, first - nextDelta).release(1, second + nextDelta).commit();
     sendNative(Qt::EndNativeGesture);
 }

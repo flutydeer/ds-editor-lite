@@ -10,8 +10,7 @@ class IOptionPage;
 class QListWidget;
 class QStackedWidget;
 
-// Options settings panel. showStandaloneDialog() wraps it in a Dialog (title
-// bar, modal exec) to produce the floating options window.
+// Settings panel shared by the standalone options window and embedded hosts.
 class AppOptionsDialog : public QWidget {
     Q_OBJECT
 
@@ -24,9 +23,7 @@ public:
 
     void setAutomationCustomPermissionOperationIds(QStringList operationIds);
 
-    // Shows the options as a standalone modal dialog (Dialog base + title bar)
-    // and enters its modal event loop. Returns the dialog's result.
-    static int showStandaloneDialog(AppOptionsGlobal::Option option, QWidget *parent = nullptr);
+    static void showStandaloneDialog(AppOptionsGlobal::Option option, QWidget *parent = nullptr);
 
 protected:
     void changeEvent(QEvent *event) override;

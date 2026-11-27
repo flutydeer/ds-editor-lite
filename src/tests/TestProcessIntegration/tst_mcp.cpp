@@ -377,12 +377,12 @@ namespace {
                      {
                          {QStringLiteral("current_document_id"), document.value("document_id")},
                          {QStringLiteral("expected_revision"),   document.value("revision")   },
-                         {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")    },
+                         {QStringLiteral("discard_changes"),     true                         },
                          {QStringLiteral("template"),            preset                       }
             });
             return result && refresh() && checkDocument({}, false);
         };
-        const auto open = [&](const QString &path) {
+        const auto open = [&](const QString &path, bool discardChanges = false) {
             if (!refresh())
                 return false;
             const auto previous = document.value("document_id");
@@ -391,7 +391,7 @@ namespace {
                      {
                          {QStringLiteral("current_document_id"), previous                  },
                          {QStringLiteral("expected_revision"),   document.value("revision")},
-                         {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")  },
+                         {QStringLiteral("discard_changes"),     discardChanges            },
                          {QStringLiteral("path"),                path                      }
             });
             if (!started)
@@ -523,7 +523,63 @@ namespace {
                                  recentBeforeForeign ? compactJson(*recentBeforeForeign) : error,
                                  recentAfterForeign ? compactJson(*recentAfterForeign) : error));
         }
-        return true;
+        const auto source = foreign->value("document").toObject();
+        const auto closeProject = [&](const QJsonObject &version) {
+            return call("documents.close", {
+                                               {"document_id",       version.value("document_id")},
+                                               {"expected_revision", version.value("revision")   }
+            });
+        };
+        for (const auto &discard :
+             {QJsonValue(QJsonValue::Undefined), QJsonValue(false), QJsonValue(true)}) {
+            QJsonObject options;
+            if (!discard.isUndefined())
+                options.insert("discard_changes", discard);
+            const auto created = call("documents.new", options);
+            if (!created || !created->value("previous").isNull() ||
+                !closeProject(created->value("current").toObject()))
+                return fail(QStringLiteral("New window could not be created and closed"));
+
+            options.insert("path", firstPath);
+            const auto started = call("documents.open", options);
+            if (!started)
+                return false;
+            QJsonObject loaded;
+            const bool completed = waitUntil(
+                [&] {
+                    const auto status = call("application.get_status");
+                    if (!status)
+                        return false;
+                    for (const auto &entry : status->value("documents").toArray()) {
+                        const auto id = entry.toObject().value("document_id");
+                        if (id == source.value("document_id"))
+                            continue;
+                        const auto task =
+                            connectorToolContent(connector, requestId++, "tasks.get",
+                                                 {
+                                                     {"scope",       "document"               },
+                                                     {"document_id", id                       },
+                                                     {"task_id",     started->value("task_id")}
+                        },
+                                                 5000, error);
+                        if (task && task->value("state") == "succeeded") {
+                            const auto result = task->value("result").toObject();
+                            loaded = result.value("current").toObject();
+                            return result.value("previous").isNull() &&
+                                   loaded.value("document_id") == id;
+                        }
+                    }
+                    return false;
+                },
+                10000);
+            const auto original = snapshot();
+            if (!completed || !original || original->value("document").toObject() != source ||
+                !original->value("snapshot").toObject().value("dirty").toBool() ||
+                !closeProject(loaded))
+                return fail(
+                    QStringLiteral("Opening a new window did not preserve the dirty project"));
+        }
+        return open(firstPath, true) && open(midi.fileName()) && create(QStringLiteral("empty"));
     }
 
     QString schemaIssue(const QJsonValue &schema) {
@@ -745,14 +801,14 @@ namespace {
             stopProcess(editor);
         }
 
-        bool start() {
+        bool start(const QJsonArray &packageRoots = {}, bool autoStartInference = false) {
             if (!storage.isValid() || !ProcessFixture::writeWaveFixture(audioPath) ||
                 !storage.writeConfig({
                     {QStringLiteral("general"),
-                     QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}            },
+                     QJsonObject{{QStringLiteral("packageSearchPaths"), packageRoots}}            },
                     {QStringLiteral("inference"),
                      QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
-                                 {QStringLiteral("autoStartInfer"), false}}                       },
+                                 {QStringLiteral("autoStartInfer"), autoStartInference}}          },
                     {QStringLiteral("audio"),
                      QJsonObject{
                          {QStringLiteral("deviceName"), QStringLiteral("configured-only-device")}}},
@@ -1978,6 +2034,88 @@ namespace {
 
 void ProcessIntegrationTests::editingWorkflow() {
     QVERIFY(runEditingWorkflow(editorPath, connectorPath));
+}
+
+void ProcessIntegrationTests::newProjectWindowSynthesizesItsFirstNote() {
+    EditorConnectorFixture fixture(editorPath, connectorPath, QStringLiteral("inference-window"));
+    QVERIFY(fixture.start({QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)}, true));
+    qint64 requestId = 500;
+    const auto call = [&](const QString &tool, const QJsonObject &args) {
+        const auto result =
+            connectorToolContent(fixture.connector, ++requestId, tool, args, 10000, fixture.error);
+        if (!result)
+            QTest::qFail(qPrintable(fixture.error), __FILE__, __LINE__);
+        return result.value_or(QJsonObject{});
+    };
+    const auto first = fixture.lastEditorStatus.value("documents").toArray().first().toObject();
+    const QJsonObject newProject{{"template", "default"}};
+    const auto created = call("documents.new", newProject).value("current").toObject();
+    const auto id = created.value("document_id");
+    QVERIFY(id.isString() && id != first.value("document_id"));
+    const QJsonObject singingClips{{"document_id", id}, {"type", "singing"}};
+    const auto clips = call("clips.list", singingClips).value("clips").toArray();
+    QVERIFY(!clips.isEmpty());
+    const auto clip = clips.first().toObject();
+    const auto clipId = clip.value("clip_id");
+    const QJsonObject package{{"package_id", "ci-fixture"}};
+    QJsonArray singers;
+    QVERIFY(waitUntil(
+        [&] {
+            singers = call("voices.list", package).value("singers").toArray();
+            return !singers.isEmpty();
+        },
+        10000));
+    const auto available = singers.first().toObject();
+    const QJsonObject singer{
+        {"package_id",      available.value("package_id")     },
+        {"package_version", available.value("package_version")},
+        {"singer_id",       available.value("singer_id")      }
+    };
+    const QJsonObject voice{
+        {"singer",  singer                              },
+        {"speaker", QJsonObject{{"speaker_id", "clear"}}}
+    };
+    const QJsonObject setVoice{{"document_id", id}, {"expected_revision", created.value("revision")},
+                               {"track_id", clip.value("track_id")}, {"voice", voice}};
+    const auto selected = call("tracks.set_voice", setVoice).value("current").toObject();
+    QVERIFY(!selected.isEmpty());
+    const QJsonObject note{
+        {"local_start", 480                                                      },
+        {"length",      960                                                      },
+        {"key_index",   60                                                       },
+        {"lyric",       "la"                                                     },
+        {"language",    QJsonObject{{"mode", "explicit"}, {"language_id", "cmn"}}}
+    };
+    const QJsonObject insert{{"document_id", id}, {"expected_revision", selected.value("revision")},
+                             {"clip_id", clipId}, {"notes", QJsonArray{note}}};
+    QVERIFY(!call("notes.insert", insert).isEmpty());
+
+    const QJsonObject scope{
+        {"kind",     "clip"            },
+        {"clip_ids", QJsonArray{clipId}}
+    };
+    const QJsonObject statusQuery{{"document_id", id}, {"scope", scope}};
+    QString state;
+    QJsonObject status;
+    const auto finished = waitUntil(
+        [&] {
+            status = call("inference.get_status", statusQuery).value("status").toObject();
+            if (status.isEmpty())
+                return true;
+            for (const auto &entry : status.value("stages").toArray()) {
+                const auto stage = entry.toObject();
+                state = stage.value("state").toString();
+                if (state == "failed" || (stage.value("stage") == "acoustic" && state == "ready"))
+                    return true;
+            }
+            return false;
+        },
+        30000);
+    QVERIFY2(finished && state == "ready", qPrintable(compactJson(status)));
+    const QJsonObject originalTarget{{"document_id", first.value("document_id")}};
+    const auto original = call("documents.get", originalTarget);
+    QCOMPARE(original.value("document").toObject().value("revision"), first.value("revision"));
+    QVERIFY(fixture.shutdown());
 }
 
 void ProcessIntegrationTests::secondaryStartup() {

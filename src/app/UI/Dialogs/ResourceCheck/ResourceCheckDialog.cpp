@@ -13,7 +13,7 @@ ResourceCheckDialog::ResourceCheckDialog(QWidget *parent) : Dialog(parent) {
     setMessage(tr("The following resources could not be found on this device. You can relink "
                   "them now, or close this dialog and relink from the clip context menu later."));
     setMinimumSize(720, 400);
-    setModal(true);
+    setWindowModality(Qt::WindowModal);
 
     m_pageList = new QListWidget;
     m_pageList->setFixedWidth(160);

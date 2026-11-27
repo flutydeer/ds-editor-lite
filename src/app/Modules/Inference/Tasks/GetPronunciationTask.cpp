@@ -14,9 +14,6 @@
 #include <synthrt/G2P/Base/LangCommon.h>
 
 #include <lite/ProjectModel/AppModel/Note.h>
-#include <lite/Support/VersionUtils.h>
-#include <lite/Language/G2pConvertRunner.h>
-#include <lite/Language/G2pInputAdapter.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
 Q_LOGGING_CATEGORY(logInferPron, "infer.pronunciation")
@@ -160,9 +157,7 @@ QList<PronunciationFetchResult>
         return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
-    // B1b-3: Group non-skipped notes by language (preserving first-seen order).
-    // Each language calls session().convertG2p once (internally routed by
-    // SingerRef.version, which fills g2pId/g2pContext/g2pContextVersion).
+    // Group non-skipped notes by language and convert the lyrics together using the singer's route.
     // The inference chain never falls back to official; on route/convert
     // failure that language keeps the original lyric (ds-session.md §206).
     // language -> [(noteIndex, lyricUtf8), ...]
@@ -186,10 +181,8 @@ QList<PronunciationFetchResult>
     if (langGroups.empty())
         return pronResult;
 
-    auto &session = SynthrtEngine::instance().session();
+    auto &engine = SynthrtEngine::instance();
     const auto identifier = m_singerInfo.identifier();
-    const auto packageId = identifier.packageId.toStdString();
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
 
     for (const auto &[language, entries] : langGroups) {
         std::vector<srt::g2p::G2pInput> inputs;
@@ -200,21 +193,7 @@ QList<PronunciationFetchResult>
             inputs.push_back(std::move(input));
         }
 
-        // Ensure the G2P language module is loaded before conversion.
-        // convertG2p does not auto-initialize models; ensureLanguageReady
-        // loads them lazily on first call (cached internally by the session).
-        const auto langStd = toUtf8(language);
-        auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
-        if (!readyExp) {
-            qCWarning(logInferPron).nospace()
-                << "G2P language ready failed for lang='" << language
-                << "': " << fromUtf8(readyExp.error().message()) << ". Keeping original lyric.";
-            for (const auto &entry : entries)
-                pronResult[entry.first].candidates = {fromUtf8(entry.second)};
-            continue;
-        }
-
-        auto exp = session.convertG2p(identifier, langStd, inputs);
+        auto exp = engine.convertG2p(identifier, language, inputs);
         if (!exp) {
             // The inference chain never silently falls back to official;
             // original lyric is kept so users can manually adjust later in

@@ -104,7 +104,7 @@ void OpendspxImportLoadSession::startConfiguration() {
         materialize(input);
         return;
     }
-    auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
+    auto *dialog = new ProjectImportConfigDialog(m_dialogParent);
     dialog->setWindowTitle(tr("Configure Import"));
     auto *page = m_formatHandler->createConfigPage(dialog);
     auto *dspxPage = qobject_cast<DspxConfigPage *>(page ? page->widget() : nullptr);

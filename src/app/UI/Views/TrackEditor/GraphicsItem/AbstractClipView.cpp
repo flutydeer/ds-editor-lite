@@ -1,4 +1,5 @@
 #include "AbstractClipView.h"
+#include <lite/Support/ObjectContext.h>
 #include "AbstractClipView_p.h"
 
 #include "Global/AppGlobal.h"
@@ -34,10 +35,11 @@ AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
-    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
-        if (option == AppOptionsGlobal::DeveloperOptions)
-            update();
-    });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::DeveloperOptions)
+                                   update();
+                           });
 }
 
 AbstractClipView::~AbstractClipView() {

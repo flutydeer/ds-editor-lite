@@ -1,4 +1,5 @@
 #include "PackageManagerDialog.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -103,14 +104,14 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
         return;
     const auto validation = runtime->packages().validatePackage(package.path());
     if (!validation) {
-        QMessageBox::critical(this, tr("Verify Package"), validation.getError().message);
+        WindowDialogs::critical(this, tr("Verify Package"), validation.getError().message);
         return;
     }
     const auto &report = validation.get();
 
     if (report.items.isEmpty()) {
-        QMessageBox::information(this, tr("Verify Package"),
-                                 tr("No issues found in package:\n%1").arg(package.path()));
+        WindowDialogs::information(this, tr("Verify Package"),
+                                   tr("No issues found in package:\n%1").arg(package.path()));
         return;
     }
 
@@ -149,7 +150,8 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
                                             : tr("Package verification completed with warnings."),
                            QMessageBox::Ok, this);
     messageBox.setDetailedText(lines.join(QStringLiteral("\n\n")));
-    messageBox.exec();
+    messageBox.setWindowModality(Qt::WindowModal);
+    WindowDialogs::exec(messageBox);
 }
 
 void PackageManagerDialog::initUi() {

@@ -1,5 +1,6 @@
 #include "AudioExportAutomationFacade.h"
 #include "OperationIds.h"
+#include <lite/Core/SingletonRegistry.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -313,6 +314,9 @@ namespace Automation {
                     });
                 }
 
+                const auto captured = validationJob.get()->captureSnapshot();
+                if (!captured)
+                    return AutomationResult<TaskAcceptedResult>(captured.getError());
                 auto state = std::make_shared<PendingJobState>();
                 {
                     const QMutexLocker locker(&state->mutex);
@@ -428,8 +432,11 @@ namespace Automation {
         }
         QStringList warnings;
         AudioExportObserver taskObserver;
-        taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
-                                    const double progress, const int sourceIndex) {
+        const auto sourceContext = SingletonRegistry::current();
+        taskObserver.progress = [this, taskId, sourceContext,
+                                 callback = std::move(observer.progress)](const double progress,
+                                                                          const int sourceIndex) {
+            const SingletonRegistry::Scope scope(sourceContext);
             m_tasks.updateProgress(taskId,
                                    {.minimum = 0,
                                     .maximum = 100,
@@ -438,9 +445,10 @@ namespace Automation {
             if (callback)
                 callback(progress, sourceIndex);
         };
-        taskObserver.inferenceProgress = [this, taskId,
+        taskObserver.inferenceProgress = [this, taskId, sourceContext,
                                           callback = std::move(observer.inferenceProgress)](
                                              const double progress) {
+            const SingletonRegistry::Scope scope(sourceContext);
             m_tasks.updateProgress(taskId,
                                    {.minimum = 0,
                                     .maximum = 100,
@@ -449,17 +457,19 @@ namespace Automation {
             if (callback)
                 callback(progress);
         };
-        taskObserver.clipping = [&warnings,
-                                 callback = std::move(observer.clipping)](const int sourceIndex) {
+        taskObserver.clipping = [&warnings, sourceContext, callback = std::move(observer.clipping)](
+                                    const int trackIndex, const QString &trackName) {
+            const SingletonRegistry::Scope scope(sourceContext);
             warnings.append(
-                sourceIndex < 0
+                trackIndex < 0
                     ? QStringLiteral("Clipping detected")
-                    : QStringLiteral("Clipping detected in source %1").arg(sourceIndex));
+                    : QStringLiteral("Clipping detected in source %1").arg(trackIndex));
             if (callback)
-                callback(sourceIndex);
+                callback(trackIndex, trackName);
         };
-        taskObserver.warning = [&warnings, callback = std::move(observer.warning)](
+        taskObserver.warning = [&warnings, sourceContext, callback = std::move(observer.warning)](
                                    const QString &message, const int sourceIndex) {
+            const SingletonRegistry::Scope scope(sourceContext);
             warnings.append(message);
             if (callback)
                 callback(message, sourceIndex);
@@ -546,26 +556,23 @@ namespace Automation {
         m_jobs.remove(taskId);
     }
 
+    bool AudioExportAutomationFacade::hasActiveJobs() {
+        const QMutexLocker lock(&m_jobsMutex);
+        return !m_jobs.isEmpty();
+    }
+
     void AudioExportAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {
-        QList<std::shared_ptr<JobRecord>> removed;
+        QList<std::shared_ptr<PendingJobState>> pending;
         {
             const QMutexLocker locker(&m_jobsMutex);
-            for (auto it = m_jobs.begin(); it != m_jobs.end();) {
-                const auto record = it.value();
-                if (!record || !record->state) {
-                    it = m_jobs.erase(it);
-                    continue;
-                }
-                if (record->baseDocument.documentId != documentId) {
-                    ++it;
-                    continue;
-                }
-                removed.append(record);
-                it = m_jobs.erase(it);
+            // Retired windows keep the facade alive until scheduled jobs finish cleanup.
+            for (const auto &record : std::as_const(m_jobs)) {
+                if (record->baseDocument.documentId == documentId)
+                    pending.append(record->state);
             }
         }
-        for (const auto &record : std::as_const(removed))
-            record->state->requestCancel();
+        for (const auto &state : std::as_const(pending))
+            state->requestCancel();
     }
 
 } // namespace Automation

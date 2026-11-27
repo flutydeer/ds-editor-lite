@@ -3,6 +3,7 @@
 #include "Automation/Mcp/EditorMcpController.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/AppEnvironment.h"
+#include "Bootstrap/EditorApplication.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
 #include "Bootstrap/HeadlessOpenRequestQueue.h"
@@ -15,13 +16,13 @@
 #include "Bootstrap/SingleInstanceIdentity.h"
 #include "Bootstrap/StartupArguments.h"
 #include "Bootstrap/WindowPlacement.h"
-#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Window/MainWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "Utils/UiLanguageManager.h"
 #include "Utils/WindowChromeCapture.h"
 #include <lite/ProductMetadata.h>
@@ -47,9 +48,9 @@ int main(int argc, char *argv[]) {
     AppEnvironment::preInit(hostMode);
     std::unique_ptr<QCoreApplication> application;
     if (hostMode == AppHostMode::Gui)
-        application = std::make_unique<QApplication>(argc, argv);
+        application = std::make_unique<EditorApplication>(argc, argv);
     else
-        application = std::make_unique<QCoreApplication>(argc, argv);
+        application = std::make_unique<HeadlessApplication>(argc, argv);
     AppEnvironment::postInit(hostMode);
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     if (!parsedArguments.isValid()) {
@@ -290,20 +291,20 @@ int main(int argc, char *argv[]) {
             *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine);
 
         if (hostMode == AppHostMode::Gui) {
-            MainWindow w;
+            DocumentWindowManager windows(appContext);
+            if (windows.keepsRunningWithoutWindows())
+                QApplication::setQuitOnLastWindowClosed(false);
+            auto &first = windows.createWindow();
+            auto &w = *first.window;
+            windows.configureAutomation(hostServices);
+            if (!startupPaths.isEmpty())
+                windows.open(startupPaths, &first);
+            QTimer::singleShot(0, &windows, [&windows] { windows.offerRecovery(); });
             logStage(QStringLiteral("window_constructed"));
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
                 parsedArguments.automation, hostServices);
-            WindowPlacement windowPlacement(w);
-            windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
-            ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
-            const auto startupAdmission = requestQueue.take(startupRequest, true);
-            if (!startupAdmission.taken)
-                qWarning().noquote()
-                    << QStringLiteral("Local startup request was not admitted: %1. Command-line "
-                                      "project paths may not be opened.")
-                           .arg(startupAdmission.error);
+            ExternalOpenRequestQueue requestQueue(windows);
             coordinator.setAdmissionHandler(
                 [&requestQueue](const SingleInstanceRequest &request) {
                     return requestQueue.take(request);
@@ -328,10 +329,6 @@ int main(int argc, char *argv[]) {
             result = application->exec();
             qInfo() << "Event loop finished";
             coordinator.stopAcceptingRequests();
-            const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
-                {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
-            if (!saveWindow)
-                qWarning("Failed to save main-window placement");
         } else {
             HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
                                                   hostServices.openDocument);

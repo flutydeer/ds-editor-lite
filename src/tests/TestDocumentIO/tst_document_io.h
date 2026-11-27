@@ -19,7 +19,7 @@ private slots:
     void suggestedSavePath_data();
     void suggestedSavePath();
     void existingSavePathIsPreserved();
-    void projectPathCaseSensitivity();
+    void projectPathIdentity();
     void dirtyRevisionMustBeApprovedAgain();
     void initialUntitledSession();
     void newOpenAndImport();

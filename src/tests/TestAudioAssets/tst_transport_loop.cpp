@@ -3,6 +3,7 @@
 #include <QtTest>
 
 #include <TalcsCore/AudioBuffer.h>
+#include <TalcsCore/AudioSourceClipSeries.h>
 #include <TalcsCore/PositionableAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
 
@@ -47,8 +48,10 @@ namespace {
 
 void AudioAssetsTests::transportLoopWrapKeepsTheNextBlockAligned() {
     RampSource source(10000);
+    talcs::AudioSourceClipSeries clips;
+    clips.insertClip(&source, 0, 0, source.length());
     talcs::TransportAudioSource transport;
-    transport.setSource(&source);
+    transport.setSource(&clips);
     QVERIFY(transport.open(256, 48000));
     transport.setLoopingRange(100, 200);
     transport.setPosition(90);
@@ -69,10 +72,15 @@ void AudioAssetsTests::transportLoopWrapKeepsTheNextBlockAligned() {
     // Only the samples read after the wrap advance the transport position.
     QCOMPARE(transport.position(), qint64{146});
 
-    talcs::AudioBuffer next(1, 32);
-    talcs::AudioSourceReadData nextReadData(&next, 0, 32);
-    QCOMPARE(transport.read(nextReadData), qint64{32});
+    talcs::AudioBuffer next(1, 54);
+    talcs::AudioSourceReadData nextReadData(&next, 0, 54);
+    QCOMPARE(transport.read(nextReadData), qint64{54});
     QCOMPARE(next.sample(0, 0), 146.0f);
-    QCOMPARE(next.sample(0, 31), 177.0f);
-    QCOMPARE(transport.position(), qint64{178});
+    QCOMPARE(next.sample(0, 53), 199.0f);
+
+    // The next block starts exactly at the loop boundary.
+    QCOMPARE(transport.read(nextReadData), qint64{54});
+    QCOMPARE(next.sample(0, 0), 100.0f);
+    QCOMPARE(next.sample(0, 53), 153.0f);
+    QCOMPARE(transport.position(), qint64{154});
 }

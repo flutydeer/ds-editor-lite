@@ -1,4 +1,5 @@
 #include "AudioExportDialog.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include "AudioExportProgressDialog.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -33,6 +34,7 @@
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/Support/ShellUtils.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
@@ -45,6 +47,8 @@ namespace Audio::Internal {
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent)
         : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)),
           m_stateMachine(nullptr) {
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            m_documentId = runtime->documentVersion().documentId;
         setWindowTitle(tr("Export Audio"));
         auto mainLayout = new QVBoxLayout(body());
 
@@ -403,11 +407,11 @@ namespace Audio::Internal {
         connect(presetSaveAsButton, &QAbstractButton::clicked, this, [this] {
             QString result = m_presetComboBox->currentText();
             while (true) {
-                result = QInputDialog::getText(this, {}, tr("Preset name"), {}, result);
+                result = WindowDialogs::getText(this, {}, tr("Preset name"), {}, result);
                 if (result.isEmpty())
                     return;
                 if (AudioExporter::presets().contains(result)) {
-                    if (QMessageBox::question(
+                    if (WindowDialogs::question(
                             this, {},
                             tr("Preset \"%1\" already exists. Overwrite it?").arg(result)) ==
                         QMessageBox::Yes)
@@ -487,10 +491,10 @@ namespace Audio::Internal {
         };
         QString selectedFilter = filters.at(m_fileTypeComboBox->currentIndex());
         const auto path =
-            QFileDialog::getSaveFileName(this, {},
-                                         QDir(m_audioExporter->d_func()->projectDirectory())
-                                             .absoluteFilePath(m_fileDirectoryEdit->text()),
-                                         filters.join(";;"), &selectedFilter);
+            WindowDialogs::getSaveFileName(this, {},
+                                           QDir(m_audioExporter->d_func()->projectDirectory())
+                                               .absoluteFilePath(m_fileDirectoryEdit->text()),
+                                           filters.join(";;"), &selectedFilter);
         if (path.isEmpty())
             return;
         const QFileInfo fileInfo(path);
@@ -505,12 +509,13 @@ namespace Audio::Internal {
     }
 
     void AudioExportDialog::showWarnings() {
-        QMessageBox::warning(this, {},
-                             AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
+        WindowDialogs::warning(this, {},
+                               AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
     }
 
     void AudioExportDialog::showDryRunResult() {
         QDialog dlg(this);
+        dlg.setWindowModality(Qt::WindowModal);
         const auto layout = new QVBoxLayout;
         const auto fileListGroupBox = new QGroupBox(tr("File List"));
         const auto fileListLayout = new QVBoxLayout;
@@ -566,7 +571,7 @@ namespace Audio::Internal {
         dlg.setWindowTitle(tr("Dry Run"));
         dlg.setWindowFlag(Qt::WindowContextHelpButtonHint, false);
         dlg.resize(600, 400);
-        dlg.exec();
+        WindowDialogs::exec(dlg);
     }
 
     void AudioExportDialog::updateConfig() const {
@@ -651,6 +656,11 @@ namespace Audio::Internal {
     }
 
     void AudioExportDialog::showConfiguration() {
+        const auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime || runtime->documentVersion().documentId != m_documentId) {
+            reject();
+            return;
+        }
         updateView();
         setWindowModality(Qt::WindowModal);
         open();
@@ -683,23 +693,24 @@ namespace Audio::Internal {
 
         m_exportedFiles = m_audioExporter->dryRun();
         m_exportOutcome = ExportOutcome::None;
-        const auto progressDialog =
-            new AudioExportProgressDialog(m_audioExporter, Dialog::globalParent());
+        const auto progressDialog = new AudioExportProgressDialog(m_audioExporter, parentWidget());
+        progressDialog->setParent(nullptr, progressDialog->windowFlags());
+        ObjectContext::bind(progressDialog);
+        ThemeManager::instance()->addStyleRoot(progressDialog);
+        progressDialog->setAttribute(Qt::WA_ShowWithoutActivating);
         progressDialog->setAttribute(Qt::WA_DeleteOnClose);
         m_progressDialog = progressDialog;
 
         connect(progressDialog, &AudioExportProgressDialog::cancelRequested, this,
                 [this] { m_audioExporter->cancel(); });
-        connect(progressDialog, &AudioExportProgressDialog::openFolderRequested, this,
+        connect(progressDialog, &AudioExportProgressDialog::openFolderRequested, progressDialog,
                 [](const QStringList &files) { ShellUtils::revealFiles(files); });
         connect(progressDialog, &AudioExportProgressDialog::dismissed, this,
                 &AudioExportDialog::handleProgressDismissed);
 
         emit exportStarted();
         progressDialog->show();
-        QTimer::singleShot(0, progressDialog, [this, progressDialog] {
-            QCoreApplication::processEvents();
-            const auto ret = m_audioExporter->exec();
+        m_audioExporter->start([this, progressDialog](AudioExporter::Result ret) {
             m_audioExporter->cleanUp();
             saveExporterSettings();
             saveTemporaryPreset();
@@ -762,6 +773,7 @@ namespace Audio::Internal {
             tr("Warning"),
             AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"), this);
         constexpr int continueButtonId = 0;
+        dialog.setWindowModality(Qt::WindowModal);
         constexpr int cancelButtonId = 1;
         dialog.addAccentButton(tr("Continue"), continueButtonId, QDialogButtonBox::AcceptRole);
         dialog.addButton(tr("Cancel"), cancelButtonId, QDialogButtonBox::RejectRole);

@@ -4,32 +4,21 @@
 #include "SingleInstanceProtocol.h"
 
 #include <QObject>
-#include <QQueue>
 
-class DocumentWorkflowController;
-class QWidget;
+class DocumentWindowManager;
 
 class ExternalOpenRequestQueue final : public QObject {
 public:
-    ExternalOpenRequestQueue(DocumentWorkflowController *workflow, QWidget *window,
-                             QObject *parent = nullptr);
+    explicit ExternalOpenRequestQueue(DocumentWindowManager &windows);
 
     // Returns whether the main thread actually admitted the request into its
     // bounded work queue. A rejection is propagated back to the secondary
     // instead of being silently dropped after an early ACK.
-    // localStartup marks the request created from this process's own command
-    // line: the external in-flight cap must not discard project paths the user
-    // explicitly passed at launch.
-    AdmissionResult take(const SingleInstanceRequest &request, bool localStartup = false);
+    AdmissionResult take(const SingleInstanceRequest &request);
 
 private:
-    void dispatchNext();
-    void activateWindow();
-
-    DocumentWorkflowController *m_workflow;
-    QWidget *m_window;
-    QQueue<QString> m_paths;
-    bool m_activatePending = false;
+    DocumentWindowManager &m_windows;
+    qsizetype m_queuedPaths = 0;
 };
 
 #endif // EXTERNALOPENREQUESTQUEUE_H

@@ -19,7 +19,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
-#include <TalcsWidgets/AudioFileDialog.h>
+#include "UI/Utils/AudioFilePicker.h"
 #include <TalcsFormat/AbstractAudioFormatIO.h>
 
 #include <QClipboard>
@@ -259,9 +259,9 @@ void TrackEditorContextMenuController::insertAudioClip(const int trackIndex, con
     QString fileName;
     QVariant userData;
     QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(
-        AudioContext::instance()->formatManager(), fileName, userData, entryClassName, m_owner,
-        tr("Select an Audio File"), QStringLiteral("."));
+    auto io = AudioFilePicker::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
+                                                  fileName, userData, entryClassName, m_owner,
+                                                  tr("Select an Audio File"), QStringLiteral("."));
     if (fileName.isNull() || trackIndex < 0 || trackIndex >= appModel->tracks().size()) {
         // The dialog-probed IO is only used for preparation; drop it when the
         // selection is abandoned.
@@ -282,9 +282,9 @@ void TrackEditorContextMenuController::relocateAudioClip(const int clipId) const
     QString fileName;
     QVariant userData;
     QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(
-        AudioContext::instance()->formatManager(), fileName, userData, entryClassName, m_owner,
-        tr("Select an Audio File"), QStringLiteral("."));
+    auto io = AudioFilePicker::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
+                                                  fileName, userData, entryClassName, m_owner,
+                                                  tr("Select an Audio File"), QStringLiteral("."));
     if (fileName.isNull())
         return;
     trackController->onRelocateAudioClip(

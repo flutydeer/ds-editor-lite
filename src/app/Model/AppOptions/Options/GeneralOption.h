@@ -7,6 +7,7 @@
 #include <QMap>
 
 #include "Global/AppGlobal.h"
+#include "Global/AppOptionsGlobal.h"
 #include <lite/ProjectModel/AppModel/Params.h>
 #include "Model/AppOptions/IOption.h"
 #include <lite/ADT/Property.h>
@@ -22,6 +23,7 @@ public:
 
     QString defaultSingingLanguage = "cmn";
     QString uiLanguage = "system";
+    AppOptionsGlobal::ProjectWindowMode projectWindowMode = AppOptionsGlobal::ProjectWindowMode::Ask;
     QMap<QString, QString> defaultLyrics{
         {"cmn", "啦"},
         {"eng", "la"},

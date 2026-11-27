@@ -1,4 +1,5 @@
 #include <lite/GUI/Controls/DirSelector.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QDropEvent>
 #include <QFileDialog>
@@ -73,7 +74,7 @@ void DirSelector::dropEvent(QDropEvent *event) {
 
 void DirSelector::onBrowseButtonClicked() {
     const QString selectedDir =
-        QFileDialog::getExistingDirectory(this, tr("Select a Directory"), QDir::currentPath());
+        WindowDialogs::getExistingDirectory(this, tr("Select a Directory"), QDir::currentPath());
     if (!selectedDir.isEmpty()) {
         m_lineEdit->setText(selectedDir);
         Q_EMIT pathChanged(selectedDir);

@@ -7,7 +7,6 @@
 #include <QScreen>
 #include <QVBoxLayout>
 
-QPointer<QWidget> Toast::m_globalContext;
 
 ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent) {
     m_lbMessage = new QLabel(text);
@@ -109,12 +108,12 @@ Toast::~Toast() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(Toast)
 
 void Toast::setGlobalContext(QWidget *context) {
-    if (m_globalContext == context)
-        return;
     auto *toast = instance();
+    if (toast->m_globalContext == context)
+        return;
     toast->m_queue.clear();
     toast->destroyCurrentToast();
-    m_globalContext = context;
+    toast->m_globalContext = context;
 }
 
 bool Toast::eventFilter(QObject *watched, QEvent *event) {

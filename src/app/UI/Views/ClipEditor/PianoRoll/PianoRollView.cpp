@@ -1,4 +1,5 @@
 #include "PianoRollView.h"
+#include <lite/Support/ObjectContext.h>
 
 #include "PianoKeyboardView.h"
 #include "PianoRollGraphicsScene.h"
@@ -219,11 +220,12 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
                 else if (isVisible())
                     updatePianoRollVisibleRect();
             });
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](const AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
-                    updateInfoLanesVisibility();
-            });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, this,
+                           [this](const AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::All ||
+                                   option == AppOptionsGlobal::Appearance)
+                                   updateInfoLanesVisibility();
+                           });
     updateInfoLanesVisibility();
 }
 

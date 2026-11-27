@@ -1,7 +1,6 @@
 #include "ExternalFileClassifier.h"
 
 #include <QFileInfo>
-#include <QUrl>
 
 #include <TalcsFormat/FormatManager.h>
 
@@ -27,6 +26,21 @@ ExternalFileClassifier::Result ExternalFileClassifier::classify(const QString &p
     if (isAudioExtension(suffix))
         return {ExternalFileKind::Audio, {}};
     return {ExternalFileKind::Unsupported, QStringLiteral("Unsupported file type")};
+}
+
+ExternalFileClassifier::DroppedFiles ExternalFileClassifier::classifyDrop(const QList<QUrl> &urls) {
+    DroppedFiles files;
+    for (const auto &url : urls) {
+        if (!url.isLocalFile())
+            continue;
+        const auto path = url.toLocalFile();
+        const auto kind = classify(path).kind;
+        if (kind == ExternalFileKind::Project)
+            files.projects.append(path);
+        else if (kind != ExternalFileKind::Unsupported)
+            files.imports.append(path);
+    }
+    return files;
 }
 
 bool ExternalFileClassifier::isAudioExtension(const QString &extension) {

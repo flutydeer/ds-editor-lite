@@ -32,6 +32,7 @@ public:
 public:
     [[nodiscard]] Clip *clip();
     void setClip(Clip *clip);
+    bool setSelectedNotes(int clipId, const QList<int> &noteIds);
     bool copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);

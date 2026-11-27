@@ -149,7 +149,7 @@ namespace Automation {
         std::function<void(const AutomationTaskSnapshot &)> finished;
     };
 
-    class ExtractionAutomationFacade final {
+    class ExtractionAutomationFacade final : public QObject {
     public:
         ExtractionAutomationFacade(AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
                                    DocumentObjectResolver &objects,

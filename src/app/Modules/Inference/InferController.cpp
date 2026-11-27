@@ -165,8 +165,8 @@ InferController::InferController(QObject *parent)
     connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
     connect(editSessionManager, &EditSessionManager::editSessionEnded, d,
             &InferControllerPrivate::onEditSessionEnded);
-    connect(appOptions, &AppOptions::optionsChanged, d,
-            &InferControllerPrivate::onInferOptionChanged);
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, d,
+                           &InferControllerPrivate::onInferOptionChanged);
     connect(playbackController, &PlaybackController::playbackStatusChanged, d,
             &InferControllerPrivate::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, d,
@@ -174,7 +174,10 @@ InferController::InferController(QObject *parent)
     d->syncSingerSessions();
 }
 
-InferController::~InferController() = default;
+InferController::~InferController() {
+    if (auto *engine = SingletonRegistry::instance<InferEngine>())
+        engine->retainSingerSessions(this, {});
+}
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
@@ -865,7 +868,7 @@ void InferControllerPrivate::syncSingerSessions() {
             }
         }
     }
-    inferEngine->retainSingerSessions(identifiers);
+    inferEngine->retainSingerSessions(q_ptr, identifiers);
 }
 
 void InferControllerPrivate::handleLanguageModuleStatusChanged(

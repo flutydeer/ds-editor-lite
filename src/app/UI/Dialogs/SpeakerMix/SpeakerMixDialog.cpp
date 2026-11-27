@@ -1,4 +1,5 @@
 #include "SpeakerMixDialog.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include "SpeakerMixBar.h"
 #include "SpeakerMixList.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
@@ -340,7 +341,7 @@ void SpeakerMixDialog::onSaveAsPreset() {
 
     bool ok = false;
     const QString name =
-        QInputDialog::getText(this, {}, tr("Preset name"), QLineEdit::Normal, defaultName, &ok)
+        WindowDialogs::getText(this, {}, tr("Preset name"), QLineEdit::Normal, defaultName, &ok)
             .trimmed();
     if (!ok || name.isEmpty())
         return;
@@ -371,7 +372,7 @@ void SpeakerMixDialog::onSaveAsPreset() {
 void SpeakerMixDialog::onDeletePreset() {
     if (m_currentPresetId.isEmpty())
         return;
-    if (QMessageBox::question(this, {}, tr("Delete this preset?")) != QMessageBox::Yes)
+    if (WindowDialogs::question(this, {}, tr("Delete this preset?")) != QMessageBox::Yes)
         return;
     SpeakerMixPresetStore::deletePreset(m_currentPresetId);
     reloadPresetCombo();
@@ -379,7 +380,7 @@ void SpeakerMixDialog::onDeletePreset() {
 }
 
 void SpeakerMixDialog::onInitializePreset() {
-    if (QMessageBox::question(
+    if (WindowDialogs::question(
             this, {}, tr("Reset to init preset?\nAll current mix settings will be lost.")) !=
         QMessageBox::Yes)
         return;

@@ -36,6 +36,8 @@ void GeneralPage::modifyOption() {
     const auto previous = snapshot.get().general;
     auto settings = previous;
     settings.uiLanguage = m_cbUiLanguage->currentData().toString();
+    settings.projectWindowMode =
+        m_cbProjectWindow->currentData().value<AppOptionsGlobal::ProjectWindowMode>();
     settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
     settings.defaultLyrics = m_defaultLyrics;
@@ -49,6 +51,7 @@ void GeneralPage::modifyOption() {
     m_defaultLyrics = previous.defaultLyrics;
     m_previousLanguage = previous.defaultSingingLanguage;
     const QSignalBlocker uiLanguage(m_cbUiLanguage);
+    const QSignalBlocker projectWindow(m_cbProjectWindow);
     const QSignalBlocker singingLanguage(m_cbDefaultSingingLanguage);
     const QSignalBlocker lyric(m_leDefaultLyric);
     const QSignalBlocker gamePath(m_fsGameDir);
@@ -56,6 +59,8 @@ void GeneralPage::modifyOption() {
     const QSignalBlocker converterPath(m_fsLibreSVIPPath);
     const QSignalBlocker fingerDrawing(m_swFingerDrawParam);
     m_cbUiLanguage->setCurrentIndex(m_cbUiLanguage->findData(previous.uiLanguage));
+    m_cbProjectWindow->setCurrentIndex(
+        m_cbProjectWindow->findData(QVariant::fromValue(previous.projectWindowMode)));
     m_cbDefaultSingingLanguage->setCurrentIndex(
         m_cbDefaultSingingLanguage->findData(previous.defaultSingingLanguage));
     m_leDefaultLyric->setText(
@@ -89,6 +94,17 @@ QWidget *GeneralPage::createContentWidget() {
     const auto applicationCard = new OptionListCard(tr("Application"));
     applicationCard->addItem(tr("UI Language"), tr("Language used by the application interface"),
                              m_cbUiLanguage);
+    using AppOptionsGlobal::ProjectWindowMode;
+    m_cbProjectWindow = new ComboBox;
+    m_cbProjectWindow->setObjectName(QStringLiteral("projectWindowMode"));
+    m_cbProjectWindow->addItem(tr("Always Ask"), QVariant::fromValue(ProjectWindowMode::Ask));
+    m_cbProjectWindow->addItem(tr("Current Window"),
+                               QVariant::fromValue(ProjectWindowMode::CurrentWindow));
+    m_cbProjectWindow->addItem(tr("New Window"), QVariant::fromValue(ProjectWindowMode::NewWindow));
+    m_cbProjectWindow->setCurrentIndex(
+        m_cbProjectWindow->findData(QVariant::fromValue(option->projectWindowMode)));
+    connect(m_cbProjectWindow, &ComboBox::currentIndexChanged, this, &GeneralPage::modifyOption);
+    applicationCard->addItem(tr("When creating or opening a project"), m_cbProjectWindow);
 
     m_swFingerDrawParam = new SwitchButton(option->drawParamWithFinger);
     connect(m_swFingerDrawParam, &SwitchButton::toggled, this, &GeneralPage::modifyOption);

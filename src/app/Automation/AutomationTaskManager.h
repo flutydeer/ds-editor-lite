@@ -101,6 +101,7 @@ namespace Automation {
         AutomationResult<bool> beginCommitting(const TaskId &taskId);
         bool setUnsuccessfulCallback(const TaskId &taskId, UnsuccessfulCallback callback);
         bool setTerminalCallback(const TaskId &taskId, TerminalCallback callback);
+        bool addTerminalCallback(const TaskId &taskId, TerminalCallback callback);
         bool markRunning(const TaskId &taskId);
         bool updateProgress(const TaskId &taskId, AutomationTaskProgress progress,
                             QString message = {});

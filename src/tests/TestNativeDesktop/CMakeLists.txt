@@ -16,12 +16,13 @@ add_dependencies(${PROJECT_NAME} DsEditorLite)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     LITE_TEST_APPLICATION_CONFIG_ROOT="$<TARGET_FILE_DIR:DsEditorLite>/configs")
 if(APPLE)
+    target_sources(${PROJECT_NAME} PRIVATE MacApplicationMenu.mm)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework AppKit")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/Frameworks")
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
 endif()
-# Each detach case now builds a second full title bar (menu + transport). Give
-# the suite the same headroom as the other GUI suites: slow CI runners have
-# measured close to twice the local runtime.
-lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 180)
+# The suite shares one desktop and starts a fresh process for each isolated lifecycle case.
+# CTest's timeout covers all of those cases together.
+lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI TIMEOUT 300)

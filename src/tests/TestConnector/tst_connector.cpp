@@ -2866,7 +2866,8 @@ namespace {
             const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
             expect(
                 !result.value(QStringLiteral("isError")).toBool() &&
-                    structured.value(QStringLiteral("toolset_version")).toInteger() == 1 &&
+                    structured.value(QStringLiteral("toolset_version")).toInteger() ==
+                        AutomationWire::PublicToolsetVersion &&
                     structured.value(QStringLiteral("typed_compatibility")) ==
                         QStringLiteral("generic_only") &&
                     structured.value(QStringLiteral("tool"))
@@ -2932,7 +2933,9 @@ namespace {
         expect(http.listen(), "compatibility fake editor must listen");
         if (QTest::currentTestFailed())
             return;
-        http.editorToolsetVersion = 2;
+        constexpr int currentVersion = AutomationWire::PublicToolsetVersion;
+        constexpr int newerVersion = currentVersion + 1;
+        http.editorToolsetVersion = newerVersion;
         http.applicationMinimumToolsetVersion = 1;
         http.exposeNotes = true;
 
@@ -2976,7 +2979,7 @@ namespace {
                "a newer editor toolset must remain compatible when every tool allows it");
 
         auto refreshCount = http.toolsListCount;
-        http.applicationMinimumToolsetVersion = 2;
+        http.applicationMinimumToolsetVersion = newerVersion;
         bootstrap.publish(ready);
         expect(waitUntil(
                    [&] {
@@ -3019,13 +3022,15 @@ namespace {
                                                     .toObject()
                                                     .value(QStringLiteral("_meta"))
                                                     .toObject());
-        expect(applicationDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
+        expect(applicationDescription.value(QStringLiteral("toolset_version")).toInteger() ==
+                       newerVersion &&
                    applicationMetadata &&
                    metadataInteger(*applicationMetadata, QStringLiteral("minimum_toolset_version"),
-                                   QStringLiteral("minimumToolsetVersion")) == 2 &&
+                                   QStringLiteral("minimumToolsetVersion")) == newerVersion &&
                    applicationDescription.value(QStringLiteral("typed_compatibility")) ==
                        QStringLiteral("contract_incompatible") &&
-                   notesDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
+                   notesDescription.value(QStringLiteral("toolset_version")).toInteger() ==
+                       newerVersion &&
                    notesMetadata &&
                    metadataInteger(*notesMetadata, QStringLiteral("minimum_toolset_version"),
                                    QStringLiteral("minimumToolsetVersion")) == 1 &&
@@ -3046,7 +3051,7 @@ namespace {
 
         refreshCount = http.toolsListCount;
         http.applicationMinimumToolsetVersion = 1;
-        http.editorToolsetVersion = 1;
+        http.editorToolsetVersion = currentVersion;
         bootstrap.publish(ready);
         expect(waitUntil(
                    [&] {
@@ -3065,8 +3070,10 @@ namespace {
                            runtime.status().value(QStringLiteral("toolset")).toObject();
                        return http.toolsListCount > refreshCount &&
                               compatibility() == QStringLiteral("compatible") &&
-                              toolset.value(QStringLiteral("connector_version")).toInteger() == 1 &&
-                              toolset.value(QStringLiteral("editor_version")).toInteger() == 1 &&
+                              toolset.value(QStringLiteral("connector_version")).toInteger() ==
+                                  currentVersion &&
+                              toolset.value(QStringLiteral("editor_version")).toInteger() ==
+                                  currentVersion &&
                               !toolset.contains(QStringLiteral("connector_digest")) &&
                               !toolset.contains(QStringLiteral("editor_digest"));
                    },

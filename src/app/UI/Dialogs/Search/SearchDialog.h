@@ -27,7 +27,7 @@ private Q_SLOTS:
 private:
     void updateButtonState() const;
 
-    SingingClip *m_clip;
+    QPointer<SingingClip> m_clip;
     QLineEdit *lineEditSearch;
     QListWidget *resultListWidget;
 

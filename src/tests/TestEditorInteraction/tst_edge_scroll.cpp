@@ -9,6 +9,7 @@
 //   - pointer clamping stays inside the viewport rect
 
 #include "UI/Views/Common/EdgeAutoScroller.h"
+#include <lite/Core/SingletonRegistry.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -287,7 +288,13 @@ void EditorInteractionTests::dragSessionLifecycle() {
     const QRectF vp(0, 0, 800, 600);
     const auto bothAxes = Qt::Horizontal | Qt::Vertical;
     {
+        const auto foreground = SingletonRegistry::current();
+        const auto document = SingletonRegistry::createContext();
+        const SingletonRegistry::Scope owner(document);
         EdgeAutoScroller scroller;
+        SingletonRegistry::Context frameDocument;
+        connect(&scroller, &EdgeAutoScroller::frame, this,
+                [&] { frameDocument = SingletonRegistry::current(); });
         const QPointF press(400, 300);
         scroller.prepareDrag(press, bothAxes);
         QVERIFY2((scroller.isDragArmed() && !scroller.isRunning()),
@@ -303,6 +310,11 @@ void EditorInteractionTests::dragSessionLifecycle() {
         const auto step = scroller.computeDragStep(QPointF(790, 300), vp, 16);
         QVERIFY2((step.x() > 0 && step.y() == 0),
                  "drag-session steps reuse the stored press position and axes");
+        {
+            const SingletonRegistry::Scope other(foreground);
+            QTRY_VERIFY(frameDocument);
+            QCOMPARE(frameDocument, document);
+        }
 
         scroller.stopDrag();
         QVERIFY2((!scroller.isDragArmed() && !scroller.isRunning()),

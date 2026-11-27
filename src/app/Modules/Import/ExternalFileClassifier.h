@@ -4,6 +4,8 @@
 #include "PreparedImportItem.h"
 
 #include <QString>
+#include <QStringList>
+#include <QUrl>
 
 // Classifies external files (dropped or picked via dialogs) into project /
 // MIDI / audio / unsupported without touching any model state.
@@ -15,6 +17,14 @@ public:
     };
 
     static Result classify(const QString &path);
+
+    struct DroppedFiles {
+        QStringList projects;
+        QStringList imports;
+
+        bool projectsOnly() const { return !projects.isEmpty() && imports.isEmpty(); }
+    };
+    static DroppedFiles classifyDrop(const QList<QUrl> &urls);
 
 private:
     static bool isAudioExtension(const QString &extension);

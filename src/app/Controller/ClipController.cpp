@@ -208,7 +208,7 @@ bool ClipController::canSelectAll() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip.data());
     if (singingClip->notes().count() == 0)
         return false;
     // TODO: 仅在选择和绘制模式下可全选
@@ -221,7 +221,7 @@ bool ClipController::hasSelectedNotes() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip.data());
     if (singingClip->notes().count() == 0)
         return false;
     const auto selectedNotes = appStatus->selectedNotes;
@@ -284,7 +284,7 @@ QList<int> ClipController::onDuplicateNotes(const QList<int> &noteIds, const int
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing || noteIds.isEmpty())
         return {};
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     auto minimumStart = std::numeric_limits<int>::max();
     for (const auto id : noteIds) {
         if (const auto *note = singingClip->findNoteById(id))
@@ -369,7 +369,7 @@ void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     const auto selectedNotes =
         ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
     if (selectedNotes.isEmpty())
@@ -404,6 +404,7 @@ void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
                                 "reset:\n%2\n\nReset them?")
                                  .arg(QString::number(spilloverCount), spilloverNames.join('\n')),
                              parent);
+        dialog.setProjectModal();
         dialog.addAccentButton(tr("Reset"), resetButtonId, QDialogButtonBox::AcceptRole);
         dialog.addButton(tr("Cancel"), cancelButtonId, QDialogButtonBox::RejectRole);
         if (dialog.exec() != resetButtonId)
@@ -421,40 +422,40 @@ void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
 
 void ClipController::selectNotes(const QList<int> &notesId, const bool unselectOther) {
     Q_D(ClipController);
-    auto *runtime = automationRuntime();
-    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
     auto selectedNotes = appStatus->selectedNotes.get();
     if (unselectOther)
         selectedNotes.clear();
 
     selectedNotes.append(notesId);
-    QList<Automation::NoteId> ids;
-    ids.reserve(selectedNotes.size());
-    for (const auto id : selectedNotes)
-        ids.append(Automation::NoteId(id));
-    const auto result = runtime->facade().setSelectedNotes(
-        guiDocumentContext(*runtime), Automation::ClipId(d->m_clip->id()), ids);
-    if (result)
-        emit hasSelectedNotesChanged(hasSelectedNotes());
+    setSelectedNotes(d->m_clip->id(), selectedNotes);
 }
 
 void ClipController::unselectNotes(const QList<int> &notesId) {
     Q_D(ClipController);
-    auto *runtime = automationRuntime();
-    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
     auto selectedNotes = appStatus->selectedNotes.get();
     for (const auto id : notesId)
         selectedNotes.removeIf([=](const int note) { return note == id; });
+    setSelectedNotes(d->m_clip->id(), selectedNotes);
+}
+
+bool ClipController::setSelectedNotes(const int clipId, const QList<int> &noteIds) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return false;
     QList<Automation::NoteId> ids;
-    ids.reserve(selectedNotes.size());
-    for (const auto id : selectedNotes)
+    ids.reserve(noteIds.size());
+    for (const auto id : noteIds)
         ids.append(Automation::NoteId(id));
     const auto result = runtime->facade().setSelectedNotes(
-        guiDocumentContext(*runtime), Automation::ClipId(d->m_clip->id()), ids);
-    if (result)
-        emit hasSelectedNotesChanged(hasSelectedNotes());
+        guiDocumentContext(*runtime), Automation::ClipId(clipId), ids);
+    if (!result)
+        return false;
+    emit hasSelectedNotesChanged(hasSelectedNotes());
+    return true;
 }
 
 void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve *> &curves) const {
@@ -478,7 +479,7 @@ void ClipController::onQuantizeNotes(const int quantize, const bool quantizeStar
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
-    const auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     QList<Automation::NoteId> noteIds;
     const auto selectedIds = appStatus->selectedNotes.get();
     if (!selectedIds.isEmpty()) {
@@ -501,7 +502,7 @@ void ClipController::onNoteLanguagesEdited(const QList<int> &noteIds, const QStr
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
 
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     QList<Automation::NoteWordEditDto> edits;
     for (const auto noteId : noteIds) {
         auto *note = singingClip->findNoteById(noteId);
@@ -521,7 +522,7 @@ void ClipController::onNoteLyricEdited(const int noteId, const QString &lyric) {
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
 
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     auto *note = singingClip->findNoteById(noteId);
     if (!note)
         return;
@@ -538,7 +539,7 @@ bool ClipController::canShiftWordProperties(const QList<int> &selectedNoteIds) c
     Q_D(const ClipController);
     if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return false;
-    return !contiguousSelectionIndices(static_cast<const SingingClip *>(d->m_clip), selectedNoteIds)
+    return !contiguousSelectionIndices(static_cast<const SingingClip *>(d->m_clip.data()), selectedNoteIds)
                 .isEmpty();
 }
 
@@ -554,7 +555,7 @@ void ClipController::onShiftWordPropertiesBackward(const QList<int> &selectedNot
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
 
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     const auto indices = contiguousSelectionIndices(singingClip, selectedNoteIds);
     if (indices.isEmpty())
         return;
@@ -592,7 +593,7 @@ void ClipController::onNotePronunciationEdited(const int noteId, const QString &
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
 
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     auto *note = singingClip->findNoteById(noteId);
     if (!note)
         return;
@@ -611,7 +612,7 @@ void ClipController::onNotePhonemesEdited(const int noteId,
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
 
-    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip.data());
     auto *note = singingClip->findNoteById(noteId);
     if (!note || !note->canEditPhonemes())
         return;
@@ -638,7 +639,7 @@ void ClipController::onSelectAllNotes() {
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
-    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip.data());
     QList<Automation::NoteId> noteIds;
     for (const auto note : singingClip->notes())
         noteIds.append(Automation::NoteId(note->id()));
@@ -651,7 +652,9 @@ void ClipController::onSelectAllNotes() {
 void ClipController::onFillLyric(QWidget *parent) {
     Q_D(const ClipController);
 
-    auto singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = qobject_cast<SingingClip *>(d->m_clip.data());
+    if (!singingClip)
+        return;
     auto selectedNotes =
         ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
 
@@ -754,14 +757,19 @@ void ClipController::onFillLyric(QWidget *parent) {
 
 void ClipController::onSearchLyric(QWidget *parent) {
     Q_D(const ClipController);
-    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
-    SearchDialog searchDialog(singingClip, parent);
-    searchDialog.show();
-    searchDialog.exec();
+    auto *singingClip = qobject_cast<SingingClip *>(d->m_clip.data());
+    if (!singingClip)
+        return;
+    auto *dialog = new SearchDialog(singingClip, parent);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
 }
 
 Automation::AutomationResult<NotesParamsInfo> ClipControllerPrivate::buildNoteParamsInfo() const {
-    const auto singingClip = static_cast<SingingClip *>(m_clip);
+    const auto *singingClip = qobject_cast<SingingClip *>(m_clip.data());
+    if (!singingClip)
+        return Automation::AutomationError::invalidArgument(QStringLiteral("clip"),
+                                                             QStringLiteral("No active singing clip"));
     auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
     const auto payload = Automation::captureNoteTransfer(*singingClip, notes);

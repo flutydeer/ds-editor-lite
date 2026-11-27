@@ -3,6 +3,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QCoreApplication>
+#include <QApplication>
+#include <lite/Support/ObjectContext.h>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTimer>
@@ -17,6 +19,7 @@
 #include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/WindowFrameUtils.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 QPointer<QWidget> Dialog::m_globalParent;
 
@@ -94,7 +97,7 @@ QDialogButtonBox *DialogButtonBar::buttonBox() const {
 }
 
 Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
-    : QDialog(parent ? parent : m_globalParent.data(), f) {
+    : QDialog(parent ? parent : globalParent(), f) {
     m_header = new DialogHeader;
     m_header->setVisible(false);
 
@@ -154,7 +157,30 @@ Dialog::~Dialog() {
     // destroyed child tree.
 }
 
+int Dialog::exec() {
+    const WindowDialogs::DialogExecution execution(this);
+    return QDialog::exec();
+}
+
 bool Dialog::event(QEvent *event) {
+    if (m_projectModal && event->type() == QEvent::Show && parentWidget()) {
+        auto *owner = parentWidget()->window();
+        const auto project = owner->property("dsProjectWindow");
+        if (project.isValid()) {
+            for (auto *peer : QApplication::topLevelWidgets()) {
+                if (peer != owner && peer->property("dsProjectWindow") == project &&
+                    peer->isEnabled()) {
+                    peer->setEnabled(false);
+                    m_blockedPeers.append(peer);
+                }
+            }
+        }
+    } else if (event->type() == QEvent::Hide) {
+        for (const auto &peer : std::as_const(m_blockedPeers))
+            if (peer)
+                peer->setEnabled(true);
+        m_blockedPeers.clear();
+    }
     // Keep the right-edge workaround filter attached to the platform window,
     // re-installing it whenever the native window is recreated (e.g. by
     // setWindowFlag calls).
@@ -240,7 +266,17 @@ DialogButtonBar *Dialog::buttonBar() const {
 }
 
 QWidget *Dialog::globalParent() {
+    const auto context = SingletonRegistry::current();
+    for (auto *window : QApplication::topLevelWidgets()) {
+        if (window->property("dsMainWindow").toBool() && ObjectContext::of(window) == context)
+            return window;
+    }
     return m_globalParent;
+}
+
+void Dialog::setProjectModal() {
+    m_projectModal = true;
+    setWindowModality(Qt::WindowModal);
 }
 
 QWK::WidgetWindowAgent *Dialog::windowAgent() const {

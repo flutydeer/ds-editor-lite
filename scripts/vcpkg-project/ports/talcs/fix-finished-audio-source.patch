@@ -1,0 +1,75 @@
+diff --git a/src/core/source/FutureAudioSource_p.h b/src/core/source/FutureAudioSource_p.h
+--- a/src/core/source/FutureAudioSource_p.h
++++ b/src/core/source/FutureAudioSource_p.h
+@@ -33,6 +33,7 @@
+         QFutureWatcher<PositionableAudioSource *> *futureWatcher;
+         FutureAudioSource::Callbacks callbacks;
++        void resolveFinishedSource();
+         void _q_statusChanged(FutureAudioSource::Status status);
+         PositionableAudioSource *src = nullptr;
+-        QMutex mutex;
++        mutable QMutex mutex;
+     };
+diff --git a/src/core/source/FutureAudioSource.cpp b/src/core/source/FutureAudioSource.cpp
+--- a/src/core/source/FutureAudioSource.cpp
++++ b/src/core/source/FutureAudioSource.cpp
+@@ -27,5 +27,5 @@
+-    void FutureAudioSourcePrivate::_q_statusChanged(FutureAudioSource::Status status) {
++    void FutureAudioSourcePrivate::resolveFinishedSource() {
+         Q_Q(FutureAudioSource);
+-        if (status == FutureAudioSource::Ready) {
++        if (!src && futureWatcher->isFinished() && !futureWatcher->isCanceled()) {
+             auto src_ = futureWatcher->result();
+             if (q->isOpen()) {
+@@ -35,4 +35,14 @@
+             }
+             src = src_;
++        }
++    }
++
++    void FutureAudioSourcePrivate::_q_statusChanged(FutureAudioSource::Status status) {
++        Q_Q(FutureAudioSource);
++        if (status == FutureAudioSource::Ready) {
++            QMutexLocker locker(&mutex);
++            resolveFinishedSource();
++            if (!src)
++                return;
+         }
+         emit q->statusChanged(status);
+@@ -147,5 +157,5 @@
+                 readData.buffer->clear(ch, readData.startPos, readData.length);
+             }
+-            auto readLength = qMin(readData.length, length() - d->position);
++            auto readLength = qMin<qint64>(readData.length, d->futureWatcher->progressMaximum() - d->position);
+             d->position += readLength;
+             return readLength;
+@@ -155,4 +165,5 @@
+     qint64 FutureAudioSource::length() const {
+         Q_D(const FutureAudioSource);
++        QMutexLocker locker(&d->mutex);
+         if (d->src)
+             return d->src->length();
+@@ -184,5 +195,7 @@
+                 return false;
+             case Ready:
+-                if (d->src->open(bufferSize, sampleRate)) {
++                // The future can finish before its watcher delivers the notification.
++                d->resolveFinishedSource();
++                if (d->src && d->src->open(bufferSize, sampleRate)) {
+                     d->src->setNextReadPosition(d->position);
+                     return AudioSource::open(bufferSize, sampleRate);
+@@ -281,6 +294,5 @@
+         Q_D(FutureAudioSource);
+         d->futureWatcher->waitForFinished();
+-        if (d->futureWatcher->isFinished())
+-            while (!d->src) {
+-            }
++        QMutexLocker locker(&d->mutex);
++        d->resolveFinishedSource();
+     }
+@@ -293,4 +305,5 @@
+     PositionableAudioSource *FutureAudioSource::source() const {
+         Q_D(const FutureAudioSource);
++        QMutexLocker locker(&d->mutex);
+         return d->src;
+     }

@@ -43,11 +43,13 @@ bool OutputSystem::initialize() {
 }
 
 bool OutputSystem::setDriver(const QString &driverName) const {
+    emit deviceSwitchStarting();
     const bool followsDefaultDevice = AudioSettings::deviceName().isEmpty();
     if (m_outputContext->setDriver(driverName)) {
         postSetDevice();
         if (followsDefaultDevice)
             AudioSettings::setDeviceName(QString{});
+        emit deviceSwitchFinished(true);
         qDebug() << "Audio::OutputSystem: driver changed" << m_outputContext->device()->name()
                  << m_outputContext->driver()->name() << m_outputContext->adoptedBufferSize()
                  << m_outputContext->adoptedSampleRate();
@@ -55,10 +57,12 @@ bool OutputSystem::setDriver(const QString &driverName) const {
     }
 
     qWarning() << "Audio::OutputSystem: fatal: cannot set driver" << driverName;
+    emit deviceSwitchFinished(false);
     return false;
 }
 
 bool OutputSystem::setDevice(const QString &deviceName) const {
+    emit deviceSwitchStarting();
     auto *driver = m_outputContext->driver();
     // An empty name means the driver's default endpoint and stays empty when persisted, so a
     // later startup follows the system default instead of pinning the current endpoint.
@@ -67,6 +71,7 @@ bool OutputSystem::setDevice(const QString &deviceName) const {
         postSetDevice();
         if (deviceName.isEmpty())
             AudioSettings::setDeviceName(QString{});
+        emit deviceSwitchFinished(true);
         qDebug() << "Audio::OutputSystem: device changed" << m_outputContext->device()->name()
                  << m_outputContext->driver()->name() << m_outputContext->adoptedBufferSize()
                  << m_outputContext->adoptedSampleRate();
@@ -75,6 +80,7 @@ bool OutputSystem::setDevice(const QString &deviceName) const {
 
     qWarning() << "Audio::OutputSystem: fatal: cannot set device"
                << (driver ? driver->name() : "") << deviceName;
+    emit deviceSwitchFinished(false);
     return false;
 }
 

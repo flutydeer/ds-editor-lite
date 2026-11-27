@@ -1,21 +1,65 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/FixtureAudioDriver.h"
+#include "../TestSupport/WaveFixture.h"
+#include "../TestSupport/VoicebankFixture.h"
+#ifdef Q_OS_MACOS
+#  include "MacApplicationMenu.h"
+#endif
 
 #include "Automation/CoreRuntime.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/DocumentWorkflow/DocumentRecovery.h"
+#include "Bootstrap/WindowPlacement.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
+#include "UI/Dialogs/Options/Pages/GeneralPage.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Window/DetachedPanelWindow.h"
 #include "UI/Window/MainWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
+#include "Controller/TrackController.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/DocumentMidiInput.h"
+#include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/AudioSettings.h"
+#include "Modules/Audio/TrackInferenceHandler.h"
+#include "Modules/Audio/utils/MidiInputNoteMonitor.h"
+#include "Modules/Import/DocumentImportController.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
+#include "Global/ControllerGlobal.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
+#include <lite/GUI/Utils/WindowDialogs.h>
+#include <QClipboard>
+#include <QCheckBox>
+#include <QDialogButtonBox>
+#include <QLineEdit>
+#include <QMimeData>
+#include <QJsonDocument>
+#include <QMessageBox>
+#include <QMenu>
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/Task.h>
+#include <TalcsDevice/AudioDriverManager.h>
+#include <TalcsCore/AudioBuffer.h>
+#include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsCore/TransportAudioSource.h>
+#include <TalcsDspx/DspxTrackContext.h>
 
 #include <QPointer>
 #include <QScopeGuard>
@@ -25,8 +69,124 @@
 #include <QThreadPool>
 #include <QTimer>
 #include <QtTest/QTest>
+#include <algorithm>
+#include <thread>
 
 namespace {
+    bool selectFixtureAudioOutput() {
+        auto *output = AudioSystem::outputSystem()->outputContext();
+        auto driver = std::make_unique<TestSupport::FixtureAudioDriver>(true);
+        const auto name = driver->name();
+        if (!output->driverManager()->addAudioDriver(driver.get()))
+            return false;
+        driver.release(); // The driver manager owns registered drivers.
+        return output->setDriver(name);
+    }
+
+    bool clickDialogButton(const QString &text) {
+        auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return false;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == text) {
+                button->click();
+                return true;
+            }
+        }
+        dialog->reject();
+        return false;
+    }
+
+    QAction *fileMenuAction(MainMenuView &bar, const char *label) {
+        const auto text = QCoreApplication::translate("MainMenuViewPrivate", label);
+        for (auto *top : bar.topLevelMenuActions()) {
+            auto *menu = top->menu();
+            if (!menu || !menu->actions().contains(bar.actionNew()))
+                continue;
+            for (auto *action : menu->actions()) {
+                if (action->text() == text)
+                    return action;
+            }
+        }
+        return nullptr;
+    }
+
+    void triggerFileCommand(MainMenuView &bar, const char *label, char key) {
+        auto *action = fileMenuAction(bar, label);
+        QVERIFY(action && action->isEnabled());
+#ifdef Q_OS_MACOS
+        QTRY_VERIFY(MacApplicationMenu::isCurrent(bar));
+        QVERIFY(MacApplicationMenu::triggerCommand(key));
+#else
+        Q_UNUSED(key);
+        action->trigger();
+#endif
+    }
+
+    void dockReopen(DocumentWindowManager &windows) {
+#ifdef Q_OS_MACOS
+        MacApplicationMenu::reopen(windows.active() != nullptr);
+#else
+        windows.activateApplication();
+#endif
+    }
+
+    void openFromWindowlessMenu(MainMenuView &menu, DocumentWindowManager &windows,
+                                const QString &path) {
+        packageManager->initialize({TestSupport::voicebankRoot()});
+        QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
+        const auto nativeDialogs = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard(
+            [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs); });
+        for (const bool accept : {false, true}) {
+            bool answered = false;
+            QTimer response;
+            QObject::connect(&response, &QTimer::timeout, &menu, [&] {
+                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dialog)
+                    return;
+                response.stop();
+                const auto dismiss = qScopeGuard([&] {
+                    if (dialog->isVisible())
+                        dialog->reject();
+                });
+                auto *picker = qobject_cast<QFileDialog *>(dialog);
+                QVERIFY(picker);
+                QVERIFY(!picker->parentWidget());
+                dockReopen(windows);
+                QVERIFY(!windows.active());
+                if (accept) {
+                    auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+                    auto *buttons = picker->findChild<QDialogButtonBox *>();
+                    QVERIFY(name && buttons);
+                    QTest::mouseClick(name, Qt::LeftButton);
+                    name->selectAll();
+                    name->insert(QDir::toNativeSeparators(path));
+                    QCOMPARE(picker->selectedFiles(), QStringList{path});
+                    auto *open = buttons->button(QDialogButtonBox::Open);
+                    QVERIFY(open && open->isEnabled());
+                    QTest::mouseClick(open, Qt::LeftButton);
+                } else {
+                    picker->reject();
+                }
+                answered = true;
+            });
+            response.start(10);
+            triggerFileCommand(menu, "&Open", 'o');
+            QTRY_VERIFY(answered);
+            if (accept) {
+                QTRY_VERIFY(windows.findPath(path));
+                auto *opened = windows.findPath(path);
+                QTRY_COMPARE(opened->context->m_coreRuntime->documentPath(), path);
+            } else {
+                // Returning focus after dismissing a picker is an ordinary activation.
+                emit qApp->applicationStateChanged(Qt::ApplicationActive);
+                QVERIFY(!windows.active());
+            }
+        }
+    }
+
     class PendingExitTask final : public Task {
     public:
         QSemaphore entered;
@@ -160,6 +320,216 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     QVERIFY(taskManager->tasks().isEmpty());
 }
 
+void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior_data() {
+    QTest::addColumn<bool>("dirty");
+    QTest::addColumn<bool>("keepRunning");
+    QTest::newRow("quit-blank") << false << false;
+    QTest::newRow("quit-cancel-then-discard") << true << false;
+    QTest::newRow("windowless-blank") << false << true;
+    QTest::newRow("windowless-cancel-then-discard") << true << true;
+}
+
+void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    appOptions->appearance()->useNativeFrame = false;
+    appOptions->developer()->enablePanelDetach = true;
+    QFETCH(bool, keepRunning);
+    using Behavior = DocumentWindowManager::LastWindowBehavior;
+    DocumentWindowManager windows(*fixture.context,
+                                  keepRunning ? Behavior::KeepRunning : Behavior::Quit);
+    auto &last = windows.createWindow();
+    auto &first = windows.createWindow();
+    const auto firstId = first.context->m_coreRuntime->documentVersion().documentId;
+    const auto kept = last.context->m_coreRuntime->documentVersion();
+    QPointer<MainWindow> importingWindow = first.window.get();
+    {
+        const SingletonRegistry::Scope scope(first.context->services());
+        Automation::PublicAutomationHostServices host;
+        windows.configureAutomation(host);
+        bool checked = false;
+        QTimer::singleShot(0, this, [&] {
+            auto *input = qobject_cast<QInputDialog *>(QApplication::activeModalWidget());
+            QVERIFY(input);
+            const auto dismiss = qScopeGuard([&] { input->reject(); });
+            const auto closed = host.closeDocument(*first.context->m_coreRuntime, true);
+            QVERIFY(!closed);
+            QCOMPARE(closed.getError().code, Automation::AutomationErrorCode::Busy);
+            QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Discard),
+                     TerminationRequestResult::Busy);
+            QVERIFY(!last.context->m_coreRuntime->documentBusy(kept.documentId));
+            checked = true;
+        });
+        WindowDialogs::getText(first.window.get(), "Track", "Name", QLineEdit::Normal, {});
+        QVERIFY(checked);
+        const auto audio = fixture.directory.filePath("import.wav");
+        QVERIFY(TestSupport::writeWave(audio, QVector<float>(4800, 0.25f)));
+        documentImportController->requestImport({audio});
+        QVERIFY(first.context->hasPendingTasks());
+    }
+    first.window->close();
+    QVERIFY(!windows.find(firstId));
+    QTRY_VERIFY(importingWindow.isNull());
+    QCOMPARE(last.context->m_coreRuntime->documentVersion(), kept);
+    QVERIFY(last.window->isVisible());
+    QVERIFY(!windows.terminating());
+
+    auto *button = last.window->findChild<QAbstractButton *>("CloseButton");
+#ifdef Q_OS_WIN
+    QVERIFY(button);
+#endif
+    const auto closeLastWindow = [&] {
+        if (button)
+            button->click();
+        else
+            last.window->close();
+    };
+    QFETCH(bool, dirty);
+    auto &runtime = *last.context->m_coreRuntime;
+    auto *bar = last.window->findChild<MainMenuView *>();
+    QVERIFY(bar);
+    auto *closeProject = fileMenuAction(*bar, "Close");
+    QVERIFY(closeProject);
+    if (keepRunning)
+        QCOMPARE(closeProject->shortcut(), QKeySequence(QKeySequence::Close));
+    if (!dirty && !keepRunning) {
+        const auto previousId = runtime.documentVersion().documentId;
+        closeProject->trigger();
+        QVERIFY(runtime.documentVersion().documentId != previousId);
+        QVERIFY(last.window->isVisible());
+        QVERIFY(!windows.terminating());
+    } else if (dirty) {
+        {
+            const SingletonRegistry::Scope scope(last.context->services());
+            QVERIFY(runtime.project().renameTrack(
+                {.expected = runtime.documentVersion()},
+                Automation::TrackId(last.context->m_appModel->tracks().first()->id()),
+                "Unsaved track"));
+            QVERIFY(QMetaObject::invokeMethod(last.window.get(), "detachBottomPanel"));
+        }
+        const auto version = runtime.documentVersion();
+        auto *detached = last.window->detachedPanelWindow();
+        QVERIFY(detached && detached->isVisible());
+        if (keepRunning) {
+            auto *closePanel = fileMenuAction(*detached->menuView(), "Close");
+            QVERIFY(closePanel);
+            closePanel->trigger();
+            QVERIFY(!detached->isVisible());
+            QVERIFY(last.window->isVisible());
+            QCOMPARE(runtime.documentVersion(), version);
+            QVERIFY(QMetaObject::invokeMethod(last.window.get(), "detachBottomPanel"));
+        }
+        bool canceled = false;
+        QTimer::singleShot(0, last.window.get(), [&] {
+            auto *prompt = QApplication::activeModalWidget();
+            const auto modality = keepRunning ? Qt::WindowModal : Qt::ApplicationModal;
+            const bool correctScope = prompt && prompt->windowModality() == modality;
+            canceled = clickDialogButton(MainWindow::tr("Cancel")) && correctScope;
+        });
+        closeLastWindow();
+        QVERIFY(canceled);
+        QVERIFY(!windows.terminating());
+        QCOMPARE(runtime.documentVersion(), version);
+        QVERIFY(detached->isVisible());
+        QVERIFY(!last.context->m_historyManager->isOnSavePoint());
+    }
+
+    bool discarded = false;
+    const auto close = [&] {
+        if (dirty)
+            QTimer::singleShot(0, last.window.get(),
+                               [&] { discarded = clickDialogButton(MainWindow::tr("Don't save")); });
+        if (keepRunning && !dirty)
+            closeProject->trigger();
+        else
+            closeLastWindow();
+    };
+    QPointer<MainWindow> closedWindow = last.window.get();
+    if (keepRunning) {
+        const auto closedId = runtime.documentVersion().documentId;
+        const auto closedWindowId = runtime.windowId();
+        const auto geometry = last.placement->saveGeometry();
+        close();
+        Automation::PublicAutomationHostServices services;
+        windows.configureAutomation(services);
+        QVERIFY(services.documentStatus().isEmpty());
+        QVERIFY(services.windowStatus().isEmpty());
+        QVERIFY(!windows.find(closedId));
+        QVERIFY(!windows.terminating());
+        QCOMPARE(appOptions->window()->mainWindowGeometry(), geometry);
+        QTRY_VERIFY(!closedWindow);
+        MainMenuView *appMenu = nullptr;
+        for (auto *widget : QApplication::topLevelWidgets()) {
+            if (auto *menu = qobject_cast<MainMenuView *>(widget); menu && !menu->parentWidget())
+                appMenu = menu;
+        }
+        QVERIFY(appMenu);
+        if (dirty)
+            dockReopen(windows);
+        else
+            triggerFileCommand(*appMenu, "&New", 'n');
+        QTRY_VERIFY(windows.active());
+        auto *reopened = windows.active();
+        QVERIFY(QTest::qWaitForWindowActive(reopened->window.get()));
+        dockReopen(windows);
+        QCOMPARE(services.windowStatus().size(), 1);
+        QVERIFY(reopened->context->m_coreRuntime->windowId() != closedWindowId);
+        QVERIFY(reopened->context->m_coreRuntime->documentVersion().documentId != closedId);
+        QVERIFY(reopened->context->m_historyManager->isOnSavePoint());
+        const auto path = fixture.directory.filePath("windowless.dspx");
+        auto &model = *reopened->context->m_coreRuntime;
+        {
+            const SingletonRegistry::Scope scope(reopened->context->services());
+            QVERIFY(model.documents().saveDocument({.expected = model.documentVersion()}, path));
+        }
+        auto *reopenedMenu = reopened->window->findChild<MainMenuView *>();
+        QVERIFY(reopenedMenu);
+        triggerFileCommand(*reopenedMenu, "Close", 'w');
+        QTRY_VERIFY(services.windowStatus().isEmpty());
+        if (!dirty) {
+            Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+            Automation::AutomationFileGuard files;
+            QVERIFY(files.setConfiguredRoots({fixture.directory.path()}));
+            Automation::AdmissionController admission;
+            Automation::PublicAutomationRegistry registry(runtime, access, files, admission,
+                                                           services);
+            const auto rejected = registry.invoke("documents.open",
+                                                  {{"path", path}, {"format_id", "midi"}});
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().fieldPath, QStringLiteral("format_id"));
+            QVERIFY(services.windowStatus().isEmpty());
+            openFromWindowlessMenu(*appMenu, windows, path);
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(services.windowStatus().size(), 1);
+            windows.active()->window->close();
+            QTRY_VERIFY(services.windowStatus().isEmpty());
+        }
+        QTimer::singleShot(0, this, [appMenu, dirty] {
+            if (dirty) {
+                QEvent quit(QEvent::Quit);
+                QCoreApplication::sendEvent(qApp, &quit);
+            } else {
+                triggerFileCommand(*appMenu, "E&xit", 'q');
+            }
+        });
+    } else {
+        QTimer::singleShot(0, last.window.get(), close);
+    }
+    QTimer deadline;
+    deadline.setSingleShot(true);
+    connect(&deadline, &QTimer::timeout, this, [] { QCoreApplication::exit(1); });
+    deadline.start(8000);
+    QCOMPARE(QCoreApplication::exec(), 0);
+    QCOMPARE(discarded, dirty);
+    QVERIFY(windows.terminating());
+    QVERIFY(!closedWindow || !closedWindow->isVisible());
+}
+
 void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("Detached windows require a native window backend");
@@ -173,8 +543,7 @@ void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
     auto window = std::make_unique<MainWindow>();
     TestSupport::placeWindowOnScreen(*window, {1100, 800});
     window->show();
-    window->activateWindow();
-    QTRY_VERIFY(window->isActiveWindow());
+    QVERIFY(QTest::qWaitForWindowExposed(window.get()));
     auto *bottom = window->findChild<BottomPanelView *>();
     QVERIFY(bottom);
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
@@ -187,4 +556,503 @@ void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
     // explicitly instead of relying on the QObject tree.
     window.reset();
     QVERIFY(detached.isNull());
+}
+
+void NativeDesktopTests::cancelingExitKeepsTheRemainingProject_data() {
+    QTest::addColumn<bool>("save");
+    QTest::addColumn<bool>("restart");
+    QTest::newRow("save-then-cancel") << true << false;
+    QTest::newRow("discard-then-cancel") << false << true;
+}
+
+void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
+    QFETCH(bool, save);
+    QFETCH(bool, restart);
+    GuiDocumentFixture fixture;
+    QVERIFY(fixture.initialize());
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    auto &b = windows.createWindow();
+    const auto documentA = a.context->m_coreRuntime->documentVersion().documentId;
+    const auto documentB = b.context->m_coreRuntime->documentVersion().documentId;
+    const auto path = fixture.directory.filePath("first.dspx");
+    auto &runtime = *a.context->m_coreRuntime;
+    QVERIFY(runtime.documents().saveDocument({.expected = runtime.documentVersion()}, path));
+    const auto rename = [](auto &entry, const QString &name) {
+        const SingletonRegistry::Scope scope(entry.context->services());
+        auto &target = *entry.context->m_coreRuntime;
+        return target.project().renameTrack(
+            {.expected = target.documentVersion()},
+            Automation::TrackId(entry.context->m_appModel->tracks().first()->id()), name);
+    };
+    QVERIFY(rename(a, "Edited A"));
+    QVERIFY(rename(b, "Edited B"));
+    QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
+    windows.activate(a);
+    QVERIFY(QTest::qWaitForWindowActive(a.window.get()));
+    QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
+    auto *detached = a.window->detachedPanelWindow();
+    QVERIFY(detached && QTest::qWaitForWindowExposed(detached));
+    a.window->setWorkflowWindow(detached);
+    QTimer::singleShot(0, this, [&] {
+        const auto cancel = qScopeGuard([] { clickDialogButton(MainWindow::tr("Cancel")); });
+        auto *prompt = QApplication::activeModalWidget();
+        QVERIFY(prompt && QTest::qWaitForWindowFocused(prompt));
+        QVERIFY(WindowDialogs::blocks(a.window.get()));
+        QVERIFY(WindowDialogs::blocks(detached));
+        QVERIFY(!WindowDialogs::blocks(b.window.get()));
+        windows.activate(b);
+        QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
+        windows.activate(a);
+        QVERIFY(QTest::qWaitForWindowFocused(prompt));
+    });
+    QVERIFY(!windows.close(a, TerminationSavePolicy::Prompt));
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(detached->isVisible());
+    const auto previousGeometry = appOptions->window()->mainWindowGeometry();
+    int decisions = 0;
+    bool applicationScope = true;
+    QTimer answer;
+    connect(&answer, &QTimer::timeout, this, [&] {
+        auto *prompt = QApplication::activeModalWidget();
+        if (!prompt)
+            return;
+        applicationScope &= prompt->windowModality() == Qt::ApplicationModal;
+        ++decisions;
+        clickDialogButton(decisions == 1 ? MainWindow::tr(save ? "Save" : "Don't save")
+                                        : MainWindow::tr("Cancel"));
+    });
+    answer.start(10);
+    if (restart) {
+        QCOMPARE(windows.terminate(TerminationMode::Restart, TerminationSavePolicy::Prompt),
+                 TerminationRequestResult::Busy);
+    } else {
+        auto *bar = b.window->findChild<MainMenuView *>();
+        QVERIFY(bar);
+        auto *exit = fileMenuAction(*bar, "E&xit");
+        QVERIFY(exit && exit->isEnabled());
+        exit->trigger();
+    }
+    answer.stop();
+    QCOMPARE(decisions, 2);
+    QVERIFY(applicationScope);
+    QVERIFY(!windows.find(documentA));
+    QCOMPARE(windows.find(documentB), &b);
+    QCOMPARE(b.context->m_appModel->tracks().first()->name(), QStringLiteral("Edited B"));
+    QVERIFY(!b.context->m_historyManager->isOnSavePoint());
+    QVERIFY(!qApp->property("restart").toBool());
+    QCOMPARE(appOptions->window()->mainWindowGeometry(), previousGeometry);
+    AppModel disk;
+    DspxProjectConverterUi converter;
+    QString error;
+    QVERIFY2(converter.load(path, &disk, error, IProjectConverter::NewProject), qPrintable(error));
+    QCOMPARE(disk.tracks().first()->name() == QStringLiteral("Edited A"), save);
+}
+
+void NativeDesktopTests::newAndOpenFollowTheProjectWindowPreference() {
+    using AppOptionsGlobal::ProjectWindowMode;
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto &runtime = *fixture.context->m_coreRuntime;
+    const auto initial = runtime.settings().getSettings();
+    QVERIFY(initial);
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, initial.get().general)); });
+    auto general = initial.get().general;
+    general.projectWindowMode = ProjectWindowMode::Ask;
+    QVERIFY(runtime.settings().updateGeneral({}, general));
+
+    DocumentWindowManager windows(*fixture.context);
+    auto &source = windows.createWindow();
+    const auto original = fixture.directory.filePath("original.dspx");
+    QVERIFY(runtime.documents().saveDocument({.expected = runtime.documentVersion()}, original));
+    const auto first = fixture.directory.filePath("first.dspx");
+    const auto second = fixture.directory.filePath("second.dspx");
+    const auto third = fixture.directory.filePath("third.dspx");
+    for (const auto &path : {first, second, third})
+        QVERIFY(QFile::copy(original, path));
+    QVERIFY(QMetaObject::invokeMethod(source.window.get(), "detachBottomPanel"));
+    auto *detached = source.window->detachedPanelWindow();
+    QVERIFY(detached);
+    auto *menu = detached->findChild<MainMenuView *>();
+    QVERIFY(menu);
+
+    const auto invoke = [&](const QString &button, bool remember, auto command) {
+        bool asked = false;
+        QTimer response;
+        connect(&response, &QTimer::timeout, this, [&] {
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            response.stop();
+            asked = true;
+            const auto dismiss = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            QVERIFY(qobject_cast<MessageDialog *>(dialog));
+            QCOMPARE(dialog->parentWidget(), detached);
+            auto *check = dialog->findChild<QCheckBox *>();
+            QVERIFY(check && !check->isChecked());
+            if (remember)
+                check->click();
+            if (!button.isEmpty())
+                QVERIFY(clickDialogButton(button));
+        });
+        response.start(5);
+        command();
+        QCOMPARE(asked, !button.isEmpty());
+    };
+    const auto newProject = [&] { menu->actionNew()->trigger(); };
+    const auto originalId = runtime.documentVersion().documentId;
+    invoke(MainWindow::tr("Cancel"), true, newProject);
+    QCOMPARE(windows.documents().size(), 1U);
+    QCOMPARE(runtime.documentVersion().documentId, originalId);
+    QCOMPARE(appOptions->general()->projectWindowMode, ProjectWindowMode::Ask);
+    invoke(MainWindow::tr("New Window"), false, newProject);
+    QCOMPARE(windows.documents().size(), 2U);
+    QCOMPARE(runtime.documentVersion().documentId, originalId);
+    QCOMPARE(appOptions->general()->projectWindowMode, ProjectWindowMode::Ask);
+    auto *other = windows.documents().back().get();
+    const auto otherId = other->context->m_coreRuntime->documentVersion().documentId;
+
+    invoke(MainWindow::tr("Current Window"), true, [&] {
+        source.window->newOrOpenProject(detached, {original, first, second});
+    });
+    QTRY_COMPARE(runtime.documentPath(), first);
+    QTRY_VERIFY(windows.findPath(second) &&
+                windows.findPath(second)->context->m_coreRuntime->documentPath() == second);
+    QCOMPARE(windows.documents().size(), 3U);
+    QCOMPARE(windows.find(otherId), other);
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::CurrentWindow);
+
+    // A remembered current-window choice still needs the ordinary unsaved-changes decision.
+    const auto track = Automation::TrackId(fixture.context->m_appModel->tracks().first()->id());
+    QVERIFY(runtime.project().renameTrack({.expected = runtime.documentVersion()}, track,
+                                          QStringLiteral("Unsaved")));
+    const auto edited = runtime.documentVersion();
+    bool savePrompt = false;
+    QTimer cancelSave;
+    connect(&cancelSave, &QTimer::timeout, this, [&] {
+        if (auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget())) {
+            cancelSave.stop();
+            savePrompt =
+                !qobject_cast<MessageDialog *>(dialog) && dialog->parentWidget() == detached;
+            dialog->reject();
+        }
+    });
+    cancelSave.start(5);
+    newProject();
+    QTRY_VERIFY(savePrompt);
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QCOMPARE(runtime.documentVersion(), edited);
+
+    GeneralPage page;
+    auto *setting = page.findChild<ComboBox *>("projectWindowMode");
+    QVERIFY(setting);
+    setting->setCurrentIndex(setting->findData(QVariant::fromValue(ProjectWindowMode::Ask)));
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::Ask);
+    invoke({}, false, [&] { menu->openRecentProject(second); });
+    QCOMPARE(windows.documents().size(), 3U);
+    invoke(MainWindow::tr("New Window"), true, [&] { menu->openRecentProject(third); });
+    QTRY_VERIFY(windows.findPath(third) &&
+                windows.findPath(third)->context->m_coreRuntime->documentPath() == third);
+    QCOMPARE(AppOptions().general()->projectWindowMode, ProjectWindowMode::NewWindow);
+    invoke({}, false, newProject);
+    QCOMPARE(windows.documents().size(), 5U);
+    QCOMPARE(runtime.documentVersion(), edited);
+
+    const auto newWindow = [&](MainMenuView &bar, ProjectWindowMode mode) {
+        general.projectWindowMode = mode;
+        QVERIFY(runtime.settings().updateGeneral({}, general));
+        auto *action = fileMenuAction(bar, "New Window");
+        QVERIFY(action && action->isEnabled());
+        const auto before = windows.documents().size();
+        invoke({}, false, [&] { action->trigger(); });
+        QCOMPARE(windows.documents().size(), before + 1);
+        const auto &created = *windows.documents().back();
+        QVERIFY(created.window->isVisible());
+        QVERIFY(created.context->m_coreRuntime->documentPath().isEmpty());
+        QVERIFY(created.context->m_historyManager->isOnSavePoint());
+        QCOMPARE(runtime.documentVersion(), edited);
+        QCOMPARE(AppOptions().general()->projectWindowMode, mode);
+    };
+    auto *mainMenu = source.window->findChild<MainMenuView *>();
+    QVERIFY(mainMenu);
+    newWindow(*mainMenu, ProjectWindowMode::Ask);
+    newWindow(*menu, ProjectWindowMode::CurrentWindow);
+}
+
+void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    QVERIFY(selectFixtureAudioOutput());
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    auto &b = windows.createWindow();
+    QTRY_VERIFY(b.window->isVisible());
+    auto &first = *a.context->m_coreRuntime;
+    auto &second = *b.context->m_coreRuntime;
+    QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
+    auto *sourceTrack = a.context->m_appModel->tracks().first();
+    auto *targetTrack = b.context->m_appModel->tracks().first();
+    auto *clip = sourceTrack->clips().toList().first();
+    const SingerIdentifier sourceVoice{"lead", "source", QVersionNumber(1, 0)};
+    sourceTrack->setSingerAndSpeakerInfo(SingerInfo(sourceVoice), {});
+    const auto sourceCount = sourceTrack->clips().count();
+    const auto targetCount = targetTrack->clips().count();
+    TrackController::setSelectedClips({clip->id()});
+    TrackController::copySelectedClips();
+    const auto bytes = QApplication::clipboard()->mimeData()->data(
+        ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+    QVERIFY(!bytes.isEmpty());
+    const auto versionA = first.documentVersion();
+    {
+        const SingletonRegistry::Scope scope(b.context->services());
+        QVERIFY(second.timeline().setTempo({.expected = second.documentVersion()}, 0, 60));
+        DecodedClipsPayload copy(QJsonDocument::fromJson(bytes).object());
+        TrackController::pasteClips(copy.info(), 1920, 0);
+        QCOMPARE(targetTrack->clips().count(), targetCount + 1);
+        auto *pasted = qobject_cast<SingingClip *>(targetTrack->clips().toList().last());
+        QVERIFY(pasted);
+        QCOMPARE(pasted->start(), 1920);
+        QCOMPARE(pasted->singerIdentifier(), sourceVoice);
+        QVERIFY(!pasted->usesTrackVoiceContext());
+        auto *handler = AudioContext::instance()->getContextFromTrack(targetTrack)
+                            ->findChild<TrackInferenceHandler *>();
+        QVERIFY(handler);
+        auto *output = AudioSystem::outputSystem();
+        const double oldRate = output->outputContext()->adoptedSampleRate();
+        const double newRate = oldRate == 44100 ? 48000 : 44100;
+        {
+            const SingletonRegistry::Scope initiating(a.context->services());
+            const auto restoreRate = qScopeGuard([&] { output->setAdoptedSampleRate(oldRate); });
+            QVERIFY(output->setAdoptedSampleRate(newRate));
+            // At 60 BPM the pasted clip starts four seconds into project B.
+            QVERIFY(std::ranges::any_of(handler->clipSeries()->clips(), [newRate](const auto &c) {
+                return c.position() == qRound64(4 * newRate);
+            }));
+        }
+        QVERIFY(second.history().undo({.expected = second.documentVersion()}));
+        QCOMPARE(targetTrack->clips().count(), targetCount);
+    }
+    QCOMPARE(sourceTrack->clips().count(), sourceCount);
+    QCOMPARE(first.documentVersion(), versionA);
+    QVERIFY(first.playback().play({.expected = first.documentVersion()}));
+    QCOMPARE(a.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+    {
+        const SingletonRegistry::Scope scope(b.context->services());
+        QVERIFY(second.playback().play({.expected = second.documentVersion()}));
+        windows.activate(b);
+        QTRY_COMPARE(QApplication::activeWindow(), b.window.get());
+        QCOMPARE(b.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+        QTest::keyClick(b.window.get(), Qt::Key_Space);
+        QTRY_COMPARE(b.context->m_playbackController->playbackStatus(), PlaybackGlobal::Paused);
+        QVERIFY(second.playback().seek({.expected = second.documentVersion()}, 2400));
+    }
+    QCOMPARE(a.context->m_playbackController->playbackStatus(), PlaybackGlobal::Playing);
+    QVERIFY(first.playback().stop({.expected = first.documentVersion()}));
+}
+
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
+    QTest::addColumn<bool>("detach");
+    QTest::newRow("main-window") << false;
+    QTest::newRow("detached-window") << true;
+}
+
+void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus_data() {
+    QTest::addColumn<bool>("stopWhileHeld");
+    QTest::newRow("release-across-loop") << false;
+    QTest::newRow("stop-while-held") << true;
+}
+
+void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    QFETCH(bool, stopWhileHeld);
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    QVERIFY(selectFixtureAudioOutput());
+    DocumentWindowManager windows(*fixture.context);
+    auto &a = windows.createWindow();
+    QVERIFY(QTest::qWaitForWindowActive(a.window.get()));
+    auto *clip = qobject_cast<SingingClip *>(
+        a.context->m_appModel->tracks().first()->clips().toList().first());
+    QVERIFY(clip);
+    a.context->m_appStatus->activeClipId = clip->id();
+    const auto previousNotes = clip->notes().count();
+    auto &runtime = *a.context->m_coreRuntime;
+    constexpr int noteStart = 840;
+    constexpr int noteLength = 720;
+    AudioSettings::setPlayheadBehavior(0); // Return to the playback start on Stop.
+    QVERIFY(runtime.playback().setLoop({.expected = runtime.documentVersion()},
+                                       {!stopWhileHeld, 480, 480}));
+    QVERIFY(runtime.playback().seek({.expected = runtime.documentVersion()}, noteStart));
+    windows.midiInput().setRecording(*a.context, true);
+    QVERIFY(windows.midiInput().recording(*a.context));
+    auto &b = windows.createWindow();
+    QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
+    const auto otherVersion = b.context->m_coreRuntime->documentVersion();
+    windows.midiInput().setRecording(*b.context, true);
+    auto *input = AudioSystem::midiSystem()->hardwareNotes();
+    QDialog prompt(b.window.get());
+    prompt.setWindowModality(Qt::WindowModal);
+    prompt.show();
+    QTRY_VERIFY(prompt.isVisible());
+    emit input->notePressed(64);
+    {
+        const SingletonRegistry::Scope scope(a.context->services());
+        auto *transport = audioContext->transport();
+        QVERIFY(transport->bufferSize() > 0 && transport->sampleRate() > 0);
+        talcs::AudioBuffer buffer(2, transport->bufferSize());
+        const auto &timeline = a.context->m_appModel->timeline();
+        const auto ms = timeline.tickToMs(noteStart + noteLength) - timeline.tickToMs(noteStart);
+        auto frames = qRound64(ms * transport->sampleRate() / 1000.0);
+        while (frames > 0) {
+            const auto block = qMin(frames, transport->bufferSize());
+            QCOMPARE(transport->read({&buffer, 0, block}), block);
+            frames -= block;
+        }
+        if (stopWhileHeld) {
+            // Let the audio thread acknowledge Stop before the GUI checks the transport state.
+            QObject deviceCallback;
+            connect(transport, &talcs::TransportAudioSource::playbackStatusChanged, &deviceCallback,
+                    [&](auto status) {
+                        if (status == talcs::TransportAudioSource::AboutToPause) {
+                            std::thread callback([&] { transport->read({&buffer, 0, 1}); });
+                            callback.join();
+                        }
+                    });
+            QVERIFY(runtime.playback().stop({.expected = runtime.documentVersion()}));
+            QCOMPARE(playbackController->position(), double(noteStart));
+            QVERIFY(!windows.midiInput().recording(*a.context));
+            QCOMPARE(clip->notes().count(), previousNotes + 1);
+        }
+    }
+    emit input->noteReleased(64);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
+    const auto *recorded = clip->notes().toList().last();
+    QCOMPARE(recorded->keyIndex(), 64);
+    QCOMPARE(recorded->globalStart(), noteStart);
+    QCOMPARE(recorded->length(), noteLength);
+    QCOMPARE(b.context->m_coreRuntime->documentVersion(), otherVersion);
+    prompt.hide();
+    prompt.setWindowModality(Qt::ApplicationModal);
+    prompt.show();
+    emit input->notePressed(65);
+    emit input->noteReleased(65);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
+    prompt.hide();
+    windows.midiInput().setRecording(*a.context, false);
+    emit input->notePressed(67);
+    emit input->noteReleased(67);
+    QCOMPARE(clip->notes().count(), previousNotes + 1);
+}
+
+void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
+    QFETCH(bool, detach);
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY(fixture.initialize());
+    DocumentWindowManager windows(*fixture.context);
+    auto &first = windows.createWindow();
+    auto &second = windows.createWindow();
+    TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
+    // A high-DPI desktop can be smaller than an editor's minimum size.
+    second.window->setMinimumHeight(second.window->screen()->availableGeometry().height() + 1);
+    second.window->showMaximized();
+    QVERIFY(QTest::qWaitForWindowActive(second.window.get()));
+    windows.activate(first);
+    QVERIFY(QTest::qWaitForWindowActive(first.window.get()));
+    const auto oldDetached = appOptions->window()->detachedPanelGeometry();
+    if (detach) {
+        QVERIFY(QMetaObject::invokeMethod(first.window.get(), "detachBottomPanel"));
+        auto *editor = first.window->detachedPanelWindow();
+        QVERIFY(editor && QTest::qWaitForWindowExposed(editor));
+        editor->activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(editor));
+    }
+    QCOMPARE(windows.active(), &first);
+    const auto expected = first.placement->saveGeometry();
+    QVERIFY(expected != second.placement->saveGeometry());
+    const auto detached = detach ? first.window->detachedGeometry() : oldDetached;
+    QCOMPARE(windows.terminate(TerminationMode::Exit, TerminationSavePolicy::Discard),
+             TerminationRequestResult::Accepted);
+    QCOMPARE(appOptions->window()->mainWindowGeometry(), expected);
+    QCOMPARE(appOptions->window()->detachedPanelGeometry(), detached);
+}
+
+void NativeDesktopTests::recoveryRecordsKeepEachProjectsUnsavedChanges() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    GuiAppFixture fixture;
+    QVERIFY(fixture.initialize());
+    const auto path = fixture.directory.filePath("original.dspx");
+    QString error;
+    {
+        DocumentWindowManager windows(*fixture.context);
+        auto &a = windows.createWindow();
+        auto &b = windows.createWindow();
+        QVERIFY(a.context->m_coreRuntime->documents().saveDocument(
+            {.expected = a.context->m_coreRuntime->documentVersion()}, path));
+        for (const auto &entry : windows.documents()) {
+            const SingletonRegistry::Scope scope(entry->context->services());
+            auto &runtime = *entry->context->m_coreRuntime;
+            QVERIFY(runtime.project().renameTrack(
+                {.expected = runtime.documentVersion()},
+                Automation::TrackId(entry->context->m_appModel->tracks().first()->id()),
+                entry.get() == &a ? "Recovered A" : "Recovered B"));
+        }
+        QTRY_COMPARE(DocumentRecovery::pending().size(), 2);
+        for (const auto &record : DocumentRecovery::pending()) {
+            Automation::DocumentDraftDto recovered;
+            QVERIFY2(DocumentRecovery::read(record, recovered, error), qPrintable(error));
+            QCOMPARE(recovered.tracks.first().name, record.path == path
+                                                        ? QStringLiteral("Recovered A")
+                                                        : QStringLiteral("Recovered B"));
+        }
+        AppModel saved;
+        DspxProjectConverterUi converter;
+        QVERIFY2(converter.load(path, &saved, error, IProjectConverter::NewProject),
+                 qPrintable(error));
+        QVERIFY(saved.tracks().first()->name() != QStringLiteral("Recovered A"));
+        QVERIFY(windows.close(b, TerminationSavePolicy::Discard));
+        QTRY_COMPARE(DocumentRecovery::pending().size(), 1);
+        QCOMPARE(DocumentRecovery::pending().first().path, path);
+    }
+
+    DocumentWindowManager reopened(*fixture.context);
+    reopened.createWindow();
+    qApp->removeEventFilter(this);
+    const auto reinstall = qScopeGuard([this] { qApp->installEventFilter(this); });
+    QTimer::singleShot(0, this, [&] {
+        auto *prompt = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        QVERIFY(prompt);
+        auto *button = prompt->button(QMessageBox::Yes);
+        QVERIFY(button);
+        button->click();
+    });
+    reopened.offerRecovery();
+    auto *restored = reopened.findPath(path);
+    QVERIFY(restored);
+    QCOMPARE(restored->context->m_appModel->tracks().first()->name(),
+             QStringLiteral("Recovered A"));
+    QVERIFY(!restored->context->m_historyManager->isOnSavePoint());
+    AppModel onDisk;
+    DspxProjectConverterUi converter;
+    QVERIFY2(converter.load(path, &onDisk, error, IProjectConverter::NewProject),
+             qPrintable(error));
+    QVERIFY(onDisk.tracks().first()->name() != QStringLiteral("Recovered A"));
 }

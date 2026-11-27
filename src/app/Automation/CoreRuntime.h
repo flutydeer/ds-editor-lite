@@ -27,7 +27,7 @@ class HistoryManager;
 
 namespace Automation {
 
-    class CoreRuntime final {
+    class CoreRuntime final : public QObject {
     public:
         CoreRuntime(AppModel *model, HistoryManager *historyManager,
                     DocumentRuntimeServices documentServices = {},
@@ -42,7 +42,8 @@ namespace Automation {
                     ExtractionRuntimeServices extractionServices = {},
                     ApplicationRuntimeServices applicationServices = {},
                     std::optional<WindowId> windowId = WindowId::create(),
-                    ParameterRuntimeServices parameterServices = {});
+                    ParameterRuntimeServices parameterServices = {},
+                    std::shared_ptr<AutomationTaskManager> sharedTasks = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const QString &documentPath() const;
@@ -81,6 +82,10 @@ namespace Automation {
         SettingsAutomationFacade &settings();
         TaskAutomationFacade &tasks();
         AutomationTaskManager &automationTasks();
+
+        auto sharedTasks() const {
+            return m_sharedTasks;
+        }
         TimelineAutomationFacade &timeline();
 
         bool setDocumentBusy(const DocumentId &documentId, bool busy);
@@ -95,7 +100,8 @@ namespace Automation {
         AutomationDispatcher m_dispatcher;
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;
-        AutomationTaskManager m_taskManager;
+        std::shared_ptr<AutomationTaskManager> m_sharedTasks;
+        AutomationTaskManager &m_taskManager;
         ApplicationAutomationFacade m_applicationFacade;
         ParameterAutomationFacade m_parameterFacade;
         ProjectAutomationFacade m_projectFacade;

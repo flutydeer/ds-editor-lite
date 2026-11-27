@@ -38,6 +38,8 @@ namespace {
 
     using TestSupport::expect;
 
+    constexpr int httpTimeoutMs = 5000;
+
     struct HttpResult {
         int status = 0;
         QByteArray body;
@@ -70,7 +72,7 @@ namespace {
         return nullptr;
     }
 
-    HttpResult finishRequest(QNetworkReply *reply, const int timeoutMs = 5000) {
+    HttpResult finishRequest(QNetworkReply *reply, const int timeoutMs) {
         if (!reply)
             return {.timedOut = true};
         QEventLoop loop;
@@ -89,7 +91,8 @@ namespace {
             reply->abort();
         }
         result.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        result.body = reply->readAll();
+        if (reply->isReadable())
+            result.body = reply->readAll();
         result.cacheControl = reply->rawHeader("Cache-Control");
         result.contentType = reply->rawHeader("Content-Type");
         result.contentTypeOptions = reply->rawHeader("X-Content-Type-Options");
@@ -102,7 +105,7 @@ namespace {
 
     HttpResult send(QNetworkAccessManager &manager, QNetworkRequest request,
                     const QByteArray &body = {}, const HttpMethod method = HttpMethod::Post,
-                    const int timeoutMs = 5000) {
+                    const int timeoutMs = httpTimeoutMs) {
         return finishRequest(startRequest(manager, std::move(request), body, method), timeoutMs);
     }
 
@@ -1210,6 +1213,12 @@ void AutomationProtocolTests::openRpcHttpDiscovery() {
     manager.setProxy(QNetworkProxy::NoProxy);
     QNetworkRequest descriptionRequest(descriptionUrl);
     descriptionRequest.setRawHeader("Accept", "application/json");
+    // The client must allow time for document generation as well as the HTTP transfer.
+    constexpr int discoveryTimeoutMs =
+        Automation::McpHttpLimits{}.requestDeadlineMs + httpTimeoutMs;
+    const auto getDescription = [&] {
+        return send(manager, descriptionRequest, {}, HttpMethod::Get, discoveryTimeoutMs);
+    };
     const QJsonObject discovery{
         {"jsonrpc", "2.0"         },
         {"id",      5             },
@@ -1218,7 +1227,8 @@ void AutomationProtocolTests::openRpcHttpDiscovery() {
     for (const auto level : {AutomationWire::ControlLevel::L3, AutomationWire::ControlLevel::L1,
                              AutomationWire::ControlLevel::Custom}) {
         access.update(level, {QStringLiteral("tracks.list")});
-        const auto response = send(manager, descriptionRequest, {}, HttpMethod::Get);
+        const auto response = getDescription();
+        QVERIFY(!response.timedOut);
         QCOMPARE(response.status, 200);
         QCOMPARE(response.cacheControl, QByteArray("no-store"));
         QVERIFY(response.contentType.startsWith("application/json"));
@@ -1226,7 +1236,9 @@ void AutomationProtocolTests::openRpcHttpDiscovery() {
         QCOMPARE(document.value("servers").toArray().first().toObject().value("url").toString(),
                  endpoint);
         const auto rpc =
-            send(manager, nativeRequest(QUrl(endpoint)), QJsonDocument(discovery).toJson());
+            send(manager, nativeRequest(QUrl(endpoint)), QJsonDocument(discovery).toJson(),
+                 HttpMethod::Post, discoveryTimeoutMs);
+        QVERIFY(!rpc.timedOut);
         QCOMPARE(rpc.status, 200);
         QCOMPARE(bodyObject(rpc).value("result").toObject(), document);
         QSet<QString> expected{QStringLiteral("rpc.discover")};
@@ -1249,9 +1261,9 @@ void AutomationProtocolTests::openRpcHttpDiscovery() {
     foreignOrigin.setRawHeader("Origin", "https://example.com");
     QCOMPARE(send(manager, foreignOrigin, {}, HttpMethod::Get).status, 403);
     QVERIFY2(server.setRoutes({.mcp = true, .native = false}, error), qPrintable(error));
-    QCOMPARE(send(manager, descriptionRequest, {}, HttpMethod::Get).status, 404);
+    QCOMPARE(getDescription().status, 404);
     QVERIFY2(server.setRoutes({.mcp = false, .native = true}, error), qPrintable(error));
-    QCOMPARE(send(manager, descriptionRequest, {}, HttpMethod::Get).status, 200);
+    QCOMPARE(getDescription().status, 200);
     server.stop();
 }
 

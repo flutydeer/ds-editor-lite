@@ -10,6 +10,7 @@
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
 class QHBoxLayout;
+class QLabel;
 class DividerLine;
 class TitleBarComboBox;
 class ActionButtonsView;
@@ -22,11 +23,9 @@ class MainTitleBar : public QWidget, public IAnimatable {
 
 public:
     // The bar is the window chrome for both the main window and a detached
-    // panel window. `sections` selects the content, `role` decides whether the
-    // transport owns the application-level shortcuts.
+    // panel window. Sections select the visible controls.
     explicit MainTitleBar(MainMenuView *menuView, QWidget *parent,
-                          const TitleBarSections &sections,
-                          TitleBarRole role = TitleBarRole::Primary);
+                          const TitleBarSections &sections);
 
     void setInWindowMenu(bool inWindow);
     [[nodiscard]] const TitleBarSections &sections() const;
@@ -84,6 +83,7 @@ private:
     SystemWindowButton *m_btnMax = nullptr;
     SystemWindowButton *m_btnClose = nullptr;
     TitleBarComboBox *m_titleComboBox = nullptr;
+    QLabel *m_windowCaption = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
     bool m_targetActive = true;

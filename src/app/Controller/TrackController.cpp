@@ -492,6 +492,8 @@ void TrackController::copySelectedClips() {
         return;
 
     ClipsInfo info;
+    if (auto *runtime = automationRuntime())
+        info.sourceDocument = runtime->documentVersion().documentId;
     info.clips = clips;
     info.trackIndexOffsets = trackIndexOffsets;
 
@@ -512,7 +514,8 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
     if (!runtime)
         return;
 
-    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex);
+    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex,
+                                           runtime->documentVersion().documentId);
     if (inserts.isEmpty())
         return;
     runtime->project().insertClips(commandContext(*runtime), inserts);
@@ -542,7 +545,8 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
-        dlg->setModal(true);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setAttribute(Qt::WA_ShowWithoutActivating);
 
         const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);

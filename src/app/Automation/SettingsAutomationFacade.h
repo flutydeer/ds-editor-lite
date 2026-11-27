@@ -2,6 +2,7 @@
 #define SETTINGSAUTOMATIONFACADE_H
 
 #include "AutomationDispatcher.h"
+#include "Global/AppOptionsGlobal.h"
 
 #include <QByteArray>
 #include <QJsonValue>
@@ -23,6 +24,8 @@ namespace Automation {
         QString pitchModelPath;
         QString libreSvipPath;
         bool drawParamWithFinger = false;
+        AppOptionsGlobal::ProjectWindowMode projectWindowMode =
+            AppOptionsGlobal::ProjectWindowMode::Ask;
 
         friend bool operator==(const GeneralSettingsDto &, const GeneralSettingsDto &) = default;
     };

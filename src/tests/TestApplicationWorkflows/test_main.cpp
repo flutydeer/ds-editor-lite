@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Bootstrap/AppDataPaths.h"
 #include "Bootstrap/AppEnvironment.h"
+#include "Bootstrap/EditorApplication.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppOptions/Options/GeneralOption.h"
 #include "Model/AppOptions/Options/InferenceOption.h"
@@ -117,7 +118,7 @@ int main(int argc, char **argv) {
     if (argc > 1 &&
         QString::fromLocal8Bit(argv[1]) == QStringLiteral("--selected-inference-device"))
         return inferenceProviderStartup(argc, argv, true);
-    QCoreApplication application(argc, argv);
+    HeadlessApplication application(argc, argv);
     if (application.arguments().value(1) == QStringLiteral("proj"))
         return libreSvipProcessFixture(application.arguments());
     ApplicationWorkflowTests tests;

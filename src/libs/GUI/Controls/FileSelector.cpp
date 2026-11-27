@@ -1,4 +1,5 @@
 #include <lite/GUI/Controls/FileSelector.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QDropEvent>
 #include <QFileDialog>
@@ -99,10 +100,10 @@ void FileSelector::onBrowseButtonClicked() {
     QString selectedPath;
     if (m_dirMode) {
         selectedPath =
-            QFileDialog::getExistingDirectory(this, tr("Select a Folder"), QDir::currentPath());
+            WindowDialogs::getExistingDirectory(this, tr("Select a Folder"), QDir::currentPath());
     } else {
-        selectedPath =
-            QFileDialog::getOpenFileName(this, tr("Select a File"), QDir::currentPath(), m_filter);
+        selectedPath = WindowDialogs::getOpenFileName(this, tr("Select a File"),
+                                                      QDir::currentPath(), m_filter);
     }
 
     if (!selectedPath.isEmpty()) {

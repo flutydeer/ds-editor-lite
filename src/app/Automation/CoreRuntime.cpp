@@ -29,9 +29,14 @@ namespace Automation {
         FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
         ExtractionRuntimeServices extractionServices,
         ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId,
-        ParameterRuntimeServices parameterServices)
-        : m_session(model, historyManager), m_documentResolver(m_session),
+        ParameterRuntimeServices parameterServices,
+        std::shared_ptr<AutomationTaskManager> sharedTasks)
+        : m_session(model, historyManager, std::move(documentServices.hasPendingDialog)),
+          m_documentResolver(m_session),
           m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
+          m_sharedTasks(sharedTasks ? std::move(sharedTasks)
+                                    : std::make_shared<AutomationTaskManager>()),
+          m_taskManager(*m_sharedTasks),
           m_applicationFacade(m_dispatcher, std::move(applicationServices)),
           m_parameterFacade(m_dispatcher, m_committer, m_objectResolver,
                             std::move(parameterServices)),
@@ -72,6 +77,7 @@ namespace Automation {
         // Closing is sticky inside the session, so an operation that was already in
         // flight cannot reopen the document through a replacement commit.
         m_session.commitClosing();
+        m_taskManager.discardDocumentGeneration(m_session.documentId());
         // Diagnostics only, and deliberately after the fence: a log call that blocks on
         // a stuck process must not be able to delay the freeze itself.
         qInfo().noquote() << QStringLiteral(

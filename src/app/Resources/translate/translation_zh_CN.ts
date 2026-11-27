@@ -583,7 +583,7 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="276"/>
         <source>&quot;Dry Run&quot; shows the paths of files to export. No files will actually be exported.</source>
-        <translation>「预演」显示将要导出的文件路径。实际上不会导出任何文件。</translation>
+        <translation>“预演”显示将要导出的文件路径。实际上不会导出任何文件。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="282"/>
@@ -610,7 +610,7 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="412"/>
         <source>Preset &quot;%1&quot; already exists. Overwrite it?</source>
-        <translation>预设「%1」已存在。是否覆盖？</translation>
+        <translation>预设“%1”已存在。是否覆盖？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="483"/>
@@ -2121,6 +2121,10 @@ Right drag: Erase</source>
 <context>
     <name>DocumentWorkflowController</name>
     <message>
+        <source>New Project %1</source>
+        <translation>新工程 %1</translation>
+    </message>
+    <message>
         <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="237"/>
         <location filename="../../UI/Window/MainWindow.cpp" line="332"/>
         <source>New Project</source>
@@ -2712,7 +2716,7 @@ errors: %1</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="30"/>
         <source>Enter text here, e.g.: &quot;小酒窝长睫毛是你最美的记号&quot;</source>
-        <translation>在此输入文本，例如：「小酒窝长睫毛是你最美的记号」</translation>
+        <translation>在此输入文本，例如：“小酒窝长睫毛是你最美的记号”</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="41"/>
@@ -2817,7 +2821,7 @@ errors: %1</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="314"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
+        <translation>规则“%1”：正则表达式“%2”错误：%3</translation>
     </message>
 </context>
 <context>
@@ -2899,7 +2903,7 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="258"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
+        <translation>规则“%1”：正则表达式“%2”错误：%3</translation>
     </message>
 </context>
 <context>
@@ -2970,6 +2974,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>GeneralPage</name>
+    <message>
+        <source>When creating or opening a project</source>
+        <translation>新建或打开工程时</translation>
+    </message>
+    <message>
+        <source>Always Ask</source>
+        <translation>总是询问</translation>
+    </message>
+    <message>
+        <source>Current Window</source>
+        <translation>当前窗口</translation>
+    </message>
+    <message>
+        <source>New Window</source>
+        <translation>新窗口</translation>
+    </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="142"/>
         <source>Package Search Paths (needs restart)</source>
@@ -3358,8 +3378,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="196"/>
-        <source>This will delete %L1 cache file(s) not used by the current project. Files used by undo history and current playback will be kept.</source>
-        <translation>将删除当前工程未使用的 %L1 个缓存文件。撤销历史与当前播放所用的文件将保留。</translation>
+        <source>This will delete %L1 cache file(s) not used by open projects. Files used by undo history and current playback will be kept.</source>
+        <translation>将删除所有已打开工程均未使用的 %L1 个缓存文件。撤销历史与当前播放所用的文件将保留。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="200"/>
@@ -3957,6 +3977,10 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuView</name>
     <message>
+        <source>&amp;Window</source>
+        <translation>窗口(&amp;W)</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="267"/>
         <source>All Supported Files (%1)</source>
         <translation>所有支持的文件 (%1)</translation>
@@ -3974,6 +3998,18 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainMenuViewPrivate</name>
+    <message>
+        <source>New Window</source>
+        <translation>新建窗口</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Record MIDI Input</source>
+        <translation>录制 MIDI 输入</translation>
+    </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="271"/>
         <source>Open</source>
@@ -4018,8 +4054,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="665"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1004"/>
-        <source>&amp;Open...</source>
-        <translation>打开(&amp;O)...</translation>
+        <source>&amp;Open</source>
+        <translation>打开(&amp;O)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="679"/>
@@ -4066,8 +4102,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="685"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1007"/>
-        <source>Save &amp;as...</source>
-        <translation>另存为(&amp;A)...</translation>
+        <source>Save &amp;as</source>
+        <translation>另存为(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="282"/>
@@ -4149,8 +4185,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="712"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="1013"/>
-        <source>Manage packages...</source>
-        <translation>管理包...</translation>
+        <source>Manage packages</source>
+        <translation>管理包</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="719"/>
@@ -4304,6 +4340,46 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>New Project</source>
+        <translation>新建工程</translation>
+    </message>
+    <message>
+        <source>Open Project</source>
+        <translation>打开工程</translation>
+    </message>
+    <message>
+        <source>Where would you like to create the new project?</source>
+        <translation>要在哪个窗口新建工程？</translation>
+    </message>
+    <message>
+        <source>Where would you like to open %1?</source>
+        <translation>要在哪个窗口打开“%1”？</translation>
+    </message>
+    <message>
+        <source>Where would you like to open %1? Additional projects open in separate windows.</source>
+        <translation>要在哪个窗口打开“%1”？其余工程各自使用独立窗口。</translation>
+    </message>
+    <message>
+        <source>Remember my choice</source>
+        <translation>记住我的选择</translation>
+    </message>
+    <message>
+        <source>New Window</source>
+        <translation>新窗口</translation>
+    </message>
+    <message>
+        <source>Current Window</source>
+        <translation>当前窗口</translation>
+    </message>
+    <message>
+        <source>Could not save the project window preference.</source>
+        <translation>无法保存工程窗口偏好。</translation>
+    </message>
+    <message>
+        <source>Save changes to %1?</source>
+        <translation>要保存对“%1”的更改吗？</translation>
+    </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="416"/>
         <source>DiffScope Project File (*.dspx)</source>
@@ -5753,6 +5829,10 @@ type: %L1</source>
 <context>
     <name>QObject</name>
     <message>
+        <source>Another open project uses this file. Choose a different path.</source>
+        <translation>另一个已打开的工程正在使用此文件。请选择其他保存位置。</translation>
+    </message>
+    <message>
         <location filename="../../Modules/Extractors/ExtractorUtils.cpp" line="21"/>
         <source>Failed to probe audio file: </source>
         <translation>解析音频文件失败：</translation>
@@ -6750,6 +6830,25 @@ All current mix settings will be lost.</source>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="166"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
+    </message>
+</context>
+<context>
+    <name>DocumentWindowManager</name>
+    <message>
+        <source>Recover project</source>
+        <translation>恢复工程</translation>
+    </message>
+    <message>
+        <source>Restore unsaved changes to %1?</source>
+        <translation>要恢复“%1”中未保存的更改吗？</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>未命名工程</translation>
+    </message>
+    <message>
+        <source>Failed to save project</source>
+        <translation>工程保存失败</translation>
     </message>
 </context>
 </TS>

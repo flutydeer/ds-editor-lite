@@ -1,6 +1,7 @@
 #include "EditorViewportAnimation.h"
 
 #include <lite/GUI/Animation/AnimationUtils.h>
+#include <lite/Support/ObjectContext.h>
 
 #include <QEasingCurve>
 
@@ -9,10 +10,11 @@
 EditorViewportAnimation::EditorViewportAnimation(ApplyCallback apply, QObject *parent)
     : QObject(parent), m_apply(std::move(apply)) {
     m_animation.setEasingCurve(QEasingCurve::OutCubic);
-    connect(&m_animation, &QVariantAnimation::valueChanged, this, [this](const QVariant &value) {
-        if (m_apply)
-            m_apply(value.toPointF());
-    });
+    ObjectContext::connect(&m_animation, &QVariantAnimation::valueChanged, this,
+                           [this](const QVariant &value) {
+                               if (m_apply)
+                                   m_apply(value.toPointF());
+                           });
     initializeAnimation();
 }
 

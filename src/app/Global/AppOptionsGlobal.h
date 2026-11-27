@@ -2,6 +2,8 @@
 #define APPOPTIONSGLOBAL_H
 
 namespace AppOptionsGlobal {
+    enum class ProjectWindowMode { Ask, CurrentWindow, NewWindow };
+
     enum Option {
         All,
         General,

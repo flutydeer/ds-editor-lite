@@ -73,7 +73,7 @@ public:
     // shape the 4 DiffSinger tasks consume.
     std::shared_ptr<ds::session::ModelSetHandle>
         acquireSingerSession(const SingerIdentifier &identifier) const;
-    void retainSingerSessions(const QSet<SingerIdentifier> &identifiers);
+    void retainSingerSessions(const QObject *owner, const QSet<SingerIdentifier> &identifiers);
 
     // Kicks off asynchronous initialization; called by the owner after
     // construction.
@@ -113,6 +113,7 @@ private:
 
     std::mutex m_singerSessionSelectionMutex;
     QSet<SingerIdentifier> m_latestSingerSelection;
+    QHash<const QObject *, QSet<SingerIdentifier>> m_documentSingers;
     std::atomic<quint64> m_selectionGeneration{0};
     std::atomic<bool> m_sessionMaintenanceScheduled{false};
     std::atomic<bool> m_evictionRequested{false};

@@ -109,12 +109,13 @@ AppOptionsDialog::AppOptionsDialog(QWidget *parent) : QWidget(parent) {
             &AppOptionsDialog::onSelectionChanged);
 }
 
-int AppOptionsDialog::showStandaloneDialog(const AppOptionsGlobal::Option option, QWidget *parent) {
+void AppOptionsDialog::showStandaloneDialog(const AppOptionsGlobal::Option option, QWidget *parent) {
     auto *dialog = new Dialog(parent);
     auto *panel = new AppOptionsDialog(dialog);
     panel->selectOption(option);
 
     dialog->setModal(true);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
     // The Dialog base leaves a 12px inset around the body; the options layout
     // is flush by design (sidebar owns its background, pages carry their own
     // 16px content margins), so drop it here.
@@ -125,9 +126,7 @@ int AppOptionsDialog::showStandaloneDialog(const AppOptionsGlobal::Option option
     bodyLayout->addWidget(panel);
 
     dialog->resize(900, 600);
-    const auto result = dialog->exec();
-    dialog->deleteLater();
-    return result;
+    dialog->show();
 }
 
 void AppOptionsDialog::onSelectionChanged(const int index) {

@@ -68,7 +68,7 @@ namespace {
             const bool ownPopup = popup && window->isAncestorOf(popup);
             if (popup && !ownPopup)
                 return false;
-            if (auto *modal = QApplication::activeModalWidget(); modal && modal != window)
+            if (WindowDialogs::blocks(window))
                 return false;
             if (QApplication::activeWindow() != window && !ownPopup)
                 return false;
@@ -148,7 +148,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
         d->m_cbSinger->setEnabled(false);
         d->m_cbSinger->setLoadingText(tr("(Scanning packages...)"));
     }
-    connect(packageManager, &PackageManager::packagesRefreshed, d, [d] {
+    ObjectContext::connect(packageManager, &PackageManager::packagesRefreshed, d, [d] {
         d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
         d->refreshSingerComboPresentation();
     });
@@ -168,10 +168,12 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
-    connect(appOptions, &AppOptions::optionsChanged, d, [d](AppOptionsGlobal::Option option) {
-        if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
-            d->refreshSingerComboPresentation();
-    });
+    ObjectContext::connect(appOptions, &AppOptions::optionsChanged, d,
+                           [d](AppOptionsGlobal::Option option) {
+                               if (option == AppOptionsGlobal::Option::General ||
+                                   option == AppOptionsGlobal::Option::All)
+                                   d->refreshSingerComboPresentation();
+                           });
 
     d->m_cbPianoRollQuantize = new ComboBox(WheelEventPolicy::Handle);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
@@ -602,6 +604,7 @@ bool ClipEditorToolBarViewPrivate::confirmLanguageRepair(
     }
 
     auto *dialog = new MessageDialog(tr("Change Singer"), lines.join(u'\n'), const_cast<ClipEditorToolBarView *>(q_ptr));
+    dialog->setProjectModal();
     dialog->addButton(tr("Cancel"), 0, QDialogButtonBox::RejectRole);
     dialog->addButton(tr("Keep Languages"), 1, QDialogButtonBox::AcceptRole);
     if (!targetLanguage.isEmpty())
@@ -749,14 +752,13 @@ void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singe
     const QPointer<SingingClip> clip = m_singingClip;
     const auto clipId = Automation::ClipId(clip->id());
     Q_Q(const ClipEditorToolBarView);
-    auto *parent = Dialog::globalParent();
-    if (!parent)
-        parent = const_cast<ClipEditorToolBarView *>(q);
+    auto *parent = q->window();
 
     const auto initialData = clip->singerInfo().identifier() == singerInfo.identifier()
                                  ? clip->speakerMixData()
                                  : SpeakerMixData();
     SpeakerMixDialog dialog(singerInfo, initialData, parent);
+    dialog.setProjectModal();
     if (dialog.exec() == QDialog::Accepted && clip && m_singingClip == clip) {
         const auto data = dialog.speakerMixData();
         if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {

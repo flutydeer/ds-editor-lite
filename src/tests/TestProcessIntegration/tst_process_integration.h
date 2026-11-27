@@ -13,6 +13,7 @@ public:
 
 private slots:
     void nativeEditingAndFiles();
+    void audioImportAndWaveExport_data();
     void audioImportAndWaveExport();
     void consoleTermination_data();
     void consoleTermination();
@@ -21,10 +22,13 @@ private slots:
     void isolatedPrimaries();
     void crossHost();
     void editingWorkflow();
+    void newProjectWindowSynthesizesItsFirstNote();
     void secondaryStartup();
     void legacyConnector();
     void legacyEditor();
     void documentLifecycle();
+    void targetedDocumentLifecycle_data();
+    void targetedDocumentLifecycle();
     void gracefulExit_data();
     void gracefulExit();
 };

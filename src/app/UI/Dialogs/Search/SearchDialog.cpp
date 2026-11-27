@@ -4,6 +4,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
+#include "Model/AppStatus/AppStatus.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
@@ -17,7 +18,8 @@
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip) {
-    setModal(true);
+    if (singingClip)
+        connect(singingClip, &QObject::destroyed, this, &QDialog::reject);
     setWindowTitle(tr("Search Lyrics"));
     resize(150, 300);
 
@@ -93,6 +95,10 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 
     connect(resultListWidget, &QListWidget::currentRowChanged, this,
             &SearchDialog::onItemSelectionChanged);
+    connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](int clipId) {
+        if (m_clip && m_clip->id() != clipId)
+            resultListWidget->setCurrentRow(-1);
+    });
     connect(btnPrev, &QPushButton::clicked, this, &SearchDialog::onPrevClicked);
     connect(btnNext, &QPushButton::clicked, this, &SearchDialog::onNextClicked);
 
@@ -118,7 +124,7 @@ void SearchDialog::onSearchTextChanged() {
     const auto mode = startWithRadioButton->isChecked()    ? QStringLiteral("starts_with")
                       : fullSearchRadioButton->isChecked() ? QStringLiteral("exact")
                                                            : QStringLiteral("contains");
-    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>(); runtime && m_clip) {
         const auto matches = runtime->notes().searchNotes(
             runtime->documentVersion().documentId, Automation::ClipId(m_clip->id()),
             lineEditSearch->text(), mode, caseSensitiveCheckBox->isChecked(),
@@ -142,12 +148,13 @@ void SearchDialog::onSearchTextChanged() {
 
 void SearchDialog::onItemSelectionChanged(const int row) const {
     const QListWidgetItem *item = resultListWidget->item(row);
-    if (item) {
+    if (item && m_clip) {
         const int noteId = item->data(Qt::UserRole).toInt();
         const auto &note = m_clip->findNoteById(noteId);
+        if (!note || !clipController->setSelectedNotes(m_clip->id(), {noteId}))
+            return;
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
         editorViewController->centerPianoRollAt(note->globalStart(), note->keyIndex());
-        clipController->selectNotes({note->id()}, true);
     }
 }
 

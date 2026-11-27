@@ -1,4 +1,5 @@
 #include "ExtractionAutomationFacade.h"
+#include <QPointer>
 #include "OperationIds.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -215,11 +216,12 @@ namespace Automation {
                         });
                     Q_ASSERT(bound);
                 }
-                auto execute = [this, taskId = task.taskId, base = session.version(),
-                                input = std::move(prepared.get().input), job = std::move(job),
-                                observer = std::move(observer)]() mutable {
-                    executePitchTask(taskId, base, std::move(input), std::move(job),
-                                     std::move(observer));
+                auto execute = [self = QPointer(this), taskId = task.taskId,
+                                base = session.version(), input = std::move(prepared.get().input),
+                                job = std::move(job), observer = std::move(observer)]() mutable {
+                    if (self)
+                        self->executePitchTask(taskId, base, std::move(input), std::move(job),
+                                               std::move(observer));
                 };
                 if (m_services.schedule)
                     m_services.schedule(std::move(execute));
@@ -346,11 +348,12 @@ namespace Automation {
                         });
                     Q_ASSERT(bound);
                 }
-                auto execute = [this, taskId = task.taskId, base = session.version(),
-                                input = std::move(prepared.get().input), job = std::move(job),
-                                observer = std::move(observer)]() mutable {
-                    executeMidiTask(taskId, base, std::move(input), std::move(job),
-                                    std::move(observer));
+                auto execute = [self = QPointer(this), taskId = task.taskId,
+                                base = session.version(), input = std::move(prepared.get().input),
+                                job = std::move(job), observer = std::move(observer)]() mutable {
+                    if (self)
+                        self->executeMidiTask(taskId, base, std::move(input), std::move(job),
+                                              std::move(observer));
                 };
                 if (m_services.schedule)
                     m_services.schedule(std::move(execute));
@@ -373,18 +376,22 @@ namespace Automation {
         if (!m_tasks.markRunning(taskId))
             return;
         ExtractionJobCallbacks callbacks;
-        callbacks.progress = [this, taskId](AutomationTaskProgress progress,
-                                            const QString &message) {
-            m_tasks.updateProgress(taskId, std::move(progress), message);
+        callbacks.progress = [self = QPointer(this), taskId](AutomationTaskProgress progress,
+                                                             const QString &message) {
+            if (self)
+                self->m_tasks.updateProgress(taskId, std::move(progress), message);
         };
-        callbacks.cancelRequested = [this, documentId = baseDocument.documentId, taskId] {
-            m_tasks.requestCancel(documentId, taskId);
+        callbacks.cancelRequested = [self = QPointer(this), documentId = baseDocument.documentId,
+                                     taskId] {
+            if (self)
+                self->m_tasks.requestCancel(documentId, taskId);
         };
-        job->start(std::move(callbacks),
-                   [this, taskId, baseDocument, input = std::move(input),
-                    observer = std::move(observer)](PitchExtractionBackendResult result) mutable {
-                       completePitchTask(taskId, baseDocument, input, std::move(result), observer);
-                   });
+        job->start(std::move(callbacks), [self = QPointer(this), taskId, baseDocument,
+                                          input = std::move(input), observer = std::move(observer)](
+                                             PitchExtractionBackendResult result) mutable {
+            if (self)
+                self->completePitchTask(taskId, baseDocument, input, std::move(result), observer);
+        });
     }
 
     void ExtractionAutomationFacade::executeMidiTask(const TaskId &taskId,
@@ -400,18 +407,22 @@ namespace Automation {
         if (!m_tasks.markRunning(taskId))
             return;
         ExtractionJobCallbacks callbacks;
-        callbacks.progress = [this, taskId](AutomationTaskProgress progress,
-                                            const QString &message) {
-            m_tasks.updateProgress(taskId, std::move(progress), message);
+        callbacks.progress = [self = QPointer(this), taskId](AutomationTaskProgress progress,
+                                                             const QString &message) {
+            if (self)
+                self->m_tasks.updateProgress(taskId, std::move(progress), message);
         };
-        callbacks.cancelRequested = [this, documentId = baseDocument.documentId, taskId] {
-            m_tasks.requestCancel(documentId, taskId);
+        callbacks.cancelRequested = [self = QPointer(this), documentId = baseDocument.documentId,
+                                     taskId] {
+            if (self)
+                self->m_tasks.requestCancel(documentId, taskId);
         };
-        job->start(std::move(callbacks),
-                   [this, taskId, baseDocument, input = std::move(input),
-                    observer = std::move(observer)](MidiExtractionBackendResult result) mutable {
-                       completeMidiTask(taskId, baseDocument, input, std::move(result), observer);
-                   });
+        job->start(std::move(callbacks), [self = QPointer(this), taskId, baseDocument,
+                                          input = std::move(input), observer = std::move(observer)](
+                                             MidiExtractionBackendResult result) mutable {
+            if (self)
+                self->completeMidiTask(taskId, baseDocument, input, std::move(result), observer);
+        });
     }
 
     void ExtractionAutomationFacade::completePitchTask(const TaskId &taskId,

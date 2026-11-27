@@ -10,10 +10,12 @@
 
 #include <QList>
 #include <QObject>
+#include <QPointer>
 #include <QStringList>
 #include <optional>
 
 class DecodeAudioTask;
+class QDialog;
 
 // Drop target for canvas drops: a stable snapshot of the existing tracks
 // starting at the drop row, plus the snapped tick used for audio placement.
@@ -40,21 +42,24 @@ public:
     // end.
     void requestImport(const QStringList &paths,
                        std::optional<FileImportDropTarget> target = std::nullopt);
+    void cancel();
 
 private:
     void startPreparation();
     void prepareNext();
     void onAudioTaskFinished(DecodeAudioTask *task);
     void onAllPrepared();
+    void finishBatch();
     void commitBatch();
-    void showSummary() const;
+    void showSummary();
     void reset();
-    void showMessageDialog(const QString &title, const QString &message) const;
+    void showMessageDialog(const QString &title, const QString &message);
 
     QStringList m_pendingPaths;
     Automation::DocumentVersion m_generationAnchor;
     QList<PreparedImportItem> m_prepared;
     DecodeAudioTask *m_currentTask = nullptr;
+    QPointer<QDialog> m_dialog;
     std::optional<FileImportDropTarget> m_target;
     QByteArray m_codec;
     bool m_importTempo = false;

@@ -17,7 +17,6 @@ AboutDialog::AboutDialog(QWidget *parent) : Dialog(parent) {
     const QString appName = qApp->applicationName();
 
     setWindowTitle(QApplication::translate("Application", "About %1").arg(appName));
-    setModal(true);
     setMinimumWidth(460);
 
     m_textLabel = new QLabel;

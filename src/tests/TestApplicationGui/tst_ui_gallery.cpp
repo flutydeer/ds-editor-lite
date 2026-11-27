@@ -5,6 +5,7 @@
 #include "../TestSupport/WaveFixture.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Controller/DocumentWorkflow/DocumentRecovery.h"
 #include "Controller/PlaybackController.h"
 #include "Model/Utils/ParamUtils.h"
 #include "Modules/Audio/AudioExporter.h"
@@ -50,6 +51,7 @@
 #include "UI/Views/MainTitleBar/TimePopupWidget.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Window/DetachedPanelWindow.h"
+#include "UI/Window/DocumentWindowManager.h"
 #include "UI/Window/LogWindow.h"
 #include "UI/Window/TaskWindow.h"
 
@@ -73,6 +75,7 @@
 #include <QImage>
 #include <QFile>
 #include <QSaveFile>
+#include <QScreen>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -80,10 +83,12 @@
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QContextMenuEvent>
+#include <QCheckBox>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPainter>
 #include <QScopeGuard>
+#include <QScopedValueRollback>
 #include <QTabWidget>
 #include <QTimer>
 #include <QTemporaryDir>
@@ -92,6 +97,7 @@
 #include <QStringList>
 
 #include <numbers>
+#include <memory>
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
@@ -494,6 +500,141 @@ namespace {
         QDir m_output;
         QList<Entry> m_entries;
     };
+
+    template <typename OpenDialog>
+    void captureProjectPrompt(Gallery &gallery, MainWindow &owner, const QString &caption,
+                              OpenDialog openDialog, bool rememberChoice = false) {
+        bool captured = false;
+        std::exception_ptr failure;
+        QTimer capture;
+        QObject::connect(&capture, &QTimer::timeout, &owner, [&] {
+            auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            capture.stop();
+            const auto dismiss = qScopeGuard([dialog] { dialog->reject(); });
+            try {
+                requireCapture(dialog->parentWidget() == &owner,
+                               QStringLiteral("Unexpected dialog owner for %1").arg(caption));
+                if (rememberChoice) {
+                    auto *check = dialog->findChild<QCheckBox *>();
+                    requireCapture(check && check->isVisible(),
+                                   QStringLiteral("Missing choice checkbox for %1").arg(caption));
+                    check->click();
+                }
+                gallery.take(*dialog, Module::Workspace, caption);
+                captured = true;
+            } catch (...) {
+                failure = std::current_exception();
+            }
+        });
+        capture.start(10);
+        openDialog();
+        if (failure)
+            std::rethrow_exception(failure);
+        requireCapture(captured, QStringLiteral("No dialog was shown for %1").arg(caption));
+    }
+
+    void captureProjectWindows(Gallery &gallery, AppContext &process) {
+        using AppOptionsGlobal::ProjectWindowMode;
+        const QScopedValueRollback choice(process.m_appOptions->general()->projectWindowMode,
+                                          ProjectWindowMode::Ask);
+        DocumentWindowManager windows(process);
+        const auto createProject = [&](const QString &name) -> DocumentWindowManager::Document & {
+            auto &entry = windows.createWindow();
+            requireCapture(QTest::qWaitForWindowExposed(entry.window.get()),
+                           QStringLiteral("Project window was not exposed: %1").arg(name));
+            const SingletonRegistry::Scope scope(entry.context->services());
+            auto &runtime = *entry.context->m_coreRuntime;
+            const auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(true);
+            requireCapture(bool(runtime.documents().commitOpenedDocument(
+                               {.expected = runtime.documentVersion()}, draft, {}, name, true)),
+                           QStringLiteral("Could not prepare project %1").arg(name));
+            requireCapture(entry.window->windowTitle() == name,
+                           QStringLiteral("Project window did not show %1").arg(name));
+            return entry;
+        };
+        auto &lead = createProject(QStringLiteral("Moonlight"));
+        auto &window = *lead.window;
+        auto *menuBar = window.findChild<MainMenuView *>();
+        requireCapture(menuBar, QStringLiteral("Project menu bar is missing"));
+
+        captureProjectPrompt(gallery, window, QStringLiteral("New project - choose a window"),
+                             [&] { menuBar->actionNew()->trigger(); });
+        const QString score = QStringLiteral("Evening Sketch.dspx");
+        captureProjectPrompt(gallery, window, QStringLiteral("Open project - choose a window"),
+                             [&] { window.newOrOpenProject(&window, {score}); });
+        captureProjectPrompt(
+            gallery, window, QStringLiteral("Open multiple projects"),
+            [&] { window.newOrOpenProject(&window, {score, QStringLiteral("Chorus.dspx")}); }, true);
+
+        const auto editProject = [](DocumentWindowManager::Document &entry) {
+            const SingletonRegistry::Scope scope(entry.context->services());
+            auto &runtime = *entry.context->m_coreRuntime;
+            const Automation::TrackId track(entry.context->m_appModel->tracks().first()->id());
+            requireCapture(
+                bool(runtime.project().renameTrack({.expected = runtime.documentVersion()}, track,
+                                                   QStringLiteral("Vocals"))),
+                QStringLiteral("Could not edit the gallery project"));
+        };
+        editProject(lead);
+        requireCapture(QTest::qWaitFor([&] { return !lead.recoveryKey.isEmpty(); }),
+                       QStringLiteral("Missing recovery record for the edited project"));
+        const auto clearRecords = qScopeGuard([&] {
+            for (const auto &entry : windows.documents())
+                DocumentRecovery::remove(entry->recoveryKey);
+        });
+        captureProjectPrompt(gallery, window, QStringLiteral("Unsaved project confirmation"),
+                             [&] { windows.close(lead, TerminationSavePolicy::Prompt); });
+        {
+            // Capture the application's recovery prompt as a QWidget on every platform.
+            const auto nativeDialogs = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+            QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+            const auto restore = qScopeGuard([&] {
+                QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs);
+            });
+            captureProjectPrompt(gallery, window, QStringLiteral("Recover an unsaved project"),
+                                 [&] { windows.offerRecovery(); });
+        }
+        auto &harmony = createProject(QStringLiteral("Harmony"));
+        editProject(harmony);
+        captureProjectPrompt(gallery, window, QStringLiteral("Quit with multiple unsaved projects"),
+                             [&] {
+                                 windows.terminate(TerminationMode::Exit,
+                                                   TerminationSavePolicy::Prompt);
+                             });
+
+        const auto taskFor = [](const AppContext &context, const QString &title,
+                                const QString &message, int progress) {
+            const SingletonRegistry::Scope scope(context.services());
+            auto task = std::make_unique<GalleryTask>();
+            TaskStatus status;
+            status.id = task->id();
+            status.title = title;
+            status.message = message;
+            status.progress = progress;
+            task->setStatus(status);
+            return task;
+        };
+        const auto rendering = taskFor(*lead.context, QStringLiteral("Render guide audio"),
+                                      QStringLiteral("Rendering audio resources"), 45);
+        const auto queued = taskFor(*harmony.context, QStringLiteral("Export audio"),
+                                    QStringLiteral("Waiting to start"), 0);
+        taskManager->addAndStartTask(rendering.get());
+        taskManager->addTask(queued.get());
+        const auto finish = qScopeGuard([&] {
+            rendering->terminate();
+            taskManager->wait();
+            QCoreApplication::sendPostedEvents(rendering.get(), QEvent::MetaCall);
+            taskManager->removeTask(rendering.get());
+            taskManager->removeTask(queued.get());
+        });
+        requireCapture(QTest::qWaitFor([&] { return rendering->started(); }),
+                       QStringLiteral("The sample rendering task did not start"));
+        TaskWindow tasks(&window);
+        tasks.resize(660, 220);
+        gallery.show(tasks, Module::Diagnostics, QStringLiteral("Tasks from two projects"));
+    }
 } // namespace
 
 void ApplicationGuiTests::uiGalleryLayoutGroupsModules() try {
@@ -658,6 +799,7 @@ void ApplicationGuiTests::captureUiGallery() try {
                              framelessReference);
     }
 
+    captureProjectWindows(gallery, *context);
     TestSupport::MainWindowFixture host(
         TestSupport::MainWindowFixture::MenuPlacement::PlatformDefault, false);
     createLyricSelection(480, true);
@@ -677,6 +819,8 @@ void ApplicationGuiTests::captureUiGallery() try {
     auto *editor = bottom->clipEditorView();
 
     auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().saveDocument(commandContext(),
+                                              dataRoot.filePath(QStringLiteral("Duet.dspx"))));
     Automation::TrackDraftDto audioTrack;
     audioTrack.name = QStringLiteral("Guide audio");
     const auto track = runtime.project().insertTrack(commandContext(), 1, audioTrack);
@@ -1048,6 +1192,9 @@ void ApplicationGuiTests::captureUiGallery() try {
     emit bottom->detachRequested();
     auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
+    const auto workArea = detached->screen()->availableGeometry().adjusted(8, 8, -8, -8);
+    detached->resize(QSize(1280, detached->height()).boundedTo(workArea.size()));
+    detached->move(workArea.center() - detached->rect().center());
     gallery.take(*detached, Module::Mixing, QStringLiteral("Detached mix console"));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     QVERIFY(framePitchCurves());
@@ -1059,65 +1206,28 @@ void ApplicationGuiTests::captureUiGallery() try {
     LogWindow log(&window);
     gallery.show(log, Module::Diagnostics, QStringLiteral("Log viewer"));
     {
-        GalleryTask rendering;
-        TaskStatus status;
-        status.id = rendering.id();
-        status.title = QStringLiteral("Render guide audio");
-        status.message = QStringLiteral("Rendering audio resources");
-        status.progress = 45;
-        rendering.setStatus(status);
-        taskManager->addAndStartTask(&rendering);
-        const auto finish = qScopeGuard([&] {
-            rendering.terminate();
-            taskManager->wait();
-            QCoreApplication::sendPostedEvents(&rendering, QEvent::MetaCall);
-            taskManager->removeTask(&rendering);
-        });
-        QTRY_VERIFY(rendering.started());
-        TaskWindow tasks(&window);
-        auto *list = tasks.findChild<QListWidget *>("taskList");
-        QVERIFY(list && list->count() > 0);
-        gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list"));
-    }
-
-    // Use the real modal wrapper, then step through its sidebar before dismissing it.
-    std::exception_ptr settingsCaptureFailure;
-    QTimer::singleShot(0, &window, [&] {
-        try {
-            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-            QVERIFY(dialog);
-            const auto dismiss = qScopeGuard([&] { dialog->reject(); });
-            auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
-            QVERIFY(sidebar && sidebar->count() > 0);
-            for (int page = 0; page < sidebar->count(); ++page) {
-                sidebar->setCurrentRow(page);
-                gallery.take(*dialog, Module::Settings,
-                             QStringLiteral("%1").arg(sidebar->item(page)->text()));
-                if (page == AppOptionsGlobal::Midi - 1) {
-                    auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
-                    QVERIFY(keyboard);
-                    gallery.take(*keyboard, Module::Settings,
-                                 QStringLiteral("MIDI preview keyboard"),
-                                 Gallery::Capture::WidgetContent);
-                }
+        window.openAppOptions(AppOptionsGlobal::General);
+        auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        const auto dismiss = qScopeGuard([&] { dialog->reject(); });
+        auto *sidebar = dialog->findChild<QListWidget *>("AppOptionsDialogTabListWidget");
+        QVERIFY(sidebar && sidebar->count() > 0);
+        for (int page = 0; page < sidebar->count(); ++page) {
+            sidebar->setCurrentRow(page);
+            gallery.take(*dialog, Module::Settings, sidebar->item(page)->text());
+            if (page == AppOptionsGlobal::Midi - 1) {
+                auto *keyboard = dialog->findChild<QWidget *>("midiPreviewKeyboard");
+                QVERIFY(keyboard);
+                gallery.take(*keyboard, Module::Settings, QStringLiteral("MIDI preview keyboard"),
+                             Gallery::Capture::WidgetContent);
             }
-            sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
-            auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
-            QVERIFY(toolset && toolset->isEnabled());
-            toolset->click();
-            gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
-        } catch (...) {
-            // Never let a capture exception escape through Qt's event dispatcher.
-            settingsCaptureFailure = std::current_exception();
-            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                dialog->reject();
         }
-    });
-    window.openAppOptions(AppOptionsGlobal::General);
-    if (settingsCaptureFailure)
-        std::rethrow_exception(settingsCaptureFailure);
-    if (QTest::currentTestFailed())
-        return;
+        sidebar->setCurrentRow(AppOptionsGlobal::Automation - 1);
+        auto *toolset = dialog->findChild<QAbstractButton *>("automationOpenToolsetButton");
+        QVERIFY(toolset && toolset->isEnabled());
+        toolset->click();
+        gallery.take(*dialog, Module::Settings, QStringLiteral("Automation custom toolset"));
+    }
 
     const auto show = [&](QWidget &&dialog, const Module module, const QString &title) {
         gallery.show(dialog, module, title);
@@ -1142,6 +1252,10 @@ void ApplicationGuiTests::captureUiGallery() try {
     gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - progress"));
     exportProgress.showSuccess({QStringLiteral("project.wav")});
     gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - completed"));
+    Audio::Internal::AudioExportProgressDialog failedExport(&exporter, &window);
+    failedExport.showFailure(Audio::AudioExporter::tr("Cannot open file for writing: %1")
+                                 .arg(QStringLiteral("Duet.wav")));
+    gallery.show(failedExport, Module::Audio, QStringLiteral("Export audio - failed"));
 
     const QList<MidiImportTrackInfo> midiTracks{
         {.name = "Lead",
@@ -1284,12 +1398,6 @@ void ApplicationGuiTests::captureUiGallery() try {
                  Gallery::Capture::WidgetContent);
     show(SpeakerMixDialog(singer, {}, &window), Module::Mixing, QStringLiteral("Speaker mix"));
 
-    MessageDialog message(QStringLiteral("Save changes?"),
-                          QStringLiteral("The current project has unsaved changes."), &window);
-    message.addAccentButton(QStringLiteral("Save"), 0, QDialogButtonBox::AcceptRole);
-    message.addButton(QStringLiteral("Discard"), 1, QDialogButtonBox::DestructiveRole);
-    message.addButton(QStringLiteral("Cancel"), 2, QDialogButtonBox::RejectRole);
-    gallery.show(message, Module::Workspace, QStringLiteral("Unsaved project confirmation"));
     MessageDialog cleanup(QStringLiteral("Clean Up Cache"),
                           QStringLiteral("This will delete 3 cache files not used by the current "
                                          "project. Files used by undo history and current playback "

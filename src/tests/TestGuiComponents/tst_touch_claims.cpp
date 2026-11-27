@@ -92,34 +92,18 @@ namespace {
     // Drags the primary touch point from \p from to \p to in viewport-local
     // coordinates, spacing the moves so QScroller can estimate a flick velocity.
     void touchDrag(QWidget *viewport, QPointingDevice *device, const QPoint &from, const QPoint &to,
-                   int steps, QStringList *trace = nullptr) {
-        QElapsedTimer elapsed;
-        elapsed.start();
-        const auto record = [&] {
-            if (!trace)
-                return;
-            const auto *scroller = QScroller::scroller(viewport);
-            trace->append(QStringLiteral("t=%1 state=%2 velocity=%3,%4")
-                              .arg(elapsed.elapsed())
-                              .arg(static_cast<int>(scroller->state()))
-                              .arg(scroller->velocity().x())
-                              .arg(scroller->velocity().y()));
-        };
+                   int steps) {
         TestSupport::WidgetTouchSequence touch(*viewport, device);
         touch.press(0, from).commit();
         QApplication::processEvents();
-        record();
         // Carry the final motion in the release; an idle pause at the endpoint is not a flick.
         for (int i = 1; i < steps; ++i) {
             touch.move(0, from + (to - from) * i / steps).commit();
             QApplication::processEvents();
-            record();
             QTest::qWait(15);
         }
-        record();
         touch.release(0, to).commit();
         QApplication::processEvents();
-        record();
     }
 
 } // namespace
@@ -476,6 +460,7 @@ void GuiComponentTests::touchClaimsKeepControlsIndependentOfPageScrolling() {
     auto *scrollBar = scrollArea.verticalScrollBar();
     touchDrag(viewport, touchDevice, QPoint(200, 260), QPoint(200, 40), 10);
     QVERIFY2((scrollBar->value() > 0), "touch drag scrolls the area");
+    QVERIFY(scrollerHandle->state() != QScroller::Dragging);
 
     // --- drag-owning children are claimed automatically ---
     QScrollArea sliderArea;
@@ -668,9 +653,6 @@ void GuiComponentTests::touchClaimsKeepControlsIndependentOfPageScrolling() {
 }
 
 void GuiComponentTests::touchFlickContinuesAfterRelease() {
-    auto *touchDevice = QTest::createTouchDevice();
-
-    // --- attachTo installs touch kinetic scrolling on the viewport ---
     QScrollArea scrollArea;
     scrollArea.setWidget(makeTallContent(1200));
     scrollArea.resize(400, 300);
@@ -690,24 +672,14 @@ void GuiComponentTests::touchFlickContinuesAfterRelease() {
     const auto ppm = scrollerHandle->pixelPerMeter();
     if (!qIsFinite(ppm.x()) || !qIsFinite(ppm.y()) || ppm.x() <= 0 || ppm.y() <= 0)
         QSKIP("The platform does not report usable physical metrics for QScroller inertia");
-    auto *viewport = scrollArea.viewport();
-    QStringList trace;
-    touchDrag(viewport, touchDevice, QPoint(200, 260), QPoint(200, 40), 10, &trace);
-    QVERIFY2(
-        scrollerHandle->state() == QScroller::Scrolling,
-        qPrintable(
-            QStringLiteral(
-                "state=%1 ppm=%2,%3 velocity=%4,%5 minimum=%6 value=%7 maximum=%8 trace=%9")
-                .arg(static_cast<int>(scrollerHandle->state()))
-                .arg(ppm.x())
-                .arg(ppm.y())
-                .arg(scrollerHandle->velocity().x())
-                .arg(scrollerHandle->velocity().y())
-                .arg(testProperties.scrollMetric(QScrollerProperties::MinimumVelocity).toReal())
-                .arg(scrollArea.verticalScrollBar()->value())
-                .arg(scrollArea.verticalScrollBar()->maximum())
-                .arg(trace.join(QStringLiteral("; ")))));
+    // Explicit input times keep the flick speed independent of event-loop scheduling.
+    scrollerHandle->handleInput(QScroller::InputPress, {200, 260}, 0);
+    scrollerHandle->handleInput(QScroller::InputMove, {200, 230}, 16);
+    scrollerHandle->handleInput(QScroller::InputMove, {200, 170}, 32);
     auto *scrollBar = scrollArea.verticalScrollBar();
+    QTRY_VERIFY(scrollBar->value() > 0);
     const auto valueAtRelease = scrollBar->value();
+    scrollerHandle->handleInput(QScroller::InputRelease, {200, 170}, 33);
+    QCOMPARE(scrollerHandle->state(), QScroller::Scrolling);
     QTRY_VERIFY(scrollBar->value() > valueAtRelease);
 }

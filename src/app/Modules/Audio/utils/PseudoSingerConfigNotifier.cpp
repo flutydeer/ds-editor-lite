@@ -10,16 +10,14 @@
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioContext.h>
 
-static PseudoSingerConfigNotifier *m_instance = nullptr;
-
 PseudoSingerConfigNotifier::PseudoSingerConfigNotifier(QObject *parent) : QObject(parent) {
-    m_instance = this;
+    SingletonRegistry::add(this);
 }
 
 PseudoSingerConfigNotifier::~PseudoSingerConfigNotifier() = default;
 
 PseudoSingerConfigNotifier *PseudoSingerConfigNotifier::instance() {
-    return m_instance;
+    return SingletonRegistry::instance<PseudoSingerConfigNotifier>();
 }
 
 static qint64 msecToSample(const int msec) {
@@ -43,5 +41,6 @@ talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(const int synthI
 }
 
 void PseudoSingerConfigNotifier::notify(const int synthIndex) {
-    emit m_instance->configChanged(synthIndex, config(synthIndex));
+    if (auto *notifier = instance())
+        emit notifier->configChanged(synthIndex, config(synthIndex));
 }

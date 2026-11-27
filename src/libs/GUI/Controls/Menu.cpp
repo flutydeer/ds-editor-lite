@@ -1,6 +1,7 @@
 #include <lite/GUI/Controls/Menu.h>
 
 #include <lite/GUI/Utils/IconUtils.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QPainter>
@@ -20,6 +21,16 @@ Menu::Menu(QWidget *parent) : CMenu(parent) {
 
 Menu::Menu(const QString &title, QWidget *parent) : CMenu(title, parent) {
     initUi();
+}
+
+QAction *Menu::exec() {
+    const WindowDialogs::DialogExecution execution(this);
+    return CMenu::exec();
+}
+
+QAction *Menu::exec(const QPoint &position, QAction *action) {
+    const WindowDialogs::DialogExecution execution(this);
+    return CMenu::exec(position, action);
 }
 
 Menu *Menu::fromLineEdit(QLineEdit *editor, QWidget *parent) {
