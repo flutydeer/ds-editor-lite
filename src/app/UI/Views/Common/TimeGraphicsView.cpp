@@ -28,6 +28,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/GUI/Animation/AnimationUtils.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/Support/ObjectContext.h>
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
                                    QWidget *parent)
@@ -131,10 +132,10 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     connect(&m_hBarAnimation, &QPropertyAnimation::finished, this, clearLogicalViewport);
     connect(&m_vBarAnimation, &QPropertyAnimation::finished, this, clearLogicalViewport);
 
-    connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
-            &TimeGraphicsView::notifyVisibleRectChanged);
-    connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
-            &TimeGraphicsView::notifyVisibleRectChanged);
+    ObjectContext::connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
+                           &TimeGraphicsView::notifyVisibleRectChanged);
+    ObjectContext::connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
+                           &TimeGraphicsView::notifyVisibleRectChanged);
 
     // Synthetic mouse events go to the viewport, the same widget QGraphicsView
     // itself reads them from.

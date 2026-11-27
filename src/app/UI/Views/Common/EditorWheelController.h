@@ -54,6 +54,7 @@ public:
     void stop();
 
 private:
+    void initializeGlide();
     void beginNativeZoom(const QPointingDevice *device);
     void applyPendingZoom();
     void zoomBy(double factor);

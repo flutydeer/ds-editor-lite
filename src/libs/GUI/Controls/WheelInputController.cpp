@@ -1,4 +1,5 @@
 #include "WheelInputController.h"
+#include <lite/Support/ObjectContext.h>
 
 #include <lite/GUI/Animation/AnimationUtils.h>
 
@@ -77,7 +78,8 @@ namespace WheelInput {
 WheelInputController::WheelInputController(QObject *parent) : QObject(parent) {
     const auto initializeMotion = [this](Motion &motion, const auto &applyValue) {
         motion.animation.setEasingCurve(QEasingCurve::OutCubic);
-        connect(&motion.animation, &QVariantAnimation::valueChanged, this, applyValue);
+        ObjectContext::connect(&motion.animation, &QVariantAnimation::valueChanged, this,
+                               applyValue);
         auto *motionPtr = &motion;
         connect(&motion.animation, &QVariantAnimation::finished, this,
                 [motionPtr] { motionPtr->logicalValue.reset(); });

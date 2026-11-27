@@ -1,5 +1,6 @@
 #include "tst_editor_interaction.h"
 
+#include "AppContext.h"
 #include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
@@ -112,11 +113,17 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
     QFETCH(bool, pinch);
     QFETCH(bool, touchpadScroll);
     QFETCH(bool, systemMomentum);
+    const auto foreground = SingletonRegistry::current();
+    AppContext second(*AppContext::s_self);
+    const SingletonRegistry::Scope owner(second.services());
+    SingletonRegistry::Context lastViewportContext;
     TimeGraphicsScene scene;
     TimeGraphicsView view(&scene);
     prepareTimeView(scene, view, scale);
     if (QTest::currentTestFailed())
         return;
+    connect(&view, &TimeGraphicsView::visibleRectChanged, this,
+            [&] { lastViewportContext = SingletonRegistry::current(); });
     view.setAnimationEnabled(true);
     const QRectF target(3000 * scale, 1500 * scale, 200, 100);
     const auto start = view.visibleRect();
@@ -158,7 +165,12 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
                 1.0 / view.scaleY());
         const auto releasedScale = view.scaleX();
         QVERIFY(sendGesture(Qt::EndNativeGesture));
-        QTRY_VERIFY(view.scaleX() > releasedScale);
+        {
+            const SingletonRegistry::Scope other(foreground);
+            lastViewportContext.reset();
+            QTRY_VERIFY(view.scaleX() > releasedScale && lastViewportContext);
+            QCOMPARE(lastViewportContext, second.services());
+        }
         QVERIFY(sendGesture(Qt::BeginNativeGesture));
         const auto caught = view.visibleRect();
         QTest::qWait(60);
@@ -189,7 +201,12 @@ void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted()
             QTest::qWait(60);
             QCOMPARE(view.visibleRect(), released);
         } else {
-            QTRY_VERIFY(view.visibleRect().top() > released.top());
+            {
+                const SingletonRegistry::Scope other(foreground);
+                lastViewportContext.reset();
+                QTRY_VERIFY(view.visibleRect().top() > released.top() && lastViewportContext);
+                QCOMPARE(lastViewportContext, second.services());
+            }
             sendScroll(Qt::ScrollBegin);
             const auto caught = view.visibleRect();
             QTest::qWait(60);
