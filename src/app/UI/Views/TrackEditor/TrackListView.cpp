@@ -5,6 +5,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
 #include <lite/GUI/Controls/TouchClaimFilter.h>
+#include <lite/GUI/Utils/WindowDialogs.h>
 
 #include <QApplication>
 #include <QDrag>
@@ -228,6 +229,7 @@ void TrackListView::startDrag(Qt::DropActions supportedActions) {
         drag->setPixmap(dragPixmap);
         drag->setHotSpot(m_dragStartPosition - rowRect.topLeft());
     }
+    const WindowDialogs::DialogExecution execution(this);
     drag->exec(supportedActions & ~Qt::CopyAction, Qt::MoveAction);
     m_dragRow = -1;
     clearDropIndicator();
