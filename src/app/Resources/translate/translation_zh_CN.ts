@@ -3999,14 +3999,6 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
-        <source>New in Current Window</source>
-        <translation>在当前窗口新建</translation>
-    </message>
-    <message>
-        <source>Open in Current Window...</source>
-        <translation>在当前窗口打开...</translation>
-    </message>
-    <message>
         <source>Close Project</source>
         <translation>关闭工程</translation>
     </message>
@@ -4344,6 +4336,42 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <source>New Project</source>
+        <translation>新建工程</translation>
+    </message>
+    <message>
+        <source>Open Project</source>
+        <translation>打开工程</translation>
+    </message>
+    <message>
+        <source>Where would you like to create the new project?</source>
+        <translation>要在哪个窗口新建工程？</translation>
+    </message>
+    <message>
+        <source>Where would you like to open %1?</source>
+        <translation>要在哪个窗口打开「%1」？</translation>
+    </message>
+    <message>
+        <source>Where would you like to open %1? Additional projects open in separate windows.</source>
+        <translation>要在哪个窗口打开「%1」？其余工程各自使用独立窗口。</translation>
+    </message>
+    <message>
+        <source>Remember my choice</source>
+        <translation>记住我的选择</translation>
+    </message>
+    <message>
+        <source>New Window</source>
+        <translation>新窗口</translation>
+    </message>
+    <message>
+        <source>Current Window</source>
+        <translation>当前窗口</translation>
+    </message>
+    <message>
+        <source>Could not save the project window preference.</source>
+        <translation>无法保存工程窗口偏好。</translation>
+    </message>
     <message>
         <source>Save changes to %1?</source>
         <translation>要保存对「%1」的更改吗？</translation>

@@ -260,15 +260,7 @@ void MainMenuView::changeEvent(QEvent *event) {
     }
 }
 
-void MainMenuViewPrivate::onNew() const {
-    if (auto *manager = DocumentWindowManager::instance()) {
-        if (!manager->terminating())
-            manager->createWindow();
-    } else
-        documentWorkflowController->requestNew();
-}
-
-void MainMenuViewPrivate::onOpen(bool replace) {
+void MainMenuViewPrivate::onOpen() {
     Q_Q(MainMenuView);
     // Build the Open filter from the registry (canOpen handlers) so newly
     // registered formats appear automatically.
@@ -293,30 +285,19 @@ void MainMenuViewPrivate::onOpen(bool replace) {
     if (!namedFilters.isEmpty())
         filter += QStringLiteral(";;") + namedFilters.join(QStringLiteral(";;"));
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto files =
-        replace ? QStringList{WindowDialogs::getOpenFileName(q, tr("Open"), lastDir, filter)}
-                : WindowDialogs::getOpenFileNames(q, tr("Open"), lastDir, filter);
-    if (files.isEmpty() || files.first().isEmpty())
-        return;
-    m_mainWindow->setWorkflowWindow(q);
-    if (auto *manager = DocumentWindowManager::instance()) {
-        for (const auto &file : files)
-            manager->open(file, files.size() > 1,
-                          replace ? manager->find(AppContext::instance<AppContext>()) : nullptr);
-    } else
-        documentWorkflowController->requestOpen(files.first());
+    const auto files = WindowDialogs::getOpenFileNames(q, tr("Open"), lastDir, filter);
+    if (!files.isEmpty())
+        m_mainWindow->newOrOpenProject(q, files);
 }
 
 void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
+    Q_Q(MainMenuView);
     if (!QFile::exists(filePath)) {
         documentWorkflowController->removeRecentProjectFile(filePath);
         Toast::show(tr("File does not exist: %1").arg(filePath));
         return;
     }
-    if (auto *manager = DocumentWindowManager::instance())
-        manager->open(filePath);
-    else
-        documentWorkflowController->requestOpen(filePath);
+    m_mainWindow->newOrOpenProject(q, {filePath});
 }
 
 void MainMenuViewPrivate::onClearRecentProjects() {
@@ -353,10 +334,6 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
     menuRecentProjects->addSeparator();
     actionClearRecentProjects->setEnabled(true);
     menuRecentProjects->addAction(actionClearRecentProjects);
-}
-
-void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    documentWorkflowController->requestOpen(filePath);
 }
 
 void MainMenuViewPrivate::onImportMidiFile() {
@@ -694,13 +671,6 @@ void MainMenuViewPrivate::setActionShortcut(QAction *action, const QKeySequence 
 
 void MainMenuViewPrivate::initFileActions() {
     Q_Q(MainMenuView);
-    actionNewHere = new QAction(tr("New in Current Window"), this);
-    connect(actionNewHere, &QAction::triggered, this, [this, q] {
-        m_mainWindow->setWorkflowWindow(q);
-        documentWorkflowController->requestNew();
-    });
-    actionOpenHere = new QAction(tr("Open in Current Window..."), this);
-    connect(actionOpenHere, &QAction::triggered, this, [this] { onOpen(true); });
     actionClose = new QAction(tr("Close Project"), this);
     connect(actionClose, &QAction::triggered, this,
             [this, q, context = AppContext::instance<AppContext>()] {
@@ -715,7 +685,7 @@ void MainMenuViewPrivate::initFileActions() {
     actionNew = new QAction(tr("&New"), this);
     setMenuIcon(actionNew, QStringLiteral(":/svg/icons/document_add_16_regular.svg"));
     setActionShortcut(actionNew, QKeySequence("Ctrl+N"), Qt::WindowShortcut);
-    connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
+    connect(actionNew, &QAction::triggered, this, [this, q] { m_mainWindow->newOrOpenProject(q); });
 
     actionOpen = new QAction(tr("&Open..."));
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
@@ -889,8 +859,6 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
     menuFile->addAction(actionOpen);
-    menuFile->addAction(actionNewHere);
-    menuFile->addAction(actionOpenHere);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
     setMenuIcon(menuRecentProjects->menuAction(),
@@ -1071,8 +1039,6 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
 
 void MainMenuViewPrivate::retranslateUi() {
     menuWindow->setTitle(MainMenuView::tr("&Window"));
-    actionNewHere->setText(tr("New in Current Window"));
-    actionOpenHere->setText(tr("Open in Current Window..."));
     actionClose->setText(tr("Close Project"));
     if (actionRecordMidi)
         actionRecordMidi->setText(tr("Record MIDI Input"));

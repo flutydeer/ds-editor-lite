@@ -320,8 +320,8 @@ bool DocumentWindowManager::confirmClose(Document &document, TerminationSavePoli
     if (policy == TerminationSavePolicy::RejectUnsaved)
         return false;
     auto *workflow = documentWorkflowController;
-    workflow->setCloseDecisionPending(true);
-    const auto release = qScopeGuard([workflow] { workflow->setCloseDecisionPending(false); });
+    workflow->setDecisionPending(true);
+    const auto release = qScopeGuard([workflow] { workflow->setDecisionPending(false); });
     switch (document.window->askCloseDecision(progress, m_terminating)) {
         case SaveDecision::Cancel:
             return false;

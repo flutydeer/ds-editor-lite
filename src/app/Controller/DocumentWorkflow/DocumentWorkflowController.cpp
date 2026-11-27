@@ -202,7 +202,7 @@ void DocumentWorkflowController::cancelCurrentOperation() {
     emit cancelSessionRequested();
 }
 
-void DocumentWorkflowController::setCloseDecisionPending(bool pending) {
+void DocumentWorkflowController::setDecisionPending(bool pending) {
     auto *runtime = automationRuntime();
     runtime->setDocumentBusy(runtime->documentVersion().documentId, pending);
     m_busy = pending;

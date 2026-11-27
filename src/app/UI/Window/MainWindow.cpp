@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "AppContext.h"
 #include "DocumentWindowManager.h"
+#include "Automation/CoreRuntime.h"
 #include <lite/GUI/Utils/WindowDialogs.h>
 
 #ifdef Q_OS_WIN
@@ -63,9 +64,12 @@
 #include <QMimeData>
 #include <QProcess>
 #include <QShortcut>
+#include <QScopeGuard>
 #include <QSplitter>
 #include <QWindow>
 #include <QWKWidgets/widgetwindowagent.h>
+
+#include <algorithm>
 
 #include <cmath>
 #include <utility>
@@ -390,6 +394,100 @@ QWidget *MainWindow::documentWorkflowParentWidget() {
 
 void MainWindow::setWorkflowWindow(QWidget *origin) {
     m_workflowWindow = origin ? origin->window() : this;
+}
+
+std::optional<AppOptionsGlobal::ProjectWindowMode>
+    MainWindow::chooseProjectWindow(const QString &path, bool multiple) {
+    using AppOptionsGlobal::ProjectWindowMode;
+    const auto preference = appOptions->general()->projectWindowMode;
+    if (preference != ProjectWindowMode::Ask)
+        return preference;
+
+    QString message;
+    if (path.isEmpty())
+        message = tr("Where would you like to create the new project?");
+    else if (multiple)
+        message =
+            tr("Where would you like to open %1? Additional projects open in separate windows.")
+                .arg(QFileInfo(path).fileName());
+    else
+        message = tr("Where would you like to open %1?").arg(QFileInfo(path).fileName());
+    MessageDialog dialog(path.isEmpty() ? tr("New Project") : tr("Open Project"), message,
+                         documentWorkflowParentWidget());
+    dialog.setProjectModal();
+    dialog.addCheckBox(tr("Remember my choice"));
+    dialog.addAccentButton(tr("New Window"), static_cast<int>(ProjectWindowMode::NewWindow),
+                           QDialogButtonBox::AcceptRole);
+    dialog.addButton(tr("Current Window"), static_cast<int>(ProjectWindowMode::CurrentWindow),
+                     QDialogButtonBox::ActionRole);
+    dialog.addButton(tr("Cancel"), -1, QDialogButtonBox::RejectRole);
+
+    auto *workflow = documentWorkflowController;
+    workflow->setDecisionPending(true);
+    const auto release = qScopeGuard([workflow] { workflow->setDecisionPending(false); });
+    const int answer = dialog.exec();
+    if (answer < 0)
+        return std::nullopt;
+    const auto selected = static_cast<ProjectWindowMode>(answer);
+    if (dialog.isCheckBoxChecked()) {
+        auto &settings = AppContext::instance<Automation::CoreRuntime>()->settings();
+        auto snapshot = settings.getSettings();
+        if (snapshot) {
+            auto general = snapshot.get().general;
+            general.projectWindowMode = selected;
+            if (settings.updateGeneral({}, general))
+                return selected;
+        }
+        Toast::show(tr("Could not save the project window preference."));
+    }
+    return selected;
+}
+
+void MainWindow::newOrOpenProject(QWidget *origin, const QStringList &paths) {
+    const SingletonRegistry::Scope scope(ObjectContext::of(this));
+    auto *manager = DocumentWindowManager::instance();
+    if (!manager) {
+        setWorkflowWindow(origin);
+        if (paths.isEmpty())
+            documentWorkflowController->requestNew();
+        else
+            documentWorkflowController->requestOpen(paths.first());
+        return;
+    }
+    if (manager->terminating())
+        return;
+    const auto firstNew = std::find_if(paths.cbegin(), paths.cend(), [manager](const QString &path) {
+        return !manager->findPath(path);
+    });
+    if (!paths.isEmpty() && firstNew == paths.cend()) {
+        manager->open(paths.last());
+        return;
+    }
+    auto *source = manager->find(AppContext::instance<AppContext>());
+    if (!source)
+        return;
+    auto &runtime = *source->context->m_coreRuntime;
+    if (documentWorkflowController->busy() ||
+        runtime.documentBusy(runtime.documentVersion().documentId)) {
+        showDocumentWorkflowBusy();
+        return;
+    }
+
+    setWorkflowWindow(origin);
+    const auto choice =
+        chooseProjectWindow(paths.isEmpty() ? QString{} : *firstNew, paths.size() > 1);
+    if (!choice)
+        return;
+    const bool useCurrent = *choice == AppOptionsGlobal::ProjectWindowMode::CurrentWindow;
+    if (paths.isEmpty()) {
+        if (useCurrent)
+            documentWorkflowController->requestNew();
+        else
+            manager->createWindow();
+        return;
+    }
+    for (auto it = paths.cbegin(); it != paths.cend(); ++it)
+        manager->open(*it, false, useCurrent && it == firstNew ? source : nullptr);
 }
 
 SaveDecision MainWindow::askDocumentSaveDecision() {
@@ -1093,13 +1191,9 @@ void MainWindow::dropEvent(QDropEvent *event) {
             importPaths.append(path);
     }
 
-    if (!projectPaths.isEmpty() && importPaths.isEmpty() && DocumentWindowManager::instance()) {
-        for (const auto &path : projectPaths)
-            DocumentWindowManager::instance()->open(path, true);
-        return;
-    }
-    if (projectPaths.size() == 1 && importPaths.isEmpty()) {
-        documentWorkflowController->requestOpen(projectPaths.first());
+    if (!projectPaths.isEmpty() && importPaths.isEmpty() &&
+        (projectPaths.size() == 1 || DocumentWindowManager::instance())) {
+        newOrOpenProject(this, projectPaths);
         return;
     }
     // Mixing a project with other files rejects the whole batch inside the

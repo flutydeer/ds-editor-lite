@@ -51,7 +51,7 @@ public:
         requestTermination(TerminationMode mode,
                            TerminationSavePolicy savePolicy = TerminationSavePolicy::Prompt);
     void cancelCurrentOperation();
-    void setCloseDecisionPending(bool pending);
+    void setDecisionPending(bool pending);
 
     // Commits the host exit: arms the process watchdog first, then freezes the
     // document so no queued or later workflow can touch it. Idempotent. The GUI

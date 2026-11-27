@@ -43,8 +43,6 @@ public:
 
     QAction *actionNew = nullptr;
     QAction *actionOpen = nullptr;
-    QAction *actionNewHere = nullptr;
-    QAction *actionOpenHere = nullptr;
     QAction *actionClose = nullptr;
     QAction *actionRecordMidi = nullptr;
     QAction *actionClearRecentProjects = nullptr;
@@ -124,12 +122,10 @@ public:
     QMetaObject::Connection m_noteSelectionConnection;
     QMetaObject::Connection m_clipSelectionConnection;
 
-    void onNew() const;
-    void onOpen(bool replace = false);
+    void onOpen();
     void onOpenRecentProject(const QString &filePath);
     void onClearRecentProjects();
     void refreshRecentProjectsMenu();
-    void openFileWithSavePrompt(const QString &filePath);
     void onImportMidiFile();
     void onImportDspxFile();
     void onImportLibreSVIPFile();

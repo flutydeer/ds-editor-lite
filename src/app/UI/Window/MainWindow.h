@@ -6,6 +6,7 @@
 #include <QTimer>
 
 #include <memory>
+#include <optional>
 
 #include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
@@ -74,6 +75,8 @@ public:
     QByteArray detachedGeometry() const;
     void finishApplicationExit(TerminationMode mode);
     void setWorkflowWindow(QWidget *origin);
+    // An empty path list creates a project. A file selection shares one window choice.
+    void newOrOpenProject(QWidget *origin, const QStringList &paths = {});
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
@@ -98,6 +101,8 @@ private slots:
     void attachBottomPanel();
 
 private:
+    std::optional<AppOptionsGlobal::ProjectWindowMode> chooseProjectWindow(const QString &path,
+                                                                         bool multiple);
     bool navigateToFocus(const HistoryFocus &focus, bool animated);
     [[nodiscard]] EditorViewGlobal::Region focusedEditorRegion() const;
     void updatePanelVisibilityState(bool trackPanelVisible, bool bottomPanelVisible);
