@@ -366,7 +366,7 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     QTimer::singleShot(0, this, [&] {
         const auto cancel = qScopeGuard([] { answerSavePrompt(MainWindow::tr("Cancel")); });
         auto *prompt = QApplication::activeModalWidget();
-        QVERIFY(prompt && QTest::qWaitForWindowActive(prompt));
+        QVERIFY(prompt && QTest::qWaitForWindowFocused(prompt));
         QVERIFY(WindowDialogs::blocks(a.window.get()));
         QVERIFY(WindowDialogs::blocks(detached));
         QVERIFY(!WindowDialogs::blocks(b.window.get()));
