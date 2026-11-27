@@ -533,6 +533,8 @@ void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
     auto &second = windows.createWindow();
     TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
     TestSupport::placeWindowOnScreen(*second.window, {1250, 730});
+    // Both sizes can be clamped to the same available desktop area.
+    second.window->move(second.window->pos() - QPoint(24, 24));
     const auto oldDetached = appOptions->window()->detachedPanelGeometry();
     QWidget *lastEditor = first.window.get();
     if (detach) {
