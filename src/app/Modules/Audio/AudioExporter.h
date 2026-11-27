@@ -25,7 +25,6 @@ namespace Audio {
 
     namespace Internal {
         class AudioExportDialog;
-        class AudioExportProgressDialog;
     }
 
     class AudioExporter;
@@ -122,7 +121,6 @@ namespace Audio {
         Q_OBJECT
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
-        friend class Internal::AudioExportProgressDialog;
         friend class Automation::AudioExportJobAdapter;
 
     public:
@@ -170,7 +168,7 @@ namespace Audio {
     signals:
         void progressChanged(double progressRatio, int sourceIndex);
         void inferenceProgressChanged(double progressRatio);
-        void clippingDetected(int sourceIndex);
+        void clippingDetected(int trackIndex, const QString &trackName);
         void warningAdded(const QString &message, int sourceIndex);
 
     private:

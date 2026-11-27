@@ -457,15 +457,15 @@ namespace Automation {
             if (callback)
                 callback(progress);
         };
-        taskObserver.clipping = [&warnings, sourceContext,
-                                 callback = std::move(observer.clipping)](const int sourceIndex) {
+        taskObserver.clipping = [&warnings, sourceContext, callback = std::move(observer.clipping)](
+                                    const int trackIndex, const QString &trackName) {
             const SingletonRegistry::Scope scope(sourceContext);
             warnings.append(
-                sourceIndex < 0
+                trackIndex < 0
                     ? QStringLiteral("Clipping detected")
-                    : QStringLiteral("Clipping detected in source %1").arg(sourceIndex));
+                    : QStringLiteral("Clipping detected in source %1").arg(trackIndex));
             if (callback)
-                callback(sourceIndex);
+                callback(trackIndex, trackName);
         };
         taskObserver.warning = [&warnings, sourceContext, callback = std::move(observer.warning)](
                                    const QString &message, const int sourceIndex) {

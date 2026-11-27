@@ -237,9 +237,9 @@ namespace Automation {
                 });
             const auto clippingConnection =
                 QObject::connect(m_exporter.get(), &Audio::AudioExporter::clippingDetected,
-                                 [callback = observer.clipping](const int sourceIndex) {
+                                 [callback = observer.clipping](int index, const QString &name) {
                                      if (callback)
-                                         callback(sourceIndex);
+                                         callback(index, name);
                                  });
             const auto warningConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::warningAdded,

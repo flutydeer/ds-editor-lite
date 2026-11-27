@@ -2,7 +2,6 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 
 #include "Modules/Audio/AudioExporter.h"
-#include "Modules/Audio/AudioExporter_p.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
@@ -102,13 +101,13 @@ namespace Audio::Internal {
                     m_progressIndicator->setValue(ratio * 100.0);
                 });
         connect(exporter, &AudioExporter::clippingDetected, this,
-                [this, exporter](const int sourceIndex) {
-                    if (sourceIndex < 0) {
+                [this](int trackIndex, const QString &trackName) {
+                    if (trackIndex < 0) {
                         appendWarning(tr("Clipping is detected"));
                     } else {
                         appendWarning(tr("Clipping is detected in track %L1 \"%2\"")
-                                          .arg(sourceIndex + 1)
-                                          .arg(exporter->d_func()->trackName(sourceIndex)));
+                                          .arg(trackIndex + 1)
+                                          .arg(trackName));
                     }
                 });
         connect(exporter, &AudioExporter::warningAdded, this,

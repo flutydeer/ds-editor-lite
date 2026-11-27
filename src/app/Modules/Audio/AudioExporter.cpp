@@ -686,9 +686,9 @@ namespace Audio {
             if (self)
                 emit self->inferenceProgressChanged(progress);
         };
-        observer.clipping = [self](const int sourceIndex) {
+        observer.clipping = [self](int trackIndex, const QString &trackName) {
             if (self)
-                emit self->clippingDetected(sourceIndex);
+                emit self->clippingDetected(trackIndex, trackName);
         };
         observer.warning = [self](const QString &message, const int sourceIndex) {
             if (self)
@@ -783,15 +783,16 @@ namespace Audio {
             exporter.setMuteSoloEnabled(config.isMuteSoloEnabled());
             const auto [fst, snd] = d->calculateRange();
             exporter.setRange(fst, snd);
+            const auto projectTracks = projectContext->tracks();
             QList<talcs::DspxTrackContext *> tracks;
             switch (config.sourceOption()) {
                 case AudioExporterConfig::SO_All:
-                    tracks = projectContext->tracks();
+                    tracks = projectTracks;
                     break;
                 case AudioExporterConfig::SO_Selected:
                 case AudioExporterConfig::SO_Custom:
                     for (const auto index : config.source()) {
-                        tracks.append(projectContext->tracks().at(index));
+                        tracks.append(projectTracks.at(index));
                     }
                     break;
             }
@@ -803,10 +804,8 @@ namespace Audio {
                 }
             }
             QHash<talcs::DspxTrackContext *, int> sourceIndexMap;
-            sourceIndexMap.insert(nullptr, -1);
-            for (int i = 0; i < tracks.size(); i++) {
-                sourceIndexMap.insert(tracks[i], i);
-            }
+            for (int i = 0; i < projectTracks.size(); ++i)
+                sourceIndexMap.insert(projectTracks.at(i), i);
 
             // deal with audio components
             projectContext->transport()->pause();
@@ -846,11 +845,12 @@ namespace Audio {
             connect(
                 &exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
                 [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
-                    emit progressChanged(progressRatio, sourceIndexMap.value(track));
+                    emit progressChanged(progressRatio, sourceIndexMap.value(track, -1));
                 });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
-                    [sourceIndexMap, this](talcs::DspxTrackContext *track) {
-                        emit clippingDetected(sourceIndexMap.value(track));
+                    [sourceIndexMap, this, d](talcs::DspxTrackContext *track) {
+                        const int index = sourceIndexMap.value(track, -1);
+                        emit clippingDetected(index, index < 0 ? QString{} : d->trackName(index));
                     });
             const auto ret = exporter.exec();
             if (ret == talcs::DspxProjectAudioExporter::Fail) {
