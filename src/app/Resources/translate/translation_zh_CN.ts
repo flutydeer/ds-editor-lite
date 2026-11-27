@@ -2975,6 +2975,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>GeneralPage</name>
     <message>
+        <source>When creating or opening a project</source>
+        <translation>新建或打开工程时</translation>
+    </message>
+    <message>
+        <source>Always Ask</source>
+        <translation>总是询问</translation>
+    </message>
+    <message>
+        <source>Current Window</source>
+        <translation>当前窗口</translation>
+    </message>
+    <message>
+        <source>New Window</source>
+        <translation>新窗口</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="142"/>
         <source>Package Search Paths (needs restart)</source>
         <translation>包搜索路径（需要重启）</translation>

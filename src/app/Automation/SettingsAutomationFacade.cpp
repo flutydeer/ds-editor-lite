@@ -58,6 +58,12 @@ namespace Automation {
         }
 
         AutomationResult<AutomationUnit> validateGeneral(const GeneralSettingsDto &settings) {
+            using AppOptionsGlobal::ProjectWindowMode;
+            if (settings.projectWindowMode != ProjectWindowMode::Ask &&
+                settings.projectWindowMode != ProjectWindowMode::CurrentWindow &&
+                settings.projectWindowMode != ProjectWindowMode::NewWindow)
+                return AutomationError::invalidArgument(
+                    QStringLiteral("project_window_mode"), QStringLiteral("Invalid project window mode"));
             if (settings.uiLanguage != QStringLiteral("system") &&
                 settings.uiLanguage != QStringLiteral("en_US") &&
                 settings.uiLanguage != QStringLiteral("zh_CN")) {

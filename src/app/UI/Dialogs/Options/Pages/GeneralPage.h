@@ -25,6 +25,7 @@ protected:
 
 private:
     ComboBox *m_cbUiLanguage;
+    ComboBox *m_cbProjectWindow;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;
