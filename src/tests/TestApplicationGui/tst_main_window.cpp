@@ -2392,13 +2392,22 @@ void ApplicationGuiTests::detachedPanelUsesReducedMainTitleBar() {
     QVERIFY(chrome->menuView() && chrome->playbackView());
     QVERIFY(!chrome->titleComboBox());
     QVERIFY(!chrome->actionButtonsView());
+    window.setWindowTitle(QStringLiteral("Glass Piano"));
+    const auto labels = chrome->findChildren<QLabel *>(Qt::FindDirectChildrenOnly);
+    const auto captionIt = std::find_if(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
+        return label->isVisible() && label->text() == detached->windowTitle();
+    });
+    QCOMPARE(captionIt != labels.cend(), !useNativeFrame);
     if (!useNativeFrame) {
-        window.setWindowTitle(QStringLiteral("Glass Piano"));
-        const auto labels = chrome->findChildren<QLabel *>(Qt::FindDirectChildrenOnly);
-        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [&](const QLabel *label) {
-            return label->isVisible() && label->text() == detached->windowTitle() &&
-                   label->width() >= label->fontMetrics().horizontalAdvance(window.windowTitle());
-        }));
+        auto *caption = *captionIt;
+        QVERIFY(caption->width() >= caption->fontMetrics().horizontalAdvance(window.windowTitle()));
+
+        const QRect leftEdge(0, 0, caption->width() / 3, caption->height());
+        detached->setWindowTitle(QStringLiteral("I"));
+        const auto firstTitle = caption->grab(leftEdge).toImage();
+        detached->setWindowTitle(QStringLiteral("W"));
+        QVERIFY2(caption->grab(leftEdge).toImage() != firstTitle,
+                 "Short window titles must be painted at the left edge of the caption");
     }
     const auto expected = TitleBarSections::forDetachedPanel(useNativeFrame);
     QCOMPARE(chrome->trafficLightArea() != nullptr, expected.trafficLightArea);
