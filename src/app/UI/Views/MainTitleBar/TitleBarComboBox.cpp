@@ -1,6 +1,7 @@
 #include "TitleBarComboBox.h"
 
 #include "FilePopupWidget.h"
+#include "TitleBarSections.h"
 #include <lite/GUI/Utils/IconUtils.h>
 
 #include <QMouseEvent>
@@ -19,7 +20,6 @@ namespace {
     // any menu, and the text elides instead of running under the arrow.
     constexpr int kMinComboWidth = 80;
     constexpr int kMaxComboWidth = 360;
-    constexpr int kTextLeftPadding = 12;
     constexpr int kTextArrowSpacing = 12;
     constexpr int kArrowAreaWidth = 28;
     constexpr int kArrowIconSize = 16;
@@ -27,7 +27,7 @@ namespace {
     // Left padding plus the arrow area on the right, measured the same way
     // paintEvent() lays the text out.
     int preferredWidthForText(const QFontMetrics &metrics, const QString &text) {
-        const int textWidth = metrics.horizontalAdvance(text) + kTextLeftPadding +
+        const int textWidth = metrics.horizontalAdvance(text) + TitleBarSections::titleTextInset +
                               kTextArrowSpacing + kArrowIconSize +
                               (kArrowAreaWidth - kArrowIconSize) / 2;
         return qBound(kMinComboWidth, textWidth, kMaxComboWidth);
@@ -71,7 +71,7 @@ FilePopupWidget *TitleBarComboBox::popupWidget() const {
 }
 
 QString TitleBarComboBox::visibleTitle() const {
-    const int textWidth = width() - kTextLeftPadding - kArrowAreaWidth;
+    const int textWidth = width() - TitleBarSections::titleTextInset - kArrowAreaWidth;
     if (textWidth <= 0)
         return {};
     return fontMetrics().elidedText(m_title, Qt::ElideRight, textWidth);
@@ -119,13 +119,13 @@ void TitleBarComboBox::paintEvent(QPaintEvent *event) {
     const QColor textColor = option.palette.color(
         isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText);
     QRect textRect = option.rect;
-    textRect.adjust(kTextLeftPadding, 0, -kArrowAreaWidth, 0);
+    textRect.adjust(TitleBarSections::titleTextInset, 0, -kArrowAreaWidth, 0);
     painter.setPen(textColor);
     // The selector has a fixed maximum and can be squeezed, so a long title
     // must never paint into the arrow area. Elide it and let the tooltip carry
     // the full name.
     if (textRect.width() > 0)
-        painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, visibleTitle());
+        painter.drawText(textRect, TitleBarSections::titleAlignment, visibleTitle());
 
     const QRect arrowRect(width() - kArrowAreaWidth, 0, kArrowAreaWidth, height());
     const QSize iconSize(16, 16);

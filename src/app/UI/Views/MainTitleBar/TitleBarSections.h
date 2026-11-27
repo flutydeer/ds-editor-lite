@@ -1,7 +1,7 @@
 #ifndef TITLEBARSECTIONS_H
 #define TITLEBARSECTIONS_H
 
-#include <QtGlobal>
+#include <Qt>
 
 enum class ChromePlatform { Windows, MacOS, Other };
 
@@ -11,6 +11,9 @@ enum class ChromePlatform { Windows, MacOS, Other };
 // leading sections. A reduced title bar is therefore a configuration change,
 // not a second implementation of the chrome.
 struct TitleBarSections {
+    static constexpr auto titleAlignment = Qt::AlignLeft | Qt::AlignVCenter;
+    static constexpr int titleTextInset = 12;
+
     // Reserves the application icon / drag slot at the left edge of a
     // frameless window. Native frames already provide that area.
     bool appIconInset = false;

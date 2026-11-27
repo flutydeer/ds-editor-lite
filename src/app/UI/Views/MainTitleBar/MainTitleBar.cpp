@@ -39,9 +39,9 @@ namespace {
         void paintEvent(QPaintEvent *) override {
             QPainter painter(this);
             const auto area = contentsRect();
-            style()->drawItemText(&painter, area, Qt::AlignCenter, palette(), isEnabled(),
-                                  fontMetrics().elidedText(text(), Qt::ElideRight, area.width()),
-                                  QPalette::WindowText);
+            const auto title = fontMetrics().elidedText(text(), Qt::ElideRight, area.width());
+            style()->drawItemText(&painter, area, TitleBarSections::titleAlignment, palette(),
+                                  isEnabled(), title, QPalette::WindowText);
         }
     };
 
@@ -87,7 +87,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent,
         m_windowCaption = new WindowCaption(parent->windowTitle(), this);
         m_windowCaption->setTextFormat(Qt::PlainText);
         m_windowCaption->setAttribute(Qt::WA_TransparentForMouseEvents);
-        m_windowCaption->setContentsMargins(6, 0, 6, 0);
+        m_windowCaption->setContentsMargins(TitleBarSections::titleTextInset, 0, 6, 0);
         m_windowCaption->setMinimumWidth(88);
         m_windowCaption->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     }
@@ -193,25 +193,27 @@ void MainTitleBar::buildSections() {
         m_layout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     }
     bool hasLeadingSection = false;
-    const auto addLeadingSection = [&](QWidget *section) {
+    const auto addLeadingSection = [&](QWidget *section, int stretch = 0) {
         if (hasLeadingSection) {
             auto *divider = new DividerLine(Qt::Vertical);
             m_dividers.append(divider);
             m_layout->addWidget(divider);
         }
-        m_layout->addWidget(section);
+        m_layout->addWidget(section, stretch);
         hasLeadingSection = true;
     };
-    if (m_sections.mainMenu && m_menuView)
-        addLeadingSection(m_menuView);
+    if (m_sections.mainMenu && m_menuView) {
+        m_layout->addWidget(m_menuView);
+        hasLeadingSection = m_menuView->isInWindowMenu();
+    }
     if (m_titleComboBox)
         addLeadingSection(m_titleComboBox);
+    if (m_windowCaption)
+        addLeadingSection(m_windowCaption, 1);
     if (m_actionButtonsView)
         addLeadingSection(m_actionButtonsView);
 
-    if (m_windowCaption)
-        m_layout->addWidget(m_windowCaption, 1);
-    else
+    if (!m_windowCaption)
         m_layout->addStretch();
     if (m_playbackView)
         m_layout->addWidget(m_playbackView);
