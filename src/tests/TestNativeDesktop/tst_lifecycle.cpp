@@ -24,6 +24,7 @@
 #include "Controller/DocumentMidiInput.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/AudioSettings.h"
 #include "Modules/Audio/TrackInferenceHandler.h"
 #include "Modules/Audio/utils/MidiInputNoteMonitor.h"
 #include "Modules/Import/DocumentImportController.h"
@@ -62,6 +63,7 @@
 #include <QTimer>
 #include <QtTest/QTest>
 #include <algorithm>
+#include <thread>
 
 namespace {
     bool selectFixtureAudioOutput() {
@@ -648,11 +650,18 @@ void NativeDesktopTests::exitRemembersTheLastEditorGeometry_data() {
     QTest::newRow("detached-window") << true;
 }
 
+void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus_data() {
+    QTest::addColumn<bool>("stopWhileHeld");
+    QTest::newRow("release-across-loop") << false;
+    QTest::newRow("stop-while-held") << true;
+}
+
 void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
         runIsolatedDesktopCase();
         return;
     }
+    QFETCH(bool, stopWhileHeld);
     GuiAppFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     QVERIFY(selectFixtureAudioOutput());
@@ -667,7 +676,9 @@ void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     auto &runtime = *a.context->m_coreRuntime;
     constexpr int noteStart = 840;
     constexpr int noteLength = 720;
-    QVERIFY(runtime.playback().setLoop({.expected = runtime.documentVersion()}, {true, 480, 480}));
+    AudioSettings::setPlayheadBehavior(0); // Return to the playback start on Stop.
+    QVERIFY(runtime.playback().setLoop({.expected = runtime.documentVersion()},
+                                       {!stopWhileHeld, 480, 480}));
     QVERIFY(runtime.playback().seek({.expected = runtime.documentVersion()}, noteStart));
     windows.midiInput().setRecording(*a.context, true);
     QVERIFY(windows.midiInput().recording(*a.context));
@@ -693,6 +704,21 @@ void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
             const auto block = qMin(frames, transport->bufferSize());
             QCOMPARE(transport->read({&buffer, 0, block}), block);
             frames -= block;
+        }
+        if (stopWhileHeld) {
+            // Let the audio thread acknowledge Stop before the GUI checks the transport state.
+            QObject deviceCallback;
+            connect(transport, &talcs::TransportAudioSource::playbackStatusChanged, &deviceCallback,
+                    [&](auto status) {
+                        if (status == talcs::TransportAudioSource::AboutToPause) {
+                            std::thread callback([&] { transport->read({&buffer, 0, 1}); });
+                            callback.join();
+                        }
+                    });
+            QVERIFY(runtime.playback().stop({.expected = runtime.documentVersion()}));
+            QCOMPARE(playbackController->position(), double(noteStart));
+            QVERIFY(!windows.midiInput().recording(*a.context));
+            QCOMPARE(clip->notes().count(), previousNotes + 1);
         }
     }
     emit input->noteReleased(64);

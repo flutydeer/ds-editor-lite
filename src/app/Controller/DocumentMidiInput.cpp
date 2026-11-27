@@ -53,11 +53,9 @@ void DocumentMidiInput::setRecording(AppContext &context, bool record) {
         return;
     m_clip = clip;
     m_recording = context.m_coreRuntime->documentVersion().documentId;
-    m_playbackConnection = connect(playbackController, &PlaybackController::playbackStatusChanged,
-                                   this, [this](PlaybackStatus status) {
-                                       if (status != PlaybackGlobal::Playing)
-                                           stopRecording();
-                                   });
+    m_playbackConnection =
+        connect(playbackController, &PlaybackController::playbackAboutToPauseOrStop, this,
+                &DocumentMidiInput::stopRecording);
 }
 
 void DocumentMidiInput::stopRecording() {

@@ -217,11 +217,11 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, AppHostMode hostMode
     };
     playbackServices.pause = [this] {
         if (m_playbackController)
-            m_playbackController->applyPause();
+            m_playbackController->applyPauseOrStop(PlaybackGlobal::Paused);
     };
     playbackServices.stop = [this] {
         if (m_playbackController)
-            m_playbackController->applyStop();
+            m_playbackController->applyPauseOrStop(PlaybackGlobal::Stopped);
     };
     playbackServices.setPosition = [this](const double tick) {
         if (m_playbackController)

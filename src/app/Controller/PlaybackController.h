@@ -40,6 +40,8 @@ signals:
     void positionChanged(double tick);
     void visualPositionChanged(double tick);
     void lastPositionChanged(double tick);
+    // The playhead still holds its final playing position when this signal is emitted.
+    void playbackAboutToPauseOrStop();
     void playbackStatusChanged(PlaybackStatus status);
     void engineBufferingChanged(bool buffering);
 
@@ -68,8 +70,7 @@ private:
     friend class AppContext;
 
     bool applyPlay();
-    void applyPause();
-    void applyStop();
+    void applyPauseOrStop(PlaybackStatus status);
     void applyPosition(double tick);
     void applyLastPosition(double tick);
     void setLoopPreviewHandler(std::function<void(const LoopSettings &)> handler);

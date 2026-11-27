@@ -36,6 +36,7 @@ private slots:
     void cancelingExitKeepsTheRemainingProject();
     void newAndOpenFollowTheProjectWindowPreference();
     void detachedPlaybackAndProjectClipboard();
+    void midiRecordingFollowsItsProjectAcrossWindowFocus_data();
     void midiRecordingFollowsItsProjectAcrossWindowFocus();
     void exitRemembersTheLastEditorGeometry_data();
     void exitRemembersTheLastEditorGeometry();
