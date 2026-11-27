@@ -47,6 +47,7 @@
 #include "Global/AppGlobal.h"
 #include "AppContext.h"
 #include "UI/Controls/LevelMeterManager.h"
+#include <QScopedValueRollback>
 
 #define DEVICE_LOCKER                                                                              \
     DeviceLocker locker(AudioSystem::outputSystem()->context()->device())
@@ -60,8 +61,14 @@ public:
     ~AudioFormatIOObject() override = default;
 };
 
+double AudioContext::timeConversionSampleRate() const {
+    if (m_pendingOutputSampleRate > 0)
+        return m_pendingOutputSampleRate;
+    return preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+}
+
 qint64 AudioContext::tickToSample(const double tick) const {
-    const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+    const auto sr = timeConversionSampleRate();
     // Piecewise mapping over the tempo map: anchor on the governing tempo
     // point and extrapolate linearly inside the segment. With a single tempo
     // point this reduces exactly to the old constant-tempo formula.
@@ -75,7 +82,7 @@ qint64 AudioContext::tickToSample(const double tick) const {
 }
 
 double AudioContext::sampleToTick(const qint64 sample) const {
-    const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+    const auto sr = timeConversionSampleRate();
     return m_model->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
 }
 
@@ -230,9 +237,13 @@ AudioContext::AudioContext(QObject *parent, bool attachToOutput)
 
     connect(AudioSystem::outputSystem()->context(),
             &talcs::AbstractOutputContext::sampleRateChanged, this,
-            [this, services, stopOnExternalChange] {
+            [this, services, stopOnExternalChange](double sampleRate) {
+                if (!m_attachedToOutput)
+                    return;
                 const SingletonRegistry::Scope scope(services);
                 DEVICE_LOCKER;
+                // The output announces the new rate before reopening its mixer.
+                const QScopedValueRollback changingRate(m_pendingOutputSampleRate, sampleRate);
                 handleTimeChanged();
                 // The loop sample range depends on the sample rate
                 updateLoopingRange();
@@ -244,8 +255,6 @@ AudioContext::AudioContext(QObject *parent, bool attachToOutput)
 
     connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged,
             this, &AudioContext::setBufferingReadAheadSize);
-
-    connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
 
     // Connect loop settings changes to transport
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this](const LoopSettings &settings) {
@@ -764,6 +773,8 @@ void AudioContext::handleTimeChanged() const {
     // instead of just re-converting the stale ticks stored inside talcs
     for (auto it = m_audioClipModelDict.constBegin(); it != m_audioClipModelDict.constEnd(); ++it)
         feedCompensatedPosition(it.key(), it.value());
+    for (const auto *track : m_trackInferDict)
+        track->updateTimeRanges();
 }
 
 void AudioContext::updateLoopingRange() const {
@@ -785,7 +796,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
     m_exporter = exporter;
     playbackController->stop();
     setBufferingReadAheadSize(0);
-    emit exporterCausedTimeChanged();
+    handleTimeChanged();
     for (const auto trackInferenceHandler : m_trackInferDict.values()) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Export);
     }
@@ -797,7 +808,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
 
 void AudioContext::willFinishCallback(AudioExporter *exporter) {
     setBufferingReadAheadSize(AudioSystem::outputSystem()->fileBufferingReadAheadSize());
-    emit exporterCausedTimeChanged();
+    handleTimeChanged();
     for (const auto trackInferenceHandler : m_trackInferDict.values()) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Default);
     }

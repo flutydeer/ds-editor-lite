@@ -22,6 +22,8 @@
 #include "Controller/PlaybackController.h"
 #include "Controller/DocumentMidiInput.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/TrackInferenceHandler.h"
 #include "Modules/Audio/utils/MidiInputNoteMonitor.h"
 #include "Modules/Import/DocumentImportController.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -45,6 +47,8 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/Task.h>
 #include <TalcsDevice/AudioDriverManager.h>
+#include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsDspx/DspxTrackContext.h>
 
 #include <QPointer>
 #include <QScopeGuard>
@@ -54,6 +58,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include <QtTest/QTest>
+#include <algorithm>
 
 namespace {
     bool selectFixtureAudioOutput() {
@@ -572,6 +577,7 @@ void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
     const auto versionA = first.documentVersion();
     {
         const SingletonRegistry::Scope scope(b.context->services());
+        QVERIFY(second.timeline().setTempo({.expected = second.documentVersion()}, 0, 60));
         DecodedClipsPayload copy(QJsonDocument::fromJson(bytes).object());
         TrackController::pasteClips(copy.info(), 1920, 0);
         QCOMPARE(targetTrack->clips().count(), targetCount + 1);
@@ -580,6 +586,21 @@ void NativeDesktopTests::detachedPlaybackAndProjectClipboard() {
         QCOMPARE(pasted->start(), 1920);
         QCOMPARE(pasted->singerIdentifier(), sourceVoice);
         QVERIFY(!pasted->usesTrackVoiceContext());
+        auto *handler = AudioContext::instance()->getContextFromTrack(targetTrack)
+                            ->findChild<TrackInferenceHandler *>();
+        QVERIFY(handler);
+        auto *output = AudioSystem::outputSystem();
+        const double oldRate = output->outputContext()->adoptedSampleRate();
+        const double newRate = oldRate == 44100 ? 48000 : 44100;
+        {
+            const SingletonRegistry::Scope initiating(a.context->services());
+            const auto restoreRate = qScopeGuard([&] { output->setAdoptedSampleRate(oldRate); });
+            QVERIFY(output->setAdoptedSampleRate(newRate));
+            // At 60 BPM the pasted clip starts four seconds into project B.
+            QVERIFY(std::ranges::any_of(handler->clipSeries()->clips(), [newRate](const auto &c) {
+                return c.position() == qRound64(4 * newRate);
+            }));
+        }
         QVERIFY(second.history().undo({.expected = second.documentVersion()}));
         QCOMPARE(targetTrack->clips().count(), targetCount);
     }

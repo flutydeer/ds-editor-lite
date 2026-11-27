@@ -37,21 +37,6 @@ TrackInferenceHandler::TrackInferenceHandler(talcs::DspxTrackContext *trackConte
         handleSingingClipInserted(static_cast<SingingClip *>(clip));
     }
 
-    connect(appModel, &AppModel::timelineChanged, this, [this] {
-        DEVICE_LOCKER;
-        handleTimeChanged();
-    });
-
-    connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
-                DEVICE_LOCKER;
-                handleTimeChanged();
-            });
-
-    connect(static_cast<AudioContext *>(trackContext->projectContext()),
-            &AudioContext::exporterCausedTimeChanged, this,
-            &TrackInferenceHandler::handleTimeChanged);
-
     connect(track, &Track::clipChanged, this, [this](const Track::ClipChangeType type, Clip *clip) {
         if (clip->clipType() != IClip::Singing)
             return;
@@ -234,7 +219,7 @@ void TrackInferenceHandler::syncInferPiecePositions(SingingClip *clip) const {
     }
 }
 
-void TrackInferenceHandler::handleTimeChanged() const {
+void TrackInferenceHandler::updateTimeRanges() const {
     for (const auto singingClipInferenceContext : clips()) {
         singingClipInferenceContext->updatePosition();
         for (const auto inferencePieceContext : singingClipInferenceContext->inferencePieces()) {

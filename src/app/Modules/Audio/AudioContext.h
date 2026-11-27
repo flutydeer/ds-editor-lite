@@ -67,15 +67,14 @@ public:
     // so the playhead leaves the reset position by one audio block.
     void resetDocumentScopedState();
 
-signals:
-    void exporterCausedTimeChanged();
-
 private:
     AppModel *m_model;
     bool m_attachedToOutput;
+    double m_pendingOutputSampleRate = 0.0;
     bool m_switchingDevice = false;
     std::optional<double> m_resumePosition;
     AudioExporter *m_exporter = nullptr;
+    double timeConversionSampleRate() const;
     qint64 tickToSample(double tick) const;
     double sampleToTick(qint64 sample) const;
     enum PlayheadBehavior {
