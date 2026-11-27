@@ -41,6 +41,9 @@ public:
 
     static AudioContext *instance();
 
+    // Add the ticks traversed by completed loops to unwrap a recorded playhead position.
+    [[nodiscard]] qint64 completedLoopTicks() const { return m_completedLoopTicks; }
+
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
 
@@ -105,6 +108,7 @@ private:
     int m_levelMeterRampLength = 128;
 
     bool m_transportPositionFlag = true;
+    qint64 m_completedLoopTicks = 0;
     // Sample position where the transport was last told to play. When playback
     // stalls (waiting for synthesis) right after starting, the engine still
     // consumes one audio block before the hold engages and then resumes from

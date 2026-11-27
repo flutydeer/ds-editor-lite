@@ -22,7 +22,11 @@ private:
     DocumentWindowManager &m_windows;
     Automation::DocumentId m_recording;
     QPointer<SingingClip> m_clip;
-    QHash<int, int> m_starts;
+    struct HeldNote {
+        int start;
+        qint64 completedLoopTicks;
+    };
+    QHash<int, HeldNote> m_starts;
     QHash<int, QPointer<PianoKeyboardView>> m_keyboards;
     QMetaObject::Connection m_playbackConnection;
 };

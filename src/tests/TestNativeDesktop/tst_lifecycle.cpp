@@ -48,7 +48,9 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/Task.h>
 #include <TalcsDevice/AudioDriverManager.h>
+#include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsCore/TransportAudioSource.h>
 #include <TalcsDspx/DspxTrackContext.h>
 
 #include <QPointer>
@@ -662,6 +664,11 @@ void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     QVERIFY(clip);
     a.context->m_appStatus->activeClipId = clip->id();
     const auto previousNotes = clip->notes().count();
+    auto &runtime = *a.context->m_coreRuntime;
+    constexpr int noteStart = 840;
+    constexpr int noteLength = 720;
+    QVERIFY(runtime.playback().setLoop({.expected = runtime.documentVersion()}, {true, 480, 480}));
+    QVERIFY(runtime.playback().seek({.expected = runtime.documentVersion()}, noteStart));
     windows.midiInput().setRecording(*a.context, true);
     QVERIFY(windows.midiInput().recording(*a.context));
     auto &b = windows.createWindow();
@@ -674,9 +681,26 @@ void NativeDesktopTests::midiRecordingFollowsItsProjectAcrossWindowFocus() {
     prompt.show();
     QTRY_VERIFY(prompt.isVisible());
     emit input->notePressed(64);
+    {
+        const SingletonRegistry::Scope scope(a.context->services());
+        auto *transport = audioContext->transport();
+        QVERIFY(transport->bufferSize() > 0 && transport->sampleRate() > 0);
+        talcs::AudioBuffer buffer(2, transport->bufferSize());
+        const auto &timeline = a.context->m_appModel->timeline();
+        const auto ms = timeline.tickToMs(noteStart + noteLength) - timeline.tickToMs(noteStart);
+        auto frames = qRound64(ms * transport->sampleRate() / 1000.0);
+        while (frames > 0) {
+            const auto block = qMin(frames, transport->bufferSize());
+            QCOMPARE(transport->read({&buffer, 0, block}), block);
+            frames -= block;
+        }
+    }
     emit input->noteReleased(64);
     QCOMPARE(clip->notes().count(), previousNotes + 1);
-    QCOMPARE(clip->notes().toList().last()->keyIndex(), 64);
+    const auto *recorded = clip->notes().toList().last();
+    QCOMPARE(recorded->keyIndex(), 64);
+    QCOMPARE(recorded->globalStart(), noteStart);
+    QCOMPARE(recorded->length(), noteLength);
     QCOMPARE(b.context->m_coreRuntime->documentVersion(), otherVersion);
     prompt.hide();
     prompt.setWindowModality(Qt::ApplicationModal);

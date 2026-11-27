@@ -104,14 +104,17 @@ AudioContext::AudioContext(QObject *parent, bool attachToOutput)
 
     setBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
 
-    connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
-            [this](const qint64 positionSample) {
+    connect(transport(), &talcs::TransportAudioSource::positionReported, this,
+            [this](const qint64 positionSample, const qint64 wrappedFrom) {
                 if (m_suppressTransportPositionReports) {
                     // Seek echoes keep arriving while playback stays stopped, so the
                     // episode is reported once, as a count, when the engine is resynced
                     ++m_droppedTransportReportCount;
                     return;
                 }
+                if (wrappedFrom >= 0)
+                    m_completedLoopTicks +=
+                        qRound64(sampleToTick(wrappedFrom)) - qRound64(sampleToTick(positionSample));
                 m_transportPositionFlag = false;
                 // While the hold pins the engine at the start, clamp the over-the-block
                 // position report (emitted before the hold engaged) back to the start
@@ -390,6 +393,7 @@ void AudioContext::resetDocumentScopedState() {
     // deliver stale ones. Dropping them keeps the playhead on tick 0 until playback
     // starts again.
     m_suppressTransportPositionReports = true;
+    m_completedLoopTicks = 0;
     m_droppedTransportReportCount = 0;
     transport()->pause();
     transport()->setPosition(0);
