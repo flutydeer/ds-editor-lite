@@ -440,7 +440,7 @@ TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
     DocumentRecovery::remove(last->recoveryKey);
     const SingletonRegistry::Scope scope(last->context->services());
     m_process.commitShutdown();
-    last->context->m_coreRuntime->commitShutdown();
+    last->context->commitShutdown();
     auto *options = m_process.m_appOptions;
     options->window()->setMainWindowGeometry(mainGeometry);
     if (!detachedGeometry.isEmpty())

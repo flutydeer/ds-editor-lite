@@ -545,7 +545,9 @@ void AppContext::resetDocumentScopedState() {
     m_appStatus->resetDocumentScopedState();
     if (m_editSessionManager)
         m_editSessionManager->clear();
-    if (m_hostMode == AppHostMode::Gui) {
+    if (m_guiContext) {
+        if (m_guiContext->importInstance)
+            m_guiContext->importInstance->cancel();
         if (auto *controller = guiEditorViewController())
             controller->resetDocumentScopedState();
     }
@@ -595,6 +597,8 @@ void AppContext::commitShutdown() {
     m_shutdownCommitted = true;
     if (m_coreRuntime)
         m_coreRuntime->commitShutdown();
+    if (m_guiContext && m_guiContext->importInstance)
+        m_guiContext->importInstance->cancel();
 }
 
 bool AppContext::shutdownCommitted() const {

@@ -29,6 +29,7 @@
 #include <QDialog>
 #include <QFileInfo>
 #include <QJsonObject>
+#include <QScopeGuard>
 
 #include <algorithm>
 #include <memory>
@@ -69,7 +70,8 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(DocumentImportController)
 
 void DocumentImportController::requestImport(const QStringList &paths,
                                              std::optional<FileImportDropTarget> target) {
-    if (m_currentTask || !m_pendingPaths.isEmpty() || !m_prepared.isEmpty())
+    if (m_currentTask || (m_dialog && m_dialog->isVisible()) || !m_pendingPaths.isEmpty() ||
+        !m_prepared.isEmpty())
         return;
 
     // Classify and route the batch.
@@ -114,6 +116,14 @@ void DocumentImportController::requestImport(const QStringList &paths,
     startPreparation();
 }
 
+void DocumentImportController::cancel() {
+    if (m_currentTask)
+        taskManager->terminateTask(m_currentTask);
+    if (m_dialog)
+        m_dialog->reject();
+    reset();
+}
+
 void DocumentImportController::startPreparation() {
     if (auto *runtime = automationRuntime())
         m_generationAnchor = runtime->documentVersion();
@@ -152,11 +162,15 @@ void DocumentImportController::prepareNext() {
 }
 
 void DocumentImportController::onAudioTaskFinished(DecodeAudioTask *task) {
-    const auto terminated = task->terminated();
-    taskManager->removeTask(task);
-    m_currentTask = nullptr;
-    if (terminated) {
+    // Retirement waits for registered tasks until their document callbacks have returned.
+    const auto releaseTask = qScopeGuard([task] {
+        taskManager->removeTask(task);
         delete task;
+    });
+    if (task != m_currentTask)
+        return;
+    m_currentTask = nullptr;
+    if (task->terminated()) {
         m_canceled = true;
         prepareNext();
         return;
@@ -170,7 +184,6 @@ void DocumentImportController::onAudioTaskFinished(DecodeAudioTask *task) {
     } else {
         m_failedMessages.append(task->path + QStringLiteral(" - ") + task->errorMessage);
     }
-    delete task;
     prepareNext();
 }
 
@@ -183,18 +196,29 @@ void DocumentImportController::onAllPrepared() {
                 midiItems.append(item);
         }
         if (!midiItems.isEmpty()) {
-            MidiBatchImportDialog dlg(MidiFilePreparer::detectCommonCodec(midiItems),
-                                      Dialog::globalParent());
-            if (dlg.exec() != QDialog::Accepted) {
-                // Canceling the options dialog cancels the whole batch.
-                reset();
-                return;
-            }
-            m_codec = dlg.selectedCodec();
-            m_importTempo = dlg.importTempo();
-            m_importTimeSignature = dlg.importTimeSignature();
+            auto *dialog = new MidiBatchImportDialog(MidiFilePreparer::detectCommonCodec(midiItems),
+                                                    Dialog::globalParent());
+            m_dialog = dialog;
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            connect(dialog, &QDialog::finished, this, [this, dialog](int result) {
+                m_dialog.clear();
+                if (result != QDialog::Accepted) {
+                    reset();
+                    return;
+                }
+                m_codec = dialog->selectedCodec();
+                m_importTempo = dialog->importTempo();
+                m_importTimeSignature = dialog->importTimeSignature();
+                finishBatch();
+            });
+            dialog->show();
+            return;
         }
     }
+    finishBatch();
+}
+
+void DocumentImportController::finishBatch() {
     commitBatch();
     showSummary();
     reset();
@@ -335,7 +359,7 @@ void DocumentImportController::commitBatch() {
         trackController->scheduleHashUpdate(clip);
 }
 
-void DocumentImportController::showSummary() const {
+void DocumentImportController::showSummary() {
     if (m_failedMessages.isEmpty())
         return;
     showMessageDialog(tr("Import completed with errors"),
@@ -354,8 +378,10 @@ void DocumentImportController::reset() {
 }
 
 void DocumentImportController::showMessageDialog(const QString &title,
-                                                 const QString &message) const {
+                                                 const QString &message) {
     auto *dlg = new Dialog(Dialog::globalParent());
+    m_dialog = dlg;
+    dlg->setProjectModal();
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->setWindowTitle(title);
     dlg->setTitle(title);
@@ -363,5 +389,5 @@ void DocumentImportController::showMessageDialog(const QString &title,
     const auto btnClose = new Button(tr("Close"), dlg);
     dlg->setPositiveButton(btnClose, QDialogButtonBox::RejectRole);
     connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
-    dlg->exec();
+    dlg->show();
 }

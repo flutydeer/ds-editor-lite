@@ -1,6 +1,7 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/FixtureAudioDriver.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -22,6 +23,7 @@
 #include "Controller/DocumentMidiInput.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/utils/MidiInputNoteMonitor.h"
+#include "Modules/Import/DocumentImportController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "Global/ControllerGlobal.h"
@@ -227,11 +229,22 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     appOptions->appearance()->useNativeFrame = false;
     appOptions->developer()->enablePanelDetach = true;
     DocumentWindowManager windows(*fixture.context);
-    auto &first = windows.createWindow();
     auto &last = windows.createWindow();
+    auto &first = windows.createWindow();
     const auto firstId = first.context->m_coreRuntime->documentVersion().documentId;
+    const auto kept = last.context->m_coreRuntime->documentVersion();
+    QPointer<MainWindow> importingWindow = first.window.get();
+    {
+        const SingletonRegistry::Scope scope(first.context->services());
+        const auto audio = fixture.directory.filePath("import.wav");
+        QVERIFY(TestSupport::writeWave(audio, QVector<float>(4800, 0.25f)));
+        documentImportController->requestImport({audio});
+        QVERIFY(first.context->hasPendingTasks());
+    }
     first.window->close();
     QVERIFY(!windows.find(firstId));
+    QTRY_VERIFY(importingWindow.isNull());
+    QCOMPARE(last.context->m_coreRuntime->documentVersion(), kept);
     QVERIFY(last.window->isVisible());
     QVERIFY(!windows.terminating());
 
