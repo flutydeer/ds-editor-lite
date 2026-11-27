@@ -8,9 +8,11 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QScopeGuard>
 #include <QState>
 #include <QStateMachine>
+#include <QTemporaryDir>
 #include <QTranslator>
 #include <QtTest>
 
@@ -236,7 +238,7 @@ void DocumentIOTests::existingSavePathIsPreserved() {
              existing);
 }
 
-void DocumentIOTests::projectPathCaseSensitivity() {
+void DocumentIOTests::projectPathIdentity() {
     const auto upper = QDir(QDir::tempPath()).filePath(QStringLiteral("Song.dspx"));
     const auto lower = QDir(QDir::tempPath()).filePath(QStringLiteral("song.dspx"));
 #ifdef Q_OS_WIN
@@ -245,6 +247,23 @@ void DocumentIOTests::projectPathCaseSensitivity() {
     QVERIFY(!DocumentWorkflowPathUtils::projectPathsEqual(upper, lower));
 #endif
     QVERIFY(DocumentWorkflowPathUtils::projectPathsEqual(upper, upper));
+#ifdef Q_OS_UNIX
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto original = directory.filePath(QStringLiteral("original"));
+    const auto alias = directory.filePath(QStringLiteral("alias"));
+    QVERIFY(QDir().mkdir(original));
+    QVERIFY(QFile::link(original, alias));
+    const auto originalFile = QDir(original).filePath(QStringLiteral("song.dspx"));
+    const auto aliasFile = QDir(alias).filePath(QStringLiteral("song.dspx"));
+    QCOMPARE(DocumentWorkflowPathUtils::normalizedProjectPath(aliasFile), aliasFile);
+    QVERIFY(DocumentWorkflowPathUtils::projectPathsEqual(aliasFile, originalFile));
+    QFile file(originalFile);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+    QCOMPARE(DocumentWorkflowPathUtils::normalizedProjectPath(aliasFile), aliasFile);
+    QVERIFY(DocumentWorkflowPathUtils::projectPathsEqual(aliasFile, originalFile));
+#endif
 }
 
 void DocumentIOTests::dirtyRevisionMustBeApprovedAgain() {
