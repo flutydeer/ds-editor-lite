@@ -11,6 +11,19 @@ public:
     enum class CornerPreference { Default = 0, DoNotRound = 1, Round = 2, RoundSmall = 3 };
     enum class CaptureBounds { Default, WindowsVisibleFrame };
 
+    [[nodiscard]] static QString composeWindowTitle(const QString &name, const QString &detail) {
+        if (detail.isEmpty())
+            return name;
+        if (name.isEmpty())
+            return detail;
+        // Match Qt's Windows and X11/Wayland separators. Cocoa displays the supplied title.
+#ifdef Q_OS_WIN
+        return name + QStringLiteral(" - ") + detail;
+#else
+        return name + QStringLiteral(" \u2014 ") + detail;
+#endif
+    }
+
     static void applyFrameEffects(QWidget *widget);
     static void applyPopupEffects(QWidget *widget,
                                   CornerPreference cornerPreference = CornerPreference::Round);

@@ -7,6 +7,7 @@
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ProgressIndicator.h>
 #include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -24,7 +25,7 @@ namespace Audio::Internal {
     AudioExportProgressDialog::AudioExportProgressDialog(AudioExporter *exporter, QWidget *parent)
         : Dialog(parent), m_sourceCount(qMax(1, exporter->config().source().size())) {
         m_projectName = documentWorkflowController->projectName();
-        setWindowTitle(QStringLiteral("%1 — %2").arg(m_projectName, tr("Export Audio")));
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export Audio")));
         setTitle(tr("Export Audio"));
         setMinimumWidth(420);
 
@@ -132,7 +133,7 @@ namespace Audio::Internal {
         } else {
             m_phaseLabel->setText(tr("Export finished"));
         }
-        setWindowTitle(QStringLiteral("%1 — %2").arg(m_projectName, tr("Export finished")));
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export finished")));
         setTitle(tr("Export finished"));
         enterTerminalState(UiState::Succeeded);
     }
@@ -141,7 +142,7 @@ namespace Audio::Internal {
         m_progressIndicator->setTaskStatus(TaskGlobal::Error);
         m_phaseLabel->setText(errorString.isEmpty() ? tr("Export failed")
                                                     : tr("Export failed\n%1").arg(errorString));
-        setWindowTitle(QStringLiteral("%1 — %2").arg(m_projectName, tr("Export failed")));
+        setWindowTitle(WindowFrameUtils::composeWindowTitle(m_projectName, tr("Export failed")));
         setTitle(tr("Export failed"));
         QApplication::beep();
         enterTerminalState(UiState::Failed);

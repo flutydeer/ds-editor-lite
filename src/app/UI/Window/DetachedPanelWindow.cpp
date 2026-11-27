@@ -158,9 +158,7 @@ void DetachedPanelWindow::refreshWindowTitle() {
     auto base = m_mainWindow ? m_mainWindow->windowTitle() : QString();
     if (base.isEmpty())
         base = QGuiApplication::applicationDisplayName();
-    // The em dash is a separator between two user-visible names, not prose.
-    setWindowTitle(m_titleSuffix.isEmpty() ? base
-                                           : QStringLiteral("%1 — %2").arg(base, m_titleSuffix));
+    setWindowTitle(WindowFrameUtils::composeWindowTitle(base, m_titleSuffix));
 }
 
 bool DetachedPanelWindow::event(QEvent *event) {

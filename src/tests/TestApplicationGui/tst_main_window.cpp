@@ -2479,7 +2479,11 @@ void ApplicationGuiTests::detachedPanelIsAnIndependentTopLevelWindow() {
     QVERIFY(!detached->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
 
     const auto expectedTitle = [&] {
-        return window.windowTitle() + QStringLiteral(" — ") + bottom->currentPageName();
+#ifdef Q_OS_WIN
+        return QStringLiteral("%1 - %2").arg(window.windowTitle(), bottom->currentPageName());
+#else
+        return QStringLiteral("%1 — %2").arg(window.windowTitle(), bottom->currentPageName());
+#endif
     };
     QCOMPARE(detached->windowTitle(), expectedTitle());
     QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
