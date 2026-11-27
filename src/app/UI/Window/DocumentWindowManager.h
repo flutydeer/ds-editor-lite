@@ -9,6 +9,7 @@
 
 class AppContext;
 class MainWindow;
+class MainMenuView;
 class WindowPlacement;
 class DocumentMidiInput;
 
@@ -52,6 +53,7 @@ public:
     Document *find(const AppContext *context) const;
     Document *findPath(const QString &path) const;
     Document *active() const;
+    void activateApplication();
     void activate(Document &document) const;
     void open(const QStringList &paths, Document *firstTarget = nullptr);
     enum class CloseTarget { Project, MainWindow };
@@ -86,8 +88,10 @@ private:
     AppContext &m_process;
     const LastWindowBehavior m_lastWindowBehavior;
     std::unique_ptr<DocumentMidiInput> m_midiInput;
+    std::unique_ptr<MainMenuView> m_applicationMenu;
     std::list<std::unique_ptr<Document>> m_documents;
     Document *m_active = nullptr;
     bool m_terminating = false;
+    bool m_windowless = false;
     int m_nextWindowNumber = 1;
 };

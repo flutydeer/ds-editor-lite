@@ -16,6 +16,8 @@ add_dependencies(${PROJECT_NAME} DsEditorLite)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     LITE_TEST_APPLICATION_CONFIG_ROOT="$<TARGET_FILE_DIR:DsEditorLite>/configs")
 if(APPLE)
+    target_sources(${PROJECT_NAME} PRIVATE MacApplicationMenu.mm)
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework AppKit")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         BUILD_RPATH "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/Frameworks")
     target_compile_definitions(${PROJECT_NAME} PRIVATE

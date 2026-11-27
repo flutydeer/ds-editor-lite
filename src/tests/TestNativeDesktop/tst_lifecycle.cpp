@@ -2,6 +2,10 @@
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/FixtureAudioDriver.h"
 #include "../TestSupport/WaveFixture.h"
+#include "../TestSupport/VoicebankFixture.h"
+#ifdef Q_OS_MACOS
+#  include "MacApplicationMenu.h"
+#endif
 
 #include "Automation/CoreRuntime.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
@@ -43,6 +47,7 @@
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -102,6 +107,72 @@ namespace {
             }
         }
         return nullptr;
+    }
+
+    void triggerFileCommand(MainMenuView &bar, const char *label, char key) {
+        auto *action = fileMenuAction(bar, label);
+        QVERIFY(action && action->isEnabled());
+#ifdef Q_OS_MACOS
+        QTRY_VERIFY(MacApplicationMenu::isCurrent(bar));
+        QVERIFY(MacApplicationMenu::triggerCommand(key));
+#else
+        Q_UNUSED(key);
+        action->trigger();
+#endif
+    }
+
+    void dockReopen() {
+#ifdef Q_OS_MACOS
+        MacApplicationMenu::reopen();
+#else
+        emit qApp->applicationStateChanged(Qt::ApplicationActive);
+#endif
+    }
+
+    void openFromWindowlessMenu(MainMenuView &menu, DocumentWindowManager &windows,
+                                const QString &path) {
+        packageManager->initialize({TestSupport::voicebankRoot()});
+        QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
+        const auto nativeDialogs = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+        const auto restore = qScopeGuard(
+            [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs); });
+        for (const bool accept : {false, true}) {
+            bool answered = false;
+            QTimer response;
+            QObject::connect(&response, &QTimer::timeout, &menu, [&] {
+                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dialog)
+                    return;
+                response.stop();
+                const auto dismiss = qScopeGuard([&] {
+                    if (dialog->isVisible())
+                        dialog->reject();
+                });
+                auto *picker = qobject_cast<QFileDialog *>(dialog);
+                QVERIFY(picker);
+                QVERIFY(!picker->parentWidget());
+                dockReopen();
+                QVERIFY(!windows.active());
+                if (accept) {
+                    picker->selectFile(path);
+                    QVERIFY(QMetaObject::invokeMethod(picker, "accept"));
+                } else {
+                    picker->reject();
+                }
+                answered = true;
+            });
+            response.start(10);
+            triggerFileCommand(menu, "&Open", 'o');
+            QTRY_VERIFY(answered);
+            if (accept) {
+                QTRY_VERIFY(windows.findPath(path));
+                auto *opened = windows.findPath(path);
+                QTRY_COMPARE(opened->context->m_coreRuntime->documentPath(), path);
+            } else {
+                QVERIFY(!windows.active());
+            }
+        }
     }
 
     class PendingExitTask final : public Task {
@@ -257,7 +328,8 @@ void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
     appOptions->developer()->enablePanelDetach = true;
     QFETCH(bool, keepRunning);
     using Behavior = DocumentWindowManager::LastWindowBehavior;
-    DocumentWindowManager windows(*fixture.context, keepRunning ? Behavior::KeepRunning : Behavior::Quit);
+    DocumentWindowManager windows(*fixture.context,
+                                  keepRunning ? Behavior::KeepRunning : Behavior::Quit);
     auto &last = windows.createWindow();
     auto &first = windows.createWindow();
     const auto firstId = first.context->m_coreRuntime->documentVersion().documentId;
@@ -367,6 +439,7 @@ void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
     QPointer<MainWindow> closedWindow = last.window.get();
     if (keepRunning) {
         const auto closedId = runtime.documentVersion().documentId;
+        const auto closedWindowId = runtime.windowId();
         const auto geometry = last.placement->saveGeometry();
         close();
         Automation::PublicAutomationHostServices services;
@@ -377,9 +450,49 @@ void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
         QVERIFY(!windows.terminating());
         QCOMPARE(appOptions->window()->mainWindowGeometry(), geometry);
         QTRY_VERIFY(!closedWindow);
-        QTimer::singleShot(0, this, [] {
-            QEvent quit(QEvent::Quit);
-            QCoreApplication::sendEvent(qApp, &quit);
+        MainMenuView *appMenu = nullptr;
+        for (auto *widget : QApplication::topLevelWidgets()) {
+            if (auto *menu = qobject_cast<MainMenuView *>(widget); menu && !menu->parentWidget())
+                appMenu = menu;
+        }
+        QVERIFY(appMenu);
+        if (dirty)
+            dockReopen();
+        else
+            triggerFileCommand(*appMenu, "&New", 'n');
+        QTRY_VERIFY(windows.active());
+        auto *reopened = windows.active();
+        QVERIFY(QTest::qWaitForWindowActive(reopened->window.get()));
+        dockReopen();
+        QCOMPARE(services.windowStatus().size(), 1);
+        QVERIFY(reopened->context->m_coreRuntime->windowId() != closedWindowId);
+        QVERIFY(reopened->context->m_coreRuntime->documentVersion().documentId != closedId);
+        QVERIFY(reopened->context->m_historyManager->isOnSavePoint());
+        const auto path = fixture.directory.filePath("windowless.dspx");
+        auto &model = *reopened->context->m_coreRuntime;
+        {
+            const SingletonRegistry::Scope scope(reopened->context->services());
+            QVERIFY(model.documents().saveDocument({.expected = model.documentVersion()}, path));
+        }
+        auto *reopenedMenu = reopened->window->findChild<MainMenuView *>();
+        QVERIFY(reopenedMenu);
+        triggerFileCommand(*reopenedMenu, "Close", 'w');
+        QTRY_VERIFY(services.windowStatus().isEmpty());
+        if (!dirty) {
+            openFromWindowlessMenu(*appMenu, windows, path);
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(services.windowStatus().size(), 1);
+            windows.active()->window->close();
+            QTRY_VERIFY(services.windowStatus().isEmpty());
+        }
+        QTimer::singleShot(0, this, [appMenu, dirty] {
+            if (dirty) {
+                QEvent quit(QEvent::Quit);
+                QCoreApplication::sendEvent(qApp, &quit);
+            } else {
+                triggerFileCommand(*appMenu, "E&xit", 'q');
+            }
         });
     } else {
         QTimer::singleShot(0, last.window.get(), close);

@@ -80,7 +80,8 @@ namespace WindowDialogs {
     QStringList getOpenFileNames(QWidget *parent, const QString &caption, const QString &dir,
                                  const QString &filter) {
         return choose(parent, caption, dir, filter, QFileDialog::ExistingFiles,
-                      QFileDialog::AcceptOpen);
+                      QFileDialog::AcceptOpen, nullptr,
+                      parent ? Qt::WindowModal : Qt::ApplicationModal);
     }
 
     QString getSaveFileName(QWidget *parent, const QString &caption, const QString &dir,

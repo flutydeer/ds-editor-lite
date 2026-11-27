@@ -18,6 +18,7 @@ class MainMenuView : public QMenuBar {
     Q_PROPERTY(QColor iconDisabledColor READ iconDisabledColor WRITE setIconDisabledColor)
 
 public:
+    // A parentless bar provides the application menu when there is no project window.
     explicit MainMenuView(MainWindow *mainWindow);
     ~MainMenuView() override;
 

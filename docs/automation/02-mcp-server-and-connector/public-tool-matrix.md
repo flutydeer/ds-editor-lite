@@ -78,7 +78,7 @@
 | `documents.import` | L2 | C/A | 单文件导入计划、已验证输入快照、格式选项与任务写回 |
 | `documents.import_batch` | L2 | C/A | 逐项输入快照、失败策略与任务写回 |
 
-工具集 v2 的 `application.get_status` 列出所有打开的工程及其主窗口。分离钢琴窗使用所属工程的窗口身份。GUI 调用 `documents.new/open` 时，省略 `current_document_id` 或传 `null` 会新开窗口。替换已有工程须传入它的 ID，可同时传入 `expected_revision`。Headless 的新建和打开都需要明确的工程 ID。打开已加载的路径会返回该工程。
+工具集 v2 的 `application.get_status` 列出所有打开的工程及其主窗口。分离钢琴窗使用所属工程的窗口身份。在 macOS 界面中关闭最后一个工程窗后，`documents` 和 `windows` 都为空数组，Connector 仍可连接。GUI 调用 `documents.new/open` 时，省略 `current_document_id` 或传 `null` 会新开窗口。替换已有工程须传入它的 ID，可同时传入 `expected_revision`。Headless 的新建和打开都需要明确的工程 ID。打开已加载的路径会返回该工程。
 
 目标工程正在等待填词、文件选择等交互完成时，关闭或替换该工程会返回 `busy`。关闭相应对话框后可重试，其他工程仍可独立操作。
 

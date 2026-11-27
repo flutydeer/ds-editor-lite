@@ -124,6 +124,7 @@ public:
     QMetaObject::Connection m_clipSelectionConnection;
 
     void onOpen();
+    void newOrOpen(const QStringList &paths = {});
     void onOpenRecentProject(const QString &filePath);
     void onClearRecentProjects();
     void refreshRecentProjectsMenu();
@@ -158,6 +159,7 @@ public:
     void updatePasteActionState();
 
     void initActions();
+    void initApplicationFileActions();
     void initFileActions();
     void initEditActions();
     void initEditShortcuts();
@@ -165,6 +167,7 @@ public:
                            Qt::ShortcutContext context);
 
     Menu *buildFileMenu();
+    Menu *buildApplicationFileMenu();
     Menu *buildEditMenu();
     Menu *buildOptionsMenu();
     Menu *buildHelpMenu();

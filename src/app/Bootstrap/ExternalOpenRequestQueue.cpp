@@ -28,8 +28,8 @@ AdmissionResult ExternalOpenRequestQueue::take(const SingleInstanceRequest &requ
             return;
         if (!paths.isEmpty())
             m_windows.open(paths);
-        else if (auto *active = m_windows.active())
-            m_windows.activate(*active);
+        else
+            m_windows.activateApplication();
     });
     // Admission transfers the request to the primary. Loading and activation are asynchronous.
     return AdmissionResult::accepted();

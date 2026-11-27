@@ -9,6 +9,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "MainWindow.h"
 #include "DetachedPanelWindow.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/DocumentMidiInput.h"
@@ -37,6 +38,16 @@ DocumentWindowManager::DocumentWindowManager(AppContext &process, LastWindowBeha
     Q_ASSERT(!manager);
     manager = this;
     m_midiInput = std::make_unique<DocumentMidiInput>(*this);
+    if (keepsRunningWithoutWindows()) {
+        const SingletonRegistry::Scope scope(m_process.services());
+        m_applicationMenu = std::make_unique<MainMenuView>(nullptr);
+        // Cocoa also emits this notification for a Dock reopen while the app is already active.
+        connect(qApp, &QGuiApplication::applicationStateChanged, this,
+                [this](Qt::ApplicationState state) {
+                    if (state == Qt::ApplicationActive && m_windowless)
+                        activateApplication();
+                });
+    }
     qApp->installEventFilter(this);
 }
 
@@ -128,6 +139,7 @@ void DocumentWindowManager::configureAutomation(
 }
 
 DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
+    m_windowless = false;
     auto entry = std::make_unique<Document>();
     // The first window shares the process runtime. Each later window needs a new window ID.
     if (m_nextWindowNumber != 1)
@@ -253,6 +265,17 @@ DocumentWindowManager::Document *DocumentWindowManager::findPath(const QString &
 
 DocumentWindowManager::Document *DocumentWindowManager::active() const {
     return m_active;
+}
+
+void DocumentWindowManager::activateApplication() {
+    if (m_terminating)
+        return;
+    if (m_active) {
+        activate(*m_active);
+    } else if (m_windowless && !QApplication::activeModalWidget() &&
+               !WindowDialogs::DialogExecution::activeFor(m_process.services())) {
+        createWindow();
+    }
 }
 
 void DocumentWindowManager::activate(Document &document) const {
@@ -393,6 +416,7 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
     } else if (target == CloseTarget::MainWindow) {
         saveWindowGeometry(document.placement->saveGeometry(), document.window->detachedGeometry());
         retire(document);
+        m_windowless = true;
     } else {
         DocumentRecovery::remove(document.recoveryKey);
         document.recoveryKey.clear();
@@ -404,7 +428,7 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
 
 TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
                                                           TerminationSavePolicy policy) {
-    if (m_terminating)
+    if (m_terminating || WindowDialogs::DialogExecution::activeFor(m_process.services()))
         return TerminationRequestResult::Busy;
     QList<Document *> remaining;
     int dirty = 0;
@@ -421,8 +445,6 @@ TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
     if (dirty && policy == TerminationSavePolicy::RejectUnsaved)
         return TerminationRequestResult::UnsavedChanges;
     if (remaining.isEmpty()) {
-        if (WindowDialogs::DialogExecution::activeFor(m_process.services()))
-            return TerminationRequestResult::Busy;
         m_terminating = true;
         m_process.commitShutdown();
         taskManager->terminateAllTasks();
