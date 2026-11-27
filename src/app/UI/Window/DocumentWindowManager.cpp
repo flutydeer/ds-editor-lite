@@ -41,12 +41,6 @@ DocumentWindowManager::DocumentWindowManager(AppContext &process, LastWindowBeha
     if (keepsRunningWithoutWindows()) {
         const SingletonRegistry::Scope scope(m_process.services());
         m_applicationMenu = std::make_unique<MainMenuView>(nullptr);
-        // Cocoa also emits this notification for a Dock reopen while the app is already active.
-        connect(qApp, &QGuiApplication::applicationStateChanged, this,
-                [this](Qt::ApplicationState state) {
-                    if (state == Qt::ApplicationActive && m_windowless)
-                        activateApplication();
-                });
     }
     qApp->installEventFilter(this);
 }

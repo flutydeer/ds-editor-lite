@@ -29,7 +29,7 @@ namespace MacApplicationMenu {
         return [NSApp.mainMenu performKeyEquivalent:event];
     }
 
-    void reopen() {
-        [NSApp.delegate applicationShouldHandleReopen:NSApp hasVisibleWindows:NO];
+    void reopen(bool hasVisibleWindows) {
+        [NSApp.delegate applicationShouldHandleReopen:NSApp hasVisibleWindows:hasVisibleWindows];
     }
 }

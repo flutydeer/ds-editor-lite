@@ -22,6 +22,12 @@
 NativeDesktopTests::NativeDesktopTests() = default;
 NativeDesktopTests::~NativeDesktopTests() = default;
 
+#ifdef Q_OS_MACOS
+void NativeDesktopTests::initMain() {
+    AppEnvironment::installMacReopenDelegate();
+}
+#endif
+
 void NativeDesktopTests::runIsolatedDesktopCase(const QString &audioDriver) {
     QProcess child;
     auto environment = QProcessEnvironment::systemEnvironment();

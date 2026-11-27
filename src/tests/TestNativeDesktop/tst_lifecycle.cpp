@@ -123,11 +123,11 @@ namespace {
 #endif
     }
 
-    void dockReopen() {
+    void dockReopen(DocumentWindowManager &windows) {
 #ifdef Q_OS_MACOS
-        MacApplicationMenu::reopen();
+        MacApplicationMenu::reopen(windows.active() != nullptr);
 #else
-        emit qApp->applicationStateChanged(Qt::ApplicationActive);
+        windows.activateApplication();
 #endif
     }
 
@@ -154,7 +154,7 @@ namespace {
                 auto *picker = qobject_cast<QFileDialog *>(dialog);
                 QVERIFY(picker);
                 QVERIFY(!picker->parentWidget());
-                dockReopen();
+                dockReopen(windows);
                 QVERIFY(!windows.active());
                 if (accept) {
                     auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
@@ -180,6 +180,8 @@ namespace {
                 auto *opened = windows.findPath(path);
                 QTRY_COMPARE(opened->context->m_coreRuntime->documentPath(), path);
             } else {
+                // Returning focus after dismissing a picker is an ordinary activation.
+                emit qApp->applicationStateChanged(Qt::ApplicationActive);
                 QVERIFY(!windows.active());
             }
         }
@@ -467,13 +469,13 @@ void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
         }
         QVERIFY(appMenu);
         if (dirty)
-            dockReopen();
+            dockReopen(windows);
         else
             triggerFileCommand(*appMenu, "&New", 'n');
         QTRY_VERIFY(windows.active());
         auto *reopened = windows.active();
         QVERIFY(QTest::qWaitForWindowActive(reopened->window.get()));
-        dockReopen();
+        dockReopen(windows);
         QCOMPARE(services.windowStatus().size(), 1);
         QVERIFY(reopened->context->m_coreRuntime->windowId() != closedWindowId);
         QVERIFY(reopened->context->m_coreRuntime->documentVersion().documentId != closedId);

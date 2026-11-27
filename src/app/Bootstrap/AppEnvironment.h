@@ -10,6 +10,11 @@ namespace AppEnvironment {
     // attributes are skipped for the QCore host.
     void preInit(AppHostMode hostMode);
 
+#ifdef Q_OS_MACOS
+    // Cocoa forwards reopen requests to the delegate installed before QApplication starts.
+    void installMacReopenDelegate();
+#endif
+
     // Must be called after the selected Qt application object is constructed. Common metadata is
     // installed for both hosts; styles, fonts, and widget defaults are GUI-only.
     void postInit(AppHostMode hostMode);

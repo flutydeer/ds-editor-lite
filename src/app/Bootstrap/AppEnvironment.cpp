@@ -30,6 +30,9 @@ namespace AppEnvironment {
         if (hostMode != AppHostMode::Gui)
             return;
 
+#ifdef Q_OS_MACOS
+        installMacReopenDelegate();
+#endif
         qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
         QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
             Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);

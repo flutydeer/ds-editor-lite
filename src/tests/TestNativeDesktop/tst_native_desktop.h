@@ -19,6 +19,9 @@ class NativeDesktopTests final : public QObject {
 public:
     NativeDesktopTests();
     ~NativeDesktopTests() override;
+#ifdef Q_OS_MACOS
+    static void initMain();
+#endif
 
 private slots:
     void initTestCase();
