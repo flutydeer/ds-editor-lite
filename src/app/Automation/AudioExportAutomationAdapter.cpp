@@ -12,7 +12,6 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Tasking/TaskManager.h>
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
 #include <QPointer>
@@ -196,13 +195,6 @@ namespace Automation {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Inference failed")};
             }
-            // Drain queued FutureCallOut events before opening the audio graph. The last
-            // piece's promise is already finished (status reports Ready) when the loop
-            // above exits, but FutureAudioSource::d->src is only assigned when its
-            // watcher event is dispatched; opening the graph before that crashes on a
-            // null src in FutureAudioSource::open().
-            QCoreApplication::processEvents();
-
             return {.state = AudioExportBackendState::Succeeded};
         }
 

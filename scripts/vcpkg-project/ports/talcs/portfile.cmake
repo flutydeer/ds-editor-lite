@@ -6,6 +6,7 @@ vcpkg_from_github(
     PATCHES
         fix-loop-position.patch
         fix-clip-series-read-serialization.patch
+        fix-finished-audio-source.patch
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS

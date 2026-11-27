@@ -35,6 +35,7 @@
 
 #include <QFile>
 #include <QDir>
+#include <QPromise>
 #include <QScopeGuard>
 #include <QSemaphore>
 #include <QtTest>
@@ -127,10 +128,12 @@ void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
     QSemaphore changeFinished;
     ControlledAudioRead playing(0.25f, &readEntered, &resumeRead);
     ControlledAudioRead moved(0.5f);
-    const auto verifyRangeChange = [&](auto &series, auto *firstSource, auto *secondSource) {
+    const auto verifyRangeChange = [&](auto &series, auto *firstSource, auto *secondSource,
+                                       auto finishPreparation) {
         series.insertClip(firstSource, 0, 0, 8);
         const auto changingClip = series.insertClip(secondSource, 64, 0, 8);
         QVERIFY(series.open(8, 48000));
+        finishPreparation();
         talcs::AudioBuffer buffer(1, 8);
         qint64 frames = 0;
         bool changed = false;
@@ -168,16 +171,20 @@ void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
     if (futureSources) {
         talcs::FutureAudioSource first(QtFuture::makeReadyValueFuture(
             static_cast<talcs::PositionableAudioSource *>(&playing)));
-        talcs::FutureAudioSource second(
-            QtFuture::makeReadyValueFuture(static_cast<talcs::PositionableAudioSource *>(&moved)));
-        QTRY_COMPARE(first.source(), static_cast<talcs::PositionableAudioSource *>(&playing));
-        QTRY_COMPARE(second.source(), static_cast<talcs::PositionableAudioSource *>(&moved));
+        QPromise<talcs::PositionableAudioSource *> pending;
+        pending.setProgressRange(0, 8);
+        pending.start();
+        talcs::FutureAudioSource second(pending.future());
+        // Both opening the graph and reading it can precede the watcher notifications.
         talcs::FutureAudioSourceClipSeries series;
-        series.setReadMode(talcs::FutureAudioSourceClipSeries::Skip);
-        verifyRangeChange(series, &first, &second);
+        series.setReadMode(talcs::FutureAudioSourceClipSeries::Block);
+        verifyRangeChange(series, &first, &second, [&] {
+            pending.addResult(static_cast<talcs::PositionableAudioSource *>(&moved));
+            pending.finish();
+        });
     } else {
         talcs::AudioSourceClipSeries series;
-        verifyRangeChange(series, &playing, &moved);
+        verifyRangeChange(series, &playing, &moved, [] {});
     }
 }
 
