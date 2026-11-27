@@ -533,18 +533,20 @@ void NativeDesktopTests::exitRemembersTheLastEditorGeometry() {
     auto &first = windows.createWindow();
     auto &second = windows.createWindow();
     TestSupport::placeWindowOnScreen(*first.window, {1090, 650});
-    TestSupport::placeWindowOnScreen(*second.window, {1250, 730});
-    // Both sizes can be clamped to the same available desktop area.
-    second.window->move(second.window->pos() - QPoint(24, 24));
+    // A high-DPI desktop can be smaller than an editor's minimum size.
+    second.window->setMinimumHeight(second.window->screen()->availableGeometry().height() + 1);
+    second.window->showMaximized();
+    QVERIFY(QTest::qWaitForWindowActive(second.window.get()));
+    windows.activate(first);
+    QVERIFY(QTest::qWaitForWindowActive(first.window.get()));
     const auto oldDetached = appOptions->window()->detachedPanelGeometry();
-    QWidget *lastEditor = first.window.get();
     if (detach) {
         QVERIFY(QMetaObject::invokeMethod(first.window.get(), "detachBottomPanel"));
-        lastEditor = first.window->detachedPanelWindow();
+        auto *editor = first.window->detachedPanelWindow();
+        QVERIFY(editor && QTest::qWaitForWindowExposed(editor));
+        editor->activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(editor));
     }
-    lastEditor->raise();
-    lastEditor->activateWindow();
-    QTRY_VERIFY(lastEditor->isActiveWindow());
     QCOMPARE(windows.active(), &first);
     const auto expected = first.placement->saveGeometry();
     QVERIFY(expected != second.placement->saveGeometry());
