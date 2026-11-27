@@ -151,6 +151,7 @@ namespace Automation {
         std::function<CoreRuntime *(const DocumentId &)> findDocument;
         std::function<CoreRuntime *(const QString &)> findOpenPath;
         std::function<CoreRuntime *()> createDocumentWindow;
+        std::function<void(CoreRuntime &)> discardCreatedWindow;
         std::function<void(CoreRuntime &)> activateWindow;
         std::function<TaskId(CoreRuntime &, const QString &)> pendingOpen;
         std::function<void(CoreRuntime &, const QString &, const TaskId &)> trackOpen;

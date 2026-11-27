@@ -479,6 +479,17 @@ void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
         triggerFileCommand(*reopenedMenu, "Close", 'w');
         QTRY_VERIFY(services.windowStatus().isEmpty());
         if (!dirty) {
+            Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+            Automation::AutomationFileGuard files;
+            QVERIFY(files.setConfiguredRoots({fixture.directory.path()}));
+            Automation::AdmissionController admission;
+            Automation::PublicAutomationRegistry registry(runtime, access, files, admission,
+                                                           services);
+            const auto rejected = registry.invoke("documents.open",
+                                                  {{"path", path}, {"format_id", "midi"}});
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().fieldPath, QStringLiteral("format_id"));
+            QVERIFY(services.windowStatus().isEmpty());
             openFromWindowlessMenu(*appMenu, windows, path);
             if (QTest::currentTestFailed())
                 return;

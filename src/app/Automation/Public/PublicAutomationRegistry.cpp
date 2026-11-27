@@ -2185,7 +2185,7 @@ namespace Automation {
         const SingletonRegistry::Scope scope(ObjectContext::of(target));
         auto result = bindingsFor(*target).invokeForTarget(*contract, arguments, targetContext);
         if (!result && created)
-            m_hostServices.closeDocument(*target, true);
+            m_hostServices.discardCreatedWindow(*target);
         if (result && targetContext.alreadyOpen && m_hostServices.activateWindow &&
             !arguments.value(QStringLiteral("validate_only")).toBool())
             m_hostServices.activateWindow(*target);

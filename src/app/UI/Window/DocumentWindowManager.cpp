@@ -128,6 +128,10 @@ void DocumentWindowManager::configureAutomation(
     services.createDocumentWindow = [this] {
         return m_terminating ? nullptr : createWindow().context->m_coreRuntime.get();
     };
+    services.discardCreatedWindow = [this](CoreRuntime &runtime) {
+        if (auto *entry = find(runtime.documentVersion().documentId))
+            retire(*entry);
+    };
     services.closeDocument = [this](CoreRuntime &runtime,
                                     bool discard) -> AutomationResult<DocumentVersion> {
         auto *entry = find(runtime.documentVersion().documentId);
@@ -331,6 +335,12 @@ void DocumentWindowManager::open(const QStringList &paths, Document *firstTarget
     }
 }
 
+bool DocumentWindowManager::isLastProject(const Document &document) const {
+    return std::none_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
+        return entry.get() != &document && !entry->closing;
+    });
+}
+
 bool DocumentWindowManager::confirmClose(Document &document, TerminationSavePolicy policy,
                                          const QString &progress) {
     const SingletonRegistry::Scope scope(document.context->services());
@@ -379,6 +389,7 @@ void DocumentWindowManager::retire(Document &document) {
     document.window->hide();
     document.context->initializeDefaultDocument();
     QTimer::singleShot(0, this, [this, entry = &document] { releaseRetired(entry); });
+    m_windowless = keepsRunningWithoutWindows() && !m_terminating && isLastProject(document);
 }
 
 void DocumentWindowManager::releaseRetired(Document *document) {
@@ -396,18 +407,13 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
                                   CloseTarget target) {
     if (m_terminating || document.closing)
         return false;
-    const auto hasOtherProject = [&] {
-        return std::any_of(m_documents.begin(), m_documents.end(), [&document](const auto &entry) {
-            return entry.get() != &document && !entry->closing;
-        });
-    };
     const bool quitOnClose = target == CloseTarget::MainWindow && !keepsRunningWithoutWindows();
-    if (quitOnClose && !hasOtherProject())
+    if (quitOnClose && isLastProject(document))
         return terminate(TerminationMode::Exit, policy) == TerminationRequestResult::Accepted;
     if (!confirmClose(document, policy))
         return false;
     const SingletonRegistry::Scope scope(document.context->services());
-    if (hasOtherProject()) {
+    if (!isLastProject(document)) {
         retire(document);
     } else if (quitOnClose) {
         // The other windows closed during the prompt, which already approved this last project.
@@ -416,7 +422,6 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
     } else if (target == CloseTarget::MainWindow) {
         saveWindowGeometry(document.placement->saveGeometry(), document.window->detachedGeometry());
         retire(document);
-        m_windowless = true;
     } else {
         DocumentRecovery::remove(document.recoveryKey);
         document.recoveryKey.clear();

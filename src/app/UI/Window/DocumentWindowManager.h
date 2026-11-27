@@ -79,6 +79,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+    bool isLastProject(const Document &document) const;
     bool confirmClose(Document &document, TerminationSavePolicy policy,
                       const QString &progress = {});
     void retire(Document &document);
