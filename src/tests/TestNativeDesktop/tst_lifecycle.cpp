@@ -314,8 +314,7 @@ void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {
     auto window = std::make_unique<MainWindow>();
     TestSupport::placeWindowOnScreen(*window, {1100, 800});
     window->show();
-    window->activateWindow();
-    QTRY_VERIFY(window->isActiveWindow());
+    QVERIFY(QTest::qWaitForWindowExposed(window.get()));
     auto *bottom = window->findChild<BottomPanelView *>();
     QVERIFY(bottom);
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
@@ -357,27 +356,29 @@ void NativeDesktopTests::cancelingExitKeepsTheRemainingProject() {
     };
     QVERIFY(rename(a, "Edited A"));
     QVERIFY(rename(b, "Edited B"));
+    QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
+    windows.activate(a);
+    QVERIFY(QTest::qWaitForWindowActive(a.window.get()));
     QVERIFY(QMetaObject::invokeMethod(a.window.get(), "detachBottomPanel"));
-    QTRY_VERIFY(a.window->detachedPanelWindow()->isVisible());
-    a.window->setWorkflowWindow(a.window->detachedPanelWindow());
-    bool projectScope = false;
-    bool returnedToPrompt = false;
+    auto *detached = a.window->detachedPanelWindow();
+    QVERIFY(detached && QTest::qWaitForWindowExposed(detached));
+    a.window->setWorkflowWindow(detached);
     QTimer::singleShot(0, this, [&] {
+        const auto cancel = qScopeGuard([] { answerSavePrompt(MainWindow::tr("Cancel")); });
         auto *prompt = QApplication::activeModalWidget();
-        projectScope = WindowDialogs::blocks(a.window.get()) &&
-                       WindowDialogs::blocks(a.window->detachedPanelWindow()) &&
-                       !WindowDialogs::blocks(b.window.get());
+        QVERIFY(prompt && QTest::qWaitForWindowActive(prompt));
+        QVERIFY(WindowDialogs::blocks(a.window.get()));
+        QVERIFY(WindowDialogs::blocks(detached));
+        QVERIFY(!WindowDialogs::blocks(b.window.get()));
         windows.activate(b);
-        const bool editingB = QTest::qWaitFor([&] { return b.window->isActiveWindow(); }, 2000);
+        QVERIFY(QTest::qWaitForWindowActive(b.window.get()));
         windows.activate(a);
-        returnedToPrompt = editingB && prompt &&
-                           QTest::qWaitFor([&] { return prompt->isActiveWindow(); }, 2000);
-        answerSavePrompt(MainWindow::tr("Cancel"));
+        QVERIFY(QTest::qWaitForWindowFocused(prompt));
     });
     QVERIFY(!windows.close(a, TerminationSavePolicy::Prompt));
-    QVERIFY(projectScope);
-    QVERIFY(returnedToPrompt);
-    QVERIFY(a.window->detachedPanelWindow()->isVisible());
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(detached->isVisible());
     const auto previousGeometry = appOptions->window()->mainWindowGeometry();
     int decisions = 0;
     bool applicationScope = true;
