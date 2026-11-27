@@ -237,13 +237,16 @@ void NativeDesktopTests::closingMainWindowWaitsForBackgroundTasks() {
     QVERIFY(taskManager->tasks().isEmpty());
 }
 
-void NativeDesktopTests::closingLastProjectWindowExitsTheApplication_data() {
+void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior_data() {
     QTest::addColumn<bool>("dirty");
-    QTest::newRow("blank-project") << false;
-    QTest::newRow("cancel-then-discard") << true;
+    QTest::addColumn<bool>("keepRunning");
+    QTest::newRow("quit-blank") << false << false;
+    QTest::newRow("quit-cancel-then-discard") << true << false;
+    QTest::newRow("windowless-blank") << false << true;
+    QTest::newRow("windowless-cancel-then-discard") << true << true;
 }
 
-void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
+void NativeDesktopTests::closingLastProjectWindowFollowsPlatformBehavior() {
     if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
         runIsolatedDesktopCase();
         return;
@@ -252,7 +255,9 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     appOptions->appearance()->useNativeFrame = false;
     appOptions->developer()->enablePanelDetach = true;
-    DocumentWindowManager windows(*fixture.context);
+    QFETCH(bool, keepRunning);
+    using Behavior = DocumentWindowManager::LastWindowBehavior;
+    DocumentWindowManager windows(*fixture.context, keepRunning ? Behavior::KeepRunning : Behavior::Quit);
     auto &last = windows.createWindow();
     auto &first = windows.createWindow();
     const auto firstId = first.context->m_coreRuntime->documentVersion().documentId;
@@ -301,17 +306,19 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     };
     QFETCH(bool, dirty);
     auto &runtime = *last.context->m_coreRuntime;
-    if (!dirty) {
-        auto *bar = last.window->findChild<MainMenuView *>();
-        QVERIFY(bar);
-        auto *closeProject = fileMenuAction(*bar, "Close");
-        QVERIFY(closeProject);
+    auto *bar = last.window->findChild<MainMenuView *>();
+    QVERIFY(bar);
+    auto *closeProject = fileMenuAction(*bar, "Close");
+    QVERIFY(closeProject);
+    if (keepRunning)
+        QCOMPARE(closeProject->shortcut(), QKeySequence(QKeySequence::Close));
+    if (!dirty && !keepRunning) {
         const auto previousId = runtime.documentVersion().documentId;
         closeProject->trigger();
         QVERIFY(runtime.documentVersion().documentId != previousId);
         QVERIFY(last.window->isVisible());
         QVERIFY(!windows.terminating());
-    } else {
+    } else if (dirty) {
         {
             const SingletonRegistry::Scope scope(last.context->services());
             QVERIFY(runtime.project().renameTrack(
@@ -323,12 +330,21 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
         const auto version = runtime.documentVersion();
         auto *detached = last.window->detachedPanelWindow();
         QVERIFY(detached && detached->isVisible());
+        if (keepRunning) {
+            auto *closePanel = fileMenuAction(*detached->menuView(), "Close");
+            QVERIFY(closePanel);
+            closePanel->trigger();
+            QVERIFY(!detached->isVisible());
+            QVERIFY(last.window->isVisible());
+            QCOMPARE(runtime.documentVersion(), version);
+            QVERIFY(QMetaObject::invokeMethod(last.window.get(), "detachBottomPanel"));
+        }
         bool canceled = false;
         QTimer::singleShot(0, last.window.get(), [&] {
             auto *prompt = QApplication::activeModalWidget();
-            const bool applicationModal =
-                prompt && prompt->windowModality() == Qt::ApplicationModal;
-            canceled = clickDialogButton(MainWindow::tr("Cancel")) && applicationModal;
+            const auto modality = keepRunning ? Qt::WindowModal : Qt::ApplicationModal;
+            const bool correctScope = prompt && prompt->windowModality() == modality;
+            canceled = clickDialogButton(MainWindow::tr("Cancel")) && correctScope;
         });
         closeLastWindow();
         QVERIFY(canceled);
@@ -339,12 +355,35 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     }
 
     bool discarded = false;
-    QTimer::singleShot(0, last.window.get(), [&] {
+    const auto close = [&] {
         if (dirty)
             QTimer::singleShot(0, last.window.get(),
                                [&] { discarded = clickDialogButton(MainWindow::tr("Don't save")); });
-        closeLastWindow();
-    });
+        if (keepRunning && !dirty)
+            closeProject->trigger();
+        else
+            closeLastWindow();
+    };
+    QPointer<MainWindow> closedWindow = last.window.get();
+    if (keepRunning) {
+        const auto closedId = runtime.documentVersion().documentId;
+        const auto geometry = last.placement->saveGeometry();
+        close();
+        Automation::PublicAutomationHostServices services;
+        windows.configureAutomation(services);
+        QVERIFY(services.documentStatus().isEmpty());
+        QVERIFY(services.windowStatus().isEmpty());
+        QVERIFY(!windows.find(closedId));
+        QVERIFY(!windows.terminating());
+        QCOMPARE(appOptions->window()->mainWindowGeometry(), geometry);
+        QTRY_VERIFY(!closedWindow);
+        QTimer::singleShot(0, this, [] {
+            QEvent quit(QEvent::Quit);
+            QCoreApplication::sendEvent(qApp, &quit);
+        });
+    } else {
+        QTimer::singleShot(0, last.window.get(), close);
+    }
     QTimer deadline;
     deadline.setSingleShot(true);
     connect(&deadline, &QTimer::timeout, this, [] { QCoreApplication::exit(1); });
@@ -352,7 +391,7 @@ void NativeDesktopTests::closingLastProjectWindowExitsTheApplication() {
     QCOMPARE(QCoreApplication::exec(), 0);
     QCOMPARE(discarded, dirty);
     QVERIFY(windows.terminating());
-    QVERIFY(!last.window->isVisible());
+    QVERIFY(!closedWindow || !closedWindow->isVisible());
 }
 
 void NativeDesktopTests::detachedPanelDiesWithItsMainWindow() {

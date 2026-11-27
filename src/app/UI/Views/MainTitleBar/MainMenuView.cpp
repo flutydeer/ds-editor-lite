@@ -672,11 +672,15 @@ void MainMenuViewPrivate::setActionShortcut(QAction *action, const QKeySequence 
 void MainMenuViewPrivate::initFileActions() {
     Q_Q(MainMenuView);
     actionClose = new QAction(tr("Close"), this);
+    if (auto *windows = DocumentWindowManager::instance(); windows && windows->keepsRunningWithoutWindows())
+        setActionShortcut(actionClose, QKeySequence::Close, Qt::WindowShortcut);
     connect(actionClose, &QAction::triggered, this,
             [this, q, context = AppContext::instance<AppContext>()] {
                 m_mainWindow->setWorkflowWindow(q);
                 if (auto *manager = DocumentWindowManager::instance()) {
-                    if (auto *document = manager->find(context))
+                    if (manager->keepsRunningWithoutWindows())
+                        q->window()->close();
+                    else if (auto *document = manager->find(context))
                         manager->close(*document, TerminationSavePolicy::Prompt);
                 } else {
                     documentWorkflowController->requestNew();

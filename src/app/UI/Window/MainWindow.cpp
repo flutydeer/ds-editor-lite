@@ -1046,8 +1046,12 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         if (m_restartRequested)
             restartApp();
         QMainWindow::closeEvent(event);
-        if (DocumentWindowManager::instance())
-            QCoreApplication::quit();
+        if (auto *manager = DocumentWindowManager::instance()) {
+            if (manager->keepsRunningWithoutWindows())
+                QCoreApplication::exit(0);
+            else
+                QCoreApplication::quit();
+        }
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
         ShutdownMonitor::instance().setStage(ShutdownMonitor::Stage::WaitingForBackgroundTasks);

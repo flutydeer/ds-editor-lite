@@ -292,6 +292,8 @@ int main(int argc, char *argv[]) {
 
         if (hostMode == AppHostMode::Gui) {
             DocumentWindowManager windows(appContext);
+            if (windows.keepsRunningWithoutWindows())
+                QApplication::setQuitOnLastWindowClosed(false);
             auto &first = windows.createWindow();
             auto &w = *first.window;
             windows.configureAutomation(hostServices);

@@ -32,7 +32,8 @@ DocumentWindowManager::Document::~Document() {
     window.reset();
 }
 
-DocumentWindowManager::DocumentWindowManager(AppContext &process) : m_process(process) {
+DocumentWindowManager::DocumentWindowManager(AppContext &process, LastWindowBehavior behavior)
+    : m_process(process), m_lastWindowBehavior(behavior) {
     Q_ASSERT(!manager);
     manager = this;
     m_midiInput = std::make_unique<DocumentMidiInput>(*this);
@@ -128,7 +129,8 @@ void DocumentWindowManager::configureAutomation(
 
 DocumentWindowManager::Document &DocumentWindowManager::createWindow() {
     auto entry = std::make_unique<Document>();
-    if (!m_documents.empty())
+    // The first window shares the process runtime. Each later window needs a new window ID.
+    if (m_nextWindowNumber != 1)
         entry->ownedContext = std::make_unique<AppContext>(m_process);
     entry->context = entry->ownedContext ? entry->ownedContext.get() : &m_process;
     const SingletonRegistry::Scope scope(entry->context->services());
@@ -183,7 +185,7 @@ void DocumentWindowManager::updateRecovery(Document &document) {
 void DocumentWindowManager::offerRecovery() {
     const auto records = DocumentRecovery::pending();
     for (const auto &record : records) {
-        auto *owner = active() ? active()->window.get() : m_documents.front()->window.get();
+        QPointer<QWidget> owner = active() ? active()->window.get() : nullptr;
         const auto answer = WindowDialogs::question(
             owner, tr("Recover project"),
             tr("Restore unsaved changes to %1?")
@@ -268,6 +270,12 @@ void DocumentWindowManager::activate(Document &document) const {
 }
 
 bool DocumentWindowManager::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == qApp && event->type() == QEvent::Quit && keepsRunningWithoutWindows()) {
+        // Cocoa sends Quit for process termination, including the Dock's Quit command.
+        event->setAccepted(terminate(TerminationMode::Exit, TerminationSavePolicy::Prompt) ==
+                           TerminationRequestResult::Accepted);
+        return true;
+    }
     if (!m_terminating && event->type() == QEvent::WindowActivate) {
         for (const auto &entry : m_documents) {
             if (!entry->closing && (watched == entry->window.get() ||
@@ -357,6 +365,8 @@ void DocumentWindowManager::releaseRetired(Document *document) {
         return;
     }
     m_documents.remove_if([document](const auto &entry) { return entry.get() == document; });
+    if (m_terminating && m_documents.empty())
+        QCoreApplication::exit(0);
 }
 
 bool DocumentWindowManager::close(Document &document, TerminationSavePolicy policy,
@@ -368,17 +378,21 @@ bool DocumentWindowManager::close(Document &document, TerminationSavePolicy poli
             return entry.get() != &document && !entry->closing;
         });
     };
-    if (target == CloseTarget::MainWindow && !hasOtherProject())
+    const bool quitOnClose = target == CloseTarget::MainWindow && !keepsRunningWithoutWindows();
+    if (quitOnClose && !hasOtherProject())
         return terminate(TerminationMode::Exit, policy) == TerminationRequestResult::Accepted;
     if (!confirmClose(document, policy))
         return false;
     const SingletonRegistry::Scope scope(document.context->services());
     if (hasOtherProject()) {
         retire(document);
-    } else if (target == CloseTarget::MainWindow) {
+    } else if (quitOnClose) {
         // The other windows closed during the prompt, which already approved this last project.
         return terminate(TerminationMode::Exit, TerminationSavePolicy::Discard) ==
                TerminationRequestResult::Accepted;
+    } else if (target == CloseTarget::MainWindow) {
+        saveWindowGeometry(document.placement->saveGeometry(), document.window->detachedGeometry());
+        retire(document);
     } else {
         DocumentRecovery::remove(document.recoveryKey);
         document.recoveryKey.clear();
@@ -406,8 +420,19 @@ TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
     }
     if (dirty && policy == TerminationSavePolicy::RejectUnsaved)
         return TerminationRequestResult::UnsavedChanges;
-    if (remaining.isEmpty())
+    if (remaining.isEmpty()) {
+        if (WindowDialogs::DialogExecution::activeFor(m_process.services()))
+            return TerminationRequestResult::Busy;
+        m_terminating = true;
+        m_process.commitShutdown();
+        taskManager->terminateAllTasks();
+        if (mode == TerminationMode::Restart)
+            qApp->setProperty("restart", true);
+        // Retired windows keep their contexts until outstanding task callbacks have finished.
+        if (m_documents.empty())
+            QTimer::singleShot(0, this, [] { QCoreApplication::exit(0); });
         return TerminationRequestResult::Accepted;
+    }
     m_terminating = true;
     auto *geometrySource = m_active ? m_active : remaining.front();
     QByteArray mainGeometry, detachedGeometry;
@@ -434,11 +459,15 @@ TerminationRequestResult DocumentWindowManager::terminate(TerminationMode mode,
     const SingletonRegistry::Scope scope(last->context->services());
     m_process.commitShutdown();
     last->context->commitShutdown();
-    auto *options = m_process.m_appOptions;
-    options->window()->setMainWindowGeometry(mainGeometry);
-    if (!detachedGeometry.isEmpty())
-        options->window()->setDetachedPanelGeometry(detachedGeometry);
-    options->saveAndNotify(AppOptionsGlobal::Window);
+    saveWindowGeometry(mainGeometry, detachedGeometry);
     last->window->finishApplicationExit(mode);
     return TerminationRequestResult::Accepted;
+}
+
+void DocumentWindowManager::saveWindowGeometry(const QByteArray &main, const QByteArray &detached) {
+    auto *options = m_process.m_appOptions;
+    options->window()->setMainWindowGeometry(main);
+    if (!detached.isEmpty())
+        options->window()->setDetachedPanelGeometry(detached);
+    options->saveAndNotify(AppOptionsGlobal::Window);
 }

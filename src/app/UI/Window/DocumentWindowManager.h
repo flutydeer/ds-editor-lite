@@ -19,7 +19,14 @@ namespace Automation {
 class DocumentWindowManager final : public QObject {
     Q_OBJECT
 public:
-    explicit DocumentWindowManager(AppContext &process);
+    enum class LastWindowBehavior { Quit, KeepRunning };
+#ifdef Q_OS_MACOS
+    static constexpr auto platformLastWindowBehavior = LastWindowBehavior::KeepRunning;
+#else
+    static constexpr auto platformLastWindowBehavior = LastWindowBehavior::Quit;
+#endif
+    explicit DocumentWindowManager(AppContext &process,
+                                   LastWindowBehavior behavior = platformLastWindowBehavior);
     ~DocumentWindowManager() override;
     static DocumentWindowManager *instance();
 
@@ -55,6 +62,9 @@ public:
     bool terminating() const {
         return m_terminating;
     }
+    bool keepsRunningWithoutWindows() const {
+        return m_lastWindowBehavior == LastWindowBehavior::KeepRunning;
+    }
 
     void configureAutomation(Automation::PublicAutomationHostServices &services);
     void offerRecovery();
@@ -72,7 +82,9 @@ private:
     void retire(Document &document);
     void releaseRetired(Document *document);
     void updateRecovery(Document &document);
+    void saveWindowGeometry(const QByteArray &main, const QByteArray &detached);
     AppContext &m_process;
+    const LastWindowBehavior m_lastWindowBehavior;
     std::unique_ptr<DocumentMidiInput> m_midiInput;
     std::list<std::unique_ptr<Document>> m_documents;
     Document *m_active = nullptr;
