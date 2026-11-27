@@ -75,6 +75,7 @@
 #include <QImage>
 #include <QFile>
 #include <QSaveFile>
+#include <QScreen>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -97,6 +98,7 @@
 #include <QStringList>
 
 #include <numbers>
+#include <memory>
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
@@ -620,6 +622,37 @@ namespace {
                                  windows.terminate(TerminationMode::Exit,
                                                    TerminationSavePolicy::Prompt);
                              });
+
+        const auto taskFor = [](const AppContext &context, const QString &title,
+                                const QString &message, int progress) {
+            const SingletonRegistry::Scope scope(context.services());
+            auto task = std::make_unique<GalleryTask>();
+            TaskStatus status;
+            status.id = task->id();
+            status.title = title;
+            status.message = message;
+            status.progress = progress;
+            task->setStatus(status);
+            return task;
+        };
+        const auto rendering = taskFor(*lead.context, QStringLiteral("Render guide audio"),
+                                      QStringLiteral("Rendering audio resources"), 45);
+        const auto queued = taskFor(*harmony.context, QStringLiteral("Export audio"),
+                                    QStringLiteral("Waiting to start"), 0);
+        taskManager->addAndStartTask(rendering.get());
+        taskManager->addTask(queued.get());
+        const auto finish = qScopeGuard([&] {
+            rendering->terminate();
+            taskManager->wait();
+            QCoreApplication::sendPostedEvents(rendering.get(), QEvent::MetaCall);
+            taskManager->removeTask(rendering.get());
+            taskManager->removeTask(queued.get());
+        });
+        requireCapture(QTest::qWaitFor([&] { return rendering->started(); }),
+                       QStringLiteral("The sample rendering task did not start"));
+        TaskWindow tasks(&window);
+        tasks.resize(660, 220);
+        gallery.show(tasks, Module::Diagnostics, QStringLiteral("Tasks from two projects"));
     }
 } // namespace
 
@@ -805,6 +838,8 @@ void ApplicationGuiTests::captureUiGallery() try {
     auto *editor = bottom->clipEditorView();
 
     auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().saveDocument(commandContext(),
+                                              dataRoot.filePath(QStringLiteral("Duet.dspx"))));
     Automation::TrackDraftDto audioTrack;
     audioTrack.name = QStringLiteral("Guide audio");
     const auto track = runtime.project().insertTrack(commandContext(), 1, audioTrack);
@@ -1176,6 +1211,9 @@ void ApplicationGuiTests::captureUiGallery() try {
     emit bottom->detachRequested();
     auto *detached = window.detachedPanelWindow();
     QVERIFY(detached && detached->isVisible());
+    const auto workArea = detached->screen()->availableGeometry().adjusted(8, 8, -8, -8);
+    detached->resize(QSize(1280, detached->height()).boundedTo(workArea.size()));
+    detached->move(workArea.center() - detached->rect().center());
     gallery.take(*detached, Module::Mixing, QStringLiteral("Detached mix console"));
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     QVERIFY(framePitchCurves());
@@ -1186,28 +1224,6 @@ void ApplicationGuiTests::captureUiGallery() try {
 
     LogWindow log(&window);
     gallery.show(log, Module::Diagnostics, QStringLiteral("Log viewer"));
-    {
-        GalleryTask rendering;
-        TaskStatus status;
-        status.id = rendering.id();
-        status.title = QStringLiteral("Render guide audio");
-        status.message = QStringLiteral("Rendering audio resources");
-        status.progress = 45;
-        rendering.setStatus(status);
-        taskManager->addAndStartTask(&rendering);
-        const auto finish = qScopeGuard([&] {
-            rendering.terminate();
-            taskManager->wait();
-            QCoreApplication::sendPostedEvents(&rendering, QEvent::MetaCall);
-            taskManager->removeTask(&rendering);
-        });
-        QTRY_VERIFY(rendering.started());
-        TaskWindow tasks(&window);
-        auto *list = tasks.findChild<QListWidget *>("taskList");
-        QVERIFY(list && list->count() > 0);
-        gallery.show(tasks, Module::Diagnostics, QStringLiteral("Task list"));
-    }
-
     {
         window.openAppOptions(AppOptionsGlobal::General);
         auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
@@ -1264,6 +1280,10 @@ void ApplicationGuiTests::captureUiGallery() try {
     gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - progress"));
     exportProgress.showSuccess({QStringLiteral("project.wav")});
     gallery.show(exportProgress, Module::Audio, QStringLiteral("Export audio - completed"));
+    Audio::Internal::AudioExportProgressDialog failedExport(&exporter, &window);
+    failedExport.showFailure(Audio::AudioExporter::tr("Cannot open file for writing: %1")
+                                 .arg(QStringLiteral("Duet.wav")));
+    gallery.show(failedExport, Module::Audio, QStringLiteral("Export audio - failed"));
 
     const QList<MidiImportTrackInfo> midiTracks{
         {.name = "Lead",
