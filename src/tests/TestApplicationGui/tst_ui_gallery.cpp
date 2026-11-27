@@ -543,6 +543,8 @@ namespace {
         DocumentWindowManager windows(process);
         const auto createProject = [&](const QString &name) -> DocumentWindowManager::Document & {
             auto &entry = windows.createWindow();
+            requireCapture(QTest::qWaitForWindowExposed(entry.window.get()),
+                           QStringLiteral("Project window was not exposed: %1").arg(name));
             const SingletonRegistry::Scope scope(entry.context->services());
             auto &runtime = *entry.context->m_coreRuntime;
             const auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(true);
@@ -554,10 +556,7 @@ namespace {
             return entry;
         };
         auto &lead = createProject(QStringLiteral("Moonlight"));
-        auto &harmony = createProject(QStringLiteral("Harmony"));
-        windows.activate(lead);
         auto &window = *lead.window;
-        requireCapture(QTest::qWaitForWindowActive(&window), QStringLiteral("Project is inactive"));
         auto *menuBar = window.findChild<MainMenuView *>();
         requireCapture(menuBar, QStringLiteral("Project menu bar is missing"));
 
@@ -586,6 +585,8 @@ namespace {
             for (const auto &entry : windows.documents())
                 DocumentRecovery::remove(entry->recoveryKey);
         });
+        auto &harmony = createProject(QStringLiteral("Harmony"));
+        windows.activate(lead);
         if (menuBar->isInWindowMenu()) {
             const auto captureMenu = [&](const QString &title, const QString &caption) {
                 const auto actions = menuBar->topLevelMenuActions();
@@ -613,7 +614,8 @@ namespace {
             const auto restore = qScopeGuard([&] {
                 QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs);
             });
-            captureProjectPrompt(gallery, window, QStringLiteral("Recover an unsaved project"),
+            captureProjectPrompt(gallery, *windows.active()->window,
+                                 QStringLiteral("Recover an unsaved project"),
                                  [&] { windows.offerRecovery(); });
         }
         editProject(harmony);
