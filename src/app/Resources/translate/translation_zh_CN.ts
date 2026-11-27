@@ -583,7 +583,7 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="276"/>
         <source>&quot;Dry Run&quot; shows the paths of files to export. No files will actually be exported.</source>
-        <translation>「预演」显示将要导出的文件路径。实际上不会导出任何文件。</translation>
+        <translation>“预演”显示将要导出的文件路径。实际上不会导出任何文件。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="282"/>
@@ -610,7 +610,7 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="412"/>
         <source>Preset &quot;%1&quot; already exists. Overwrite it?</source>
-        <translation>预设「%1」已存在。是否覆盖？</translation>
+        <translation>预设“%1”已存在。是否覆盖？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="483"/>
@@ -2716,7 +2716,7 @@ errors: %1</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="30"/>
         <source>Enter text here, e.g.: &quot;小酒窝长睫毛是你最美的记号&quot;</source>
-        <translation>在此输入文本，例如：「小酒窝长睫毛是你最美的记号」</translation>
+        <translation>在此输入文本，例如：“小酒窝长睫毛是你最美的记号”</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="41"/>
@@ -2821,7 +2821,7 @@ errors: %1</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="314"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
+        <translation>规则“%1”：正则表达式“%2”错误：%3</translation>
     </message>
 </context>
 <context>
@@ -2903,7 +2903,7 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="258"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
+        <translation>规则“%1”：正则表达式“%2”错误：%3</translation>
     </message>
 </context>
 <context>
@@ -4350,11 +4350,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <source>Where would you like to open %1?</source>
-        <translation>要在哪个窗口打开「%1」？</translation>
+        <translation>要在哪个窗口打开“%1”？</translation>
     </message>
     <message>
         <source>Where would you like to open %1? Additional projects open in separate windows.</source>
-        <translation>要在哪个窗口打开「%1」？其余工程各自使用独立窗口。</translation>
+        <translation>要在哪个窗口打开“%1”？其余工程各自使用独立窗口。</translation>
     </message>
     <message>
         <source>Remember my choice</source>
@@ -4374,7 +4374,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <source>Save changes to %1?</source>
-        <translation>要保存对「%1」的更改吗？</translation>
+        <translation>要保存对“%1”的更改吗？</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="416"/>
@@ -6836,7 +6836,7 @@ All current mix settings will be lost.</source>
     </message>
     <message>
         <source>Restore unsaved changes to %1?</source>
-        <translation>要恢复「%1」中未保存的更改吗？</translation>
+        <translation>要恢复“%1”中未保存的更改吗？</translation>
     </message>
     <message>
         <source>Untitled</source>
