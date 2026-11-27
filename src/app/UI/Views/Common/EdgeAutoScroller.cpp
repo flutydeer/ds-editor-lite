@@ -1,11 +1,12 @@
 #include "EdgeAutoScroller.h"
 
+#include <lite/Support/ObjectContext.h>
 #include <QtMath>
 
 EdgeAutoScroller::EdgeAutoScroller(QObject *parent) : QObject(parent) {
     m_timer.setInterval(m_config.intervalMs);
     m_timer.setTimerType(Qt::PreciseTimer);
-    connect(&m_timer, &QTimer::timeout, this, [this] {
+    ObjectContext::connect(&m_timer, &QTimer::timeout, this, [this] {
         const double dtMs = m_elapsed.restart();
         emit frame(dtMs);
     });
