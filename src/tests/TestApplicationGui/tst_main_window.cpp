@@ -2647,17 +2647,13 @@ void ApplicationGuiTests::detachedMenuOptionsUseStandaloneDialog() {
     }
     QVERIFY(general);
 
-    // The standalone dialog enters a nested event loop. Close it from inside
-    // that loop so the test does not block.
-    QPointer<QWidget> modal;
-    QTimer::singleShot(0, [&] {
-        modal = QApplication::activeModalWidget();
-        if (modal)
-            modal->close();
-    });
     general->trigger();
-    QCoreApplication::processEvents();
-    QVERIFY2(modal, "Options from the detached menu did not open a modal dialog");
+    QTRY_VERIFY(QApplication::activeModalWidget());
+    QPointer<QWidget> modal = QApplication::activeModalWidget();
+    QCOMPARE(modal->parentWidget(), detached);
+    QCOMPARE(modal->windowModality(), Qt::ApplicationModal);
+    modal->close();
+    QTRY_VERIFY(modal.isNull());
 }
 
 void ApplicationGuiTests::standaloneOptionsDialogBlocksBackgroundInteraction() {
@@ -2718,42 +2714,15 @@ void ApplicationGuiTests::standaloneOptionsDialogBlocksBackgroundInteraction() {
         QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     };
     for (const bool change : {true, false}) {
-        bool handled = false;
-        QPointer<Dialog> observed;
-        QTimer answer;
-        QObject::connect(&answer, &QTimer::timeout, &window, [&] {
-            auto *dialog = qobject_cast<Dialog *>(QApplication::activeModalWidget());
-            if (!dialog)
-                return;
-            auto *panel = dialog->findChild<AppOptionsDialog *>();
-            if (!panel)
-                return;
-            answer.stop();
-            handled = true;
-            observed = dialog;
-            const auto closeOnFailure = qScopeGuard([&] {
-                if (observed)
-                    observed->reject();
-            });
-            exercisePanel(panel, change);
-            if (QTest::currentTestFailed())
-                return;
-            QTest::keyClick(panel, Qt::Key_Escape);
-        });
-        QTimer deadline;
-        deadline.setSingleShot(true);
-        QObject::connect(&deadline, &QTimer::timeout, &window, [] {
-            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget()))
-                dialog->reject();
-        });
-        answer.start(10);
-        deadline.start(10000);
         openAppearanceFromMenu(window);
-        answer.stop();
-        deadline.stop();
+        QTRY_VERIFY(qobject_cast<Dialog *>(QApplication::activeModalWidget()));
+        QPointer<Dialog> observed = qobject_cast<Dialog *>(QApplication::activeModalWidget());
+        auto *panel = observed->findChild<AppOptionsDialog *>();
+        QVERIFY(panel);
+        exercisePanel(panel, change);
         if (QTest::currentTestFailed())
             return;
-        QVERIFY2(handled, "The standalone options dialog did not become available");
+        QTest::keyClick(panel, Qt::Key_Escape);
         QTRY_VERIFY(observed.isNull());
         // Offscreen has no window manager to reactivate the owner after a modal closes.
         if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
